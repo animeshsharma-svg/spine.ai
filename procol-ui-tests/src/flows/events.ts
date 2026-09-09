@@ -76,8 +76,10 @@ export const rfqAuctionFlow: UiFlowModule = {
     const detail = new EventDetailPage(ctx.page);
     if (!(await detail.openStageOfferingConversion())) {
       throw new Error(
-        `"Convert to Auction" is not offered on any tab of the published RFQ ${rfq.projectId}. It requires a ` +
-          "published (non-draft) RFQ with vendor masking off — check tradeConfig.isVendorMaskingEnabled.",
+        `"Convert to Auction" is not offered on any tab of the published RFQ ${rfq.projectId}. ` +
+          `Last check: ${detail.lastReason}. The control needs an RFQ that is published (not draft) with ` +
+          "vendor masking off (showConvertToAuction in eventHeader.jsx) — if Settings opened and simply did " +
+          "not list it, this client has the feature gated off rather than the automation being wrong.",
       );
     }
 

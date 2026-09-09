@@ -301,8 +301,13 @@ export class CreateEventPage extends BasePage {
     for (let i = n - 1; i >= 0; i--) {
       await tab.hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
       await icons.nth(i).hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-      await this.pause(400);
-      if (await this.stageMenu().isVisible().catch(() => false)) return true;
+      // Wait for the hover menu to appear rather than sampling once at 400ms:
+      // a miss here costs a whole reconciliation round.
+      const shown = await this.stageMenu()
+        .waitFor({ state: "visible", timeout: 2_500 })
+        .then(() => true)
+        .catch(() => false);
+      if (shown) return true;
     }
     return false;
   }
@@ -358,12 +363,17 @@ export class CreateEventPage extends BasePage {
       return false;
     }
     await plus.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-    await this.pause(700);
-    const item = p
-      .locator(".ant-dropdown:not(.ant-dropdown-hidden)")
-      .last()
-      .getByRole("menuitem", { name: STAGE_LABEL[stage] })
-      .first();
+    // Wait for the menu to RENDER rather than guessing at 700ms. Reporting
+    // "not in the Add Stages menu (offered: [])" when the menu simply had not
+    // appeared yet sent the reconciler round again and again — a one-stage
+    // composition was taking eight rounds, each with its own waits.
+    const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();
+    await menu
+      .getByRole("menuitem")
+      .first()
+      .waitFor({ state: "visible", timeout: TIMEOUTS.SHORT })
+      .catch(() => {});
+    const item = menu.getByRole("menuitem", { name: STAGE_LABEL[stage] }).first();
     if (!(await item.count())) {
       const offered = await p
         .locator(".ant-dropdown:not(.ant-dropdown-hidden)")

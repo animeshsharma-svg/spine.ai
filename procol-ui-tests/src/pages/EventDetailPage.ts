@@ -13,6 +13,9 @@ import { TIMEOUTS } from "../config.js";
  * `isRfqToAuction=true&draftStageIds=<stage id>`.
  */
 export class EventDetailPage extends BasePage {
+  /** Why the conversion was not available — the useful half of a false. */
+  lastReason = "";
+
   constructor(page: Page) {
     super(page);
   }
@@ -32,13 +35,37 @@ export class EventDetailPage extends BasePage {
       label: "event-settings",
       timeout: TIMEOUTS.SHORT,
     });
-    if (!opened) return false;
-    await this.pause(600);
-    const present = !!(await this.page
-      .getByRole("menuitem", { name: /convert to auction/i })
-      .count()
-      .catch(() => 0));
-    if (!present) await this.page.keyboard.press("Escape").catch(() => {});
+    if (!opened) {
+      this.lastReason = "no Settings button on this tab";
+      return false;
+    }
+    // The Settings menu is an antd Dropdown rendered into a portal on
+    // #orderDetails, and it arrives a beat after the click. Reading it
+    // immediately found "nothing" and looked like a closed feature gate.
+    const menu = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();
+    await menu
+      .locator(".ant-dropdown-menu-item, [role='menuitem']")
+      .first()
+      .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
+      .catch(() => {});
+
+    const convert = menu
+      .locator(".ant-dropdown-menu-item, [role='menuitem']")
+      .filter({ hasText: /convert to auction/i })
+      .first();
+    const present = (await convert.count()) > 0;
+    if (!present) {
+      // Distinguish "the control is missing" from "the control is there and the
+      // option is not". The second means a config gate is closed
+      // (showConvertToAuction needs isRfq, a non-draft status and vendor
+      // masking OFF) — a very different conclusion from a locator problem.
+      const offered = await menu
+        .locator(".ant-dropdown-menu-item, [role='menuitem']")
+        .allTextContents()
+        .catch(() => []);
+      this.lastReason = `Settings opened but offered only: ${offered.map((t) => t.trim()).filter(Boolean).join(", ") || "nothing"}`;
+      await this.page.keyboard.press("Escape").catch(() => {});
+    }
     return present;
   }
 
@@ -61,16 +88,27 @@ export class EventDetailPage extends BasePage {
     for (let i = 0; i < count; i++) {
       const label = ((await tabs.nth(i).textContent().catch(() => "")) ?? "").trim();
       // Project-level tabs never carry the event header.
-      if (/^(details|overview|approvals|documents|activity)$/i.test(label)) continue;
+      if (/^(project\s+)?(details|overview|approvals|documents|activity|master\s+qcs)$/i.test(label)) continue;
       await tabs.nth(i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-      await this.pause(1_200);
+      // Selecting a stage tab NAVIGATES (to /project/:id/:stageUuid?tab=compare)
+      // and the event header arrives with the new page, not with the click.
+      // Waiting a fixed moment checked before the button existed and concluded
+      // the feature was unavailable — wait for the control itself.
+      await this.page
+        .getByTestId("event-settings-button")
+        .first()
+        .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
+        .catch(() => {});
+      await this.dismissDistractions();
       if (await this.canConvertToAuction()) {
         console.log(`[event-detail] "Convert to Auction" is on the "${label}" tab`);
         return true;
       }
     }
     const labels = await tabs.allTextContents().catch(() => []);
-    console.log(`[event-detail] no tab offered "Convert to Auction" (tabs: ${labels.map((t) => t.trim()).join(", ")})`);
+    console.log(
+      `[event-detail] no tab offered "Convert to Auction" (tabs: ${labels.map((t) => t.trim()).join(", ")}) — last check: ${this.lastReason}`,
+    );
     return false;
   }
 
@@ -85,10 +123,14 @@ export class EventDetailPage extends BasePage {
    */
   async convertToAuction(): Promise<Page> {
     const p = this.page;
-    await this.click([p.getByRole("menuitem", { name: /convert to auction/i })], {
-      label: "convert-to-auction",
-      timeout: TIMEOUTS.MEDIUM,
-    });
+    const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();
+    await this.click(
+      [
+        menu.locator(".ant-dropdown-menu-item, [role='menuitem']").filter({ hasText: /convert to auction/i }),
+        p.getByRole("menuitem", { name: /convert to auction/i }),
+      ],
+      { label: "convert-to-auction", timeout: TIMEOUTS.MEDIUM },
+    );
     await this.pause(800);
 
     // The conversion opens the create screen in a new tab.
