@@ -31,6 +31,13 @@ import type { UiIntent } from "../src/agents/uiIntent.js";
 interface ExpectedIntent {
   flowKey?: string;
   flowKeyAnyOf?: string[];
+  /**
+   * The prompt has no correct journey — it asks for something the platform
+   * cannot do at all. Scoring flowKey would be scoring a coin toss, so only
+   * the caveat is judged. Pinning an arbitrary "expected" journey on such a
+   * prompt makes the accuracy number mean less, not more.
+   */
+  flowKeyAny?: boolean;
   lineItems: number | null;
   template: string | null;
   scheduleMinutes: number | null;
@@ -85,6 +92,7 @@ const cases: CorpusCase[] = rawLines.map((line, i) => {
 
 const VALID_KEYS = new Set(UI_FLOWS.map((f) => f.key));
 for (const c of cases) {
+  if (c.expect.flowKeyAny) continue;
   const keys = c.expect.flowKey ? [c.expect.flowKey] : c.expect.flowKeyAnyOf ?? [];
   if (keys.length === 0) {
     throw new Error(`case ${c.id} has neither expect.flowKey nor expect.flowKeyAnyOf`);

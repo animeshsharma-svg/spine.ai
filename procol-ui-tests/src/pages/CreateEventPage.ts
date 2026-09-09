@@ -1109,7 +1109,57 @@ export class CreateEventPage extends BasePage {
     }
     const rows = sheet.generateRows(widgets, target);
     await sheet.fillAndVerify(widgets, rows);
-    console.log(`[create-event] sheet filled for ${target} line item(s)`);
+
+    // The template's `creator` widgets are not the whole story. This build
+    // refuses to publish with "Sheet partially filled, please check again."
+    // when a column the schema does not mark as creator-owned is left blank —
+    // so after the schema-driven pass, sweep the rendered grid and fill
+    // anything still empty and still editable. Reading the columns off the
+    // sheet is what makes this work for a template nobody has seen before.
+    const swept = await this.fillRemainingSheetCells(target);
+    console.log(
+      `[create-event] sheet filled for ${target} line item(s)` + (swept ? ` (+${swept} column(s) the schema did not list)` : ""),
+    );
+  }
+
+  /**
+   * Fill every cell the app still considers empty, whatever the schema said.
+   *
+   * Columns are discovered from the rendered grid (`data-celltype` on each
+   * cell) rather than from the template response, so a template this code has
+   * never seen is handled the same as a familiar one. Read-only and computed
+   * columns identify themselves with `aria-disabled` and are left alone.
+   */
+  private async fillRemainingSheetCells(rowCount: number): Promise<number> {
+    const p = this.page;
+    const columns = await p.evaluate(() => {
+      const out: Record<string, string> = {};
+      document.querySelectorAll('[data-testid^="sheet-cell-1-"]').forEach((el) => {
+        const key = (el.getAttribute("data-testid") ?? "").replace("sheet-cell-1-", "");
+        if (!key || ["row_key", "delete", "total_amount"].includes(key)) return;
+        if (el.getAttribute("aria-disabled") === "true") return;
+        out[key] = el.getAttribute("data-celltype") || "number";
+      });
+      return out;
+    });
+
+    const sheet = new InlineSheet(p);
+    let filled = 0;
+    for (let row = 0; row < rowCount; row++) {
+      for (const [key, type] of Object.entries(columns)) {
+        const cell = sheet.getCell(row, key);
+        if (!(await cell.count())) continue;
+        if ((await cell.getAttribute("aria-disabled").catch(() => null)) === "true") continue;
+        if (await sheet.cellValue(row, key)) continue; // already has a value
+        // Translate the grid's column key into the kind the filler understands.
+        const kind = sheet.canonicalType(type);
+        const value = sheet.valueForType(kind);
+        if (value === undefined) continue; // computed or unknown — nothing to type
+        await sheet.fillCell(row, key, { key, type: kind }, value).catch(() => {});
+        if (await sheet.cellValue(row, key)) filled++;
+      }
+    }
+    return filled;
   }
 
   // ── publish ──────────────────────────────────────────────────────────────────

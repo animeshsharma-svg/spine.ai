@@ -557,6 +557,32 @@ export const CASE_RUNNERS: Record<string, Runner> = {
 
   // ── 8.x authorization ─────────────────────────────────────────────────────
   "BE-8.3": (buyer, fx) => call(buyer, "POST", Endpoints.eventGroupCreateClone(fx.draftSingle.uuid), {}),
+
+  // ── 9.x state-transition ──────────────────────────────────────────────────
+  "BE-9.1": async (buyer, fx) => {
+    // withdraw first (idempotent no matter what state draftTwo is already in),
+    // then attempt to re-activate the now-withdrawn event.
+    await call(buyer, "PATCH", Endpoints.eventGroup(fx.draftTwo.uuid), {
+      status: "withdrawn",
+      withdraw_remark: { remarks: "setup for BE-9.1" },
+    });
+    return call(buyer, "PATCH", Endpoints.eventGroup(fx.draftTwo.uuid), { status: "active" });
+  },
+  "BE-9.2": async (buyer, fx) => {
+    await call(buyer, "PATCH", Endpoints.eventGroup(fx.draftTwo.uuid), {
+      status: "withdrawn",
+      withdraw_remark: { remarks: "first withdraw for BE-9.2" },
+    });
+    return call(buyer, "PATCH", Endpoints.eventGroup(fx.draftTwo.uuid), {
+      status: "withdrawn",
+      withdraw_remark: { remarks: "second withdraw for BE-9.2" },
+    });
+  },
+  "BE-9.5": (buyer, fx) =>
+    call(buyer, "PATCH", Endpoints.eventGroup(fx.draftSingle.uuid), {
+      status: "active",
+      draft_trade_request_uuids: [],
+    }),
 };
 
 /** Fixed reasons for cases we deliberately did not automate this pass. */
@@ -625,6 +651,7 @@ export const CONTRACT_CHECKS: Record<string, (data: any) => string | null> = {
   "BE-1.8": (d) => (d?.title?.startsWith("API_Test_BE18_TitleX_") && d?.description === "Desc Y" ? null : "title/description were not echoed back"),
   "BE-1.9": (d) => (Array.isArray(d?.event_group_line_item_ids) && d.event_group_line_item_ids.length === 2 ? null : "expected 2 line item ids"),
   "BE-1.10": (d) => (Array.isArray(d?.stages) && d.stages.length > 0 ? "response.stages is non-empty on a bare create" : null),
+  "BE-9.5": (d) => (Array.isArray(d?.stages) && d.stages.length === 0 ? null : "expected response.stages === [] (zero trade_requests)"),
 };
 
 /**
@@ -635,4 +662,4 @@ export const CONTRACT_CHECKS: Record<string, (data: any) => string | null> = {
  * not-found check running before the policy) is exactly the kind of mismatch
  * worth keeping visible, not smoothing over.
  */
-export const ANY_REJECTION_OK = new Set(["BE-1.12", "BE-2.18", "BE-2.22", "BE-3.8", "BE-6.8"]);
+export const ANY_REJECTION_OK = new Set(["BE-1.12", "BE-2.18", "BE-2.22", "BE-3.8", "BE-6.8", "BE-9.1"]);
