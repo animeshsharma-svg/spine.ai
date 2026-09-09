@@ -116,14 +116,80 @@ Both TypeScript projects must typecheck before you push:
 cd prototype && npx tsc --noEmit && cd ../procol-ui-tests && npx tsc --noEmit
 ```
 
-## Known blocker in the environment
+## Writing a test case and having it run
 
-Every eRFX event save and publish currently fails with
-`PATCH /api/event_groups/:id → 500 Internal Server Error`, for both `status: "draft"` and
-`status: "active"`. It is a regression: the same automation published successfully at 07:49 on
-2026-09-08 and has failed since ~16:29 that day. Non-eRFX single-stage creation still works.
+Type a test case in plain English on the dashboard and press **Compile my test
+case & run it**. It is compiled into a plan of steps the executor implements,
+shown to you before it runs, and executed against the live console:
 
-The write-up, with the ranked causes and what would confirm each, is in
-[`prototype/knowledge/events/regression-event-group-update-500.md`](prototype/knowledge/events/regression-event-group-update-500.md).
-So the seven eRFX journeys reach publish and stop there — that is the product failing, not the
-automation, and the Oracle labels it as such.
+```
+open_create -> compose_stages{rfp,rfq} -> set_title -> switch_stage{rfp} ->
+select_template -> add_line_items{3} -> expect_line_items{3} ->
+fill_questionnaires -> assign_evaluator -> switch_stage{rfq} ->
+select_template -> fill_sheet -> set_schedule -> invite_vendor -> publish ->
+expect_published -> expect_no_error
+```
+
+It is a **compiler, not a code generator**. The vocabulary is fixed
+(`procol-ui-tests/src/plan/steps.ts`), a step that does not exist is dropped by
+name, and each step delegates to the same healed, self-verifying page-object
+method a hand-written journey uses. A model that can only choose verbs the
+machine can perform cannot produce a run that silently tests nothing.
+
+A **linter** then repairs the plan against the invariants the product enforces —
+a template before line items, a technical stage's questionnaires and evaluator,
+the schedule committed before publish — and names each repair rather than
+correcting silently.
+
+You can also give it a catalog id (`FE-2.4`, `BE-2.11`) and it will resolve the
+real case from `knowledge/events/` before planning.
+
+## Measuring the AI, not trusting it
+
+```bash
+cd prototype
+npm run eval:routing    # 102 cases: does an instruction reach the right journey?
+npm run eval:planner    # 25 cases: does a test case compile into a runnable plan?
+```
+
+Current, measured live:
+
+| | |
+|---|---|
+| Routing — journey accuracy | 98.0% (100/102) |
+| Routing — parameters (line items, template, duration) | 100% |
+| Routing — caveat precision / recall | 100% / 100% |
+| Planner — runnable plans | 96.0% (24/25) |
+| Planner — compiled clean, no repair needed | 16/25 |
+
+These are **evaluation** sets, not training data: they measure accuracy and
+catch regressions, they do not change model weights.
+
+Both evals have earned their keep. The routing one exposed that vendor-portal
+and mobile requests produced no caveat; the planner one exposed that
+`openai/gpt-oss-120b` is a reasoning model returning HTTP 200 with empty content,
+which was silently degrading every plan to a generic default.
+
+## Providers
+
+Groq first, Gemini as fallback (`GOOGLE_API_KEY`, already needed for the UI
+healer). Groq's free tier has a 200,000 token daily ceiling; hitting it
+mid-demo would otherwise turn every agent into its deterministic fallback with
+no visible cause. The swap is logged so output is never attributed to the wrong
+model. With no key at all, routing falls back to keyword matching and the
+platform still runs end to end.
+
+## A note on the environment
+
+`PATCH /api/event_groups/:id` used to return 500 on every event save and
+publish. The cause was ours, not the product's: the pricing sheet's **Delivery
+location** was never filled, because the grid names that column `buyer_hub`
+while the template schema calls it `delivery_location`. With it filled, events
+publish.
+
+That 500 is still worth reporting — a missing required input should produce a
+422, not an unhandled 500 — but it is not a release blocker, and the earlier
+write-up in
+[`prototype/knowledge/events/regression-event-group-update-500.md`](prototype/knowledge/events/regression-event-group-update-500.md)
+draws the wrong conclusion. Read it as a record of the investigation, not as a
+current finding.
