@@ -81,6 +81,8 @@ function catalogForPrompt(steps: StepSpec[]): string {
 const DOMAIN_RULES = `
 Ordering the product enforces (violating any of these makes the run fail):
 - open_create must come first.
+- set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event.
+- compose_stages is only needed when the wanted stages differ from the default. The screen starts with ONE Auction stage, so a plain auction test does not need it — but include expect_stages if the test is about stage composition.
 - compose_stages before anything stage-specific. The screen starts with ONE Auction stage; asking for RFQ or a technical stage is a real change. RFQ and Auction cannot coexist. At most two stages.
 - select_template BEFORE add_line_items: the Items drawer is inert until a template is chosen.
 - fill_sheet after add_line_items.
@@ -165,7 +167,8 @@ export function lintPlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } 
   const wantsTrade = !stages.length || stages.some((s) => s === "rfq" || s === "auction");
   const wantsTechnical = stages.includes("rfp");
 
-  if (stages.length > 1) {
+  const submits = has("publish") || has("save_draft");
+  if (stages.length > 1 && submits) {
     // Every stage needs configuring on its OWN tab: template, sheet,
     // questionnaires and evaluator all act on whichever tab is showing. A
     // two-stage plan with a single select_template leaves the other stage
@@ -208,7 +211,7 @@ export function lintPlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } 
     }
   }
 
-  if (stages.length <= 1) {
+  if (stages.length <= 1 && submits) {
     if (wantsTrade && has("add_line_items") && !has("fill_sheet")) {
       const at = indexOf("expect_line_items") >= 0 ? indexOf("expect_line_items") + 1 : indexOf("add_line_items") + 1;
       steps.splice(at, 0, { step: "fill_sheet" });

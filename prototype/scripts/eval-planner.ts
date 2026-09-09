@@ -53,13 +53,18 @@ function invariants(plan: TestPlan): string[] {
     if (at("set_schedule") > at("publish")) problems.push("saves the schedule after publishing");
   }
   const stages = (plan.steps.find((s) => s.step === "compose_stages")?.args?.stages as string[] | undefined) ?? [];
-  if (stages.length > 1) {
+  // Per-stage configuration is only required by a plan that SUBMITS. A test
+  // about stage composition, or one asserting the app refuses something, is
+  // complete without a template on every tab — demanding one there made every
+  // negative test look broken.
+  const submits = has("publish") || has("save_draft");
+  if (stages.length > 1 && submits) {
     const switches = steps.filter((s) => s === "switch_stage").length;
     const templates = steps.filter((s) => s === "select_template").length;
     if (switches < stages.length) problems.push(`${stages.length} stages but only ${switches} switch_stage`);
     if (templates < stages.length) problems.push(`${stages.length} stages but only ${templates} select_template`);
   }
-  if (stages.includes("rfp")) {
+  if (stages.includes("rfp") && submits) {
     if (!has("fill_questionnaires")) problems.push("technical stage without fill_questionnaires");
     if (!has("assign_evaluator")) problems.push("technical stage without assign_evaluator");
   }
