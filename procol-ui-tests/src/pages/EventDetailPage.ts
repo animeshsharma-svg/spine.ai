@@ -30,7 +30,7 @@ export class EventDetailPage extends BasePage {
     await this.dismissDistractions();
     const opened = await this.clickIfPresent(this.settingsButton(), {
       label: "event-settings",
-      timeout: TIMEOUTS.MEDIUM,
+      timeout: TIMEOUTS.SHORT,
     });
     if (!opened) return false;
     await this.pause(600);
@@ -40,6 +40,38 @@ export class EventDetailPage extends BasePage {
       .catch(() => 0));
     if (!present) await this.page.keyboard.press("Escape").catch(() => {});
     return present;
+  }
+
+  /**
+   * Get to the view that offers the conversion.
+   *
+   * Publishing lands on `/project/:id/details` — a PROJECT-level tab. The
+   * Settings menu that carries "Convert to Auction" belongs to the event
+   * header, which only renders on a STAGE tab (whose key is the stage's uuid).
+   * Guessing that the stage tab is called "RFQ" was too fragile: tabs are named
+   * from the stage title, which the creator can edit. So each tab is tried
+   * until the menu appears, which works whatever it is called.
+   */
+  async openStageOfferingConversion(): Promise<boolean> {
+    const p = this.page;
+    if (await this.canConvertToAuction()) return true;
+
+    const tabs = p.getByRole("tab");
+    const count = await tabs.count().catch(() => 0);
+    for (let i = 0; i < count; i++) {
+      const label = ((await tabs.nth(i).textContent().catch(() => "")) ?? "").trim();
+      // Project-level tabs never carry the event header.
+      if (/^(details|overview|approvals|documents|activity)$/i.test(label)) continue;
+      await tabs.nth(i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await this.pause(1_200);
+      if (await this.canConvertToAuction()) {
+        console.log(`[event-detail] "Convert to Auction" is on the "${label}" tab`);
+        return true;
+      }
+    }
+    const labels = await tabs.allTextContents().catch(() => []);
+    console.log(`[event-detail] no tab offered "Convert to Auction" (tabs: ${labels.map((t) => t.trim()).join(", ")})`);
+    return false;
   }
 
   /**

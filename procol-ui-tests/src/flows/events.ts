@@ -74,21 +74,11 @@ export const rfqAuctionFlow: UiFlowModule = {
     const rfq = await createAndPublishErfx(ctx.page, { stages: ["rfq"], titlePrefix: "UI_Auto_RFQ_Auc" });
 
     const detail = new EventDetailPage(ctx.page);
-    if (!(await detail.canConvertToAuction())) {
-      // The published project lands on /project/:id/:tabKey, where each tab is a
-      // stage; the conversion lives on the RFQ stage's own header.
-      await ctx.page
-        .getByRole("tab", { name: /\bRFQ\b/i })
-        .first()
-        .click({ timeout: 10_000 })
-        .catch(() => {});
-      await ctx.page.waitForTimeout(1_500);
-      if (!(await detail.canConvertToAuction())) {
-        throw new Error(
-          `"Convert to Auction" is not offered on the published RFQ ${rfq.projectId}. It requires a ` +
-            "published (non-draft) RFQ with vendor masking off — check tradeConfig.isVendorMaskingEnabled.",
-        );
-      }
+    if (!(await detail.openStageOfferingConversion())) {
+      throw new Error(
+        `"Convert to Auction" is not offered on any tab of the published RFQ ${rfq.projectId}. It requires a ` +
+          "published (non-draft) RFQ with vendor masking off — check tradeConfig.isVendorMaskingEnabled.",
+      );
     }
 
     const auctionTab = await detail.convertToAuction();
