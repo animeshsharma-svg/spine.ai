@@ -34,7 +34,77 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Raw chat call. Returns "" in fallback mode (callers supply their own text).
  * Retries once on a rate-limit (429) or transient (503), honouring Retry-After. */
+/**
+ * Gemini, used when Groq cannot serve a call.
+ *
+ * Groq's free tier has a daily token ceiling, and hitting it mid-demo turns
+ * every agent into its deterministic fallback with no visible cause. A second
+ * provider costs nothing to add — the key is already here for the UI healer —
+ * and turns a hard stop into a shrug.
+ */
+async function geminiChat(messages: ChatMessage[], opts: { temperature?: number; maxTokens?: number }): Promise<string> {
+  const key = process.env.GOOGLE_API_KEY;
+  if (!key) throw new Error("no GOOGLE_API_KEY for the fallback provider");
+  const model = process.env.AI_FALLBACK_MODEL ?? "gemini-flash-lite-latest";
+  // Gemini has no system role: fold system messages into the first user turn.
+  const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+  const rest = messages.filter((m) => m.role !== "system");
+  const contents = rest.map((m, i) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: i === 0 && system ? `${system}\n\n${m.content}` : m.content }],
+  }));
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      contents,
+      generationConfig: { temperature: opts.temperature ?? 0.3, maxOutputTokens: opts.maxTokens ?? 900 },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const json = (await res.json()) as any;
+  return String(json?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ?? "");
+}
+
+/** Which provider actually served the last call, for honest reporting. */
+export let lastProviderUsed = "none";
+
 export async function chat(
+  messages: ChatMessage[],
+  opts: { temperature?: number; maxTokens?: number; reasoningEffort?: "low" | "medium" | "high" } = {},
+): Promise<string> {
+  if (llmMode() === "fallback") {
+    // No Groq key, but a Gemini key may still be present.
+    if (process.env.GOOGLE_API_KEY) {
+      try {
+        const text = await geminiChat(messages, opts);
+        lastProviderUsed = "gemini";
+        return text;
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  }
+  try {
+    const text = await groqChat(messages, opts);
+    if (text.trim()) {
+      lastProviderUsed = "groq";
+      return text;
+    }
+    throw new Error("groq returned no content");
+  } catch (err) {
+    if (!process.env.GOOGLE_API_KEY) throw err;
+    // Groq is out of quota or unwell — say which provider answered instead, so
+    // a run's output is never quietly attributed to the wrong model.
+    const text = await geminiChat(messages, opts);
+    lastProviderUsed = "gemini";
+    console.log(`[llm] Groq unavailable (${(err as Error).message.slice(0, 90)}) — answered with ${process.env.AI_FALLBACK_MODEL ?? "gemini-flash-lite-latest"}`);
+    return text;
+  }
+}
+
+async function groqChat(
   messages: ChatMessage[],
   opts: { temperature?: number; maxTokens?: number; reasoningEffort?: "low" | "medium" | "high" } = {},
 ): Promise<string> {
