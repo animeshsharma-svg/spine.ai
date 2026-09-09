@@ -10,6 +10,8 @@ import { loginAsCompany } from "../src/db/dbLogin.js";
 import { EvidenceCollector } from "../src/oracle/evidence.js";
 import { judge } from "../src/oracle/oracle.js";
 import { recordFinding } from "../src/oracle/findings.js";
+import { Watchdog } from "../src/support/watchdog.js";
+import { BasePage } from "../src/pages/BasePage.js";
 
 /**
  * Config-gated UI master runner — the UI twin of the API framework's
@@ -86,6 +88,22 @@ for (const mod of REGISTRY) {
     await collector.installToastRecorder();
     collector.start();
 
+    // A frozen screen is its own failure mode, distinct from a wrong locator.
+    // The watchdog notices when nothing has changed for a minute and tries the
+    // cheap recoveries a human would, so a stall has a chance to resolve
+    // instead of burning the step's whole timeout.
+    const base = new (class extends BasePage {})(page);
+    const watchdog = new Watchdog(page, {
+      stuckAfterMs: Number(process.env.UI_STUCK_MS) || 60_000,
+      onStuck: ({ forMs, url }) =>
+        console.log(`[watchdog] stalled ${Math.round(forMs / 1000)}s on ${url}`),
+      recover: async () => {
+        await base.dismissDistractions();
+        return true;
+      },
+    });
+    watchdog.start();
+
     let failure: Error | null = null;
     try {
       await mod.run(ctx);
@@ -93,7 +111,10 @@ for (const mod of REGISTRY) {
       failure = err instanceof Error ? err : new Error(String(err));
     }
 
+    const { stalls } = watchdog.stop();
+    if (stalls) console.log(`[watchdog] ${stalls} stall(s) during this journey`);
     const evidence = await collector.stop();
+    if (stalls) evidence.notes.push(`the screen stalled ${stalls} time(s) during this run`);
     const verdict = judge(evidence, failure);
     const finding = recordFinding(evidence, verdict);
     if (finding) {

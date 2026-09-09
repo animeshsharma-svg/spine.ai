@@ -17,7 +17,7 @@ export class VendorPortalPage extends BasePage {
   async goto(): Promise<void> {
     await this.page.goto(`${CONFIG.vendorUrl.replace(/\/$/, "")}/login`, NAV);
     await this.page.waitForLoadState("domcontentloaded").catch(() => {});
-    await this.page.waitForTimeout(1500);
+    await this.pause(1500);
     await this.dismissDistractions();
   }
 
@@ -64,7 +64,7 @@ export class VendorPortalPage extends BasePage {
     );
     if (search) {
       await search.fill(match);
-      await this.page.waitForTimeout(1200);
+      await this.pause(1200);
     }
     // Try to match the event by title/ref; fall back to the first Live event
     // card (the one just published sits at the top).
@@ -106,7 +106,7 @@ export class VendorPortalPage extends BasePage {
       { label: "stage-tab", timeout: TIMEOUTS.MEDIUM },
     );
     await this.waitForSpinnerHidden();
-    await this.page.waitForTimeout(1000);
+    await this.pause(1000);
     // 2. Explicit enter-bid affordance if present.
     await this.clickIfPresent(
       [
@@ -117,7 +117,7 @@ export class VendorPortalPage extends BasePage {
       { label: "start-bidding", timeout: TIMEOUTS.SHORT },
     );
     await this.waitForSpinnerHidden();
-    await this.page.waitForTimeout(500);
+    await this.pause(500);
   }
 
   /**
@@ -126,7 +126,7 @@ export class VendorPortalPage extends BasePage {
    * in the Price column, then type into the revealed input.
    */
   async fillBid(price = 100): Promise<number> {
-    await this.page.waitForTimeout(1200);
+    await this.pause(1200);
     // The submission sheet is an ARIA grid (role=columnheader / role=row /
     // role=cell), not an HTML table. Find the Price column index among the
     // column headers, then edit that cell in each data row.

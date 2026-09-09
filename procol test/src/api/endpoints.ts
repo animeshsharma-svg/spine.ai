@@ -17,6 +17,11 @@ export const Endpoints = {
   eventGroup: (uuid: string) => `/event_groups/${uuid}`,
   eventGroupLineItems: (uuid: string) => `/event_groups/${uuid}/get_line_items`,
   eventGroupAudience: (uuid: string) => `/event_groups/${uuid}/get_audience`,
+  eventGroupCreateClone: (uuid: string) => `/event_groups/${uuid}/create_clone`,
+  eventGroupParticipants: (uuid: string) => `/event_groups/${uuid}/participants`,
+  eventGroupRejectParticipant: (uuid: string) => `/event_groups/${uuid}/reject_participant`,
+  eventGroupChangeOwnership: (uuid: string) => `/event_groups/${uuid}/change_ownership`,
+  updateEgli: () => "/event_groups/update_egli",
 
   // ── trade / stage ──
   createTrade: () =>
@@ -57,6 +62,13 @@ export const Endpoints = {
   proposalApprovalWorkflows: (proposalUuid: string) =>
     `/proposal/${proposalUuid}/approval_workflows`,
   proposalSubmit: (proposalUuid: string) => `/proposal/${proposalUuid}/submit`,
+  proposalCreateContractForm: (proposalUuid: string) => `/proposal/${proposalUuid}/create_contract_form`,
+  downloadAwardingSheet: (uuid: string) => `/reports/download_awarding_sheet/${uuid}`,
+
+  // ── bids (extra authorization probes) ──
+  bidFeedback: (bidId: string) => `/bids/${bidId}/feedback`,
+  bidApprovalWorkflowsForSurrogate: () => "/bids/approval_workflows_for_surrogate_bid_create",
+  tradeUploadBidExcel: (tradeId: string) => `/trade/${tradeId}/upload_bid_excel`,
 
   // ── company users ──
   getAllUsers: (filtersJson = '{"statuses":["active"]}') =>

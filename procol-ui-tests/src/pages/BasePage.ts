@@ -148,6 +148,31 @@ export class BasePage {
     return BasePage.projectIdFromUrl(this.page.url());
   }
 
+  /**
+   * Wait for the page to settle, not for a fixed number of milliseconds.
+   *
+   * The suite was carrying 58 hard-coded sleeps — about 39 seconds a run spent
+   * waiting whether or not anything was happening. A fixed sleep is wrong in
+   * both directions: too long when the app already responded, too short when it
+   * is genuinely busy. This waits a short floor for animations to start, then
+   * returns as soon as the network goes quiet, falling back to the full budget
+   * when it never does (this console holds long-lived connections open, so
+   * networkidle is not guaranteed).
+   *
+   * `UI_SPEED` scales the budget: 0.5 halves every wait, 2 doubles it for a
+   * slow environment. Timeouts for real conditions are untouched — only the
+   * blind waiting shrinks.
+   */
+  protected async pause(ms: number): Promise<void> {
+    const factor = Number(process.env.UI_SPEED);
+    const budget = Math.max(60, Math.round(ms * (Number.isFinite(factor) && factor > 0 ? factor : 1)));
+    const floor = Math.min(120, budget);
+    await this.page.waitForTimeout(floor);
+    if (budget > floor) {
+      await this.page.waitForLoadState("networkidle", { timeout: budget - floor }).catch(() => {});
+    }
+  }
+
   async errorToastText(timeout: number = TIMEOUTS.SHORT): Promise<string | null> {
     const toast = this.page.locator(".ant-message-error, .ant-notification-notice-error").first();
     const ok = await toast

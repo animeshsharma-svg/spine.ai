@@ -1,4 +1,4 @@
-import { Page } from "@playwright/test";
+import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { TIMEOUTS } from "../config.js";
 import { InlineSheet, WidgetConfig } from "../helpers/inlineSheet.js";
@@ -178,7 +178,7 @@ export class CreateEventPage extends BasePage {
         );
         opened = true;
       } catch {
-        await p.waitForTimeout(300);
+        await this.pause(300);
       }
     }
     if (!opened) {
@@ -234,7 +234,7 @@ export class CreateEventPage extends BasePage {
       { label: "line-item-option", timeout: TIMEOUTS.MEDIUM },
     );
     await firstOption.click();
-    await p.waitForTimeout(500);
+    await this.pause(500);
 
     // Quantity is optional here: on this build the drawer only picks products
     // and quantity is filled in the pricing sheet afterwards. Best-effort, so a
@@ -243,7 +243,7 @@ export class CreateEventPage extends BasePage {
     if (await qty.count()) {
       await qty.fill(quantity).catch(() => {});
       await p.keyboard.press("Tab").catch(() => {});
-      await p.waitForTimeout(200);
+      await this.pause(200);
     }
   }
 
@@ -301,7 +301,7 @@ export class CreateEventPage extends BasePage {
     for (let i = n - 1; i >= 0; i--) {
       await tab.hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
       await icons.nth(i).hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-      await p.waitForTimeout(400);
+      await this.pause(400);
       if (await this.stageMenu().isVisible().catch(() => false)) return true;
     }
     return false;
@@ -328,7 +328,7 @@ export class CreateEventPage extends BasePage {
       return false;
     }
     await del.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-    await p.waitForTimeout(600);
+    await this.pause(600);
     await this.dismissDistractions();
     return !(await p.getByRole("tab", { name: STAGE_LABEL[stage] }).count());
   }
@@ -358,7 +358,7 @@ export class CreateEventPage extends BasePage {
       return false;
     }
     await plus.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-    await p.waitForTimeout(700);
+    await this.pause(700);
     const item = p
       .locator(".ant-dropdown:not(.ant-dropdown-hidden)")
       .last()
@@ -473,7 +473,7 @@ export class CreateEventPage extends BasePage {
       // A round that changed nothing is usually the screen still settling, so
       // give it a moment and try again before declaring the layout impossible.
       if (++stalled >= 3) break;
-      await this.page.waitForTimeout(1_000);
+      await this.pause(1_000);
     }
 
     const final = await this.currentStages();
@@ -522,7 +522,7 @@ export class CreateEventPage extends BasePage {
       await this.ensureStages(stages);
       return;
     }
-    await this.page.waitForTimeout(500);
+    await this.pause(500);
 
     // Reconcile each stage checkbox to the desired selection.
     for (const key of ALL_STAGES) {
@@ -641,7 +641,7 @@ export class CreateEventPage extends BasePage {
       if (!opened) {
         // Close whatever half-open state we are in before trying again.
         await p.keyboard.press("Escape").catch(() => {});
-        await p.waitForTimeout(500);
+        await this.pause(500);
       }
     }
     if (!opened) {
@@ -703,7 +703,7 @@ export class CreateEventPage extends BasePage {
       { label: "stage-tab", timeout: TIMEOUTS.MEDIUM },
     );
     await this.waitForSpinnerHidden();
-    await this.page.waitForTimeout(500);
+    await this.pause(500);
   }
 
   /** True if this stage still needs a template picked (vs one already applied). */
@@ -801,110 +801,131 @@ export class CreateEventPage extends BasePage {
       .first();
   }
 
-  /** The Vendor Assessment questionnaire grid, as a fillable sheet. */
-  private vendorAssessmentSheet() {
-    return new InlineSheet(this.page, this.vendorAssessmentSection().locator(".data-grid-container").first());
-  }
-
-  /** Question cells in the Vendor Assessment grid, and which of them are empty. */
-  private async vendorAssessmentQuestions(): Promise<{ total: number; empty: number[] }> {
-    const sheet = this.vendorAssessmentSheet();
-    const total = await this.vendorAssessmentSection()
-      .locator('[data-celltype="rfi_question"]:not([data-testid^="sheet-header"])')
-      .count();
-    const empty: number[] = [];
-    for (let i = 0; i < total; i++) {
-      if (!(await sheet.cellValue(i, "rfi_question"))) empty.push(i);
-    }
-    return { total, empty };
+  /**
+   * Every RFI section on a technical stage.
+   *
+   * A technical stage does NOT have one questionnaire — it has one per line
+   * item PLUS a global one:
+   *
+   *   Vendor Assessment    Template: Select Template   + Add Evaluator
+   *   AAC BLOCKS           Item Template: Select Template
+   *   BACK FILLING         Item Template: Select Template
+   *
+   * Handling only the global section left every per-item template unset, and
+   * the event could still publish — so events went out with empty item
+   * questionnaires, which is worse than a hard failure because nobody notices.
+   */
+  private rfiSections() {
+    return this.page.locator("[class*='rfiSectionWrapper']");
   }
 
   /**
-   * Populate the Vendor Assessment questionnaire on a technical stage.
+   * Rows in one RFI section that the app would reject.
    *
-   * Publishing a technical stage is refused with "There are some errors in
-   * vendor specific sections, please check and try again" while any question is
-   * blank — `validateStage` raises `isGlobalSectionEmpty` for a global-section
-   * row that has a description but no question value. So a vendor-assessment
-   * (RFI) template is applied first, and any question still blank afterwards is
-   * typed in directly.
+   * Matching the app's own rule rather than a stricter one: `validateStage`
+   * flags a row that has a DESCRIPTION but no QUESTION. Every grid also carries
+   * a trailing blank row for adding the next entry — that row has neither, is
+   * perfectly legal, and treating it as a gap made the journey fail on a
+   * section the app was happy with. Separately, a section with no question
+   * anywhere trips `isEntireGlobalSectionEmpty`, so that case reports row 0.
+   */
+  private async unansweredRows(section: Locator): Promise<number[]> {
+    const questions = section.locator('[data-celltype="rfi_question"]:not([data-testid^="sheet-header"])');
+    const descriptions = section.locator('[data-celltype="rfi_description"]:not([data-testid^="sheet-header"])');
+    const total = await questions.count();
+    const bad: number[] = [];
+    let anyQuestion = false;
+    for (let i = 0; i < total; i++) {
+      const q = ((await questions.nth(i).textContent().catch(() => "")) ?? "").trim();
+      const d = ((await descriptions.nth(i).textContent().catch(() => "")) ?? "").trim();
+      if (q) anyQuestion = true;
+      else if (d) bad.push(i); // described but unanswered — the app rejects this
+    }
+    if (!anyQuestion && total > 0 && !bad.length) bad.push(0);
+    return bad;
+  }
+
+  /**
+   * Give every RFI section a template, and fill anything left blank.
+   *
+   * A section whose trigger still reads "Select Template" has none applied;
+   * once one is chosen the trigger shows the template's name instead, which is
+   * how we tell the difference without tracking state.
    */
   async fillVendorAssessment(): Promise<void> {
     const p = this.page;
-    const section = this.vendorAssessmentSection();
-    if (!(await section.count())) {
-      console.log("[create-event] no Vendor Assessment section on this stage");
+    const sections = this.rfiSections();
+    const count = await sections.count();
+    if (!count) {
+      console.log("[create-event] no RFI sections on this stage");
       return;
     }
 
-    let state = await this.vendorAssessmentQuestions();
-    console.log(`[create-event] vendor assessment: ${state.total} question row(s), ${state.empty.length} empty`);
-    if (!state.empty.length) return;
+    let applied = 0;
+    let filled = 0;
+    for (let i = 0; i < count; i++) {
+      const section = sections.nth(i);
+      const title =
+        ((await section.locator("h2, h3").first().textContent().catch(() => "")) ?? "").trim() || `section ${i + 1}`;
 
-    // `_templateName_` is the SelectTemplate trigger. Match it by that class,
-    // not by text: the section's other dropdown trigger is the evaluator
-    // picker, and once a template is chosen the trigger reads as its name.
-    const trigger = section.locator("[class*='templateName']").first();
-    if (await trigger.count()) {
-      // The Vendor Assessment section is near the bottom of a technical stage.
-      await trigger.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-      await trigger.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-      await p.waitForTimeout(1_200);
-      const item = await this.find(this.templateItemCandidates(), {
-        label: "vendor-assessment-template",
-        timeout: TIMEOUTS.MEDIUM,
-      });
-      if (item) {
-        await item.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-        await this.waitForSpinnerHidden();
-        await p.waitForTimeout(1_500);
-        state = await this.vendorAssessmentQuestions();
-        console.log(
-          `[create-event] vendor assessment template applied: ${state.total} row(s), ${state.empty.length} still empty`,
-        );
-      } else {
-        await p.keyboard.press("Escape").catch(() => {});
+      // 1 · template, if this section still offers to pick one
+      const trigger = section.locator("[class*='templateName']").first();
+      if (await trigger.count()) {
+        const label = ((await trigger.textContent().catch(() => "")) ?? "").trim();
+        if (/select template/i.test(label)) {
+          await trigger.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          await trigger.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          await this.pause(700);
+          const item = await this.find(this.templateItemCandidates(), {
+            label: `rfi-template:${title}`,
+            timeout: TIMEOUTS.SHORT,
+          });
+          if (item) {
+            await item.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            await this.waitForSpinnerHidden();
+            await this.pause(600);
+            applied++;
+          } else {
+            await p.keyboard.press("Escape").catch(() => {});
+            console.log(`[create-event] no template offered for RFI section "${title}"`);
+          }
+        }
+      }
+
+      // 2 · anything the template did not fill
+      const empty = await this.unansweredRows(section);
+      if (empty.length) {
+        const grid = section.locator(".data-grid-container").first();
+        if (await grid.count()) {
+          const sheet = new InlineSheet(p, grid);
+          for (const row of empty) {
+            await sheet.fillCell(row, "rfi_question", { key: "rfi_question", type: "text" }, `QA specification ${row + 1}`);
+            filled++;
+          }
+        }
       }
     }
-    if (!state.empty.length) return;
 
-    // Type into whatever the template left blank.
-    const sheet = this.vendorAssessmentSheet();
-    for (const row of state.empty) {
-      await sheet.fillCell(row, "rfi_question", { key: "rfi_question", type: "text" }, `QA specification ${row + 1}`);
+    // Prove it: nothing may be left blank anywhere.
+    const stillEmpty: string[] = [];
+    for (let i = 0; i < (await sections.count()); i++) {
+      const section = sections.nth(i);
+      const title = ((await section.locator("h2, h3").first().textContent().catch(() => "")) ?? "").trim() || `section ${i + 1}`;
+      const empty = await this.unansweredRows(section);
+      if (empty.length) stillEmpty.push(`${title} (${empty.length})`);
     }
-    await p.waitForTimeout(500);
-    state = await this.vendorAssessmentQuestions();
-    if (state.empty.length) {
+    console.log(
+      `[create-event] RFI sections: ${count} · templates applied: ${applied} · questions typed: ${filled}` +
+        (stillEmpty.length ? ` · STILL EMPTY: ${stillEmpty.join(", ")}` : ""),
+    );
+    if (stillEmpty.length) {
       throw new Error(
-        `the Vendor Assessment questionnaire still has ${state.empty.length} of ${state.total} question(s) ` +
-          "blank (rows " +
-          state.empty.map((r) => r + 1).join(", ") +
-          "). A technical stage cannot be published while any question is empty.",
+        `these RFI sections still have blank questions: ${stillEmpty.join(", ")}. A technical stage can ` +
+          "publish in this state, so the event would go out with an empty questionnaire.",
       );
     }
-    console.log(`[create-event] vendor assessment filled: ${state.total} question(s)`);
   }
 
-  /**
-   * Assign an evaluator everywhere the stage asks for one.
-   *
-   * Two things about this screen were wrong in the old version:
-   *
-   *  1. There is ONE `evaluator-add-button` on this build and it belongs to the
-   *     **Vendor Assessment section**, not to each line item — its context reads
-   *     "Vendor Assessment · Template · By: Add Evaluator". The old loop took
-   *     `.first()` twenty times over, so it re-opened the same picker again and
-   *     again and reported twenty assignments for one control. (`rfpEvaluationOn`
-   *     decides this: `lot` puts the evaluator on the section, `line` puts one on
-   *     every line item — so the count is read from the DOM, never assumed.)
-   *  2. The picker's FIRST row is blank — the option list comes back as
-   *     `["", "Satish Kumar Kaushik"]` — so clicking the first row clicked
-   *     nothing, the panel stayed open, and the next pass clicked it again.
-   *     Rows without text are skipped.
-   *
-   * Returns how many controls were actually satisfied.
-   */
   async assignEvaluatorToAllLineItems(): Promise<number> {
     const p = this.page;
     const buttons = p.getByTestId("evaluator-add-button");
@@ -938,7 +959,7 @@ export class CreateEventPage extends BasePage {
       }
       assigned++;
       await p.keyboard.press("Escape").catch(() => {});
-      await p.waitForTimeout(400);
+      await this.pause(400);
       await this.dismissDistractions();
 
       // Some builds remove the add-button once satisfied and some keep it. If
@@ -984,7 +1005,7 @@ export class CreateEventPage extends BasePage {
           return false;
         });
       if (!clicked) {
-        await p.waitForTimeout(400);
+        await this.pause(400);
         continue;
       }
       const open = await this.evaluatorPanel()
@@ -993,7 +1014,7 @@ export class CreateEventPage extends BasePage {
         .catch(() => false);
       if (open) return true;
       await p.keyboard.press("Escape").catch(() => {});
-      await p.waitForTimeout(400);
+      await this.pause(400);
     }
     return false;
   }
@@ -1034,7 +1055,7 @@ export class CreateEventPage extends BasePage {
         if (anyText) break;
       }
       if (anyText) break;
-      await p.waitForTimeout(300);
+      await this.pause(300);
     }
 
     const seen: string[] = [];
@@ -1127,7 +1148,7 @@ export class CreateEventPage extends BasePage {
     // The audience fetch is asynchronous; give it a moment before deciding it
     // has not happened.
     for (let i = 0; i < 6 && (await this.participantCount()) === 0; i++) {
-      await p.waitForTimeout(500);
+      await this.pause(500);
     }
     let count = await this.participantCount();
     if (count > 0) {
@@ -1140,7 +1161,7 @@ export class CreateEventPage extends BasePage {
       [p.getByRole("button", { name: /invite vendor/i }), p.getByText(/^Invite Vendor$/i)],
       { label: "invite-vendor", timeout: TIMEOUTS.SHORT },
     );
-    await p.waitForTimeout(800);
+    await this.pause(800);
     await this.dismissDistractions();
 
     count = await this.participantCount();
@@ -1155,17 +1176,17 @@ export class CreateEventPage extends BasePage {
         ],
         { label: "open-participants", timeout: TIMEOUTS.SHORT },
       );
-      await p.waitForTimeout(600);
+      await this.pause(600);
       const search = region
         .locator("input.ant-select-search__field:not([disabled]), input:not([disabled])")
         .first();
       if (await search.count()) {
         await search.fill("a").catch(() => {});
-        await p.waitForTimeout(2_000);
+        await this.pause(2_000);
         const picked = await this.pickFirstNamedOption("vendor");
         if (picked) await p.keyboard.press("Escape").catch(() => {});
       }
-      await p.waitForTimeout(800);
+      await this.pause(800);
       count = await this.participantCount();
     }
 
@@ -1220,7 +1241,7 @@ export class CreateEventPage extends BasePage {
         break;
       }
       if (this.projectId()) return; // published with no confirm step
-      await p.waitForTimeout(200);
+      await this.pause(200);
     }
     if (refusal) throw new Error(`the app refused to publish: ${refusal}`);
 
@@ -1253,7 +1274,7 @@ export class CreateEventPage extends BasePage {
       if (this.projectId()) return;
       const toast = await this.errorToastText(400);
       if (toast && !seen.includes(toast)) seen.push(toast);
-      await this.page.waitForTimeout(250);
+      await this.pause(250);
     }
     if (this.projectId()) return;
     throw new Error(
@@ -1317,7 +1338,7 @@ export class CreateEventPage extends BasePage {
       if (await duration.count()) {
         await duration.fill(String(minutes)).catch(() => {});
         await this.page.keyboard.press("Tab").catch(() => {});
-        await this.page.waitForTimeout(400);
+        await this.pause(400);
         console.log(`[create-event] schedule duration set to ${minutes} min`);
       } else {
         console.log("[create-event] no duration field in the Schedule panel — keeping the default window");

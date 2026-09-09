@@ -33,7 +33,7 @@ export class EventDetailPage extends BasePage {
       timeout: TIMEOUTS.MEDIUM,
     });
     if (!opened) return false;
-    await this.page.waitForTimeout(600);
+    await this.pause(600);
     const present = !!(await this.page
       .getByRole("menuitem", { name: /convert to auction/i })
       .count()
@@ -57,7 +57,7 @@ export class EventDetailPage extends BasePage {
       label: "convert-to-auction",
       timeout: TIMEOUTS.MEDIUM,
     });
-    await p.waitForTimeout(800);
+    await this.pause(800);
 
     // The conversion opens the create screen in a new tab.
     const [popup] = await Promise.all([

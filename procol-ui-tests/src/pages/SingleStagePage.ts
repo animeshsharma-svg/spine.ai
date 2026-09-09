@@ -46,7 +46,7 @@ export class SingleStagePage extends BasePage {
   async goto(): Promise<void> {
     await this.page.goto(`${CONFIG.appUrl.replace(/\/$/, "")}/orders/quick-create?singleStage=true`, NAV);
     await this.page.waitForLoadState("domcontentloaded").catch(() => {});
-    await this.page.waitForTimeout(1500);
+    await this.pause(1500);
     await this.dismissDistractions();
   }
 
@@ -104,12 +104,12 @@ export class SingleStagePage extends BasePage {
         ],
         { label, timeout: TIMEOUTS.MEDIUM, force: true },
       );
-      await this.page.waitForTimeout(500);
+      await this.pause(500);
     };
 
     await pick(EVENT_TYPE_LABEL[cfg.eventType], `event-type:${cfg.eventType}`);
     // Give the conditional sections (sub-type / awarding) a beat to render.
-    await this.page.waitForTimeout(500);
+    await this.pause(500);
     if (cfg.eventType === "auction" && cfg.auctionSubtype) {
       await pick(SUBTYPE_LABEL[cfg.auctionSubtype], `subtype:${cfg.auctionSubtype}`);
     }
@@ -122,7 +122,7 @@ export class SingleStagePage extends BasePage {
       timeout: TIMEOUTS.MEDIUM,
     });
     // Drawer closes on save.
-    await this.page.waitForTimeout(800);
+    await this.pause(800);
     await this.dismissDistractions();
   }
 
@@ -147,7 +147,7 @@ export class SingleStagePage extends BasePage {
     );
     if (search) {
       await search.fill("Buy");
-      await this.page.waitForTimeout(700);
+      await this.pause(700);
     }
     await this.click(
       [
@@ -158,7 +158,7 @@ export class SingleStagePage extends BasePage {
       { label: "template-item", timeout: TIMEOUTS.MEDIUM },
     );
     await this.waitForSpinnerHidden();
-    await this.page.waitForTimeout(1000);
+    await this.pause(1000);
   }
 
   /**
@@ -169,7 +169,7 @@ export class SingleStagePage extends BasePage {
   async fillFirstLineItem(searchText = "a"): Promise<void> {
     const sheet = new InlineSheet(this.page);
     await sheet.fillCell(0, "product", { key: "product", type: "product" }, searchText);
-    await this.page.waitForTimeout(500);
+    await this.pause(500);
     // variant often auto-fills from the product; try dropdown, ignore if absent.
     await sheet.fillCell(0, "variant", { key: "variant", type: "dropdown" }, "").catch(() => {});
     await sheet.fillCell(0, "creator_quantity", { key: "creator_quantity", type: "number" }, randomNumber());
@@ -201,7 +201,7 @@ export class SingleStagePage extends BasePage {
     );
     if (!cb) return false;
     await cb.fill(query);
-    await this.page.waitForTimeout(1500);
+    await this.pause(1500);
     const picked = await this.clickIfPresent(
       [
         this.page.locator(".ant-select-dropdown [role='option']", { hasText: new RegExp(query, "i") }),
@@ -229,7 +229,7 @@ export class SingleStagePage extends BasePage {
       if (cb) {
         await cb.click();
         await cb.fill("a");
-        await this.page.waitForTimeout(800);
+        await this.pause(800);
         await this.click([this.page.getByRole("option"), this.page.locator(".ant-select-item-option")], {
           label: "vendor-option",
           timeout: TIMEOUTS.MEDIUM,
@@ -259,7 +259,7 @@ export class SingleStagePage extends BasePage {
       [drawer.locator(".ant-select").filter({ hasText: /start now/i }), drawer.getByText(/start now/i)],
       { label: "start-time-select", timeout: TIMEOUTS.MEDIUM, force: true },
     );
-    await this.page.waitForTimeout(500);
+    await this.pause(500);
     const pickedLater = await this.clickIfPresent(
       [
         this.page.getByRole("option", { name: /schedule for later|start later|^later|scheduled/i }),
@@ -272,7 +272,7 @@ export class SingleStagePage extends BasePage {
       [drawer.getByRole("button", { name: /save schedule/i }), this.page.getByRole("button", { name: /save schedule/i })],
       { label: "save-schedule", timeout: TIMEOUTS.MEDIUM },
     );
-    await this.page.waitForTimeout(800);
+    await this.pause(800);
     await this.dismissDistractions();
     return pickedLater;
   }
