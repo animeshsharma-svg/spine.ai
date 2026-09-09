@@ -156,6 +156,39 @@ function gatherChunks(): Chunk[] {
   return chunks;
 }
 
+/**
+ * Terms worth matching literally: long-ish words, snake_case identifiers and
+ * case ids. Common English is dropped — matching "the" helps nobody.
+ */
+const STOP = new Set(
+  "the a an and or of to in on for with is are was were be been it this that at by from as if then than so no not".split(" "),
+);
+
+function lexicalTerms(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .toLowerCase()
+        .split(/[^a-z0-9_.:-]+/)
+        .filter((t) => t.length > 2 && !STOP.has(t)),
+    ),
+  ];
+}
+
+/** How much of the query's vocabulary this chunk actually contains, 0..1. */
+function lexicalOverlap(queryTerms: string[], chunk: Chunk): number {
+  if (!queryTerms.length) return 0;
+  const hay = (chunk.text + " " + (chunk.labels ?? []).join(" ") + " " + chunk.source).toLowerCase();
+  let hits = 0;
+  for (const t of queryTerms) {
+    if (!hay.includes(t)) continue;
+    // An identifier or a case id matching is worth more than a common word:
+    // it is far less likely to be a coincidence.
+    hits += /[_:.]|\d/.test(t) || t.length > 8 ? 1.5 : 1;
+  }
+  return Math.min(1, hits / queryTerms.length);
+}
+
 /** Every file under `dir` with the given extension, at any depth. */
 function walk(dir: string, ext: string): string[] {
   if (!existsSync(dir)) return [];
@@ -263,15 +296,25 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
   // an empty retrieval reads to an agent as "there is nothing to know".
   const chunks = pool.length ? pool : all;
   const q = await embedOne(query);
+  const queryTerms = lexicalTerms(query);
   return chunks
-    .map((c) => ({
-      source: c.source,
-      kind: c.kind ?? "doc",
-      module: c.module,
-      labels: c.labels,
-      text: c.text,
-      score: similarity(q, c.embedding!),
-    }))
+    .map((c) => {
+      // Hybrid scoring. A 384-dimension sentence embedding is good at meaning
+      // and bad at identifiers: "buyer_hub", "BE-2.1" and "event_groups" carry
+      // almost no semantic signal but are exactly what someone searching for
+      // them typed. Blending in literal term overlap means a query naming a
+      // field or a case id actually finds it, while paraphrases still work.
+      const dense = similarity(q, c.embedding!);
+      const lexical = lexicalOverlap(queryTerms, c);
+      return {
+        source: c.source,
+        kind: c.kind ?? "doc",
+        module: c.module,
+        labels: c.labels,
+        text: c.text,
+        score: dense * 0.75 + lexical * 0.25,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
 }

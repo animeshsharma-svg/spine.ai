@@ -26,9 +26,10 @@ import { saveRun, listRuns, getRun, newRunId } from "./runStore.js";
 import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
 import { runCheck } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
-import { UI_FLOWS, runUiFlow, clampLineItems } from "./ui/uiFlowRunner.js";
+import { UI_FLOWS, runUiFlow, runUiPlan, readPlanResult, clampLineItems } from "./ui/uiFlowRunner.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
+import { compileTestCase } from "./agents/planner.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
 
@@ -322,6 +323,67 @@ const server = createServer(async (req, res) => {
         req.on("close", () => stop());
       } catch (err: any) {
         send("error", { line: `could not run that instruction: ${err?.message ?? err}` });
+        res.end();
+      }
+      return;
+    }
+
+    // ── API: write a test case, watch it compiled and run ───────────────
+    if (path === "/api/plan-run") {
+      const testCase = (url.searchParams.get("q") ?? "").trim();
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const headed = url.searchParams.get("headed") !== "0";
+      const dryRun = url.searchParams.get("dry") === "1";
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (!testCase) {
+        send("error", { line: "no test case given" });
+        res.end();
+        return;
+      }
+
+      try {
+        send("stage", { name: "compile", line: `Compiling: "${testCase.slice(0, 120)}"` });
+        const compiled = await compileTestCase(testCase);
+        send("plan", {
+          title: compiled.plan.title,
+          steps: compiled.plan.steps,
+          reasoning: compiled.reasoning,
+          source: compiled.source,
+          warnings: compiled.warnings,
+          context: {
+            expectations: compiled.context.expectations.length,
+            experience: compiled.context.experience.length,
+          },
+        });
+        if (dryRun) {
+          send("done", { exitCode: 0 });
+          res.end();
+          return;
+        }
+
+        const runId = `plan-${Date.now().toString(36)}`;
+        send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
+        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
+          send(e.type, e);
+          if (e.type === "done" || e.type === "error") {
+            const result = readPlanResult(runId);
+            if (result) send("plan-result", result);
+            try {
+              send("verdicts", { runId, verdicts: readRunVerdicts(runId) });
+            } catch {
+              /* nothing recorded */
+            }
+            res.end();
+          }
+        });
+        req.on("close", () => stop());
+      } catch (err: any) {
+        send("error", { line: `could not compile that test case: ${err?.message ?? err}` });
         res.end();
       }
       return;

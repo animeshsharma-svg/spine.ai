@@ -27,6 +27,8 @@ async function init() {
   loadFindings();
   loadKnowledge();
   $("#ai-btn")?.addEventListener("click", runAiInstruction);
+  $("#plan-btn")?.addEventListener("click", () => runTestCase(false));
+  $("#plan-dry")?.addEventListener("click", () => runTestCase(true));
   $("#kb-go")?.addEventListener("click", () => loadKnowledge($("#kb-q").value.trim() || undefined));
   $("#kb-q")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") loadKnowledge($("#kb-q").value.trim() || undefined);
@@ -1171,6 +1173,85 @@ function runAiInstruction() {
     try {
       msg = JSON.parse(ev.data).line || msg;
     } catch {}
+    finish("✗ " + msg, "bad");
+  });
+}
+
+// ── Compile a written test case, then run exactly those steps ─────────────
+// The difference from the instruction button: that one picks a pre-built
+// journey, this one builds a journey out of your words. The plan is shown
+// before it runs, because a plan you cannot inspect is a plan you cannot trust.
+function runTestCase(dryRun) {
+  const q = $("#request").value.trim();
+  if (!q) return;
+  const btn = dryRun ? $("#plan-dry") : $("#plan-btn");
+  btn.disabled = true;
+  $("#status").textContent = dryRun ? "compiling…" : "compiling & running…";
+
+  const con = $("#ui-console");
+  con.hidden = false;
+  con.innerHTML = "";
+  const write = (text, cls) => {
+    con.appendChild(el("div", cls || "", esc(text)));
+    con.scrollTop = con.scrollHeight;
+  };
+
+  const qs = new URLSearchParams({ c: String(currentClient), q });
+  if (dryRun) qs.set("dry", "1");
+  if (!$("#ui-headed").checked) qs.set("headed", "0");
+  const es = new EventSource(`/api/plan-run?${qs}`);
+  uiRunning = es;
+
+  es.addEventListener("stage", (ev) => write("› " + JSON.parse(ev.data).line, "cmd"));
+  es.addEventListener("plan", (ev) => {
+    const p = JSON.parse(ev.data);
+    write(`🧪 ${p.title}  (${p.source} · ${p.steps.length} steps)`, "ok");
+    if (p.reasoning) write(`   ${p.reasoning}`, "note");
+    write(`   grounded in ${p.context.expectations} rule(s) and ${p.context.experience} past finding(s)`, "note");
+    p.steps.forEach((s, i) =>
+      write(`   ${String(i + 1).padStart(2)}. ${s.step}${s.args && Object.keys(s.args).length ? " " + JSON.stringify(s.args) : ""}`),
+    );
+    // Repairs are shown, never hidden: a plan the linter had to fix says the
+    // compiler needs improving, and that is worth seeing.
+    for (const w of p.warnings ?? []) write(`   ⚠ ${w}`, "note");
+  });
+  es.addEventListener("log", (ev) => {
+    const l = JSON.parse(ev.data).line;
+    if (/^\[plan\]|create-event|erfx/.test(l)) write(l);
+  });
+  es.addEventListener("plan-result", (ev) => {
+    const r = JSON.parse(ev.data);
+    write(`— ${r.steps.filter((s) => s.status === "ok").length}/${r.steps.length} steps passed —`, r.passed ? "ok" : "bad");
+    for (const s of r.steps) {
+      const mark = s.status === "ok" ? "✓" : s.status === "failed" ? "✗" : "–";
+      write(`   ${mark} ${s.step}${s.detail ? " — " + s.detail : ""}`, s.status === "failed" ? "bad" : "");
+    }
+  });
+  es.addEventListener("verdicts", (ev) => {
+    const { verdicts } = JSON.parse(ev.data);
+    if (!verdicts.length) write("⚖ no defects — every step held", "ok");
+    for (const v of verdicts) {
+      const meta = VERDICT_META[v.kind] ?? VERDICT_META.automation_defect;
+      write(`${meta.icon} ${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
+      write(`   ${v.rationale}`, "note");
+    }
+    loadFindings();
+  });
+  const finish = (msg, cls) => {
+    if (msg) write(msg, cls);
+    btn.disabled = false;
+    $("#status").textContent = "";
+    es.close();
+    uiRunning = null;
+    loadFindings();
+  };
+  es.addEventListener("done", (ev) => {
+    const code = JSON.parse(ev.data).exitCode;
+    finish(dryRun ? "✓ compiled (not run)" : code === 0 ? "✓ test case passed" : `✗ test case failed (exit ${code})`, code === 0 ? "ok" : "bad");
+  });
+  es.addEventListener("error", (ev) => {
+    let msg = "run error";
+    try { msg = JSON.parse(ev.data).line || msg; } catch {}
     finish("✗ " + msg, "bad");
   });
 }

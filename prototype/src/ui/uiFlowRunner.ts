@@ -20,6 +20,7 @@
  * more than that client actually permits.
  */
 import { spawn } from "node:child_process";
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -114,6 +115,58 @@ export interface UiRunEvent {
  * Run one journey, streaming Playwright's output line by line.
  * Returns a stop() so a caller can cancel a run mid-flight.
  */
+/**
+ * Run a compiled test plan instead of a named journey.
+ *
+ * The plan is handed over as a file rather than an argument: plans get long,
+ * and a shell has opinions about quoting that a JSON blob does not survive.
+ */
+export function runUiPlan(
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean },
+  emit: (e: UiRunEvent) => void,
+): { stop: () => void } {
+  const dir = join(UI_TESTS_DIR, ".plans");
+  mkdirSync(dir, { recursive: true });
+  const runId = opts.runId ?? `plan-${Date.now().toString(36)}`;
+  const planFile = join(dir, `${runId}.json`);
+  const resultFile = join(dir, `${runId}-result.json`);
+  writeFileSync(planFile, JSON.stringify(opts.plan, null, 2));
+
+  const args = ["playwright", "test", "tests/plan.spec.ts", "--workers=1"];
+  if (opts.headed !== false) args.push("--headed");
+
+  const env: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    COMPANY_ID: String(opts.companyId),
+    UI_PLAN_FILE: planFile,
+    UI_PLAN_RESULT: resultFile,
+    UI_QUIET_MAP: "1",
+    QA_RUN_ID: runId,
+  };
+  if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
+
+  emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` });
+  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env });
+  const pump = (buf: Buffer) => {
+    for (const line of buf.toString().split("\n")) if (line.trim()) emit({ type: "log", line });
+  };
+  child.stdout.on("data", pump);
+  child.stderr.on("data", pump);
+  child.on("close", (code) => emit({ type: "done", exitCode: code ?? 1 }));
+  return { stop: () => child.kill("SIGTERM") };
+}
+
+/** What each step of a finished plan actually did. */
+export function readPlanResult(runId: string): unknown | null {
+  const f = join(UI_TESTS_DIR, ".plans", `${runId}-result.json`);
+  if (!existsSync(f)) return null;
+  try {
+    return JSON.parse(readFileSync(f, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { stop: () => void } {
   const flow = UI_FLOWS.find((f) => f.key === opts.flowKey);
   if (!flow) {
