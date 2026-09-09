@@ -30,6 +30,7 @@ import { UI_FLOWS, runUiFlow, clampLineItems } from "./ui/uiFlowRunner.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
+import { buildMarkdownReport } from "./report/bugReport.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
@@ -323,6 +324,21 @@ const server = createServer(async (req, res) => {
         send("error", { line: `could not run that instruction: ${err?.message ?? err}` });
         res.end();
       }
+      return;
+    }
+
+    // ── API: the bug report, as markdown a human can act on ─────────────
+    if (path === "/api/report") {
+      const md = await buildMarkdownReport({ withContext: url.searchParams.get("context") !== "0" });
+      if (url.searchParams.get("download") === "1") {
+        res.writeHead(200, {
+          "content-type": "text/markdown; charset=utf-8",
+          "content-disposition": `attachment; filename="qa-report-${new Date().toISOString().slice(0, 10)}.md"`,
+        });
+      } else {
+        res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      }
+      res.end(md);
       return;
     }
 
