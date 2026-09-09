@@ -99,6 +99,13 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "expect_publish_blocked",
+    purpose:
+      "Assert the event CANNOT be published yet: press Publish and confirm either the confirm button is disabled or the app refuses. Use for tests about a precondition not being met.",
+    args: { because: "optional substring of the message you expect" },
+    assertion: true,
+  },
+  {
     name: "expect_stages",
     purpose: "Assert exactly these stage tabs are present.",
     args: { stages: 'array of "rfp" | "rfq" | "auction"' },

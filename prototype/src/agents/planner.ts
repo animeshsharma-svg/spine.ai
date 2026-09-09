@@ -82,7 +82,7 @@ const DOMAIN_RULES = `
 Ordering the product enforces (violating any of these makes the run fail):
 - open_create must come first.
 - set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event.
-- compose_stages is only needed when the wanted stages differ from the default. The screen starts with ONE Auction stage, so a plain auction test does not need it — but include expect_stages if the test is about stage composition.
+- The default stage is AUCTION. So: a test about an RFQ, a technical/RFP stage, or any two-stage event MUST call compose_stages. Only a plain auction test may omit it.
 - compose_stages before anything stage-specific. The screen starts with ONE Auction stage; asking for RFQ or a technical stage is a real change. RFQ and Auction cannot coexist. At most two stages.
 - select_template BEFORE add_line_items: the Items drawer is inert until a template is chosen.
 - fill_sheet after add_line_items.
@@ -134,7 +134,7 @@ function fallbackPlan(testCase: string): TestPlan {
  * naming each repair — silent correction would hide a compiler that needs
  * improving.
  */
-export function lintPlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } {
+export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repairs: string[] } {
   const steps = [...plan.steps];
   const repairs: string[] = [];
   const has = (name: string) => steps.some((s) => s.step === name);
@@ -144,6 +144,18 @@ export function lintPlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } 
     steps.splice(at < 0 ? steps.length : at, 0, step);
     repairs.push(why);
   };
+
+  // The default stage is Auction, so a plan that never composes stages is
+  // testing an auction whatever the test case says. Asking for an RFQ or a
+  // technical stage and getting an auction is the quietest possible wrong
+  // answer: everything passes, and the thing under test was never on screen.
+  if (!has("compose_stages") && /\brfq\b|technical|\brfp\b/i.test(testCase)) {
+    const wanted: string[] = [];
+    if (/technical|\brfp\b/i.test(testCase)) wanted.push("rfp");
+    if (/\brfq\b/i.test(testCase)) wanted.push("rfq");
+    steps.unshift({ step: "compose_stages", args: { stages: wanted } });
+    repairs.push(`added compose_stages(${wanted.join(", ")}) — the screen defaults to an Auction stage, so this test would have run against the wrong stage`);
+  }
 
   if (!has("open_create")) {
     steps.unshift({ step: "open_create", args: { path: "erfx" } });
@@ -390,7 +402,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings };
   }
 
-  const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps });
+  const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
   warnings.push(...linted.repairs);
   return {
     plan: linted.plan,

@@ -153,6 +153,28 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (a.contains) expect(err ?? "").toContain(String(a.contains));
       return `app said: ${err}`;
     }
+    case "expect_publish_blocked": {
+      // Two shapes of "blocked" exist on this screen and a test should accept
+      // either: the confirm button rendered but disabled, or the app refusing
+      // outright with a message. Insisting on one makes the test brittle about
+      // something it does not care about.
+      const p = s.page;
+      await s.create.dismissDistractions();
+      await p.getByRole("button", { name: /^publish( event)?$/i }).first().click({ timeout: 10_000 }).catch(() => {});
+      await p.waitForTimeout(2_000);
+      const confirm = p
+        .locator(".ant-modal-content, [role='dialog']")
+        .getByRole("button", { name: /^publish|confirm|yes/i })
+        .first();
+      if (await confirm.count()) {
+        const disabled = await confirm.isDisabled().catch(() => false);
+        if (disabled) return "the confirm button is disabled, as expected";
+      }
+      const err = await s.create.errorToastText(6_000);
+      expect(err, "publishing was expected to be blocked, but the app allowed it").toBeTruthy();
+      if (a.because) expect(err ?? "").toContain(String(a.because));
+      return `blocked: ${err}`;
+    }
     case "expect_stages": {
       const want = asStages(a.stages);
       const have = await s.create.currentStages();

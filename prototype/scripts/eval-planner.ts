@@ -29,6 +29,8 @@ interface Case {
   mustInclude?: string[];
   /** Steps that would mean it misunderstood. */
   mustExclude?: string[];
+  /** At least one of these must appear — for cases with more than one right answer. */
+  mustAnyOf?: string[];
   note?: string;
 }
 
@@ -97,6 +99,9 @@ for (const c of cases) {
   const steps = compiled.plan.steps.map((s) => s.step);
   const missing = (c.mustInclude ?? []).filter((s) => !steps.includes(s));
   const forbidden = (c.mustExclude ?? []).filter((s) => steps.includes(s));
+  if (c.mustAnyOf?.length && !c.mustAnyOf.some((s) => steps.includes(s))) {
+    missing.push(`one of: ${c.mustAnyOf.join(" / ")}`);
+  }
   const repairs = compiled.warnings.filter((w) => w.startsWith("added") || w.startsWith("rebuilt"));
 
   // A fallback plan is not the compiler working — count it as a failure even
