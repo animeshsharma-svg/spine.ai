@@ -1,0 +1,1506 @@
+[
+  {
+    "id": "EVT-RFPO-001",
+    "feature": "events.rfp_only",
+    "title": "QA_Platform_Create draft event group as the seed for an RFP-only project",
+    "type": "Functional",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated purchaser with EventGroupPolicy#create? allowed in the workspace; {{productUuid}} and {{productQualityUuid}} resolve to an active Product / ProductQuality in the caller's company.",
+    "steps": [
+      "1. Authenticate as a purchaser of the workspace that owns {{productUuid}}.",
+      "2. POST /event_groups with status draft, a title and exactly one line item.",
+      "3. Assert HTTP 200 and that the response carries an event_group uuid plus one event_group_line_item id.",
+      "4. GET /event_groups/{{eventGroupUuid}} and confirm status is draft with no trade_requests yet."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_RFP_Only_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 10 }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. EventGroups::CreateService persists one EventGroup row with status=draft (enum 2) and one EventGroupLineItem with status=draft, serial_number=1 and meta_data.quantity={value:10,unitSymbol:'Nos'}; response is EventGroup::ShowSerializer.",
+    "rationale": "Every RFx flavour starts from this one call; if the draft container or its line item does not persist correctly, every downstream stage, audience and bid assertion is testing on sand."
+  },
+  {
+    "id": "EVT-RFPO-002",
+    "feature": "events.rfp_only",
+    "title": "QA_Platform_Reject RFP stage creation when rfx_mode is sent in the wrong case",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A draft event group {{eventGroupUuid}} exists with at least one active line item and no stages yet.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode 'RFP' (uppercase) against {{eventGroupUuid}}.",
+      "2. Assert the request is refused and no TradeRequest row is created for the event group.",
+      "3. GET /event_groups/{{eventGroupUuid}} and confirm the stage list is still empty."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 1,
+      "rfx_mode": "RFP",
+      "title": "QA_Platform_RFP_Only_Stage_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code (2 insufficient parameters or 888 invalid parameters). TradeRequest#rfx_mode is an ActiveRecord enum {auction:0, rfq:1, rfq_then_auction:2, offline_trade:3, rfi:4, rfp:5} so 'RFP' is not a member; no trade_requests row must be inserted.",
+    "rationale": "Rails enums are case sensitive and an unhandled ArgumentError on assignment is a 500 rather than a 422 - senior QA pins down which side of that line the API falls on."
+  },
+  {
+    "id": "EVT-RFPO-003",
+    "feature": "events.rfp_only",
+    "title": "QA_Platform_Reject RFP stage creation when event_group_uuid is blank",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; no event group is referenced in the payload.",
+    "steps": [
+      "1. POST /trade/template_input with an empty event_group_uuid and rfx_mode rfp.",
+      "2. Assert HTTP 422 and a numeric error code in the body.",
+      "3. Assert no orphan TradeRequest row is created with a null event_group_id."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "",
+      "stage_no": 1,
+      "rfx_mode": "rfp",
+      "title": "QA_Platform_RFP_Orphan_Stage_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 888 ('Invalid Parameters') from check_if_allowed_to_add_trade_to_event_group, which returns 888 when EventGroup.find_by(id:, company_id:) is blank. No TradeRequest is persisted.",
+    "rationale": "An orphan stage with no event_group_id silently corrupts every dashboard and history query that joins through event_groups; the guard must fire before any write."
+  },
+  {
+    "id": "EVT-RFQO-001",
+    "feature": "events.rfq_only",
+    "title": "QA_Platform_Create draft event group as the seed for an RFQ-only event",
+    "type": "Functional",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated purchaser with create rights; {{productUuid}} and {{productQualityUuid}} are active in the caller's workspace.",
+    "steps": [
+      "1. POST /event_groups with status draft and one line item quantity 10 Nos.",
+      "2. Assert HTTP 200 and capture the returned event group uuid.",
+      "3. GET /event_groups/{{eventGroupUuid}}/get_line_items and assert exactly one active/draft line item is returned."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_RFQ_Only_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 10 }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; EventGroup created with status draft and precomputed_data.creator_fields.creator_quantity populated so EventGroupLineItem#quantity returns 10.0 and #unit_symbol returns 'Nos'.",
+    "rationale": "RFQ-only is the highest-volume event type in production; the quantity/unit round-trip through precomputed_data is the exact field bids are later validated against."
+  },
+  {
+    "id": "EVT-RFQO-002",
+    "feature": "events.rfq_only",
+    "title": "QA_Platform_Reject a second RFQ stage of the same rfx_mode on a published event",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Event group {{eventGroupUuid}} is published (active) and already owns one TradeRequest with rfx_mode rfq in status active/closed/scheduled/draft.",
+    "steps": [
+      "1. Publish an RFQ stage on {{eventGroupUuid}} and let it reach active.",
+      "2. POST /trade/template_input again with rfx_mode rfq and stage_no 2 for the same event group.",
+      "3. Assert the duplicate is refused and the event group still has exactly one RFQ stage."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 2,
+      "rfx_mode": "rfq",
+      "title": "QA_Platform_Duplicate_RFQ_Stage_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 830 ('Same type of event already exists for this Project.') raised by check_if_allowed_to_add_trade_to_event_group when old_tr_with_same_rfx_mode is present and is_new_stage_addition is false. No second RFQ TradeRequest is inserted.",
+    "rationale": "A duplicate commercial stage splits bids across two trade_requests and makes latest_commercial_stage ambiguous - the 830 guard is the only thing stopping a double-award."
+  },
+  {
+    "id": "EVT-RFQO-003",
+    "feature": "events.rfq_only",
+    "title": "QA_Platform_SQL injection payload in rfx_mode on RFQ stage creation",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Critical",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists; a baseline count of trade_requests rows is recorded.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode set to a SQL injection string.",
+      "2. Assert the response is a controlled 4xx, never a 500 and never a raw ActiveRecord::StatementInvalid message.",
+      "3. Re-query GET /event_groups/{{eventGroupUuid}} and confirm the event group and its stages are untouched."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 1,
+      "rfx_mode": "rfq'); DROP TABLE trade_requests;--",
+      "title": "QA_Platform_Injection_RFQ_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 4xx (422 expected) with a numeric error code; no 5xx, no SQL fragment or backtrace echoed. trade_requests table still exists and its row count is unchanged.",
+    "rationale": "rfx_mode is fed straight into TradeRequest.where(...) and pluck comparisons in check_if_allowed_to_add_trade_to_event_group; a senior QA proves the enum layer sanitises before the query builder ever sees it."
+  },
+  {
+    "id": "EVT-RFPQ-001",
+    "feature": "events.rfp_rfq",
+    "title": "QA_Platform_Reject a third stage on an event that already has both RFP and RFQ",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Event group {{eventGroupUuid}} has exactly two TradeRequests in VALID_ADD_NEW_STAGE_STATUSES (active/closed/requested/draft): one rfp and one rfq. The is_add_new_stage_allowed config is TRUE for the company. {{tradeId}} is the RFP stage.",
+    "steps": [
+      "1. Confirm the event group holds exactly one rfp stage and one rfq stage.",
+      "2. POST /trade/template_input as an add-new-stage request referring to the RFP stage {{tradeId}}.",
+      "3. Assert the request is refused and no third TradeRequest is created."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "id": "{{tradeId}}",
+      "stage_no": 3,
+      "rfx_mode": "rfq",
+      "is_new_stage_addition": true,
+      "title": "QA_Platform_Third_Stage_On_RFP_RFQ_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 1129 ('New stage cannot be added to an RFP and RFQ event') from AddNewStage::ValidateService#validate_rfp_rfq_addition, which fires when trade_requests.size == 2 and the rfx_modes set is exactly {rfp, rfq}. No third stage row is written.",
+    "rationale": "The RFP-plus-RFQ shape is the terminal state of the two-stage funnel; letting a third stage in would break stage ordering, award mapping and the vendor-facing timeline."
+  },
+  {
+    "id": "EVT-RFPQ-002",
+    "feature": "events.rfp_rfq",
+    "title": "QA_Platform_Reject add-new-stage when the referring stage is an RFQ not an RFP",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "is_add_new_stage_allowed is TRUE for the company. {{tradeId}} is a TradeRequest with rfx_mode rfq belonging to {{eventGroupUuid}}.",
+    "steps": [
+      "1. Pick the RFQ stage {{tradeId}} of event group {{eventGroupUuid}}.",
+      "2. POST /trade/template_input as an add-new-stage request referring to that RFQ stage.",
+      "3. Assert the request is refused with the RFP-origin error, not a generic parameter error."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "id": "{{tradeId}}",
+      "stage_no": 2,
+      "rfx_mode": "rfq",
+      "is_new_stage_addition": true,
+      "title": "QA_Platform_Stage_From_RFQ_Origin_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2001 ('New stage cannot be added unless the referring stage is an RFP'), from AddNewStage::ValidateService#validate_referring_trade_is_rfp which requires @trade_request.is_rfi_or_rfp?. No new TradeRequest is created.",
+    "rationale": "spec/services/add_new_stage/validate_service_spec.rb pins 2001 for both RFQ and auction origins; regressing this would let buyers bolt stages onto commercial rounds after bids exist."
+  },
+  {
+    "id": "EVT-RFPQ-003",
+    "feature": "events.rfp_rfq",
+    "title": "QA_Platform_Feature-flag error takes precedence over the RFP-origin error on add-new-stage",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "CustomConfiguration is_add_new_stage_allowed is FALSE (or absent) for the company owning {{eventGroupUuid}}, AND the referring stage {{tradeId}} is an RFQ - so two distinct guards would both fail.",
+    "steps": [
+      "1. Turn the is_add_new_stage_allowed config off for the company.",
+      "2. POST /trade/template_input as an add-new-stage request referring to the RFQ stage {{tradeId}}.",
+      "3. Assert the returned numeric code is the feature-flag one, proving guard ordering."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "id": "{{tradeId}}",
+      "stage_no": 2,
+      "rfx_mode": "rfq",
+      "is_new_stage_addition": true,
+      "title": "QA_Platform_Stage_Flag_Off_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 1127 ('Adding a new stage to a live event is not enabled for this company') and specifically NOT 2001, because validate_feature_enabled runs first in AddNewStage::ValidateService#validate.",
+    "rationale": "Guard ordering is asserted directly in validate_service_spec.rb; a reorder would leak the existence of stage rules to companies that never bought the feature and give support the wrong message."
+  },
+  {
+    "id": "EVT-RFPA-001",
+    "feature": "events.rfp_auction",
+    "title": "QA_Platform_Reject add-new-stage on an event that already contains an auction stage",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "is_add_new_stage_allowed is TRUE. Event group {{eventGroupUuid}} holds an RFP stage {{tradeId}} plus a stage whose rfx_mode is auction or rfq_then_auction in a VALID_ADD_NEW_STAGE_STATUSES state.",
+    "steps": [
+      "1. Confirm the event group already contains an auction (or rfq_then_auction) stage.",
+      "2. POST /trade/template_input as an add-new-stage request referring to the RFP stage {{tradeId}}.",
+      "3. Assert the request is refused and the stage count is unchanged."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "id": "{{tradeId}}",
+      "stage_no": 3,
+      "rfx_mode": "rfq",
+      "is_new_stage_addition": true,
+      "title": "QA_Platform_Stage_After_Auction_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 1128 ('New stage cannot be added to an auction event') from AddNewStage::ValidateService#validate_auction_addition, which blocks when the collected rfx_modes include 'auction' or 'rfq_then_auction'.",
+    "rationale": "Auctions carry live ranking state; appending a stage afterwards would invalidate every rank already broadcast to bidders and the savings baseline computed from it."
+  },
+  {
+    "id": "EVT-RFPA-002",
+    "feature": "events.rfp_auction",
+    "title": "QA_Platform_Reject auction stage creation with a missing auction_config",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists with line items; no auction stage exists yet.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode auction and no auction_config key at all.",
+      "2. Assert the request is refused with a numeric error code.",
+      "3. Assert no TradeRequest with rfx_mode auction and a null auction_config is persisted."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 2,
+      "rfx_mode": "auction",
+      "title": "QA_Platform_Auction_No_Config_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code (2 'Insufficient parameters' or 888 'Invalid Parameters'). No auction TradeRequest is created with auction_config null, since the enum {rank:0, price:1, rank_and_price:2, traffic_light:3, knockout:4, dutch:5, book_building:6} drives the whole bidding UI.",
+    "rationale": "An auction row with a null auction_config renders an undefined bidding screen for vendors and makes get_ranking_key ambiguous - it must be impossible to create."
+  },
+  {
+    "id": "EVT-RFPA-003",
+    "feature": "events.rfp_auction",
+    "title": "QA_Platform_Auction stage creation with an auction_config outside the enum",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists with line items.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode auction and auction_config 'rank_and_price_and_rank'.",
+      "2. Assert the response is a controlled 4xx and never a 500.",
+      "3. Assert no auction stage is persisted for {{eventGroupUuid}}."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 2,
+      "rfx_mode": "auction",
+      "auction_config": "rank_and_price_and_rank",
+      "title": "QA_Platform_Auction_Bad_Enum_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 4xx (422 with error code 2 or 888). No ArgumentError from the auction_config enum leaking as a 500; trade_requests row count unchanged.",
+    "rationale": "'rank_and_price' IS a real enum member, so a near-miss string is the realistic client bug - it must be caught as a validation failure rather than a crash."
+  },
+  {
+    "id": "EVT-LI-001",
+    "feature": "events.line_items",
+    "title": "QA_Platform_Create an event group with the minimum boundary quantity of 1",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; {{productUuid}} and {{productQualityUuid}} are active in the workspace.",
+    "steps": [
+      "1. POST /event_groups with a single line item of quantity value 1 and unitSymbol Nos.",
+      "2. Assert HTTP 200 and one line item id in the response.",
+      "3. GET /event_groups/{{eventGroupUuid}}/get_line_items and assert the stored quantity is 1 and is_rate_only is false."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_LineItem_Min_Qty_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 1 }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. get_details_for_event_group_line_items sets is_rate_only=false because quantity[:value].to_f is non-zero; EventGroupLineItem is created with meta_data.quantity.value = 1.",
+    "rationale": "1 is the smallest quantity that must NOT flip the record into rate-only mode; it is the exact boundary where the zero-check in the helper decides the whole pricing model."
+  },
+  {
+    "id": "EVT-LI-002",
+    "feature": "events.line_items",
+    "title": "QA_Platform_Zero quantity line item is accepted and marked rate-only",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated purchaser; workspace does not require BOQ; {{productUuid}} is active.",
+    "steps": [
+      "1. POST /event_groups with a single line item of quantity value 0.",
+      "2. Assert HTTP 200.",
+      "3. GET /event_groups/{{eventGroupUuid}}/get_line_items and assert the item is flagged rate-only rather than rejected."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_LineItem_Zero_Qty_RateOnly_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 0 }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with is_rate_only true on the stored line item: get_details_for_event_group_line_items sets is_rate_only = true whenever quantity[:value].to_f.zero?. The line item is persisted, not refused.",
+    "rationale": "Zero looks like invalid input but is a deliberate rate-only contract in this codebase; asserting it prevents a well-meaning 'fix' from breaking rate-contract sourcing."
+  },
+  {
+    "id": "EVT-LI-003",
+    "feature": "events.line_items",
+    "title": "QA_Platform_Reject event group creation when line_items is entirely absent",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated purchaser; the workspace does NOT have boq_in_erfx_allowed enabled and no config.boq_based_rfx is sent.",
+    "steps": [
+      "1. POST /event_groups with status and title only, omitting line_items.",
+      "2. Assert HTTP 422 with a numeric error code.",
+      "3. Assert no EventGroup row was created for this title."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_LineItems_Absent_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 ('Insufficient parameters'), rendered by Api::EventGroupsController#create before authorize EventGroup, because boq_based_rfx is falsy and params[:line_items] is blank. Zero rows written to event_groups.",
+    "rationale": "This guard runs before the authorize call and before the transaction; if it regresses the app creates empty draft projects that clutter every buyer's dashboard and cannot be published."
+  },
+  {
+    "id": "EVT-LI-005",
+    "feature": "events.line_items",
+    "title": "QA_Platform_Non-existent product_uuid on line item must not crash event group creation",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated purchaser. The decoded product id does not exist, or exists but is not Product.active in this workspace.",
+    "steps": [
+      "1. POST /event_groups with a line item whose product_uuid decodes to an id with no matching active Product.",
+      "2. Assert the response is a controlled 4xx and NOT a 500.",
+      "3. Assert no partially-created EventGroup is left behind, since create_line_items runs inside the ActiveRecord::Base.transaction."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_LineItem_Ghost_Product_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "999999999999",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 10 }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 4xx expected (422 with a numeric code). Risk being probed: get_details_for_event_group_line_items does products.find { ... } then dereferences product.id, so an unmatched product would raise NoMethodError on nil and surface as 500. Either way the transaction must roll back and leave zero event_groups rows.",
+    "rationale": "The helper never null-checks the product lookup - this is the highest-value crash probe in the create path and it also proves the surrounding transaction rolls back cleanly."
+  },
+  {
+    "id": "EVT-LI-006",
+    "feature": "events.line_items",
+    "title": "QA_Platform_Negative and non-numeric quantities must not be silently coerced into a valid event",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; {{productUuid}} and {{productQualityUuid}} are active.",
+    "steps": [
+      "1. POST /event_groups with two line items: one with quantity value -5 and one with quantity value 'ten'.",
+      "2. Assert the response is a controlled 4xx, or if accepted, assert the stored quantities are never negative.",
+      "3. GET /event_groups/{{eventGroupUuid}}/get_line_items and inspect the persisted quantity values."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_LineItem_Negative_And_NonNumeric_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": -5 }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": "ten" }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Documented hazard: the helper uses quantity[:value].to_f, so 'ten'.to_f becomes 0.0 and silently flips is_rate_only to true, while -5 survives as -5.0. A negative or silently rate-only line item must be refused with a numeric error code rather than persisted.",
+    "rationale": "to_f coercion turns garbage into a legally-shaped but commercially wrong line item; a negative quantity flows straight into bid totals and savings maths."
+  },
+  {
+    "id": "EVT-LI-007",
+    "feature": "events.line_items",
+    "title": "QA_Platform_Cross-tenant product_uuid must not be attachable to an event group",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated as a purchaser of company A. {{productUuid}} is a Product that belongs to company B and is not visible to company A.",
+    "steps": [
+      "1. Obtain a product uuid owned by a different tenant.",
+      "2. POST /event_groups as company A referencing that foreign {{productUuid}}.",
+      "3. Assert the request is refused or the product is not attached, and no cross-tenant product name leaks in the response body."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_LineItem_Cross_Tenant_Product_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 10 }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx and no data leak. Expected outcome is HTTP 422 with a numeric error code; the created EventGroup (if any) must carry company_id = Current.workspace.id only and must not expose the foreign product's name or quality params in meta_data.",
+    "rationale": "EventGroups::CreateService sets company_id from Current.workspace but the product lookup is Product.active.where(id:) with no company scope - this is exactly where a tenancy leak would hide."
+  },
+  {
+    "id": "EVT-CFG-001",
+    "feature": "events.config",
+    "title": "QA_Platform_Create an event group with an explicit empty config object",
+    "type": "Functional",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated purchaser; {{productUuid}} active in the workspace.",
+    "steps": [
+      "1. POST /event_groups with config set to an empty object plus a valid line item.",
+      "2. Assert HTTP 200.",
+      "3. GET /event_groups/{{eventGroupUuid}} and assert boq_based_rfx resolves to false."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_Config_Empty_Object_{{stamp}}",
+      "config": {},
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 10 }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. event_group.config is persisted as {} and EventGroup#boq_based_rfx? returns false via config&.dig('boq_based_rfx') || false, so the non-BOQ line_items requirement branch applies.",
+    "rationale": "An empty config is the default a well-behaved client sends; it must not be conflated with a nil config or accidentally opt the event into BOQ mode."
+  },
+  {
+    "id": "EVT-CFG-002",
+    "feature": "events.config",
+    "title": "QA_Platform_Reject boq_based_rfx config when the workspace feature flag is off",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated purchaser in a workspace where CustomConfiguration boq_in_erfx_allowed is NOT set, so Company#boq_in_erfx_allowed? returns false.",
+    "steps": [
+      "1. Confirm boq_in_erfx_allowed is off for the workspace.",
+      "2. POST /event_groups with config.boq_based_rfx true and no line items.",
+      "3. Assert HTTP 422 with a numeric error code and no EventGroup created."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_Config_BOQ_Flag_Off_{{stamp}}",
+      "config": { "boq_based_rfx": true }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 101 ('You are not allowed to perform this action'), rendered by Api::EventGroupsController#create via render_error_json(101) unless Current.workspace.boq_in_erfx_allowed?. No event_groups row is written.",
+    "rationale": "boq_based_rfx is the one config flag that removes the mandatory-line-items guard entirely; if the flag check regresses, any tenant can create empty events by sending one boolean."
+  },
+  {
+    "id": "EVT-CFG-003",
+    "feature": "events.config",
+    "title": "QA_Platform_Config sent as a string instead of an object must not crash create",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; {{productUuid}} active.",
+    "steps": [
+      "1. POST /event_groups with config as the string 'boq_based_rfx=true'.",
+      "2. Assert the response is a controlled 4xx and never a 500.",
+      "3. Assert no EventGroup is persisted with a malformed jsonb config column."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_Config_String_Type_{{stamp}}",
+      "config": "boq_based_rfx=true",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": { "unitSymbol": "Nos", "value": 10 }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. params.dig('config','boq_based_rfx') on a String raises TypeError in Ruby, so the controller must guard the type and return HTTP 422 with a numeric error code rather than crashing before authorize EventGroup.",
+    "rationale": "The very first line of #create calls params.dig on config; a scalar there is a one-line crash vector reachable by any authenticated user."
+  },
+  {
+    "id": "EVT-PUB-001",
+    "feature": "events.publish",
+    "title": "QA_Platform_Reject publishing a stage that another user already published (optimistic lock)",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Stage {{tradeId}} on event group {{eventGroupUuid}} was in draft but has just been transitioned to active by a concurrent request; the client still holds the stale draft view.",
+    "steps": [
+      "1. Open the draft stage {{tradeId}} in two sessions.",
+      "2. Publish from session one and let it complete.",
+      "3. POST the publish payload from session two and assert it is refused with the stale-state error rather than creating a second published stage."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "id": "{{tradeId}}",
+      "stage_no": 1,
+      "rfx_mode": "rfq",
+      "status": "active",
+      "title": "QA_Platform_Double_Publish_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 1121 ('This event was just published by another user. Please refresh to see the latest status.'), guarded by TradeRequest.lock.find(trade_request.id).is_draft? in the publish path; alternatively 830 if a second same-rfx_mode stage is attempted. Exactly one active TradeRequest must exist.",
+    "rationale": "Two buyers on the same event is routine at deadline time; a lost update here publishes an event twice and double-notifies the entire vendor audience."
+  },
+  {
+    "id": "EVT-PUB-002",
+    "feature": "events.publish",
+    "title": "QA_Platform_Reject publish-time edits against a superseded event group version",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Event group {{eventGroupUuid}} has been versioned (an amendment exists) so EventGroup#latest? returns false for this uuid.",
+    "steps": [
+      "1. Create a new version of the event group so the original is no longer latest.",
+      "2. PATCH /event_groups/{{eventGroupUuid}} against the now-superseded uuid.",
+      "3. Assert the request is refused and no attributes on the old version change."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "title": "QA_Platform_Publish_On_Stale_Version_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 101 ('You are not allowed to perform this action'), from render_error_json(101) unless event_group.latest? in Api::EventGroupsController#update. The superseded event_groups row keeps its original title.",
+    "rationale": "Writes to a superseded version fork the audit trail and can publish content the amendment already replaced; the latest? gate is the single point of defence."
+  },
+  {
+    "id": "EVT-PUB-003",
+    "feature": "events.publish",
+    "title": "QA_Platform_Publish against a non-existent event group uuid must not crash",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; the referenced event group uuid does not resolve to any row in the caller's company.",
+    "steps": [
+      "1. POST /trade/template_input with an event_group_uuid that decodes to a non-existent id.",
+      "2. Assert a controlled 4xx and never a 500.",
+      "3. Assert no TradeRequest row is inserted."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "0",
+      "stage_no": 1,
+      "rfx_mode": "rfq",
+      "status": "active",
+      "title": "QA_Platform_Publish_Ghost_EventGroup_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 422 with error code 888 ('Invalid Parameters') from check_if_allowed_to_add_trade_to_event_group, which returns 888 when EventGroup.find_by(id: event_group_id, company_id: new_trade.company_id) is blank. No 5xx, no stage created.",
+    "rationale": "The find_by is scoped by company_id, so this case doubles as a tenancy probe - a foreign uuid and a fake uuid must produce the same indistinguishable 888."
+  },
+  {
+    "id": "EVT-LIFE-001",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_Fetching a non-existent event group returns the project-not-found code",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; the requested uuid decodes to an id with no event_groups row.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}} using a uuid for a deleted or never-created event group.",
+      "2. Assert HTTP 422 with the documented numeric error code.",
+      "3. Assert the body contains no internal ids or backtrace."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 533 ('Project does not exist.'), rendered by Api::EventGroupsController#show via render_error_json(533) when EventGroup.find_by is blank. Same code the clone guard uses for a missing event.",
+    "rationale": "533 is the canonical missing-event contract shared by show and clone; UI deep links and stale bookmarks hit it constantly and must not see a raw 404 or 500."
+  },
+  {
+    "id": "EVT-LIFE-002",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_Cross-tenant event group read must be refused, not served",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated as a purchaser of company A. {{eventGroupUuid}} belongs to company B and company A is not in Current.allowed_companies for it.",
+    "steps": [
+      "1. Obtain an event group uuid owned by another tenant.",
+      "2. GET /event_groups/{{eventGroupUuid}} authenticated as company A.",
+      "3. Assert the request is refused and that no title, line items, vendor names or stage data from company B appear in the body."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 455 ('You are not authorized to perform this action'), 682 ('You are not allowed to view this project.') or 101 - never HTTP 200 with foreign data. Note the platform renders authorization failures as HTTP 422, not 403.",
+    "rationale": "Multi-tenant read isolation is the single highest-severity failure mode in a sourcing platform - a leaked event exposes competitor pricing and vendor lists."
+  },
+  {
+    "id": "EVT-LIFE-003",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_Unauthenticated event group read must be rejected at the auth layer",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "No Authorization header / no valid session token is sent with the request. A valid {{eventGroupUuid}} is used so only auth can be the reason for refusal.",
+    "steps": [
+      "1. Strip the Authorization header from the request.",
+      "2. GET /event_groups/{{eventGroupUuid}}.",
+      "3. Assert HTTP 401 and that the body contains no event data."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 401 auth failure from the Api::ApiController authentication before_action. The request must not reach EventGroup.find_by and must not emit 533, 455 or any event payload.",
+    "rationale": "Auth must short-circuit before authorization and before the record lookup; a 422/455 here would mean the app queried the row before checking who was asking."
+  },
+  {
+    "id": "EVT-LIFE-004",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_Path traversal and encoded separators in the event group id segment",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser. The uuid placeholder is substituted with a traversal payload rather than a real uuid.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}} where the substituted value is '..%2f..%2fadmin'.",
+      "2. Assert the response is a controlled 4xx and never a 500 or a redirect to another controller.",
+      "3. Assert no file path, route list or backtrace is echoed."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 4xx (404 routing error or 422 with error code 533). The Rails router must not resolve the traversal to another action and Utils uuid decoding must not raise an unhandled exception.",
+    "rationale": "The id segment is decoded from an encrypted uuid before use; a decode failure on hostile input is a classic unhandled-exception 500 that also fingerprints the encryption scheme."
+  },
+  {
+    "id": "EVT-EXT-001",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_Reject extending a deadline to a timestamp in the past",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Event group {{eventGroupUuid}} is active and latest, with a live stage whose bidding window is currently open.",
+    "steps": [
+      "1. Note the current end_time of the live stage.",
+      "2. PATCH /event_groups/{{eventGroupUuid}} with an end_time epoch far in the past.",
+      "3. Assert the request is refused and the original end_time is unchanged on the trade_schedules row."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "title": "QA_Platform_Extend_To_Past_{{stamp}}",
+      "end_time": 1000000000
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code from update_event_group_data; the TradeSchedule end_time must not move backwards. An accepted past deadline would instantly close a live event.",
+    "rationale": "'Extend' that silently accepts a past timestamp closes bidding early and can hand the award to whoever happened to be leading - a commercially catastrophic silent failure."
+  },
+  {
+    "id": "EVT-EXT-002",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_Negative sealbid extension time must not be applied",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Event group {{eventGroupUuid}} is active and latest with a sealed-bid stage that has a sealbid_extension_time schedule.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with sealbid_extension_time set to -3600.",
+      "2. Assert the request is refused with a numeric error code.",
+      "3. Assert the sealbid_extension_time TradeSchedule end_time is unchanged."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "title": "QA_Platform_Negative_Sealbid_Extension_{{stamp}}",
+      "sealbid_extension_time": -3600
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code. update_schedule(trade, time_extension_value:, time_extension_type: 'sealbid_extension_time') must reject a negative delta; TradeRequest#event_ending_at (max end_time across auction / dynamic_extra_time / sealbid_extension_time) must not shrink.",
+    "rationale": "A negative extension is arithmetic that succeeds - it shortens the window instead of erroring, which is exactly the kind of sign bug that only a dedicated boundary case catches."
+  },
+  {
+    "id": "EVT-EXT-003",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_Deadline extension payload with a non-numeric duration must not crash",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Event group {{eventGroupUuid}} is active and latest.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with dynamic_extra_time set to the string 'forever'.",
+      "2. Assert a controlled 4xx and never a 500.",
+      "3. Assert no schedule row is written with a zero or null end_time."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "title": "QA_Platform_NonNumeric_Extension_{{stamp}}",
+      "dynamic_extra_time": "forever"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Expected HTTP 422 with a numeric error code. Hazard: 'forever'.to_i is 0 in Ruby, which would silently write a zero-length dynamic_extra_time schedule instead of erroring.",
+    "rationale": "Ruby's to_i never raises, so garbage becomes zero - proving the API validates before coercion is the only way to keep dynamic extension trustworthy."
+  },
+  {
+    "id": "EVT-TYPE-001",
+    "feature": "events.type_rules",
+    "title": "QA_Platform_Reject an rfx_mode that is not a member of the TradeRequest enum",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists with line items and no stages.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode 'rfx'.",
+      "2. Assert HTTP 422 with a numeric error code.",
+      "3. Assert no TradeRequest is created for {{eventGroupUuid}}."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 1,
+      "rfx_mode": "rfx",
+      "title": "QA_Platform_Invalid_RfxMode_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code (2 or 888). Valid rfx_mode members are exactly auction, rfq, rfq_then_auction, offline_trade, rfi and rfp; 'rfx' must be refused before any row is written.",
+    "rationale": "'rfx' is the product's own umbrella word, so it is the most likely string a client or an integration will send by mistake - it must not slip past the enum."
+  },
+  {
+    "id": "EVT-TYPE-002",
+    "feature": "events.type_rules",
+    "title": "QA_Platform_Reject stage creation with a null rfx_mode",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists with line items.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode explicitly null.",
+      "2. Assert HTTP 422 with a numeric error code.",
+      "3. Assert no TradeRequest with a null rfx_mode exists for the event group."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 1,
+      "rfx_mode": null,
+      "title": "QA_Platform_Null_RfxMode_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 ('Insufficient parameters') or 888. A null rfx_mode would make check_if_allowed_to_add_trade_to_event_group compare nil.to_s against existing modes and would break EventGroup#latest_commercial_stage which filters on rfx_mode.",
+    "rationale": "Null enums are silently allowed by ActiveRecord unless explicitly validated, and a null rfx_mode row poisons every stage-type scope in the model."
+  },
+  {
+    "id": "EVT-TYPE-003",
+    "feature": "events.type_rules",
+    "title": "QA_Platform_Numeric rfx_mode ordinal must not bypass the string enum contract",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists with line items.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode sent as the integer 5 (the underlying ordinal for rfp).",
+      "2. Assert the response is a controlled 4xx or, if accepted, that the stored rfx_mode is exactly 'rfp'.",
+      "3. Assert no row is stored with an rfx_mode the API contract does not document."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 1,
+      "rfx_mode": 5,
+      "title": "QA_Platform_Numeric_RfxMode_Ordinal_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Rails enums accept the integer ordinal, so 5 may map to rfp; the check_if_allowed_to_add_trade_to_event_group duplicate check compares trade_request.rfx_mode.to_s against params rfx_mode.to_s ('5' vs 'rfp'), so an integer would BYPASS the 830 duplicate-stage guard. Assert either rejection or correct duplicate detection.",
+    "rationale": "The duplicate-stage guard does a string comparison against the enum name; sending the ordinal is a real bypass of error 830 and would let a second RFQ stage through."
+  },
+  {
+    "id": "AUC-RANK-001",
+    "feature": "auction.rank",
+    "title": "QA_Platform_Reject a rank auction stage that references no event group",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; the payload omits event_group_uuid entirely.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode auction and auction_config rank, with no event_group_uuid.",
+      "2. Assert HTTP 422 with a numeric error code.",
+      "3. Assert no auction TradeRequest is created."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "stage_no": 1,
+      "rfx_mode": "auction",
+      "auction_config": "rank",
+      "title": "QA_Platform_Rank_Auction_No_EventGroup_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 888 ('Invalid Parameters') from check_if_allowed_to_add_trade_to_event_group (EventGroup lookup blank), or 2 if the parameter guard fires first. No auction row is written.",
+    "rationale": "A rank auction with no parent project cannot compute ranks (get_ranking_key depends on the event group's line items) yet it would still notify vendors - the orphan must be blocked at creation."
+  },
+  {
+    "id": "AUC-RANK-002",
+    "feature": "auction.rank",
+    "title": "QA_Platform_Rank auction_config sent in wrong case must not create a mis-configured auction",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists with line items and no auction stage.",
+    "steps": [
+      "1. POST /trade/template_input with rfx_mode auction and auction_config 'Rank'.",
+      "2. Assert a controlled 4xx and never a 500.",
+      "3. Assert no auction row is persisted with a null or defaulted auction_config."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=trade&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 2,
+      "rfx_mode": "auction",
+      "auction_config": "Rank",
+      "title": "QA_Platform_Rank_Wrong_Case_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 4xx (422 with error code 2 or 888). auction_config is an ActiveRecord enum keyed on lowercase symbols, so 'Rank' is not a member; the request must never fall through to a silently-defaulted rank auction and must never raise an unhandled ArgumentError as 500.",
+    "rationale": "Rank versus price changes what bidders see about each other; a case-sensitivity slip that silently defaults the config is a disclosure bug, not just a validation bug."
+  },
+  {
+    "id": "AUC-RANK-003",
+    "feature": "auction.rank",
+    "title": "QA_Platform_Rank indicators endpoint for a non-existent trade must not crash",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated purchaser; {{tradeId}} is substituted with an id that has no trade_requests row.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/event_indicators with a non-existent trade id.",
+      "2. Assert a controlled 4xx and never a 500.",
+      "3. Assert the body carries no rank or vendor identity data."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/event_indicators",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 4xx (422 expected) with a numeric error code such as 95 ('Trade Request not found') or 4 ('Request not found') from validate_event(trade). SourcingEngine::AuctionIndicatorsService must never be instantiated with a nil trade_request.",
+    "rationale": "Api::V1::TradeController#event_indicators does TradeRequest.where(id:).last then passes the result to validate_event; if that guard regresses, the indicators service dereferences nil and 500s on a public-ish read path."
+  },
+  {
+    "id": "AUC-PRICE-001",
+    "feature": "auction.price",
+    "title": "QA_Platform_Reject conversion to a price auction with a non-numeric start price",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is an active RFQ TradeRequest whose event group is the latest version, with no child auction yet. rfx_project_enabled? is on for the company.",
+    "steps": [
+      "1. POST /trade/move_to_auction for {{tradeId}} with auction_config price and bulk_price 'lowest'.",
+      "2. Assert the request is refused with a numeric error code.",
+      "3. Assert no child TradeRequest with parent_id = {{tradeId}} is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "price",
+      "bulk_price": "lowest",
+      "title": "QA_Platform_Price_Auction_NonNumeric_Start_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code. Hazard: validate_start_and_end_price compares against bulk_price.to_f, and 'lowest'.to_f is 0.0, so an unvalidated string silently becomes a zero start price. No child auction row may be created.",
+    "rationale": "A zero start price on a reverse auction means the first bid must beat zero - nobody can bid, the event dies live, and the to_f coercion makes it fail silently rather than loudly."
+  },
+  {
+    "id": "AUC-PRICE-002",
+    "feature": "auction.price",
+    "title": "QA_Platform_Reject a price auction start price that is not below the current L1",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is an active RFQ with at least one bid in Bid::VALID_STATUSES_TO_RANK, so event_score_for_participants yields a minimum L1 price. Company has rfx_project_enabled?.",
+    "steps": [
+      "1. Read the current L1 price for {{tradeId}}.",
+      "2. POST /trade/move_to_auction with a bulk_price greater than or equal to that L1.",
+      "3. Assert the request is refused and no auction stage is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "knockout",
+      "bulk_price": 999999999,
+      "title": "QA_Platform_Start_Price_Above_L1_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 966, returned by validate_start_and_end_price when minimum_l1_price < updated_bulk_prices.max or minimum_l1_price <= bulk_price. Error 965 is the sibling code for a computed bulk price that goes negative. No child auction row is written.",
+    "rationale": "Starting a reverse auction at or above the price already quoted guarantees zero savings and lets the buyer accidentally regress the negotiated position - the L1 comparison is the commercial safety net."
+  },
+  {
+    "id": "AUC-PRICE-003",
+    "feature": "auction.price",
+    "title": "QA_Platform_Price auction conversion with a null start price must not crash",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is an active RFQ whose event group is latest, with no existing child auction.",
+    "steps": [
+      "1. POST /trade/move_to_auction with auction_config price and bulk_price null.",
+      "2. Assert a controlled 4xx and never a 500.",
+      "3. Assert no child TradeRequest is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "price",
+      "bulk_price": null,
+      "title": "QA_Platform_Price_Auction_Null_Start_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Expected HTTP 422 with a numeric error code (2 for insufficient parameters). RfqToAuction::CreateService must not be invoked with a nil bulk_price; trade_requests count for parent_id = {{tradeId}} stays at zero.",
+    "rationale": "move_to_auction runs a long chain of price arithmetic before the service call; a nil that only blows up deep inside get_updated_bulk_price_in_fast_bidding is a 500 on a business-critical transition."
+  },
+  {
+    "id": "AUC-CONV-001",
+    "feature": "auction.convert",
+    "title": "QA_Platform_Reject conversion of a non-existent trade request to an auction",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; {{tradeId}} is substituted with an id that has no active TradeRequest.",
+    "steps": [
+      "1. POST /trade/move_to_auction with a trade_request_id that does not resolve.",
+      "2. Assert HTTP 422 with the documented numeric error code.",
+      "3. Assert nothing is written to trade_requests."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "title": "QA_Platform_Convert_Ghost_Trade_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 95 ('Trade Request not found'), rendered by Api::TradeController#move_to_auction when TradeRequest.active.includes(:trade_products).where(id:).last is blank. A warning is logged and the request returns before authorize.",
+    "rationale": "The lookup is scoped to TradeRequest.active, so a withdrawn or draft stage also lands here - QA must confirm the same opaque 95 is returned for all three, giving no state oracle to an attacker."
+  },
+  {
+    "id": "AUC-CONV-002",
+    "feature": "auction.convert",
+    "title": "QA_Platform_Reject converting a stage that is already an auction",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is an active TradeRequest that is already auctioning (current_status auctioning) and whose event group is the latest version.",
+    "steps": [
+      "1. Identify a live auction stage {{tradeId}}.",
+      "2. POST /trade/move_to_auction for that stage.",
+      "3. Assert the request is refused and no nested auction is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "title": "QA_Platform_Convert_Already_Auction_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 93 ('Trade is already of auction type'), from render_error_json(93) if old_trade.auctioning? in Api::TradeController#move_to_auction. No child trade_requests row.",
+    "rationale": "Converting an auction into another auction is the classic double-click bug; without the 93 guard a live auction would be superseded mid-bidding and all placed bids stranded on the parent."
+  },
+  {
+    "id": "AUC-CONV-003",
+    "feature": "auction.convert",
+    "title": "QA_Platform_Reject a second auction conversion when a child auction already exists",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is an active RFQ that has already been converted once, so a TradeRequest with parent_id = {{tradeId}} exists and is not cancelled or withdrawn.",
+    "steps": [
+      "1. Convert the RFQ {{tradeId}} to an auction once and let it succeed.",
+      "2. POST /trade/move_to_auction again for the same {{tradeId}}.",
+      "3. Assert the second call is refused and exactly one child auction exists."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "price",
+      "bulk_price": 1000,
+      "title": "QA_Platform_Convert_Twice_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 94 ('An auction has already been made for this event.'), from the TradeRequest.where(parent_id:).not_cancelled_or_withdrawn.exists? guard. TradeRequest.where(parent_id: {{tradeId}}) count stays at 1.",
+    "rationale": "The guard deliberately excludes cancelled/withdrawn children so a genuine retry after cancellation still works - QA must prove both halves, otherwise a legitimate re-conversion is blocked or a duplicate slips through."
+  },
+  {
+    "id": "AUC-CONV-004",
+    "feature": "auction.convert",
+    "title": "QA_Platform_Auction conversion of an event group that is no longer the latest version",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{tradeId}} belongs to an event group that has since been amended, so EventGroup#latest? returns false for it.",
+    "steps": [
+      "1. Amend the event group so the version holding {{tradeId}} is superseded.",
+      "2. POST /trade/move_to_auction for {{tradeId}}.",
+      "3. Assert the request is refused before RfqToAuction::CreateService runs."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "title": "QA_Platform_Convert_Stale_Version_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 101 ('You are not allowed to perform this action'), from render_error_json(101) unless old_trade.event_group.latest? in move_to_auction. No auction is created on the superseded version.",
+    "rationale": "Converting a stage on a stale version creates an auction attached to a version vendors can no longer see - the latest? check placed before authorize is the ordering QA must lock in."
+  },
+  {
+    "id": "AUC-DYN-001",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_Reject a negative dynamic extension window on auction conversion",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is an active RFQ whose event group is latest, with no child auction and no bids that would trip the L1 guard.",
+    "steps": [
+      "1. POST /trade/move_to_auction with configurations.dynamic_extra_time set to -300.",
+      "2. Assert the request is refused with a numeric error code.",
+      "3. Assert no auction stage and no dynamic_extra_time TradeSchedule row is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "configurations": { "dynamic_extra_time": -300 },
+      "title": "QA_Platform_Dynamic_Extension_Negative_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code. A negative dynamic_extra_time must not reach TradeSchedule, because TradeRequest#event_ending_at takes the max end_time across auction / dynamic_extra_time / sealbid_extension_time and a negative window would pull the effective close time backwards.",
+    "rationale": "Dynamic extension exists to stop sniping; a negative window inverts the feature and closes the auction the instant a late bid lands."
+  },
+  {
+    "id": "AUC-DYN-002",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_Zero dynamic extension while auto-extension is enabled must be refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is an active RFQ; the company allows auto time increment (allowed_auto_increment_count > 0) so dynamic extension is expected to be meaningful.",
+    "steps": [
+      "1. POST /trade/move_to_auction with dynamic extension enabled but dynamic_extra_time 0.",
+      "2. Assert the request is refused with a numeric error code, or that dynamic extension is stored as disabled rather than as a zero-second window.",
+      "3. Assert no schedule row with a zero-length dynamic window is persisted."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "configurations": { "dynamic_extension_enabled": true, "dynamic_extra_time": 0 },
+      "title": "QA_Platform_Dynamic_Extension_Zero_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code, or an auction whose dynamic extension is explicitly off. A zero-second dynamic_extra_time schedule must never be created, since clara_auto_time_increment_count would then increment against a no-op window.",
+    "rationale": "Zero is the boundary between 'feature on' and 'feature off'; storing enabled-with-zero produces an auction that reports anti-sniping protection it does not actually have."
+  },
+  {
+    "id": "AUC-DYN-003",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_Dynamic extension configured as an object instead of a duration must not crash",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is an active RFQ whose event group is latest.",
+    "steps": [
+      "1. POST /trade/move_to_auction with dynamic_extra_time sent as a nested object.",
+      "2. Assert a controlled 4xx and never a 500.",
+      "3. Assert no auction stage is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "configurations": { "dynamic_extra_time": { "minutes": 5 } },
+      "title": "QA_Platform_Dynamic_Extension_Object_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Expected HTTP 422 with a numeric error code. An ActionController::Parameters where an Integer is expected must be rejected by transform_config rather than reaching TradeSchedule creation or arithmetic.",
+    "rationale": "transform_config reshapes the whole configurations hash before persistence; a type surprise there is a single unguarded call away from a 500 on the auction-creation path."
+  },
+  {
+    "id": "AUC-INC-001",
+    "feature": "auction.increments",
+    "title": "QA_Platform_Reject a zero bid decrement on a rank auction",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is an active RFQ whose event group is latest, with no existing child auction.",
+    "steps": [
+      "1. POST /trade/move_to_auction with auction_config rank and a bid decrement of 0.",
+      "2. Assert the request is refused with a numeric error code.",
+      "3. Assert no auction TradeRequest is created with a zero decrement in its config."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "configurations": { "bid_decrement": 0, "bid_decrement_type": "absolute" },
+      "title": "QA_Platform_Zero_Decrement_Rank_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code. A zero decrement means a vendor can 'improve' a bid by re-submitting the same price, so the auction never converges and rank churns without price movement. No auction row is persisted.",
+    "rationale": "Zero is the exact boundary where the decrement rule stops constraining anything; QA must pin it because 'greater than or equal to zero' is the most common off-by-one in bid-step validation."
+  },
+  {
+    "id": "AUC-INC-002",
+    "feature": "auction.increments",
+    "title": "QA_Platform_Negative decrement on a descending auction must not invert the bid direction",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is an active RFQ whose event group is latest. The target auction_config is rank, which like every non-Dutch config drives price DOWNWARDS.",
+    "steps": [
+      "1. POST /trade/move_to_auction with a negative bid_decrement.",
+      "2. Assert a controlled 4xx and never a 500.",
+      "3. Assert no auction is created whose effective bid step would raise the price on a reverse auction."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "rank",
+      "configurations": { "bid_decrement": -50, "bid_decrement_type": "absolute" },
+      "title": "QA_Platform_Negative_Decrement_Rank_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx; expected HTTP 422 with a numeric error code. A negative decrement on a rank auction would let each successive bid be HIGHER than the last while still passing the step check - the opposite of the reverse-auction contract. Error 965 already exists for a computed bulk price going negative.",
+    "rationale": "Sign handling in bid steps is where reverse-auction logic breaks quietly; a negative step passes every 'is it a number' check and only shows up as a buyer losing money."
+  },
+  {
+    "id": "AUC-INC-003",
+    "feature": "auction.increments",
+    "title": "QA_Platform_Reject a Dutch auction whose end price is below its start price",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is an active RFQ whose event group is latest and whose company has rfx_project_enabled?, so validate_start_and_end_price is invoked with end_price for dutch.",
+    "steps": [
+      "1. POST /trade/move_to_auction with auction_config dutch, bulk_price 1000 and end_price 500.",
+      "2. Assert the request is refused with a numeric error code.",
+      "3. Assert no Dutch auction stage is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "dutch",
+      "bulk_price": 1000,
+      "end_price": 500,
+      "title": "QA_Platform_Dutch_End_Below_Start_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code (965 or 966 from validate_start_and_end_price, which only runs for auction_config in ['dutch','knockout'] and reads end_price only when auction_config == 'dutch'). No dutch TradeRequest is created.",
+    "rationale": "Dutch is the one auction_config in the enum {rank, price, rank_and_price, traffic_light, knockout, dutch, book_building} where the price RISES over time until a vendor accepts; an end_price below the start silently converts it into a descending auction and breaks get_next_round_for_dutch_knockout_auction."
+  },
+  {
+    "id": "AUC-INC-004",
+    "feature": "auction.increments",
+    "title": "QA_Platform_Reject fast bidding mode on an auction with a single line item",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is an active RFQ whose event group is latest and which has exactly ONE TradeProduct in status active or closed.",
+    "steps": [
+      "1. Confirm the RFQ has a single active trade product.",
+      "2. POST /trade/move_to_auction with configurations.fast_bidding_mode_enabled true.",
+      "3. Assert the request is refused and no auction is created."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_id": "{{tradeId}}",
+      "auction_config": "price",
+      "bulk_price": 1000,
+      "configurations": { "fast_bidding_mode_enabled": true },
+      "title": "QA_Platform_Fast_Bidding_Single_Item_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 798, from the move_to_auction guard that fires when active_closed_tp_ids.count is not greater than 1 while configurations.fast_bidding_mode_enabled is present. No auction row is written.",
+    "rationale": "Fast bidding applies a bulk price across multiple line items; enabling it on a single item makes the bulk-price formula degenerate and mis-states savings on every subsequent report."
+  },
+  {
+    "id": "EVT-VER-001",
+    "feature": "events.versioning",
+    "title": "QA_Platform_Reject version creation for an item_type outside the allow-list",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated purchaser. Api::ItemVersionsController::ALLOWED_ITEM_TYPES is exactly ['EventGroup'].",
+    "steps": [
+      "1. POST /item_versions with item_type 'TradeRequest'.",
+      "2. Assert HTTP 422 with a numeric error code.",
+      "3. Assert no item_versions row is created and no class other than EventGroup is constantized."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_type": "TradeRequest",
+      "item_id": "{{tradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 ('Insufficient parameters'), from the guard that fires when item_type is blank, item_id is blank, or ALLOWED_ITEM_TYPES excludes item_type. The subsequent item_type.constantize must never run.",
+    "rationale": "item_type is passed to constantize; the allow-list is the only thing between a user-supplied string and arbitrary class resolution, so it must be verified as a hard deny rather than a soft filter."
+  },
+  {
+    "id": "EVT-VER-002",
+    "feature": "events.versioning",
+    "title": "QA_Platform_Reject creating a version of a draft event group",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Event group {{eventGroupUuid}} exists in status draft (never published) and is the latest version.",
+    "steps": [
+      "1. Create a draft event group and do not publish any stage.",
+      "2. POST /item_versions with item_type EventGroup and the draft event group's id.",
+      "3. Assert the request is refused and no new event group replica is created."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_type": "EventGroup",
+      "item_id": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 888 ('Invalid Parameters'), from render_error_json(888) when item.blank? || !item.active? || !item.latest? - a draft EventGroup fails active? (status enum draft = 2, active = 1). No item_versions row and no replica EventGroup are created.",
+    "rationale": "Versioning a draft would branch an event that was never published to vendors, producing two 'latest' candidates and breaking every latest? guard used across update, publish and move_to_auction."
+  },
+  {
+    "id": "EVT-VER-003",
+    "feature": "events.versioning",
+    "title": "QA_Platform_Version creation with a missing item_id and a hostile item_id type",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser. Run twice: once with item_id omitted, once with item_id sent as an array.",
+    "steps": [
+      "1. POST /item_versions with item_type EventGroup and no item_id at all and assert HTTP 422.",
+      "2. POST /item_versions with item_id sent as an array of ids.",
+      "3. Assert both calls return a controlled 4xx and never a 500, and that no item_versions row is created."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_type": "EventGroup",
+      "item_id": ["{{eventGroupUuid}}", "{{eventGroupUuid}}"]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. The omitted-id variant returns HTTP 422 with error code 2 ('Insufficient parameters'). The array variant must return 422 with code 2 or 888 - EventGroup.find_by(id: [array]) would otherwise resolve the FIRST element and version an event the caller never named.",
+    "rationale": "An array where a scalar is expected is the standard Rails mass-assignment trick; find_by silently accepts it, so this is a real authorization-bypass shape and not just a type nit."
+  },
+  {
+    "id": "EVT-BOQ-001",
+    "feature": "events.boq",
+    "title": "QA_Platform_BOQ event group with no line items is allowed only when the workspace flag is on",
+    "type": "Functional",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Run the same payload against two workspaces: one with CustomConfiguration boq_in_erfx_allowed enabled and one without.",
+    "steps": [
+      "1. POST /event_groups with config.boq_based_rfx true and no line_items in the flag-ON workspace and assert HTTP 200 with zero line items created.",
+      "2. Repeat the identical POST in the flag-OFF workspace.",
+      "3. Assert the flag-OFF call is refused with a numeric error code and creates nothing."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_BOQ_No_LineItems_{{stamp}}",
+      "config": { "boq_based_rfx": true }
+    },
+    "expected": "reject",
+    "expectedResult": "In the flag-OFF workspace: HTTP 422 with error code 101 from render_error_json(101) unless Current.workspace.boq_in_erfx_allowed?. In the flag-ON workspace the same payload yields HTTP 200 and EventGroups::CreateService#create_line_items returns [] early because event_group.boq_based_rfx? is true and @line_items is blank.",
+    "rationale": "BOQ is the only path where an event with zero line items is legitimate; asserting both sides of the flag is the only way to prove the exemption is gated and not universal."
+  },
+  {
+    "id": "EVT-BOQ-002",
+    "feature": "events.boq",
+    "title": "QA_Platform_BOQ event group rejected when status is missing even with the BOQ flag set",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Workspace has boq_in_erfx_allowed enabled, so the BOQ branch is reachable.",
+    "steps": [
+      "1. POST /event_groups with config.boq_based_rfx true, a title, but no status field.",
+      "2. Assert HTTP 422 with a numeric error code.",
+      "3. Assert no event_groups row is created."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "title": "QA_Platform_BOQ_No_Status_{{stamp}}",
+      "config": { "boq_based_rfx": true }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 ('Insufficient parameters'). The params[:status].blank? guard is the FIRST statement in Api::EventGroupsController#create and runs before the boq_based_rfx branch, so the BOQ flag cannot bypass it.",
+    "rationale": "Guard ordering matters: if the BOQ branch were hoisted above the status check, EventGroups::CreateService would call event_group.save! with a nil status enum and raise, turning a 422 into a 500."
+  },
+  {
+    "id": "EVT-BOQ-003",
+    "feature": "events.boq",
+    "title": "QA_Platform_BOQ flag sent as the string true with an oversized nested config",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Workspace has boq_in_erfx_allowed enabled; no line_items are sent.",
+    "steps": [
+      "1. POST /event_groups with config.boq_based_rfx as the string 'true' plus a deeply nested extra key.",
+      "2. Assert the response is a controlled 4xx or a 200 where boq_based_rfx? evaluates consistently.",
+      "3. Assert the jsonb config column round-trips without truncation and never causes a 500."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_BOQ_String_Flag_Nested_Config_{{stamp}}",
+      "config": {
+        "boq_based_rfx": "true",
+        "boq_meta": { "levels": { "l1": { "l2": { "l3": "QA_Platform_deep_value_{{stamp}}" } } } }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Hazard: the controller does boq_based_rfx = params.dig('config','boq_based_rfx') || false, so the STRING 'true' is truthy in Ruby and takes the BOQ branch, while EventGroup#boq_based_rfx? later returns the string 'true' rather than a boolean. Assert consistent behaviour and that no line-items requirement is bypassed by an unintended truthy value.",
+    "rationale": "Ruby treats any non-nil, non-false value as truthy, so 'false' as a string would ALSO enable BOQ - a one-character client bug that removes the mandatory-line-items rule."
+  },
+  {
+    "id": "EVT-TPL-001",
+    "feature": "events.templates",
+    "title": "QA_Platform_Template response for a non-existent trade must return a numeric error not a partial template",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated purchaser; {{tradeId}} is substituted with an id that has no trade_requests row.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}?response_type=template for a non-existent trade id.",
+      "2. Assert a controlled 4xx with a numeric error code and never a 500.",
+      "3. Assert the body contains no template schema, no tab definitions and no vendor data."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}?response_type=template",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with a numeric error code such as 95 ('Trade Request not found') or 101 ('You are not allowed to perform this action'). Api::TradeController#show does TradeRequest.where(id:).last and then calls trade_request.is_allowed_to_view?(Current.user), so a nil trade must be caught before that dereference.",
+    "rationale": "The template response drives the entire buyer form; a half-rendered template on a missing trade both 500s and leaks the shape of the schema builder."
+  },
+  {
+    "id": "EVT-TPL-002",
+    "feature": "events.templates",
+    "title": "QA_Platform_Stage creation with the template_name query parameter removed",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Draft event group {{eventGroupUuid}} exists with line items. The request is sent to the template_input action but the template_name query parameter is dropped by the client.",
+    "steps": [
+      "1. POST to the template_input path with template_name empty and additional_fields still present.",
+      "2. Assert the response is a controlled 4xx and never a 500.",
+      "3. Assert no TradeRequest is created against an unresolved template."
+    ],
+    "method": "POST",
+    "path": "/trade/template_input?template_name=&additional_fields=order_details",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "stage_no": 1,
+      "rfx_mode": "rfq",
+      "title": "QA_Platform_Missing_Template_Name_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Expected HTTP 422 with a numeric error code (2 or 888). transform_trade_product and transform_config both run off the resolved template, so a blank template_name must be refused before a TradeRequest is written with a null template reference.",
+    "rationale": "template_name is a query parameter rather than a body field, so it is the first thing lost by a proxy rewrite or a badly-built URL - the server must not assume it is present."
+  },
+  {
+    "id": "EVT-TPL-003",
+    "feature": "events.templates",
+    "title": "QA_Platform_Orders listing must not leak other tenants rows via a forged company filter",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Authenticated as a purchaser of company A. A company B exists with its own awarded orders. The listing is expected to be scoped by Current.allowed_companies.",
+    "steps": [
+      "1. GET /orders as company A with no filters and record the returned order ids.",
+      "2. GET /orders again appending a forged company/vendor filter that names company B and {{vendorUuid}}.",
+      "3. Assert the second response is a subset of the first and contains zero rows belonging to company B."
+    ],
+    "method": "GET",
+    "path": "/orders",
+    "expected": "reject",
+    "expectedResult": "HTTP 200 with results strictly scoped to Current.allowed_companies, or HTTP 422 with error code 455 / 101. Under no circumstances may a client-supplied company or vendor filter widen the result set beyond the caller's own tenancy.",
+    "rationale": "Listing endpoints take filters straight from params and merge them into the scope; a filter that widens rather than narrows is the most common tenancy leak in list APIs and orders carry final awarded prices."
+  }
+]

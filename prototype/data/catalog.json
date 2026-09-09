@@ -1,0 +1,149 @@
+{
+  "$comment": "The master menu of testable flows. Each id EXACTLY matches a key in `procol test/src/master/registry.ts`, so the Executor can look the flow up and run it. Mirrors the registry (source of truth). Run `npm run check:catalog` to confirm they are still in sync.",
+  "generatedFrom": "../../procol test/src/master/registry.ts",
+  "flows": [
+    {
+      "id": "entrypath.pr_to_event",
+      "name": "PR → Event",
+      "category": "entry-paths",
+      "description": "Takes an existing Purchase Request and turns it into a sourcing event, carrying the PR's line items across. Confirms the new event group is saved in the database.",
+      "configSwitch": "pr (module) + trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.rfp_rfq",
+      "name": "Create RFP + RFQ event (2-stage)",
+      "category": "events",
+      "description": "Creates a two-stage event: a technical RFP stage and a pricing RFQ stage. Confirms both stages were saved in the database.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.rfp_only",
+      "name": "Create RFP-only event",
+      "category": "events",
+      "description": "Creates a single technical (RFP) stage event and confirms it in the database.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.rfq_only",
+      "name": "Create RFQ-only event",
+      "category": "events",
+      "description": "Creates a single pricing (RFQ) stage event and confirms it in the database.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.auction_rank",
+      "name": "Create rank-based auction event",
+      "category": "events",
+      "description": "Creates an auction event ranked by position and confirms it in the database.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.auction_price",
+      "name": "Create price-based auction event",
+      "category": "events",
+      "description": "Creates an auction event ranked by price and confirms it in the database.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.rfp_auction",
+      "name": "Create RFP + Auction event (2-stage)",
+      "category": "events",
+      "description": "Creates a two-stage event: a technical RFP stage followed by an auction stage. Confirms both stages in the database.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.surrogate_award",
+      "name": "Create → surrogate bid → award proposal",
+      "category": "events",
+      "description": "Full happy-path: create an event, place a bid on the vendor's behalf (surrogate), then open an award proposal. This is the closest flow to 'create and award an RFQ event'.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "events.versioning",
+      "name": "Version an event group (F2)",
+      "category": "events",
+      "description": "Creates an event and then makes a new version of it. Confirms the versioned trades exist.",
+      "configSwitch": "trade:create_record",
+      "verifiedInDb": false
+    },
+    {
+      "id": "events.convert_to_auction",
+      "name": "Convert RFQ stage to auction (F5)",
+      "category": "events",
+      "description": "Creates an event then converts its pricing (RFQ) stage into an auction. Confirms the auction stage is active.",
+      "configSwitch": "trade:create_record (+ rfx_project_enabled)",
+      "verifiedInDb": false
+    },
+    {
+      "id": "events.boq",
+      "name": "Create BOQ-based event",
+      "category": "events",
+      "description": "Downloads a Bill-of-Quantities Excel template, parses its sections and line items, and creates a BOQ event group. Confirms the BOQ flag is saved in the database.",
+      "configSwitch": "boq_in_erfx_allowed (+ trade:create_record)",
+      "verifiedInDb": true
+    },
+    {
+      "id": "masterdata.category",
+      "name": "Create a product category",
+      "category": "masterdata",
+      "description": "Creates a product category and confirms it in the database.",
+      "configSwitch": "product_category:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "masterdata.product",
+      "name": "Create a product",
+      "category": "masterdata",
+      "description": "Creates a category, a family under it, then a product, and confirms the product in the database.",
+      "configSwitch": "product:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "masterdata.location",
+      "name": "Create a location (buyer hub)",
+      "category": "masterdata",
+      "description": "Creates a delivery/buying location and confirms it in the database.",
+      "configSwitch": "buyer_hub:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "masterdata.team",
+      "name": "Create a team",
+      "category": "masterdata",
+      "description": "Creates a purchasing team and confirms it in the database.",
+      "configSwitch": "team:create_record",
+      "verifiedInDb": true
+    },
+    {
+      "id": "masterdata.user_permissions",
+      "name": "Create a user (grant permissions via team)",
+      "category": "masterdata",
+      "description": "Creates a team, then creates a user assigned to that team (team membership is how permissions are granted). Confirms the user and team in the database. NOTE: the phone field has strict validation — it must be a valid Indian mobile like 98xxxxxxxx with phone_prefix '+91'. This is the input the 'try to break the inputs' request targets.",
+      "configSwitch": "user:create_record",
+      "verifiedInDb": true,
+      "notableInputs": [
+        {
+          "field": "phone",
+          "rule": "A valid phone is exactly 10 digits with phone_prefix '+91'. The frontend form enforces digits-only + length 10 (validateCountryPhone, utils/index.js:195-203).",
+          "knownQuirk": "Server-side validation on POST /users/create_user checks LENGTH (rejects 9 or 11 digits with 422 'Invalid phone number') but does NOT check that the characters are digits — a 10-character value containing letters (e.g. '9876543ABC') is accepted (HTTP 200). The API is more lenient than the UI, letting a malformed phone into the users table. Strong target for data-validation testing."
+        }
+      ]
+    },
+    {
+      "id": "vendor.discovery",
+      "name": "Fetch the client's vendor list",
+      "category": "vendor",
+      "description": "Reads the client's list of vendors. Always available (read-only).",
+      "configSwitch": "always",
+      "verifiedInDb": false
+    }
+  ]
+}

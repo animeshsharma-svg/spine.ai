@@ -1,0 +1,1215 @@
+[
+  {
+    "id": "INT-CRT-001",
+    "feature": "intake.create",
+    "title": "QA_Platform_intake_create_rejects_missing_title",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller whose role is member or manager, holding the intake create_record permission",
+    "steps": [
+      "1. POST /intake_requests with template_item_mapping_id and forms populated but the title key omitted entirely.",
+      "2. Assert the response is refused and that no draft IntakeRequest row is created."
+    ],
+    "method": "POST",
+    "path": "/intake_requests",
+    "body": {
+      "template_item_mapping_id": "{{prItemId}}",
+      "forms": [
+        {
+          "name": "QA_Platform_form_{{stamp}}"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error.code 2 (Insufficient parameters) from the params[:title].blank? guard at the top of Api::IntakeRequestsController#create; no IntakeRequest, Form or IntakeProduct row is inserted.",
+    "rationale": "The three-way blank guard is the only thing standing between a malformed client payload and a half-built intake; a regression here creates orphan drafts that later block PR creation."
+  },
+  {
+    "id": "INT-CRT-003",
+    "feature": "intake.create",
+    "title": "QA_Platform_intake_create_rejects_missing_forms",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller whose role is member or manager, holding the intake create_record permission",
+    "steps": [
+      "1. POST /intake_requests with a valid title and template_item_mapping_id but no forms array.",
+      "2. Assert refusal before build_forms runs."
+    ],
+    "method": "POST",
+    "path": "/intake_requests",
+    "body": {
+      "title": "QA_Platform_intake_{{stamp}}",
+      "template_item_mapping_id": "{{prItemId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2; the forms.blank? branch fires before the ActiveRecord transaction opens, so nothing is written.",
+    "rationale": "An intake with no forms cannot be validated, approved or converted to a PR; it must be refused at the boundary rather than at publish time."
+  },
+  {
+    "id": "INT-CRT-004",
+    "feature": "intake.create",
+    "title": "QA_Platform_intake_create_survives_injection_payload_in_title",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "a caller whose role is member or manager, holding the intake create_record permission",
+    "steps": [
+      "1. POST /intake_requests with a script tag and a SQL fragment inside title and no forms key.",
+      "2. Assert the API refuses the call and never echoes the raw script tag back."
+    ],
+    "method": "POST",
+    "path": "/intake_requests",
+    "body": {
+      "title": "QA_Platform_<script>alert(1)</script>' OR 1=1--",
+      "template_item_mapping_id": "{{prItemId}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 422 error.code 2 (forms missing). ParamsAuth#sanitize_input_params has already stripped the HTML via strip_html_tags_except_mentions, so no raw <script> is stored or reflected and no 5xx is raised.",
+    "rationale": "Titles are rendered in the buyer dashboard and in approval e-mails; the global sanitizer is the single control point and needs an explicit regression test."
+  },
+  {
+    "id": "INT-CRT-005",
+    "feature": "intake.create",
+    "title": "QA_Platform_intake_configs_and_currency_read",
+    "type": "Functional",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the intake create_record permission (IntakeRequestPolicy#configs? maps to create?)",
+    "steps": [
+      "1. GET /intake_requests/configs.",
+      "2. Assert HTTP 200 and a currency_config object for the caller's workspace."
+    ],
+    "method": "GET",
+    "path": "/intake_requests/configs",
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with a currency_config payload from Current.workspace.get_currency_config; read-only, no DB writes.",
+    "rationale": "Every intake form is priced off this config; if it 403s or returns an empty currency the whole intake creation screen breaks before a single request is raised."
+  },
+  {
+    "id": "INT-CRT-006",
+    "feature": "intake.create",
+    "title": "QA_Platform_intake_draft_read_is_scoped_to_caller",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller who holds the intake create_record permission and has at most one draft intake in the current workspace",
+    "steps": [
+      "1. GET /intake_requests/draft.",
+      "2. Assert HTTP 200 and that the returned draft (if any) belongs to the calling user and the current workspace only."
+    ],
+    "method": "GET",
+    "path": "/intake_requests/draft",
+    "expected": "accept",
+    "expectedResult": "HTTP 200 returning the last IntakeRequest.draft scoped by user: Current.user AND company: Current.workspace, or {success:true} when none exists; never another user's draft.",
+    "rationale": "The draft endpoint returns an in-progress request with prices and vendor details; the user+company scoping is the tenant boundary and must be asserted, not assumed."
+  },
+  {
+    "id": "INT-ATT-001",
+    "feature": "intake.attachments",
+    "title": "QA_Platform_issue_request_rejects_attachments_without_remark",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the intake update_record permission, and {{intakeId}} is an intake request that is NOT in the to_be_completed state",
+    "steps": [
+      "1. POST /intake_requests/{{intakeId}}/issue_request with an attachments array but no remark.",
+      "2. Assert the intake is not marked completed and no closing remark row is created."
+    ],
+    "method": "POST",
+    "path": "/intake_requests/{{intakeId}}/issue_request",
+    "body": {
+      "event_type": "intake_closing_remark",
+      "attachments": [
+        "QA_Platform_proof_{{stamp}}.pdf"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422: error.code 4 (Failed to issue intake request) from the !to_be_completed? guard, or error.code 15 from create_closing_remark when remark is blank. IntakeRequest.status stays unchanged and no ExpressionEvaluator record is written.",
+    "rationale": "Closing an intake is terminal; an attachment alone must never be treated as a valid closure, and the state guard must be evaluated before the remark payload."
+  },
+  {
+    "id": "INT-ATT-003",
+    "feature": "intake.attachments",
+    "title": "QA_Platform_issue_request_handles_malformed_attachments_shape",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the intake update_record permission, and {{intakeId}} is an intake request that is NOT in the to_be_completed state",
+    "steps": [
+      "1. POST /intake_requests/{{intakeId}}/issue_request sending attachments as an object instead of the expected array of strings, with remark omitted.",
+      "2. Assert a clean 4xx rather than a Sorbet/NoMethodError 500."
+    ],
+    "method": "POST",
+    "path": "/intake_requests/{{intakeId}}/issue_request",
+    "body": {
+      "event_type": "intake_closing_remark",
+      "attachments": {
+        "url": "QA_Platform_proof_{{stamp}}.pdf"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 422 (error.code 4 or 15) and no 500. create_closing_remark is typed T.nilable(T::Array[String]) for attachments, so a Hash must be refused by the blank-remark guard before the signature is exercised.",
+    "rationale": "The attachments parameter crosses a sig-typed boundary; a client sending the wrong shape must get a validation error, not a type error leaking a stack trace."
+  },
+  {
+    "id": "INT-ATT-004",
+    "feature": "intake.attachments",
+    "title": "QA_Platform_share_rejects_invalid_access_type",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the intake read_record permission and can see {{intakeId}}",
+    "steps": [
+      "1. PATCH /intake_requests/{{intakeId}}/share with shared_with[0].access_type set to a privilege above viewer.",
+      "2. Assert refusal and that no AccessList row is created for {{userUuid}}."
+    ],
+    "method": "PATCH",
+    "path": "/intake_requests/{{intakeId}}/share",
+    "body": {
+      "shared_with": [
+        {
+          "shared_with_uuid": "{{userUuid}}",
+          "shared_with_type": "User",
+          "access_type": "QA_Platform_editor"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 from AccessLists::ValidateService#valid_access_types?, because IntakeRequest::SHAREABLE_ACCESS_TYPES is ['viewer'] only; ShareService never runs and no access grant is persisted.",
+    "rationale": "Intake attachments contain quotes and pricing; an access_type that escalates past viewer would silently widen document visibility, and the whitelist is the only guard."
+  },
+  {
+    "id": "INT-ATT-005",
+    "feature": "intake.attachments",
+    "title": "QA_Platform_run_steps_read_returns_workflow_documents",
+    "type": "Functional",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the intake read_record permission and can see {{intakeId}}",
+    "steps": [
+      "1. GET /intake_requests/{{intakeId}}/run_steps.",
+      "2. Assert HTTP 200 with the run-step and approval-request payload serialised by Intake::IntakeRunStepsSerializer."
+    ],
+    "method": "GET",
+    "path": "/intake_requests/{{intakeId}}/run_steps",
+    "expected": "accept",
+    "expectedResult": "HTTP 200; read-only path that eager-loads forms, form_pages, form_page_responses and access_lists. Unauthorised callers would instead get 422 error.code 455.",
+    "rationale": "This is the timeline the buyer sees for attachments and approvals; it is also the heaviest eager-load in the intake controller, so it is worth a standing smoke assertion."
+  },
+  {
+    "id": "INT-APR-001",
+    "feature": "intake.approval",
+    "title": "QA_Platform_approvals_read_for_visible_intake",
+    "type": "Functional",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller who holds the intake read_record permission and can see {{intakeId}}",
+    "steps": [
+      "1. GET /intake_requests/{{intakeId}}/approvals.",
+      "2. Assert HTTP 200 and that approval requests are returned newest-first with per-request edit permissions."
+    ],
+    "method": "GET",
+    "path": "/intake_requests/{{intakeId}}/approvals",
+    "expected": "accept",
+    "expectedResult": "HTTP 200, array serialised by ApprovalWorkflow::IntakeApprovalSerializer sorted by created_at desc, including is_user_allowed_to_force_resolve_pending_steps; read-only.",
+    "rationale": "Approvals drive who can release spend; the force-resolve flag in this payload is a privilege signal the UI trusts, so its presence and value must be verified."
+  },
+  {
+    "id": "INT-APR-002",
+    "feature": "intake.approval",
+    "title": "QA_Platform_approvals_rejects_unknown_intake_id",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the intake read_record permission",
+    "steps": [
+      "1. GET /intake_requests/QA_Platform_{{stamp}}/approvals using a non-existent identifier.",
+      "2. Assert a not-found style refusal rather than an empty 200."
+    ],
+    "method": "GET",
+    "path": "/intake_requests/QA_Platform_{{stamp}}/approvals",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 706 (Intake request not found) from the verify_request_exists before_action; ParamsAuth#check_for_uuid decodes the non-numeric id to nil first.",
+    "rationale": "Distinguishing not-found (706) from not-authorized (455) is what stops the endpoint being used to enumerate intake ids across tenants."
+  },
+  {
+    "id": "INT-APR-003",
+    "feature": "intake.approval",
+    "title": "QA_Platform_approval_flows_rejects_non_draft_intake",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller who holds the intake create_record permission, and {{intakeId}} is an intake that is already active or completed (not draft and not rejected)",
+    "steps": [
+      "1. GET /intake_requests/{{intakeId}}/approval_flows for an already-published intake.",
+      "2. Assert refusal, since approval flows may only be resolved for draft or rejected intakes."
+    ],
+    "method": "GET",
+    "path": "/intake_requests/{{intakeId}}/approval_flows",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101 (You are not allowed to perform this action) because the draft_scope in #applicable_approval_flows filters status to [:draft, :rejected] and returns nil.",
+    "rationale": "Re-resolving the approval chain on a live intake would let a requester swap approvers mid-flight; the draft-only scope is the control and must be pinned by a test."
+  },
+  {
+    "id": "INT-APR-005",
+    "feature": "intake.approval",
+    "title": "QA_Platform_publish_rejects_undecodable_intake_id",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the intake create_record permission",
+    "steps": [
+      "1. PATCH /intake_requests/QA_Platform_{{stamp}}/publish with an approval_flow_id and remark.",
+      "2. Assert the refusal happens before WorkflowRuns::CreateService is invoked."
+    ],
+    "method": "PATCH",
+    "path": "/intake_requests/QA_Platform_{{stamp}}/publish",
+    "body": {
+      "approval_flow_id": null,
+      "remark": {
+        "value": "QA_Platform_publish_probe_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 (blank id after uuid decode); status is never set to :active and no workflow run is created.",
+    "rationale": "Publish is the point of no return for an intake; the negative path must be proven to short-circuit before the transaction and the workflow kick-off."
+  },
+  {
+    "id": "INT-APR-006",
+    "feature": "intake.approval",
+    "title": "QA_Platform_publish_requires_authenticated_session",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "no session token",
+    "steps": [
+      "1. PATCH /intake_requests/{{intakeId}}/publish with no session/access token headers.",
+      "2. Assert an authentication failure and that the intake remains in draft."
+    ],
+    "method": "PATCH",
+    "path": "/intake_requests/{{intakeId}}/publish",
+    "body": {
+      "remark": {
+        "value": "QA_Platform_unauthenticated_publish_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused by ApiAuth before the controller action: HTTP 422 error.code 2 when the access token is absent, or api_error_auth_failed when the app token resolves but no user session exists. IntakeRequest.status is unchanged and no approval workflow is started.",
+    "rationale": "An unauthenticated publish would push spend into the approval chain; auth must be enforced by the filter chain, not by the action body."
+  },
+  {
+    "id": "INT-APR-007",
+    "feature": "intake.approval",
+    "title": "QA_Platform_withdraw_rejects_draft_intake",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller who holds the intake update_record permission, and {{intakeId}} is a DRAFT intake request (never published)",
+    "steps": [
+      "1. POST /intake_requests/{{intakeId}}/withdraw_request for a draft intake.",
+      "2. Assert refusal with the withdraw-not-allowed code and no workflow-run mutation."
+    ],
+    "method": "POST",
+    "path": "/intake_requests/{{intakeId}}/withdraw_request",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 707 (Can't withdraw Intake request) because status must be in ['active','to_be_completed']; no approval request is withdrawn.",
+    "rationale": "Illegal state transitions on withdraw would strand workflow_run_steps in a running state with no parent request; the status whitelist is the guard."
+  },
+  {
+    "id": "INT-APR-008",
+    "feature": "intake.approval",
+    "title": "QA_Platform_withdraw_rejects_unknown_intake",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "a caller who holds the intake update_record permission",
+    "steps": [
+      "1. POST /intake_requests/QA_Platform_{{stamp}}/withdraw_request.",
+      "2. Assert the authorization-scoped refusal."
+    ],
+    "method": "POST",
+    "path": "/intake_requests/QA_Platform_{{stamp}}/withdraw_request",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 455 (You are not authorized to perform this action); IntakeRequest.for_user(..., action: WITHDRAW, company: Current.workspace).find_by returns nil.",
+    "rationale": "for_user is the tenant + access-list filter for withdraw; asserting 455 on an unknown id proves the scope is applied before any state check."
+  },
+  {
+    "id": "INT-PR-001",
+    "feature": "intake.to_pr",
+    "title": "QA_Platform_pr_retry_rejects_intake_not_in_pr_failed",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the intake update_record permission, and {{intakeId}} is an intake whose pr_status is NOT pr_failed",
+    "steps": [
+      "1. POST /intake_requests/{{intakeId}}/purchase_request.",
+      "2. Assert refusal and that IntakeToPrWorker is not enqueued."
+    ],
+    "method": "POST",
+    "path": "/intake_requests/{{intakeId}}/purchase_request",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101 from the !intake_request.pr_failed? guard; no Sidekiq job is pushed and no PurchaseRequest is created.",
+    "rationale": "PR creation is the money-side handoff; retrying a non-failed intake would double-create purchase requests, so the state gate is the highest-value assertion in this flow."
+  },
+  {
+    "id": "INT-PR-002",
+    "feature": "intake.to_pr",
+    "title": "QA_Platform_pr_retry_rejects_unknown_intake_and_is_workspace_scoped",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the intake update_record permission",
+    "steps": [
+      "1. POST /intake_requests/QA_Platform_{{stamp}}/purchase_request.",
+      "2. Assert 455 and confirm no worker is enqueued."
+    ],
+    "method": "POST",
+    "path": "/intake_requests/QA_Platform_{{stamp}}/purchase_request",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 455 because IntakeRequest.for_user(...).find_by(id: nil) is nil.",
+    "rationale": "This action calls for_user WITHOUT company: Current.workspace, unlike every sibling action in the controller; that asymmetry makes the id-resolution path worth explicit regression coverage."
+  },
+  {
+    "id": "INT-PR-003",
+    "feature": "intake.to_pr",
+    "title": "QA_Platform_intake_update_rejects_unknown_id_on_patch",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "a caller who holds the intake update_record permission",
+    "steps": [
+      "1. PATCH /intake_requests/QA_Platform_{{stamp}} with a forms payload.",
+      "2. Assert the not-found refusal from the before_action, before update_intake_request runs."
+    ],
+    "method": "PATCH",
+    "path": "/intake_requests/QA_Platform_{{stamp}}",
+    "body": {
+      "title": "QA_Platform_update_probe_{{stamp}}",
+      "forms": []
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 706 (Intake request not found) from verify_request_exists, which excludes in_active records; nothing is written.",
+    "rationale": "The update action can rewrite forms, products and approval routing, so the id guard must fire in the filter chain rather than deep inside the helper."
+  },
+  {
+    "id": "INT-PR-004",
+    "feature": "intake.to_pr",
+    "title": "QA_Platform_intake_update_blocked_once_pr_exists",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the intake update_record permission, and {{intakeId}} is an intake that already has a purchase_request and the workspace does NOT allow intake resubmit",
+    "steps": [
+      "1. PUT /intake_requests/{{intakeId}} with a changed title.",
+      "2. Assert refusal so the already-issued PR cannot be retro-edited."
+    ],
+    "method": "PUT",
+    "path": "/intake_requests/{{intakeId}}",
+    "body": {
+      "title": "QA_Platform_post_pr_edit_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101 from the `intake_request.purchase_request.present? && !resubmit_allowed` guard in #update; the intake, its forms and the downstream PR are unchanged.",
+    "rationale": "Editing an intake after PR creation would desynchronise the approved intake from the PR that finance already sees; this is the classic audit-trail break a senior QA looks for."
+  },
+  {
+    "id": "PO-GEN-001",
+    "feature": "po.generate",
+    "title": "QA_Platform_purchase_orders_index_read",
+    "type": "Functional",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller who holds the po read_record permission",
+    "steps": [
+      "1. GET /purchase_orders?page=1.",
+      "2. Assert HTTP 200 and that every returned order belongs to the caller's workspace with stats fields present."
+    ],
+    "method": "GET",
+    "path": "/purchase_orders?page=1",
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with data, total_pages, number_of_purchase_orders, number_of_success_po, number_of_failed_po and po_dms_enabled; PurchaseOrders::SearchQueryPo forces buyer_company_id = Current.workspace.id and excludes in_active.",
+    "rationale": "This is the PO list every buyer lands on; the workspace clause inside the query object is the tenant boundary for all PO data."
+  },
+  {
+    "id": "PO-GEN-002",
+    "feature": "po.generate",
+    "title": "QA_Platform_po_page_stats_read",
+    "type": "Functional",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the po read_record permission",
+    "steps": [
+      "1. GET /purchase_orders/po_page_stats.",
+      "2. Assert HTTP 200 and that the counters are integers consistent with the index response."
+    ],
+    "method": "GET",
+    "path": "/purchase_orders/po_page_stats",
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with total_line_items_procured, avg_time_cycle and the five purchase_order_status counters (not_requested/requested/generated/declined) computed by group(:purchase_order_status).count.",
+    "rationale": "These counters are what procurement leadership reports on; a silent enum rename would zero them out without any error surfacing."
+  },
+  {
+    "id": "PO-GEN-004",
+    "feature": "po.generate",
+    "title": "QA_Platform_create_po_rejects_unresolvable_contract",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the po read_record permission (OrderPolicy#create_po? maps to index?)",
+    "steps": [
+      "1. POST /orders/QA_Platform_{{stamp}}/create_po with a pr_to_po request_type and one line item.",
+      "2. Assert the contract-not-found refusal and that no Order/PO row and no budget call are made."
+    ],
+    "method": "POST",
+    "path": "/orders/QA_Platform_{{stamp}}/create_po",
+    "body": {
+      "request_type": "pr_to_po",
+      "request_data": {
+        "items": [
+          {
+            "product_uuid": "{{productUuid}}",
+            "quantity": 1,
+            "reference": "QA_Platform_item_{{stamp}}"
+          }
+        ]
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 476 (Contract not found): ParamsAuth turns the contract_uuid path segment into contract_id = nil, so Order.find_by(id: nil, buyer_company_id: workspace) is nil and the guard returns before handle_budget_integration and Contracts::ContractConsumptionService.",
+    "rationale": "Create_po is the single most side-effectful endpoint in this flow; proving it dies on the contract lookup with an unresolvable uuid is the only safe way to exercise it."
+  },
+  {
+    "id": "PO-GEN-006",
+    "feature": "po.generate",
+    "title": "QA_Platform_po_stats_schema_rejects_missing_line_item",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the po read_record permission",
+    "steps": [
+      "1. GET /orders/po_stats_schema with no event_group_line_item_id.",
+      "2. Assert the line-item-not-found refusal."
+    ],
+    "method": "GET",
+    "path": "/orders/po_stats_schema",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 808 (Line item not found); EventGroupLineItem.not_in_active.find_by(id: nil) is nil so the cache is never populated.",
+    "rationale": "The response is cached for a day keyed off the line item; a missing-id path that fell through would poison the cache with an empty schema."
+  },
+  {
+    "id": "PO-GEN-007",
+    "feature": "po.generate",
+    "title": "QA_Platform_po_stats_schema_rejects_foreign_line_item",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who holds the po read_record permission but whose workspace does NOT own {{eventGroupUuid}}",
+    "steps": [
+      "1. GET /orders/po_stats_schema?event_group_line_item_uuid={{eventGroupUuid}} using an identifier from another tenant.",
+      "2. Assert no historic price data is returned."
+    ],
+    "method": "GET",
+    "path": "/orders/po_stats_schema?event_group_line_item_uuid={{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422: error.code 808 when the id does not resolve, or 455 from authorize egli.event_group, :show? when it resolves to another workspace's event group; historic PO prices are never disclosed.",
+    "rationale": "This endpoint exposes historic award prices per product; the second pundit check on the event group is the cross-tenant guard and it must be asserted, not trusted."
+  },
+  {
+    "id": "PO-CNT-001",
+    "feature": "po.contents",
+    "title": "QA_Platform_get_order_details_rejects_non_array_ids",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who can read purchase orders in the current workspace",
+    "steps": [
+      "1. GET /orders/get_order_details?ids=QA_Platform_{{stamp}} passing a scalar instead of an array.",
+      "2. Assert the invalid-parameters refusal."
+    ],
+    "method": "GET",
+    "path": "/orders/get_order_details?ids=QA_Platform_{{stamp}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 888 (Invalid Parameters) from `render_error_json(888) unless order_ids.is_a?(Array)`.",
+    "rationale": "The action pluck/maps over ids immediately after this guard; without it a scalar becomes a NoMethodError 500."
+  },
+  {
+    "id": "PO-CNT-003",
+    "feature": "po.contents",
+    "title": "QA_Platform_get_order_details_blocks_cross_tenant_ids",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller whose workspace is neither the buyer nor the seller on {{orderUuid}}",
+    "steps": [
+      "1. GET /orders/get_order_details?ids[]={{orderUuid}} with an order the caller has no stake in.",
+      "2. Assert refusal and that no order item, price or dispatched quantity is returned."
+    ],
+    "method": "GET",
+    "path": "/orders/get_order_details?ids[]={{orderUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101; the action requires buyer_orders.size == ids.size OR seller_orders.size == ids.size against Current.allowed_companies, so a foreign id yields 0 matches and is refused.",
+    "rationale": "PO line items carry negotiated unit prices; the all-or-nothing size comparison is the only tenant check here, and it also blocks id-mixing attacks where one owned id smuggles a foreign one."
+  },
+  {
+    "id": "PO-CNT-004",
+    "feature": "po.contents",
+    "title": "QA_Platform_po_dms_attachments_rejects_unknown_invoice",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who can read purchase orders in the current workspace",
+    "steps": [
+      "1. GET /orders/po_dms_attachments?invoice_no=QA_Platform_{{stamp}}.",
+      "2. Assert the no-order refusal instead of an empty media-log list."
+    ],
+    "method": "GET",
+    "path": "/orders/po_dms_attachments?invoice_no=QA_Platform_{{stamp}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 50 (No order found); the query is scoped to buyer_company_id = Current.workspace.id and where.not(status: :in_active).",
+    "rationale": "DMS attachments are the signed PO documents; returning 200 with an empty list on an unknown invoice would hide misconfigured DMS pushes."
+  },
+  {
+    "id": "PO-CNT-005",
+    "feature": "po.contents",
+    "title": "QA_Platform_order_show_by_uuid_documents_invoice_lookup_contract",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who can read purchase orders in the current workspace",
+    "steps": [
+      "1. GET /orders/{{orderUuid}}.",
+      "2. Record whether the order is resolved, since the action matches params[:id] against invoice_no."
+    ],
+    "method": "GET",
+    "path": "/orders/{{orderUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 422 error.code 50 (No order found) is the expected outcome: ParamsAuth#check_for_uuid decodes the uuid into a numeric id, but Api::OrdersController#show queries Order.where(invoice_no: params[:id]) and invoice_no is a 6-char SecureRandom hex string, so a numeric id cannot match. Must never 5xx.",
+    "rationale": "A show endpoint that can never resolve by uuid is a real contract defect worth pinning: clients silently fall back to the index endpoint and nobody notices until PO detail pages break."
+  },
+  {
+    "id": "PO-CNT-006",
+    "feature": "po.contents",
+    "title": "QA_Platform_po_index_survives_malformed_filters_json",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the po read_record permission",
+    "steps": [
+      "1. GET /purchase_orders with a filters parameter containing broken JSON.",
+      "2. Assert a 200 with unfiltered-but-tenant-scoped data and no stack trace."
+    ],
+    "method": "GET",
+    "path": "/purchase_orders?filters={\"po_status\":[\"generated\"",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200: CommonFunctions.parse_filters rescues the JSON::ParserError and returns nil, and OrdersControllerFilterHelper#create_filter_params_for_orders rescues StandardError, so the request degrades to an unfiltered but workspace-scoped list; no 500.",
+    "rationale": "Filter payloads are user-controlled JSON pasted from the UI; the two independent rescues must both hold or the whole PO page 500s for one bad saved view."
+  },
+  {
+    "id": "PO-CNT-007",
+    "feature": "po.contents",
+    "title": "QA_Platform_po_index_survives_invalid_status_enum_filter",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a caller who holds the po read_record permission",
+    "steps": [
+      "1. GET /purchase_orders with a filters payload whose po_status value is not a purchase_order_status enum member.",
+      "2. Assert the API either returns an empty/unfiltered 200 or a clean 4xx, never a 500."
+    ],
+    "method": "GET",
+    "path": "/purchase_orders?filters={\"po_status\":[\"QA_Platform_bogus_status\"]}",
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Order.enum purchase_order_status is {not_requested:0, requested:1, generated:2, declined:3}; the has_scope :po_status array scope must handle the unknown member as an empty result set (HTTP 200 with zero orders) rather than raising ArgumentError.",
+    "rationale": "Enum filters coming from a stale front-end build are a common source of production 500s, and this scope is applied via has_scope with no whitelist."
+  },
+  {
+    "id": "PO-REL-001",
+    "feature": "po.release",
+    "title": "QA_Platform_update_po_status_rejects_unknown_agribid_id",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "an integration-style caller reaching the SAP callback (OrderPolicy#update_purchase_order_status? returns true for everyone)",
+    "steps": [
+      "1. POST /orders/update_po_status with a fabricated agribid_id, status success and a PO number.",
+      "2. Assert the request-not-found refusal and that no Order row anywhere changes purchase_order_status."
+    ],
+    "method": "POST",
+    "path": "/orders/update_po_status",
+    "body": {
+      "agribid_id": "QA_Platform_{{stamp}}",
+      "status": "success",
+      "po_number": "QA_Platform_PO_{{stamp}}",
+      "contents": {
+        "note": "QA_Platform_probe"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 4 (Request not found) because Order.where(invoice_no: params['agribid_id']).last is nil; purchase_order_status, po_number and po_details are untouched and the po-generated after_commit hooks (DMS upload, flexi worker) never fire.",
+    "rationale": "This is the SAP-facing endpoint whose policy method returns true unconditionally, so the invoice lookup is the ONLY thing preventing an arbitrary caller from marking POs as generated."
+  },
+  {
+    "id": "PO-REL-003",
+    "feature": "po.release",
+    "title": "QA_Platform_update_po_status_handles_unknown_status_value",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "an integration-style caller reaching the SAP callback",
+    "steps": [
+      "1. POST /orders/update_po_status with a fabricated agribid_id and a status outside success/error/warning.",
+      "2. Assert no crash and no state change."
+    ],
+    "method": "POST",
+    "path": "/orders/update_po_status",
+    "body": {
+      "agribid_id": "QA_Platform_{{stamp}}",
+      "status": "QA_Platform_unknown_status",
+      "po_number": "QA_Platform_PO_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 422 error.code 4 (order not found). Note for the report: had the order existed, none of the success/error/warning branches would match, yet order.save would still persist the attacker-supplied po_details - the lookup is the only protection. No 5xx.",
+    "rationale": "The action has no status whitelist and saves unconditionally; documenting that gap while staying on a non-existent order is the safe way to file it."
+  },
+  {
+    "id": "PO-REL-004",
+    "feature": "po.release",
+    "title": "QA_Platform_update_po_rejects_missing_po_number",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who is NOT a super_admin and is not a Procol employee (OrderPolicy#update_po? requires is_procol_employee?)",
+    "steps": [
+      "1. POST /orders/update_po with invoice_no only.",
+      "2. Assert the call is refused either by the policy or by the param guard, and that no PO number is written."
+    ],
+    "method": "POST",
+    "path": "/orders/update_po",
+    "body": {
+      "invoice_no": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422: error.code 455 for a non-Procol-employee caller (authorize Order runs first), or error.code 2 (Insufficient parameters) for a permitted caller since po_number is blank. purchase_order_status is never set to generated and upload_attachments_to_po_dms is not invoked.",
+    "rationale": "update_po force-marks an order as generated and triggers the DMS upload; both the pundit gate and the param gate must be proven to fire before that."
+  },
+  {
+    "id": "PO-REL-005",
+    "feature": "po.release",
+    "title": "QA_Platform_update_po_rejects_unknown_invoice_no",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who is NOT a super_admin and is not a Procol employee",
+    "steps": [
+      "1. POST /orders/update_po with a fabricated invoice_no and a PO number.",
+      "2. Assert refusal and that no order is marked generated."
+    ],
+    "method": "POST",
+    "path": "/orders/update_po",
+    "body": {
+      "invoice_no": "QA_Platform_{{stamp}}",
+      "po_number": "QA_Platform_PO_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 455 (policy) or 50 (No order found); po_details is not blanked and purchase_order_status stays as-is.",
+    "rationale": "Note this action is NOT scoped to Current.workspace - it finds by invoice_no globally - so the is_procol_employee? policy is the entire tenant control and deserves a standing negative test."
+  },
+  {
+    "id": "PO-REL-006",
+    "feature": "po.release",
+    "title": "QA_Platform_retry_po_rejects_blank_invoice_no",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who can act on purchase orders in the current workspace",
+    "steps": [
+      "1. PATCH /orders/retry_po with a po_details object but no invoice_no.",
+      "2. Assert refusal before any contract or PO generation worker is queued."
+    ],
+    "method": "PATCH",
+    "path": "/orders/retry_po",
+    "body": {
+      "po_details": {
+        "remark": "QA_Platform_retry_probe_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2; the invoice_no.blank? guard runs before the Order lookup, so retry_count is not incremented and neither run_contract_generator_worker nor generate_purchase_order is called.",
+    "rationale": "Retry re-emits a PO to the ERP; a blank identifier reaching the lookup is how duplicate POs get generated for the wrong vendor."
+  },
+  {
+    "id": "PO-REL-007",
+    "feature": "po.release",
+    "title": "QA_Platform_retry_po_rejects_unknown_proposal",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "a caller who can act on purchase orders in the current workspace",
+    "steps": [
+      "1. PATCH /orders/retry_po with proposal_id set to a non-existent value, company_id present and po_details omitted.",
+      "2. Assert refusal inside transform_purchase_order_params, before the order is touched."
+    ],
+    "method": "PATCH",
+    "path": "/orders/retry_po",
+    "body": {
+      "proposal_id": "QA_Platform_{{stamp}}",
+      "company_id": "{{vendorCompanyId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 888 (Invalid Parameters) from `return nil, 888 if proposal.nil?` in OrdersControllerHelper#transform_purchase_order_params; no proposal template response is rewritten and no worker is enqueued.",
+    "rationale": "The custom-form retry path rewrites proposal template responses, i.e. the commercial terms on the PO; it must fail closed when the proposal cannot be resolved."
+  },
+  {
+    "id": "PO-REL-008",
+    "feature": "po.release",
+    "title": "QA_Platform_retry_po_must_not_500_on_unknown_invoice_no",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "a caller who can act on purchase orders in the current workspace",
+    "steps": [
+      "1. PATCH /orders/retry_po with a fabricated invoice_no and a po_details object.",
+      "2. Assert a clean 4xx (error.code 50) rather than an unhandled exception."
+    ],
+    "method": "PATCH",
+    "path": "/orders/retry_po",
+    "body": {
+      "invoice_no": "QA_Platform_{{stamp}}",
+      "po_details": {
+        "remark": "QA_Platform_retry_probe_{{stamp}}"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must return HTTP 422 error.code 50 (No order found) with no 5xx. Current code is ordered wrongly: Api::OrdersController#retry_purchase_order calls order.update_vendor_code (when allow_po_without_vendor_code is on) and update_proposal_template_responses(proposal, order.seller_company_id) BEFORE `render_error_json(50) && return if order.blank?`, so a nil order raises NoMethodError - i.e. this endpoint is expected to 500 today.",
+    "rationale": "A nil-guard placed after two dereferences is a concrete ordering bug on a money-moving endpoint; a no-5xx assertion is the cheapest way to keep it visible until it is fixed."
+  },
+  {
+    "id": "PO-REL-009",
+    "feature": "po.release",
+    "title": "QA_Platform_released_notes_read_only_smoke",
+    "type": "Functional",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "an authenticated caller on any portal",
+    "steps": [
+      "1. GET /released_notes?type=html.",
+      "2. Assert a read-only response and no server error."
+    ],
+    "method": "GET",
+    "path": "/released_notes?type=html",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with new_release (max 20 active ReleasedNote records filtered by the caller's app version), or HTTP 422 error.code 251 when the client sends no APP-VERSION header; never a 5xx.",
+    "rationale": "The only fully read-only endpoint in this release surface - useful as a harness canary that proves auth and app-version resolution work before any PO case runs."
+  },
+  {
+    "id": "PO-VAC-001",
+    "feature": "po.vendor_accept",
+    "title": "QA_Platform_vendor_code_update_blocked_for_client_caller",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller who is NOT a super_admin and is not a Procol employee (OrderPolicy#update_vendor_code? requires is_procol_employee?)",
+    "steps": [
+      "1. PATCH /orders/vendor_code with order_uuid {{orderUuid}}.",
+      "2. Assert 455 and that orders.vendor_code is unchanged."
+    ],
+    "method": "PATCH",
+    "path": "/orders/vendor_code",
+    "body": {
+      "order_uuid": "{{orderUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 455 from pundit (authorize Order runs before any param handling); order.update_columns(vendor_code:) is never reached.",
+    "rationale": "Vendor code is the ERP key that decides which supplier gets paid; only Procol employees may set it, so the policy gate needs a standing negative test from a normal client session."
+  },
+  {
+    "id": "PO-VAC-003",
+    "feature": "po.vendor_accept",
+    "title": "QA_Platform_vendor_side_order_details_blocked_for_foreign_order",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a vendor-side caller whose company is not the seller on {{orderUuid}}",
+    "steps": [
+      "1. GET /orders/get_order_details?ids[]={{orderUuid}} as a vendor who did not win this order.",
+      "2. Assert refusal and that no line items or dispatched quantities leak."
+    ],
+    "method": "GET",
+    "path": "/orders/get_order_details?ids[]={{orderUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101; the seller_orders.size == order_ids.size check against Current.allowed_companies fails for a vendor who is not on the order.",
+    "rationale": "Vendors accept POs from this payload; leaking another supplier's accepted quantities and prices would be a direct commercial-confidentiality breach."
+  },
+  {
+    "id": "PO-VAC-004",
+    "feature": "po.vendor_accept",
+    "title": "QA_Platform_vendor_declined_status_cannot_be_spoofed",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "an integration-style caller reaching the SAP callback",
+    "steps": [
+      "1. POST /orders/update_po_status with a fabricated agribid_id and status error (the decline branch).",
+      "2. Assert refusal and that no order is moved to declined."
+    ],
+    "method": "POST",
+    "path": "/orders/update_po_status",
+    "body": {
+      "agribid_id": "QA_Platform_{{stamp}}",
+      "status": "error",
+      "json_response": {
+        "reason": "QA_Platform_probe"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 4; the decline branch (purchase_order_status = :declined plus a Slack-logged error) is never reached because the order lookup returns nil.",
+    "rationale": "The decline path both changes PO state and raises an operational Slack alert; proving an unknown id cannot trigger it protects both the data and the on-call signal."
+  },
+  {
+    "id": "PO-VAC-005",
+    "feature": "po.vendor_accept",
+    "title": "QA_Platform_dispatch_read_rejects_scalar_ids",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "a vendor-side caller (the delivery_trackings actions are enabled only for the consumer/vendor apps in app_auth_config)",
+    "steps": [
+      "1. GET /delivery/all?ids=QA_Platform_{{stamp}} passing a scalar instead of an array.",
+      "2. Assert the invalid-parameters refusal."
+    ],
+    "method": "GET",
+    "path": "/delivery/all?ids=QA_Platform_{{stamp}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 888 from `render_error_json(888) unless order_ids.is_a?(Array)`; a buyer-portal token instead fails app authorization (app_error_auth_failed) because delivery_trackings is only whitelisted for the android/ios consumer apps.",
+    "rationale": "The type guard protects the is_authorized size comparison that follows; and the app-level whitelist is itself a control worth documenting for the vendor-accept flow."
+  },
+  {
+    "id": "P2P-DEL-001",
+    "feature": "p2p.delivery",
+    "title": "QA_Platform_add_dispatch_must_not_500_on_missing_delivery_trackings",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a vendor-side caller",
+    "steps": [
+      "1. POST /delivery/add_dispatch_details with only shipment_info and no delivery_trackings key.",
+      "2. Assert a clean 4xx rather than an unhandled exception, and that no DeliveryTracking row is created."
+    ],
+    "method": "POST",
+    "path": "/delivery/add_dispatch_details",
+    "body": {
+      "shipment_info": {
+        "truck_number": "QA_Platform_TRK_{{stamp}}",
+        "driver_name": "QA_Platform_driver"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx with no DB write. Today Api::DeliveryTrackingsController#add_dispatch_details calls delivery_trackings.pluck('order_id') immediately after sanitize_params, so a missing key raises NoMethodError on nil - i.e. a 500 is the current behaviour and the guard is missing.",
+    "rationale": "The dispatch endpoint has no presence validation at all before dereferencing the array; that is both a crash and a missing-validation finding on the goods-movement surface."
+  },
+  {
+    "id": "P2P-DEL-002",
+    "feature": "p2p.delivery",
+    "title": "QA_Platform_add_dispatch_empty_array_passes_authorization_vacuously",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "a vendor-side caller",
+    "steps": [
+      "1. POST /delivery/add_dispatch_details with delivery_trackings set to an empty array.",
+      "2. Assert no DeliveryTracking or Note row is created and record the status code."
+    ],
+    "method": "POST",
+    "path": "/delivery/add_dispatch_details",
+    "body": {
+      "shipment_info": {
+        "truck_number": "QA_Platform_TRK_{{stamp}}"
+      },
+      "delivery_trackings": []
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty dispatches array and zero rows written: is_authorized([], false) compares 0 == 0 and passes vacuously, then the loop body never executes. No 5xx, no side effect.",
+    "rationale": "An authorization check implemented as a count comparison returns true for an empty input set; harmless here, but it is exactly the shape of check that fails open when the id list is partially filtered."
+  },
+  {
+    "id": "P2P-DEL-003",
+    "feature": "p2p.delivery",
+    "title": "QA_Platform_add_dispatch_rejects_unowned_order",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a vendor-side caller",
+    "steps": [
+      "1. POST /delivery/add_dispatch_details with a delivery_trackings entry whose order_id does not resolve to an order the caller sells.",
+      "2. Assert 101 and that no dispatch or invoice number is recorded."
+    ],
+    "method": "POST",
+    "path": "/delivery/add_dispatch_details",
+    "body": {
+      "shipment_info": {
+        "dispatch_date": "2026-01-01",
+        "truck_number": "QA_Platform_TRK_{{stamp}}"
+      },
+      "delivery_trackings": [
+        {
+          "order_id": "QA_Platform_{{stamp}}",
+          "dispatched_products": [
+            {
+              "order_item_id": "QA_Platform_{{stamp}}",
+              "dispatched_quantity": 1,
+              "invoice_number": "QA_Platform_INV_{{stamp}}"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101; 'QA_Platform_...'.to_i is 0 so Order.where(id: 0, seller_company_id: Current.allowed_companies).size is 0 != 1 and is_authorized returns false before the transaction opens.",
+    "rationale": "Dispatch records drive GRN and payment; a vendor being able to post dispatches against an order they do not own would let them invoice for goods they never shipped."
+  },
+  {
+    "id": "P2P-DEL-004",
+    "feature": "p2p.delivery",
+    "title": "QA_Platform_add_dispatch_quantity_abuse_refused_before_write",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a vendor-side caller",
+    "steps": [
+      "1. POST /delivery/add_dispatch_details with a negative dispatched_quantity and an oversized one, against an order_id the caller does not own.",
+      "2. Assert the authorization refusal fires before any quantity is persisted."
+    ],
+    "method": "POST",
+    "path": "/delivery/add_dispatch_details",
+    "body": {
+      "shipment_info": {
+        "truck_number": "QA_Platform_TRK_{{stamp}}"
+      },
+      "delivery_trackings": [
+        {
+          "order_id": "QA_Platform_{{stamp}}",
+          "dispatched_products": [
+            {
+              "order_item_id": "QA_Platform_{{stamp}}",
+              "dispatched_quantity": -100,
+              "invoice_number": "QA_Platform_INV_{{stamp}}"
+            },
+            {
+              "order_item_id": "QA_Platform_{{stamp}}",
+              "dispatched_quantity": 999999999,
+              "invoice_number": "QA_Platform_INV_{{stamp}}"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101 (unowned order) before add_delivery_info runs; no DeliveryTracking row with a negative or over-ordered quantity is created. If ownership ever passes, add_delivery_info must return false and yield error.code 534 instead of saving.",
+    "rationale": "Negative and over-ordered dispatch quantities corrupt the dispatched-vs-ordered reconciliation used for payment; the test documents that ownership is checked first and that quantity validation is the next required gate."
+  },
+  {
+    "id": "P2P-DEL-005",
+    "feature": "p2p.delivery",
+    "title": "QA_Platform_add_dispatch_ignores_unpermitted_status_param",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "a vendor-side caller",
+    "steps": [
+      "1. POST /delivery/add_dispatch_details with extra top-level keys (status, buyer_company_id) alongside an unowned order_id.",
+      "2. Assert refusal and that the unpermitted keys are dropped by the strong-parameters filter."
+    ],
+    "method": "POST",
+    "path": "/delivery/add_dispatch_details",
+    "body": {
+      "status": "delivered",
+      "buyer_company_id": "{{vendorCompanyId}}",
+      "delivery_trackings": [
+        {
+          "order_id": "QA_Platform_{{stamp}}",
+          "dispatched_products": []
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101; sanitize_params permits only shipment_info(dispatch_date, delivery_date, truck_number, driver_name, driver_contact_number) and delivery_trackings(order_id, dispatched_products(order_item_id, dispatched_quantity, invoice_number)), so status and buyer_company_id are discarded.",
+    "rationale": "Mass-assignment through a dispatch payload is how a vendor could try to flip delivery state or re-point an order at another company; the permit list is the control."
+  },
+  {
+    "id": "P2P-DEL-006",
+    "feature": "p2p.delivery",
+    "title": "QA_Platform_dispatch_read_blocks_foreign_order_ids",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a vendor-side caller who is neither buyer nor seller on {{orderUuid}}",
+    "steps": [
+      "1. GET /delivery/all?ids[]={{orderUuid}}.",
+      "2. Assert refusal and that no dispatch, truck or driver detail is returned."
+    ],
+    "method": "GET",
+    "path": "/delivery/all?ids[]={{orderUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101 from is_authorized(order_ids, true), which requires all ids to belong to the caller's allowed companies as either buyer or seller.",
+    "rationale": "Dispatch payloads contain driver names and contact numbers - personal data - alongside quantities, so the read side needs the same tenant proof as the write side."
+  },
+  {
+    "id": "FIN-PAY-001",
+    "feature": "finance.payment",
+    "title": "QA_Platform_payment_proof_rejects_empty_payload",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller on the client admin dashboard (vendor_payments#submit_proof is whitelisted only for client_admin_dashboard)",
+    "steps": [
+      "1. POST /vendor_payments/submit_proof with an empty body.",
+      "2. Assert refusal and that no VendorPayment row is created."
+    ],
+    "method": "POST",
+    "path": "/vendor_payments/submit_proof",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 845; VendorPayments::SubmissionForm validates presence of event_id, vendor_id, paid_amount and proof_document_url, so the form is invalid and VendorPayments::SubmitProofService never runs.",
+    "rationale": "This endpoint records that money was paid to a vendor; an empty payload must never create a payment stub that later reconciles against a real invoice."
+  },
+  {
+    "id": "FIN-PAY-002",
+    "feature": "finance.payment",
+    "title": "QA_Platform_payment_proof_rejects_missing_proof_document",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller on the client admin dashboard",
+    "steps": [
+      "1. POST /vendor_payments/submit_proof with event, vendor and paid_amount but no proof_document_url.",
+      "2. Assert refusal - a payment cannot be recorded without its proof."
+    ],
+    "method": "POST",
+    "path": "/vendor_payments/submit_proof",
+    "body": {
+      "event_uuid": "{{eventGroupUuid}}",
+      "vendor_uuid": "{{vendorUuid}}",
+      "payment_confirmation": {
+        "paid_amount": 100.5,
+        "remark": "QA_Platform_proof_missing_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 845 (proof_document_url presence validation fails inside SubmissionForm#payment_confirmation=); no VendorPayment is saved.",
+    "rationale": "Proof of payment is the audit artefact for bid-fee reconciliation; presence must be enforced server-side, not just by the upload widget."
+  },
+  {
+    "id": "FIN-PAY-003",
+    "feature": "finance.payment",
+    "title": "QA_Platform_payment_proof_rejects_negative_paid_amount",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller on the client admin dashboard",
+    "steps": [
+      "1. POST /vendor_payments/submit_proof with paid_amount set to a negative number.",
+      "2. Assert refusal on the numericality rule."
+    ],
+    "method": "POST",
+    "path": "/vendor_payments/submit_proof",
+    "body": {
+      "event_uuid": "{{eventGroupUuid}}",
+      "vendor_uuid": "{{vendorUuid}}",
+      "payment_confirmation": {
+        "paid_amount": -5000,
+        "remark": "QA_Platform_negative_amount_{{stamp}}",
+        "proof_document_url": "https://example.invalid/QA_Platform_proof_{{stamp}}.pdf"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 845; `validates :paid_amount, numericality: { greater_than_or_equal_to: 0.0 }` fails, so no VendorPayment row and no bid-fee credit is created.",
+    "rationale": "A negative payment would credit the vendor's bid fee in reverse; boundary values on money fields are non-negotiable coverage."
+  },
+  {
+    "id": "FIN-PAY-004",
+    "feature": "finance.payment",
+    "title": "QA_Platform_payment_proof_rejects_unknown_event_and_vendor",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "a caller on the client admin dashboard",
+    "steps": [
+      "1. POST /vendor_payments/submit_proof with fabricated event_id and vendor_id values.",
+      "2. Assert refusal from the existence validators."
+    ],
+    "method": "POST",
+    "path": "/vendor_payments/submit_proof",
+    "body": {
+      "event_id": "QA_Platform_{{stamp}}",
+      "vendor_id": "QA_Platform_{{stamp}}",
+      "payment_confirmation": {
+        "paid_amount": 1,
+        "remark": "QA_Platform_unknown_ids_{{stamp}}",
+        "proof_document_url": "https://example.invalid/QA_Platform_proof_{{stamp}}.pdf"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 845; event_must_exist (EventGroup.active.find_by) and vendor_must_exist (Company.active.find_by) both add :not_found errors, so PaymentFactory is never called.",
+    "rationale": "Payments must be anchored to a real event and a real vendor company; an unresolvable pair reaching the factory would create an unattributable payment record."
+  },
+  {
+    "id": "FIN-PAY-005",
+    "feature": "finance.payment",
+    "title": "QA_Platform_payment_proof_survives_hostile_amount_and_url",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "a caller on the client admin dashboard",
+    "steps": [
+      "1. POST /vendor_payments/submit_proof with a non-numeric paid_amount, a SQL fragment in event_id and a javascript: proof URL.",
+      "2. Assert a clean 422 with no stack trace and nothing persisted."
+    ],
+    "method": "POST",
+    "path": "/vendor_payments/submit_proof",
+    "body": {
+      "event_id": "QA_Platform_1' OR '1'='1",
+      "vendor_id": "{{vendorCompanyId}}",
+      "payment_confirmation": {
+        "paid_amount": "QA_Platform_not_a_number",
+        "remark": "QA_Platform_<script>alert(1)</script>",
+        "proof_document_url": "javascript:alert('QA_Platform')"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 422 error.code 845 and no 5xx: the numericality validator rejects the non-numeric amount, ActiveRecord casts the injected event_id to an integer so no SQL is interpolated, and ParamsAuth#sanitize_input_params has already stripped the script tag from remark.",
+    "rationale": "Hostile input on the payment surface must fail as validation, not as an exception or an accepted record; this also documents that proof_document_url has no scheme validation today."
+  },
+  {
+    "id": "FIN-PAY-006",
+    "feature": "finance.payment",
+    "title": "QA_Platform_payment_proof_requires_session",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "no session token",
+    "steps": [
+      "1. POST /vendor_payments/submit_proof with a complete-looking payload and no session token.",
+      "2. Assert an authentication failure before the form is built."
+    ],
+    "method": "POST",
+    "path": "/vendor_payments/submit_proof",
+    "body": {
+      "event_uuid": "{{eventGroupUuid}}",
+      "vendor_uuid": "{{vendorUuid}}",
+      "payment_confirmation": {
+        "paid_amount": 1,
+        "remark": "QA_Platform_unauthenticated_{{stamp}}",
+        "proof_document_url": "https://example.invalid/QA_Platform_proof_{{stamp}}.pdf"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused by the ApiAuth filter chain: HTTP 422 error.code 2 when no access token is present, or api_error_auth_failed when login is required for vendor_payments#submit_proof in app_auth_config; Current.user is never merged into submission_params and no VendorPayment is created.",
+    "rationale": "submit_proof stamps Current.user as the payer of record; an unauthenticated call must be impossible or the payment audit trail loses its actor."
+  }
+]

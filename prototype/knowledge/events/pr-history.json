@@ -1,0 +1,1336 @@
+[
+  {
+    "id": "PR-5263-1",
+    "pr": 5263,
+    "date": "2026-06-16",
+    "module": "events",
+    "area": "eventCreation/draft-state",
+    "symptom": "Buyer fills in RFP/technical stage data on a multi-stage draft event, switches tabs (stages), and returns to find the technical stage form fields have been silently reset/overwritten.",
+    "root_cause": "A useEffect in projectCreation.jsx keyed on isRfpEditAllowed force-recomputes rfiData/rfiGlobalSection for every stage on every relevant state change, without checking whether the stage config was already user-edited (a manual draft), overwriting in-progress edits.",
+    "regression_case": {
+      "title": "Technical stage data survives tab switch on a multi-stage draft event",
+      "steps": [
+        "Create a multi-stage (RFP+Auction) draft event",
+        "Fill in technical stage (RFI) fields for stage 1",
+        "Switch to stage 2 tab, then switch back to stage 1",
+        "Verify stage 1 technical fields"
+      ],
+      "expected": "Previously entered technical stage values remain exactly as entered; nothing is reset or overwritten."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#5263",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "stale-state",
+      "draft"
+    ]
+  },
+  {
+    "id": "PR-5270-1",
+    "pr": 5270,
+    "date": "2026-06-16",
+    "module": "events",
+    "area": "eventCreation/draft-state",
+    "symptom": "Follow-up to #5263: same technical-stage reset bug reappears when line items differ between projectDetails.lineItems and the per-stage draft, indicating the first fix band-aided rather than resolved the root state-management issue.",
+    "root_cause": "v2 fix re-derives rfiData from the global projectDetails.lineItems instead of the per-stage draft state inside the same effect, still recomputing (and overwriting) technical stage data on every dependency change instead of once.",
+    "regression_case": {
+      "title": "Editing line items on one stage does not blow away technical form data on other stages",
+      "steps": [
+        "Create a multi-stage draft event from a PR with multiple line items",
+        "Fill technical (RFI) stage data",
+        "Add/remove a line item on the commercial stage",
+        "Return to the technical stage"
+      ],
+      "expected": "Technical stage answers already filled in are preserved; only the newly affected line item rows change."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#5270",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "stale-state",
+      "draft"
+    ]
+  },
+  {
+    "id": "PR-5334-1",
+    "pr": 5334,
+    "date": "2026-06-25",
+    "module": "events",
+    "area": "eventCreation/draft-state",
+    "symptom": "Third recurrence: technical stage data still resets on draft events when isRfpEditAllowed toggles, this time because the reset effect ran even for stages already loaded from a saved draft (draftStageIds).",
+    "root_cause": "The guarding condition `if (isRfpEditAllowed)` did not exclude stages whose config was already hydrated from a saved draft (`draftStageIds`), so re-entering a draft event re-ran the technical-stage default-population logic and clobbered saved answers.",
+    "regression_case": {
+      "title": "Reopening a saved draft event does not reset technical stage answers",
+      "steps": [
+        "Save a multi-stage event as draft with technical (RFI) fields filled",
+        "Navigate away and reopen the draft event",
+        "Inspect technical stage fields"
+      ],
+      "expected": "All previously saved technical stage values are intact on reopen."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#5334",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "stale-state",
+      "draft"
+    ]
+  },
+  {
+    "id": "PR-5359-1",
+    "pr": 5359,
+    "date": "2026-07-01",
+    "module": "events",
+    "area": "eventCreation/draft-state",
+    "symptom": "Fourth recurrence: switching tabs (changing currentStageId) still re-triggers stage-config recompute and resets state, even after three prior attempts to fix the same class of bug.",
+    "root_cause": "currentStageId remained in the dependency array of the stage-reset useEffect, so every tab click re-ran the effect body regardless of whether any real data dependency had changed.",
+    "regression_case": {
+      "title": "Clicking between stage tabs never re-triggers stage-config recompute by itself",
+      "steps": [
+        "Open a multi-stage draft event with data on 2+ stages",
+        "Click rapidly between stage tabs several times without editing anything",
+        "Check each stage's data after settling"
+      ],
+      "expected": "No stage's data changes purely from tab navigation; recompute happens only when a real upstream dependency (e.g. line items, template) changes."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#5359",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "stale-state",
+      "draft",
+      "hotspot"
+    ]
+  },
+  {
+    "id": "PR-5416-1",
+    "pr": 5416,
+    "date": "2026-07-09",
+    "module": "events",
+    "area": "eventCreation/draft-state",
+    "symptom": "Fifth recurrence, different symptom: invited participants on a draft event disappear/reset when the user switches stage tabs, because antd's Tabs unmounted (destroyed) the inactive stage pane and its local state.",
+    "root_cause": "Tabs used `destroyInactiveTabPane` unconditionally; for events with `draftStageIds` (loaded drafts) this destroyed and re-mounted stage panes on every tab switch, discarding in-memory participant selections that had not yet round-tripped through Redux/the draft API.",
+    "regression_case": {
+      "title": "Participants selected on a draft event survive switching away and back to that stage's tab",
+      "steps": [
+        "Open/create a multi-stage draft event",
+        "On stage 1, select several participants (vendors) but do not save",
+        "Switch to stage 2 tab",
+        "Switch back to stage 1 tab"
+      ],
+      "expected": "The participants selected on stage 1 are still selected; none are lost due to the tab remounting."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#5416",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "stale-state",
+      "draft",
+      "participants",
+      "hotspot"
+    ]
+  },
+  {
+    "id": "PR-5504-1",
+    "pr": 5504,
+    "date": "2026-07-21",
+    "module": "events",
+    "area": "rfiBuilder/global-section",
+    "symptom": "Sixth PR in the same series, this time in the RFI/RFP global (TR) section: global field values entered by the buyer become stale/incorrect after other form interactions in the technical stage builder.",
+    "root_cause": "trGlobalSection.jsx held its own local copy of the global-section data that fell out of sync with the parent's authoritative state, requiring ~60 lines of new sync logic to reconcile local vs upstream state.",
+    "regression_case": {
+      "title": "RFI/RFP global section fields stay in sync with the rest of the technical stage form",
+      "steps": [
+        "Open technical stage (RFI/RFP) builder for an event",
+        "Fill global section field(s)",
+        "Trigger other form interactions elsewhere on the technical stage (e.g. add/remove a question, change a template)",
+        "Recheck the global section fields"
+      ],
+      "expected": "Global section values reflect exactly what the buyer entered, unaffected by unrelated interactions elsewhere on the form."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#5504",
+      "src/views/rfiBuilder/trGlobalSection.jsx"
+    ],
+    "tags": [
+      "regression",
+      "stale-state"
+    ]
+  },
+  {
+    "id": "PR-111-1",
+    "pr": 111,
+    "date": "2023-04-06",
+    "module": "events",
+    "area": "savingsDrawer",
+    "symptom": "Savings drawer / RFI flow throws a runtime error and crashes when the reference input for the current price strategy key is present in referenceInput but absent from savingConfig.",
+    "root_cause": "Code accessed savingConfig[currentPrice][key] without checking savingConfig[currentPrice] existed first, so a nil/undefined intermediate object caused a TypeError.",
+    "regression_case": {
+      "title": "Savings drawer does not crash when reference prices exist for a strategy the savings config lacks",
+      "steps": [
+        "Open an RFI-derived event where reference prices are configured for a price key not present in the savings configuration",
+        "Open the savings drawer/strip"
+      ],
+      "expected": "Drawer renders without error, gracefully omitting or defaulting the unmatched key."
+    },
+    "severity": "critical",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#111",
+      "src/components/savingsDrawer/savingsDrawer.jsx",
+      "src/redux/orders/helpers.js"
+    ],
+    "tags": [
+      "regression",
+      "null-check",
+      "crash"
+    ]
+  },
+  {
+    "id": "PR-78-1",
+    "pr": 78,
+    "date": "2023-04-12",
+    "module": "events",
+    "area": "savingsDrawer/surrogate-bid",
+    "symptom": "After a buyer places a surrogate bid on behalf of a vendor, the savings strip stops rendering / does not reflect the new bid until the page is refreshed.",
+    "root_cause": "Placing a surrogate bid did not re-fetch aggregate savings data (fetchAggregateSavings) after a successful submission, leaving the savings UI on stale pre-bid data.",
+    "regression_case": {
+      "title": "Savings strip updates immediately after a surrogate bid is placed",
+      "steps": [
+        "As a buyer, open Add Bid modal and place a surrogate bid on behalf of a vendor",
+        "Without refreshing, check the savings strip/drawer"
+      ],
+      "expected": "Savings figures reflect the newly placed surrogate bid without requiring a manual page refresh."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#78",
+      "src/views/orderDetails/addBidModal.jsx"
+    ],
+    "tags": [
+      "regression",
+      "stale-state",
+      "surrogate-bid"
+    ]
+  },
+  {
+    "id": "PR-3707-1",
+    "pr": 3707,
+    "date": "2025-10-09",
+    "module": "events",
+    "area": "eventCreation/savingsColumn",
+    "symptom": "Draft events created before a savings-column data-shape change fail to populate a default savings column (or crash downstream code expecting an object), because the fallback value used the old flat shape.",
+    "root_cause": "Fallback `transformedData.savingsColumn || SAVING_COLUMNS.defaultSavingsColumn` returned a bare default value instead of matching the newer `{ budget: <default> }` object shape expected elsewhere in the code \u2014 same missed spot fixed in three separate places in the file.",
+    "regression_case": {
+      "title": "Savings column falls back to the correctly-shaped default object across all event creation entry points",
+      "steps": [
+        "Create a fresh event without an explicit savings column configured, via: (a) direct creation, (b) from-PR creation, (c) RFQ-to-auction recreation",
+        "Check the savings column default value in each"
+      ],
+      "expected": "All three paths populate the same `{ budget: ... }` shaped default; no downstream crash or missing key."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#3707",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "null-check",
+      "savings"
+    ]
+  },
+  {
+    "id": "PR-4170-1",
+    "pr": 4170,
+    "date": "2025-12-29",
+    "module": "events",
+    "area": "savingsDrawer/lot-based",
+    "symptom": "Savings comparison drawer breaks for companies configured with `savings_comparison_on=lot_based`, because localSavingsColumn was accessed without optional chaining and could itself be undefined for lot-based configs.",
+    "root_cause": "`localSavingsColumn[currentStrategy]` threw/returned wrong data when localSavingsColumn was undefined for the lot-based comparison mode; needed `localSavingsColumn?.[currentStrategy]`.",
+    "regression_case": {
+      "title": "Savings comparison drawer renders correctly when savings_comparison_on=lot_based",
+      "steps": [
+        "Configure a company with savings_comparison_on = lot_based",
+        "Open an event's savings comparison drawer with multiple lots"
+      ],
+      "expected": "Drawer renders the correct per-lot savings column without error, for every lot."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#4170",
+      "src/components/savingsDrawer/savingsDrawer.jsx"
+    ],
+    "tags": [
+      "regression",
+      "null-check",
+      "savings",
+      "lots"
+    ]
+  },
+  {
+    "id": "PR-2948-1",
+    "pr": 2948,
+    "date": "2025-05-09",
+    "module": "events",
+    "area": "eventCreation/rfq-to-auction/savings",
+    "symptom": "Savings figures are wrong (or missing) after converting an RFQ to an Auction, because the savings configuration normalization logic used by the standard flow was never adapted for the RFQ-to-Auction payload shape.",
+    "root_cause": "A new `getNormalizedSavingsData` helper had to be written specifically to reshape `lot_reference_prices` / `line_item_reference_prices` from the recreate/RFQ-to-Auction API response into the structure the savings drawer expects; the plain creation-flow normalizer did not cover this payload.",
+    "regression_case": {
+      "title": "Savings data is correct immediately after converting RFQ to Auction",
+      "steps": [
+        "Run an RFQ event with reference/savings prices configured to completion",
+        "Convert it to an Auction",
+        "Open the resulting auction's savings drawer"
+      ],
+      "expected": "Savings values (gross and per-line-item) match the reference prices carried over from the RFQ, correctly converted to the auction's currency."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#2948",
+      "src/redux/orders/helpers.js"
+    ],
+    "tags": [
+      "regression",
+      "rfq-to-auction",
+      "savings"
+    ]
+  },
+  {
+    "id": "PR-2768-1",
+    "pr": 2768,
+    "date": "2025-03-26",
+    "module": "events",
+    "area": "orderDetails/counterOffer",
+    "symptom": "When a counter-offer submission fails on the backend, the counter-offer modal closes anyway as if it had succeeded, hiding the error and losing the buyer's unsaved edits.",
+    "root_cause": "The success handler (`.finally`) unconditionally closed the modal and reset loading state regardless of whether the backend call actually resolved successfully; needed to check `unwrapResult` output before closing.",
+    "regression_case": {
+      "title": "Counter-offer modal stays open and shows the error when the backend call fails",
+      "steps": [
+        "Open counter-offer modal on an active bid",
+        "Force the counter-offer API call to fail (e.g. network/server error)",
+        "Observe modal state"
+      ],
+      "expected": "Modal remains open with entered data intact and displays the error; it only closes on confirmed success."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#2768",
+      "src/views/orderDetails/counterOfferModal.jsx"
+    ],
+    "tags": [
+      "regression",
+      "error-handling",
+      "counter-offer"
+    ]
+  },
+  {
+    "id": "PR-2756-1",
+    "pr": 2756,
+    "date": "2025-03-18",
+    "module": "events",
+    "area": "orderDetails/counterOfferLog",
+    "symptom": "Counter-offer log/history incorrectly treats a genuine value of 0 as 'no counter offer' or 'no previous value', hiding a legitimate zero-value counter offer from the log.",
+    "root_cause": "Truthiness checks like `if (counter_offer_value)` and `if (prevValue || String(prevValue) === '0')` failed for the numeric edge case of exact zero; needed a dedicated `isExactZero` helper to distinguish zero from null/undefined.",
+    "regression_case": {
+      "title": "Counter-offer log correctly displays a counter-offer of exactly 0",
+      "steps": [
+        "Place a counter offer with a component value of exactly 0 (e.g. discount = 0)",
+        "Open the counter-offer log for that bid"
+      ],
+      "expected": "The zero value and its change are shown in the log like any other value, not treated as blank/absent."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#2756",
+      "src/redux/orders/selectors.js",
+      "src/views/orderDetails/counterOfferLog/columns.jsx"
+    ],
+    "tags": [
+      "regression",
+      "zero-value",
+      "counter-offer"
+    ]
+  },
+  {
+    "id": "PR-4691-1",
+    "pr": 4691,
+    "date": "2026-03-19",
+    "module": "events",
+    "area": "orderDetails/counterOffer",
+    "symptom": "The set of 'edited' rows highlighted for counter offer is computed by comparing sheet rows by array index; if rows are resorted/filtered (e.g. after a lot split or reorder) the wrong rows get flagged as edited, or edits are silently missed.",
+    "root_cause": "`getEditedRowsIndex` matched original vs. edited sheet rows purely by array position (`rowIndex in origSheetData`) instead of by a stable key (`product.trade_product_uuid`), so any reordering desynced the comparison.",
+    "regression_case": {
+      "title": "Edited-row detection for counter offer is stable across row reordering",
+      "steps": [
+        "Open a sheet with multiple line items",
+        "Edit a value on one line item",
+        "Reorder or refilter the sheet so row positions shift",
+        "Submit for counter offer and inspect which rows are flagged as changed"
+      ],
+      "expected": "Only the line item actually edited (identified by product UUID, not row position) is flagged as changed."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#4691",
+      "src/views/orderDetails/helpers.js"
+    ],
+    "tags": [
+      "regression",
+      "counter-offer",
+      "reorder"
+    ]
+  },
+  {
+    "id": "PR-2811-1",
+    "pr": 2811,
+    "date": "2025-04-04",
+    "module": "events",
+    "area": "orderDetails/counterOffer",
+    "symptom": "Counter-offer validation runs against line items that were never selected for the counter offer (only against changed row indexes), so an unselected but numerically-changed row can incorrectly block or pass validation.",
+    "root_cause": "Validation filter used only `changedIndexes.includes(index)` without also checking the row's selection `status.value`, conflating 'edited' with 'selected for this counter offer'.",
+    "regression_case": {
+      "title": "Counter-offer validation only considers explicitly selected line items",
+      "steps": [
+        "Open bulk counter-offer flow with several line items",
+        "Edit values on a mix of selected and unselected line items",
+        "Submit"
+      ],
+      "expected": "Validation and submission apply only to the line items marked selected; unselected edited rows are ignored."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#2811",
+      "src/views/orderDetails/counterOfferModal.jsx"
+    ],
+    "tags": [
+      "regression",
+      "counter-offer",
+      "validation"
+    ]
+  },
+  {
+    "id": "PR-400-1",
+    "pr": 400,
+    "date": "2023-08-15",
+    "module": "events",
+    "area": "eventCreation/rfq-to-auction",
+    "symptom": "Converting an RFQ to an Auction drops or mis-maps the event_group_line_item mapping (EGLI), causing line items to lose their linkage to the original RFQ's line items.",
+    "root_cause": "Recreate payload explicitly nulled out `event_group_line_item_uuid` on the recreated product, severing the EGLI mapping that downstream code relies on to trace lineage between RFQ and Auction line items.",
+    "regression_case": {
+      "title": "EGLI mapping is preserved when converting RFQ to Auction",
+      "steps": [
+        "Run an RFQ event to completion with multiple line items",
+        "Convert it to an Auction",
+        "Inspect each line item's event_group_line_item mapping"
+      ],
+      "expected": "Every line item in the auction retains its correct mapping back to its originating RFQ line item."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#400",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "rfq-to-auction",
+      "line-items"
+    ]
+  },
+  {
+    "id": "PR-402-1",
+    "pr": 402,
+    "date": "2023-08-16",
+    "module": "events",
+    "area": "eventCreation/rfq-to-auction",
+    "symptom": "Global widget values (e.g. global formula fields) are sent with the wrong shape/payload when recreating an RFQ as a fully-recreational Auction, breaking global field data on the new event.",
+    "root_cause": "`selectFullyRecreationalGlobalWidgets` returned an empty object `{}` as its fallback instead of an empty array `[]`, mismatching the array shape the rest of the payload-building code expected for global widgets.",
+    "regression_case": {
+      "title": "Global widget payload has the correct array shape when converting RFQ to Auction",
+      "steps": [
+        "Run an RFQ event with global (header-level) formula widgets configured",
+        "Convert to Auction",
+        "Inspect the created auction's global widget values"
+      ],
+      "expected": "Global widgets carry over correctly with no type errors and correct values."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#402",
+      "src/redux/orders/selectors.js"
+    ],
+    "tags": [
+      "regression",
+      "rfq-to-auction",
+      "global-fields"
+    ]
+  },
+  {
+    "id": "PR-408-1",
+    "pr": 408,
+    "date": "2023-08-17",
+    "module": "events",
+    "area": "eventCreation/rfq-to-auction",
+    "symptom": "When a TL (traffic-light / template) event is converted while moving from RFQ to Auction, the wrong set of widgets is sent in the conversion payload, because a generic 'default widgets' selector was reused instead of an RFQ-to-Auction-specific one.",
+    "root_cause": "`handleRfqToAuction` used `defaultWidgets` (meant for plain event creation) instead of a dedicated `selectRfqToAuctionWidgets` selector, so widget lists diverged for TL events specifically.",
+    "regression_case": {
+      "title": "Converting a TL (template) event from RFQ to Auction sends the correct widget set",
+      "steps": [
+        "Create a TL/template-based RFQ event",
+        "Convert it to Auction"
+      ],
+      "expected": "The resulting auction's widgets match the TL template's configuration exactly, not a generic default set."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#408",
+      "src/views/orderDetails/orderDetails.jsx"
+    ],
+    "tags": [
+      "regression",
+      "rfq-to-auction",
+      "widgets"
+    ]
+  },
+  {
+    "id": "PR-3690-1",
+    "pr": 3690,
+    "date": "2025-10-07",
+    "module": "events",
+    "area": "eventCreation/rfq-to-auction/audience",
+    "symptom": "Audience derived from product-level mapping is not populated when converting RFQ to Auction for a draft project (only worked for non-draft), leaving vendor audience blank/incorrect on the new auction stage.",
+    "root_cause": "The effect populating product-mapped audience explicitly excluded draft projects (`!isProjectDraft` guard) and a new `getAudienceForDraftEvents` helper had to be introduced to cover the RFQ-to-Auction draft path.",
+    "regression_case": {
+      "title": "Product-mapped audience populates correctly when converting a draft RFQ project to Auction",
+      "steps": [
+        "Create a draft RFQ event with product-level audience mapping configured",
+        "Convert it to Auction while still in draft"
+      ],
+      "expected": "The audience list is correctly populated from the product mapping, matching the non-draft conversion path."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#3690",
+      "src/views/eventCreation/eventCreation.jsx",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "rfq-to-auction",
+      "audience",
+      "draft"
+    ]
+  },
+  {
+    "id": "PR-3730-1",
+    "pr": 3730,
+    "date": "2025-10-10",
+    "module": "events",
+    "area": "eventCreation/rfq-to-auction",
+    "symptom": "Bundle of single-stage RFQ-to-Auction bugs: event mode not recognized as auction (getMode), project title becomes incorrectly editable, and draft editing is allowed when it should be locked, all specific to the single-stage conversion path.",
+    "root_cause": "Several code paths only checked `mode === ORDER_MODE.rfqToAuction` and missed the parallel `isRFQtoAuction` flag used by the single-stage flow, and title-lock logic didn't account for an empty `defaultTitle`.",
+    "regression_case": {
+      "title": "Single-stage RFQ-to-Auction conversion locks title and disables editing correctly",
+      "steps": [
+        "Create a single-stage RFQ event",
+        "Convert it to Auction via the single-stage conversion entry point",
+        "Check: event mode shown, project title field lock state, whether stage config is editable"
+      ],
+      "expected": "Mode reads as Auction, title stays locked when a default title exists, and stage editing follows the same rules as the multi-stage conversion path."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#3730",
+      "src/views/eventCreation/helpers.js",
+      "src/views/projectCreation/projectCreation.jsx"
+    ],
+    "tags": [
+      "regression",
+      "rfq-to-auction"
+    ]
+  },
+  {
+    "id": "PR-4832-1",
+    "pr": 4832,
+    "date": "2026-04-09",
+    "module": "events",
+    "area": "orderDetails/approvalFlow",
+    "symptom": "Race condition in approval flow selection: stale approvalFlows data from a previous event/bid can leak into the approval flow selection UI for a different event if state isn't reset between navigations.",
+    "root_cause": "Redux `project` slice had no reset action for `approvalFlows`; a new `resetProjectApprovalFlows` reducer had to be added and dispatched to clear stale state on navigation/reload.",
+    "regression_case": {
+      "title": "Approval flow selection never shows stale data from a previously viewed event",
+      "steps": [
+        "Open event A, begin the approval flow selection (do not submit)",
+        "Navigate directly to event B's approval flow selection",
+        "Check displayed approval flows"
+      ],
+      "expected": "Event B shows only its own approval flows, never any leaked from event A."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#4832",
+      "src/redux/project/slice.js",
+      "src/views/awardingFlow/approvalFlowSelection.jsx"
+    ],
+    "tags": [
+      "regression",
+      "race-condition",
+      "approval"
+    ]
+  },
+  {
+    "id": "PR-3998-1",
+    "pr": 3998,
+    "date": "2025-12-02",
+    "module": "events",
+    "area": "orderDetails/approvalSection",
+    "symptom": "Expanding an approval item to view vendor bid details briefly shows the wrong (previous) or empty vendor state before the new bid data loads, because the expanded ID was set before the API call resolved.",
+    "root_cause": "`setExpandedApprovalId(approvalId)` ran synchronously before `getBidForVendor` resolved, so the UI expanded and rendered against the old bid-detail state for a beat; fix moved `setExpandedApprovalId` into the `.then` after `unwrapResult`.",
+    "regression_case": {
+      "title": "Approval expansion never shows an empty/stale vendor state mid-fetch",
+      "steps": [
+        "Open the approvals section for an event with several pending approvals",
+        "Click to expand a vendor bid's detail",
+        "Observe the panel content immediately versus after loading completes"
+      ],
+      "expected": "The panel either stays collapsed/loading or shows correct data \u2014 never a stale or empty vendor state."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#3998",
+      "src/views/orderDetails/approvalSection/approvalSection.jsx"
+    ],
+    "tags": [
+      "regression",
+      "approval",
+      "race-condition"
+    ]
+  },
+  {
+    "id": "PR-1945-1",
+    "pr": 1945,
+    "date": "2024-08-21",
+    "module": "events",
+    "area": "orderDetails/approvalFlowSelection",
+    "symptom": "Available approval flows sometimes fail to render in the approval flow selection modal even though the data has loaded, because logic gating default-selection and summary-display was tied to a modal-visibility flag that could be stale/false at the moment data arrived.",
+    "root_cause": "`approvalSelectionModalVisible` was included as a guard condition inside the effect that auto-selects the first approval flow and decides whether to show the summary; removing the flag (and its dependency) fixed the visibility mismatch.",
+    "regression_case": {
+      "title": "Approval flows list renders as soon as data loads, regardless of modal-visibility timing",
+      "steps": [
+        "Trigger approval flow selection where flow data loads slightly after the modal opens",
+        "Observe the modal content once data arrives"
+      ],
+      "expected": "Approval flows are listed/selectable immediately once loaded, with no dependency on transient visibility-flag timing."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#1945",
+      "src/views/orderDetails/approvalFlowSelection/approvalFlowSelection.jsx"
+    ],
+    "tags": [
+      "regression",
+      "approval"
+    ]
+  },
+  {
+    "id": "PR-1739-1",
+    "pr": 1739,
+    "date": "2024-07-03",
+    "module": "events",
+    "area": "orderDetails/lotCreation",
+    "symptom": "Race condition in lot (split-event) creation: the UI could report success/proceed before the actual lot-creation API call's identifying key was available, and subsequent state updates used the wrong lot key.",
+    "root_cause": "`createSplitEvent` thunk returned the raw API response instead of a stable `lotKey`, so the reducer consuming the resolved action could not reliably correlate the async result back to the specific lot being created amid concurrent lot-creation calls.",
+    "regression_case": {
+      "title": "Creating multiple lots concurrently updates the correct lot's state",
+      "steps": [
+        "Open the lot-splitting drawer on an event with 3+ line items",
+        "Kick off lot creation for two lots close together (e.g. rapid submit)",
+        "Check each lot's resulting state"
+      ],
+      "expected": "Each lot's UI state updates from its own API response only; no cross-contamination between concurrently created lots."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#1739",
+      "src/redux/orders/actions.js",
+      "src/redux/orders/slice.js"
+    ],
+    "tags": [
+      "regression",
+      "race-condition",
+      "lots"
+    ]
+  },
+  {
+    "id": "PR-1738-1",
+    "pr": 1738,
+    "date": "2024-07-03",
+    "module": "events",
+    "area": "orderDetails/lotCreation",
+    "symptom": "Line items within a newly created lot are saved/sent in the wrong order because the lot payload used a cached `tradeProductIds` list rather than the live, currently-sorted table data.",
+    "root_cause": "`old_trade_product_uuids` was built from `lot.tradeProductIds` (a possibly stale ordering) instead of mapping over `lot.tableData` (the actual current row order) at submit time.",
+    "regression_case": {
+      "title": "Lot line items are submitted in the order shown in the split drawer",
+      "steps": [
+        "Open split-lot drawer, reorder/sort line items within a lot",
+        "Submit the lot creation"
+      ],
+      "expected": "The line item order in the created lot matches the order visible in the drawer at submit time."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#1738",
+      "src/views/orderDetails/splitLineItemDrawer/splitLineItemDrawer.jsx"
+    ],
+    "tags": [
+      "regression",
+      "lots",
+      "ordering"
+    ]
+  },
+  {
+    "id": "PR-4737-1",
+    "pr": 4737,
+    "date": "2026-03-25",
+    "module": "events",
+    "area": "orderDetails/selectBid/lots",
+    "symptom": "Selecting bids with per-line-item award checkboxes only sent the subset of checked rows to the backend, silently dropping unchecked rows from the payload instead of marking them explicitly not-awarded \u2014 causing line/lot data to be parsed incorrectly downstream.",
+    "root_cause": "`dataToSend` filtered out unchecked rows entirely when checkboxes were enabled, rather than sending the full data set with an `unchecked: true` marker; also `enableCheckboxes` wasn't resynced when the modal reopened or auctionClosingMode changed.",
+    "regression_case": {
+      "title": "Select-bid submission always includes the complete line-item set, with correct checked/unchecked markers",
+      "steps": [
+        "Open Select Bid for a line-item-wise-awardable auction",
+        "Uncheck some line items, keep others checked",
+        "Submit the selection"
+      ],
+      "expected": "Payload includes all line items, each flagged checked or unchecked; downstream lot/line parsing reflects the true full state, not a subset."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-client-dashboard#4737",
+      "src/views/orderDetails/selectBidDrawer.jsx"
+    ],
+    "tags": [
+      "regression",
+      "lots",
+      "award",
+      "selection"
+    ]
+  },
+  {
+    "id": "PR-10651-1",
+    "pr": 10651,
+    "date": "2025-11-25",
+    "module": "events",
+    "area": "backend/bid/precompute",
+    "symptom": "After converting RFQ to Auction, bid scores/ranks computed from `trade_request.misc` reflect an outdated version of the trade request's currency preferences, causing wrong currency-adjusted rank/score data.",
+    "root_cause": "`precompute_bids_data_v2` cached `self.trade_request` in a local variable at the top of the method before other in-request code updated the trade_request's misc/currency data, so the Ruby object held a stale in-memory copy instead of reloading from the DB.",
+    "regression_case": {
+      "title": "Bid precomputation uses the latest trade_request state when computed right after an RFQ-to-Auction conversion",
+      "steps": [
+        "Run an RFQ event, place bids in multiple currencies",
+        "Convert to Auction (which updates trade_request currency preferences)",
+        "Immediately check bid rank/score data"
+      ],
+      "expected": "Rank/score reflect the just-updated currency preferences, not a stale pre-conversion snapshot."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#10651",
+      "app/models/bid.rb"
+    ],
+    "tags": [
+      "regression",
+      "stale-data",
+      "race-condition",
+      "rfq-to-auction"
+    ]
+  },
+  {
+    "id": "PR-10709-1",
+    "pr": 10709,
+    "date": "2025-11-25",
+    "module": "events",
+    "area": "backend/bid/precompute",
+    "symptom": "The #10651 stale-association fix itself broke another flow (reverted same day), showing that reloading trade_request too early in the method could raise/behave incorrectly for bids in approval_requested/draft/revised state where the method exits early before needing trade data.",
+    "root_cause": "Calling `.reload` on trade_request unconditionally near the top of the method did unnecessary/unsafe work for early-return cases (draft, approval_requested, revised-without-refresh bids).",
+    "regression_case": {
+      "title": "Bid precomputation early-exit paths (draft, approval_requested, revised) do not perform the trade_request reload at all",
+      "steps": [
+        "Trigger precompute_bids_data_v2 for a draft bid",
+        "Trigger it for a bid pending approval",
+        "Trigger it for a revised bid without refresh_data_for_revised_bid"
+      ],
+      "expected": "All three exit early without attempting to reload trade_request; no errors, no unnecessary DB hit."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#10709",
+      "app/models/bid.rb"
+    ],
+    "tags": [
+      "regression",
+      "stale-data",
+      "reverted-fix"
+    ]
+  },
+  {
+    "id": "PR-10711-1",
+    "pr": 10711,
+    "date": "2025-11-25",
+    "module": "events",
+    "area": "backend/bid/precompute",
+    "symptom": "Correct fix (same day, third attempt): stale trade_request association bug re-fixed by moving the `.reload` to after the early-return guard clauses, so it only reloads for bids that actually proceed to precompute.",
+    "root_cause": "Same as #10651/#10709 \u2014 combination of needing a fresh trade_request for accurate misc/currency data, while not reloading unnecessarily for bids that exit early.",
+    "regression_case": {
+      "title": "Bid precomputation reload placement regression guard",
+      "steps": [
+        "Re-run the full precompute_bids_data_v2 test matrix: draft bid, approval-pending bid, revised bid, active bid post RFQ-to-Auction, surrogate bid",
+        "Verify trade data freshness and no exceptions in each case"
+      ],
+      "expected": "Every case behaves per its intended rule with fresh data where needed and no reload where not."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#10711",
+      "app/models/bid.rb"
+    ],
+    "tags": [
+      "regression",
+      "stale-data",
+      "hotspot"
+    ]
+  },
+  {
+    "id": "PR-9524-1",
+    "pr": 9524,
+    "date": "2025-09-15",
+    "module": "events",
+    "area": "backend/bid/precompute",
+    "symptom": "Concurrent bid submissions on the same trade request can lose each other's writes to `trade_request.misc` (e.g. bid_company_ids, precomputed_bids_data), because the in-memory `trade.misc` used for the update was not the latest DB row.",
+    "root_cause": "`misc = trade.misc` read from the already-loaded (possibly stale) in-memory trade object; fixed by re-fetching via `TradeRequest.find_by(id: trade.id).misc` immediately before the read-modify-write.",
+    "regression_case": {
+      "title": "Two bids submitted in quick succession on the same event both persist in trade_request.misc",
+      "steps": [
+        "Have two different vendors submit bids on the same line item within a very short window (near-simultaneous requests)",
+        "Inspect trade_request.misc[\"bid_company_ids\"] and precomputed_bids_data afterward"
+      ],
+      "expected": "Both vendors' company IDs and bid data are present; neither write is silently lost to a last-write-wins race."
+    },
+    "severity": "critical",
+    "source": [
+      "Procol-Tech/procol-backend#9524",
+      "app/models/bid.rb"
+    ],
+    "tags": [
+      "regression",
+      "race-condition",
+      "stale-data",
+      "concurrency"
+    ]
+  },
+  {
+    "id": "PR-10374-1",
+    "pr": 10374,
+    "date": "2025-11-07",
+    "module": "events",
+    "area": "backend/bid/reject",
+    "symptom": "After a bid is rejected, the event's precomputed commercial snapshot (used for reports/UI) keeps showing data from before the rejection instead of the latest accepted proposal state.",
+    "root_cause": "Bid rejection triggered precomputation for the event group and bid products but never re-triggered snapshot precomputation for the latest commercial proposal, so `precompute_event_snapshot` was never re-run with fresh data post-rejection.",
+    "regression_case": {
+      "title": "Event snapshot reflects the latest state immediately after a bid rejection",
+      "steps": [
+        "Place several bids on an event, run a bid rejection on one",
+        "Immediately pull the event's commercial proposal snapshot/report"
+      ],
+      "expected": "Snapshot reflects the post-rejection proposal state, not the pre-rejection one."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#10374",
+      "app/models/trade_request.rb",
+      "app/services/precomputation_engine/bid_service_v1.rb"
+    ],
+    "tags": [
+      "regression",
+      "stale-data",
+      "bid-rejection"
+    ]
+  },
+  {
+    "id": "PR-12638-1",
+    "pr": 12638,
+    "date": "2026-02-26",
+    "module": "events",
+    "area": "backend/withdraw",
+    "symptom": "When an RFQ-then-Auction child stage is withdrawn, the parent RFQ trade request's `is_rfq_converted_to_auction` flag is not reset, leaving the parent stuck thinking it was converted even though the auction was withdrawn.",
+    "root_cause": "Withdraw/cancel handling never propagated the status change back up to the parent trade_request for rfq_then_auction stages; needed a new `update_trade_request_rfq_then_auction` hook run during withdraw.",
+    "regression_case": {
+      "title": "Withdrawing an auction stage created via RFQ-to-Auction resets the parent RFQ's conversion flag",
+      "steps": [
+        "Run an RFQ, convert to Auction (rfq_then_auction)",
+        "Withdraw the resulting Auction stage",
+        "Check the parent RFQ trade_request's is_rfq_converted_to_auction flag and available actions"
+      ],
+      "expected": "Parent RFQ no longer reports itself as already converted; a fresh RFQ-to-Auction conversion is possible again if applicable."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-backend#12638",
+      "app/controllers/concerns/trade_controller_helper.rb"
+    ],
+    "tags": [
+      "regression",
+      "withdraw",
+      "rfq-to-auction"
+    ]
+  },
+  {
+    "id": "PR-13725-1",
+    "pr": 13725,
+    "date": "2026-04-21",
+    "module": "events",
+    "area": "backend/withdraw",
+    "symptom": "The #12638 fix itself was reverted ~2 months later, indicating the parent-flag reset introduced a regression elsewhere (e.g. incorrectly allowing/blocking re-conversion, or breaking another withdraw-status computation) that was worse than the original bug.",
+    "root_cause": "Reverted wholesale rather than patched, meaning the interaction between `update_trade_request_rfq_then_auction` and other withdraw-time status logic was not fully understood/tested before merge.",
+    "regression_case": {
+      "title": "RFQ-to-Auction parent/child status stays consistent through withdraw, across whichever fix version is currently live",
+      "steps": [
+        "Run an RFQ, convert to Auction",
+        "Withdraw the auction",
+        "Check: parent RFQ status/flags, whether a second RFQ-to-Auction conversion is offered, whether event group overall status is correct",
+        "Repeat withdrawing at different stages (before bidding, after bidding, after approval)"
+      ],
+      "expected": "No matter which code path is live, the parent/child relationship's status and available next actions stay logically consistent \u2014 this pairing (fix + revert) is exactly the kind of behavior that needs a permanent regression suite."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#13725",
+      "app/controllers/concerns/trade_controller_helper.rb"
+    ],
+    "tags": [
+      "regression",
+      "withdraw",
+      "reverted-fix",
+      "rfq-to-auction"
+    ]
+  },
+  {
+    "id": "PR-7014-1",
+    "pr": 7014,
+    "date": "2025-03-24",
+    "module": "events",
+    "area": "backend/eventGroup/withdraw",
+    "symptom": "Withdrawing an event group under load can race with the PR (purchase request) in-progress-quantity recalculation worker, sometimes leaving stale in-progress quantities on the source PR after withdrawal.",
+    "root_cause": "`UpdateInProgressQuantityWorker` was enqueued from inside `EventGroups::UpdateService` at the same time as bulk `update_all` status changes to `PurchaseRequestTradeMapping`, racing against the mapping status update; moved the enqueue into an `after_update_commit` callback on `EventGroup` keyed to the withdrawn status change so it only fires after the transaction commits.",
+    "regression_case": {
+      "title": "PR in-progress quantity is correctly recalculated after an event group withdrawal, with no race",
+      "steps": [
+        "Create a PR, generate an event group from it with several line items",
+        "Withdraw the event group",
+        "Check the source PR's in-progress quantity for each line item"
+      ],
+      "expected": "In-progress quantity correctly reflects the withdrawal for every line item, with no stale/partial updates from a timing race."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#7014",
+      "app/models/event_group.rb",
+      "app/services/event_groups/update_service.rb"
+    ],
+    "tags": [
+      "regression",
+      "race-condition",
+      "withdraw",
+      "purchase-request"
+    ]
+  },
+  {
+    "id": "PR-2958-1",
+    "pr": 2958,
+    "date": "2024-01-03",
+    "module": "events",
+    "area": "backend/audience",
+    "symptom": "Selecting 'everyone' as the audience while activating a draft project doesn't apply \u2014 the audience_company_ids option is silently dropped because it was empty/blank and the code required it to be present.",
+    "root_cause": "`options['audience_company_ids'] = data[:audience_company_ids] if data[:audience_company_ids].present?` skipped setting the key entirely for an empty array (the 'everyone' / no-restriction case), so downstream audience logic fell back to the wrong default.",
+    "regression_case": {
+      "title": "Selecting 'everyone' as audience on draft project activation is honored",
+      "steps": [
+        "Create a draft project",
+        "Explicitly select 'Everyone' (no company restriction) as the audience",
+        "Activate the project"
+      ],
+      "expected": "All eligible vendors are included as participants; the empty/blank audience selection is treated as a deliberate 'everyone' choice, not ignored."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#2958",
+      "app/services/event_groups/update_service.rb"
+    ],
+    "tags": [
+      "regression",
+      "audience"
+    ]
+  },
+  {
+    "id": "PR-4208-1",
+    "pr": 4208,
+    "date": "2024-04-14",
+    "module": "events",
+    "area": "backend/audience/category-mapping",
+    "symptom": "Customized (category-mapped) audience is computed incorrectly during project activation because the trade_products needed for category-based audience resolution weren't passed into the audience-setting options, so it fell back to a company-wide default.",
+    "root_cause": "`set_customized_audiences` needed `options['trade_products']` populated from `tr.trade_products` to correctly resolve category-mapped audiences per stage; this was missing.",
+    "regression_case": {
+      "title": "Category-mapped customized audience resolves per-stage trade products correctly",
+      "steps": [
+        "Configure category-based vendor mapping for a company",
+        "Create a multi-stage project whose stages have different product categories",
+        "Activate with customized audience enabled"
+      ],
+      "expected": "Each stage's audience is derived from its own trade products' categories, not a company-wide fallback."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#4208",
+      "app/services/event_groups/update_service.rb"
+    ],
+    "tags": [
+      "regression",
+      "audience",
+      "category-mapping"
+    ]
+  },
+  {
+    "id": "PR-15672-1",
+    "pr": 15672,
+    "date": "2026-08-18",
+    "module": "events",
+    "area": "backend/audience/performance",
+    "symptom": "Audience-related queries were slow / risked timing out at scale because there was no index supporting lookups by audience_id + item_type together.",
+    "root_cause": "Missing composite index `idx_audiences_on_audience_id_and_item_type`; audience queries filtering on both columns had to fall back to a less selective index or a sequential scan.",
+    "regression_case": {
+      "title": "Audience lookups by audience_id and item_type stay fast at scale",
+      "steps": [
+        "Seed a large audiences table (10k+ rows) for a company",
+        "Run the audience lookup query path used by event creation/participant resolution",
+        "Check query plan uses the composite index and response time is acceptable"
+      ],
+      "expected": "Query uses the index, no full table scan, response time within acceptable bounds."
+    },
+    "severity": "low",
+    "source": [
+      "Procol-Tech/procol-backend#15672",
+      "app/models/audience.rb"
+    ],
+    "tags": [
+      "regression",
+      "performance",
+      "audience"
+    ]
+  },
+  {
+    "id": "PR-12026-1",
+    "pr": 12026,
+    "date": "2026-01-30",
+    "module": "events",
+    "area": "backend/lots/validation",
+    "symptom": "Buyers are unable to save a lot configuration or delete a line item on events where some trade products were already marked inactive, because lot-count validation compared the lot config against only active trade products while the lot config itself (built earlier) still counted inactive ones.",
+    "root_cause": "`validate_lot_config` filtered `trade_request.trade_products.where.not(status: :in_active)` to count trade products, mismatching the lot_config's total (built from all trade products including inactive), causing a false '842 - trade products in lot config and trade are not equal' validation error.",
+    "regression_case": {
+      "title": "Lot save and line item deletion succeed when some trade products are inactive",
+      "steps": [
+        "Create an event with several line items, mark one trade product inactive (e.g. via PR item deletion)",
+        "Attempt to save an existing lot configuration",
+        "Attempt to delete a line item"
+      ],
+      "expected": "Both operations succeed without the 842 lot/trade-product-count mismatch error."
+    },
+    "severity": "critical",
+    "source": [
+      "Procol-Tech/procol-backend#12026",
+      "app/controllers/api/event_groups_controller.rb"
+    ],
+    "tags": [
+      "regression",
+      "lots",
+      "validation",
+      "reverted-fix"
+    ]
+  },
+  {
+    "id": "PR-12193-1",
+    "pr": 12193,
+    "date": "2026-02-09",
+    "module": "events",
+    "area": "backend/lots/validation",
+    "symptom": "The #12026 fix was reverted ~10 days later \u2014 including inactive trade products in the lot-count comparison apparently broke a different, valid rejection case that depended on excluding inactive products.",
+    "root_cause": "Simply removing the `.where.not(status: :in_active)` filter fixed one case but re-broke another (likely: lot configs that legitimately should exclude just-deactivated products), so the fix/revert pair marks unstable validation logic still needing a real solution.",
+    "regression_case": {
+      "title": "Lot-count validation correctly distinguishes 'inactive from PR deletion mid-flow' vs 'legitimately excluded' trade products",
+      "steps": [
+        "Case A: deactivate a trade product mid-event (as in #12026), then save lot config / delete line item",
+        "Case B: construct a lot config that should be rejected because of a genuine count mismatch unrelated to inactive status",
+        "Run both against whichever validation logic is currently live"
+      ],
+      "expected": "Case A succeeds; Case B is still correctly rejected. This exact tension is what previously flipped the fix back and forth \u2014 needs both cases in the permanent suite."
+    },
+    "severity": "critical",
+    "source": [
+      "Procol-Tech/procol-backend#12193",
+      "app/controllers/api/event_groups_controller.rb"
+    ],
+    "tags": [
+      "regression",
+      "lots",
+      "validation",
+      "reverted-fix",
+      "hotspot"
+    ]
+  },
+  {
+    "id": "PR-8633-1",
+    "pr": 8633,
+    "date": "2025-08-01",
+    "module": "events",
+    "area": "backend/bid/reject/lots",
+    "symptom": "Rejecting a bid on a lot-split event uses event-group-wide participant/vendor data instead of the specific lot's data, so reject-bid checks (e.g. 'has a proposal already been created for this vendor') and layer/vendor displays can be wrong for lot-based events.",
+    "root_cause": "`proposal_created_for_vendor?` and precomputed-data lookups for participant vendor company IDs didn't accept/use a lot number, always reading the event-group-level `participant_vendor_company_ids` instead of the per-lot `lot_#{lot_no}` scoped data.",
+    "regression_case": {
+      "title": "Bid rejection on a lot-split event uses that lot's own participant/vendor data",
+      "steps": [
+        "Split an event into 2+ lots with different participant sets per lot",
+        "Attempt to reject a bid on lot 1's vendor"
+      ],
+      "expected": "Reject-bid eligibility and any vendor/layer display use lot 1's own participant data, not the whole event group's."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#8633",
+      "app/controllers/api/bids_controller.rb",
+      "app/controllers/concerns/event_group_controller_helper.rb",
+      "app/models/event_group.rb"
+    ],
+    "tags": [
+      "regression",
+      "lots",
+      "bid-rejection"
+    ]
+  },
+  {
+    "id": "PR-15758-1",
+    "pr": 15758,
+    "date": "2026-08-26",
+    "module": "events",
+    "area": "backend/reporting/qcs",
+    "symptom": "The QCS (quote comparison sheet) report crashes/500s for an event where no vendor has placed a bid yet, instead of returning an empty/appropriate report.",
+    "root_cause": "Report-eligibility check for including commercial stages didn't also verify `get_participant_vendor_company_ids.present?`; downstream `currency_preferences` and `misc[\"currency_preferences\"]` were assumed present (non-nil) and iterated directly, raising when nil for a no-bid event.",
+    "regression_case": {
+      "title": "QCS report handles an event with zero bids gracefully",
+      "steps": [
+        "Create and publish an event, invite vendors, but ensure no vendor places any bid",
+        "Request the QCS/auction report for that event"
+      ],
+      "expected": "Report generates without a server error, showing an empty or 'no bids yet' state rather than crashing."
+    },
+    "severity": "critical",
+    "source": [
+      "Procol-Tech/procol-backend#15758",
+      "app/controllers/api/event_groups_controller.rb",
+      "app/services/reporting_engine/auction_report.rb",
+      "app/services/reporting_engine/formula_generator/currency_formula_generator.rb"
+    ],
+    "tags": [
+      "regression",
+      "reporting",
+      "null-check",
+      "crash"
+    ]
+  },
+  {
+    "id": "PR-10262-1",
+    "pr": 10262,
+    "date": "2025-10-31",
+    "module": "events",
+    "area": "backend/reporting/awarding",
+    "symptom": "Awarded quantity shown in the awarding proposal report is wrong/misplaced for companies on the v2 awarding report, because it kept using the always-present 'participant_quantity' widget instead of the newer 'awarded_quantity' widget when v2 reporting is enabled.",
+    "root_cause": "'Quantity Awarded' column population and widget allow-list did not branch on `@company.awarding_proposal_report_v2_enabled?`, so v2 companies got the v1 quantity source, and non-v2 report cells got hard-coded to '-' unconditionally in some paths.",
+    "regression_case": {
+      "title": "Awarding proposal report shows correct awarded quantity for both v1 and v2 companies",
+      "steps": [
+        "For a company with awarding_proposal_report_v2 disabled, generate the awarding proposal report and check 'Quantity Awarded'",
+        "For a company with it enabled, do the same"
+      ],
+      "expected": "Each company's report reads awarded quantity from the correct source (v1: participant_quantity, v2: awarded_quantity widget), never '-' when real data exists."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#10262",
+      "app/data_models/awarding_proposal_report_data_model.rb"
+    ],
+    "tags": [
+      "regression",
+      "reporting",
+      "awarding"
+    ]
+  },
+  {
+    "id": "PR-10371-1",
+    "pr": 10371,
+    "date": "2025-11-06",
+    "module": "events",
+    "area": "backend/reporting/awarding",
+    "symptom": "Follow-up to #10262: 'Share of Business' percentage on the awarding report is computed from the wrong quantity widget for v2 companies, since the awarded-quantity fallback logic wasn't applied to the share-of-business calculation itself.",
+    "root_cause": "`participant_quantity_widget` was read from `line_item_data['participant_quantity']` unconditionally for the share-of-business calculation, without preferring `line_item_data['awarded_quantity']` first as had just been done for the quantity-awarded column.",
+    "regression_case": {
+      "title": "Share of Business percentage uses awarded_quantity when v2 reporting is active",
+      "steps": [
+        "On a v2-awarding-report company, award partial quantities across multiple vendors on one line item",
+        "Generate the awarding proposal report",
+        "Check 'Share of Business' percentages sum sensibly against actual awarded quantities"
+      ],
+      "expected": "Percentages are computed from the correct (awarded_quantity-first) source and reconcile with the actual award split."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-backend#10371",
+      "app/data_models/awarding_proposal_report_data_model.rb"
+    ],
+    "tags": [
+      "regression",
+      "reporting",
+      "awarding"
+    ]
+  },
+  {
+    "id": "PR-9783-1",
+    "pr": 9783,
+    "date": "2025-09-29",
+    "module": "events",
+    "area": "backend/rfq-to-auction",
+    "symptom": "Double-clicking or otherwise double-submitting the 'move to auction' action can create two draft auction trade requests for the same parent RFQ, instead of being rejected as a duplicate.",
+    "root_cause": "No uniqueness validation existed to prevent a second auction being created for a parent trade request that already had one; `move_to_auction` also swallowed a distinct error-message case from the create service under the same generic error-code path.",
+    "regression_case": {
+      "title": "Only one auction can ever be created from a given RFQ via move-to-auction",
+      "steps": [
+        "Trigger 'move to auction' for an RFQ",
+        "Immediately trigger it again (e.g. rapid double-submit or two concurrent requests) for the same RFQ"
+      ],
+      "expected": "Only one auction trade request is created; the second attempt is rejected with a clear, distinct error message."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#9783",
+      "app/controllers/api/trade_controller.rb",
+      "app/models/trade_request.rb"
+    ],
+    "tags": [
+      "regression",
+      "rfq-to-auction",
+      "duplicate",
+      "validation"
+    ]
+  },
+  {
+    "id": "PR-15595-1",
+    "pr": 15595,
+    "date": "2026-08-18",
+    "module": "events",
+    "area": "backend/clara-chat",
+    "symptom": "Email-triggered bid creation via Clara AI chat can race with system message identification: the chat identifier used to route the AI's system message isn't guaranteed to exist yet when the email-bid worker is enqueued, causing the AI response to land in the wrong (or no) chat thread.",
+    "root_cause": "`clara_chat_identifier` was only lazily created and returned inconsistently between the event_groups controller and bids controller responses; needed a `find_by_clara_ctm_uuid_and_ref_id` lookup plus eagerly ensuring/returning the identifier in both response payloads before enqueuing the AI worker.",
+    "regression_case": {
+      "title": "Email-bid creation via Clara always attaches to the correct, already-established chat thread",
+      "steps": [
+        "Send an email that triggers bid creation through the Clara AI email-bid flow for an event that has no prior chat identifier yet",
+        "Check the resulting chat thread the AI's system message lands in"
+      ],
+      "expected": "Exactly one chat identifier is created/used consistently; the AI system message appears in that same thread, not a duplicate or missing one."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#15595",
+      "app/controllers/api/event_groups_controller.rb",
+      "app/controllers/api/v1/bids_controller.rb",
+      "app/models/event_group.rb"
+    ],
+    "tags": [
+      "regression",
+      "race-condition",
+      "clara",
+      "email-bid"
+    ]
+  },
+  {
+    "id": "PR-15662-1",
+    "pr": 15662,
+    "date": "2026-08-20",
+    "module": "events",
+    "area": "backend/bid/rank",
+    "symptom": "Rank indicator shown to vendors/buyers can be based on a frozen/outdated landed price instead of the vendor's current landed value, so rank appears wrong (e.g. showing L2 when the vendor is actually L1 after a later formula recalculation).",
+    "root_cause": "Formula-value preparation for ranking iterated `self.bid_products` (a potentially filtered/cached association) instead of `self.all_bid_products`, missing some bid products' updated formula values when recomputing rank-relevant global formulas.",
+    "regression_case": {
+      "title": "Rank reflects the vendor's current landed value after any formula recalculation",
+      "steps": [
+        "Place bids from multiple vendors with global formula-driven landed price",
+        "Trigger a recalculation event (e.g. currency change, global field edit) that changes landed price for one vendor",
+        "Check displayed rank immediately after"
+      ],
+      "expected": "Rank ordering reflects the freshly recalculated landed price for every vendor's bid products, not a stale cached value."
+    },
+    "severity": "high",
+    "source": [
+      "Procol-Tech/procol-backend#15662",
+      "app/models/bid.rb"
+    ],
+    "tags": [
+      "regression",
+      "rank",
+      "stale-data"
+    ]
+  },
+  {
+    "id": "PR-3909-1",
+    "pr": 3909,
+    "date": "2024-04-02",
+    "module": "events",
+    "area": "backend/bid/rank/reject",
+    "symptom": "Rank data (buyer_rank) is not correctly updated/cleared when a surrogate bid becomes inactive after rejection \u2014 an event score entry could retain a stale buyer_rank instead of being removed when the trade no longer has a valid score for that bid.",
+    "root_cause": "Original surrogate-bid rank-skip condition (`!self.is_surrogate_bid?`) didn't also require the bid to still be 'active', and the rank-update code always set `bid_score[\"buyer_rank\"]` from `trade.get_score(self)` even when that returned nothing, instead of deleting the stale key.",
+    "regression_case": {
+      "title": "Rejected surrogate bids do not leave stale buyer_rank data in event scores",
+      "steps": [
+        "Place a surrogate bid on behalf of a vendor",
+        "Reject that bid",
+        "Inspect trade_request.event_score_for_participants for that bid's key"
+      ],
+      "expected": "buyer_rank is removed (not stale) for the rejected bid; no leftover rank data misleads later comparisons."
+    },
+    "severity": "medium",
+    "source": [
+      "Procol-Tech/procol-backend#3909",
+      "app/models/bid.rb",
+      "app/models/concerns/bid_trade_product_rank_helper.rb"
+    ],
+    "tags": [
+      "regression",
+      "rank",
+      "surrogate-bid",
+      "bid-rejection"
+    ]
+  }
+]
