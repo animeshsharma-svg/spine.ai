@@ -1092,15 +1092,91 @@ export class CreateEventPage extends BasePage {
   }
 
   // ── publish ──────────────────────────────────────────────────────────────────
+  /** Participant chips currently on the event. */
+  async participantCount(): Promise<number> {
+    const region = this.participantsRegion();
+    if (!(await region.count())) return 0;
+    return region.locator(".ant-select-selection__choice, .ant-tag, [class*='chip']").count();
+  }
+
+  private participantsRegion() {
+    return this.page
+      .locator("div")
+      .filter({ hasText: /^Participants/ })
+      .last();
+  }
+
+  /**
+   * Make sure the event actually has vendors, and prove it.
+   *
+   * The old version fired `clickIfPresent` at an "Invite Vendor" button and
+   * moved on. That helper returns quietly when nothing matches, so a screen
+   * without that button — or with it under a notification strip — produced a
+   * silent no-op, and the publish confirm modal went on to say
+   * "Vendors invited: 0". An event with no participants is not a published
+   * event, so this step now ends by counting chips.
+   *
+   * Vendors usually arrive on their own: the product's audience auto-populates
+   * once line items exist (154 of them on this client). When it does not, one
+   * is added deliberately through the participants combobox.
+   */
   async inviteVendor(): Promise<void> {
+    const p = this.page;
+    await this.dismissDistractions();
+
+    // The audience fetch is asynchronous; give it a moment before deciding it
+    // has not happened.
+    for (let i = 0; i < 6 && (await this.participantCount()) === 0; i++) {
+      await p.waitForTimeout(500);
+    }
+    let count = await this.participantCount();
+    if (count > 0) {
+      console.log(`[create-event] ${count} participant(s) already on the event`);
+      return;
+    }
+
+    // "Invite Vendor" opens the invite flow on builds that have it.
     await this.clickIfPresent(
-      [
-        this.page.getByRole("button", { name: /invite vendor/i }),
-        this.page.getByText(/invite vendor/i),
-      ],
+      [p.getByRole("button", { name: /invite vendor/i }), p.getByText(/^Invite Vendor$/i)],
       { label: "invite-vendor", timeout: TIMEOUTS.SHORT },
     );
+    await p.waitForTimeout(800);
     await this.dismissDistractions();
+
+    count = await this.participantCount();
+    if (count === 0) {
+      // Add one by hand through the participants combobox.
+      const region = this.participantsRegion();
+      await this.clickIfPresent(
+        [
+          region.getByText(/search vendors you want to add/i),
+          p.getByText(/search vendors you want to add/i),
+          region.locator(".ant-select-selection"),
+        ],
+        { label: "open-participants", timeout: TIMEOUTS.SHORT },
+      );
+      await p.waitForTimeout(600);
+      const search = region
+        .locator("input.ant-select-search__field:not([disabled]), input:not([disabled])")
+        .first();
+      if (await search.count()) {
+        await search.fill("a").catch(() => {});
+        await p.waitForTimeout(2_000);
+        const picked = await this.pickFirstNamedOption("vendor");
+        if (picked) await p.keyboard.press("Escape").catch(() => {});
+      }
+      await p.waitForTimeout(800);
+      count = await this.participantCount();
+    }
+
+    await this.dismissDistractions();
+    if (count === 0) {
+      throw new Error(
+        "the event has no participants — neither the product audience nor the participants combobox " +
+          'produced a vendor, and publishing would create an event nobody can bid on ("Vendors invited: 0").',
+      );
+    }
+    console.log(`[create-event] ${count} participant(s) invited`);
   }
 
   /**
