@@ -36,15 +36,22 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Retries once on a rate-limit (429) or transient (503), honouring Retry-After. */
 export async function chat(
   messages: ChatMessage[],
-  opts: { temperature?: number; maxTokens?: number } = {},
+  opts: { temperature?: number; maxTokens?: number; reasoningEffort?: "low" | "medium" | "high" } = {},
 ): Promise<string> {
   if (llmMode() === "fallback") return "";
   const key = process.env[AI.groq.apiKeyEnvVar]!;
+  // `openai/gpt-oss-120b` is a REASONING model: it spends the token budget on a
+  // hidden `reasoning` field before emitting any `content`. Ask for a short
+  // answer and you get HTTP 200 with content:"" and finish_reason:"length" —
+  // which reads as success to any caller checking the status code, and as
+  // "the model said nothing" to any caller checking the text. Keeping the
+  // reasoning effort low leaves the budget for the answer we actually want.
   const body = JSON.stringify({
     model: AI.groq.model,
     messages,
     temperature: opts.temperature ?? 0.3,
     max_tokens: opts.maxTokens ?? 900,
+    reasoning_effort: opts.reasoningEffort ?? "low",
   });
 
   for (let attempt = 0; attempt < 2; attempt++) {

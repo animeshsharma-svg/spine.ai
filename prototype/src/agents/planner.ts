@@ -325,14 +325,36 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     .filter(Boolean)
     .join("\n\n");
 
+  // Retry with backoff. A free-tier rate limit that quietly degrades into the
+  // generic fallback plan is the worst failure mode available here: the run
+  // still goes green-ish and nobody can tell the compiler never ran. Three
+  // attempts, and if all fail the fallback is used AND said out loud.
   let raw = "";
-  try {
-    raw = await chat([{ role: "system", content: SYSTEM }, { role: "user", content: prompt }], {
-      temperature: 0,
-      maxTokens: 1400,
-    });
-  } catch (e) {
-    warnings.push(`the model call failed (${(e as Error).message}) — used a default plan instead`);
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      raw = await chat([{ role: "system", content: SYSTEM }, { role: "user", content: prompt }], {
+        temperature: 0,
+        // Generous: a plan is ~600 tokens of JSON, and the model needs headroom
+        // for its reasoning pass before it writes any of it.
+        maxTokens: 3_000,
+      });
+      if (raw.trim()) {
+        lastErr = undefined;
+        break;
+      }
+      lastErr = new Error("the model returned nothing");
+    } catch (e) {
+      lastErr = e;
+    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 2_000));
+  }
+  if (lastErr || !raw.trim()) {
+    warnings.push(
+      `the model could not be reached after 3 attempts (${
+        lastErr instanceof Error ? lastErr.message : "empty response"
+      }) — this plan is the generic default, NOT compiled from your test case`,
+    );
     return { plan: fallbackPlan(testCase), reasoning: "Model unavailable.", context: { expectations, experience }, source: "fallback", warnings };
   }
 
