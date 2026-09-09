@@ -76,6 +76,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await s.create.setTitle(s.title);
       return s.title;
     }
+    case "switch_stage": {
+      const stage = asStages([a.stage])[0];
+      if (!stage) throw new Error('switch_stage needs a "stage" of "rfp", "rfq" or "auction"');
+      const label = { rfp: /technical stage/i, rfq: /\bRFQ\b/i, auction: /\bauction\b/i }[stage];
+      await s.create.switchToStageTab(label);
+      // Each stage carries its own template and sheet, so anything captured
+      // from the previous tab is now wrong.
+      s.widgets = {};
+      return `on the ${stage} tab`;
+    }
     case "select_template": {
       const chosen = await s.create.selectTemplate(a.name ? String(a.name) : undefined);
       // Later steps need the sheet schema, and it only comes from the template

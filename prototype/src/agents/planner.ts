@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chat, llmMode } from "../ai/llm.js";
@@ -87,6 +87,8 @@ Ordering the product enforces (violating any of these makes the run fail):
 - On a technical (rfp) stage: fill_questionnaires AND assign_evaluator, or publish is refused.
 - set_schedule before publish: the schedule looks set but is not committed until saved.
 - invite_vendor before publish: an event with no participants is not a usable event.
+- On a MULTI-STAGE event, every stage needs its own configuration on its own tab: switch_stage, then select_template, then fill_sheet (rfq/auction) or fill_questionnaires + assign_evaluator (rfp). A template applies only to the tab that is showing.
+- Line items are project-level: add them once, on the first stage.
 - Assertions go immediately after the step they check.
 `.trim();
 
@@ -163,16 +165,61 @@ export function lintPlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } 
   const wantsTrade = !stages.length || stages.some((s) => s === "rfq" || s === "auction");
   const wantsTechnical = stages.includes("rfp");
 
-  if (wantsTrade && has("add_line_items") && !has("fill_sheet")) {
-    const at = indexOf("expect_line_items") >= 0 ? indexOf("expect_line_items") + 1 : indexOf("add_line_items") + 1;
-    steps.splice(at, 0, { step: "fill_sheet" });
-    repairs.push("added fill_sheet — a pricing stage will not publish with an unfilled sheet");
+  if (stages.length > 1) {
+    // Every stage needs configuring on its OWN tab: template, sheet,
+    // questionnaires and evaluator all act on whichever tab is showing. A
+    // two-stage plan with a single select_template leaves the other stage
+    // template-less, and the app then refuses at publish with "Please select a
+    // valid column for savings" — which reads as a savings bug and is really a
+    // missing template. Rebuild the per-stage section so each is complete.
+    const firstConfig = steps.findIndex((s) =>
+      ["select_template", "add_line_items", "fill_sheet", "fill_questionnaires", "assign_evaluator", "switch_stage"].includes(
+        s.step,
+      ),
+    );
+    const tailStart = steps.findIndex((s) => ["set_schedule", "invite_vendor", "publish", "save_draft"].includes(s.step));
+    if (firstConfig >= 0 && (tailStart < 0 || tailStart > firstConfig)) {
+      const head = steps.slice(0, firstConfig);
+      const tail = tailStart >= 0 ? steps.slice(tailStart) : [];
+      const lineItems = steps.find((s) => s.step === "add_line_items");
+      const lineItemCheck = steps.find((s) => s.step === "expect_line_items");
+
+      const rebuilt: PlanStep[] = [...head];
+      stages.forEach((stage, i) => {
+        rebuilt.push({ step: "switch_stage", args: { stage }, note: `configure the ${stage} stage on its own tab` });
+        rebuilt.push({ step: "select_template", note: `${stage} needs its own template` });
+        // Line items are project-level: added once, on the first stage.
+        if (i === 0 && lineItems) {
+          rebuilt.push(lineItems);
+          if (lineItemCheck) rebuilt.push(lineItemCheck);
+        }
+        if (stage === "rfp") {
+          rebuilt.push({ step: "fill_questionnaires" }, { step: "assign_evaluator" });
+        } else {
+          rebuilt.push({ step: "fill_sheet" });
+        }
+      });
+      rebuilt.push(...tail);
+      steps.length = 0;
+      steps.push(...rebuilt);
+      repairs.push(
+        `rebuilt the plan for ${stages.length} stages — each stage is configured on its own tab, since a template applies only to the tab showing`,
+      );
+    }
   }
-  if (wantsTechnical && !has("fill_questionnaires")) {
-    insertBefore("publish", { step: "fill_questionnaires" }, "added fill_questionnaires — a technical stage will not publish with empty questionnaires");
-  }
-  if (wantsTechnical && !has("assign_evaluator")) {
-    insertBefore("publish", { step: "assign_evaluator" }, "added assign_evaluator — a technical stage needs one");
+
+  if (stages.length <= 1) {
+    if (wantsTrade && has("add_line_items") && !has("fill_sheet")) {
+      const at = indexOf("expect_line_items") >= 0 ? indexOf("expect_line_items") + 1 : indexOf("add_line_items") + 1;
+      steps.splice(at, 0, { step: "fill_sheet" });
+      repairs.push("added fill_sheet — a pricing stage will not publish with an unfilled sheet");
+    }
+    if (wantsTechnical && !has("fill_questionnaires")) {
+      insertBefore("publish", { step: "fill_questionnaires" }, "added fill_questionnaires — a technical stage will not publish with empty questionnaires");
+    }
+    if (wantsTechnical && !has("assign_evaluator")) {
+      insertBefore("publish", { step: "assign_evaluator" }, "added assign_evaluator — a technical stage needs one");
+    }
   }
 
   if (has("publish")) {
@@ -183,9 +230,68 @@ export function lintPlan(plan: TestPlan): { plan: TestPlan; repairs: string[] } 
   return { plan: { ...plan, steps }, repairs };
 }
 
+const KNOWLEDGE_DIR = join(here, "..", "..", "knowledge");
+
+/**
+ * Expand a case id into the case itself.
+ *
+ * The catalogs hold 296 cases with ids like `FE-9.7` and `BE-2.11`, and typing
+ * the id is how a tester actually refers to one. Compiling the literal string
+ * "FE-9.7" would produce a plan for nothing, so the id is resolved to its
+ * title, steps and expected result first — which also hands the compiler a far
+ * better specification than a sentence someone typed from memory.
+ */
+export function resolveCaseId(input: string): { text: string; id: string } | null {
+  const id = input.trim().match(/^((?:FE|BE|PR)-[\w.-]+)$/i)?.[1];
+  if (!id) return null;
+  if (!existsSync(KNOWLEDGE_DIR)) return null;
+
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".json")) files.push(full);
+    }
+  };
+  walk(KNOWLEDGE_DIR);
+
+  for (const f of files) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(f, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(parsed)) continue;
+    const found = (parsed as Array<Record<string, any>>).find(
+      (c) => String(c.id ?? "").toLowerCase() === id.toLowerCase(),
+    );
+    if (!found) continue;
+    const parts = [
+      found.title,
+      found.preconditions?.length ? `Given: ${found.preconditions.join("; ")}` : "",
+      found.steps?.length ? `Steps: ${found.steps.join(" then ")}` : "",
+      found.expected ? `Expected: ${typeof found.expected === "string" ? found.expected : JSON.stringify(found.expected)}` : "",
+      found.oracle?.detail ? `Check: ${found.oracle.detail}` : "",
+    ].filter(Boolean);
+    return { text: parts.join(". "), id: String(found.id) };
+  }
+  return null;
+}
+
 export async function compileTestCase(testCase: string, moduleHint = "events"): Promise<CompileResult> {
   const catalog = loadCatalog();
   const warnings: string[] = [];
+
+  // "FE-9.7" is a reference, not a test case. Resolve it before planning.
+  const resolved = resolveCaseId(testCase);
+  if (resolved) {
+    warnings.push(`resolved ${resolved.id} from the test-case catalog`);
+    testCase = `${resolved.id}: ${resolved.text}`;
+  } else if (/^(?:FE|BE|PR)-[\w.-]+$/i.test(testCase.trim())) {
+    warnings.push(`no case with id "${testCase.trim()}" exists in the catalog — planned from the text as written`);
+  }
 
   // Ground the plan in what the platform knows about this area.
   let expectations: string[] = [];

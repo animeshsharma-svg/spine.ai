@@ -46,6 +46,12 @@ export const STEP_CATALOG: StepSpec[] = [
   },
   { name: "set_title", purpose: "Give the event a title.", args: { title: "string; omit to auto-generate a unique one" } },
   {
+    name: "switch_stage",
+    purpose:
+      "Move to a stage's tab. Required on a multi-stage event: template, sheet, questionnaires and evaluator all apply to the CURRENT tab only, so each stage must be configured on its own tab.",
+    args: { stage: '"rfp" | "rfq" | "auction"' },
+  },
+  {
     name: "select_template",
     purpose: "Pick the stage's pricing template. Required before line items can be added.",
     args: { name: "substring of the template name; omit to take the first offered" },

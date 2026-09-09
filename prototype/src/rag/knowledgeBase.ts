@@ -24,6 +24,8 @@ const STORE_PATH = join(ROOT, "data", "vector-store.json");
  * still retrievable in September, so the planner can probe it again on purpose.
  */
 const FINDINGS_DIR = join(ROOT, "..", "procol-ui-tests", "findings");
+/** Step-by-step outcomes of previously compiled plans. */
+const PLANS_DIR = join(ROOT, "..", "procol-ui-tests", ".plans");
 
 /**
  * What a chunk IS, not just what it says.
@@ -105,6 +107,34 @@ function gatherChunks(): Chunk[] {
         text,
       });
     }
+  }
+
+  // (b2) EXPERIENCE: how previous PLANS fared, step by step.
+  //      A finding says what broke; a plan result says how far a test of this
+  //      shape got and which step stopped it. That is what lets the compiler
+  //      learn that, say, a two-stage plan needs a template per tab — the
+  //      evidence is in the step that failed, not in the defect report.
+  for (const file of walk(PLANS_DIR, "-result.json")) {
+    let r: Record<string, any>;
+    try {
+      r = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(r.steps)) continue;
+    const failed = r.steps.find((s: any) => s.status === "failed");
+    const sequence = r.steps.map((s: any) => s.step).join(" -> ");
+    chunks.push({
+      id: `plan:${basename(file)}`,
+      source: `plan/${r.title ?? "untitled"}`,
+      kind: "experience",
+      module: "events",
+      labels: [r.passed ? "passed" : "failed", failed?.step].filter(Boolean),
+      text:
+        `PREVIOUS PLAN "${r.title}" ${r.passed ? "passed" : "FAILED"}. Steps: ${sequence}. ` +
+        (failed ? `It stopped at "${failed.step}": ${failed.detail}. ` : "") +
+        (r.verdict?.rationale ? `Verdict: ${r.verdict.rationale}` : ""),
+    });
   }
 
   // (c) EXPERIENCE: what previous runs actually found. Written by the UI
