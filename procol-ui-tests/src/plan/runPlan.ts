@@ -2,6 +2,7 @@ import { Page, expect } from "@playwright/test";
 import { EventsPage } from "../pages/EventsPage.js";
 import { VendorPortalPage } from "../pages/VendorPortalPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
+import { AwardPage } from "../pages/AwardPage.js";
 import { vendorNames, vendorCount } from "../master/params.js";
 import { CreateEventPage, ProductInput, StageKey } from "../pages/CreateEventPage.js";
 import { SingleStagePage } from "../pages/SingleStagePage.js";
@@ -54,6 +55,8 @@ interface RunState {
   bidSubmitted: boolean;
   /** Vendors already surrogate-bid for, so a second bid picks a different one. */
   surrogateBids: string[];
+  /** Whether an award has been submitted, so expect_awarded can tell. */
+  awarded: boolean;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -166,6 +169,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.bidSubmitted = true;
       return `surrogate bid entered for ${who}`;
     }
+    case "award_event": {
+      const award = new AwardPage(s.page);
+      await award.startAwarding();
+      const allocated = await award.allocate(a.vendor ? String(a.vendor) : undefined);
+      const outcome = await award.createAndSubmitProposal();
+      s.awarded = true;
+      return `awarded ${allocated.items} line item(s) to ${allocated.vendors} vendor(s) — ${outcome}`;
+    }
+    case "expect_awarded":
+      expect(s.awarded, "nothing was awarded in this plan, so there is no award to confirm").toBe(true);
+      return "the event is awarded";
     case "expect_bid_submitted":
       expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
       return "the bid is submitted";
@@ -252,6 +266,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     lineItemsAdded: 0,
     bidSubmitted: false,
     surrogateBids: [],
+    awarded: false,
   };
 
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)`);

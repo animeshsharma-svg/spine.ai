@@ -108,6 +108,7 @@ Ordering the product enforces (violating any of these makes the run fail):
   * the BUYER bidding on a vendor's behalf (surrogate) -> place_surrogate_bid. It never leaves the console. Unavailable for knockout and dutch auctions and for technical stages.
 - "on behalf of", "surrogate", "for the vendor" mean place_surrogate_bid. "as the vendor", "from the vendor portal", "from the supplier hub", "the vendor submits", "the vendor logs in" mean place_bid. If the test mentions bidding AT ALL, one of these two steps must be in the plan.
 - Follow either with expect_bid_submitted when the test asserts the bid landed.
+- Awarding comes AFTER bidding and needs at least one bid: award_event, then expect_awarded. There is nothing to award on an event nobody has bid on.
 - Assertions go immediately after the step they check.
 `.trim();
 
@@ -236,6 +237,21 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
         delete step.args.vendor;
         repairs.push(`dropped invented vendor name ${bad} from ${step.step} — it will bid for whoever is on the event`);
       }
+    }
+  }
+
+  // Awarding needs a bid to award. A plan that awards an event nobody bid on
+  // fails on the allocation step with "no line item could be allocated", which
+  // reads like an awarding defect rather than a missing precondition.
+  if (has("award_event")) {
+    const bid = Math.max(indexOf("place_bid"), indexOf("place_surrogate_bid"));
+    if (bid < 0) {
+      steps.splice(indexOf("award_event"), 0, { step: "place_surrogate_bid" });
+      repairs.push("added place_surrogate_bid before award_event — there is nothing to award without a bid");
+    } else if (bid > indexOf("award_event")) {
+      const [award] = steps.splice(indexOf("award_event"), 1);
+      steps.splice(Math.max(indexOf("place_bid"), indexOf("place_surrogate_bid")) + 1, 0, award);
+      repairs.push("moved award_event after the bid — awarding an event with no bids allocates nothing");
     }
   }
 

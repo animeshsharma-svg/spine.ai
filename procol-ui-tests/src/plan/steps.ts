@@ -119,6 +119,17 @@ export const STEP_CATALOG: StepSpec[] = [
     args: { vendor: "vendor name; defaults to the first vendor offering Add Bid", price: "number, default 100" },
   },
   {
+    name: "award_event",
+    purpose:
+      "Award the event after bidding: Master QCS -> Start Awarding -> allocate line items -> Create Proposal -> submit. Needs a published event that has at least one bid.",
+    args: { vendor: "vendor to award to; defaults to whichever bid can be allocated" },
+  },
+  {
+    name: "expect_awarded",
+    purpose: "Assert the award went through (a proposal was created and submitted).",
+    assertion: true,
+  },
+  {
     name: "expect_bid_submitted",
     purpose: "Assert the vendor's bid was accepted (the vendor portal shows the stage as Submitted).",
     assertion: true,
