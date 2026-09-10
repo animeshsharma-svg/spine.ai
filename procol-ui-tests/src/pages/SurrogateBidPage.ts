@@ -130,9 +130,16 @@ export class SurrogateBidPage extends BasePage {
     ]) {
       const row = button.locator(xp);
       if (!(await row.count().catch(() => 0))) continue;
-      const text = ((await row.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+      const raw = ((await row.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
       // A row that says nothing but "Add Bid" is the wrapper, not the row.
-      if (text && !/^(add bid\s*)+(add price cap\s*)*$/i.test(text)) return text;
+      if (!raw || /^(add bid\s*)+(add price cap\s*)*$/i.test(raw)) continue;
+      // Strip the row's own action labels so reports name the vendor and not
+      // the buttons next to it.
+      const text = raw
+        .replace(/\s*-?\s*(add bid|add price cap|view price cap|edit bid|add weight params)\s*/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (text) return text;
     }
     return "";
   }
@@ -154,7 +161,7 @@ export class SurrogateBidPage extends BasePage {
    *        used when it is absent or matches nobody, since a test that just
    *        wants "a surrogate bid" should not have to know the audience.
    */
-  async addBidFor(vendor: string | undefined, price: number): Promise<string> {
+  async addBidFor(vendor: string | undefined, price: number, alreadyBid: string[] = []): Promise<string> {
     const p = this.page;
     if (!(await this.openParticipants())) {
       throw new Error(
@@ -190,6 +197,25 @@ export class SurrogateBidPage extends BasePage {
     // Pick the row for the wanted vendor.
     let button = p.getByTestId("add-bid-button").first();
     let chosen = "the first biddable vendor";
+
+    // With no name given, take the first vendor NOT already bid for in this
+    // run. Two unnamed surrogate bids would otherwise both land on the same
+    // vendor, and the event would end with one bid instead of two competing
+    // ones — a test that asserts "two bids" would pass having created one.
+    if (!vendor && alreadyBid.length) {
+      const buttons = p.getByTestId("add-bid-button");
+      for (let i = 0; i < (await buttons.count()); i++) {
+        const text = await this.rowTextFor(buttons.nth(i));
+        if (text && !alreadyBid.some((prev) => text.includes(prev) || prev.includes(text))) {
+          button = buttons.nth(i);
+          chosen = text.slice(0, 40);
+          break;
+        }
+      }
+    } else if (!vendor) {
+      chosen = (await this.rowTextFor(button)).slice(0, 40) || chosen;
+    }
+
     if (vendor) {
       const want = vendor.trim().toLowerCase();
       const buttons = p.getByTestId("add-bid-button");

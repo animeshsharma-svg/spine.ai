@@ -52,6 +52,8 @@ interface RunState {
    * asserts a submission it never made should say so rather than pass.
    */
   bidSubmitted: boolean;
+  /** Vendors already surrogate-bid for, so a second bid picks a different one. */
+  surrogateBids: string[];
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -155,7 +157,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "place_surrogate_bid": {
       const surrogate = new SurrogateBidPage(s.page);
-      const who = await surrogate.addBidFor(a.vendor ? String(a.vendor) : undefined, Number(a.price ?? 100));
+      const who = await surrogate.addBidFor(
+        a.vendor ? String(a.vendor) : undefined,
+        Number(a.price ?? 100),
+        s.surrogateBids,
+      );
+      s.surrogateBids.push(who);
       s.bidSubmitted = true;
       return `surrogate bid entered for ${who}`;
     }
@@ -244,6 +251,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     products: [],
     lineItemsAdded: 0,
     bidSubmitted: false,
+    surrogateBids: [],
   };
 
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)`);

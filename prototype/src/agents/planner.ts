@@ -101,6 +101,7 @@ Ordering the product enforces (violating any of these makes the run fail):
 - invite_vendor before publish: an event with no participants is not a usable event.
 - On a MULTI-STAGE event, every stage needs its own configuration on its own tab: switch_stage, then select_template, then fill_sheet (rfq/auction) or fill_questionnaires + assign_evaluator (rfp). A template applies only to the tab that is showing.
 - Line items are project-level: add them once, on the first stage.
+- NEVER invent a vendor name. Use a name only if the test case itself names one. When it just says "a vendor" or "two vendors", set count on invite_vendor and leave vendors out, and leave vendor out of the bid steps — the product's own audience supplies them.
 - Bidding needs a PUBLISHED event: publish first, then bid.
 - Two different things are called "bidding" and the test case tells you which:
   * the VENDOR bidding for themselves -> place_bid. It signs into the vendor portal, so the vendor must have been invited BY NAME: invite_vendor{vendors:["<name>"]}.
@@ -208,6 +209,34 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const keep = /\bauction\b/i.test(testCase) && !/\brfq\b/i.test(testCase) ? "auction" : "rfq";
     compose!.args = { ...(compose!.args ?? {}), stages: asked.filter((x) => x === keep || x === "rfp") };
     repairs.push(`dropped the other trade stage — the product forbids RFQ and Auction together, so kept ${keep}`);
+  }
+
+  // Strip invented vendor names. A name the test case never mentions cannot be
+  // matched against a real audience: the invite falls back silently and the bid
+  // then searches for a company that does not exist. Keeping only names the
+  // test actually used makes fabrication impossible rather than unlikely.
+  const mentions = (name: string) => testCase.toLowerCase().includes(name.trim().toLowerCase());
+  for (const step of steps) {
+    if (step.step === "invite_vendor" && Array.isArray(step.args?.vendors)) {
+      const given = (step.args!.vendors as unknown[]).map(String);
+      const real = given.filter(mentions);
+      if (real.length !== given.length) {
+        const dropped = given.filter((n) => !real.includes(n));
+        if (real.length) step.args!.vendors = real;
+        else delete step.args!.vendors;
+        if (!step.args!.count) step.args!.count = given.length;
+        repairs.push(
+          `dropped invented vendor name(s) ${dropped.join(", ")} — the test case never named them, so the product's audience supplies the vendors instead`,
+        );
+      }
+    }
+    if ((step.step === "place_bid" || step.step === "place_surrogate_bid") && step.args?.vendor) {
+      if (!mentions(String(step.args.vendor))) {
+        const bad = String(step.args.vendor);
+        delete step.args.vendor;
+        repairs.push(`dropped invented vendor name ${bad} from ${step.step} — it will bid for whoever is on the event`);
+      }
+    }
   }
 
   // The two kinds of bidding are easy to confuse and mean different things.
