@@ -234,7 +234,7 @@ npm run cases:compile UI-TPL-001
 ```bash
 cd prototype
 npm run eval:routing    # 102 cases: does an instruction reach the right journey?
-npm run eval:planner    # 25 cases: does a test case compile into a runnable plan?
+npm run eval:planner    # 42 cases: does a test case compile into a runnable plan?
 ```
 
 Current, measured live:
@@ -244,8 +244,8 @@ Current, measured live:
 | Routing — journey accuracy | 98.0% (100/102) |
 | Routing — parameters (line items, template, duration) | 100% |
 | Routing — caveat precision / recall | 100% / 100% |
-| Planner — runnable plans | 96.0% (24/25) |
-| Planner — compiled clean, no repair needed | 16/25 |
+| Planner — runnable plans | 100% (42/42) |
+| Planner — compiled clean, no repair needed | 28/42 |
 
 These are **evaluation** sets, not training data: they measure accuracy and
 catch regressions, they do not change model weights.
@@ -254,6 +254,15 @@ Both evals have earned their keep. The routing one exposed that vendor-portal
 and mobile requests produced no caveat; the planner one exposed that
 `openai/gpt-oss-120b` is a reasoning model returning HTTP 200 with empty content,
 which was silently degrading every plan to a generic default.
+
+The planner eval also carries the case that found the worst bug in the
+compiler. `UI-ENV-001` is about reaching the events **list**; the vocabulary had
+no step for that, so the compiler reached for `open_create`, the linter added a
+mandatory title, and the plan **passed** — having opened the create screen and
+never looked at the list. `open_events_list` / `expect_events_list` now exist,
+`lintPlan` decides which screen a test is about before any repair runs, and
+three eval cases hold it in place: a list case, the same case in different
+words, and a create case that must not pick the list step up.
 
 ## Providers
 
