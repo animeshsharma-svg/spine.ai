@@ -1,5 +1,8 @@
 import { Page, expect } from "@playwright/test";
 import { EventsPage } from "../pages/EventsPage.js";
+import { VendorPortalPage } from "../pages/VendorPortalPage.js";
+import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
+import { vendorNames, vendorCount } from "../master/params.js";
 import { CreateEventPage, ProductInput, StageKey } from "../pages/CreateEventPage.js";
 import { SingleStagePage } from "../pages/SingleStagePage.js";
 import { generateEventTitle } from "../helpers/data.js";
@@ -43,6 +46,12 @@ interface RunState {
   widgets: Record<string, WidgetConfig>;
   products: ProductInput[];
   lineItemsAdded: number;
+  /**
+   * Whether a bid has been placed in this plan, so `expect_bid_submitted` can
+   * tell "the bid failed" from "no bid was ever attempted" — a plan that
+   * asserts a submission it never made should say so rather than pass.
+   */
+  bidSubmitted: boolean;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -120,9 +129,46 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await s.create.saveSchedule();
       return a.minutes ? `schedule saved (${a.minutes} min)` : "schedule saved";
     }
-    case "invite_vendor":
-      await s.create.inviteVendor();
-      return `${await s.create.participantCount()} participant(s)`;
+    case "place_bid": {
+      // The vendor bids for themselves, which means a SECOND browser context:
+      // the buyer's session cannot be reused, and reusing it would quietly test
+      // the buyer's view of the portal rather than the vendor's.
+      const browser = s.page.context().browser();
+      if (!browser) throw new Error("no browser available to open a vendor session");
+      const vendorCtx = await browser.newContext();
+      const vendorPage = await vendorCtx.newPage();
+      try {
+        const portal = new VendorPortalPage(vendorPage);
+        await portal.goto();
+        await portal.login();
+        await portal.openEvent(s.title);
+        await portal.startBidding(s.title);
+        const cells = await portal.fillBid(Number(a.price ?? 100));
+        await portal.submitBid();
+        const ok = await portal.bidSubmitted();
+        s.bidSubmitted = ok;
+        if (!ok) throw new Error("the vendor portal did not confirm the quote as submitted");
+        return `bid placed from the vendor portal (${cells} cell(s))`;
+      } finally {
+        await vendorCtx.close().catch(() => {});
+      }
+    }
+    case "place_surrogate_bid": {
+      const surrogate = new SurrogateBidPage(s.page);
+      const who = await surrogate.addBidFor(a.vendor ? String(a.vendor) : undefined, Number(a.price ?? 100));
+      s.bidSubmitted = true;
+      return `surrogate bid entered for ${who}`;
+    }
+    case "expect_bid_submitted":
+      expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
+      return "the bid is submitted";
+    case "invite_vendor": {
+      const names = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
+      const min = a.count !== undefined ? Number(a.count) : vendorCount();
+      const invited = await s.create.inviteVendors({ names, count: min });
+      const total = await s.create.participantCount();
+      return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s)`;
+    }
     case "publish":
       await s.create.publishAndAwaitOutcome(s.title);
       return `published as ${s.create.projectId()}`;
@@ -197,6 +243,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     widgets: {},
     products: [],
     lineItemsAdded: 0,
+    bidSubmitted: false,
   };
 
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)`);

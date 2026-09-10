@@ -71,6 +71,20 @@ function invariants(plan: TestPlan): string[] {
     if (!has("assign_evaluator")) problems.push("technical stage without assign_evaluator");
   }
   if (stages.includes("rfq") && stages.includes("auction")) problems.push("RFQ and Auction cannot coexist");
+
+  // Bidding needs a published event, and the vendor-portal route needs a named
+  // vendor because it has to sign in as that company.
+  const bidAt = Math.max(at("place_bid"), at("place_surrogate_bid"));
+  if (bidAt >= 0) {
+    if (!has("publish")) problems.push("bids without publishing anything");
+    else if (at("publish") > bidAt) problems.push("bids before publishing");
+    if (has("place_bid")) {
+      const invite = plan.steps.find((s) => s.step === "invite_vendor");
+      const named = Array.isArray(invite?.args?.vendors) && (invite!.args!.vendors as unknown[]).length > 0;
+      if (!named) problems.push("place_bid without naming the vendor to sign in as");
+    }
+  }
+  if (has("expect_bid_submitted") && bidAt < 0) problems.push("asserts a bid was submitted without placing one");
   return problems;
 }
 

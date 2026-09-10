@@ -73,7 +73,15 @@ export const STEP_CATALOG: StepSpec[] = [
     purpose: "Open the schedule drawer and commit it. Needed before publish.",
     args: { minutes: "optional event duration in minutes" },
   },
-  { name: "invite_vendor", purpose: "Ensure the event has participants, adding one if the audience is empty." },
+  {
+    name: "invite_vendor",
+    purpose:
+      "Put vendors on the event. Name them when the test cares WHICH vendor bids — a bid test must be able to sign in as that company — otherwise the product's own audience is used.",
+    args: {
+      vendors: 'array of vendor names, e.g. ["AMD"]',
+      count: "minimum number of participants required; fails if the audience cannot supply it",
+    },
+  },
   { name: "publish", purpose: "Publish the event and wait for the outcome." },
   { name: "save_draft", purpose: "Save as draft instead of publishing." },
   {
@@ -96,6 +104,23 @@ export const STEP_CATALOG: StepSpec[] = [
     name: "expect_error",
     purpose: "Assert the application DID refuse, optionally matching its wording. Use for negative tests.",
     args: { contains: "optional substring the message must contain" },
+    assertion: true,
+  },
+  {
+    name: "place_bid",
+    purpose:
+      "Sign into the VENDOR PORTAL as a vendor and submit a quote for the event just published. This is the vendor bidding for themselves. Needs the vendor to have been invited.",
+    args: { vendor: "vendor name; defaults to the configured vendor account", price: "number, default 100" },
+  },
+  {
+    name: "place_surrogate_bid",
+    purpose:
+      "Enter a bid FOR a vendor from the buyer console, without leaving it (surrogate bidding). Use when the test says the buyer bids on a vendor's behalf. Not available for knockout or dutch auctions, nor for technical stages.",
+    args: { vendor: "vendor name; defaults to the first vendor offering Add Bid", price: "number, default 100" },
+  },
+  {
+    name: "expect_bid_submitted",
+    purpose: "Assert the vendor's bid was accepted (the vendor portal shows the stage as Submitted).",
     assertion: true,
   },
   {

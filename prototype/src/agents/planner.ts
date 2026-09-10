@@ -78,6 +78,15 @@ function catalogForPrompt(steps: StepSpec[]): string {
  * Ordering rules the product enforces and no model could infer.
  * Every one of these was learned the hard way against the live app.
  */
+/**
+ * The vendor account the framework can actually sign in as.
+ *
+ * A vendor-portal bid needs credentials, and only this account has them
+ * configured — so a plan that invites "some vendor" and then tries to sign in
+ * as them cannot work.
+ */
+const DEFAULT_VENDOR = process.env.UI_DEFAULT_VENDOR ?? "AMD";
+
 const DOMAIN_RULES = `
 Ordering the product enforces (violating any of these makes the run fail):
 - open_create must come first.
@@ -91,6 +100,12 @@ Ordering the product enforces (violating any of these makes the run fail):
 - invite_vendor before publish: an event with no participants is not a usable event.
 - On a MULTI-STAGE event, every stage needs its own configuration on its own tab: switch_stage, then select_template, then fill_sheet (rfq/auction) or fill_questionnaires + assign_evaluator (rfp). A template applies only to the tab that is showing.
 - Line items are project-level: add them once, on the first stage.
+- Bidding needs a PUBLISHED event: publish first, then bid.
+- Two different things are called "bidding" and the test case tells you which:
+  * the VENDOR bidding for themselves -> place_bid. It signs into the vendor portal, so the vendor must have been invited BY NAME: invite_vendor{vendors:["<name>"]}.
+  * the BUYER bidding on a vendor's behalf (surrogate) -> place_surrogate_bid. It never leaves the console. Unavailable for knockout and dutch auctions and for technical stages.
+- "on behalf of", "surrogate", "for the vendor" mean place_surrogate_bid. "as the vendor", "from the vendor portal", "from the supplier hub", "the vendor submits", "the vendor logs in" mean place_bid. If the test mentions bidding AT ALL, one of these two steps must be in the plan.
+- Follow either with expect_bid_submitted when the test asserts the bid landed.
 - Assertions go immediately after the step they check.
 `.trim();
 
@@ -160,6 +175,41 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   if (!has("open_create")) {
     steps.unshift({ step: "open_create", args: { path: "erfx" } });
     repairs.push("added open_create — every create test has to start somewhere");
+  } else if (indexOf("open_create") !== 0) {
+    // Present but not first. Every other step acts on the create screen, so
+    // anything before it runs against whatever page happens to be open.
+    const [open] = steps.splice(indexOf("open_create"), 1);
+    steps.unshift(open);
+    repairs.push("moved open_create to the front — the steps before it had no create screen to act on");
+  }
+
+  // RFQ and Auction are mutually exclusive (isValidStage). A plan asking for
+  // both can never run, so keep whichever the test actually named.
+  const compose = steps.find((s) => s.step === "compose_stages");
+  const asked = (compose?.args?.stages as string[] | undefined) ?? [];
+  if (asked.includes("rfq") && asked.includes("auction")) {
+    const keep = /\bauction\b/i.test(testCase) && !/\brfq\b/i.test(testCase) ? "auction" : "rfq";
+    compose!.args = { ...(compose!.args ?? {}), stages: asked.filter((x) => x === keep || x === "rfp") };
+    repairs.push(`dropped the other trade stage — the product forbids RFQ and Auction together, so kept ${keep}`);
+  }
+
+  // The two kinds of bidding are easy to confuse and mean different things.
+  // The test case says which, so honour the words rather than the model's pick.
+  const wantsSurrogate = /surrogate|on (their|the vendor's|his|her) behalf|on behalf of/i.test(testCase);
+  const wantsVendorSide = /vendor portal|supplier hub|as the vendor|vendor logs? in|vendor (themselves|submits)/i.test(testCase);
+  if (wantsSurrogate && has("place_bid")) {
+    steps[indexOf("place_bid")] = { step: "place_surrogate_bid", note: "the test asks the buyer to bid on the vendor's behalf" };
+    repairs.push("swapped place_bid for place_surrogate_bid — the test asks the BUYER to bid for the vendor, which never leaves the console");
+  }
+  if (wantsVendorSide && !wantsSurrogate && has("place_surrogate_bid")) {
+    steps[indexOf("place_surrogate_bid")] = { step: "place_bid", note: "the test asks the vendor to bid for themselves" };
+    repairs.push("swapped place_surrogate_bid for place_bid — the test asks the VENDOR to sign in and bid");
+  }
+  if ((wantsSurrogate || wantsVendorSide) && !has("place_bid") && !has("place_surrogate_bid")) {
+    const step = wantsSurrogate ? "place_surrogate_bid" : "place_bid";
+    const at = has("expect_published") ? indexOf("expect_published") + 1 : has("publish") ? indexOf("publish") + 1 : steps.length;
+    steps.splice(at, 0, { step });
+    repairs.push(`added ${step} — the test is about bidding and no bid step was planned`);
   }
 
   // A nameless event is refused at publish, and the title is also how a human
@@ -240,6 +290,31 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   if (has("publish")) {
     if (!has("set_schedule")) insertBefore("publish", { step: "set_schedule" }, "added set_schedule — the schedule is displayed but not committed until saved");
     if (!has("invite_vendor")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
+  }
+
+  // Bidding needs something to bid on, and the vendor portal needs to know
+  // WHICH vendor. A bid step before publish, or with an anonymous audience,
+  // fails in a way that looks like a bidding defect.
+  const bidAt = Math.max(indexOf("place_bid"), indexOf("place_surrogate_bid"));
+  if (bidAt >= 0) {
+    if (!has("publish")) {
+      steps.splice(bidAt, 0, { step: "publish" });
+      repairs.push("added publish — a bid needs a published event to bid on");
+    } else if (indexOf("publish") > bidAt) {
+      const [bid] = steps.splice(bidAt, 1);
+      steps.splice(indexOf("publish") + 1, 0, bid);
+      repairs.push(`moved ${bid.step} after publish — bidding on an unpublished event is not possible`);
+    }
+    if (has("place_bid")) {
+      const invite = steps.find((s) => s.step === "invite_vendor");
+      const named = Array.isArray(invite?.args?.vendors) && (invite!.args!.vendors as unknown[]).length > 0;
+      if (invite && !named) {
+        invite.args = { ...(invite.args ?? {}), vendors: [DEFAULT_VENDOR] };
+        repairs.push(
+          `named ${DEFAULT_VENDOR} on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain`,
+        );
+      }
+    }
   }
 
   return { plan: { ...plan, steps }, repairs };

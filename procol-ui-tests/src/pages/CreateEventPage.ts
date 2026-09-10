@@ -1201,6 +1201,73 @@ export class CreateEventPage extends BasePage {
    * once line items exist (154 of them on this client). When it does not, one
    * is added deliberately through the participants combobox.
    */
+  /**
+   * Add one named vendor to the participants list.
+   *
+   * Typing the name and taking the first NAMED row: the participants combobox
+   * renders its search box as an empty option, so picking row zero picks
+   * nothing. Returns false when the search finds nobody, which is a real
+   * outcome a test may want to assert rather than an error.
+   */
+  async addParticipantByName(name: string): Promise<boolean> {
+    const p = this.page;
+    const region = this.participantsRegion();
+    await this.dismissDistractions();
+    await this.clickIfPresent(
+      [
+        region.getByText(/search vendors you want to add/i),
+        p.getByText(/search vendors you want to add/i),
+        region.locator(".ant-select-selection"),
+      ],
+      { label: "open-participants", timeout: TIMEOUTS.SHORT },
+    );
+    await this.pause(500);
+    const search = region.locator("input.ant-select-search__field:not([disabled]), input:not([disabled])").first();
+    if (!(await search.count())) return false;
+    await search.fill(name).catch(() => {});
+    // Vendor search is a server round-trip; wait for rows rather than guessing.
+    await p
+      .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) li, .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item")
+      .first()
+      .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
+      .catch(() => {});
+    const picked = await this.pickFirstNamedOption(`vendor "${name}"`);
+    await p.keyboard.press("Escape").catch(() => {});
+    await this.pause(500);
+    return picked;
+  }
+
+  /**
+   * Invite specific vendors, or make sure there are at least `count` of them.
+   *
+   * Bid tests care WHICH vendor is invited — you cannot log into the vendor
+   * portal as "whoever the audience happened to contain" — so names come first
+   * and the auto-populated audience is only a fallback for tests that just need
+   * somebody to bid.
+   */
+  async inviteVendors(opts: { names?: string[]; count?: number } = {}): Promise<string[]> {
+    const invited: string[] = [];
+    for (const name of opts.names ?? []) {
+      const ok = await this.addParticipantByName(name);
+      if (ok) invited.push(name);
+      else console.log(`[create-event] no vendor matched "${name}"`);
+    }
+    if (invited.length) {
+      console.log(`[create-event] invited by name: ${invited.join(", ")}`);
+      return invited;
+    }
+    // No names given (or none matched) — fall back to whoever is there.
+    await this.inviteVendor();
+    const have = await this.participantCount();
+    if (opts.count && have < opts.count) {
+      throw new Error(
+        `the event has ${have} participant(s) but the test needs at least ${opts.count}. The product's ` +
+          "audience did not supply enough, and no vendor names were given to add explicitly.",
+      );
+    }
+    return [];
+  }
+
   async inviteVendor(): Promise<void> {
     const p = this.page;
     await this.dismissDistractions();
