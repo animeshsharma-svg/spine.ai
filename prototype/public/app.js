@@ -20,6 +20,13 @@ let designedCases = null; // test cases captured from the Test-designer
 let checkRows = []; // live automation check results
 let checkFilter = "all"; // "all" | "fail"
 let currentMap = null; // the loaded capability map (for the control panel)
+// Catalog panel state. Declared here, not beside its own functions: `init()`
+// is invoked at the top of this file and `let` does not hoist, so declaring
+// these lower down threw before the first panel had loaded.
+let catState = { layer: "", section: "", priority: "", verdict: "", q: "" };
+let catCases = []; // the currently filtered page of the catalog
+const catPicked = new Set(); // case ids the user has ticked
+let catRunning = null; // the open EventSource while cases are running
 
 // ── boot ──
 init();
@@ -27,6 +34,7 @@ async function init() {
   loadFindings();
   loadKnowledge();
   loadStuck();
+  initCatalog();
   $("#ai-btn")?.addEventListener("click", runAiInstruction);
   $("#plan-btn")?.addEventListener("click", () => runTestCase(false));
   $("#plan-dry")?.addEventListener("click", () => runTestCase(true));
@@ -1349,4 +1357,243 @@ function teachStuck(id, btn) {
     finish(code === 0 ? "✓ taught — future runs will use it directly" : "✗ could not teach it from that screen", code === 0 ? "ok" : "bad");
   });
   es.addEventListener("error", () => finish("✗ teaching failed", "bad"));
+}
+
+// ── the written test catalog ───────────────────────────────────────────────
+//
+// 648 cases live as prose in `test-cases/*.md`. They are the thing a person
+// reads and edits; this panel is only a way to pick some and press run. Each
+// case shows the route it will actually take, because "Run" meaning four
+// different things — a healed journey, a compiled plan, an exact API case, a
+// whole API area — is the sort of ambiguity that makes a green tick worthless.
+function initCatalog() {
+  $("#cat-run")?.addEventListener("click", runPickedCases);
+  $("#cat-stop")?.addEventListener("click", () => {
+    catRunning?.close();
+    catRunning = null;
+    $("#cat-run").disabled = false;
+    $("#cat-run").textContent = "▶ Run selected cases";
+  });
+  $("#cat-none")?.addEventListener("click", () => {
+    catPicked.clear();
+    renderCatalog();
+  });
+  for (const b of document.querySelectorAll(".cat-tabs .chip")) {
+    b.addEventListener("click", () => {
+      for (const o of document.querySelectorAll(".cat-tabs .chip")) o.classList.remove("active");
+      b.classList.add("active");
+      catState.layer = b.dataset.layer;
+      catState.section = "";
+      loadCatalog();
+    });
+  }
+  for (const [sel, key] of [["#cat-section", "section"], ["#cat-priority", "priority"], ["#cat-verdict", "verdict"]]) {
+    $(sel)?.addEventListener("change", (e) => {
+      catState[key] = e.target.value;
+      loadCatalog();
+    });
+  }
+  let t;
+  $("#cat-q")?.addEventListener("input", (e) => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      catState.q = e.target.value.trim();
+      loadCatalog();
+    }, 250);
+  });
+  loadCatalog();
+}
+
+async function loadCatalog() {
+  const qs = new URLSearchParams();
+  if (catState.layer) qs.set("layer", catState.layer);
+  if (catState.section) qs.set("group", catState.section);
+  if (catState.priority) qs.set("priority", catState.priority);
+  if (catState.verdict) qs.set("verdict", catState.verdict);
+  if (catState.q) qs.set("q", catState.q);
+  try {
+    const data = await (await fetch(`/api/test-cases?${qs}`)).json();
+    catCases = data.cases || [];
+    const sel = $("#cat-section");
+    // Rebuild the section list only when the layer changes it, so a chosen
+    // section is not reset by every keystroke in the search box.
+    const want = (data.sections || []).map((x) => x.group).join(",");
+    if (sel && sel.dataset.built !== want) {
+      sel.dataset.built = want;
+      sel.innerHTML = '<option value="">every section</option>';
+      for (const s of data.sections || []) {
+        const o = el("option");
+        o.value = s.group;
+        o.textContent = `${s.layer.toUpperCase()} ${s.sectionNo}. ${s.section} (${s.total})`;
+        sel.appendChild(o);
+      }
+      sel.value = catState.section;
+    }
+    const c = data.coverage || {};
+    $("#cat-hint").textContent =
+      `${data.stats.total} written cases · ${c.runnable}/${c.total} reach a real runner · showing ${catCases.length}`;
+    renderCatalog();
+  } catch (err) {
+    $("#cat-list").innerHTML = `<div class="empty">could not load the catalog: ${esc(err.message)}</div>`;
+  }
+}
+
+const ROUTE_TAG = {
+  "ui-journey": ["journey", "built journey"],
+  "api-case": ["exact", "exact API case"],
+  "api-section": ["area", "API area only"],
+  "api-suite": ["area", "validation suite"],
+  "ui-compile": ["", "compiled plan"],
+  manual: ["manual", "for a person"],
+  none: ["none", "no runner yet"],
+};
+
+function renderCatalog() {
+  const box = $("#cat-list");
+  box.innerHTML = "";
+  if (!catCases.length) {
+    box.innerHTML = '<div class="empty">Nothing matches those filters.</div>';
+    updateCatCount();
+    return;
+  }
+  let lastSection = null;
+  for (const c of catCases) {
+    if (c.group !== lastSection) {
+      lastSection = c.group;
+      box.appendChild(el("div", "cat-sec", `${esc(c.layer.toUpperCase())} ${c.sectionNo}. ${esc(c.section)}`));
+    }
+    const row = el("div", "cat-case");
+    row.id = `cat-${c.id}`;
+    const cb = el("input");
+    cb.type = "checkbox";
+    cb.checked = catPicked.has(c.id);
+    cb.disabled = !c.route.runnable;
+    cb.title = c.route.runnable ? c.route.because : `cannot run: ${c.route.because}`;
+    cb.addEventListener("change", () => {
+      cb.checked ? catPicked.add(c.id) : catPicked.delete(c.id);
+      updateCatCount();
+    });
+    const body = el("div", "cat-body");
+    const [tagCls, tagText] = ROUTE_TAG[c.route.kind] || ["", c.route.kind];
+    body.appendChild(
+      el("div", "", `<span class="cat-id">${esc(c.id)}</span><span class="cat-title">${esc(c.title)}</span>`),
+    );
+    const meta = el("div", "cat-meta");
+    meta.appendChild(el("span", `cat-tag ${c.priority === "P0" ? "p0" : ""}`, esc(c.priority)));
+    meta.appendChild(el("span", "cat-tag", esc(c.verdict)));
+    const rt = el("span", `cat-tag ${tagCls}`, esc(tagText));
+    rt.title = c.route.because;
+    meta.appendChild(rt);
+    if (c.gate) meta.appendChild(el("span", "cat-tag", `gate: ${esc(c.gate)}`));
+    if (c.recordsCurrentBehaviour) {
+      const t = el("span", "cat-tag area", "records today's behaviour");
+      t.title = "This case documents what the product does now, not what it should do.";
+      meta.appendChild(t);
+    }
+    body.appendChild(meta);
+    body.appendChild(
+      el(
+        "div",
+        "cat-why",
+        `<b>Why.</b> ${esc(c.why)}<br><b>Steps.</b> ${esc(c.steps)}<br><b>Expected.</b> ${esc(c.expected)}` +
+          (c.oracle ? `<br><b>Oracle.</b> ${esc(c.oracle)}` : ""),
+      ),
+    );
+    body.querySelector(".cat-title").addEventListener("click", () => row.classList.toggle("open"));
+    row.appendChild(cb);
+    row.appendChild(body);
+    row.appendChild(el("span", "cat-res", ""));
+    box.appendChild(row);
+  }
+  updateCatCount();
+}
+
+function updateCatCount() {
+  $("#cat-count").textContent = catPicked.size ? `${catPicked.size} selected` : "nothing selected";
+}
+
+function runPickedCases() {
+  if (!catPicked.size) {
+    $("#cat-count").textContent = "tick at least one case first";
+    return;
+  }
+  const out = $("#cat-run-out");
+  out.hidden = false;
+  out.innerHTML = "";
+  const write = (text, cls) => {
+    out.appendChild(el("div", `l ${cls || ""}`, esc(text)));
+    out.scrollTop = out.scrollHeight;
+  };
+  const badge = (id, text, cls) => {
+    const b = document.querySelector(`#cat-${id} .cat-res`);
+    if (b) {
+      b.textContent = text;
+      b.className = `cat-res ${cls || ""}`;
+    }
+  };
+
+  const btn = $("#cat-run");
+  btn.disabled = true;
+  btn.textContent = "running…";
+  const qs = new URLSearchParams({ ids: [...catPicked].join(","), c: currentClient ?? "" });
+  if (!$("#cat-headed").checked) qs.set("headed", "0");
+  const es = new EventSource(`/api/case-run?${qs}`);
+  catRunning = es;
+
+  es.addEventListener("plan", (ev) => {
+    const { cases } = JSON.parse(ev.data);
+    write(`${cases.length} case(s) queued — one at a time`, "hd");
+    for (const c of cases) write(`  ${c.id} → ${c.route.kind}: ${c.route.because}`);
+  });
+  es.addEventListener("case", (ev) => {
+    const d = JSON.parse(ev.data);
+    if (d.status === "running") {
+      write(`▶ ${d.id} — ${d.title}`, "hd");
+      badge(d.id, "···", "run");
+      return;
+    }
+    const cls = d.status === "passed" ? "ok" : d.status === "failed" ? "bad" : "";
+    write(`  ${d.status.toUpperCase()} ${d.id}${d.summary ? ` — ${d.summary}` : ""}${d.reason ? ` — ${d.reason}` : ""}`, cls);
+    badge(d.id, d.status === "passed" ? "PASS" : d.status === "failed" ? "FAIL" : "—", cls);
+  });
+  es.addEventListener("note", (ev) => write(`    · ${JSON.parse(ev.data).line}`));
+  es.addEventListener("compiled", (ev) => {
+    const d = JSON.parse(ev.data);
+    write(`    compiled (${d.source}): ${d.steps.map((s) => s.step).join(" → ")}`);
+    for (const w of d.warnings || []) write(`    repaired: ${w}`);
+  });
+  es.addEventListener("api-case", (ev) => {
+    const r = JSON.parse(ev.data).result;
+    const cls = r.status === "passed" ? "ok" : r.status === "failed" ? "bad" : "";
+    write(
+      `    ${r.status.toUpperCase()} ${r.id} ${r.method || ""} ${r.path || ""} → ${r.httpStatus ?? "?"} (want ${r.expectedStatus ?? "?"})` +
+        (r.message ? `\n      ${r.message}` : r.reason ? `\n      skipped: ${r.reason}` : ""),
+      cls,
+    );
+  });
+  es.addEventListener("check", (ev) => {
+    const k = JSON.parse(ev.data).check;
+    write(`    ${k.pass ? "PASS" : "FAIL"} ${k.scenario} → ${k.httpStatus ?? "?"}`, k.pass ? "ok" : "bad");
+  });
+  const finish = (msg, cls) => {
+    write(msg, cls);
+    btn.disabled = false;
+    btn.textContent = "▶ Run selected cases";
+    es.close();
+    catRunning = null;
+    loadFindings();
+  };
+  es.addEventListener("done", () => finish("— run complete", "hd"));
+  es.addEventListener("error", (ev) => {
+    // EventSource fires `error` both for a server-sent error event and for the
+    // stream closing. Only the first carries data.
+    let line = "";
+    try {
+      line = JSON.parse(ev.data).line;
+    } catch {
+      /* stream ended */
+    }
+    if (line) finish(`✗ ${line}`, "bad");
+    else if (catRunning) finish("— stream closed", "");
+  });
 }

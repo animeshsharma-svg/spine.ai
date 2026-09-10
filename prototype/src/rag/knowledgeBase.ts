@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { embedOne, embedMany, similarity } from "./embedder.js";
+import { allCases } from "../checks/testCatalog.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..");
@@ -107,6 +108,30 @@ function gatherChunks(): Chunk[] {
         text,
       });
     }
+  }
+
+  // (a3) THE WRITTEN CATALOG — 648 humanised cases, one chunk per case.
+  //      This is the richest statement of what SHOULD happen that the platform
+  //      has: unlike the mined JSON, each case says why it matters and how to
+  //      tell whether it worked, in the words of the person who wrote it. It
+  //      lives in `data/`, not `knowledge/`, because it is derived from
+  //      `test-cases/*.md` — so it needs its own pass rather than the walk.
+  for (const c of allCases()) {
+    chunks.push({
+      id: `catalog:${c.id}`,
+      source: `test-cases/events-${c.layer}.md`,
+      kind: "test-case",
+      module: "events",
+      labels: [c.id, c.group, c.priority, c.verdict, c.layer, ...(c.gate ? [c.gate] : [])],
+      text:
+        `${c.id} (${c.layer.toUpperCase()}, ${c.section}) — ${c.title}. ` +
+        `Why it matters: ${c.why} ` +
+        (c.setup ? `Setup: ${c.setup} ` : "") +
+        `Steps: ${c.steps} ` +
+        `Expected: ${c.expected} ` +
+        (c.oracle ? `How to tell: ${c.oracle} ` : "") +
+        `[${c.priority}, ${c.verdict}${c.gate ? `, gated on ${c.gate}` : ""}]`,
+    });
   }
 
   // (b2) EXPERIENCE: how previous PLANS fared, step by step.

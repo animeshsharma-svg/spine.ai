@@ -9,16 +9,17 @@ real product in a browser, judges the evidence, and remembers what it found.
 > (`procol-backend/`, `procol-client-dashboard/`) is deliberately git-ignored and is **not** part of
 > this project.
 
-## The three pieces
+## The pieces
 
 | Directory | What it is |
 |---|---|
 | `prototype/` | The platform: LangGraph agent orchestration, the two-tier QA memory (RAG), the Oracle, the dashboard. |
 | `procol-ui-tests/` | Playwright browser automation — the journeys the platform actually runs, plus the execution-layer Oracle that records evidence and issues verdicts. |
 | `procol test/` | Playwright API automation — the same idea at the HTTP layer. |
+| `test-cases/` | The written catalog both automations implement — 648 humanised UI and API cases for the whole events flow, traced to the PRD, the backend contract and the create-screen contract. **The source of truth**: edit the markdown, then `npm run cases:import`. |
 
-`prototype` spawns `procol-ui-tests` as a child process, so **keep the three directories siblings**
-exactly as they are checked out. Relative paths (`../procol-ui-tests`) depend on it.
+`prototype` spawns `procol-ui-tests` as a child process, so **keep the three code directories
+siblings** exactly as they are checked out. Relative paths (`../procol-ui-tests`) depend on it.
 
 ## How it fits together
 
@@ -143,6 +144,90 @@ correcting silently.
 
 You can also give it a catalog id (`FE-2.4`, `BE-2.11`) and it will resolve the
 real case from `knowledge/events/` before planning.
+
+## The written catalog, and running a case by hand
+
+`test-cases/events-ui.md` and `events-api.md` hold **648 cases written for
+people** — each one says why it matters before it says what to do, and how to
+tell whether it worked. They are the source of truth; everything below is
+derived from them.
+
+```bash
+cd prototype
+npm run cases:import      # test-cases/*.md  →  data/test-cases.json
+npm run cases:coverage    # what the catalog covers vs what actually runs
+```
+
+The dashboard's **Test catalog** panel lists them with filters (layer, section,
+priority, verdict, free text). Tick the ones you want, press **Run selected
+cases**, and each one is run one at a time.
+
+The point of that panel is the little tag on every row, which says how that
+case will actually be run:
+
+| Tag | What happens |
+|---|---|
+| `built journey` | A hand-written, healed journey covers it exactly — deterministic, no compile step. |
+| `exact API case` | The API framework already implements this case by its own id, and runs it. |
+| `API area only` | **Weaker.** No exact runner; the framework's cases for that area run instead. Real traffic against the right endpoints, but not this case. |
+| `compiled plan` | The prose is compiled into a plan, shown to you, then executed. |
+| `for a person` / `no runner yet` | Not runnable, and not offered as if it were. |
+
+Measured, not claimed — `npm run cases:coverage`:
+
+```
+Catalog: 648 cases — 362 UI, 286 API
+Routable to a real runner: 588/648  (60 not)
+  ui-compile   323      api-case     22
+  api-section  208      api-suite    18
+  manual        23      ui-journey   17
+  none          37
+```
+
+The 37 with no runner are honest gaps: the vendor's technical response, the DB
+persistence oracles, auth/session and the non-functional cases have nothing at
+the API layer that covers them yet.
+
+**A distinction worth keeping.** `API area only` is deliberately a different
+colour from `exact API case`. Running the framework's line-item cases is not
+running `API-LI-007`; a dashboard where all 648 rows showed the same green tick
+would make the pass rate meaningless, which is worse than showing a gap.
+
+### The API cases run in process
+
+`procol test/` implements the contract cases and judges them with its own
+Oracle. The platform imports those modules directly by `file://` URL rather
+than spawning `npx playwright test`, so one login and one set of fixtures are
+shared across every case you pick:
+
+```
+building the shared fixtures (draft, staged, active, auction events)…
+PASS  BE-1.1  POST /event_groups          200 (want 200)  609ms
+PASS  BE-1.2  POST /event_groups          422 (want 422)  341ms
+PASS  BE-3.1  PATCH /event_groups/:id     200 (want 200)  507ms
+```
+
+About half a second per case once warm, against roughly a minute each if every
+case paid for its own runner start-up, login and fixture build. The verdict is
+the framework's own `judgeContractCase` — there is one Oracle, and it stays
+deterministic.
+
+```bash
+npm run cases:api BE-1.1 BE-1.2 BE-3.1     # straight from the terminal
+npm run cases:compile UI-TPL-001           # compile one written case to a plan
+```
+
+### The catalog is also memory
+
+Every case is indexed into the QA memory as its own chunk (1240 chunks total),
+so the planner retrieves the written expectation for whatever it is about to
+test. A catalog id is accepted anywhere a test case is:
+
+```
+npm run cases:compile UI-TPL-001
+  resolved UI-TPL-001 from the test-case catalog
+  open_create -> set_title -> select_template -> expect_no_error
+```
 
 ## Measuring the AI, not trusting it
 

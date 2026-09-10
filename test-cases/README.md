@@ -6,12 +6,37 @@ read and an automation can implement.
 
 | File | What is in it | Cases |
 |---|---|---|
-| [events-ui.md](events-ui.md) | The browser journeys — buyer console, supplier portal, surrogate drawer, awarding grid | 312 |
-| [events-api.md](events-api.md) | The same journeys driven straight at the backend, plus the contract and authorization cases the UI can never reach | 268 |
+| [events-ui.md](events-ui.md) | The browser journeys — buyer console, supplier portal, surrogate drawer, awarding grid | 362 |
+| [events-api.md](events-api.md) | The same journeys driven straight at the backend, plus the contract and authorization cases the UI can never reach | 286 |
 
-**580 cases.** Not all of them should be automated, and the catalog says which:
+**648 cases.** Not all of them should be automated, and the catalog says which:
 every case carries a `P0…P3` priority and an **Automation** verdict of `automate`,
 `automate-later` or `manual`.
+
+### Where the cases sit
+
+| UI section | Cases | | API section | Cases |
+|---|---|---|---|---|
+| 1 Environment and entry | 10 | | 1 Auth and session | 8 |
+| 2 Composing the project | 26 | | 2 Draft event group | 20 |
+| 3 Templates and the sheet | 20 | | 3 Stage creation per `rfx_mode` | 24 |
+| 4 Line items | 18 | | 4 Activation (publish) | 30 |
+| 5 Technical (RFP) stage | 18 | | 5 Line items | 14 |
+| 6 Auction configuration | 30 | | 6 Audience and participants | 16 |
+| 7 Schedule and bid window | 16 | | 7 Vendor technical response | 12 |
+| 8 Participants and audience | 18 | | 8 Vendor bid | 38 |
+| 9 Savings, terms | 14 | | 9 Surrogate bids | 22 |
+| 10 Publish and draft | 24 | | 10 RFQ → Auction | 12 |
+| 11 RFQ → Auction conversion | 14 | | 11 Awarding | 22 |
+| 12 BOQ events | 12 | | 12 Lifecycle | 14 |
+| 13 PR → event | 10 | | 13 Authorization matrix | 18 |
+| 14 Classic single-stage | 14 | | 14 Validation and robustness | 18 |
+| 15 The vendor's bid | 32 | | 15 Persistence (DB oracles) | 10 |
+| 16 Surrogate bidding | 24 | | 16 Non-functional | 8 |
+| 17 Awarding | 20 | | | |
+| 18 Isolation and permissions | 14 | | | |
+| 19 Data validation | 18 | | | |
+| 20 Non-functional | 10 | | | |
 
 ## Where this comes from
 
@@ -82,9 +107,10 @@ publish ────────────────────────
 award
 ```
 
-Both catalogs walk that spine in that order, so the section numbers of the UI and API
-files line up: UI §12 and API §11 are both awarding, UI §15 and API §8 are both the
-vendor's bid.
+Both catalogs walk that spine in that order, though the section numbering differs
+because each layer has concerns the other does not. The pairs worth knowing: the
+vendor's bid is UI §15 and API §8, surrogate bidding is UI §16 and API §9, awarding is
+UI §17 and API §11, and the publish itself is UI §10 and API §4.
 
 ## Event types in scope
 
@@ -136,9 +162,9 @@ definition an unhandled exception and a defect, whatever caused it.
 | §3.6 every created event is persisted and retrievable | API §15 (DB oracles) |
 | §5 data validation on all inputs | UI §19, API §14 |
 | §6 edge cases — large events, closed windows, unusual text, duplicates | UI §4, §7, §19; API §14 |
-| §7.1 events list under ~3s | UI §20, API §16 |
-| §7.2 a vendor never sees another vendor's bid | UI §18, API §13 |
-| §7.3 a half-finished draft corrupts nothing | UI §10, API §4 |
+| §7.1 events list under ~3s | UI-ENV-005, UI §20; API §16 |
+| §7.2 a vendor never sees another vendor's bid | UI-VBID-025, UI §18; API-BID-030, API-TECH-007, API §13 |
+| §7.3 a half-finished draft corrupts nothing | UI-CRE-024, UI §10; API §4, API-DB-010 |
 
 ## Running what exists today
 

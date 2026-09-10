@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chat, llmMode } from "../ai/llm.js";
 import { recall } from "../rag/knowledgeBase.js";
+import { caseById, caseAsProse } from "../checks/testCatalog.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = join(here, "..", "..", "..", "procol-ui-tests", "plan-catalog.json");
@@ -396,6 +397,15 @@ const KNOWLEDGE_DIR = join(here, "..", "..", "knowledge");
  * better specification than a sentence someone typed from memory.
  */
 export function resolveCaseId(input: string): { text: string; id: string } | null {
+  // The written catalog first — `UI-CRE-001`, `API-BID-014`. It is the source
+  // of truth people actually edit, and it carries Setup and Oracle, so it
+  // specifies the case better than the mined JSON does.
+  const written = input.trim().match(/^((?:UI|API)-[A-Z]+-\d+)$/i)?.[1];
+  if (written) {
+    const c = caseById(written);
+    return c ? { text: caseAsProse(c), id: c.id } : null;
+  }
+
   const id = input.trim().match(/^((?:FE|BE|PR)-[\w.-]+)$/i)?.[1];
   if (!id) return null;
   if (!existsSync(KNOWLEDGE_DIR)) return null;

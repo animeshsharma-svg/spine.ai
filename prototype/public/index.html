@@ -4,104 +4,221 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Procol · Autonomous QA</title>
-    <link rel="stylesheet" href="/workflow.css" />
+    <link rel="stylesheet" href="/styles.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
   </head>
-  <body class="wf">
-    <header class="wf-top">
-      <div class="wf-brand">
-        <span class="wf-logo">🤖</span>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🤖</span>
         <div>
-          <div class="wf-title">Autonomous QA</div>
-          <div class="wf-sub">describe a test · it plans, runs and judges it</div>
+          <div class="title">Procol · Autonomous QA</div>
+          <div class="subtitle">AI agents that plan, run, and report the tests themselves</div>
         </div>
       </div>
-      <div class="wf-top-right">
-        <label class="wf-field"><span>Client</span><select id="client"></select></label>
-        <label class="wf-check" title="Uncheck to run without a visible browser window">
-          <input type="checkbox" id="headed" checked /> watch the browser
+      <div class="controls">
+        <label class="field">
+          <span>Environment</span>
+          <select id="env"><option value="uat">UAT</option></select>
         </label>
-        <span id="provider" class="wf-provider">…</span>
-        <a class="wf-link" href="/classic.html">advanced</a>
+        <label class="field">
+          <span>Client</span>
+          <select id="client"></select>
+        </label>
+        <span id="provider" class="provider" title="AI provider">…</span>
       </div>
     </header>
 
-    <!-- The workflow: one path, five stages, in order. -->
-    <ol class="wf-stepper" id="stepper">
-      <li data-stage="ask" class="on"><span>1</span>What to test</li>
-      <li data-stage="plan"><span>2</span>Plan</li>
-      <li data-stage="run"><span>3</span>Run</li>
-      <li data-stage="verdict"><span>4</span>Verdict</li>
-      <li data-stage="report"><span>5</span>Report</li>
-    </ol>
-
-    <main class="wf-main">
-      <!-- 1 · ASK ─────────────────────────────────────────────────────── -->
-      <section class="wf-card" id="card-ask">
-        <h2>What should I test?</h2>
-        <p class="wf-hint">
-          Write it as you would tell a colleague. Publishing, filling the sheet and inviting a vendor are
-          implied by creating an event — you do not need to list them.
-        </p>
-        <textarea id="ask" rows="3" placeholder="e.g. Create an RFQ with 3 line items, invite AMD, publish it, then place a surrogate bid for AMD and award them"></textarea>
-        <div class="wf-chips" id="examples"></div>
-        <div class="wf-actions">
-          <button id="go" class="wf-primary">Plan &amp; run this test</button>
-          <button id="plan-only" class="wf-ghost">Show me the plan first</button>
+    <main>
+      <!-- LEFT: capability map -->
+      <section class="col capability">
+        <div class="col-head">
+          <h2>What to test</h2>
+          <span class="hint" id="tree-count">tick the features · untick to skip</span>
+        </div>
+        <div class="cap-bar">
+          <button id="t-run" class="run-btn small">▶ Run selected tests</button>
+          <button id="t-none" class="chip" title="Untick everything">clear</button>
+          <label class="tgl-flow" title="Also run the real end-to-end journey (create → bid → award), verified in the database">
+            <input type="checkbox" id="t-flows" /> + end-to-end
+          </label>
+        </div>
+        <div id="tree" class="tree">
+          <div class="loading">Loading features…</div>
         </div>
       </section>
 
-      <!-- 2 · PLAN ────────────────────────────────────────────────────── -->
-      <section class="wf-card" id="card-plan" hidden>
-        <h2>The plan <span class="wf-badge" id="plan-source"></span></h2>
-        <p class="wf-hint" id="plan-why"></p>
-        <ol class="wf-steps" id="plan-steps"></ol>
-        <div class="wf-repairs" id="plan-repairs" hidden></div>
-        <div class="wf-actions" id="plan-actions" hidden>
-          <button id="run-plan" class="wf-primary">Run these steps</button>
-          <button id="back-ask" class="wf-ghost">Change the test</button>
+      <!-- CENTER: request + agent timeline -->
+      <section class="col center">
+        <div class="request-card">
+          <label for="request">Ask the QA platform, or paste a test case (plain English)</label>
+          <textarea id="request" rows="2" placeholder="e.g. test a technical event with bidding and awarding">Create a technical RFP + RFQ event, place a bid and award it</textarea>
+          <div class="row">
+            <button id="run" class="run-btn">▶ Run QA (API automation)</button>
+            <button id="ai-btn" class="run-btn">🤖 AI: run my instruction in the browser</button>
+            <button id="plan-btn" class="run-btn">🧪 Compile my test case &amp; run it</button>
+            <button id="plan-dry" class="chip" title="Compile without running, to see the plan first">plan only</button>
+            <button id="ui-btn" class="run-btn ghost">🖥 Watch UI test (Chromium)</button>
+            <span id="status" class="run-status"></span>
+          </div>
+        </div>
+
+
+        <!-- The written catalog — pick cases by hand and run them -->
+        <div class="col-head" style="margin-top: 18px">
+          <h2>Test catalog</h2>
+          <span class="hint" id="cat-hint">648 written cases · tick the ones you want and run them</span>
+        </div>
+        <div class="cat-bar">
+          <div class="cat-tabs">
+            <button class="chip active" data-layer="">all</button>
+            <button class="chip" data-layer="ui">UI</button>
+            <button class="chip" data-layer="api">API</button>
+          </div>
+          <select id="cat-section" class="cat-select" title="Catalog section"><option value="">every section</option></select>
+          <select id="cat-priority" class="cat-select" title="Priority">
+            <option value="">any priority</option>
+            <option value="P0">P0</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+          </select>
+          <select id="cat-verdict" class="cat-select" title="What the catalog says to do with it">
+            <option value="">any verdict</option>
+            <option value="automate">automate</option>
+            <option value="automate-later">automate-later</option>
+            <option value="manual">manual</option>
+          </select>
+          <input id="cat-q" class="kb-input" placeholder="search the catalog, e.g. savings column" />
+        </div>
+        <div class="cat-bar">
+          <button id="cat-run" class="run-btn small">▶ Run selected cases</button>
+          <button id="cat-stop" class="chip" title="Stop the run">■ stop</button>
+          <button id="cat-none" class="chip">clear</button>
+          <label class="tgl-flow" title="Uncheck to run the browser cases without a visible window">
+            <input type="checkbox" id="cat-headed" checked /> watch it
+          </label>
+          <span id="cat-count" class="cat-count"></span>
+        </div>
+        <div id="cat-list" class="cat-list">
+          <div class="loading">Loading the catalog…</div>
+        </div>
+        <div id="cat-run-out" class="cat-run-out" hidden></div>
+
+        <div class="col-head">
+          <h2>Agent reasoning</h2>
+          <span class="hint">live · 7 agents · critic can loop back</span>
+        </div>
+        <div id="timeline" class="timeline">
+          <div class="empty">The agents' reasoning will stream here as they work.</div>
+        </div>
+
+        <div class="col-head" style="margin-top: 18px">
+          <h2>Automation run</h2>
+          <span class="hint" id="auto-counts">real requests against UAT — each check is live</span>
+        </div>
+        <div class="auto-controls">
+          <button id="f-all" class="chip active">All</button>
+          <button id="f-fail" class="chip">Failed only</button>
+          <span id="auto-summary" class="auto-summary"></span>
+        </div>
+        <div id="automation" class="automation">
+          <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
+        </div>
+
+        <div class="col-head" style="margin-top: 18px">
+          <h2>UI coverage — the 92 features in a browser</h2>
+          <span class="hint" id="ui-cov-hint">only features with a built journey can be picked</span>
+        </div>
+        <div class="uibar">
+          <button id="ui-run-sel" class="run-btn small">▶ Run selected UI journeys</button>
+          <button id="ui-stop" class="chip" title="Stop the running journey">■ stop</button>
+          <button id="ui-none" class="chip">clear</button>
+        </div>
+        <div id="ui-tree" class="tree" style="max-height:36vh">
+          <div class="loading">Loading UI coverage…</div>
+        </div>
+
+        <div class="col-head" style="margin-top: 18px">
+          <h2>Browser journeys</h2>
+          <span class="hint" id="ui-flows-hint">real Chromium drives the live console — pick a journey</span>
+        </div>
+        <div class="uibar">
+          <label class="li-field">line items
+            <input type="number" id="li-normal" min="1" value="1" title="Line items for a normal (non-BOQ) event" />
+            <span id="li-normal-max" class="li-max"></span>
+          </label>
+          <label class="li-field">BOQ items
+            <input type="number" id="li-boq" min="1" value="10" title="Line items for a BOQ event" />
+            <span id="li-boq-max" class="li-max"></span>
+          </label>
+          <label class="tgl-flow" title="Uncheck to run without opening a visible browser window">
+            <input type="checkbox" id="ui-headed" checked /> watch it
+          </label>
+        </div>
+        <div id="ui-flows" class="ui-flows">
+          <div class="loading">Loading journeys…</div>
+        </div>
+        <div id="ui-console" class="ui-console" hidden></div>
+
+        <div class="col-head" style="margin-top: 18px">
+          <h2>UI automation (legacy demo)</h2>
+          <span class="hint">the original single scripted journey</span>
+        </div>
+        <div id="ui-run" class="ui-run">
+          <div class="empty">Click "Watch UI test" — a Chromium window opens and drives the real Procol console (login, form validation), mirrored here.</div>
         </div>
       </section>
 
-      <!-- 3 · RUN ─────────────────────────────────────────────────────── -->
-      <section class="wf-card" id="card-run" hidden>
-        <h2>Running <span class="wf-badge" id="run-count"></span></h2>
-        <ol class="wf-steps live" id="run-steps"></ol>
-        <details class="wf-log"><summary>browser output</summary><div id="console"></div></details>
-      </section>
+      <!-- RIGHT: results + report + history -->
+      <section class="col results">
+        <div class="col-head">
+          <h2>Recent runs</h2>
+          <span class="hint">the platform's own memory</span>
+        </div>
+        <div id="history" class="history">
+          <div class="empty">No runs saved yet.</div>
+        </div>
 
-      <!-- 4 · VERDICT ─────────────────────────────────────────────────── -->
-      <section class="wf-card" id="card-verdict" hidden>
-        <h2>Verdict</h2>
-        <div id="verdict"></div>
-      </section>
+        <div class="col-head" style="margin-top:16px">
+          <h2>Defects found</h2>
+          <span class="hint" id="findings-hint">grouped by defect · one bug, many journeys</span>
+        </div>
+        <div class="uibar">
+          <a id="report-view" class="chip" href="/api/report" target="_blank" rel="noopener">📄 view bug report</a>
+          <a id="report-dl" class="chip" href="/api/report?download=1">⬇ download .md</a>
+        </div>
+        <div id="findings" class="findings">
+          <div class="empty">Run a journey — confirmed defects, test gaps and harness issues are separated here.</div>
+        </div>
 
-      <!-- 5 · REPORT ──────────────────────────────────────────────────── -->
-      <section class="wf-card" id="card-report" hidden>
-        <h2>What this run adds up to</h2>
-        <div id="report-summary"></div>
-        <div class="wf-actions">
-          <a class="wf-ghost" href="/api/report" target="_blank" rel="noopener">Read the full bug report</a>
-          <a class="wf-ghost" href="/api/report?download=1">Download it</a>
-          <button id="again" class="wf-primary">Test something else</button>
+        <div class="col-head" style="margin-top:16px">
+          <h2>Stuck points</h2>
+          <span class="hint" id="stuck-hint">where a locator failed · teach it once, it stays fixed</span>
+        </div>
+        <div id="stuck" class="findings">
+          <div class="empty">Nothing stuck. When a locator fails, it appears here with the screen it failed on.</div>
+        </div>
+
+        <div class="col-head" style="margin-top:16px">
+          <h2>QA memory</h2>
+          <span class="hint" id="kb-hint">what should happen · what has happened</span>
+        </div>
+        <div class="uibar">
+          <input id="kb-q" class="kb-input" placeholder="ask the memory, e.g. savings column validation" />
+          <button id="kb-go" class="chip">search</button>
+        </div>
+        <div id="knowledge" class="knowledge">
+          <div class="empty">Loading memory…</div>
+        </div>
+
+        <div class="col-head" style="margin-top:16px"><h2>Results & report</h2></div>
+        <div id="report" class="report">
+          <div class="empty">Run a request to see live results, database-verified, plus a plain-English report.</div>
         </div>
       </section>
     </main>
 
-    <!-- Everything that is context rather than the current run lives below,
-         collapsed, so it never competes with the flow. -->
-    <aside class="wf-aside">
-      <details id="d-defects"><summary>Defects found <span id="c-defects"></span></summary><div id="defects"></div></details>
-      <details id="d-stuck"><summary>Stuck points <span id="c-stuck"></span></summary><div id="stuck"></div></details>
-      <details id="d-memory"><summary>QA memory <span id="c-memory"></span></summary>
-        <div class="wf-actions">
-          <input id="kb-q" placeholder="ask the memory, e.g. savings column rules" />
-          <button id="kb-go" class="wf-ghost">search</button>
-        </div>
-        <div id="knowledge"></div>
-      </details>
-    </aside>
-
-    <script src="/workflow.js"></script>
+    <script src="/app.js"></script>
   </body>
 </html>
