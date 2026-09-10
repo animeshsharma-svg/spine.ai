@@ -89,8 +89,12 @@ function catalogForPrompt(steps: StepSpec[]): string {
 const DEFAULT_VENDOR = process.env.UI_DEFAULT_VENDOR ?? "AMD";
 
 const DOMAIN_RULES = `
+First decide WHICH SCREEN the test is about:
+- Is the SUBJECT of the test the events LIST itself — its rows, filters, tabs, sorting, search, or merely that the Create Event control is reachable? Then use open_events_list + expect_events_list and STOP. Do not add open_create, set_title or anything else: those act on a different screen, and a plan that opens the create screen to test the list passes while proving nothing.
+- Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
+
 Ordering the product enforces (violating any of these makes the run fail):
-- open_create must come first. Use path "erfx" unless the test explicitly says single-stage or non-eRFX: the eRFX screen is the one with stage tabs.
+- open_create must come first on a CREATE test. Use path "erfx" unless the test explicitly says single-stage or non-eRFX: the eRFX screen is the one with stage tabs.
 - compose_stages, switch_stage and expect_stages EXIST ONLY on the eRFX screen. The single-stage screen has no stage tabs — its event type is chosen in a configuration drawer — so never combine path "single-stage" with those steps.
 - set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event.
 - The default stage is AUCTION. So: a test about an RFQ, a technical/RFP stage, or any two-stage event MUST call compose_stages. Only a plain auction test may omit it.
@@ -163,6 +167,33 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     steps.splice(at < 0 ? steps.length : at, 0, step);
     repairs.push(why);
   };
+
+  // ── which screen is this test about? ──────────────────────────────────────
+  //
+  // Every repair below assumes the create screen. That assumption was wrong
+  // for a whole class of case: UI-ENV-001 is about reaching the events LIST,
+  // and the create-screen repairs turned it into a plan that opened the create
+  // screen, set a title, asserted no error — and passed, having never looked
+  // at the list. A silently-wrong pass is the most expensive kind, so the
+  // list-only plans are settled here and returned before any of it runs.
+  const CREATE_SCREEN_STEPS = [
+    "open_create", "compose_stages", "set_title", "switch_stage", "select_template",
+    "add_line_items", "fill_sheet", "fill_questionnaires", "assign_evaluator", "set_schedule",
+    "invite_vendor", "publish", "save_draft", "expect_published", "expect_line_items",
+    "expect_stages", "expect_publish_blocked",
+  ];
+  if (has("open_events_list") && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step))) {
+    if (indexOf("open_events_list") !== 0) {
+      const [open] = steps.splice(indexOf("open_events_list"), 1);
+      steps.unshift(open);
+      repairs.push("moved open_events_list to the front — the steps before it had no list on screen");
+    }
+    if (!has("expect_events_list") && !has("expect_no_error")) {
+      steps.push({ step: "expect_events_list" });
+      repairs.push("added expect_events_list — opening the list without asserting it rendered tests nothing");
+    }
+    return { plan: { ...plan, steps }, repairs };
+  }
 
   // The default stage is Auction, so a plan that never composes stages is
   // testing an auction whatever the test case says. Asking for an RFQ or a

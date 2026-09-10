@@ -44,6 +44,18 @@ function invariants(plan: TestPlan): string[] {
   const problems: string[] = [];
 
   for (const s of steps) if (!names.includes(s)) problems.push(`unknown step "${s}"`);
+
+  // A plan about the events LIST is a different shape, and demanding
+  // open_create/set_title of it was this check assuming every test is a create
+  // test. It must still assert something, or it proves nothing.
+  if (steps[0] === "open_events_list") {
+    if (!has("expect_events_list") && !has("expect_no_error")) {
+      problems.push("opens the events list and asserts nothing about it");
+    }
+    return problems;
+  }
+  if (has("open_events_list")) problems.push("mixes the events list into a create plan");
+
   if (steps[0] !== "open_create") problems.push("does not start with open_create");
   if (!has("set_title")) problems.push("never sets a title");
   if (has("add_line_items") && !has("select_template")) problems.push("adds line items with no template");

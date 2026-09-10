@@ -34,6 +34,22 @@ export interface StepSpec {
 
 export const STEP_CATALOG: StepSpec[] = [
   {
+    // Without this step the compiler had nowhere to put "open the events
+    // list": asked for a case about the LIST it reached for open_create, and
+    // the plan passed while testing the create screen instead. A plan that
+    // silently tests the wrong screen is worse than one that refuses to
+    // compile, so the vocabulary has to be able to say this.
+    name: "open_events_list",
+    purpose:
+      "Open the events list at /orders. Use this — not open_create — for any test about the list itself: its rows, filters, tabs, or the Create Event control.",
+  },
+  {
+    name: "expect_events_list",
+    purpose:
+      "Assert the events list actually rendered: the Create Event control is present and no error is shown.",
+    assertion: true,
+  },
+  {
     name: "open_create",
     purpose: "Open the event-create screen. Always the first step of a create test.",
     args: { path: '"erfx" (multi-stage project, the default), "single-stage", or "boq"' },

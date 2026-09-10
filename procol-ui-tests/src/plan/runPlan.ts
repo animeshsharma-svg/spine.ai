@@ -73,6 +73,14 @@ const asStages = (v: unknown): StageKey[] => {
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
   switch (step.step) {
+    case "open_events_list": {
+      await s.events.goto();
+      return "opened the events list";
+    }
+    case "expect_events_list": {
+      await s.events.expectListReady();
+      return "the events list rendered";
+    }
     case "open_create": {
       const path = String(a.path ?? "erfx");
       await s.events.goto();

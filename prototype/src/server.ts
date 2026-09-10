@@ -735,14 +735,14 @@ const server = createServer(async (req, res) => {
             const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
               if (e.type === "log") send("note", { id: k.id, line: e.line });
               if (e.type === "done" || e.type === "error") {
-                const result = readPlanResult(runId) as { steps?: Array<{ ok?: boolean }> } | null;
+                const result = readPlanResult(runId) as { steps?: Array<{ status?: string }> } | null;
                 const steps = result?.steps;
                 send("case", {
                   id: k.id,
                   status: e.exitCode === 0 ? "passed" : "failed",
                   route,
                   summary: steps
-                    ? `${steps.filter((s) => s.ok).length}/${steps.length} steps`
+                    ? `${steps.filter((s) => s.status === "ok").length}/${steps.length} steps`
                     : `plan exited ${e.exitCode ?? "?"}`,
                   planResult: result,
                 });
