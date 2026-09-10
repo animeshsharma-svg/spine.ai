@@ -1036,14 +1036,18 @@ export class CreateEventPage extends BasePage {
    * `["", "Satish Kumar Kaushik"]` and `.first()` selects the blank one: the
    * click lands on nothing, the panel stays open, and the caller loops.
    */
-  private async pickFirstNamedOption(label: string): Promise<boolean> {
+  private async pickFirstNamedOption(label: string, panelOverride?: Locator): Promise<boolean> {
     const p = this.page;
     // Scope every candidate to the picker itself. A generic
     // `[class*='dropdown']:visible li` matched the LEFT SIDEBAR's
     // `ant-menu-submenu` items — 14 of them — so the picker looked full of
     // options while the real panel had never opened, and the run reported the
     // wrong problem entirely.
-    const panel = this.evaluatorPanel();
+    // Which panel matters: the evaluator picker is identified by its "Search
+    // users" input, and using it to read the VENDOR dropdown matched nothing —
+    // so inviting by name silently fell back to the product's own audience and
+    // the named vendor was never on the event.
+    const panel = panelOverride ?? this.evaluatorPanel();
     const lists = [
       p.locator("[data-testid^='evaluator-option-']"),
       panel.locator(".ant-select-item, [role='option'], li, [class*='option'], [class*='userRow']"),
@@ -1231,7 +1235,14 @@ export class CreateEventPage extends BasePage {
       .first()
       .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
       .catch(() => {});
-    const picked = await this.pickFirstNamedOption(`vendor "${name}"`);
+    // Identify the vendor dropdown by its own "VENDORS" group header. Taking
+    // the LAST open dropdown was wrong: filling the sheet leaves a dozen
+    // non-hidden antd dropdowns behind, so `.last()` landed on a stale sheet
+    // menu and the invite quietly fell back to the product's audience.
+    const open = p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden), .ant-dropdown:not(.ant-dropdown-hidden)");
+    const byHeader = open.filter({ hasText: /vendors/i });
+    const vendorPanel = (await byHeader.count()) ? byHeader.last() : open.last();
+    const picked = await this.pickFirstNamedOption(`vendor "${name}"`, vendorPanel);
     await p.keyboard.press("Escape").catch(() => {});
     await this.pause(500);
     return picked;

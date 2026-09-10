@@ -43,7 +43,25 @@ export class SurrogateBidPage extends BasePage {
    */
   async openParticipants(): Promise<boolean> {
     const p = this.page;
+    // Publishing redirects, and this runs immediately after. The project page's
+    // own tabs arrive with that navigation — without waiting for them,
+    // getByRole("tab") counted zero, the loop below never ran, and the report
+    // was "surrogate bidding is unavailable" when the page had simply not
+    // arrived yet.
+    const ready = await p
+      .getByRole("tab")
+      .first()
+      .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
+      .then(() => true)
+      .catch(() => false);
+    if (!ready) {
+      console.log(`[surrogate] no tabs rendered on ${p.url()} — the event page did not load`);
+      return false;
+    }
     await this.dismissDistractions();
+    console.log(
+      `[surrogate] on ${p.url()} · tabs: ${(await p.getByRole("tab").allTextContents()).map((t) => t.trim()).join(", ")}`,
+    );
 
     const found = async () =>
       (await p.getByTestId("add-bid-button").count()) > 0 ||
@@ -56,6 +74,8 @@ export class SurrogateBidPage extends BasePage {
         const label = ((await tabs.nth(i).textContent().catch(() => "")) ?? "").trim();
         if (/^(project\s+)?(details|overview|master\s+qcs|analytics|price\s+trends)$/i.test(label)) continue;
         await tabs.nth(i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        // Selecting a stage NAVIGATES; its sub-tabs and audience list arrive
+        // with the new page. The event header is the signal that it has.
         await p
           .getByTestId("event-settings-button")
           .first()
@@ -66,14 +86,55 @@ export class SurrogateBidPage extends BasePage {
       }
     }
 
-    // The participant list is usually its own sub-tab within the stage.
+    // The participant list is its own sub-tab within the stage, and those
+    // sub-tabs only exist once the stage's event header has rendered.
     await this.clickIfPresent([p.getByRole("tab", { name: /participants/i })], {
       label: "participants-tab",
-      timeout: TIMEOUTS.SHORT,
+      timeout: TIMEOUTS.MEDIUM,
     });
-    await this.pause(1_500);
+    // Wait for the audience list itself. The rows arrive from a separate
+    // request after the tab switches, so a fixed pause found an empty list and
+    // concluded surrogate bidding was unavailable — when in fact ten Add Bid
+    // controls were about to appear.
+    // Reaching the list is the success condition here — NOT finding an Add Bid
+    // control. The list is paginated and only shows Add Bid for vendors
+    // actually on the event, so a single-vendor event shows a first page of
+    // other companies with no Add Bid at all. Demanding the control here made
+    // that look like "surrogate bidding is unavailable" when the vendor was
+    // simply on another page.
+    const arrived = await p
+      .getByPlaceholder(/search vendors?/i)
+      .first()
+      .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
+      .then(() => true)
+      .catch(() => false);
     await this.dismissDistractions();
-    return (await p.getByTestId("add-bid-button").count()) > 0;
+    const count = await p.getByTestId("add-bid-button").count();
+    console.log(`[surrogate] participant list ${arrived ? "open" : "not found"} · ${count} vendor(s) offer Add Bid on this page`);
+    return arrived || count > 0;
+  }
+
+  /**
+   * The text of the vendor row an Add Bid button belongs to.
+   *
+   * The button's immediate wrapper contains only "Add Bid" — the vendor's name
+   * sits further up, on the `rowItem` Row from vendorListItem.jsx. Reading the
+   * wrapper made every vendor look identical, so matching by name always fell
+   * through to the first one.
+   */
+  private async rowTextFor(button: ReturnType<Page["getByTestId"]>): Promise<string> {
+    for (const xp of [
+      "xpath=ancestor::*[contains(@class,'rowItem')][1]",
+      "xpath=ancestor::*[self::div or self::tr][3]",
+      "xpath=ancestor::*[self::div or self::tr][2]",
+    ]) {
+      const row = button.locator(xp);
+      if (!(await row.count().catch(() => 0))) continue;
+      const text = ((await row.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+      // A row that says nothing but "Add Bid" is the wrapper, not the row.
+      if (text && !/^(add bid\s*)+(add price cap\s*)*$/i.test(text)) return text;
+    }
+    return "";
   }
 
   /** Vendors currently offering an "Add Bid" control, by row text. */
@@ -81,8 +142,7 @@ export class SurrogateBidPage extends BasePage {
     const buttons = this.page.getByTestId("add-bid-button");
     const out: string[] = [];
     for (let i = 0; i < (await buttons.count()); i++) {
-      const row = buttons.nth(i).locator("xpath=ancestor::*[self::div or self::tr][1]");
-      out.push(((await row.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim().slice(0, 60));
+      out.push((await this.rowTextFor(buttons.nth(i))).slice(0, 60));
     }
     return out;
   }
@@ -98,9 +158,32 @@ export class SurrogateBidPage extends BasePage {
     const p = this.page;
     if (!(await this.openParticipants())) {
       throw new Error(
-        'no "Add Bid" control is available on this event. Surrogate bidding needs a live or upcoming ' +
-          "trade event whose vendor is selected, and it is hidden for knockout and dutch auctions and " +
-          "for technical stages (which use Add Technical Bid instead).",
+        "the participant list could not be opened on this event, so no surrogate bid can be entered. " +
+          "Surrogate bidding lives on a published trade event's Participants tab.",
+      );
+    }
+
+    // Narrow the list BEFORE looking for the control: it is paginated, and a
+    // named vendor is usually not on the first page.
+    if (vendor) {
+      const search = p.getByPlaceholder(/search vendors?/i).first();
+      if (await search.count()) {
+        await search.fill(vendor).catch(() => {});
+        await this.pause(2_500);
+        await p
+          .getByTestId("add-bid-button")
+          .first()
+          .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
+          .catch(() => {});
+        console.log(`[surrogate] searched for "${vendor}" — ${await p.getByTestId("add-bid-button").count()} row(s) now offer Add Bid`);
+      }
+    }
+
+    if (!(await p.getByTestId("add-bid-button").count())) {
+      throw new Error(
+        `no "Add Bid" control is available${vendor ? ` for "${vendor}"` : ""}. It appears only for a vendor ` +
+          "who is on the event, and only while the event is upcoming or live — and never for knockout or " +
+          "dutch auctions or technical stages (those use Add Technical Bid).",
       );
     }
 
@@ -112,8 +195,7 @@ export class SurrogateBidPage extends BasePage {
       const buttons = p.getByTestId("add-bid-button");
       let matched = false;
       for (let i = 0; i < (await buttons.count()); i++) {
-        const row = buttons.nth(i).locator("xpath=ancestor::*[self::div or self::tr][1]");
-        const text = ((await row.textContent().catch(() => "")) ?? "").toLowerCase();
+        const text = (await this.rowTextFor(buttons.nth(i))).toLowerCase();
         if (text.includes(want)) {
           button = buttons.nth(i);
           chosen = vendor;
