@@ -286,7 +286,17 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       results.push({ step: step.step, args: step.args, status: "ok", detail, ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
     } catch (err) {
-      const detail = err instanceof Error ? err.message.split("\n")[0] : String(err);
+      // Keep the first line AND the locator Playwright names in its call log.
+      // Reporting only "locator.click: Timeout 15000ms exceeded" cost an
+      // afternoon of grepping to find WHICH click; the call log says so
+      // outright, and it is two lines.
+      const message = err instanceof Error ? err.message : String(err);
+      const first = message.split("\n")[0];
+      const selector = message
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => l.startsWith("- waiting for") || l.startsWith("- locator"));
+      const detail = selector ? `${first} — ${selector.replace(/^-\s*/, "")}` : first;
       results.push({ step: step.step, args: step.args, status: "failed", detail, ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${detail}`);
       failed = true;

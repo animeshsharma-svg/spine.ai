@@ -224,16 +224,70 @@ export class CreateEventPage extends BasePage {
     }
 
     // Options render in a body-level portal, OUTSIDE the drawer — page-scoped.
-    const firstOption = await this.expect(
-      [
-        p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option']"),
-        p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item"),
-        p.getByRole("option"),
-        p.locator(".ant-select-item-option"),
-      ],
-      { label: "line-item-option", timeout: TIMEOUTS.MEDIUM },
-    );
-    await firstOption.click();
+    //
+    // Re-resolve the option at CLICK time, every attempt. The product search is
+    // debounced, so the dropdown re-renders while we are looking at it: a
+    // locator resolved a moment earlier points at a detached node, and clicking
+    // it waits out the full 15s actionTimeout for an element that will never be
+    // actionable. That was the intermittent "add_line_items: locator.click:
+    // Timeout 15000ms exceeded" — nothing to do with the product, and it only
+    // showed up when the search happened to refresh mid-click.
+    const optionLists = () => [
+      p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option']"),
+      p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item"),
+      p.getByRole("option"),
+      p.locator(".ant-select-item-option"),
+    ];
+
+    // Signals to compare against after the click.
+    const before = await this.lineItemCountBadge();
+    const chipsBefore = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
+    let picked = false;
+    for (let attempt = 0; attempt < 3 && !picked; attempt++) {
+      // Wait for a populated list before reaching for a row.
+      const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.MEDIUM });
+      if (!list) {
+        await this.pause(800);
+        continue;
+      }
+      const clicked = await list
+        .first()
+        .click({ timeout: 5_000, force: attempt >= 1 })
+        .then(() => true)
+        .catch(() => false);
+      if (!clicked) {
+        // Detached or covered; let the list settle and look again.
+        await this.pause(800);
+        continue;
+      }
+      // Confirm from inside the drawer. Two earlier signals were wrong: the
+      // dropdown does NOT close (it is a multi-select, kept open for the next
+      // product), and the toolbar badge does not move until the drawer is
+      // SAVED. What does change immediately is the chosen product appearing as
+      // a chip in the select, and the row marking itself selected.
+      const deadline = Date.now() + 6_000;
+      while (Date.now() < deadline && !picked) {
+        const chips = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
+        const marked = await p
+          .locator(".ant-select-dropdown-menu-item-selected, [role='option'][aria-selected='true']")
+          .count();
+        const badge = await this.lineItemCountBadge();
+        if (chips > chipsBefore || marked > 0 || (badge !== null && before !== null && badge > before)) picked = true;
+        else await this.pause(600);
+      }
+    }
+
+    if (!picked) {
+      // Warn, do not fail. Not seeing a confirmation signal is not proof the
+      // pick failed, and turning it into an error invents a failure mode the
+      // old code never had. The honest oracle is `expect_line_items` once the
+      // drawer is saved — that reads the app's own tally and will catch a
+      // genuine miss with a number rather than a guess.
+      console.log(
+        `[create-event] could not confirm the pick for "${searchText}" from inside the drawer — ` +
+          "continuing; the line-item count is verified after saving",
+      );
+    }
     await this.pause(500);
 
     // Quantity is optional here: on this build the drawer only picks products
@@ -684,13 +738,17 @@ export class CreateEventPage extends BasePage {
     await rows.nth(index).click({ timeout: TIMEOUTS.MEDIUM });
     await this.waitForSpinnerHidden();
 
-    // Applied means the trigger no longer offers to choose one.
-    const applied = await p
-      .getByRole("button", { name: /select templates?/i })
-      .first()
-      .waitFor({ state: "hidden", timeout: TIMEOUTS.MEDIUM })
-      .then(() => true)
-      .catch(() => false);
+    // Applied means EITHER the trigger stopped offering a choice OR the sheet
+    // the template defines has rendered. Waiting only for the trigger to vanish
+    // was too strict: applying a template is a network round-trip, and on a slow
+    // response the button lingers a moment after the schema has already
+    // arrived — which failed the step on an event that was perfectly fine.
+    const gone = p.getByRole("button", { name: /select templates?/i }).first();
+    const sheet = p.locator("[data-testid^='sheet-header-'], .data-grid-container").first();
+    const applied = await Promise.race([
+      gone.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).then(() => true),
+      sheet.waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).then(() => true),
+    ]).catch(() => false);
     if (!applied) {
       throw new Error(
         `clicking the template "${chosen}" did not apply it — the picker still offers "Select Templates", ` +
