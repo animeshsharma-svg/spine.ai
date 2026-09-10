@@ -83,6 +83,17 @@ export interface ContractFixtures {
   staged: { uuid: string; lineItemUuid: string; rfpUuid: string; rfqUuid: string };
   /** 1 line item, draft rfp + rfq stages, deliberately overlapping timing (rfp ends after rfq). */
   badTiming: { uuid: string; lineItemUuid: string; rfpUuid: string; rfqUuid: string };
+  /**
+   * 1 line item, rfp + rfq — and ACTUALLY PUBLISHED.
+   *
+   * Several cases need an event that is already live (re-activating it, adding
+   * a stage to it, deleting a line item from it). They were all skipped on the
+   * belief that publishing was impossible in this environment because of the
+   * event_groups PATCH 500 — but that 500 was a UI bug of our own (an unfilled
+   * delivery location), and this framework's own create flow publishes fine.
+   * The premise was wrong, so the cases are runnable.
+   */
+  active?: { uuid: string; lineItemUuid: string; rfpUuid: string; rfqUuid: string };
   /** 1 line item, one draft auction stage — never activated. */
   auction: { uuid: string; lineItemUuid: string; auctionUuid: string };
   /** evaluator form/page uuid off the staged event's rfp stage, for update_egli. */
@@ -179,6 +190,37 @@ export async function buildContractFixtures(
 
   const staged = await buildStagedPair(`API_Test_Contract_Staged_${stamp}`, timing, timing);
 
+  // A published event, for the cases that need one. Best effort: if activation
+  // genuinely fails here, those cases skip with the real reason rather than an
+  // assumed one.
+  let active: ContractFixtures["active"];
+  try {
+    const pair = await buildStagedPair(`API_Test_Contract_Active_${stamp}`, timing, timing);
+    await buyer.patch(Endpoints.eventGroup(pair.uuid), {
+      body: {
+        attachments: [],
+        title: `API_Test_Contract_Active_${stamp}`,
+        status: "active",
+        draft_trade_request_uuids: [pair.rfpUuid, pair.rfqUuid],
+        audience_company_uuids: [vendorCompanyUuid],
+        line_items: [],
+        terms_and_conditions: { clauses: [], attachments: [{ type: "t_and_c", value: [] }] },
+        show_under_open_events: true,
+        delete_draft_stage_uuids: [],
+        amendment_remarks: { remarks: "" },
+      },
+    });
+    const readBack = await buyer.get<{ status?: string }>(Endpoints.eventGroup(pair.uuid));
+    if (readBack.status === "active") {
+      active = pair;
+      console.log(`  fixture: published event group ${pair.uuid} (for the already-live cases)`);
+    } else {
+      console.log(`  fixture: activation left status "${readBack.status}" — the already-live cases will skip`);
+    }
+  } catch (e) {
+    console.log(`  fixture: could not publish an event group (${(e as Error).message.slice(0, 100)}) — the already-live cases will skip`);
+  }
+
   // Deliberately overlapping: rfp bid-end after rfq bid-end (BE-2.15, error 712).
   const badTiming = await buildStagedPair(
     `API_Test_Contract_BadTiming_${stamp}`,
@@ -236,6 +278,7 @@ export async function buildContractFixtures(
     draftSingle,
     draftTwo,
     staged,
+    active,
     badTiming,
     auction,
     techForm,
@@ -349,6 +392,44 @@ export const CASE_RUNNERS: Record<string, Runner> = {
       delete_draft_stage_uuids: [],
       amendment_remarks: { remarks: "" },
     }),
+  // ── cases needing an ALREADY-LIVE event ───────────────────────────────────
+  // Previously skipped on the belief that publishing was impossible here. It
+  // was not: the 500 that inspired that belief came from our own UI leaving the
+  // delivery location blank.
+  "BE-2.25": async (buyer, fx) => {
+    if (!fx.active) throw new Error("skip:no published event group could be created in this run");
+    // Re-activating an event that is already active should be a no-op, not a
+    // second publish. The guard is event_group.draft? being false.
+    return call(buyer, "PATCH", Endpoints.eventGroup(fx.active.uuid), {
+      attachments: [],
+      title: `API_Test_BE225_${stamp()}`,
+      status: "active",
+      draft_trade_request_uuids: [],
+      audience_company_uuids: [fx.vendorCompanyUuid],
+      line_items: [],
+      terms_and_conditions: { clauses: [], attachments: [{ type: "t_and_c", value: [] }] },
+      show_under_open_events: true,
+      delete_draft_stage_uuids: [],
+      amendment_remarks: { remarks: "" },
+    });
+  },
+  "BE-3.3": async (buyer, fx) => {
+    if (!fx.active) throw new Error("skip:no published event group could be created in this run");
+    // Removing a line item from a live event: it should be marked deleted and
+    // disappear from the response rather than error.
+    return call(buyer, "PATCH", Endpoints.eventGroup(fx.active.uuid), {
+      attachments: [],
+      title: `API_Test_BE33_${stamp()}`,
+      status: "active",
+      draft_trade_request_uuids: [],
+      audience_company_uuids: [fx.vendorCompanyUuid],
+      line_items: [{ uuid: fx.active.lineItemUuid, status: "deleted" }],
+      terms_and_conditions: { clauses: [], attachments: [{ type: "t_and_c", value: [] }] },
+      show_under_open_events: true,
+      delete_draft_stage_uuids: [],
+      amendment_remarks: { remarks: "" },
+    });
+  },
   "BE-2.3": async (buyer, fx) => {
     // parametrized over rfp/rfq/auction — run all three, report the auction leg
     // (the one not covered by BE-2.1/BE-2.4) as the representative attempt.
@@ -597,9 +678,7 @@ export const SKIP_REASONS: Record<string, string> = {
   "BE-2.19": "requires an already-ACTIVE live event to add a new stage to — blocked by the live PATCH 500 defect",
   "BE-2.20": "requires an amendment draft (from a successful version of a successfully-published event) — blocked by the live PATCH 500 defect; the case's own expected/oracle fields also read as internally inconsistent (documents current 500 as 'expected' while instructing 'assert it doesn't crash')",
   "BE-2.21": "requires an amendment draft (from a successful version of a successfully-published event) — blocked by the live PATCH 500 defect",
-  "BE-2.25": "requires an already-ACTIVE event group to re-activate — blocked by the live PATCH 500 defect",
   "BE-3.2": "requires a line item referenced by an existing valid (requested/selected) proposal — no such proposal exists without a successful award flow",
-  "BE-3.3": "requires an already-ACTIVE event group — blocked by the live PATCH 500 defect",
   "BE-3.7": "requires an existing BOQ event group with prior line items to replace — not built in this run",
   "BE-3.9": "requires a 'service' project type line item — not modeled by this framework",
   "BE-4.1": "requires an already-ACTIVE, open-tender event group — blocked by the live PATCH 500 defect",
