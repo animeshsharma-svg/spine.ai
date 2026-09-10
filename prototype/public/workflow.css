@@ -1,0 +1,142 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   The workflow view.
+
+   One path down the page: say what to test, see the plan, watch it run, read
+   the verdict. Everything that is context rather than the current run is
+   collapsed at the bottom, because a panel competing for attention is the
+   thing that made the old screen confusing.
+   ───────────────────────────────────────────────────────────────────────── */
+body.wf {
+  margin: 0;
+  background: #f6f8fb;
+  color: #0f172a;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+/* ── top bar ── */
+.wf-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 12px 22px; background: #fff; border-bottom: 1px solid #e4e9f0;
+  position: sticky; top: 0; z-index: 20;
+}
+.wf-brand { display: flex; align-items: center; gap: 10px; }
+.wf-logo { font-size: 22px; }
+.wf-title { font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
+.wf-sub { font-size: 11.5px; color: #64748b; }
+.wf-top-right { display: flex; align-items: center; gap: 14px; }
+.wf-field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; }
+.wf-field select { font: inherit; padding: 3px 6px; border: 1px solid #dbe3ec; border-radius: 5px; background: #fff; }
+.wf-check { font-size: 12px; color: #475569; display: flex; align-items: center; gap: 5px; }
+.wf-provider { font-size: 11px; color: #94a3b8; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-link { font-size: 11.5px; color: #1375e4; text-decoration: none; }
+
+/* ── stepper ── */
+.wf-stepper {
+  display: flex; gap: 6px; list-style: none; margin: 0; padding: 14px 22px 0;
+  max-width: 900px; margin-inline: auto; flex-wrap: wrap;
+}
+.wf-stepper li {
+  display: flex; align-items: center; gap: 7px; font-size: 12px; color: #94a3b8;
+  padding: 5px 12px 5px 6px; border-radius: 20px; background: #eef2f7;
+}
+.wf-stepper li span {
+  width: 19px; height: 19px; border-radius: 50%; background: #cbd5e1; color: #fff;
+  display: grid; place-items: center; font-size: 11px; font-weight: 600;
+}
+.wf-stepper li.on { color: #0f172a; background: #e0ecfd; }
+.wf-stepper li.on span { background: #1375e4; }
+.wf-stepper li.done { color: #15803d; background: #e7f6ec; }
+.wf-stepper li.done span { background: #16a34a; }
+
+/* ── cards ── */
+.wf-main { max-width: 900px; margin: 0 auto; padding: 16px 22px 8px; }
+.wf-card {
+  background: #fff; border: 1px solid #e4e9f0; border-radius: 10px;
+  padding: 18px 20px; margin-bottom: 14px;
+}
+.wf-card h2 { margin: 0 0 4px; font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
+.wf-hint { margin: 0 0 12px; font-size: 12.5px; color: #64748b; line-height: 1.55; }
+.wf-card textarea, .wf-card input {
+  width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px;
+  border: 1px solid #dbe3ec; border-radius: 8px; resize: vertical; background: #fcfdff;
+}
+.wf-card textarea:focus, .wf-card input:focus { outline: 2px solid #bfdbfe; border-color: #93c5fd; }
+
+.wf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+.wf-chip {
+  font-size: 11.5px; padding: 4px 10px; border-radius: 14px; cursor: pointer;
+  background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569;
+}
+.wf-chip:hover { background: #e0ecfd; border-color: #bfdbfe; color: #0f172a; }
+
+.wf-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.wf-primary {
+  font: inherit; font-weight: 600; font-size: 13px; padding: 8px 16px; cursor: pointer;
+  background: #1375e4; color: #fff; border: 0; border-radius: 7px;
+}
+.wf-primary:disabled { background: #9dc3f2; cursor: default; }
+.wf-ghost {
+  font: inherit; font-size: 12.5px; padding: 7px 13px; cursor: pointer; text-decoration: none;
+  background: #fff; color: #334155; border: 1px solid #dbe3ec; border-radius: 7px;
+}
+.wf-badge { font-size: 11px; font-weight: 500; color: #64748b; margin-left: 6px; }
+
+/* ── the step list, shared by plan and run ── */
+.wf-steps { list-style: none; margin: 6px 0 0; padding: 0; }
+.wf-steps li {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 6px 0; border-bottom: 1px dashed #eef2f7; font-size: 13px;
+}
+.wf-steps li:last-child { border-bottom: 0; }
+.wf-steps .n { flex: none; width: 20px; text-align: right; color: #94a3b8; font-size: 11.5px; }
+.wf-steps .what { font-weight: 550; }
+.wf-steps .args { color: #64748b; font-size: 11.5px; }
+.wf-steps .note { color: #94a3b8; font-size: 11.5px; }
+.wf-steps .mark { flex: none; width: 16px; text-align: center; }
+.wf-steps li.ok .mark { color: #16a34a; }
+.wf-steps li.bad .mark { color: #dc2626; }
+.wf-steps li.now { background: #f5f9ff; }
+.wf-steps li.now .mark { color: #1375e4; }
+.wf-steps li.skip { opacity: 0.5; }
+.wf-steps .detail { color: #475569; font-size: 11.5px; }
+
+.wf-repairs {
+  margin-top: 12px; padding: 10px 12px; background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 8px; font-size: 12px; color: #78350f;
+}
+.wf-repairs div { padding: 2px 0; }
+
+.wf-log { margin-top: 12px; font-size: 11.5px; }
+.wf-log summary { cursor: pointer; color: #1375e4; }
+.wf-log #console {
+  margin-top: 8px; max-height: 240px; overflow: auto; background: #0f172a; color: #cbd5e1;
+  border-radius: 7px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; white-space: pre-wrap;
+}
+.wf-log #console .ok { color: #86efac; }
+.wf-log #console .bad { color: #fca5a5; }
+.wf-log #console .cmd { color: #93c5fd; }
+
+/* ── verdict ── */
+.wf-verdict { border-left: 3px solid #cbd5e1; padding: 12px 14px; border-radius: 8px; background: #f8fafc; }
+.wf-verdict.pass { border-left-color: #16a34a; background: #f0fdf4; }
+.wf-verdict.bug { border-left-color: #dc2626; background: #fef2f2; }
+.wf-verdict.gap { border-left-color: #d97706; background: #fffbeb; }
+.wf-verdict.harness { border-left-color: #64748b; }
+.wf-verdict h3 { margin: 0 0 6px; font-size: 13.5px; }
+.wf-verdict p { margin: 0 0 8px; font-size: 12.5px; color: #334155; line-height: 1.55; }
+.wf-verdict code {
+  display: block; background: #fff; border: 1px solid #e2e8f0; border-radius: 5px;
+  padding: 5px 8px; font-size: 11px; margin: 3px 0; word-break: break-all;
+}
+
+/* ── the collapsed context drawer ── */
+.wf-aside { max-width: 900px; margin: 0 auto 40px; padding: 0 22px; }
+.wf-aside details {
+  background: #fff; border: 1px solid #e4e9f0; border-radius: 10px;
+  padding: 10px 16px; margin-bottom: 8px;
+}
+.wf-aside summary { cursor: pointer; font-size: 13px; font-weight: 550; }
+.wf-aside summary span { font-weight: 400; color: #64748b; font-size: 11.5px; margin-left: 6px; }
+.wf-aside .findings { margin-top: 10px; }
+.wf-empty { color: #94a3b8; font-size: 12px; padding: 8px 0; }

@@ -1624,3 +1624,2041 @@ modal quietly says "Vendors invited: 0" and the event goes out unusable.
 - **Expected.** Only the flagged event is listed.
 - **Oracle.** The unflagged event is absent from the uninvited vendor's view.
 - **Trace.** P0 · automate-later · `update_service.rb:254-260`
+
+---
+
+## 9. Savings, terms and conditions
+
+Savings is where a missing template surfaces as a misleading error (see UI-TPL-004),
+and where one tenant flag can block every publish. Terms and conditions is a
+pass-through structure whose *shape* has broken activation before.
+
+#### UI-SAV-001 — A new stage defaults to budget/price savings on historical price
+- **Why it matters.** The defaults decide whether publish works at all, so they are
+  worth asserting rather than assuming.
+- **Setup.** A fresh stage.
+- **Steps.** Open the savings drawer without changing anything.
+- **Expected.** `savingsColumn = {budget: "price"}`, reference strategy
+  `historical_price`, strategy gross-total (lot).
+- **Oracle.** Those three values, read from the drawer.
+- **Trace.** P1 · automate
+
+#### UI-SAV-002 — Savings-mandatory tenants block publish without a savings entry
+- **Why it matters.** gate: `isSavingsConfigurationMandatory`. On those tenants it is
+  the most common publish refusal, and the message is specific.
+- **Setup.** gate: `isSavingsConfigurationMandatory`.
+- **Steps.** Publish with no savings configured.
+- **Expected.** "Savings configuration is mandatory".
+- **Oracle.** Message shown; publish blocked.
+- **Trace.** P1 · automate-later
+
+#### UI-SAV-003 — An RFQ→Auction conversion bypasses the savings-mandatory check
+- **Why it matters.** A deliberate exemption. If it regressed, conversions would become
+  impossible on exactly the tenants that use them most.
+- **Setup.** gate: `isSavingsConfigurationMandatory` + a conversion in progress.
+- **Steps.** Publish the converted auction with no savings entry.
+- **Expected.** Publishes; no savings error.
+- **Oracle.** No savings message; the auction is created.
+- **Trace.** P1 · automate-later
+
+#### UI-SAV-004 — A duplicate custom savings strategy name is refused
+- **Why it matters.** Two strategies with one name make the picker ambiguous forever.
+- **Setup.** An existing custom strategy named S.
+- **Steps.** Create another named S.
+- **Expected.** "Savings Strategy Already Present!"
+- **Oracle.** Message shown; strategy count unchanged.
+- **Trace.** P2 · automate-later
+
+#### UI-SAV-005 — A new custom strategy is created and auto-selected
+- **Why it matters.** Auto-selection is the convenience that makes the feature usable;
+  without it the buyer thinks the creation failed.
+- **Setup.** The savings drawer.
+- **Steps.** Create a strategy with a fresh name.
+- **Expected.** "New Savings Strategy Created!" and it becomes the current strategy.
+- **Oracle.** Toast shown; the picker's value is the new strategy.
+- **Trace.** P2 · automate-later
+
+#### UI-SAV-006 — A savings reference price in the wrong currency is refused
+- **Why it matters.** Mixed-currency reference prices produce savings numbers that are
+  wrong but plausible — the worst kind of wrong.
+- **Setup.** A multi-currency tenant, event currency INR.
+- **Steps.** Enter a reference price in another currency.
+- **Expected.** "Please enter price in INR" (naming the event's currency).
+- **Oracle.** Message names the correct currency; the value is not accepted.
+- **Trace.** P1 · automate-later
+
+#### UI-SAV-007 — The multi-currency modal refuses zero selected currencies
+- **Why it matters.** An event with no currency cannot price anything.
+- **Setup.** gate: multi-currency. The currency modal.
+- **Steps.** Deselect all and try to proceed.
+- **Expected.** "Please select atleast one currency." and the modal stays open.
+- **Oracle.** Message shown; modal open.
+- **Trace.** P2 · automate-later
+
+#### UI-SAV-008 — Savings computes correctly against the reference
+- **Why it matters.** It is the number the buyer reports upward. A sign error or a
+  per-unit/total mix-up here is embarrassing and invisible.
+- **Setup.** A closed event with a known reference price and one known bid.
+- **Steps.** Read the savings on the event.
+- **Expected.** Savings = (reference − bid) × quantity, at the configured basis.
+- **Oracle.** Compute the expected number from the fixture and compare.
+- **Trace.** P1 · automate-later
+
+#### UI-SAV-009 — Line-item savings and gross-total savings agree on the same data
+- **Why it matters.** Two bases over one dataset must total the same, or one of them is
+  wrong.
+- **Setup.** A closed multi-line event.
+- **Steps.** Read savings under each basis.
+- **Expected.** The sum of the line-item savings equals the gross-total savings.
+- **Oracle.** Arithmetic equality within display precision.
+- **Trace.** P2 · automate-later
+
+#### UI-SAV-010 — Terms and conditions clauses and attachments publish and persist
+- **Why it matters.** It is contractual content; losing it silently is a legal problem,
+  not a UI problem.
+- **Setup.** A valid event.
+- **Steps.** Add two clauses and one attachment. Publish. Reopen.
+- **Expected.** Both clauses and the attachment are on the published event and visible
+  to the vendor.
+- **Oracle.** Clause text and attachment name match on the buyer's and vendor's views.
+- **Trace.** P1 · automate-later
+
+#### UI-SAV-011 — An empty terms structure does not break activation
+- **Why it matters.** The screen sends `{clauses: [], attachments: [{type: "t_and_c",
+  value: []}]}` even when the buyer added nothing, and the rehydration of that shape
+  has been a suspect in the activation 500.
+- **Setup.** A valid event with no terms touched.
+- **Steps.** Publish.
+- **Expected.** Publishes normally.
+- **Oracle.** No 500; the published event has an empty terms structure, not a null one.
+- **Trace.** P1 · automate · `terms_and_conditions.rb`
+
+#### UI-SAV-012 — A malformed terms attachment is refused cleanly
+- **Why it matters.** A missing `type` key must produce a readable error, not an
+  exception — this is exactly the shape-sensitivity the PRD's §5 "never a 500" clause
+  is about.
+- **Setup.** A crafted terms attachment without `type`.
+- **Steps.** Publish.
+- **Expected.** A 4xx with a readable message.
+- **Oracle.** Not a 500. Pairs with API-PUB-022.
+- **Trace.** P1 · automate-later · PRD §5
+
+#### UI-SAV-013 — A vendor must see the terms before bidding where acceptance is required
+- **Why it matters.** If acceptance is configured and not enforced, the buyer believes
+  they have consent they do not have.
+- **Setup.** gate: terms acceptance required. A published event with clauses.
+- **Steps.** As the vendor, open the event and try to bid without accepting.
+- **Expected.** Bidding is blocked until the terms are accepted.
+- **Oracle.** Submit disabled until acceptance; enabled after.
+- **Trace.** P1 · automate-later
+
+#### UI-SAV-014 — Terms edited after publish are versioned, not silently swapped
+- **Why it matters.** A vendor who bid against version 1 must not be held to version 2
+  without being told.
+- **Setup.** A published event with a submitted bid.
+- **Steps.** Amend the terms.
+- **Expected.** The amendment is recorded as such and vendors are notified.
+- **Oracle.** An amendment record exists with remarks; the vendor sees the change.
+- **Trace.** P1 · manual
+
+---
+
+## 10. Publish and draft
+
+The commit point. Everything before this section is preparation; everything after it
+depends on this having worked and, crucially, on it having worked *completely* — a
+publish that redirects but wrote no schedule produces an event that fails much later
+in a way nobody connects back here.
+
+#### UI-PUB-001 — A complete single-stage RFQ publishes and lands on the project
+- **Why it matters.** It is the reference happy path — the one the whole catalog is
+  measured against.
+- **Setup.** gate: `rfx_project_enabled`.
+- **Steps.** Create eRFX → RFQ-only → title → template → line items → sheet → Save
+  Schedule → invite → Publish → confirm.
+- **Expected.** Redirect to the published project; the event is Live with the invited
+  vendor count on it.
+- **Oracle.** Project id in the URL, **excluding** `quick-create|create|detail|new` —
+  without that exclusion a rejected publish passes, because the create screen's own URL
+  matches `/orders/[^/]+`. Plus: no error toast within 1s.
+- **Trace.** P0 · automate · flow `events.rfq_only` · PRD §3.3
+
+#### UI-PUB-002 — Publish must never answer with an untyped 500
+- **Why it matters.** The standing regression: from ~16:29 on 2026-09-08, `PATCH
+  /api/event_groups/:id` returned a bare `{"status":500,"error":"Internal Server
+  Error"}` for both publish and save-as-draft, across every stage type, 0/1/154
+  vendors, sheet filled or empty. The user saw a button that did nothing.
+- **Setup.** Any valid eRFX event.
+- **Steps.** Publish, and watch the network response for the event-group PATCH.
+- **Expected.** Either 200, or a `render_error_json` failure with a `{code, message}`.
+  This API answers failures that way by convention, so an untyped 500 is by definition
+  an unhandled exception.
+- **Oracle.** Assert on the *shape*: fail the case if the body is
+  `{"status":500,"error":...}` with no code. Capture the request payload with the
+  failure — the payload is what makes the report actionable.
+- **Trace.** P0 · automate · regression-event-group-update-500.md
+
+#### UI-PUB-003 — Save as draft writes a draft and nothing more
+- **Why it matters.** PRD §7.3. A draft must be recoverable and must not be visible as
+  a live event to anyone.
+- **Setup.** A partially configured project with a title.
+- **Steps.** Save as draft. Search the events list for the title.
+- **Expected.** One row, status Draft. No vendor can see it.
+- **Oracle.** Status is draft; as an invited-vendor-to-be, the event is absent from the
+  portal.
+- **Trace.** P0 · automate
+
+#### UI-PUB-004 — Save as draft is available before the event is valid
+- **Why it matters.** The point of a draft is to save work that is not yet publishable.
+  If draft ran the publish validations it would be useless.
+- **Setup.** A project with a title only.
+- **Steps.** Save as draft.
+- **Expected.** Saved, with no validation errors about sheet, schedule or participants.
+- **Oracle.** Draft created; no error toast.
+- **Trace.** P1 · automate
+
+#### UI-PUB-005 — The confirm modal states the invited vendor count
+- **Why it matters.** "Vendors invited: 0" in that modal is the last chance to catch an
+  audience that never populated — and it is easy to click straight past.
+- **Setup.** An event with a known number of participants.
+- **Steps.** Press Publish and read the modal.
+- **Expected.** The count matches the participants actually selected.
+- **Oracle.** Modal count == participant count; fail if 0 when participants were
+  selected.
+- **Trace.** P0 · automate · create-screen-contract.md §Ordering.3
+
+#### UI-PUB-006 — Cancelling the confirm modal publishes nothing
+- **Why it matters.** A cancel that half-commits is the worst possible outcome at this
+  step.
+- **Setup.** A valid event.
+- **Steps.** Press Publish, then cancel the modal.
+- **Expected.** Still on the create screen; no event with that title exists as Live.
+- **Oracle.** URL unchanged; zero Live rows for the title.
+- **Trace.** P1 · automate
+
+#### UI-PUB-007 — Double-clicking Publish creates one event, not two
+- **Why it matters.** A slow publish invites a second click, and two events with one
+  title breaks every find-by-title oracle after it.
+- **Setup.** A valid event.
+- **Steps.** Click Publish twice quickly, confirm.
+- **Expected.** One event.
+- **Oracle.** Exactly one row for the title in the events list.
+- **Trace.** P1 · automate-later
+
+#### UI-PUB-008 — Publishing a two-stage event orders the stages correctly
+- **Why it matters.** `STANDARD_STAGES_SEQUENCE` is `{rfp: 1, rfq: 2, auction: 3,
+  rfq_then_auction: 4}`, and out-of-order stages would let vendors price before they
+  qualify.
+- **Setup.** An RFP + RFQ event.
+- **Steps.** Publish. Read the stage order on the project.
+- **Expected.** RFP first, RFQ second, regardless of the order the tabs were built in.
+- **Oracle.** Stage sequence numbers ascend in that order.
+- **Trace.** P1 · automate
+
+#### UI-PUB-009 — A stage left out of the publish selection is voided, not published
+- **Why it matters.** Only the stages named in the publish request go live; any other
+  stage on the event group is voided. A stage that survives as a ghost would accept
+  bids nobody expects.
+- **Setup.** A project with three draft stages, two selected for publish.
+- **Steps.** Publish the two.
+- **Expected.** Two live stages; the third is voided and invisible.
+- **Oracle.** Stage count on the live event = 2. Pairs with API-PUB-024.
+- **Trace.** P1 · automate-later · `update_service.rb:441-443`
+
+#### UI-PUB-010 — Publish is refused for a user without trade create permission
+- **Why it matters.** Publishing is the privileged action in this module, and the gate
+  is a team-based permission rather than a role name.
+- **Setup.** A user in a team without `trade: create_record`.
+- **Steps.** Try to reach the create screen and publish.
+- **Expected.** Either the entry point is absent or the publish is refused with "You
+  are not allowed to perform this action".
+- **Oracle.** No event created; a readable refusal.
+- **Trace.** P0 · automate-later · `event_group_policy.rb:21-23`
+
+#### UI-PUB-011 — Publish on a superseded version of the event is refused
+- **Why it matters.** Two tabs on one draft is a real scenario, and publishing the
+  stale one would silently discard the newer work.
+- **Setup.** A draft opened in two tabs; publish from tab 1, then from tab 2.
+- **Steps.** Publish from the older tab.
+- **Expected.** Refused because that version is not the latest.
+- **Oracle.** Error code 101 / "not allowed"; the event reflects tab 1's publish only.
+- **Trace.** P1 · automate-later · `event_group.latest?`
+
+#### UI-PUB-012 — An approval-required event goes to Requested, not Live
+- **Why it matters.** On tenants with publish approvals, "published" means "awaiting
+  approval", and a test asserting Live would fail forever on those tenants.
+- **Setup.** gate: publish approval configured.
+- **Steps.** Publish.
+- **Expected.** The stage status is Requested and an approval task exists.
+- **Oracle.** Status Requested; the approver sees a pending task.
+- **Trace.** P1 · automate-later
+
+#### UI-PUB-013 — Auto-routing to the auction team leaves the stage in Draft
+- **Why it matters.** gate: `routeAuctionsToAuctionTeam`. The publish appears not to
+  have worked, and this case is where that expectation is written down.
+- **Setup.** gate: `routeAuctionsToAuctionTeam`. An auction stage.
+- **Steps.** Publish.
+- **Expected.** The stage is handed to the auction team and stays Draft for the
+  publisher.
+- **Oracle.** Status draft plus an auction-team assignment — not an error.
+- **Trace.** P1 · automate-later
+
+#### UI-PUB-014 — Publishing sends invitations to every invited vendor
+- **Why it matters.** PRD §3.3's audience promise is only real if the invitation lands.
+- **Setup.** An event with two invited vendors.
+- **Steps.** Publish. Check each vendor's portal list and mailbox.
+- **Expected.** Both see the event; both receive an invitation.
+- **Oracle.** Portal listing is the automatable half; mail delivery is manual.
+- **Trace.** P1 · automate-later (portal) / manual (mail)
+
+#### UI-PUB-015 — The published event carries a reference id
+- **Why it matters.** `RFX-…` at project level and per-stage ids are how humans talk
+  about events; a missing one makes support impossible.
+- **Setup.** A published event.
+- **Steps.** Read the ids on the project and each stage.
+- **Expected.** A project ref id and a per-stage ref id, both non-empty and unique.
+- **Oracle.** Ids present and matching the events-list row.
+- **Trace.** P1 · automate
+
+#### UI-PUB-016 — Republishing an already-live event is idempotent
+- **Why it matters.** A retry after a timeout must not duplicate stages or audiences.
+- **Setup.** A live event.
+- **Steps.** Re-issue the publish action.
+- **Expected.** Nothing changes.
+- **Oracle.** Stage count, audience count and bid count all unchanged. Pairs with
+  API-PUB-025.
+- **Trace.** P1 · automate-later
+
+#### UI-PUB-017 — Withdrawing a live event requires a remark and closes it to vendors
+- **Why it matters.** Withdrawal is the buyer's emergency stop; without the remark
+  requirement there is no audit trail.
+- **Setup.** A live event with an invited vendor.
+- **Steps.** Withdraw with an empty remark, then with a real one.
+- **Expected.** First refused; second withdraws the event and the vendor can no longer
+  bid.
+- **Oracle.** Status withdrawn; as the vendor, bidding is refused ("Order not active").
+- **Trace.** P0 · automate-later
+
+#### UI-PUB-018 — A withdrawn event cannot be re-activated
+- **Why it matters.** Resurrecting a withdrawn event would reopen bidding vendors were
+  told was over.
+- **Setup.** A withdrawn event.
+- **Steps.** Try to publish/activate it again.
+- **Expected.** Refused.
+- **Oracle.** Status stays withdrawn. Pairs with API-LC-005.
+- **Trace.** P1 · automate-later
+
+#### UI-PUB-019 — Withdrawing twice does not duplicate the remark or the notification
+- **Why it matters.** Idempotency on the emergency stop, and vendors receiving two
+  withdrawal mails is a support call.
+- **Setup.** A withdrawn event.
+- **Steps.** Withdraw again.
+- **Expected.** No second remark, no second notification.
+- **Oracle.** One withdrawal record.
+- **Trace.** P2 · automate-later
+
+#### UI-PUB-020 — An active event can be cloned
+- **Why it matters.** Cloning is how buyers run the same event monthly, and its policy
+  has four separate refusal conditions worth pinning.
+- **Setup.** An active event, not created from a PR, buyer not a planner.
+- **Steps.** Clone it.
+- **Expected.** A new draft with the same line items, template and configuration, and
+  its own ref id.
+- **Oracle.** New draft exists; line items and template match; the ref id differs.
+- **Trace.** P1 · automate-later
+
+#### UI-PUB-021 — Cloning a draft is refused
+- **Why it matters.** One of the four refusals, and the least intuitive.
+- **Setup.** A draft event.
+- **Steps.** Try to clone.
+- **Expected.** Refused ("Only active or withdrawn events can be cloned.").
+- **Oracle.** Message shown; no clone created.
+- **Trace.** P2 · automate-later
+
+#### UI-PUB-022 — Cloning a PR-created event is refused
+- **Why it matters.** The clone would have no requisition behind it.
+- **Setup.** An event created from a PR.
+- **Steps.** Try to clone.
+- **Expected.** Refused ("Events with purchase requests cannot be cloned.").
+- **Oracle.** Message shown.
+- **Trace.** P2 · automate-later
+
+#### UI-PUB-023 — Amending a published event requires amendment remarks
+- **Why it matters.** An amendment changes the terms vendors bid against; the remark is
+  what they are shown.
+- **Setup.** A published event, amendment started.
+- **Steps.** Publish the amendment with blank remarks, then with real ones.
+- **Expected.** First refused; second published and vendors notified.
+- **Oracle.** Amendment recorded with the remark text.
+- **Trace.** P1 · automate-later
+
+#### UI-PUB-024 — Changing ownership of an event works for the owner and not for others
+- **Why it matters.** It is how an event survives someone leaving, and it is
+  permission-sensitive (owner, super-admin or Procol employee only).
+- **Setup.** An event, its owner, and an unrelated buyer.
+- **Steps.** Change ownership as the owner; then attempt it as the unrelated buyer.
+- **Expected.** The first succeeds; the second is refused.
+- **Oracle.** New owner reflected; refusal on the second attempt.
+- **Trace.** P1 · automate-later
+
+---
+
+## 11. RFQ → Auction conversion
+
+Not a stage composition — a conversion. The create screen refuses to hold an RFQ and an
+Auction at once and says so ("Remove Auction to add RFQ"), so a flow that asks for
+`stages: ["rfq", "auction"]` can never be satisfied; it quietly publishes a plain
+auction on the leftover default tab and calls that a pass. The real journey starts on a
+**published** RFQ.
+
+#### UI-CONV-001 — Convert to Auction is offered on a published RFQ
+- **Why it matters.** The entry point is behind the event Settings menu and is gated
+  three ways: published (not draft), vendor masking off, and the tenant allowing it.
+- **Setup.** A published RFQ; vendor masking off.
+- **Steps.** Open the event → Settings (`event-settings-button`) → read the menu.
+- **Expected.** "Convert to Auction" is listed.
+- **Oracle.** The item exists. If Settings opens and simply does not list it, report
+  that the feature is gated off on this tenant — not that the automation is wrong.
+- **Trace.** P1 · automate · flow `events.rfq_auction`
+
+#### UI-CONV-002 — Conversion opens a prefilled create screen in a new tab
+- **Why it matters.** It `window.open`s with `isRfqToAuction=true&draftStageIds=…`; a
+  test driving the original tab watches a page that never changes.
+- **Steps.** Settings → Convert to Auction → Continue.
+- **Expected.** A new tab on the create screen with the conversion query params, the
+  RFQ's template and sheet already in place.
+- **Oracle.** Handle the new page object; assert `isRfqToAuction=true` in its URL.
+- **Trace.** P1 · automate
+
+#### UI-CONV-003 — The converted auction publishes with the RFQ's data
+- **Why it matters.** The whole point: carry the RFQ's quotes and participants into an
+  auction without re-entering anything.
+- **Steps.** On the conversion screen, invite vendors and publish.
+- **Expected.** An auction event linked to the RFQ, with the same line items.
+- **Oracle.** Redirect to a project id; no error toast; line items match the RFQ's.
+- **Trace.** P0 · automate · flow `events.rfq_auction`
+
+#### UI-CONV-004 — The template picker is locked during conversion
+- **Why it matters.** Changing the schema would invalidate the carried-over quotes.
+- **Setup.** A conversion screen.
+- **Steps.** Try to open the template dropdown.
+- **Expected.** Disabled.
+- **Oracle.** Dropdown disabled.
+- **Trace.** P1 · automate-later
+
+#### UI-CONV-005 — "All invited" carries every RFQ participant, not just the bidders
+- **Why it matters.** The toggle switches the audience source, and the difference
+  decides who can bid in the auction.
+- **Setup.** An RFQ where 2 of 5 invited vendors bid.
+- **Steps.** Convert with the toggle off, then (on a second conversion) with it on.
+- **Expected.** Off: only the 2 bidders carry forward as bidding participants. On: all 5
+  carry, with the bidders flagged.
+- **Oracle.** Participant counts 2 and 5 respectively; the bid-placed flag set on the
+  right ones.
+- **Trace.** P1 · automate-later
+
+#### UI-CONV-006 — TNA vendors are included or excluded per the flag
+- **Why it matters.** gate: `allowTnaVendorsToBid`. Getting it wrong either bars
+  legitimate bidders or admits ones who should not bid.
+- **Setup.** An RFQ audience containing TNA vendors.
+- **Steps.** Convert with the flag off, then on.
+- **Expected.** Excluded when off, included when on.
+- **Oracle.** The TNA vendor's presence in the bidding audience flips with the flag.
+- **Trace.** P2 · automate-later
+
+#### UI-CONV-007 — Converting the same RFQ twice is refused
+- **Why it matters.** The model enforces at most one non-cancelled auction per parent
+  RFQ, so the second attempt must be refused rather than creating an orphan.
+- **Setup.** An already-converted RFQ.
+- **Steps.** Try to convert again.
+- **Expected.** Refused ("An auction has already been made for this trade.").
+- **Oracle.** Message shown; still exactly one auction child.
+- **Trace.** P1 · automate-later · `trade_request.rb:3004-3009`
+
+#### UI-CONV-008 — The RFQ becomes uneditable once its auction exists
+- **Why it matters.** The backend refuses RFQ edits after conversion ("You cannot edit
+  rfq once the auction is created.", 769) and the UI must not offer them.
+- **Setup.** A converted RFQ.
+- **Steps.** Try to edit the RFQ's sheet or schedule.
+- **Expected.** Refused or unavailable.
+- **Oracle.** No successful edit; a readable refusal if attempted.
+- **Trace.** P1 · automate-later
+
+#### UI-CONV-009 — Convert to Auction is hidden when vendor masking is on
+- **Why it matters.** Masking and conversion are incompatible, and the control's
+  visibility is the whole enforcement.
+- **Setup.** gate: `isVendorMaskingEnabled`. A published RFQ.
+- **Steps.** Open Settings.
+- **Expected.** No Convert to Auction item, regardless of the RFQ's state.
+- **Oracle.** Item absent.
+- **Trace.** P1 · automate-later
+
+#### UI-CONV-010 — Conversion on a draft RFQ is not offered
+- **Why it matters.** There are no quotes to carry from a draft, so the control must
+  not appear.
+- **Setup.** A draft RFQ.
+- **Steps.** Open Settings.
+- **Expected.** Not offered.
+- **Oracle.** Item absent.
+- **Trace.** P2 · automate-later
+
+#### UI-CONV-011 — Conversion is refused on a superseded event version
+- **Why it matters.** Same staleness problem as UI-PUB-011, on a path that creates a new
+  trade record.
+- **Setup.** An RFQ whose event group has a newer version.
+- **Steps.** Attempt the conversion.
+- **Expected.** Refused.
+- **Oracle.** No auction created.
+- **Trace.** P2 · automate-later
+
+#### UI-CONV-012 — Fast bidding needs more than one line item
+- **Why it matters.** The backend refuses with a specific message ("CBD mode requires at
+  least two active line items."), which is only meaningful if the UI surfaces it.
+- **Setup.** gate: fast bidding. A single-line-item RFQ.
+- **Steps.** Convert with fast bidding on.
+- **Expected.** Refused with that message.
+- **Oracle.** Message shown; no auction created.
+- **Trace.** P2 · automate-later
+
+#### UI-CONV-013 — Vendors carried into the auction can bid immediately
+- **Why it matters.** The conversion is only useful if the carried audience can act, and
+  audience-carry bugs show up here first.
+- **Setup.** A converted auction, live.
+- **Steps.** As a carried-over vendor, open the auction and bid.
+- **Expected.** The bid is accepted.
+- **Oracle.** Bid submitted; visible to the buyer on the auction.
+- **Trace.** P1 · automate-later
+
+#### UI-CONV-014 — The RFQ's bids remain visible after conversion
+- **Why it matters.** The RFQ's history is the baseline the auction's savings are
+  measured against.
+- **Setup.** A converted RFQ that had bids.
+- **Steps.** Open the RFQ stage on the project.
+- **Expected.** Its bids are still there, read-only.
+- **Oracle.** Bid count on the RFQ unchanged after conversion.
+- **Trace.** P1 · automate-later
+
+---
+
+## 12. BOQ events
+
+A bill-of-quantities event carries its line items in a spreadsheet rather than in the
+picker, which is why its cap is 500 rather than 65 and why the PRD calls out "a BOQ
+sheet with hundreds of line items" as an edge case. It also takes a different creation
+path: the draft event group is created on mount with `isBoqBasedRfx: true`.
+
+#### UI-BOQ-001 — A BOQ project creates its draft event group exactly once on mount
+- **Why it matters.** A re-render that fires it again produces two draft events and the
+  buyer works in one while the other lingers.
+- **Setup.** gate: `boq_in_erfx_allowed`.
+- **Steps.** Enter BOQ project creation. Let the screen re-render (resize, switch tabs).
+- **Expected.** One draft event group.
+- **Oracle.** Exactly one create request; one draft in the events list.
+- **Trace.** P1 · automate-later
+
+#### UI-BOQ-002 — A BOQ event is accepted with no line items in the create request
+- **Why it matters.** It is the one legal way to create an event with an empty
+  `line_items` array — the flag is what makes it legal.
+- **Setup.** gate: `boq_in_erfx_allowed`.
+- **Steps.** Create the BOQ draft before uploading anything.
+- **Expected.** Created.
+- **Oracle.** Draft created with zero line items. Pairs with API-EG-004.
+- **Trace.** P1 · automate-later
+
+#### UI-BOQ-003 — BOQ creation is refused on a tenant that does not allow it
+- **Why it matters.** The negative half of the gate; without it the flag is unproven.
+- **Setup.** A tenant without `boq_in_erfx_allowed`.
+- **Steps.** Attempt BOQ creation.
+- **Expected.** Refused ("You are not allowed to perform this action") or the entry
+  point absent.
+- **Oracle.** No draft created. Pairs with API-EG-005.
+- **Trace.** P1 · automate-later
+
+#### UI-BOQ-004 — Downloading the blank BOQ template gives a usable sheet
+- **Why it matters.** It is the buyer's starting point; a template whose columns do not
+  match the importer is an immediate dead end.
+- **Setup.** A BOQ project with a template chosen.
+- **Steps.** Download the blank BOQ items sheet.
+- **Expected.** A spreadsheet whose columns match the chosen template's schema.
+- **Oracle.** Column headers equal the template's widget names.
+- **Trace.** P1 · automate-later
+
+#### UI-BOQ-005 — Uploading a filled BOQ sheet creates one line item per row
+- **Why it matters.** It is the core BOQ mechanic and the only bulk line-item path.
+- **Setup.** A filled sheet with 25 rows.
+- **Steps.** Upload it.
+- **Expected.** 25 line items, values as in the sheet.
+- **Oracle.** Badge = 25; spot-check three rows' product, quantity and unit.
+- **Trace.** P0 · automate-later · `UI_BOQ_ITEMS`
+
+#### UI-BOQ-006 — A malformed BOQ row is reported with its row number
+- **Why it matters.** "Upload failed" on a 500-row sheet is useless; the row number is
+  the whole value of the error.
+- **Setup.** A sheet with a bad quantity on row 12.
+- **Steps.** Upload.
+- **Expected.** A readable error naming row 12; either nothing imports or the good rows
+  import and the bad one is listed.
+- **Oracle.** The message contains the row identifier; no 500.
+- **Trace.** P1 · automate-later · PRD §5
+
+#### UI-BOQ-007 — A BOQ upload with a product that does not exist is refused
+- **Why it matters.** The backend answers "Product not found" (80) and the buyer needs
+  to know which product.
+- **Setup.** A sheet naming an unknown product.
+- **Steps.** Upload.
+- **Expected.** Refused, naming the offending value.
+- **Oracle.** Message identifies the product; no partial import of that row.
+- **Trace.** P1 · automate-later
+
+#### UI-BOQ-008 — Re-uploading replaces the previous BOQ items
+- **Why it matters.** Appending instead of replacing silently doubles a 500-row event.
+- **Setup.** A BOQ event with 25 items.
+- **Steps.** Upload a different 25-row sheet.
+- **Expected.** 25 items, the new ones; the old ones are removed.
+- **Oracle.** Count is 25, not 50; the old products are gone. Pairs with API-LI-007.
+- **Trace.** P1 · automate-later
+
+#### UI-BOQ-009 — 500 BOQ items publish
+- **Why it matters.** The documented ceiling, and the only case that exercises the
+  publish path at scale.
+- **Setup.** gate: `boq_in_erfx_allowed`.
+- **Steps.** Load 500 items. Publish.
+- **Expected.** Publishes.
+- **Oracle.** Publish succeeds; record the duration (see UI-NFR-004).
+- **Trace.** P1 · manual
+
+#### UI-BOQ-010 — 501 BOQ items are refused
+- **Why it matters.** The other side of the boundary.
+- **Steps.** Attempt 501.
+- **Expected.** Refused with the max-line-items message.
+- **Oracle.** Message shown; the event keeps 500.
+- **Trace.** P2 · manual
+
+#### UI-BOQ-011 — A vendor bidding on a BOQ event gets all rows in their sheet
+- **Why it matters.** A truncated vendor sheet produces a partial bid that looks
+  complete.
+- **Setup.** A live BOQ event with 25 items and an invited vendor.
+- **Steps.** As the vendor, open the bid sheet.
+- **Expected.** 25 rows, matching the buyer's items.
+- **Oracle.** Row count and the products in each row match.
+- **Trace.** P1 · automate-later
+
+#### UI-BOQ-012 — A BOQ event linked to a purchase request validates the PR
+- **Why it matters.** `purchase_request_id` must resolve to an active BOQ PR owned by
+  the workspace, or the event is attached to nothing.
+- **Setup.** A BOQ project and an inactive/foreign PR id.
+- **Steps.** Attempt to link it.
+- **Expected.** Refused ("not allowed").
+- **Oracle.** No link created. Pairs with API-PUB-016.
+- **Trace.** P2 · automate-later
+
+---
+
+## 13. PR → event
+
+An event created from a purchase requisition inherits its line items and is not allowed
+to change them — only quantities. This is also the only path with a *dormant PR lock*,
+which refuses the create outright with its own error shape.
+
+#### UI-PR-001 — An approved PR converts into a draft event
+- **Why it matters.** It is the intake-to-sourcing handoff, and everything about the
+  resulting event is constrained by it.
+- **Setup.** gate: PR module. An approved PR with line items.
+- **Steps.** From the PR, create an event.
+- **Expected.** A draft event carrying the PR's line items and quantities.
+- **Oracle.** Line-item count and products match the PR; the event records the PR link.
+- **Trace.** P1 · automate-later
+
+#### UI-PR-002 — PR line items cannot be added to or removed
+- **Why it matters.** Diverging from the requisition breaks the consumption
+  reconciliation.
+- **Setup.** A PR-created draft.
+- **Steps.** Open the line-items drawer and try to add and remove.
+- **Expected.** Both inert.
+- **Oracle.** Controls disabled; count unchanged.
+- **Trace.** P1 · automate-later
+
+#### UI-PR-003 — PR quantities can be reduced and reconcile back
+- **Why it matters.** Buyers routinely source part of a requisition; the remainder must
+  return to the PR.
+- **Setup.** A PR line item of 100.
+- **Steps.** Reduce to 60 on the event. Publish. Open the PR.
+- **Expected.** The PR shows 60 in progress and 40 still open.
+- **Oracle.** PR in-progress quantity = 60. `update_quantity_of_purchase_request_items`
+  is the mechanism.
+- **Trace.** P1 · automate-later
+
+#### UI-PR-004 — A quantity above the PR's is refused
+- **Why it matters.** Sourcing more than was requisitioned is an approval bypass.
+- **Setup.** A PR line item of 100.
+- **Steps.** Set 150 on the event.
+- **Expected.** Refused with a readable message.
+- **Oracle.** Refusal; the PR is unchanged.
+- **Trace.** P1 · automate-later
+
+#### UI-PR-005 — A dormant-locked PR line item blocks creation before anything is written
+- **Why it matters.** It has a dedicated error shape (not the generic
+  `render_error_json`), and the guard runs before any write — so a partial event must
+  never appear.
+- **Setup.** A PR whose line item is dormant-locked.
+- **Steps.** Try to create an event from it.
+- **Expected.** Refused with the dormant-PR message; no draft created.
+- **Oracle.** Zero drafts for that PR afterwards. Pairs with API-EG-006.
+- **Trace.** P1 · automate-later · `create_service.rb:102-123`
+
+#### UI-PR-006 — A PR-created event cannot be cloned
+- **Why it matters.** Already stated as UI-PUB-022; here it is reached from the PR side,
+  which is how a buyer actually meets it.
+- **Setup.** A published PR-created event.
+- **Steps.** Try to clone.
+- **Expected.** Refused.
+- **Oracle.** Message shown.
+- **Trace.** P2 · automate-later
+
+#### UI-PR-007 — Multiple PRs merged into one event keep their PR numbers per row
+- **Why it matters.** The PR-number column is how the buyer proves which requisition a
+  row served.
+- **Setup.** Two approved PRs.
+- **Steps.** Create one event from both.
+- **Expected.** Every line item shows its originating PR number.
+- **Oracle.** Each row's `pr_number` matches its source PR.
+- **Trace.** P2 · automate-later
+
+#### UI-PR-008 — Awarding a PR-created event writes back to the PR
+- **Why it matters.** It closes the intake loop; without it the PR stays open forever.
+- **Setup.** A PR-created event, awarded.
+- **Steps.** Complete the award. Open the PR.
+- **Expected.** The PR reflects the awarded quantity and vendor.
+- **Oracle.** PR state and awarded quantity match the proposal.
+- **Trace.** P1 · manual
+
+#### UI-PR-009 — Withdrawing a PR-created event returns the quantity to the PR
+- **Why it matters.** Otherwise a withdrawn event permanently consumes the requisition.
+- **Setup.** A published PR-created event.
+- **Steps.** Withdraw it. Open the PR.
+- **Expected.** The in-progress quantity returns to open.
+- **Oracle.** PR open quantity is back to its pre-event value.
+- **Trace.** P1 · automate-later · `update_in_progress_quantity`
+
+#### UI-PR-010 — A PR-created event's line item cannot be deleted below one
+- **Why it matters.** Combines the PR constraint with the 711 rule; the message must be
+  the readable one, not a raw code.
+- **Setup.** A PR-created event with one line item.
+- **Steps.** Try to delete it.
+- **Expected.** Refused with "You cannot delete this line item from the project".
+- **Oracle.** Message shown; item remains.
+- **Trace.** P2 · automate-later
+
+---
+
+## 14. Classic single-stage events
+
+The non-eRFX screen (`/orders/quick-create?singleStage=true`) is a different product
+with the same vocabulary. Event type, auction sub-type and awarding mode are chosen in a
+"Configuration for Event" drawer opened from the Event Type chip; line items *are* the
+pricing template's sheet rows rather than a pre-sheet picker. It matters practically:
+this path kept working throughout the eRFX activation regression, which is why the bid
+and award journeys could be built at all.
+
+#### UI-SS-001 — A single-stage RFQ publishes
+- **Why it matters.** The most reliable event in the product and the seed for §15 and
+  §16.
+- **Setup.** Buyer with trade create; single-stage entry.
+- **Steps.** Create → configure `eventType: rfq`, `awarding: lot` → title → Buy template
+  → fill the first line item → add a participant → Publish.
+- **Expected.** Lands on `/project/:id/details` with the event Live.
+- **Oracle.** A real project id in the URL; no error toast.
+- **Trace.** P0 · automate · flow `bid.submit` (buyer half)
+
+#### UI-SS-002 — A single-stage RFP publishes
+- **Why it matters.** The classic path has its own RFP shape, distinct from eRFX's
+  technical stage.
+- **Steps.** As UI-SS-001 with `eventType: rfp`.
+- **Expected.** Publishes.
+- **Oracle.** Project id; the event type reads RFP.
+- **Trace.** P1 · automate-later
+
+#### UI-SS-003 — A single-stage auction publishes with each sub-type
+- **Why it matters.** Rank, price and traffic light are all selectable here, and the
+  sub-type section only renders after the event type is chosen — a timing trap.
+- **Steps.** For each of rank / price / traffic light: configure and publish.
+- **Expected.** All three publish with the chosen sub-type.
+- **Oracle.** Sub-type on the live event matches; wait for the conditional section to
+  render before selecting.
+- **Trace.** P1 · automate
+
+#### UI-SS-004 — The configuration drawer renders awarding only after event type
+- **Why it matters.** Selecting awarding before the type finds nothing and the run
+  reports a missing control.
+- **Setup.** A fresh single-stage create.
+- **Steps.** Open the drawer and observe which sections exist before and after choosing
+  a type.
+- **Expected.** Sub-type and awarding appear only after the type is chosen.
+- **Oracle.** Options absent before, present after.
+- **Trace.** P1 · automate · `SingleStagePage.configure`
+
+#### UI-SS-005 — Awarding "entire lot to a single vendor" is honoured downstream
+- **Why it matters.** It constrains the awarding grid, so a mismatch surfaces only at
+  award time.
+- **Steps.** Publish lot-based; reach the awarding screen.
+- **Expected.** The grid allows one winner for the whole lot.
+- **Oracle.** Awarding mode reads lot at both ends.
+- **Trace.** P1 · automate
+
+#### UI-SS-006 — Awarding "partially award to multiple vendors" is honoured downstream
+- **Why it matters.** The other mode, and the one the two-competing-bids journey needs.
+- **Steps.** Publish line-item based; reach the awarding screen.
+- **Expected.** Per-line allocation across vendors.
+- **Oracle.** Awarding mode reads line_item at both ends.
+- **Trace.** P1 · automate
+
+#### UI-SS-007 — Line items are the template's sheet rows
+- **Why it matters.** It is the structural difference from eRFX, and the reason the
+  eRFX line-item helper does not work here.
+- **Setup.** A single-stage create with a Buy template.
+- **Steps.** Fill the first row's product, variant, quantity, delivery and price cells.
+- **Expected.** One line item exists, defined by that row.
+- **Oracle.** The row is complete and the event publishes with one item.
+- **Trace.** P1 · automate · `SingleStagePage.fillFirstLineItem`
+
+#### UI-SS-008 — Adding a second sheet row adds a second line item
+- **Why it matters.** Multi-line classic events behave differently from eRFX's shared
+  project items.
+- **Steps.** Add a second row and publish.
+- **Expected.** Two line items on the live event.
+- **Oracle.** Line-item count = 2.
+- **Trace.** P2 · automate-later
+
+#### UI-SS-009 — Publishing with an incomplete row is refused
+- **Why it matters.** The sheet is the line items here, so a half row is a half event.
+- **Steps.** Leave the delivery location blank and publish.
+- **Expected.** Refused with a readable message.
+- **Oracle.** Publish blocked; no 500.
+- **Trace.** P1 · automate
+
+#### UI-SS-010 — "Invite whole audience" is the fallback when a named vendor is not found
+- **Why it matters.** It is what keeps the bid journey alive on a tenant where the named
+  test vendor is not in the searchable list — but it must be reported, because the run
+  is then bidding as *someone*, not as the intended vendor.
+- **Setup.** A vendor search term that matches nothing.
+- **Steps.** Search, fail, fall back to inviting the audience, publish.
+- **Expected.** The event publishes with a non-zero audience.
+- **Oracle.** Audience count > 0 **and** a log line saying the named vendor was not
+  matched. Never assert the specific vendor is on the event after this fallback.
+- **Trace.** P1 · automate · flow `bid.submit`
+
+#### UI-SS-011 — Scheduling a single-stage event for later works
+- **Why it matters.** It was thought broken for a long time; the real cause was that the
+  Schedule control is disabled until a line item exists ("Please choose a template and
+  add a product").
+- **Setup.** A single-stage create with a template and one line item.
+- **Steps.** Open Schedule Event, set start/end and evaluation duration, Save Schedule.
+- **Expected.** The drawer opens and the schedule persists.
+- **Oracle.** Reopened drawer shows the saved window.
+- **Trace.** P1 · automate · flow `event.scheduled`
+
+#### UI-SS-012 — A classic event's detail page exposes the same lifecycle controls
+- **Why it matters.** §15 to §17 navigate from here; if the tabs differ, the later cases
+  need a different path.
+- **Setup.** A published single-stage event.
+- **Steps.** Read the tab strip and the Settings menu.
+- **Expected.** Participants, bids/comparison, Master QCS and Settings are reachable.
+- **Oracle.** Each entry point resolves.
+- **Trace.** P1 · automate
+
+#### UI-SS-013 — A single-stage event is unaffected by eRFX-only gates
+- **Why it matters.** It is why this path survived the activation regression, and it is
+  worth an explicit assertion so the isolation is not accidental.
+- **Setup.** A tenant where eRFX publish is failing.
+- **Steps.** Publish a single-stage event.
+- **Expected.** Succeeds.
+- **Oracle.** Publish succeeds while the eRFX path fails — report both in one run so
+  the contrast is visible.
+- **Trace.** P1 · automate
+
+#### UI-SS-014 — Stage tabs do not appear on a classic tenant
+- **Why it matters.** The clearest structural assertion that the right screen is under
+  test — the "wrong screen" mistake is the most expensive one in this catalog.
+- **Setup.** A tenant with `rfx_project_enabled` off.
+- **Steps.** Open the create screen.
+- **Expected.** No stage tab strip, no `+` stage control anywhere.
+- **Oracle.** Zero elements matching the tab strip.
+- **Trace.** P1 · automate
+
+---
+
+## 15. The vendor's bid
+
+The other half of the product. The supplier portal is a separate application on its own
+domain; the vendor logs in with an email OTP, finds the event they were invited to,
+answers the technical questionnaire if there is one, fills the price sheet and submits.
+
+Two structural notes that shape every case here. The vendor's event view opens on
+**Event Overview** — the bid sheet lives behind the *stage* tab, and some builds need an
+explicit "Add bid"/"Place bid" press before cells become editable. And the buyer's side
+of the fixture must invite a **specific** vendor: an event published with a fallback
+"invite everyone" audience cannot support any assertion about *this* vendor's bid.
+
+#### UI-VBID-001 — An invited vendor sees the event in their Live list
+- **Why it matters.** If the invitation does not arrive at the portal, nothing else in
+  this section can run, and the cause is on the buyer's side.
+- **Setup.** A live event with this vendor's company invited by name.
+- **Steps.** Log in to the portal. Open the events list. Search the event title.
+- **Expected.** The event is listed under Live with its ref id.
+- **Oracle.** One matching card; fail loudly rather than falling back to "the first Live
+  event" for any case that asserts something about *this* event.
+- **Trace.** P0 · automate · flow `bid.submit`
+
+#### UI-VBID-002 — An uninvited vendor does not see the event
+- **Why it matters.** It is the first half of the isolation promise (PRD §7.2) and it is
+  cheap to check.
+- **Setup.** A live event; a vendor not on its audience.
+- **Steps.** Search for the title in that vendor's portal.
+- **Expected.** No result; direct URL access is refused.
+- **Oracle.** Zero cards; a direct navigation lands on a refusal, not the event.
+- **Trace.** P0 · automate-later · PRD §7.2
+
+#### UI-VBID-003 — Opening the event lands on Event Overview
+- **Why it matters.** It is the tab a test must move *off* of. Filling "the sheet" on
+  the overview finds no cells and reports a missing bid form.
+- **Setup.** An invited vendor on a live event.
+- **Steps.** Open the event card.
+- **Expected.** Event Overview, with the event's details and a stage tab beside it.
+- **Oracle.** The overview is active; at least one other tab exists.
+- **Trace.** P1 · automate
+
+#### UI-VBID-004 — The stage tab exposes the bid sheet
+- **Why it matters.** The actual entry to bidding.
+- **Steps.** Switch to the stage tab. Press "Add bid"/"Place bid" if the build shows one.
+- **Expected.** The bid sheet renders with the buyer's line items and editable price
+  cells.
+- **Oracle.** At least one non-disabled price cell exists.
+- **Trace.** P0 · automate · `VendorPortalPage.startBidding`
+
+#### UI-VBID-005 — The vendor sees the buyer's line items, quantities and locations
+- **Why it matters.** The vendor prices against them; a wrong quantity is a wrong bid.
+- **Setup.** A live event with two line items of known quantities.
+- **Steps.** Read the sheet.
+- **Expected.** Both items, with the buyer's quantities, units and delivery locations.
+- **Oracle.** Row-by-row comparison against the buyer's event.
+- **Trace.** P0 · automate
+
+#### UI-VBID-006 — The vendor fills price cells and the total computes
+- **Why it matters.** The total is what the buyer compares, and it is derived — a wrong
+  derivation is invisible to both sides.
+- **Setup.** A bid sheet with a quantity of 10 and a price cell.
+- **Steps.** Enter 100.
+- **Expected.** Total = 1000 (plus GST if the template has it, per its rule).
+- **Oracle.** Rendered total equals the expected arithmetic.
+- **Trace.** P0 · automate
+
+#### UI-VBID-007 — Every price cell on a multi-line sheet is filled
+- **Why it matters.** Submitting with one row priced can be *allowed* while being an
+  incomplete bid. A test that fills only the first row can pass while creating a bid the
+  buyer cannot use.
+- **Setup.** A 3-line event.
+- **Steps.** Fill all three price cells. Submit.
+- **Expected.** All three prices are on the submitted bid.
+- **Oracle.** Count the cells filled and assert it equals the row count; then check the
+  buyer's comparison shows three prices.
+- **Trace.** P0 · automate
+
+#### UI-VBID-008 — Submitting the bid confirms it
+- **Why it matters.** The core acceptance criterion of PRD §3.4.
+- **Steps.** Press Submit and confirm if a modal appears.
+- **Expected.** A success state — the bid is shown as submitted with its values.
+- **Oracle.** The portal shows the bid as submitted; the buyer's bid count rises by one.
+  Assert both sides, not just the portal's toast.
+- **Trace.** P0 · automate · flow `bid.submit`
+
+#### UI-VBID-009 — Submitting an empty bid is refused
+- **Why it matters.** An empty bid would count as participation without a price.
+- **Steps.** Open the sheet and press Submit with nothing entered.
+- **Expected.** Refused — the control is disabled or the attempt is rejected with a
+  message.
+- **Oracle.** No bid appears on the buyer's side.
+- **Trace.** P0 · automate
+
+#### UI-VBID-010 — A negative price is refused
+- **Why it matters.** The backend has a dedicated refusal ("Please enter a valid price",
+  106) and the portal should not need it.
+- **Steps.** Enter `-100`. Submit.
+- **Expected.** Refused with a readable message.
+- **Oracle.** No bid created; message shown.
+- **Trace.** P0 · automate-later · PRD §5
+
+#### UI-VBID-011 — Zero as a price is either refused or accepted deliberately
+- **Why it matters.** Free-of-charge lines are real in some categories; whichever the
+  product allows, it must be consistent and visible to the buyer.
+- **Steps.** Enter `0` and submit.
+- **Expected.** Consistent behaviour, stated on screen.
+- **Oracle.** If accepted, the buyer's comparison shows 0 rather than blank.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-012 — Text in a price cell is refused, not coerced
+- **Why it matters.** A coerced `0` is a winning bid.
+- **Steps.** Type `abc` into a price cell.
+- **Expected.** Refused or cleared with a message; never stored as 0.
+- **Oracle.** No bid with price 0 created.
+- **Trace.** P0 · automate · PRD §5
+
+#### UI-VBID-013 — A negative quantity in the vendor's quantity column is refused
+- **Why it matters.** Separate refusal from price ("Quantity must be greater than
+  zero", 35).
+- **Steps.** Enter `-1` as the offered quantity.
+- **Expected.** Refused.
+- **Oracle.** No bid created.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-014 — Offering more than the requested quantity is refused
+- **Why it matters.** The backend refuses it ("Quantity should be less than requested
+  quantity", 511) and a vendor over-offering distorts the comparison.
+- **Setup.** A line item requesting 10.
+- **Steps.** Offer 15.
+- **Expected.** Refused with that message.
+- **Oracle.** No bid, or the bid capped and the vendor told.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-015 — Offering in a different unit is refused
+- **Why it matters.** "Quantity should be in same unit as requested" (512) — a unit
+  mismatch makes every price incomparable.
+- **Steps.** Change the unit on the offer.
+- **Expected.** Refused, or the unit is not editable at all.
+- **Oracle.** The submitted bid's unit equals the requested unit.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-016 — A negative GST is refused
+- **Why it matters.** Its own refusal path ("Please enter valid GST", 107).
+- **Steps.** Enter a negative GST.
+- **Expected.** Refused.
+- **Oracle.** No bid created.
+- **Trace.** P2 · automate-later
+
+#### UI-VBID-017 — A discount above 100% is refused
+- **Why it matters.** "Please enter a valid discount" (369) — above 100% inverts the
+  price.
+- **Setup.** gate: trade credit / discount column present.
+- **Steps.** Enter 150%.
+- **Expected.** Refused.
+- **Oracle.** No bid created.
+- **Trace.** P2 · automate-later
+
+#### UI-VBID-018 — Bidding before the window opens is refused
+- **Why it matters.** An Upcoming event must not accept bids; the product says "Kindly
+  wait for the auction to start".
+- **Setup.** An Upcoming event with this vendor invited.
+- **Steps.** Open it and try to bid.
+- **Expected.** Cells are not editable, or submission is refused with that message.
+- **Oracle.** No bid created.
+- **Trace.** P0 · automate-later
+
+#### UI-VBID-019 — Bidding after the window closes is refused
+- **Why it matters.** The clearest integrity rule in the product: "Order not active"
+  (33). A late bid that lands is a fairness failure, not a UI bug.
+- **Setup.** A closed event with this vendor invited.
+- **Steps.** Open it and try to bid.
+- **Expected.** Refused.
+- **Oracle.** Bid count on the buyer's side unchanged.
+- **Trace.** P0 · automate-later
+
+#### UI-VBID-020 — Bidding on a withdrawn event is refused
+- **Why it matters.** Withdrawal must be immediate for vendors, not just cosmetic for
+  the buyer.
+- **Setup.** A withdrawn event.
+- **Steps.** As an invited vendor, attempt a bid.
+- **Expected.** Refused.
+- **Oracle.** No bid created.
+- **Trace.** P0 · automate-later
+
+#### UI-VBID-021 — Revising a bid inside the window replaces the value
+- **Why it matters.** Revision is normal in an auction, and the *latest* bid is what
+  ranks.
+- **Setup.** A live event with a submitted bid of 100.
+- **Steps.** Revise to 90 and submit.
+- **Expected.** The vendor's current bid is 90; the buyer sees 90 as current with 100 in
+  history.
+- **Oracle.** Buyer's current price = 90; the revision is visible in the bid history.
+- **Trace.** P0 · automate-later
+
+#### UI-VBID-022 — A second bid without revising is refused as already placed
+- **Why it matters.** The backend distinguishes "revise" from "create again" and refuses
+  the second create ("You have already placed a bid for this company.", 99 / "A bid has
+  already been placed by your team", 96).
+- **Setup.** A vendor with an active bid.
+- **Steps.** Attempt to create a fresh bid rather than revising.
+- **Expected.** Refused with that message.
+- **Oracle.** One active bid remains.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-023 — Another user from the same vendor company cannot bid twice
+- **Why it matters.** "A bid has already been placed by your team" — the check is at
+  company level, which is the level that matters commercially.
+- **Setup.** Two users on the same vendor company; one has bid.
+- **Steps.** As the second user, try to bid.
+- **Expected.** Refused, with the existing bid visible instead.
+- **Oracle.** Still one bid for that company.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-024 — Bidding after revoking a previous bid is refused
+- **Why it matters.** A dedicated rule ("You cannot place a bid after revoking the
+  previous one", 370) that is easy to violate by accident.
+- **Setup.** A vendor who revoked their bid.
+- **Steps.** Try to bid again.
+- **Expected.** Refused with that message.
+- **Oracle.** No new bid.
+- **Trace.** P2 · automate-later
+
+#### UI-VBID-025 — A vendor cannot see another vendor's price
+- **Why it matters.** PRD §7.2 in the plainest possible form. This is the case you would
+  keep if you could keep only one from this section.
+- **Setup.** A live event with bids from vendor A (100) and vendor B (90).
+- **Steps.** As A, inspect every screen the portal offers — sheet, overview,
+  indicators, any comparison.
+- **Expected.** A sees their own 100 and never B's 90. Rank or a colour is acceptable;
+  a competitor's number is not.
+- **Oracle.** Scan the rendered page text and the network responses the portal receives
+  for B's price. Checking only the visible DOM is not enough — a price present in the
+  payload is a leak.
+- **Trace.** P0 · automate-later · PRD §7.2
+
+#### UI-VBID-026 — Rank feedback is shown on a rank-based auction
+- **Why it matters.** It is the only competitive signal the vendor gets, and it is why
+  the strategy exists.
+- **Setup.** A live rank auction with two bids.
+- **Steps.** As the trailing vendor, read the indicator.
+- **Expected.** A rank (e.g. L2), not a price.
+- **Oracle.** Rank shown; no competitor price anywhere.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-027 — Best price is shown on a price-based auction, per configuration
+- **Why it matters.** Here a number *is* shown deliberately, so the isolation rule and
+  this rule must not be confused with one another.
+- **Setup.** gate: show-best-price. A live price auction with two bids.
+- **Steps.** As the trailing vendor, read the indicator.
+- **Expected.** The best price is shown, without attribution to a vendor.
+- **Oracle.** The number equals the leading bid; no vendor name accompanies it.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-028 — A vendor answers the technical questionnaire before pricing
+- **Why it matters.** It is the RFP half of a two-stage event, and the pricing stage
+  should not be reachable until it is done.
+- **Setup.** A live RFP + RFQ event with this vendor invited.
+- **Steps.** Open the technical stage. Answer each question. Submit the response.
+- **Expected.** The response is submitted and the buyer can see it.
+- **Oracle.** The buyer's view shows a submitted technical response for this vendor.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-029 — An incomplete technical response is refused
+- **Why it matters.** A partial questionnaire cannot be evaluated, and evaluators score
+  against completeness.
+- **Steps.** Leave a required question blank and submit.
+- **Expected.** Refused, naming the missing question.
+- **Oracle.** No submitted response; message identifies the gap.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-030 — Attaching a document to a bid works and the buyer can open it
+- **Why it matters.** Bid attachments are contractual (certificates, specs) and a broken
+  link is only discovered at award time.
+- **Setup.** A live event, bid in progress.
+- **Steps.** Attach a PDF and submit.
+- **Expected.** The buyer sees and can download the attachment.
+- **Oracle.** The file opens from the buyer's side with the original name.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-031 — A bid survives a portal reload before submission
+- **Why it matters.** A 40-row sheet lost to a refresh is the vendor's worst experience,
+  and drafts exist to prevent it.
+- **Setup.** A partially filled bid sheet.
+- **Steps.** Reload the portal and reopen the event.
+- **Expected.** Either the draft values are restored, or the vendor is warned before
+  leaving. Not silently emptied.
+- **Oracle.** Values restored, or a warning was shown.
+- **Trace.** P1 · automate-later
+
+#### UI-VBID-032 — Two vendors bidding on one event produce two competing bids
+- **Why it matters.** Everything in §17 needs more than one bid to award between, and a
+  journey that accidentally bids twice as the *same* vendor produces one bid while
+  claiming two — a test asserting "two bids" then passes on a broken fixture.
+- **Setup.** A live event with two distinct vendor companies invited.
+- **Steps.** As vendor A, bid 100. As vendor B, bid 90.
+- **Expected.** Two bids from two different companies.
+- **Oracle.** The buyer's comparison lists two distinct vendor names — assert the *names
+  differ*, not just that the count is 2.
+- **Trace.** P0 · automate · flow "two competing bids"
+
+---
+
+## 16. Surrogate bidding
+
+The buyer entering a bid on a vendor's behalf, without ever leaving the console. It is
+in the PRD (§3.4) as a first-class capability and it is fenced in more ways than any
+other action in the module.
+
+The contract, from the app: the trigger is an **Add Bid** control rendered per vendor on
+a published event's **Participants** tab, and only when that vendor is selected, the
+event is not withdrawn or draft, and its status is upcoming or live — unless the company
+has post-expiry surrogate bidding switched on. The drawer's submit stays **disabled
+until at least one row has a price**. And the drawer does not render at all for knockout
+or dutch auctions, nor for technical stages, which use a separate "Add Technical Bid".
+
+#### UI-SUR-001 — The Participants tab of a published event offers Add Bid per vendor
+- **Why it matters.** It is the entry point, and it lives on a *stage* tab, not the
+  project tab — selecting a stage navigates, so the list arrives with a new page.
+- **Setup.** A published, live event with invited vendors.
+- **Steps.** Open the event. Select the stage tab. Open Participants.
+- **Expected.** The vendor list renders with an Add Bid control on the eligible rows.
+- **Oracle.** Reaching the list is the success condition — **not** finding an Add Bid
+  control. The list is paginated and only eligible vendors show the control, so a
+  single-vendor event shows a first page of other companies with none. Demanding the
+  control here reports "surrogate bidding is unavailable" when the vendor is simply on
+  another page.
+- **Trace.** P0 · automate · `SurrogateBidPage.openParticipants`
+
+#### UI-SUR-002 — A named vendor is found by searching the participant list
+- **Why it matters.** With 154 vendors, the wanted one is almost never on page one, and
+  a surrogate bid placed for the wrong vendor is worse than none.
+- **Setup.** A live event with a known vendor on its audience.
+- **Steps.** Type the vendor's name into the participant search. Wait for the list to
+  narrow.
+- **Expected.** That vendor's row is visible with its Add Bid control.
+- **Oracle.** Narrow the list *before* looking for the control; assert the chosen row's
+  text contains the vendor name. Read the name from the row (the `rowItem` ancestor),
+  not from the button's wrapper — the wrapper says only "Add Bid", which makes every
+  vendor look identical and sends every match to the first row.
+- **Trace.** P0 · automate
+
+#### UI-SUR-003 — The Add Bid drawer opens with that vendor's sheet
+- **Why it matters.** The drawer is per-vendor; opening the wrong one attributes the bid
+  to the wrong company.
+- **Steps.** Click Add Bid on the chosen row.
+- **Expected.** A drawer with the event's line items and the vendor's name on it.
+- **Oracle.** Drawer identified by containing the submit control; the vendor name in the
+  drawer matches the row.
+- **Trace.** P0 · automate
+
+#### UI-SUR-004 — Submit is disabled until a price is entered
+- **Why it matters.** It is the product's own guard against an empty surrogate bid, and
+  it doubles as the oracle for "did my values register in the sheet's state".
+- **Setup.** The drawer open, nothing entered.
+- **Steps.** Read the submit control.
+- **Expected.** Disabled.
+- **Oracle.** Disabled with nothing entered; enabled after one price. If it stays
+  disabled after prices are typed, report exactly that — the values did not register —
+  rather than clicking blindly and reporting "nothing happened".
+- **Trace.** P0 · automate
+
+#### UI-SUR-005 — A surrogate bid is submitted and attributed to the vendor
+- **Why it matters.** The core of PRD §3.4's second half.
+- **Steps.** Fill every price cell. Submit. Confirm if a modal appears.
+- **Expected.** The bid is recorded against that vendor, marked as buyer-added.
+- **Oracle.** The comparison shows a bid for that vendor at that price, flagged
+  surrogate; no error toast after submit.
+- **Trace.** P0 · automate · flow "surrogate bidding by vendor name"
+
+#### UI-SUR-006 — Every price cell in the drawer is filled, not just the first
+- **Why it matters.** The drawer reuses the data grid, so one priced row is enough to
+  enable submit while leaving an incomplete bid — the same trap as UI-VBID-007, on the
+  buyer's side.
+- **Setup.** A multi-line event.
+- **Steps.** Fill all price cells (and the offered-quantity cells the grid exposes).
+  Submit.
+- **Expected.** A complete bid across every line.
+- **Oracle.** Count the filled cells; assert the buyer's comparison shows a price on
+  every line.
+- **Trace.** P0 · automate
+
+#### UI-SUR-007 — Two unnamed surrogate bids land on two different vendors
+- **Why it matters.** Without tracking who was already bid for, two "give me any
+  vendor" surrogate bids both pick the first row — the event ends with one bid while a
+  test asserting two passes.
+- **Setup.** A live event with at least two eligible vendors.
+- **Steps.** Place a surrogate bid without naming a vendor, twice.
+- **Expected.** Two bids from two different companies.
+- **Oracle.** The two chosen row texts differ; the comparison shows two distinct vendors.
+- **Trace.** P0 · automate
+
+#### UI-SUR-008 — Add Bid is absent on a draft event
+- **Why it matters.** A bid on an unpublished event has nothing to bid against.
+- **Setup.** A draft event.
+- **Steps.** Look for the participant list and the control.
+- **Expected.** Not offered.
+- **Oracle.** Zero Add Bid controls.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-009 — Add Bid is absent on a withdrawn event
+- **Why it matters.** Withdrawal must close the buyer's path too, not just the vendor's.
+- **Setup.** A withdrawn event.
+- **Steps.** Open Participants.
+- **Expected.** No Add Bid controls.
+- **Oracle.** Zero controls.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-010 — Add Bid is offered on an Upcoming event
+- **Why it matters.** Deliberately wider than the vendor's own window — a buyer can
+  enter a bid received by phone before the event opens.
+- **Setup.** An Upcoming event.
+- **Steps.** Open Participants and place a surrogate bid.
+- **Expected.** Offered and accepted.
+- **Oracle.** Bid recorded; contrast with UI-VBID-018, where the vendor cannot.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-011 — After expiry, Add Bid depends on the company's post-expiry setting
+- **Why it matters.** It is the one setting that changes whether late surrogate bids are
+  possible at all, and it has obvious integrity implications.
+- **Setup.** Two tenants: post-expiry surrogate bidding on and off. A closed event on
+  each.
+- **Steps.** Open Participants on each.
+- **Expected.** Offered where the setting is on, absent where it is off.
+- **Oracle.** Control presence flips with the setting; where absent, a crafted attempt is
+  refused with "Order not active".
+- **Trace.** P0 · automate-later · `is_allowed_to_add_surrogate_bid_post_expiry?`
+
+#### UI-SUR-012 — Add Bid is absent on a knockout auction
+- **Why it matters.** Knockout runs on automated offers; a manual surrogate bid has no
+  meaning in it.
+- **Setup.** A live knockout auction.
+- **Steps.** Open Participants.
+- **Expected.** No Add Bid drawer.
+- **Oracle.** Zero controls.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-013 — Add Bid is absent on a dutch auction
+- **Why it matters.** Same reasoning, different strategy.
+- **Setup.** A live dutch auction.
+- **Steps.** Open Participants.
+- **Expected.** No Add Bid drawer.
+- **Oracle.** Zero controls.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-014 — A technical stage offers Add Technical Bid, not Add Bid
+- **Why it matters.** They are different controls with different payloads; conflating
+  them makes a technical surrogate response look impossible.
+- **Setup.** A live RFP stage.
+- **Steps.** Open Participants.
+- **Expected.** A technical-bid control, no price drawer.
+- **Oracle.** The technical control exists; the price drawer does not.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-015 — A surrogate technical response can be entered for a vendor
+- **Why it matters.** It is the technical half of surrogate bidding, and the API has a
+  dedicated endpoint for it.
+- **Setup.** A live RFP stage with an invited vendor.
+- **Steps.** Add a technical bid for that vendor: answer both the global and the
+  line-item forms, submit.
+- **Expected.** Submitted and attributed to the vendor.
+- **Oracle.** The buyer sees a submitted technical response for that vendor, marked
+  surrogate. Pairs with API-SUR-002.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-016 — Surrogate bidding is refused when the company forbids it
+- **Why it matters.** `is_buyer_not_allowed_to_add_surrogate_bid` exists precisely so
+  some organisations can bar it, and honouring it is a compliance matter.
+- **Setup.** An event whose config forbids buyer surrogate bids.
+- **Steps.** Attempt a surrogate bid.
+- **Expected.** Refused ("You are not allowed to use this functionality", 10).
+- **Oracle.** No bid created; the control is absent or the attempt refused.
+- **Trace.** P0 · automate-later
+
+#### UI-SUR-017 — Only a valid surrogate bidder may place one
+- **Why it matters.** The gate is super-admin, a member of a valid bidding team, or the
+  event's own creator. Anyone else placing bids for vendors is a serious problem.
+- **Setup.** A buyer who is none of those three, on an event they can otherwise see.
+- **Steps.** Attempt a surrogate bid.
+- **Expected.** Refused (165).
+- **Oracle.** No bid created.
+- **Trace.** P0 · automate-later · `is_surrogate_bidding_and_is_allowed?`
+
+#### UI-SUR-018 — A surrogate bid for a vendor who already bid is refused by default
+- **Why it matters.** Overwriting a vendor's own bid is the most damaging thing this
+  feature could do; by default it is refused (99) and only a specific config allows it.
+- **Setup.** A vendor who has submitted their own bid, on a tenant without
+  `allowed_surrogate_bid_even_after_bid`.
+- **Steps.** Attempt a surrogate bid for them.
+- **Expected.** Refused.
+- **Oracle.** The vendor's own bid is unchanged.
+- **Trace.** P0 · automate-later
+
+#### UI-SUR-019 — Where the config allows it, a later surrogate bid revises rather than duplicates
+- **Why it matters.** With `allowed_surrogate_bid_even_after_bid` on, the product
+  *revises* the existing surrogate bid. Creating a second one instead would double-count
+  the vendor in the comparison.
+- **Setup.** gate: `allowed_surrogate_bid_even_after_bid`. A vendor with an existing
+  surrogate bid.
+- **Steps.** Place another surrogate bid for them at a new price.
+- **Expected.** One bid, at the new price, with the old value in history.
+- **Oracle.** Bid count for that vendor is still 1; the current price is the new one.
+- **Trace.** P0 · automate-later · `validate_existing_bids_if_present`
+
+#### UI-SUR-020 — A surrogate bid may require approval before it counts
+- **Why it matters.** On tenants with a surrogate-bid approval flow, the bid is
+  *requested*, not active — and a test asserting an immediate active bid fails there
+  forever.
+- **Setup.** gate: surrogate-bid approval configured.
+- **Steps.** Place a surrogate bid.
+- **Expected.** It enters an approval-pending state and an approver has a task.
+- **Oracle.** Bid status is approval-requested; the approver's task list contains it.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-021 — Reading the surrogate approval flows needs approval-read permission
+- **Why it matters.** It is the one genuinely gated method on an otherwise open bid
+  policy, which makes it easy to lose.
+- **Setup.** A buyer without approval-flow read permission.
+- **Steps.** Trigger the surrogate approval-flow lookup.
+- **Expected.** Refused.
+- **Oracle.** Refusal rather than an empty list — an empty list would look like "no
+  approval needed" and let the bid through. Pairs with API-SUR-011.
+- **Trace.** P1 · automate-later · `bid_policy.rb:53-60`
+
+#### UI-SUR-022 — A surrogate bid is visibly marked as buyer-entered
+- **Why it matters.** At award time it matters enormously whether a price came from the
+  vendor or from the buyer's phone call. If it is not labelled, the audit trail is gone.
+- **Setup.** An event with one vendor bid and one surrogate bid.
+- **Steps.** Read the buyer's comparison.
+- **Expected.** The surrogate bid is labelled as such; the vendor's own is not.
+- **Oracle.** The label is present on exactly one of the two.
+- **Trace.** P0 · automate-later
+
+#### UI-SUR-023 — A surrogate bid is refused with a negative or absent price
+- **Why it matters.** Same validation as a vendor's bid; the surrogate path must not be
+  the lenient one.
+- **Steps.** Enter a negative price, then clear the cell entirely, and try to submit
+  each time.
+- **Expected.** Refused both times.
+- **Oracle.** Submit stays disabled for the empty case; a message for the negative.
+- **Trace.** P1 · automate-later
+
+#### UI-SUR-024 — A surrogate bid appears to the vendor as their own bid
+- **Why it matters.** If the vendor cannot see it, they may bid again and the two
+  disagree; if they can, they can query it. Either way, the state must be honest.
+- **Setup.** An event with a surrogate bid placed for a vendor.
+- **Steps.** As that vendor, open the event.
+- **Expected.** The bid is visible with its price, and the product is clear about who
+  entered it.
+- **Oracle.** The vendor's portal shows a bid at that price.
+- **Trace.** P1 · automate-later
+
+---
+
+## 17. Awarding
+
+The end of the journey: choosing whose bid wins and turning that into a proposal that
+goes through an approval workflow. Two things about this screen are easy to get wrong,
+and both were discovered the hard way.
+
+**The entry control changes once a proposal exists.** Master QCS renders "Start
+Awarding" only while there is no current proposal; afterwards it becomes "Bid Selection
+Proposal" with a Draft tag. A flow that knows only the first control works exactly once
+and then reports the feature missing.
+
+**There are two counters and they measure different things.** "Tot. selected line items"
+counts what will be awarded; "Awarded Vendors" counts who it goes to. The checkbox that
+awards a vendor moves only the second — treating it as an unrelated toggle and unticking
+it makes Create Proposal refuse with "Please award for at least one Vendor".
+
+#### UI-AWD-001 — Master QCS is reachable on a closed event with bids
+- **Why it matters.** It is the door to awarding; if it does not open, nothing else here
+  runs.
+- **Setup.** A published event with at least one submitted bid.
+- **Steps.** Open the event → Master QCS tab.
+- **Expected.** The comparison grid renders with the line items and the bidding vendors.
+- **Oracle.** The grid is present and lists the expected vendor(s).
+- **Trace.** P0 · automate · `AwardPage.openMasterQcs`
+
+#### UI-AWD-002 — The comparison shows every bid, per line item, with totals
+- **Why it matters.** It is the decision surface. A missing or misattributed bid here
+  produces a wrong award.
+- **Setup.** An event with two vendors' bids at known prices.
+- **Steps.** Read the grid.
+- **Expected.** Both vendors, both prices, correct per-line and total amounts.
+- **Oracle.** Compare every rendered price against the fixture; assert the vendor names
+  are the real ones and not placeholders.
+- **Trace.** P0 · automate
+
+#### UI-AWD-003 — Start Awarding enters the awarding flow
+- **Why it matters.** The first of the two entry controls.
+- **Setup.** An event with bids and no proposal yet.
+- **Steps.** Press Start Awarding.
+- **Expected.** The awarding screen opens for this event.
+- **Oracle.** URL moves to the awarding route with the event's id.
+- **Trace.** P0 · automate
+
+#### UI-AWD-004 — Bid Selection Proposal re-enters the flow once a draft proposal exists
+- **Why it matters.** Without this, awarding appears to work once per event and then
+  vanish.
+- **Setup.** An event with a draft proposal.
+- **Steps.** Return to Master QCS and read the entry control.
+- **Expected.** "Bid Selection Proposal" with a Draft tag, and it re-enters the flow.
+- **Oracle.** The second control exists and navigates; the first is absent.
+- **Trace.** P0 · automate
+
+#### UI-AWD-005 — A disabled awarding control explains itself
+- **Why it matters.** Awarding is gated by `is_awarding_allowed` and the button carries
+  a tooltip saying why — a live event, a stage still in draft, or a superseded version.
+  That reason is worth reporting instead of discovering as a dead click.
+- **Setup.** A live event whose bidding is still open.
+- **Steps.** Hover the awarding control.
+- **Expected.** Disabled, with a tooltip naming the reason.
+- **Oracle.** Report the tooltip text; do not click through.
+- **Trace.** P1 · automate
+
+#### UI-AWD-006 — Awarding is blocked while a selected or requested proposal exists
+- **Why it matters.** Two live proposals on one event would award it twice.
+- **Setup.** An event with a submitted (requested) proposal.
+- **Steps.** Try to start a new award.
+- **Expected.** Blocked, with the existing proposal offered instead.
+- **Oracle.** No second proposal is created. Pairs with API-AWD-005.
+- **Trace.** P0 · automate-later · `is_awarding_allowed?`
+
+#### UI-AWD-007 — Awarding is blocked while this user holds a draft proposal
+- **Why it matters.** The gate is per-user for drafts, which is subtly different from
+  the previous case.
+- **Setup.** The same buyer with a draft proposal on the event.
+- **Steps.** Try to start a fresh award.
+- **Expected.** Blocked; the draft is offered.
+- **Oracle.** Proposal count unchanged.
+- **Trace.** P1 · automate-later
+
+#### UI-AWD-008 — Allocating a line item to a vendor moves the item counter
+- **Why it matters.** It is one of the two counters, and it is the one that says *what*
+  is being awarded.
+- **Setup.** The awarding grid with two line items.
+- **Steps.** Allocate one line item to a vendor.
+- **Expected.** "Tot. selected line items" reads 1/2.
+- **Oracle.** Read the app's own counter — it is a more honest oracle than inferring
+  which checkbox belongs to which vendor from the DOM.
+- **Trace.** P0 · automate · `AwardPage.allocate`
+
+#### UI-AWD-009 — Awarding a vendor moves the vendor counter
+- **Why it matters.** It is the counter the Create Proposal validation actually checks,
+  and the one that was mistaken for an unrelated toggle.
+- **Steps.** Tick the control that awards the vendor.
+- **Expected.** "Awarded Vendors" rises to 1.
+- **Oracle.** Both counters must be non-zero before Create Proposal; assert each
+  separately so a failure says which one is missing.
+- **Trace.** P0 · automate
+
+#### UI-AWD-010 — Create Proposal is refused with no vendor awarded
+- **Why it matters.** It is the exact failure the two-counter confusion produced:
+  "Please award for at least one Vendor".
+- **Setup.** Line items allocated but no vendor awarded.
+- **Steps.** Press Create Proposal.
+- **Expected.** Refused with that message.
+- **Oracle.** Message shown; no proposal created.
+- **Trace.** P0 · automate
+
+#### UI-AWD-011 — Create Proposal produces a draft proposal
+- **Why it matters.** Creation and submission are deliberately separate — which is why
+  the Master QCS control changes — and a draft proposal is not an awarded event.
+- **Steps.** Allocate, award, Create Proposal.
+- **Expected.** A draft proposal exists with the allocation on it.
+- **Oracle.** Proposal exists in draft with the expected vendor and line items. A
+  missing submit control must be reported, not treated as success.
+- **Trace.** P0 · automate
+
+#### UI-AWD-012 — Submitting the proposal sends it into the approval workflow
+- **Why it matters.** PRD §3.5 — the award goes through a proposal *and* an approval
+  workflow. Submission is the point of no return.
+- **Steps.** Submit the draft proposal.
+- **Expected.** Status moves to requested; approvers have tasks.
+- **Oracle.** Proposal status requested; approver task exists.
+- **Trace.** P0 · automate · flow `award` (create → bid → award)
+
+#### UI-AWD-013 — An approver approves and the award completes
+- **Why it matters.** It is the last step of the whole catalog and the one that changes
+  commercial reality.
+- **Setup.** A submitted proposal and its approver.
+- **Steps.** As the approver, open the task and approve.
+- **Expected.** The proposal is selected; the event shows as awarded to that vendor.
+- **Oracle.** Event state awarded; the awarded vendor and quantity match the allocation.
+- **Trace.** P0 · automate-later
+
+#### UI-AWD-014 — A rejected proposal returns the event to awardable
+- **Why it matters.** Otherwise a rejection deadlocks the event.
+- **Setup.** A submitted proposal.
+- **Steps.** As the approver, reject with remarks.
+- **Expected.** The event can be awarded again; the rejection and remarks are recorded.
+- **Oracle.** Awarding controls re-enable; the rejection is in the history.
+- **Trace.** P1 · automate-later
+
+#### UI-AWD-015 — Discarding a draft proposal re-enables awarding
+- **Why it matters.** It is the escape hatch from UI-AWD-007, and it must actually clear
+  the gate.
+- **Setup.** A draft proposal.
+- **Steps.** Discard it.
+- **Expected.** Awarding is available again.
+- **Oracle.** The Start Awarding control returns.
+- **Trace.** P1 · automate-later
+
+#### UI-AWD-016 — Partial awarding splits one line item across vendors
+- **Why it matters.** It is the whole reason line-item awarding mode exists, and the
+  quantities must add up.
+- **Setup.** A line-item-awarding event with a quantity of 100 and two bids.
+- **Steps.** Award 60 to A and 40 to B.
+- **Expected.** Both allocations recorded; total awarded = 100.
+- **Oracle.** Sum of awarded quantities equals the requested quantity; neither vendor
+  exceeds their offered quantity.
+- **Trace.** P0 · automate-later
+
+#### UI-AWD-017 — Awarding more than the requested quantity is refused
+- **Why it matters.** Over-awarding creates a commitment the requisition never covered.
+- **Setup.** A quantity of 100.
+- **Steps.** Try to award 60 + 60.
+- **Expected.** Refused with a readable message.
+- **Oracle.** No proposal with 120 awarded.
+- **Trace.** P0 · automate-later
+
+#### UI-AWD-018 — Awarding the whole lot on a partial-lot RFQ is refused
+- **Why it matters.** The backend refuses it in words ("You cannot award entire lot when
+  RFQ was done for partial lot.", 503) and the reason is genuinely non-obvious.
+- **Setup.** An RFQ run as partial lot.
+- **Steps.** Try to award the entire lot to one vendor.
+- **Expected.** Refused with that message.
+- **Oracle.** Message shown; no proposal.
+- **Trace.** P1 · automate-later
+
+#### UI-AWD-019 — Closing the bid to select a winner is refused outside the allowed window
+- **Why it matters.** `close_bid` has its own timing gate ("Unable to close the order at
+  this time. Please wait for the bidding to end", 9), and closing early would cut off
+  bids that were still permitted.
+- **Setup.** A live event still inside its bidding window.
+- **Steps.** Attempt to close the bid and select a winner.
+- **Expected.** Refused with that message.
+- **Oracle.** The event stays live; no winner is set.
+- **Trace.** P1 · automate-later
+
+#### UI-AWD-020 — The awarding report downloads and matches the screen
+- **Why it matters.** The report is what leaves the building — it goes to finance and to
+  the vendor. A mismatch with the screen is the most consequential inconsistency in the
+  module.
+- **Setup.** An awarded event.
+- **Steps.** Download the awarding sheet.
+- **Expected.** A file whose vendors, line items, quantities and prices match the grid.
+- **Oracle.** Parse the file and compare the numbers cell by cell against the rendered
+  grid.
+- **Trace.** P1 · automate-later
+
+---
+
+## 18. Isolation, masking and permissions
+
+The cases that answer "can the wrong person see or do this?". PRD §7.2 makes bid
+isolation an absolute, and everything else here is the permission matrix expressed as
+journeys.
+
+#### UI-PERM-001 — A vendor cannot open an event they were not invited to
+- **Why it matters.** Direct-URL access is the first thing anyone tries.
+- **Setup.** An event's URL and an uninvited vendor.
+- **Steps.** Navigate directly.
+- **Expected.** Refused, not rendered.
+- **Oracle.** The event's title and prices are absent from the response.
+- **Trace.** P0 · automate-later
+
+#### UI-PERM-002 — A vendor with no visible stage cannot view the event at all
+- **Why it matters.** Read permission alone is not enough — the policy also requires at
+  least one visible stage, which is a rule people forget exists.
+- **Setup.** A vendor on the company's platform but not on any stage's audience.
+- **Steps.** Attempt to open the event.
+- **Expected.** Refused.
+- **Oracle.** Authorization failure rather than an empty event page. Pairs with
+  API-PERM-001.
+- **Trace.** P0 · automate-later · `event_group_policy.rb:52-54`
+
+#### UI-PERM-003 — A buyer from another company cannot see the event
+- **Why it matters.** Cross-tenant isolation, the highest-stakes boundary in the system.
+- **Setup.** Two companies; an event in company A.
+- **Steps.** As a buyer in company B, search for and navigate to it.
+- **Expected.** Not found; direct access refused.
+- **Oracle.** Zero rows and a refusal.
+- **Trace.** P0 · automate-later
+
+#### UI-PERM-004 — A buyer without trade-create permission cannot create or publish
+- **Why it matters.** Permissions are team-based here, so a user can look like a buyer
+  and not be one.
+- **Setup.** A user whose teams grant read but not create on `trade`.
+- **Steps.** Try to reach the create screen and publish.
+- **Expected.** Refused or unavailable.
+- **Oracle.** No event created.
+- **Trace.** P0 · automate-later
+
+#### UI-PERM-005 — A user without sourcing-events access cannot create a stage
+- **Why it matters.** `has_access_for_sourcing_events?` is a second, independent gate on
+  stage creation; passing the first and failing this one is a real configuration.
+- **Setup.** A user with trade-create but without sourcing-events access.
+- **Steps.** Attempt to create a stage.
+- **Expected.** Refused.
+- **Oracle.** No stage created. Pairs with API-PERM-004.
+- **Trace.** P1 · automate-later
+
+#### UI-PERM-006 — A planner cannot clone an event
+- **Why it matters.** A specific policy carve-out that would otherwise pass silently
+  because cloning needs only create permission.
+- **Setup.** A planner with create permission.
+- **Steps.** Try to clone an active event.
+- **Expected.** Refused.
+- **Oracle.** No clone created.
+- **Trace.** P2 · automate-later
+
+#### UI-PERM-007 — Vendor masking removes the Audience tab
+- **Why it matters.** gate: `isVendorMaskingEnabled`. Masking exists so a buyer's team
+  cannot see who is bidding; leaving the tab in defeats it entirely.
+- **Setup.** gate: `isVendorMaskingEnabled`.
+- **Steps.** Open a published event's tabs.
+- **Expected.** No Audience tab.
+- **Oracle.** Tab absent from the list.
+- **Trace.** P0 · automate-later
+
+#### UI-PERM-008 — Vendor masking hides vendor identities in the comparison
+- **Why it matters.** The tab being gone is worthless if the names appear on the grid.
+- **Setup.** gate: `isVendorMaskingEnabled`. An event with two bids.
+- **Steps.** Open Master QCS.
+- **Expected.** Vendors appear as anonymised labels, not company names.
+- **Oracle.** No real vendor name in the rendered grid **or** in the payload behind it.
+- **Trace.** P0 · manual
+
+#### UI-PERM-009 — An evaluator sees the technical response and not the prices
+- **Why it matters.** The separation of technical and commercial evaluation is the point
+  of a two-stage event.
+- **Setup.** An RFP + RFQ event with a submitted technical response and a bid.
+- **Steps.** As the evaluator, open the response.
+- **Expected.** Questionnaire answers visible; prices not.
+- **Oracle.** No bid price in the evaluator's view or its payload.
+- **Trace.** P0 · automate-later · PRD §2
+
+#### UI-PERM-010 — A vendor cannot reach the buyer console
+- **Why it matters.** Two applications, one identity provider — the boundary must hold.
+- **Setup.** Vendor credentials.
+- **Steps.** Try to log into the buyer console.
+- **Expected.** Refused.
+- **Oracle.** No authenticated buyer session.
+- **Trace.** P0 · automate-later
+
+#### UI-PERM-011 — A buyer cannot place a bid as their own company
+- **Why it matters.** "Cannot place bid on trade by your own company" (165) — otherwise
+  a buyer could bid against their own event.
+- **Setup.** A buyer on their own event.
+- **Steps.** Attempt to bid as the buying company.
+- **Expected.** Refused.
+- **Oracle.** No bid created.
+- **Trace.** P0 · automate-later
+
+#### UI-PERM-012 — Feedback on a bid is restricted to the order's team or a super admin
+- **Why it matters.** A narrow gate on an otherwise open bid policy, so it is easy to
+  lose in a refactor.
+- **Setup.** A buyer not on the order's team and not a super admin.
+- **Steps.** Attempt to add feedback on a bid.
+- **Expected.** Refused.
+- **Oracle.** No feedback recorded. Pairs with API-PERM-011.
+- **Trace.** P2 · automate-later
+
+#### UI-PERM-013 — Uploading a bid Excel needs view access to the event
+- **Why it matters.** It is a bulk write path, and bulk write paths with weak
+  authorization are the worst kind.
+- **Setup.** A user without view access to the event.
+- **Steps.** Attempt the upload.
+- **Expected.** Refused.
+- **Oracle.** No bids created.
+- **Trace.** P1 · automate-later
+
+#### UI-PERM-014 — Session expiry mid-journey is handled, not crashed into
+- **Why it matters.** A long bidding session outlives a token, and the vendor must be
+  told rather than losing a filled sheet to a silent failure.
+- **Setup.** A filled bid sheet and an expired session.
+- **Steps.** Submit.
+- **Expected.** A re-authentication prompt or a clear message; the entered values are
+  not lost without warning.
+- **Oracle.** A readable message rather than a blank screen or a swallowed error.
+- **Trace.** P1 · manual
+
+---
+
+## 19. Data validation and unpleasant input
+
+PRD §5 in one place: required fields enforced, valid formats, positive quantities, and
+malformed input answered **politely** — a 4xx with a readable message, never a 500 and
+never a silent partial save. Plus §6's unusual text.
+
+#### UI-VAL-001 — Every required field on the create screen is enforced
+- **Why it matters.** It is the requirement stated most broadly in the PRD, so it needs
+  a systematic case rather than one per field.
+- **Setup.** A create screen.
+- **Steps.** Attempt publish with each required field blank in turn — title, template,
+  line items, schedule, participants.
+- **Expected.** Each is refused with a message naming the field. No partial event.
+- **Oracle.** For each: publish blocked, message present, and zero events created.
+- **Trace.** P0 · automate · PRD §5
+
+#### UI-VAL-002 — A whitespace-only title is treated as blank
+- **Why it matters.** It is the standard way past a presence check.
+- **Steps.** Title `"   "`. Publish.
+- **Expected.** Refused as missing.
+- **Oracle.** Publish blocked.
+- **Trace.** P1 · automate
+
+#### UI-VAL-003 — HTML in a title is escaped, not rendered
+- **Why it matters.** Stored XSS in an event title would reach every invited vendor.
+- **Steps.** Title `<img src=x onerror=alert(1)>`. Publish. View the list, the detail
+  page and the vendor's portal.
+- **Expected.** The text renders literally; no script executes anywhere.
+- **Oracle.** No dialog/console error; the DOM contains escaped text, not an element.
+- **Trace.** P0 · automate-later
+
+#### UI-VAL-004 — A script payload in a line-item or clause field is escaped
+- **Why it matters.** Titles are the obvious field; clauses and item descriptions reach
+  vendors too.
+- **Steps.** Put the same payload in a T&C clause and an item description. Publish. View
+  as the vendor.
+- **Expected.** Escaped everywhere.
+- **Oracle.** No execution in either view.
+- **Trace.** P0 · manual
+
+#### UI-VAL-005 — SQL-ish input is handled as text
+- **Why it matters.** `'; DROP TABLE` in a search box is the cheapest smoke test for a
+  whole class of failure.
+- **Steps.** Search the events list and the participant list for `'; DROP TABLE
+  event_groups; --`.
+- **Expected.** Zero or literal matches; no error.
+- **Oracle.** A normal empty-result state; no 500.
+- **Trace.** P1 · automate
+
+#### UI-VAL-006 — A very long string in every text field is bounded politely
+- **Why it matters.** PRD §6. Unbounded fields become database errors, which become
+  500s.
+- **Steps.** Enter 10,000 characters into the title, description and a clause.
+- **Expected.** Either accepted whole or refused with a stated limit. No 500, no silent
+  truncation.
+- **Oracle.** Per field: a message, or a value that round-trips exactly.
+- **Trace.** P1 · automate-later · PRD §6
+
+#### UI-VAL-007 — Emoji survive in titles, descriptions and clauses
+- **Why it matters.** Four-byte characters are where encoding assumptions break.
+- **Steps.** Use emoji in each. Publish. Read back on the buyer's and vendor's views.
+- **Expected.** Identical rendering everywhere.
+- **Oracle.** Byte equality on read-back.
+- **Trace.** P2 · automate · PRD §6
+
+#### UI-VAL-008 — Right-to-left and CJK text render without breaking layout
+- **Why it matters.** Real tenants have them, and a broken grid is unusable rather than
+  merely ugly.
+- **Steps.** Enter Arabic and Chinese text in a title and a line-item description.
+- **Expected.** Rendered correctly; the sheet's columns stay aligned.
+- **Oracle.** No horizontal overflow of the grid container; text matches.
+- **Trace.** P3 · manual
+
+#### UI-VAL-009 — Leading and trailing whitespace is trimmed consistently
+- **Why it matters.** `"RFQ "` and `"RFQ"` as two different titles makes search
+  unreliable for everyone.
+- **Steps.** Publish with `"  Event A  "`. Search for `"Event A"`.
+- **Expected.** Found; the stored title is trimmed.
+- **Oracle.** Search hit and an exact stored value.
+- **Trace.** P2 · automate
+
+#### UI-VAL-010 — A number field rejects `e`-notation and thousands separators
+- **Why it matters.** `1e5` and `1,00,000` both parse to something unexpected somewhere
+  in the stack.
+- **Steps.** Enter `1e5` and `1,00,000` into a price cell.
+- **Expected.** Refused or normalised visibly. Not stored as an unrelated number.
+- **Oracle.** The stored value equals what is displayed.
+- **Trace.** P2 · automate-later
+
+#### UI-VAL-011 — More decimal places than the template allows are rounded visibly
+- **Why it matters.** Silent rounding of a price changes the bid.
+- **Steps.** Enter `100.999` where 2 decimals are configured.
+- **Expected.** Rounded to `101.00` **and** shown that way before submission.
+- **Oracle.** Displayed and stored values agree.
+- **Trace.** P1 · automate-later
+
+#### UI-VAL-012 — Duplicate product names in master data do not confuse the picker
+- **Why it matters.** PRD §6 lists duplicate product names; the picker must disambiguate
+  or the buyer adds the wrong item.
+- **Setup.** Two products with the same name and different codes.
+- **Steps.** Search for the name in the line-items picker.
+- **Expected.** Both are offered, distinguishable (code, category or variant).
+- **Oracle.** Two options with distinguishing text; the chosen one is the one that lands.
+- **Trace.** P1 · automate-later · PRD §6
+
+#### UI-VAL-013 — A duplicate user email is refused when adding a user
+- **Why it matters.** PRD §6, and duplicated identities break team-based permissions.
+- **Setup.** An existing user's email.
+- **Steps.** Create a user with the same email.
+- **Expected.** Refused with a readable message.
+- **Oracle.** No second user created.
+- **Trace.** P1 · automate-later · PRD §4
+
+#### UI-VAL-014 — A 10-digit phone number is accepted and stored with a country prefix
+- **Why it matters.** The PRD states this as an acceptance criterion *and* flags it for
+  verification: the specified rule is "any 10-digit number, prefixed `+91` by default".
+  If the product is stricter or looser, the difference is the finding.
+- **Setup.** The user-create form.
+- **Steps.** Enter `9876543210` and save. Then try `1234567890`, `0000000000`, a 9-digit
+  and an 11-digit number.
+- **Expected (as specified).** All 10-digit values accepted and stored as `+91…`;
+  9- and 11-digit refused.
+- **Oracle.** Record the exact behaviour per input and compare against the specified
+  rule — this case is expected to produce a finding either way.
+- **Trace.** P1 · automate-later · PRD §4.3
+
+#### UI-VAL-015 — An invalid email format is refused
+- **Why it matters.** PRD §5 names email format explicitly, and it is the field most
+  often loosely validated.
+- **Steps.** Try `a@`, `a@b`, `a b@c.com`, `a@@b.com`.
+- **Expected.** All refused with a format message.
+- **Oracle.** No record created for any of them.
+- **Trace.** P1 · automate-later · PRD §5
+
+#### UI-VAL-016 — A malformed request never produces a partial event
+- **Why it matters.** PRD §5's "no partial record" clause. A half-written event is worse
+  than a refused one because nobody knows it exists.
+- **Setup.** A crafted create request with a malformed `line_items` (a string, not an
+  array).
+- **Steps.** Send it.
+- **Expected.** A 4xx with a readable message; nothing written.
+- **Oracle.** No event group and no line items created. Pairs with API-VAL-003.
+- **Trace.** P0 · automate-later · PRD §5
+
+#### UI-VAL-017 — Every validation message is readable and names the problem
+- **Why it matters.** PRD §5's "politely" clause is a real requirement. `Error 712` on
+  screen is a defect even when the refusal is correct.
+- **Setup.** Any five refusal paths from this catalog.
+- **Steps.** Trigger each and read the message.
+- **Expected.** Each is a sentence naming the problem, not a bare code.
+- **Oracle.** No message consists only of a number; each contains a field or an action.
+- **Trace.** P1 · automate · PRD §5
+
+#### UI-VAL-018 — A failed request does not leave the screen in a dead state
+- **Why it matters.** After the activation regression, the button did nothing and the
+  buyer had no idea why — the absence of feedback was as damaging as the failure.
+- **Setup.** Any refused publish.
+- **Steps.** After the refusal, try to correct the problem and publish again.
+- **Expected.** The screen is still usable; the second attempt works.
+- **Oracle.** No reload needed to recover; the retry succeeds.
+- **Trace.** P0 · automate
+
+---
+
+## 20. Non-functional and resilience
+
+Small section, deliberately. These are the ones worth running on a schedule rather than
+on every commit.
+
+#### UI-NFR-001 — The events list stays under the 3-second target as volume grows
+- **Why it matters.** PRD §7.1, measured rather than assumed.
+- **Setup.** Tenants with ~10, ~100 and ~1000 events.
+- **Steps.** Time a cold load of the list on each.
+- **Expected.** Under ~3s throughout.
+- **Oracle.** Record the three numbers and trend them; flag regressions rather than
+  asserting a hard threshold on shared infrastructure.
+- **Trace.** P2 · automate · PRD §7.1
+
+#### UI-NFR-002 — The create screen stays responsive with 65 line items
+- **Why it matters.** The sheet is the heaviest component in the product and the cap is
+  the realistic worst case for a non-BOQ event.
+- **Setup.** A non-BOQ event at the cap.
+- **Steps.** Scroll and edit cells at the top and bottom of the sheet.
+- **Expected.** Edits register without visible lag; no dropped keystrokes.
+- **Oracle.** Every value entered is present after the pass.
+- **Trace.** P2 · automate-later
+
+#### UI-NFR-003 — A 500-row BOQ sheet renders and can be scrolled
+- **Why it matters.** PRD §6's large-event case, at the UI layer.
+- **Setup.** A 500-item BOQ event.
+- **Steps.** Open the sheet; scroll to the last row.
+- **Expected.** It renders (virtualised is fine) and the last row is reachable.
+- **Oracle.** Row 500 is present and correct.
+- **Trace.** P2 · manual
+
+#### UI-NFR-004 — Publishing a 500-item event completes within a stated budget
+- **Why it matters.** A publish that times out client-side while succeeding server-side
+  is the worst outcome: the buyer retries and creates a second event.
+- **Setup.** A 500-item BOQ event.
+- **Steps.** Publish and time it.
+- **Expected.** Completes; the client waits long enough. If it times out, the event must
+  not be duplicated by a retry.
+- **Oracle.** One event afterwards, whatever the timing; record the duration.
+- **Trace.** P1 · manual
+
+#### UI-NFR-005 — A slow network does not double-submit a bid
+- **Why it matters.** Vendors bid on bad connections at the last minute; a duplicate bid
+  is a real integrity problem.
+- **Setup.** Throttled network, a live event.
+- **Steps.** Submit a bid and click again while it is in flight.
+- **Expected.** One bid.
+- **Oracle.** Bid count = 1 on the buyer's side.
+- **Trace.** P1 · automate-later
+
+#### UI-NFR-006 — A dropped connection mid-publish leaves a recoverable state
+- **Why it matters.** PRD §7.3 — a half-finished action must corrupt nothing.
+- **Setup.** A valid event.
+- **Steps.** Kill the network during the publish request. Restore it. Reload.
+- **Expected.** Either published or still a draft; never a broken half-state, and never
+  two events.
+- **Oracle.** Exactly one event with that title, in a coherent status.
+- **Trace.** P1 · manual · PRD §7.3
+
+#### UI-NFR-007 — The bid countdown agrees with the server's clock
+- **Why it matters.** A vendor bidding against a fast client clock loses the event
+  through no fault of their own.
+- **Setup.** A live event near its end.
+- **Steps.** Compare the rendered countdown with the server's end time.
+- **Expected.** Within a couple of seconds.
+- **Oracle.** Difference under a small threshold; a client-clock skew must not shift it.
+- **Trace.** P1 · manual
+
+#### UI-NFR-008 — Two buyers editing one draft do not silently overwrite each other
+- **Why it matters.** The version guard exists for this, and the failure mode is losing
+  a colleague's work without either of them knowing.
+- **Setup.** One draft, two buyers.
+- **Steps.** Both edit; both save.
+- **Expected.** The second save is either merged or refused as stale, with a message.
+- **Oracle.** No silent loss: after both saves, the surviving state is explainable and
+  the loser was told. Pairs with UI-PUB-011.
+- **Trace.** P1 · automate-later
+
+#### UI-NFR-009 — The console recovers from a backend 5xx without losing the form
+- **Why it matters.** During the activation regression every publish failed; how the
+  screen behaved then decided whether buyers lost their work as well as their event.
+- **Setup.** A create screen with a full configuration; force a 5xx on publish.
+- **Steps.** Publish. Read the screen.
+- **Expected.** An error is surfaced and every entered value is still there.
+- **Oracle.** The form retains its values; a message is visible.
+- **Trace.** P0 · automate
+
+#### UI-NFR-010 — Accessibility basics on the create and bid screens
+- **Why it matters.** They are the two screens people spend hours in, and the automation
+  depends on roles and labels to find anything at all — so it is also a testability
+  matter.
+- **Setup.** The create screen and the vendor bid sheet.
+- **Steps.** Tab through each; check that every control has an accessible name.
+- **Expected.** Focus order follows the visual order; no unlabelled interactive control.
+- **Oracle.** An accessibility scan with zero critical violations on named controls.
+- **Trace.** P2 · automate-later
+
+---
+
+## Exit criteria
+
+The UI slice of the events module is releasable when:
+
+1. Every **P0** case passes, or has a filed defect with an agreed owner.
+2. The happy path publishes for each event type the tenant supports — RFQ, technical,
+   auction (each available strategy), each legal two-stage pair, and the RFQ→Auction
+   conversion.
+3. A vendor can bid through the portal, and a buyer can bid on their behalf, and the two
+   are distinguishable afterwards (UI-SUR-022).
+4. Two competing bids from **two different companies** exist on one event, and an award
+   goes through allocation, proposal and approval (UI-AWD-012 / UI-AWD-013).
+5. No case anywhere in the run observed an untyped 500 (UI-PUB-002).
+6. Bid isolation holds under the payload-level check, not only the visual one
+   (UI-VBID-025).
+7. Every gated case that did not run reports **not applicable with its gate named** —
+   an unexplained skip is treated as a failure of the run, not of the feature.
+
+## Known behaviours to log, not to raise as new
+
+- **Missing per-item RFP templates do not block publish** (UI-TECH-008) — events go out
+  with empty item questionnaires.
+- **A stage with no template fails on the savings message** (UI-TPL-004) — the message
+  names the wrong cause.
+- **The schedule chip shows an unsaved default** (UI-SCH-014) — it reads as set before
+  Save Schedule is pressed.
+- **`PATCH /api/event_groups/:id` returned an untyped 500** from 2026-09-08 (UI-PUB-002)
+  — a filed regression, kept in the suite as a permanent guard.
