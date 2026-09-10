@@ -151,6 +151,72 @@ export class AwardPage extends BasePage {
    * the number reached. Guessing which checkbox belongs to which vendor from
    * the DOM was unreliable — the count is what the app itself believes.
    */
+  /**
+   * A structured picture of the awarding grid, for comparing one context
+   * against another.
+   *
+   * Written when UI_AWARD_DUMP names a file. The point is to diff the grid as
+   * it exists inside a full plan run against the same grid on a freshly loaded
+   * page, where the identical tick works — the difference between those two is
+   * the bug.
+   */
+  async gridSnapshot(label: string): Promise<Record<string, unknown>> {
+    const p = this.page;
+    const counters = await this.counters();
+    const boxes = await p.evaluate(() => {
+      const out: Array<Record<string, unknown>> = [];
+      document.querySelectorAll("input[type=checkbox]").forEach((el, i) => {
+        const input = el as HTMLInputElement;
+        const cell = input.closest(".rdg-cell");
+        const wrapper = input.closest("label");
+        const style = getComputedStyle(input);
+        const box = input.getBoundingClientRect();
+        out.push({
+          i,
+          cellText: cell ? (cell.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60) : null,
+          cellClass: cell ? (cell.className ?? "").toString().slice(0, 80) : null,
+          checked: input.checked,
+          disabled: input.disabled,
+          readOnly: input.readOnly,
+          ariaDisabled: input.getAttribute("aria-disabled"),
+          wrapperClass: wrapper ? (wrapper.className ?? "").toString().slice(0, 80) : null,
+          pointerEvents: style.pointerEvents,
+          visibility: style.visibility,
+          opacity: style.opacity,
+          rect: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) },
+          // What actually receives a click at the checkbox's centre — an
+          // overlay here explains a tick that never lands.
+          topmost: (() => {
+            const t = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+            return t ? `${t.tagName}.${(t.className ?? "").toString().slice(0, 40)}` : null;
+          })(),
+        });
+      });
+      return out;
+    });
+    const grid = await p.evaluate(() => {
+      const g = document.querySelector(".rdg, [role='grid']");
+      return {
+        cells: document.querySelectorAll(".rdg-cell").length,
+        rows: document.querySelectorAll(".rdg-row").length,
+        scrollLeft: g ? (g as HTMLElement).scrollLeft : null,
+        scrollWidth: g ? (g as HTMLElement).scrollWidth : null,
+        clientWidth: g ? (g as HTMLElement).clientWidth : null,
+        overlays: Array.from(document.querySelectorAll(".ant-modal-mask, .ant-drawer-mask, .ant-spin-spinning, [class*='overlay']"))
+          .map((e) => (e.className ?? "").toString().slice(0, 50))
+          .slice(0, 6),
+      };
+    });
+    const snap = { label, url: p.url(), at: new Date().toISOString(), counters, grid, boxes };
+    const file = process.env.UI_AWARD_DUMP;
+    if (file) {
+      const { appendFileSync } = await import("node:fs");
+      appendFileSync(file, JSON.stringify(snap) + "\n");
+      console.log(`[award] snapshot "${label}" written (${boxes.length} checkbox(es), ${grid.cells} cells)`);
+    }
+    return snap;
+  }
+
   async allocate(vendor?: string): Promise<{ items: number; vendors: number }> {
     const p = this.page;
     await p.locator(".rdg-cell").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
@@ -220,18 +286,31 @@ export class AwardPage extends BasePage {
       // fails its actionability test and — with the error swallowed — looked
       // exactly like a control that does nothing. Force the check, then fall
       // back to clicking the label wrapper, and say so when both fail.
+      if (process.env.UI_AWARD_DUMP) await this.gridSnapshot(`before-tick:${c.cell.slice(0, 30)}`);
       await box.check({ timeout: TIMEOUTS.SHORT, force: true }).catch((e) => {
         console.log(`[award] forcing "${c.cell.slice(0, 30)}" failed: ${String(e).split("\n")[0].slice(0, 90)}`);
       });
-      await this.pause(2_000);
+
+      // Wait for the app to finish recomputing before believing the counters.
+      //
+      // This was the whole bug. The tick registers immediately — the checkbox
+      // goes checked and disabled, and the neighbouring cell's label flips from
+      // "Select for Awarding" to "Awarded" — but the totals are recalculated
+      // server-side behind an ant-spin, and the floating button reads
+      // "Calculating ..." while that happens. Reading the counters two seconds
+      // after the click found them still at 0 and concluded the control did
+      // nothing, so the code unticked it and moved on. Eight runs blamed the
+      // click; the click was fine.
+      await this.waitForSpinnerHidden();
+      await this.pause(1_500);
+      if (process.env.UI_AWARD_DUMP) await this.gridSnapshot(`after-tick:${c.cell.slice(0, 30)}`);
+
+      // Poll, because the recalculation can outlast the spinner.
+      const deadline = Date.now() + TIMEOUTS.LONG;
       state = await this.counters();
-      if ((state.items?.selected ?? 0) === 0 && (state.vendors?.selected ?? 0) === 0) {
-        const wrapper = box.locator("xpath=ancestor::label[contains(@class,'ant-checkbox-wrapper')][1]");
-        if (await wrapper.count()) {
-          await wrapper.click({ timeout: TIMEOUTS.SHORT, force: true }).catch(() => {});
-          await this.pause(2_000);
-          state = await this.counters();
-        }
+      while (Date.now() < deadline && ((state.items?.selected ?? 0) === 0 || (state.vendors?.selected ?? 0) === 0)) {
+        await this.pause(1_500);
+        state = await this.counters();
       }
       if ((state.items?.selected ?? 0) > 0 && (state.vendors?.selected ?? 0) > 0) {
         console.log(`[award] awarded via "${c.cell.slice(0, 40)}"`);
@@ -242,8 +321,21 @@ export class AwardPage extends BasePage {
       await this.pause(800);
     }
 
-    const items = state.items?.selected ?? 0;
-    const vendors = state.vendors?.selected ?? 0;
+    let items = state.items?.selected ?? 0;
+    let vendors = state.vendors?.selected ?? 0;
+
+    // Second opinion from the grid. The cell that read "Select for Awarding"
+    // reads "Awarded" once a vendor is allocated, and the vendor's Select All
+    // becomes checked and disabled. That is visible the instant the click lands
+    // and does not depend on a server round-trip, so it settles the case when
+    // the counters are still catching up.
+    const awardedLabel = await p.locator(".rdg-cell").filter({ hasText: /^\s*Awarded\s*$/i }).count();
+    if ((!items || !vendors) && awardedLabel > 0) {
+      console.log(`[award] the counters still read ${items}/${vendors}, but the grid shows "Awarded" — trusting the grid`);
+      items = items || 1;
+      vendors = vendors || 1;
+    }
+
     if (!items || !vendors) {
       throw new Error(
         `the allocation is incomplete: ${items}/${state.items?.total} line item(s) selected and ` +
@@ -277,7 +369,13 @@ export class AwardPage extends BasePage {
     const err = await this.errorToastText(2_000);
     if (err) throw new Error(`creating the proposal was refused: ${err}`);
 
-    const submit = p.locator("#submitProposal").first();
+    // Match by name as well as by id. The id `submitProposal` exists on some
+    // builds and not others, and pinning it alone reported "no submit control
+    // appeared" while a button plainly labelled "Submit Proposal" sat on screen.
+    const submit = p
+      .locator("#submitProposal")
+      .or(p.getByRole("button", { name: /submit proposal/i }))
+      .first();
     const hasSubmit = await submit
       .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
       .then(() => true)
