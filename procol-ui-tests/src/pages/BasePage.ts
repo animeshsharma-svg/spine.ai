@@ -1,5 +1,7 @@
 import { Page, Locator } from "@playwright/test";
 import { noteToast } from "../oracle/journal.js";
+import { recipesFor } from "../ai/learned.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
 import {
   Candidate,
@@ -21,21 +23,100 @@ import {
 export class BasePage {
   constructor(public readonly page: Page) {}
 
+  /**
+   * Locators the automation has LEARNED for this step, tried before the
+   * hand-written ones.
+   *
+   * When the healer finds an element the built-in candidates missed, the way it
+   * got there is written down against the step's label. Putting those recipes
+   * first means a locator that drifted once is deterministic from then on —
+   * the AI is asked once, not once per run. They never replace the built-in
+   * candidates, so a recipe that later goes stale costs one failed attempt
+   * rather than breaking the step.
+   */
+  private learned(label?: string): Candidate[] {
+    if (!label) return [];
+    return recipesFor(label)
+      .map((r) => {
+        try {
+          switch (r.kind) {
+            case "role":
+              return r.name
+                ? this.page.getByRole(r.value as Parameters<Page["getByRole"]>[0], {
+                    name: new RegExp(`^\\s*${r.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i"),
+                  })
+                : this.page.getByRole(r.value as Parameters<Page["getByRole"]>[0]);
+            case "testid":
+              return this.page.getByTestId(r.value);
+            case "text":
+              return this.page.getByText(new RegExp(r.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+            case "selector":
+              if (r.value.startsWith("placeholder:")) return this.page.getByPlaceholder(r.value.slice(12));
+              if (r.value.startsWith("label:")) return this.page.getByLabel(r.value.slice(6));
+              return this.page.locator(r.value);
+            default:
+              return null;
+          }
+        } catch {
+          return null; // a malformed recipe must never break a run
+        }
+      })
+      .filter((c): c is Candidate => c !== null);
+  }
+
+  /** A readable description of what was tried, for the stuck report. */
+  private describe(candidates: Candidate[]): string[] {
+    return candidates.map((c) => String(c).replace(/^locator\('|'\)$/g, "").slice(0, 160));
+  }
+
   // ── resilient action wrappers ────────────────────────────────────────────
-  click(candidates: Candidate[], opts: ClickOptions = {}) {
-    return clickFirst(this.page, candidates, opts);
+  /**
+   * Click the first candidate that works — and when none does, record WHERE it
+   * got stuck before failing.
+   *
+   * The report carries the step's label, the URL, every candidate tried and the
+   * page's accessibility tree. That last part is the difference between "a
+   * locator failed somewhere" and a fix someone can make without reproducing
+   * the whole journey by hand.
+   */
+  async click(candidates: Candidate[], opts: ClickOptions = {}) {
+    try {
+      return await clickFirst(this.page, [...this.learned(opts.label), ...candidates], opts);
+    } catch (err) {
+      if (opts.label) {
+        await recordStuck(this.page, {
+          label: opts.label,
+          message: (err as Error).message,
+          triedCandidates: this.describe(candidates),
+          healerTried: false,
+        });
+      }
+      throw err;
+    }
   }
   fill(candidates: Candidate[], value: string, opts: FindOptions = {}) {
-    return fillFirst(this.page, candidates, value, opts);
+    return fillFirst(this.page, [...this.learned(opts.label), ...candidates], value, opts);
   }
   find(candidates: Candidate[], opts: FindOptions = {}) {
-    return firstMatch(candidates, opts);
+    return firstMatch([...this.learned(opts.label), ...candidates], opts);
   }
-  expect(candidates: Candidate[], opts: FindOptions = {}) {
-    return expectFirst(candidates, opts);
+  async expect(candidates: Candidate[], opts: FindOptions = {}) {
+    try {
+      return await expectFirst([...this.learned(opts.label), ...candidates], opts);
+    } catch (err) {
+      if (opts.label) {
+        await recordStuck(this.page, {
+          label: opts.label,
+          message: (err as Error).message,
+          triedCandidates: this.describe(candidates),
+          healerTried: false,
+        });
+      }
+      throw err;
+    }
   }
   clickIfPresent(candidates: Candidate[], opts: ClickOptions = {}) {
-    return clickIfPresent(this.page, candidates, opts);
+    return clickIfPresent(this.page, [...this.learned(opts.label), ...candidates], opts);
   }
 
   /**

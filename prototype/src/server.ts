@@ -26,7 +26,7 @@ import { saveRun, listRuns, getRun, newRunId } from "./runStore.js";
 import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
 import { runCheck } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
-import { UI_FLOWS, runUiFlow, runUiPlan, readPlanResult, clampLineItems } from "./ui/uiFlowRunner.js";
+import { UI_FLOWS, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
@@ -386,6 +386,40 @@ const server = createServer(async (req, res) => {
         send("error", { line: `could not compile that test case: ${err?.message ?? err}` });
         res.end();
       }
+      return;
+    }
+
+    // ── API: where the automation got stuck, and what it has learned ────
+    if (path === "/api/stuck") {
+      json(res, { stuck: readStuck(), learned: readLearned() });
+      return;
+    }
+
+    // ── API: teach the automation a locator it got stuck on ─────────────
+    if (path === "/api/stuck/fix") {
+      const stuckId = (url.searchParams.get("id") ?? "").trim();
+      const instruction = url.searchParams.get("instruction") ?? undefined;
+      const headed = url.searchParams.get("headed") !== "0";
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (!stuckId) {
+        send("error", { line: "no stuck id given" });
+        res.end();
+        return;
+      }
+      const { stop } = runTeach({ stuckId, instruction, headed }, (e) => {
+        send(e.type, e);
+        if (e.type === "done" || e.type === "error") {
+          // Show what the store holds now, so the improvement is visible.
+          send("learned", { learned: readLearned() });
+          res.end();
+        }
+      });
+      req.on("close", () => stop());
       return;
     }
 

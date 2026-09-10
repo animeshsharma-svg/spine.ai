@@ -26,6 +26,7 @@ init();
 async function init() {
   loadFindings();
   loadKnowledge();
+  loadStuck();
   $("#ai-btn")?.addEventListener("click", runAiInstruction);
   $("#plan-btn")?.addEventListener("click", () => runTestCase(false));
   $("#plan-dry")?.addEventListener("click", () => runTestCase(true));
@@ -1254,4 +1255,98 @@ function runTestCase(dryRun) {
     try { msg = JSON.parse(ev.data).line || msg; } catch {}
     finish("✗ " + msg, "bad");
   });
+}
+
+// ── Stuck points, and teaching the automation out of them ─────────────────
+// The end state we are aiming at: a locator that failed once is taught once
+// and never asked about again. Each card shows where it stopped and what the
+// screen was offering; the button reopens that screen, has the AI find the
+// control, and writes the answer into the learned-locator store.
+async function loadStuck() {
+  const box = $("#stuck");
+  if (!box) return;
+  try {
+    const { stuck, learned } = await (await fetch("/api/stuck")).json();
+    const learnedCount = Object.keys(learned ?? {}).length;
+    const recipes = Object.values(learned ?? {}).reduce((n, list) => n + (list?.length ?? 0), 0);
+    const hint = $("#stuck-hint");
+    if (hint) {
+      hint.textContent = stuck.length
+        ? `${stuck.length} stuck · ${learnedCount} step(s) taught (${recipes} recipe(s))`
+        : `nothing stuck · ${learnedCount} step(s) taught (${recipes} recipe(s))`;
+    }
+    box.innerHTML = "";
+    if (!stuck.length) {
+      box.appendChild(
+        el("div", "empty", learnedCount
+          ? `Nothing stuck. ${learnedCount} step(s) already taught — those locators are deterministic now.`
+          : "Nothing stuck. When a locator fails, it appears here with the screen it failed on."),
+      );
+      return;
+    }
+    for (const s of stuck) {
+      const taught = (learned?.[s.label] ?? []).length;
+      const card = el("div", "finding v-harness");
+      card.appendChild(
+        el("div", "finding-head",
+          `<span class="finding-icon">🧭</span><span class="finding-title">${esc(s.label)}</span>` +
+          `<span class="finding-sev">${taught ? `taught ${taught}×` : "not taught"}</span>`),
+      );
+      card.appendChild(el("div", "finding-meta", `${esc(s.flowKey ?? "run")} · ${esc(String(s.url).replace(/^https?:\/\/[^/]+/, ""))}`));
+      card.appendChild(el("div", "finding-why", esc(String(s.message).split("\n")[0].slice(0, 220))));
+      if (s.triedCandidates?.length) {
+        card.appendChild(el("details", "finding-repro",
+          `<summary>tried ${s.triedCandidates.length} locator(s)</summary>` +
+          s.triedCandidates.map((c) => `<div>${esc(c)}</div>`).join("")));
+      }
+      if (s.accessibilityTree) {
+        card.appendChild(el("details", "finding-repro",
+          `<summary>what the screen was offering</summary><div style="white-space:pre-wrap">${esc(String(s.accessibilityTree).slice(0, 1800))}</div>`));
+      }
+      const bar = el("div", "uibar");
+      const btn = el("button", "run-btn small", "🔧 Teach this locator");
+      btn.addEventListener("click", () => teachStuck(s.id, btn));
+      bar.appendChild(btn);
+      card.appendChild(bar);
+      box.appendChild(card);
+    }
+  } catch (e) {
+    box.innerHTML = "";
+    box.appendChild(el("div", "empty", `Could not load stuck points: ${esc(e.message)}`));
+  }
+}
+
+function teachStuck(id, btn) {
+  btn.disabled = true;
+  btn.textContent = "teaching…";
+  const con = $("#ui-console");
+  con.hidden = false;
+  con.innerHTML = "";
+  const write = (text, cls) => {
+    con.appendChild(el("div", cls || "", esc(text)));
+    con.scrollTop = con.scrollHeight;
+  };
+  const qs = new URLSearchParams({ id });
+  if (!$("#ui-headed").checked) qs.set("headed", "0");
+  const es = new EventSource(`/api/stuck/fix?${qs}`);
+  uiRunning = es;
+  es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
+  es.addEventListener("log", (ev) => {
+    const l = JSON.parse(ev.data).line;
+    if (/\[teach\]|\[healer\]|\[learned\]/.test(l)) write(l, /LEARNED/.test(l) ? "ok" : /FAILED/.test(l) ? "bad" : "");
+  });
+  es.addEventListener("learned", () => loadStuck());
+  const finish = (msg, cls) => {
+    write(msg, cls);
+    btn.disabled = false;
+    btn.textContent = "🔧 Teach this locator";
+    es.close();
+    uiRunning = null;
+    loadStuck();
+  };
+  es.addEventListener("done", (ev) => {
+    const code = JSON.parse(ev.data).exitCode;
+    finish(code === 0 ? "✓ taught — future runs will use it directly" : "✗ could not teach it from that screen", code === 0 ? "ok" : "bad");
+  });
+  es.addEventListener("error", () => finish("✗ teaching failed", "bad"));
 }

@@ -22,7 +22,11 @@ export default defineConfig({
   // response, a popup landing mid-click — and a second attempt separates those
   // from a defect that reproduces every time. The Oracle sees both attempts, so
   // a real defect is still reported; only the flake disappears.
-  retries: Number(process.env.UI_RETRIES ?? 1),
+  // No retries by default. A retry re-runs the journey in a FRESH browser
+  // window, which is the opposite of "one flow at a time in one window" — and
+  // it hides the flake it absorbs. Opt in with UI_RETRIES=1 when a run is
+  // unattended and a second attempt is worth more than the signal.
+  retries: Number(process.env.UI_RETRIES ?? 0),
   // Event flows legitimately take minutes on this app: composing stages means a
   // sequence of add/delete round-trips (Auction is the default stage and Delete
   // is disabled while one stage remains), then line items, template, sheet and
