@@ -59,7 +59,10 @@ function invariants(plan: TestPlan): string[] {
   // about stage composition, or one asserting the app refuses something, is
   // complete without a template on every tab — demanding one there made every
   // negative test look broken.
-  const submits = has("publish") || has("save_draft");
+  // A plan that expects publishing to be BLOCKED is deliberately incomplete —
+  // that is the test. Requiring it to configure every stage would defeat the
+  // very precondition it is checking.
+  const submits = (has("publish") || has("save_draft")) && !has("expect_publish_blocked");
   if (stages.length > 1 && submits) {
     const switches = steps.filter((s) => s === "switch_stage").length;
     const templates = steps.filter((s) => s === "select_template").length;
@@ -85,6 +88,12 @@ function invariants(plan: TestPlan): string[] {
     }
   }
   if (has("expect_bid_submitted") && bidAt < 0) problems.push("asserts a bid was submitted without placing one");
+
+  // The stage steps only exist on the eRFX screen.
+  const openArgs = plan.steps.find((s) => s.step === "open_create")?.args ?? {};
+  if (String(openArgs.path ?? "") === "single-stage" && steps.some((s) => ["compose_stages", "switch_stage", "expect_stages"].includes(s))) {
+    problems.push("composes stages on the single-stage screen, which has no stage tabs");
+  }
   return problems;
 }
 

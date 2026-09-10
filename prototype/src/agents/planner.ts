@@ -89,7 +89,8 @@ const DEFAULT_VENDOR = process.env.UI_DEFAULT_VENDOR ?? "AMD";
 
 const DOMAIN_RULES = `
 Ordering the product enforces (violating any of these makes the run fail):
-- open_create must come first.
+- open_create must come first. Use path "erfx" unless the test explicitly says single-stage or non-eRFX: the eRFX screen is the one with stage tabs.
+- compose_stages, switch_stage and expect_stages EXIST ONLY on the eRFX screen. The single-stage screen has no stage tabs — its event type is chosen in a configuration drawer — so never combine path "single-stage" with those steps.
 - set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event.
 - The default stage is AUCTION. So: a test about an RFQ, a technical/RFP stage, or any two-stage event MUST call compose_stages. Only a plain auction test may omit it.
 - compose_stages before anything stage-specific. The screen starts with ONE Auction stage; asking for RFQ or a technical stage is a real change. RFQ and Auction cannot coexist. At most two stages.
@@ -183,6 +184,22 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push("moved open_create to the front — the steps before it had no create screen to act on");
   }
 
+  // Stage steps only exist on the eRFX screen. Pairing them with the
+  // single-stage path fails on step two with "the create screen shows [none]",
+  // which reads like a broken reconciler rather than the wrong screen.
+  const openStep = steps.find((s) => s.step === "open_create");
+  const stageSteps = ["compose_stages", "switch_stage", "expect_stages"];
+  const usesStages = steps.some((s) => stageSteps.includes(s.step));
+  if (usesStages && String(openStep?.args?.path ?? "") === "single-stage") {
+    if (/single[- ]stage|non-?erfx/i.test(testCase)) {
+      for (let i = steps.length - 1; i >= 0; i--) if (stageSteps.includes(steps[i].step)) steps.splice(i, 1);
+      repairs.push("dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer");
+    } else {
+      openStep!.args = { ...(openStep!.args ?? {}), path: "erfx" };
+      repairs.push('switched open_create to the eRFX screen — the plan composes stages, which only that screen has');
+    }
+  }
+
   // RFQ and Auction are mutually exclusive (isValidStage). A plan asking for
   // both can never run, so keep whichever the test actually named.
   const compose = steps.find((s) => s.step === "compose_stages");
@@ -229,7 +246,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   const wantsTrade = !stages.length || stages.some((s) => s === "rfq" || s === "auction");
   const wantsTechnical = stages.includes("rfp");
 
-  const submits = has("publish") || has("save_draft");
+  // A plan asserting publish is BLOCKED is deliberately incomplete — repairing
+  // it into a valid event would remove the precondition under test.
+  const submits = (has("publish") || has("save_draft")) && !has("expect_publish_blocked");
   if (stages.length > 1 && submits) {
     // Every stage needs configuring on its OWN tab: template, sheet,
     // questionnaires and evaluator all act on whichever tab is showing. A
