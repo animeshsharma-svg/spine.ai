@@ -1564,6 +1564,9 @@ export class CreateEventPage extends BasePage {
    * which is exactly why this was easy to miss: the default is displayed but
    * never persisted until Save Schedule is pressed.
    */
+  /** The duration preset actually chosen (minutes), when the schedule was edited. */
+  scheduleMinutesChosen: number | null = null;
+
   async saveSchedule(): Promise<void> {
     const p = this.page;
     await this.dismissDistractions();
@@ -1607,22 +1610,37 @@ export class CreateEventPage extends BasePage {
         triedCandidates: [],
         healerTried: false,
       }).catch(() => {});
-      const labelled = panel
-        .getByLabel(/duration|minutes|mins/i)
-        .or(panel.getByPlaceholder(/duration|minutes|mins/i))
-        .or(panel.getByRole("spinbutton", { name: /duration|minutes|mins/i }));
-      const duration = (await labelled.count()) ? labelled.first() : panel.locator("input[type='number'], input.ant-input-number-input").first();
-      if (await duration.count()) {
-        await duration.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-        await duration.fill("").catch(() => {});
-        await duration.fill(String(minutes)).catch(() => {});
-        await this.page.keyboard.press("Tab").catch(() => {});
-        await this.pause(400);
-        const unit = panel.locator(".ant-select-selection-selected-value, .ant-select-selection-item").first();
-        const unitText = (await unit.textContent().catch(() => null))?.trim();
-        console.log(`[create-event] schedule duration field set to ${minutes}${unitText ? ` (unit selector reads "${unitText}")` : ""}`);
+      // Captured 2026-09-11: "End time" is a mode combobox ("Duration") followed
+      // by a PRESET select whose display reads "30 Mins"; there is no number
+      // input. Open the first select that shows a duration, list its options,
+      // and pick the smallest that covers the request — the app has no
+      // 3-minute preset, so 3 becomes 15 and the plan is told so.
+      const valueSelects = panel.locator(".ant-select").filter({ hasText: /\d+\s*(mins?|minutes?|hours?|hrs?|days?)\b/i });
+      if (await valueSelects.count()) {
+        const sel = valueSelects.first();
+        await sel.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await sel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const options = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item");
+        await options.first().waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const texts = (await options.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
+        const toMinutes = (t: string) => {
+          const m = t.match(/(\d+)\s*(mins?|minutes?|hours?|hrs?|days?)/i);
+          if (!m) return NaN;
+          const n = Number(m[1]);
+          return /hour|hr/i.test(m[2]) ? n * 60 : /day/i.test(m[2]) ? n * 1440 : n;
+        };
+        const ranked = texts.map((t, i) => ({ t, i, m: toMinutes(t) })).filter((o) => Number.isFinite(o.m)).sort((a, b) => a.m - b.m);
+        const pick = ranked.find((o) => o.m >= minutes) ?? ranked[ranked.length - 1];
+        if (pick) {
+          await options.nth(pick.i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          this.scheduleMinutesChosen = pick.m;
+          console.log(`[create-event] schedule duration: asked ${minutes} min, chose preset "${pick.t}" (options: ${ranked.map((o) => o.t).join(", ")})`);
+        } else {
+          await this.page.keyboard.press("Escape").catch(() => {});
+          console.log(`[create-event] the duration select offered no readable presets (${texts.join(", ")}) — keeping the default window`);
+        }
       } else {
-        console.log("[create-event] no duration field in the Schedule panel — keeping the default window");
+        console.log("[create-event] no duration select in the Schedule panel — keeping the default window");
       }
     }
 
@@ -1638,8 +1656,9 @@ export class CreateEventPage extends BasePage {
     const chip = this.page.locator("button:has(.anticon-clock-circle)").first();
     const chipText = (await chip.textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
     console.log(`[create-event] schedule saved${chipText ? ` — chip reads: ${chipText}` : ""}`);
-    if (minutes && chipText && !new RegExp(`\\(\\s*${minutes}\\s*Mins?\\)`, "i").test(chipText)) {
-      console.log(`[create-event] WARNING: asked for ${minutes} min but the chip does not show it — the duration field was not the one filled`);
+    const expect = this.scheduleMinutesChosen ?? minutes;
+    if (expect && chipText && !new RegExp(`\\(\\s*${expect}\\s*Mins?\\)|\\(\\s*${expect / 60}\\s*Hours?\\)`, "i").test(chipText)) {
+      console.log(`[create-event] WARNING: chose ${expect} min but the chip does not show it — the selection did not take`);
     }
   }
 

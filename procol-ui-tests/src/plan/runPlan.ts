@@ -248,7 +248,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const detail = new EventDetailPage(s.page);
       let done = await detail.forceEnd(a.remark ? String(a.remark) : undefined);
       if (/waiting for the window to lapse/.test(done)) {
-        done = `${done}; ${await detail.waitForWindowToLapse(s.title, asInt(a.maxWaitMinutes, 6))}`;
+        // The smallest duration preset is well above a few minutes; wait long
+        // enough for it (the step refuses up front if the row says longer).
+        done = `${done}; ${await detail.waitForWindowToLapse(s.title, asInt(a.maxWaitMinutes, 25))}`;
       }
       s.closed = true;
       return `event closed: ${done}`;
@@ -452,7 +454,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
       await s.create.saveSchedule();
-      return a.minutes ? `schedule saved (${a.minutes} min)` : "schedule saved";
+      const chosen = s.create.scheduleMinutesChosen;
+      if (a.minutes && chosen && chosen !== asInt(a.minutes, 30)) return `schedule saved — asked ${a.minutes} min, the app's smallest covering preset is ${chosen} min`;
+      return a.minutes ? `schedule saved (${chosen ?? a.minutes} min)` : "schedule saved";
     }
     case "place_bid": {
       // The vendor bids for themselves, which means a SECOND browser context:
