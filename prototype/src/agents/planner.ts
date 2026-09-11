@@ -210,6 +210,19 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // open_create (for a URL check) must not turn into a create test, or the
   // create repairs move that open to the front and bolt a title onto it.
   const LIST_STEPS = ["open_events_list", "expect_events_list", "expect_create_options", "filter_events", "expect_event_in_list", "expect_event_status"];
+
+  // A plan about an EXISTING event starts by opening it — no create screen,
+  // no title. The create repairs turned "open the event, open its
+  // participants, capture" into open_create → set_title → open_event, which
+  // ran against a fresh create screen. Settle these plans here and return.
+  if (has("open_event") && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step))) {
+    if (indexOf("open_event") !== 0) {
+      const [open] = steps.splice(indexOf("open_event"), 1);
+      steps.unshift(open);
+      repairs.push("moved open_event to the front — the steps after it act on that event's page");
+    }
+    return { plan: { ...plan, steps }, repairs };
+  }
   const isListTest =
     steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
   if (isListTest) {
