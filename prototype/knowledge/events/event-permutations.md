@@ -60,7 +60,7 @@ Awarding itself (`award_event`) happens after bidding: Master QCS → Start Awar
 | The vendor, from the supplier portal | `place_bid{vendor?}` | vendor email/OTP login; `add-bid-button` → sheet → `submit-bid-button`; `expect_bid_submitted` |
 | The buyer on the vendor's behalf (surrogate) | `place_surrogate_bid{vendor?}` | participants list → row by name → Add Bid → sheet; not available for knockout or dutch auctions, nor for technical stages (those use Add Technical Bid) |
 | Two vendors competing | two `place_bid` / `place_surrogate_bid` steps with different `vendor` | the executor picks a different vendor for a second surrogate bid |
-| Counter offer (buyer → vendor negotiation) | **no step yet** | the product has a buyer-side Counter Offer drawer on order details; vendor-side acceptance is not modelled. Report as a gap. |
+| Counter offer (buyer → vendor negotiation) | after a vendor has bid: `open_master_qcs` → `place_counter_offer{vendor, price, remark}` → `expect_counter_offer_sent` | verified live 2026-09-11 (16/16): on the stage's **Responses** tab each vendor's column header carries a "Counter Offer" button while the bid is live and active; the drawer ("Counter Offer for <vendor>") is a table with an editable Price cell, Bulk Update, remarks and "Send Counter Offer"; afterwards a "Revoke Counter Offer" control appears. The vendor's **acceptance** of a counter offer has no step yet — say so. |
 
 Vendors must be **invited** before publish (`invite_vendor{names}`); suggestions come from the line items' product audience, so invite after line items. Name the vendor when the case cares which one bids (`AMD` is the default surrogate vendor).
 
