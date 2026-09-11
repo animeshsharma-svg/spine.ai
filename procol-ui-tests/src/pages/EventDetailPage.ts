@@ -198,15 +198,21 @@ export class EventDetailPage extends BasePage {
     const events = new EventsPage(p);
     await events.goto();
     const readRemaining = async (): Promise<{ text: string; seconds: number | null; over: boolean }> => {
+      // A fresh load every time: the list caches, and a stale row reads as live.
+      await events.goto();
       await events.searchByTitle(title);
       const row = (await events.rowTextFor(title)) ?? "";
       const m = row.match(/ends in\s*(?:(\d+)\s*h\s*:?\s*)?(\d+)\s*m\s*:?\s*(\d+)\s*s/i);
-      // Closed means the ROW no longer counts down AND shows an ended state.
-      // The first version accepted "evaluate" anywhere and matched the list's
-      // own filter labels 15 seconds into a 3-minute window.
-      const stillRunning = /ends in/i.test(row);
-      const over = row.length > 0 && !stillRunning && /overdue|evaluat|closed|ended|history|completed|expired/i.test(row);
+      // Once the window ends, the row keeps the words "Ends in" with NOTHING
+      // after them and the status word stays "RFQ in Progress" (captured
+      // 2026-09-11 after a 2-minute window: "Ends in 1/1 RFQ in Progress 1").
+      // So "live" means a countdown with a time in it; an ended state word
+      // anywhere in the row also counts as over.
+      const liveCountdown = !!m;
+      const endedWord = /overdue|evaluat|closed|ended|history|completed|expired/i.test(row);
+      const over = row.length > 0 && (endedWord || (!liveCountdown && /ends in/i.test(row)));
       const seconds = m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
+      console.log(`[close-event] row: ${row.slice(0, 140)} → ${over ? "window over" : seconds !== null ? `${seconds}s left` : "no countdown read"}`);
       return { text: row.slice(0, 160), seconds, over };
     };
     let state = await readRemaining();
@@ -217,7 +223,7 @@ export class EventDetailPage extends BasePage {
     }
     const deadline = Date.now() + maxWaitMinutes * 60_000 + 30_000;
     while (!state.over && Date.now() < deadline) {
-      await p.waitForTimeout(20_000);
+      await p.waitForTimeout(15_000);
       state = await readRemaining();
     }
     if (!state.over) throw new Error(`the bidding window had not lapsed after ${maxWaitMinutes} min (row: ${state.text})`);
