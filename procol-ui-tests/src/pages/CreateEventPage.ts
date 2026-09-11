@@ -1620,15 +1620,20 @@ export class CreateEventPage extends BasePage {
       // tree only says "text: 30 Mins", which is not enough to drive it.
       const markup = await panel
         .evaluate((el) => {
-          const leaf = [...el.querySelectorAll("*")].find((e) => e.children.length === 0 && /^\s*\d+\s*(Mins?|Hours?)\s*$/i.test(e.textContent || ""));
-          if (!leaf) return "no duration leaf found";
-          let n: Element | null = leaf;
+          // The smallest element whose OWN text carries a duration ("30 Mins"),
+          // its ancestry with classes, and every antd Select in the panel with
+          // what it displays — enough to drive whichever control this is.
+          const nodes = [...el.querySelectorAll("*")].filter((e) => /\b\d+\s*(Mins?|Minutes?|Hours?)\b/i.test(e.textContent || ""));
+          nodes.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length);
+          const target = nodes[0];
           const chain: string[] = [];
-          for (let i = 0; i < 4 && n; i++) {
-            chain.push(`<${n.tagName.toLowerCase()} class="${(n as HTMLElement).className}" role="${n.getAttribute("role") ?? ""}">`);
+          let n: Element | null = target ?? null;
+          for (let i = 0; i < 5 && n; i++) {
+            chain.push(`<${n.tagName.toLowerCase()} class="${(n as HTMLElement).className}" role="${n.getAttribute("role") ?? ""}" text="${(n.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40)}">`);
             n = n.parentElement;
           }
-          return chain.join(" ⟵ ") + " || " + (leaf.parentElement?.parentElement?.outerHTML ?? "").replace(/\s+/g, " ").slice(0, 700);
+          const selects = [...el.querySelectorAll(".ant-select, [role='combobox'], select")].map((s2) => `${s2.tagName.toLowerCase()}.${(s2 as HTMLElement).className.split(" ").slice(0, 3).join(".")}="${(s2.textContent || "").replace(/\s+/g, " ").trim().slice(0, 30)}"`);
+          return `chain: ${chain.join(" ⟵ ") || "none"} || selects(${selects.length}): ${selects.join(" ; ")} || html: ${(target?.parentElement?.outerHTML ?? "").replace(/\s+/g, " ").slice(0, 900)}`;
         })
         .catch((e) => `markup probe failed: ${(e as Error).message}`);
       console.log(`[create-event] duration control markup: ${markup}`);
