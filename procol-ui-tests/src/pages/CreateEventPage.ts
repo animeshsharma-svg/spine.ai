@@ -1615,6 +1615,23 @@ export class CreateEventPage extends BasePage {
       // input. Open the first select that shows a duration, list its options,
       // and pick the smallest that covers the request — the app has no
       // 3-minute preset, so 3 becomes 15 and the plan is told so.
+      // Evidence for the control's real markup: the leaf that reads the current
+      // duration and three levels of its ancestry, classes included. The aria
+      // tree only says "text: 30 Mins", which is not enough to drive it.
+      const markup = await panel
+        .evaluate((el) => {
+          const leaf = [...el.querySelectorAll("*")].find((e) => e.children.length === 0 && /^\s*\d+\s*(Mins?|Hours?)\s*$/i.test(e.textContent || ""));
+          if (!leaf) return "no duration leaf found";
+          let n: Element | null = leaf;
+          const chain: string[] = [];
+          for (let i = 0; i < 4 && n; i++) {
+            chain.push(`<${n.tagName.toLowerCase()} class="${(n as HTMLElement).className}" role="${n.getAttribute("role") ?? ""}">`);
+            n = n.parentElement;
+          }
+          return chain.join(" ⟵ ") + " || " + (leaf.parentElement?.parentElement?.outerHTML ?? "").replace(/\s+/g, " ").slice(0, 700);
+        })
+        .catch((e) => `markup probe failed: ${(e as Error).message}`);
+      console.log(`[create-event] duration control markup: ${markup}`);
       const valueSelects = panel.locator(".ant-select").filter({ hasText: /\d+\s*(mins?|minutes?|hours?|hrs?|days?)\b/i });
       if (await valueSelects.count()) {
         const sel = valueSelects.first();
