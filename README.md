@@ -280,7 +280,7 @@ Offer** button while that bid is live and active; a pending accept/reject
 request or an approval view takes that slot first. `place_counter_offer
 {vendor, price, remark}` waits for the stage page to finish loading, opens
 Responses, presses it, fills the drawer's sheet, adds the remark and sends;
-`expect_counter_offer_sent` reads the mark on the bid. The vendor's acceptance has no step yet and is said so. The
+`expect_counter_offer_sent` reads the mark on the bid. Verified live on 11 September: a 16-step plan from one sentence — publish, vendor bid, Master QCS, counter offer of 90 to AMD, mark on the bid, and a **Revoke Counter Offer** control on screen afterwards. The vendor's acceptance has no step yet and is said so. The
 surrogate drawer, the vendor portal's bid sheet and the counter-offer drawer
 share one sheet filler (`procol-ui-tests/src/support/sheet.ts`).
 
