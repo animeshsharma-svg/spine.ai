@@ -266,6 +266,46 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push("moved open_create to the front — the steps before it had no create screen to act on");
   }
 
+  // configure_single_stage lives in the single-stage configuration drawer, so
+  // the plan must open THAT screen, and the eRFX-only stage steps have nothing
+  // to act on there. Decide the screen from the step the case really needs.
+  if (has("configure_single_stage")) {
+    const open = steps.find((st) => st.step === "open_create");
+    if (open && String(open.args?.path ?? "erfx") !== "single-stage") {
+      open.args = { ...(open.args ?? {}), path: "single-stage" };
+      repairs.push("switched open_create to the single-stage screen — configure_single_stage is that screen's drawer");
+    }
+    const stageSteps = ["compose_stages", "switch_stage", "expect_stages"];
+    let dropped = 0;
+    for (let i = steps.length - 1; i >= 0; i--) if (stageSteps.includes(steps[i].step)) { steps.splice(i, 1); dropped++; }
+    if (dropped) repairs.push("dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer");
+    // The drawer comes first, before a template or line items.
+    const cfg = indexOf("configure_single_stage");
+    const firstBody = steps.findIndex((st) => ["select_template", "add_line_items", "fill_sheet", "set_title"].includes(st.step));
+    if (firstBody >= 0 && cfg > firstBody) {
+      const [c] = steps.splice(cfg, 1);
+      steps.splice(firstBody, 0, c);
+      repairs.push("moved configure_single_stage before the body — the drawer decides the event type the rest is built on");
+    }
+  }
+
+  // convert_to_auction needs a PUBLISHED RFQ under the browser.
+  if (has("convert_to_auction")) {
+    const conv = indexOf("convert_to_auction");
+    if (!has("publish")) {
+      steps.splice(conv, 0, { step: "publish" }, { step: "expect_published" });
+      repairs.push("added publish + expect_published before convert_to_auction — only a published RFQ can be converted");
+    } else if (indexOf("publish") > conv) {
+      const [c] = steps.splice(conv, 1);
+      steps.splice(Math.max(indexOf("expect_published"), indexOf("publish")) + 1, 0, c);
+      repairs.push("moved convert_to_auction after publish — only a published RFQ can be converted");
+    }
+    if (!has("compose_stages")) {
+      steps.splice(indexOf("open_create") + 1, 0, { step: "compose_stages", args: { stages: ["rfq"] } });
+      repairs.push("added compose_stages(rfq) — conversion applies to an RFQ, and the screen defaults to an Auction");
+    }
+  }
+
   // Stage steps only exist on the eRFX screen. Pairing them with the
   // single-stage path fails on step two with "the create screen shows [none]",
   // which reads like a broken reconciler rather than the wrong screen.
