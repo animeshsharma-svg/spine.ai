@@ -226,7 +226,8 @@ export class EventsPage extends BasePage {
     await this.waitForSpinnerHidden();
     await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.LONG }).catch(() => {});
     const active = await this.page.locator(".ant-tabs-tab-active, [role='tab'][aria-selected='true']").first().textContent().catch(() => null);
-    return (active ?? tab).replace(/\s+/g, " ").trim();
+    // The tab text carries its count badge ("Live5618"); the word is the answer.
+    return (active ?? tab).replace(/\d[\d,]*\s*$/, "").replace(/\s+/g, " ").trim() || tab;
   }
 
   /** Search the events list by title and report whether any row matches. */
