@@ -269,7 +269,7 @@ sentence like *"single-stage price-based auction, award the whole lot"*
 compiles to `open_create{single-stage} → configure_single_stage{auction,
 price, lot} → …`, and *"convert the published RFQ to an auction"* compiles to
 `compose_stages{rfq} → … → publish → expect_published → convert_to_auction`.
-A counter offer has no step and is refused, on the ledger.
+The executor knows which screen it is on: the same step names — title, template, line items, invite, publish — act through the single-stage page object when the plan is on that screen, so the compiler keeps one vocabulary.
 
 ## Counter offers, from the product's own trigger
 
