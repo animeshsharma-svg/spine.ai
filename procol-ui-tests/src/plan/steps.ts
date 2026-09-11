@@ -117,6 +117,19 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "open_participants",
+    purpose:
+      "On a PUBLISHED event's project page, open the stage's Participants list (the surrogate-bid drawer lives here). Reaching the list is the success condition — it is paginated and only eligible vendors show an Add Bid control. Reports how many rows offer Add Bid.",
+    args: {},
+  },
+  {
+    name: "open_master_qcs",
+    purpose:
+      "On a published event with bids, open the Master QCS tab and assert the comparison grid rendered with its line items and bidding vendors. Optionally name vendors that must appear.",
+    args: { vendors: "array of vendor names that must be in the grid (optional)" },
+    assertion: true,
+  },
+  {
     name: "configure_single_stage",
     purpose:
       "On the SINGLE-STAGE create screen (open_create path single-stage), open the configuration drawer and set the event type; for an auction, its strategy and the awarding rule. This is where auction strategy is chosen on this build — rank, price or traffic light; knockout and dutch exist only through RFQ→Auction conversion.",

@@ -141,7 +141,18 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const control = String(a.control ?? "").trim();
       if (!control) throw new Error(`${step.step} needs a "control" — the visible text of the button, menu item or tab`);
       const want = new RegExp(control.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      // Some controls are named by their CONTENT, not their purpose: the
+      // schedule chip reads "Now - 03:27 pm, 11th Sep (30 Mins)" and the Items
+      // button "Items 0". A person calls them "the schedule" and "Items";
+      // resolve those names to the controls they mean before matching text.
+      const alias: Array<[RegExp, () => import("@playwright/test").Locator]> = [
+        [/^schedule|bid window|time ?window$/i, () => s.page.locator("button:has(.anticon-clock-circle), button:has-text('Mins'), button:has-text(' - ')").filter({ hasText: /\d{1,2}:\d{2}|Mins|Hour|Day/i }).first()],
+        [/^items?$|line items?/i, () => s.page.getByRole("button", { name: /items\s*\d+/i }).first()],
+        [/^publish$/i, () => s.page.getByRole("button", { name: /^publish$/i }).first()],
+      ];
+      const aliased = alias.find(([re]) => re.test(control));
       const candidates = [
+        ...(aliased ? [aliased[1]()] : []),
         s.page.getByRole("button", { name: want }),
         s.page.getByRole("menuitem", { name: want }),
         s.page.getByRole("tab", { name: want }),
@@ -190,6 +201,25 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const url = s.page.url();
       if (!url.includes(text)) throw new Error(`URL is ${url} — does not contain "${text}"`);
       return `URL contains "${text}"`;
+    }
+    case "open_participants": {
+      if (!/\/project\//.test(s.page.url())) throw new Error("open_participants needs a published event's project page — publish and expect_published first");
+      const sur = new SurrogateBidPage(s.page);
+      await sur.openParticipants();
+      const biddable = await sur.biddableVendors().catch(() => [] as string[]);
+      return `participants list open — ${biddable.length} row(s) offer Add Bid${biddable.length ? `: ${biddable.slice(0, 5).join(", ")}` : " on this page"}`;
+    }
+    case "open_master_qcs": {
+      if (!/\/project\//.test(s.page.url())) throw new Error("open_master_qcs needs a published event's project page — publish and expect_published first");
+      const award = new AwardPage(s.page);
+      await award.openMasterQcs();
+      const grid = s.page.locator(".rdg, .rdg-cell, [role='grid'], .data-grid-container").first();
+      await grid.waitFor({ state: "visible", timeout: 30_000 });
+      const text = ((await s.page.locator(".rdg, [role='grid'], .data-grid-container").first().innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+      const want = Array.isArray(a.vendors) ? a.vendors.map(String) : [];
+      const missing = want.filter((v) => !text.toLowerCase().includes(v.toLowerCase()));
+      if (missing.length) throw new Error(`the comparison grid rendered but does not list: ${missing.join(", ")}`);
+      return `Master QCS grid rendered${want.length ? ` with ${want.join(", ")}` : ""}`;
     }
     case "configure_single_stage": {
       const eventType = String(a.eventType ?? "rfq").toLowerCase();
@@ -377,6 +407,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `app said: ${err}`;
     }
     case "expect_publish_blocked": {
+      // Say WHY the app may have allowed it: the product audience adds vendors
+      // from the line items on its own, so "no participants" is often untrue.
+      const participants = await s.create.participantCount().catch(() => -1);
+      const participantsNote = participants >= 0 ? ` — ${participants} participant(s) were on the event (the product audience adds vendors from the line items)` : "";
       // Two shapes of "blocked" exist on this screen and a test should accept
       // either: the confirm button rendered but disabled, or the app refusing
       // outright with a message. Insisting on one makes the test brittle about
@@ -394,7 +428,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (disabled) return "the confirm button is disabled, as expected";
       }
       const err = await s.create.errorToastText(6_000);
-      expect(err, "publishing was expected to be blocked, but the app allowed it").toBeTruthy();
+      expect(err, "publishing was expected to be blocked, but the app allowed it${participantsNote}").toBeTruthy();
       if (a.because) expect(err ?? "").toContain(String(a.because));
       return `blocked: ${err}`;
     }
