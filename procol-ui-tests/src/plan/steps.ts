@@ -117,6 +117,18 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "place_counter_offer",
+    purpose:
+      "Buyer side, on Master QCS after a vendor has bid: open the vendor's Counter Offer from their column header, enter a counter price in the drawer's sheet, add a remark and send it. The product offers the control only while the bid is live and active. Use open_master_qcs first.",
+    args: { vendor: "vendor name whose bid to counter (default: the first with a Counter Offer control)", price: "the counter price (number)", remark: "optional remark text" },
+  },
+  {
+    name: "expect_counter_offer_sent",
+    purpose: "Assert the comparison grid now marks the vendor's bid with a counter offer (the 'Counter offer initiated' mark).",
+    args: { vendor: "vendor name (optional)" },
+    assertion: true,
+  },
+  {
     name: "capture_screen",
     purpose:
       "Record evidence of the current screen — a screenshot and the accessibility tree — under a label, without asserting anything. Use when a case wants to inspect or document a screen, or when the next thing to test has no step yet and a person needs to see the controls that exist.",

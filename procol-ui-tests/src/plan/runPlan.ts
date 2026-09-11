@@ -2,6 +2,7 @@ import { Page, expect } from "@playwright/test";
 import { EventsPage } from "../pages/EventsPage.js";
 import { VendorPortalPage } from "../pages/VendorPortalPage.js";
 import { recordStuck } from "../oracle/stuck.js";
+import { CounterOfferPage } from "../pages/CounterOfferPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
 import { AwardPage } from "../pages/AwardPage.js";
 import { vendorNames, vendorCount } from "../master/params.js";
@@ -61,6 +62,8 @@ interface RunState {
   awarded: boolean;
   /** The template select_template applied, for expect_template_selected. */
   templateName?: string;
+  /** Whether a counter offer went out in this plan, so the assertion can tell. */
+  counterOfferSent?: boolean;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -202,6 +205,22 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const url = s.page.url();
       if (!url.includes(text)) throw new Error(`URL is ${url} — does not contain "${text}"`);
       return `URL contains "${text}"`;
+    }
+    case "place_counter_offer": {
+      if (!/\/project\//.test(s.page.url())) throw new Error("place_counter_offer needs the published event's page with Master QCS open — publish, take a bid, open_master_qcs first");
+      const price = Number(a.price);
+      if (!Number.isFinite(price) || price <= 0) throw new Error('place_counter_offer needs a positive "price"');
+      const co = new CounterOfferPage(s.page);
+      const detail = await co.sendCounterOffer({ vendor: a.vendor ? String(a.vendor) : undefined, price, remark: a.remark ? String(a.remark) : undefined });
+      s.counterOfferSent = true;
+      return detail;
+    }
+    case "expect_counter_offer_sent": {
+      if (!s.counterOfferSent) throw new Error("no counter offer was sent in this plan — expect_counter_offer_sent needs place_counter_offer before it");
+      const co = new CounterOfferPage(s.page);
+      const marked = await co.counterOfferVisibleFor(a.vendor ? String(a.vendor) : undefined);
+      if (!marked) throw new Error("the counter offer was sent, but the grid shows no counter-offer mark on the bid yet");
+      return "the grid marks the bid with a counter offer";
     }
     case "capture_screen": {
       const label = String(a.label ?? "capture").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "capture";

@@ -108,7 +108,8 @@ Combinations (the permutation map — pick the path that can actually reach what
 - Auction STRATEGY (rank / price / traffic light) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion: create and publish an RFQ (eRFX, compose_stages ["rfq"]), expect_published, then convert_to_auction. Never compose_stages ["rfq","auction"] — the screen forbids it.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
-- Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages. A counter offer has no step — cannotExpress.
+- Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
+- Counter offer (buyer negotiates a vendor's bid): only after a vendor has bid — publish, place_bid (or place_surrogate_bid), open_master_qcs, then place_counter_offer{vendor, price}, then expect_counter_offer_sent. The vendor's ACCEPTANCE of a counter offer has no step yet — cannotExpress that part.
 - A technical (RFP) stage never carries an auction strategy or a pricing sheet; RFQ and Auction never coexist on one eRFX screen.
 - BOQ events: open_create path "boq"; line items are BOQ rows; still template-first.
 
