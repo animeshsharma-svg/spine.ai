@@ -22,6 +22,15 @@
   }
 }
 * { box-sizing: border-box; }
+/**
+ * `hidden` must actually hide.
+ *
+ * The attribute is only `display: none` in the UA stylesheet, so ANY class
+ * rule that sets display — `.po-bar { display: flex }` did — silently wins and
+ * the element stays on screen. That is how "Run PO automation" appeared for
+ * every client while the code believed it was hidden.
+ */
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -318,27 +327,35 @@ main {
   background: var(--idle-soft); color: var(--idle); text-transform: uppercase; letter-spacing: .04em; }
 
 /* ── Defects found ─────────────────────────────────────────────────────── */
+/* Themed, not hardcoded: these cards were written in light-mode hex, so in
+   dark mode a critical bug rendered as grey text on a white card — the one
+   place in the app where legibility matters most. */
 .findings { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
-.finding { border: 1px solid #e2e8f0; border-left-width: 3px; border-radius: 6px; padding: 8px 10px; background: #fff; }
-.finding.v-bug { border-left-color: #dc2626; }
-.finding.v-gap { border-left-color: #d97706; }
-.finding.v-harness { border-left-color: #64748b; }
-.finding.v-env { border-left-color: #0284c7; }
-.finding-head { display: flex; align-items: baseline; gap: 6px; }
+.finding { border: 1px solid var(--card-line); border-left-width: 3px; border-radius: 6px;
+  padding: 8px 10px; background: var(--panel); color: var(--ink); }
+.finding.v-bug { border-left-color: var(--bad); }
+.finding.v-gap { border-left-color: var(--warn); }
+.finding.v-harness { border-left-color: var(--idle); }
+.finding.v-env { border-left-color: var(--accent); }
+.finding-head { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .finding-icon { flex: none; }
-.finding-title { font-weight: 600; font-size: 12.5px; line-height: 1.35; flex: 1; }
-.finding-sev { flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 1px 5px; border-radius: 3px; background: #f1f5f9; color: #475569; }
-.finding-sev.sev-critical { background: #fee2e2; color: #991b1b; }
-.finding-sev.sev-high { background: #ffedd5; color: #9a3412; }
-.finding-meta { font-size: 11px; color: #64748b; margin-top: 3px; }
-.finding-why { font-size: 11.5px; color: #334155; margin-top: 5px; line-height: 1.45; }
+.finding-title { font-weight: 650; font-size: 12.5px; line-height: 1.35; flex: 1 1 auto; min-width: 0;
+  color: var(--ink); overflow-wrap: anywhere; }
+.finding-sev { flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 3px; background: var(--idle-soft); color: var(--ink-soft); font-weight: 700; }
+.finding-sev.sev-critical { background: var(--bad-soft); color: var(--bad); }
+.finding-sev.sev-high { background: var(--warn-soft); color: var(--warn); }
+.finding-meta { font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
+.finding-why { font-size: 11.5px; color: var(--ink); margin-top: 5px; line-height: 1.45; }
 .finding-ev { margin-top: 5px; font-size: 10.5px; }
-.finding-ev code { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 3px; padding: 1px 4px; word-break: break-all; }
+.finding-ev code { background: var(--idle-soft); border: 1px solid var(--line); border-radius: 3px;
+  padding: 1px 4px; word-break: break-all; color: var(--ink-soft); }
 .finding-flows { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 3px; }
-.finding-repro { margin-top: 5px; font-size: 11px; color: #475569; }
-.finding-repro summary { cursor: pointer; color: #1375e4; }
-.finding-repro div { padding: 1px 0 1px 10px; font-family: ui-monospace, monospace; font-size: 10.5px; }
-.pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 9px; background: #f1f5f9; color: #475569; }
+.finding-repro { margin-top: 5px; font-size: 11px; color: var(--ink-soft); }
+.finding-repro summary { cursor: pointer; color: var(--accent); }
+.finding-repro div { padding: 1px 0 1px 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); }
+.pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 9px;
+  background: var(--idle-soft); color: var(--ink-soft); }
 
 /* ── QA memory ─────────────────────────────────────────────────────────── */
 .knowledge { max-height: 40vh; overflow-y: auto; font-size: 11.5px; }
@@ -352,3 +369,254 @@ main {
 .kb-score { font-family: ui-monospace, monospace; font-size: 10px; color: #94a3b8; margin-right: 5px; }
 .kb-src { font-size: 10px; color: #64748b; }
 .kb-text { color: #334155; line-height: 1.45; margin-top: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Automation drawers
+   One drawer per automation type; inside, a module opens into its sub-modules.
+   Three levels of nesting need three clearly different weights, so the rail
+   uses size and a left guide-line rather than colour alone — colour is already
+   carrying pass/fail everywhere else.
+   ══════════════════════════════════════════════════════════════════════════ */
+.drawer {
+  border: 1px solid var(--card-line); border-radius: 12px;
+  background: var(--panel); margin-bottom: 10px; overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.drawer-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 13px 14px; background: none; border: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-align: left;
+}
+.drawer-head:hover { background: var(--accent-soft); }
+.drawer-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/**
+ * The disclosure chevron, at both levels of the tree.
+ *
+ * Drawn with two borders rather than typed as "▸": a glyph renders at a
+ * different weight in every font and at 10px read as a speck of dust, which
+ * is why the drawers did not look openable. This is crisp at any size,
+ * inherits its colour, and rotates 90° to point down when open.
+ */
+.drawer-caret, .module-caret {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .18s ease;
+  color: var(--ink-soft);
+  margin: 0 4px 1px 1px;
+}
+.drawer-head:hover .drawer-caret,
+.module-head:hover .module-caret { color: var(--accent); }
+.drawer.open > .drawer-head .drawer-caret,
+.module.open > .module-head .module-caret { transform: rotate(45deg); }
+.drawer-ico { font-size: 16px; }
+.drawer-title { font-weight: 650; font-size: 14px; letter-spacing: -.01em; text-align: left; }
+/* One line under each title, so nobody has to guess what "API tests" means. */
+.drawer-what { font-weight: 400; font-size: 11px; color: var(--ink-soft); letter-spacing: 0; }
+.drawer-meta { max-width: 40%; }
+/* The three steps at the top of the column: read once, then ignored. */
+.howto { margin: 0 0 10px; border: 1px solid var(--card-line); border-radius: 8px; background: var(--accent-soft); }
+.howto > summary { cursor: pointer; padding: 7px 10px; font-size: 11.5px; color: var(--ink-soft); list-style: none; }
+.howto > summary::-webkit-details-marker { display: none; }
+.howto > summary::before { content: "▸ "; }
+.howto[open] > summary::before { content: "▾ "; }
+.howto ol { margin: 0; padding: 0 12px 9px 28px; font-size: 11.5px; color: var(--ink-soft); line-height: 1.6; }
+.howto b { color: var(--ink); font-weight: 600; }
+/* A checkbox that explains its own consequences on a second line. */
+.tgl-flow { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--ink); line-height: 1.4; }
+.tgl-flow small { display: block; font-size: 10.5px; color: var(--ink-soft); }
+.tgl-flow input { margin-top: 2px; }
+.drawer-meta { margin-left: auto; font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+/* Collapsed by height rather than display:none, so opening animates and the
+   scroll position inside a drawer survives a close/open. */
+.drawer-body {
+  max-height: 0; overflow: hidden;
+  transition: max-height .22s ease;
+  border-top: 1px solid transparent;
+}
+.drawer.open .drawer-body {
+  max-height: 62vh; overflow-y: auto; border-top-color: var(--line);
+}
+.drawer-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--panel); z-index: 2;
+}
+.drawer-bar.sub { border-bottom: 1px dashed var(--line); position: static; }
+.drawer-sec {
+  padding: 10px 12px 6px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+}
+
+/* ── module (level 2) ── */
+.modules { padding: 6px 0 10px; }
+.module { border-bottom: 1px solid var(--line); }
+.module:last-child { border-bottom: 0; }
+.module-head {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 9px 12px; background: none; border: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-align: left;
+}
+.module-head:hover { background: var(--idle-soft); }
+.module-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.module-ico { font-size: 14px; }
+.module-name { font-weight: 600; font-size: 13px; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.module-n {
+  flex: 0 0 auto; max-width: 46%; text-align: right; font-size: 11px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; line-height: 1.35;
+}
+.module-n.some { color: var(--accent); font-weight: 600; }
+.module-what { padding: 0 12px 8px 42px; font-size: 11.5px; color: var(--ink-soft); }
+.module-body { display: none; padding: 0 0 8px; }
+.module.open .module-body { display: block; }
+
+/* ── sub-module (level 3) ── */
+.submodule {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 7px 12px 7px 30px; position: relative; cursor: pointer;
+}
+/* A guide line makes the nesting legible without another indent step. */
+.submodule::before {
+  content: ""; position: absolute; left: 20px; top: 0; bottom: 0;
+  border-left: 1px solid var(--line);
+}
+.submodule:hover { background: var(--idle-soft); }
+.submodule.none { opacity: .45; cursor: not-allowed; }
+.submodule.none input[type="checkbox"] { cursor: not-allowed; }
+.submodule.none:hover { background: transparent; }
+.submodule.picked { background: var(--accent-soft); }
+.submodule input { margin-top: 3px; }
+.sub-name { font-size: 12.5px; font-weight: 550; line-height: 1.4; }
+.sub-what { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; }
+.sub-n {
+  margin-left: auto; font-size: 11px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; padding-left: 8px;
+}
+.sub-tag {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 4px; border-radius: 3px; margin-left: 5px; vertical-align: 1px;
+}
+.sub-tag.e2e { background: var(--accent-soft); color: var(--accent); }
+.sub-tag.on { background: var(--good-soft); color: var(--good); }
+.sub-tag.off { background: var(--bad-soft); color: var(--bad); }
+.sub-tag.unk { background: var(--warn-soft); color: var(--warn); }
+.sub-tag.notbuilt { background: var(--idle-soft); color: var(--idle); }
+
+/* ── the ask box, given room to be the main input ── */
+.request-card.big { padding: 16px 18px; }
+.request-card.big .rc-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.request-card.big label { font-weight: 650; font-size: 14px; }
+.request-card.big .rc-hint { font-size: 11.5px; color: var(--ink-soft); }
+.request-card.big textarea {
+  width: 100%; min-height: 108px; resize: vertical;
+  font: 14px/1.6 inherit; padding: 12px 13px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--paper); color: var(--ink);
+}
+.request-card.big textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.rc-examples { display: flex; gap: 6px; flex-wrap: wrap; margin: 9px 0 4px; }
+/* One action, so there is no doubt which button this box belongs to. */
+.rc-actions { margin-top: 12px; }
+.run-btn.big-btn { padding: 10px 18px; font-size: 14px; font-weight: 650; border-radius: 10px; }
+.rc-foot { margin: 10px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
+.rc-foot strong { color: var(--ink); font-weight: 600; }
+/* Two run buttons per drawer sit on one line and wrap on a narrow column. */
+.drawer-bar { flex-wrap: wrap; row-gap: 6px; }
+.tgl-flow { font-size: 11.5px; }
+.tgl-flow small { display: inline; margin-left: 4px; }
+.rc-ex {
+  font-size: 11.5px; padding: 4px 9px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft);
+}
+.rc-ex:hover { border-color: var(--accent); color: var(--accent); }
+.run-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── live case rows ── */
+.case-live { animation: caseIn .18s ease-out; }
+@keyframes caseIn { from { opacity: 0; transform: translateY(-3px); } }
+.runbar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 8px 0 2px; }
+.runbar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s ease; }
+
+/* ── run-complete dialog ── */
+/* `display: grid` beats the UA rule behind the `hidden` attribute, so without
+   this the dialog stays laid out while invisible and its full-viewport overlay
+   swallows every click on the page. */
+.modal[hidden] { display: none; }
+.modal {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  background: rgba(10, 16, 26, .55); backdrop-filter: blur(3px);
+  animation: fade .16s ease-out;
+}
+@keyframes fade { from { opacity: 0; } }
+.modal-card {
+  width: min(460px, calc(100vw - 32px));
+  background: var(--panel); border: 1px solid var(--card-line);
+  border-radius: 16px; padding: 26px 26px 20px; text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,.35);
+  animation: pop .2s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes pop { from { opacity: 0; transform: scale(.94) translateY(8px); } }
+.modal-ico {
+  width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 26px;
+  background: var(--good-soft); color: var(--good);
+}
+.modal.bad .modal-ico { background: var(--bad-soft); color: var(--bad); }
+.modal-card h3 { margin: 0 0 4px; font-size: 18px; letter-spacing: -.01em; }
+.modal-sub { margin: 0 0 16px; color: var(--ink-soft); font-size: 13px; }
+.modal-stats { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.mstat {
+  min-width: 74px; padding: 9px 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--paper);
+}
+.mstat b { display: block; font-size: 19px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.mstat span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.mstat.good b { color: var(--good); }
+.mstat.bad b { color: var(--bad); }
+.modal-note { margin: 0 0 16px; font-size: 11.5px; color: var(--ink-soft); }
+.modal-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.modal-actions .run-btn { text-decoration: none; }
+.run-btn.disabled { opacity: .45; pointer-events: none; }
+
+/* ── Additions: scope notes, the report bar, skips, the PO controls ───────
+   Written as one block at the end, in theme tokens, so both themes follow. */
+
+/* Why a list is shorter than usual — never left to be inferred. */
+.scope-note { margin: 0 10px 8px; padding: 8px 10px; border-left: 3px solid var(--accent);
+  background: var(--accent-soft); border-radius: 6px; font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
+.scope-note b { color: var(--ink); font-weight: 600; }
+
+/* The reports, next to the run they describe. */
+.report-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 12px;
+  padding: 9px 11px; border: 1px solid var(--card-line); border-radius: 9px; background: var(--accent-soft); }
+.report-bar-label { font-size: 11.5px; color: var(--ink-soft); margin-right: 2px; }
+.report-bar .run-btn { text-decoration: none; }
+
+/* "12 skipped" is useless without the reasons; this is where they go. */
+.skips { margin: 0 0 10px; border: 1px solid var(--card-line); border-radius: 8px; background: var(--panel); }
+.skips > summary { cursor: pointer; padding: 8px 11px; font-size: 12px; color: var(--ink); list-style: none; }
+.skips > summary::-webkit-details-marker { display: none; }
+.skips > summary::before { content: "▸ "; color: var(--ink-soft); }
+.skips[open] > summary::before { content: "▾ "; }
+.skip-list { margin: 0; padding: 0 12px 10px; list-style: none; }
+.skip-list li { padding: 7px 0; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.5; }
+.skip-list li b { display: block; color: var(--ink); font-weight: 600; }
+.skip-list li span { color: var(--ink-soft); }
+
+/* The PO flow: one button, and a sentence about what it will create. */
+.po-bar { flex: 1 1 100%; margin: 4px 0 2px; padding: 9px 11px; border: 1px solid var(--card-line);
+  border-radius: 9px; background: var(--accent-soft); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.po-what { flex: 1 1 100%; margin: 2px 0 0; font-size: 11px; line-height: 1.5; color: var(--ink-soft); }
+.po-what code { background: var(--idle-soft); padding: 1px 4px; border-radius: 3px; font-family: var(--mono); font-size: 10px; }
+.po-dead { color: var(--bad); }
+.po-live { color: var(--good); }
+.po-plan { display: block; margin-top: 4px; }
+
+.more-bugs { padding: 9px 2px 2px; font-size: 11.5px; color: var(--ink-soft); }
+.more-bugs a { color: var(--accent); }

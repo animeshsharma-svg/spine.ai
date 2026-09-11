@@ -16,6 +16,7 @@ export async function makeIdentity(role: Role): Promise<Identity> {
   const api = await ApiClient.create(login, {
     baseURL: login.baseURL,
     appVersion: login.appVersion,
+    identity: role,
   });
   return { login, api };
 }
@@ -34,6 +35,7 @@ export async function asVendorEmail(email: string): Promise<Identity> {
   const api = await ApiClient.create(login, {
     baseURL: login.baseURL,
     appVersion: login.appVersion,
+    identity: "vendor",
   });
   return { login, api };
 }

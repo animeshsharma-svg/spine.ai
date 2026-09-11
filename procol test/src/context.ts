@@ -34,7 +34,7 @@ export async function resolveClientContext(
   companyId: number = activeCompanyId(),
 ): Promise<ClientContext> {
   const client = await resolveClient(companyId);
-  const buyerApi = await clientFromSession(client.buyer, { app: "console" });
+  const buyerApi = await clientFromSession(client.buyer, { app: "console", companyId });
 
   const [cat, vendor] = await Promise.all([
     resolveCatalog(buyerApi),

@@ -35,6 +35,8 @@ export interface Evidence {
   consoleErrors: string[];
   /** Deliberate notes the flow adds, e.g. "stages composed: [rfq]". */
   notes: string[];
+  /** path (relative to findings/) of the screen the journey died on */
+  screenshot?: string;
 }
 
 /**

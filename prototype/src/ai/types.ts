@@ -93,6 +93,8 @@ export interface CheckResult {
   inconclusive?: boolean;
   layer: "api" | "ui";
   inputSummary: string;
+  /** the request as fired, placeholders resolved — the report's curl */
+  request?: { method: string; path: string; body?: unknown };
   httpStatus: number | null;
   accepted: boolean;
   message: string | null;

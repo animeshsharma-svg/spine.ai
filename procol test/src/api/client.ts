@@ -6,6 +6,7 @@ import {
 import qs from "qs";
 
 import { CONFIG } from "../config.js";
+import { recordApiCall } from "../report/apiLog.js";
 
 export interface AuthTokens {
   accessToken: string;
@@ -19,6 +20,12 @@ export interface RequestOptions {
   body?: unknown;
   /** Query params — serialized with qs exactly like the app (arrays → key[0]=a&key[1]=b). */
   params?: Record<string, unknown>;
+  /**
+   * Body sent verbatim, without JSON.stringify. The only way to put a
+   * deliberately malformed payload on the wire — `body` would re-encode an
+   * invalid string into a valid JSON string and the case would prove nothing.
+   */
+  rawBody?: string;
   /** Extra headers merged over the defaults. */
   headers?: Record<string, string>;
   /** Per-call timeout override (ms). */
@@ -52,6 +59,12 @@ export interface ClientOptions {
   baseURL?: string;
   /** app-version header (buyer/console vs vendor/agribid differ). */
   appVersion?: string;
+  /** buyer | vendor | evaluator — recorded on every call for the report. */
+  identity?: string;
+  /** the company this client acts for; recorded for the report. */
+  companyId?: number;
+  /** config name of the environment, e.g. "clientA". */
+  clientId?: string;
 }
 
 export class ApiClient {
@@ -59,10 +72,16 @@ export class ApiClient {
   private ownsCtx = false;
   private baseURL: string;
   private appVersion: string;
+  private identity?: string;
+  private companyId?: number;
+  private clientId: string;
 
   private constructor(private tokens: AuthTokens, opts: ClientOptions = {}) {
     this.baseURL = opts.baseURL ?? CONFIG.baseURL;
     this.appVersion = opts.appVersion ?? CONFIG.appVersion;
+    this.identity = opts.identity;
+    this.companyId = opts.companyId;
+    this.clientId = opts.clientId ?? CONFIG.name;
   }
 
   /** Create a client with a fresh Playwright request context. */
@@ -121,31 +140,64 @@ export class ApiClient {
     };
   }
 
+  /** Absolute URL for the report — `buildUrl` returns a baseURL-relative path. */
+  private absoluteUrl(url: string): string {
+    if (/^https?:\/\//i.test(url)) return url;
+    return `${this.baseURL.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`;
+  }
+
   private async request(
     method: Method,
     path: string,
     opts: RequestOptions = {},
   ): Promise<unknown> {
     const url = this.buildUrl(path, opts.params);
-    const hasBody = opts.body !== undefined && opts.body !== null;
+    const hasRawBody = opts.rawBody !== undefined;
+    const hasBody = !hasRawBody && opts.body !== undefined && opts.body !== null;
+    const requestHeaders = this.headers(opts.headers);
+    // Fixed before the call so a request that never completes is still dated.
+    const timestamp = new Date().toISOString();
+    const started = Date.now();
 
-    const res: APIResponse = await this.ctx.fetch(url, {
+    // Shared by every exit path below, so a call is recorded exactly once
+    // whether it succeeded, was rejected by the API, or never connected.
+    const evidence = {
+      timestamp,
+      clientId: this.clientId,
+      companyId: this.companyId,
+      identity: this.identity,
       method,
-      headers: this.headers(opts.headers),
-      timeout: opts.timeoutMs ?? CONFIG.timeoutMs,
-      ...(hasBody ? { data: JSON.stringify(opts.body) } : {}),
-    });
+      url: this.absoluteUrl(url),
+      requestHeaders,
+      requestBody: hasRawBody ? opts.rawBody : hasBody ? opts.body : undefined,
+    };
 
-    return this.parse(res, method, path);
-  }
+    let res: APIResponse;
+    try {
+      res = await this.ctx.fetch(url, {
+        method,
+        headers: requestHeaders,
+        timeout: opts.timeoutMs ?? CONFIG.timeoutMs,
+        ...(hasRawBody ? { data: opts.rawBody } : {}),
+        ...(hasBody ? { data: JSON.stringify(opts.body) } : {}),
+      });
+    } catch (err) {
+      // Transport-level: DNS, refused connection, or the per-call timeout.
+      const message = (err as Error).message;
+      await recordApiCall({
+        ...evidence,
+        ok: false,
+        status: 0,
+        durationMs: Date.now() - started,
+        error: `Request never completed: ${message}`,
+      });
+      throw err;
+    }
 
-  private async parse(
-    res: APIResponse,
-    method: Method,
-    path: string,
-  ): Promise<unknown> {
     const status = res.status();
     const text = await res.text();
+    const durationMs = Date.now() - started;
+
     let data: unknown = null;
     try {
       data = text ? JSON.parse(text) : null;
@@ -154,15 +206,63 @@ export class ApiClient {
     }
 
     const isSuccess = status >= 200 && status < 205;
+    const errObj =
+      (data as {
+        error?: { code?: string; message?: string } | string;
+        message?: string;
+      }) ?? {};
+    // The platform's documented contract is `{ error: { message } }`, but its
+    // 500 handler answers `{ error: "Internal Server Error" }` — a string. Both
+    // shapes have to be read, or a 500 loses the only text it carries.
+    const errorText =
+      typeof errObj.error === "string" ? errObj.error : errObj.error?.message;
+    const message = isSuccess
+      ? undefined
+      : errorText ?? errObj.message ?? `HTTP ${status} on ${method} ${path}`;
+
+    await recordApiCall({
+      ...evidence,
+      ok: isSuccess,
+      status,
+      statusText: res.statusText(),
+      responseHeaders: res.headers(),
+      ...(typeof data === "string" ? { responseText: data } : { responseBody: data }),
+      durationMs,
+      error: message,
+      errorCode: isSuccess || typeof errObj.error === "string" ? undefined : errObj.error?.code,
+    });
+
     if (!isSuccess) {
-      const errObj = (data as { error?: { code?: string; message?: string }; message?: string }) ?? {};
-      const message =
-        errObj.error?.message ??
-        errObj.message ??
-        `HTTP ${status} on ${method} ${path}`;
-      throw new ApiError(message, status, errObj.error?.code, data);
+      const code = typeof errObj.error === "string" ? undefined : errObj.error?.code;
+      throw new ApiError(message!, status, code, data);
     }
     return data;
+  }
+
+  /**
+   * Performs a call and returns the outcome instead of throwing on non-2xx.
+   *
+   * The typed verbs below throw, which is what a flow wants — a resolved call
+   * is already a success. A negative or edge case wants the opposite: the
+   * status IS the assertion, so it must come back as a value. Evidence is
+   * recorded either way, because both go through `request`.
+   */
+  async raw(
+    method: Method,
+    path: string,
+    opts: RequestOptions = {},
+  ): Promise<{ ok: boolean; status: number; data: unknown; message?: string; code?: string }> {
+    try {
+      const data = await this.request(method, path, opts);
+      // `request` only resolves on 200–204; the exact code is in the evidence.
+      return { ok: true, status: 200, data };
+    } catch (err) {
+      if (err instanceof ApiError) {
+        return { ok: false, status: err.status, data: err.data, message: err.message, code: err.code };
+      }
+      // Transport failure: no HTTP status was ever assigned.
+      return { ok: false, status: 0, data: undefined, message: (err as Error).message };
+    }
   }
 
   get<T = unknown>(path: string, opts?: RequestOptions): Promise<T> {

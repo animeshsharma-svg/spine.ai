@@ -430,6 +430,8 @@ export function gate(
     layer: "api",
     inputSummary:
       `${method} ${path}` + (body && Object.keys(body).length ? ` · ${JSON.stringify(body).slice(0, 160)}` : ""),
+    // The whole request, untruncated, so the report can print a curl that runs.
+    request: { method, path, body },
     exec: () =>
       method === "GET"
         ? apiGet(api, path)

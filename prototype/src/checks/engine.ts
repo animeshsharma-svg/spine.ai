@@ -46,6 +46,16 @@ export interface Check {
   expectMessage?: string;
   layer: "api" | "ui";
   inputSummary: string;
+  /**
+   * The request this check actually fires, with every {{placeholder}} already
+   * resolved.
+   *
+   * Kept because a report has to be reproducible: `inputSummary` is a
+   * truncated line for the UI, and a reader who wants to see the defect for
+   * themselves needs the real method, path and body — that is what becomes the
+   * curl in the report.
+   */
+  request?: { method: string; path: string; body?: unknown };
   exec: (client: Client) => Promise<CheckOutcome>;
 }
 

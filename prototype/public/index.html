@@ -30,35 +30,109 @@
     </header>
 
     <main>
-      <!-- LEFT: capability map -->
+      <!-- LEFT: one drawer per automation type, each module opening into its sub-modules -->
       <section class="col capability">
         <div class="col-head">
           <h2>What to test</h2>
-          <span class="hint" id="tree-count">tick the features · untick to skip</span>
+          <span class="hint" id="tree-count">loading…</span>
         </div>
-        <div class="cap-bar">
-          <button id="t-run" class="run-btn small">▶ Run selected tests</button>
-          <button id="t-none" class="chip" title="Untick everything">clear</button>
-          <label class="tgl-flow" title="Also run the real end-to-end journey (create → bid → award), verified in the database">
-            <input type="checkbox" id="t-flows" /> + end-to-end
-          </label>
+        <!-- Folded away: useful once, in the way every day after that. -->
+        <details class="howto">
+          <summary>How this works</summary>
+          <ol>
+            <li><b>Tick</b> what you want tested below.</li>
+            <li><b>Press run.</b> Each test is a real request against UAT.</li>
+            <li><b>Read the report</b> — test report for results, bug sheet for what broke.</li>
+          </ol>
+        </details>
+
+        <!-- API automation -->
+        <div class="drawer open" id="drawer-api" data-kind="api">
+          <button class="drawer-head" aria-expanded="true" aria-controls="drawer-api-body">
+            <span class="drawer-caret" aria-hidden="true"></span>
+            <span class="drawer-ico" aria-hidden="true">⚡</span>
+            <span class="drawer-title">API tests <small class="drawer-what">no browser</small></span>
+            <span class="drawer-meta" id="api-meta"></span>
+          </button>
+          <div class="drawer-body" id="drawer-api-body">
+            <div class="drawer-bar">
+              <button id="t-run" class="run-btn small primary" title="Runs the ready-made test cases for everything ticked below">▶ Run selected</button>
+              <button id="t-none" class="chip" title="Untick everything">clear</button>
+              <!-- Shown only for an account whose PO module the API suite drives. -->
+              <div class="po-bar" id="po-bar" hidden>
+                <button id="po-run" class="run-btn small primary">▶ Run PO automation</button>
+                <label class="tgl-flow" title="On: the PO is submitted into its approval flow, which is what a buyer would do. Off: it stops after the line items.">
+                  <input type="checkbox" id="po-submit" checked /> <span>submit for approval</span>
+                </label>
+                <p class="po-what" id="po-what"></p>
+              </div>
+              <label class="tgl-flow" title="Slower, and it creates real records in UAT: the platform actually creates an event, places a bid and awards it, then checks the database to confirm each step really happened.">
+                <input type="checkbox" id="t-flows" />
+                <span>+ full journey <small>creates real data</small></span>
+              </label>
+            </div>
+            <p class="scope-note" id="tree-scope" hidden></p>
+            <div id="tree" class="modules">
+              <div class="loading">Loading modules…</div>
+            </div>
+          </div>
         </div>
-        <div id="tree" class="tree">
-          <div class="loading">Loading features…</div>
+
+        <!-- UI automation -->
+        <div class="drawer" id="drawer-ui" data-kind="ui">
+          <button class="drawer-head" aria-expanded="false" aria-controls="drawer-ui-body">
+            <span class="drawer-caret" aria-hidden="true"></span>
+            <span class="drawer-ico" aria-hidden="true">🖥</span>
+            <span class="drawer-title">Browser tests <small class="drawer-what">watches a real browser</small></span>
+            <span class="drawer-meta" id="ui-meta"></span>
+          </button>
+          <div class="drawer-body" id="drawer-ui-body">
+            <div class="drawer-bar">
+              <button id="ui-run-sel" class="run-btn small primary" title="Runs the browser journeys for everything ticked below">▶ Run selected</button>
+              <button id="ui-btn" class="run-btn small ghost" title="Opens a real browser window and drives the Procol console — login, forms, validation">🖥 Watch it</button>
+              <button id="ui-stop" class="chip" title="Stop the running journey">■ stop</button>
+              <button id="ui-none" class="chip">clear</button>
+            </div>
+            <div class="drawer-bar sub">
+              <label class="li-field" title="How many rows to put on a normal event">line items
+                <input type="number" id="li-normal" min="1" value="1" />
+                <span id="li-normal-max" class="li-max"></span>
+              </label>
+              <label class="li-field" title="How many rows to put on a BOQ (bill of quantities) event">BOQ items
+                <input type="number" id="li-boq" min="1" value="10" />
+                <span id="li-boq-max" class="li-max"></span>
+              </label>
+              <label class="tgl-flow" title="On: a browser window opens and you watch it work. Off: it runs invisibly, which is faster.">
+                <input type="checkbox" id="ui-headed" checked /> <span>show the browser</span>
+              </label>
+            </div>
+            <p class="scope-note" id="ui-note" hidden></p>
+            <div id="ui-tree" class="modules">
+              <div class="loading">Loading UI coverage…</div>
+            </div>
+            <div class="drawer-sec">Browser journeys</div>
+            <div id="ui-flows" class="ui-flows">
+              <div class="loading">Loading journeys…</div>
+            </div>
+          </div>
         </div>
       </section>
 
       <!-- CENTER: request + agent timeline -->
       <section class="col center">
-        <div class="request-card">
-          <label for="request">Ask the QA platform (plain English)</label>
-          <textarea id="request" rows="2" placeholder="e.g. test a technical event with bidding and awarding">Create a technical RFP + RFQ event, place a bid and award it</textarea>
-          <div class="row">
-            <button id="run" class="run-btn">▶ Run QA (API automation)</button>
-            <button id="ai-btn" class="run-btn">🤖 AI: run my instruction in the browser</button>
-            <button id="ui-btn" class="run-btn ghost">🖥 Watch UI test (Chromium)</button>
+        <div class="request-card big">
+          <div class="rc-head">
+            <label for="request">Ask the QA platform</label>
+            <span class="rc-hint">plain English — it picks the journey and the cases</span>
+          </div>
+          <textarea id="request" rows="5" placeholder="e.g. test a technical event with bidding and awarding">Create a technical RFP + RFQ event, place a bid and award it</textarea>
+          <div class="rc-examples" id="rc-examples"></div>
+          <div class="row rc-actions">
+            <button id="ai-btn" class="run-btn primary big-btn">🤖 Run my instruction</button>
             <span id="status" class="run-status"></span>
           </div>
+          <p class="rc-foot">Runs it in a real browser. To run the ready-made tests instead, tick what you want
+          under <strong>API tests</strong> on the left and press <strong>Run selected tests</strong>.</p>
         </div>
 
         <div class="col-head">
@@ -78,94 +152,80 @@
           <button id="f-fail" class="chip">Failed only</button>
           <span id="auto-summary" class="auto-summary"></span>
         </div>
+        <!-- The reports, where a run actually ends. Looking for them in a side
+             panel after watching a run finish here is a step too many. -->
+        <!-- Hidden until a run finishes: until then there is nothing to read,
+             and the links would point at somebody else's run. -->
+        <div class="report-bar" id="report-bar" hidden>
+          <span class="report-bar-label" id="report-bar-label">This run:</span>
+          <a id="open-api-report" class="run-btn small" target="_blank" rel="noopener">📊 Test report</a>
+          <a id="open-bug-sheet" class="run-btn small ghost" target="_blank" rel="noopener">🐞 Bug sheet</a>
+        </div>
+        <details id="skips" class="skips" hidden></details>
         <div id="automation" class="automation">
           <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
         </div>
 
-        <div class="col-head" style="margin-top: 18px">
-          <h2>UI coverage — the 92 features in a browser</h2>
-          <span class="hint" id="ui-cov-hint">only features with a built journey can be picked</span>
-        </div>
-        <div class="uibar">
-          <button id="ui-run-sel" class="run-btn small">▶ Run selected UI journeys</button>
-          <button id="ui-stop" class="chip" title="Stop the running journey">■ stop</button>
-          <button id="ui-none" class="chip">clear</button>
-        </div>
-        <div id="ui-tree" class="tree" style="max-height:36vh">
-          <div class="loading">Loading UI coverage…</div>
-        </div>
-
-        <div class="col-head" style="margin-top: 18px">
-          <h2>Browser journeys</h2>
-          <span class="hint" id="ui-flows-hint">real Chromium drives the live console — pick a journey</span>
-        </div>
-        <div class="uibar">
-          <label class="li-field">line items
-            <input type="number" id="li-normal" min="1" value="1" title="Line items for a normal (non-BOQ) event" />
-            <span id="li-normal-max" class="li-max"></span>
-          </label>
-          <label class="li-field">BOQ items
-            <input type="number" id="li-boq" min="1" value="10" title="Line items for a BOQ event" />
-            <span id="li-boq-max" class="li-max"></span>
-          </label>
-          <label class="tgl-flow" title="Uncheck to run without opening a visible browser window">
-            <input type="checkbox" id="ui-headed" checked /> watch it
-          </label>
-        </div>
-        <div id="ui-flows" class="ui-flows">
-          <div class="loading">Loading journeys…</div>
-        </div>
         <div id="ui-console" class="ui-console" hidden></div>
 
         <div class="col-head" style="margin-top: 18px">
-          <h2>UI automation (legacy demo)</h2>
-          <span class="hint">the original single scripted journey</span>
+          <h2>Browser run (single scripted journey)</h2>
+          <span class="hint">the original demo — one fixed journey, start to finish</span>
         </div>
         <div id="ui-run" class="ui-run">
-          <div class="empty">Click "Watch UI test" — a Chromium window opens and drives the real Procol console (login, form validation), mirrored here.</div>
+          <div class="empty">Press <strong>Watch a browser run it</strong> under Browser tests on the left — a real
+            browser window opens and drives the Procol console (login, forms, validation), mirrored here.</div>
         </div>
       </section>
 
       <!-- RIGHT: results + report + history -->
       <section class="col results">
         <div class="col-head">
+          <h2>Reports</h2>
+          <span class="hint">what the last runs found</span>
+        </div>
+        <div class="cap-bar report-links">
+          <a id="report-tests" class="chip" href="/api/test-report" target="_blank" rel="noopener">📊 API test report</a>
+          <a id="report-ui" class="chip" href="/api/ui-report" target="_blank" rel="noopener">🖥 Browser report</a>
+          <a id="report-sheet" class="chip" href="/api/bug-report" target="_blank" rel="noopener">🐞 Bug sheet</a>
+        </div>
+
+        <div class="col-head" style="margin-top:16px">
           <h2>Recent runs</h2>
-          <span class="hint">the platform's own memory</span>
+          <span class="hint">every run is kept</span>
         </div>
         <div id="history" class="history">
           <div class="empty">No runs saved yet.</div>
         </div>
 
         <div class="col-head" style="margin-top:16px">
-          <h2>Defects found</h2>
-          <span class="hint" id="findings-hint">grouped by defect · one bug, many journeys</span>
+          <h2>Bugs found</h2>
+          <span class="hint" id="findings-hint">one row per bug, however many tests hit it</span>
         </div>
         <div class="uibar">
-          <a id="report-view" class="chip" href="/api/report" target="_blank" rel="noopener">📄 view bug report</a>
-          <a id="report-dl" class="chip" href="/api/report?download=1">⬇ download .md</a>
         </div>
         <div id="findings" class="findings">
           <div class="empty">Run a journey — confirmed defects, test gaps and harness issues are separated here.</div>
         </div>
 
-        <div class="col-head" style="margin-top:16px">
-          <h2>QA memory</h2>
-          <span class="hint" id="kb-hint">what should happen · what has happened</span>
-        </div>
-        <div class="uibar">
-          <input id="kb-q" class="kb-input" placeholder="ask the memory, e.g. savings column validation" />
-          <button id="kb-go" class="chip">search</button>
-        </div>
-        <div id="knowledge" class="knowledge">
-          <div class="empty">Loading memory…</div>
-        </div>
-
-        <div class="col-head" style="margin-top:16px"><h2>Results & report</h2></div>
-        <div id="report" class="report">
-          <div class="empty">Run a request to see live results, database-verified, plus a plain-English report.</div>
-        </div>
       </section>
     </main>
+
+    <!-- run-complete dialog: what happened, and where the evidence is -->
+    <div id="modal" class="modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-ico" id="modal-ico">✓</div>
+        <h3 id="modal-title">Run complete</h3>
+        <p id="modal-sub" class="modal-sub"></p>
+        <div class="modal-stats" id="modal-stats"></div>
+        <p id="modal-note" class="modal-note"></p>
+        <div class="modal-actions">
+          <a id="modal-report" class="run-btn primary" href="/api/test-report" target="_blank" rel="noopener">📊 Open the report</a>
+          <a id="modal-bugs" class="run-btn ghost" href="/api/bug-report" target="_blank" rel="noopener">🐞 Bug sheet</a>
+          <button id="modal-close" class="chip">Close</button>
+        </div>
+      </div>
+    </div>
 
     <script src="/app.js"></script>
   </body>

@@ -29,10 +29,17 @@ CLIENTA_BASE_URL=... OTP=... npm test
 ## Run
 
 ```bash
-npm test              # all specs
-npm run report        # open the HTML report
+npm test              # all specs, writes reports/api-report.html
+npm run test:cases    # only the negative/edge table
+npm run test:master   # only the DB-driven flow registry (needs DATABASE_URL)
+npm run report:api    # open the API evidence report
+npm run report        # open Playwright's own HTML report
 npx playwright test tests/flows/lifecycle.spec.ts   # one spec
 ```
+
+> Passing `--reporter=…` on the command line **replaces** the configured
+> reporters, so the API report is not written. Use `--project` or a path to
+> narrow a run instead.
 
 ## Configuration — `src/config.ts` (the one place to change)
 
@@ -76,6 +83,101 @@ The remaining two flows (a vendor's *own* submitted bid, and evaluating a real
 vendor proposal) need a working `vendorEmail` for the active client — the current
 one is rejected by `generate_otp`. Fill a valid vendor email in `src/config.ts`
 and remove `.skip` in `vendor-bid.spec.ts`.
+
+## The API report
+
+Every run writes **`reports/api-report.html`** — one self-contained file, no
+external assets, openable from disk or attachable to a ticket.
+
+```bash
+npm test              # runs everything, writes the report
+npm run test:cases    # just the negative/edge table — fastest useful subset
+npm run report:api    # open the report
+```
+
+It is organised **client → flow → case kind → test case → the API calls that
+case made**, and every call carries its full evidence:
+
+| | |
+|---|---|
+| API URI | path + query, and the absolute URL |
+| Method | GET / POST / PATCH / PUT / DELETE |
+| HTTP status code | with the status text, coloured by class |
+| Response time | per call, plus p50 / p95 / slowest for the run |
+| Log time | wall clock at request start, local and UTC |
+| Request headers | credentials replaced with `<redacted, n chars>` |
+| Response headers | as returned |
+| Request body | pretty-printed |
+| Response body | pretty-printed, capped by `API_LOG_MAX_BODY` (default 24 kB) |
+| Error message | for a failed call, the message the API itself returned |
+
+A **Failed API calls** table sits at the top: every non-2xx call in the run with
+its error message, so triage starts from the evidence rather than from a test
+name. Filters above the flows narrow by status, kind, or free text.
+
+`reports/api-report.json` holds the same model as data, for CI gates or the
+`prototype/` dashboard.
+
+### How the evidence is captured
+
+`ApiClient.request` is the single funnel every call passes through, so one hook
+there covers the whole framework — a new flow is reported without touching the
+reporter. Records are appended as JSONL to `reports/api-calls/`, one file per
+worker process, because Playwright workers are separate processes and an
+in-memory array would die with the worker. `tests/globalSetup.ts` clears that
+directory before a run, so a report never mixes two runs. A run that is killed
+half way still leaves every call it had already made.
+
+Nothing in the pipeline can fail a test: `recordApiCall` swallows its own
+errors by design.
+
+## Positive, negative and edge cases
+
+Coverage is split across two registries, both config-driven:
+
+| Registry | What it holds | Runner |
+|---|---|---|
+| `src/master/registry.ts` | the **positive** flows — create an event, bid, evaluate, award, master data | `tests/master.spec.ts` |
+| `src/cases/registry.ts` | the **negative** and **edge** table — what the API must refuse, and how it behaves at the boundaries | `tests/cases.spec.ts` |
+
+A case in the second table is one request and one expectation, so adding
+coverage is a table entry rather than a new spec:
+
+```ts
+{
+  id: "events.create.negative_quantity",
+  flowKey: "events.create",
+  flowTitle: "Create event group (validation)",
+  title: "a negative quantity is refused",
+  kind: "negative",
+  expects: "reject",
+  because: "you cannot tender for a negative amount, whatever the column type allows",
+  build: (ctx) => ({
+    method: "POST",
+    path: Endpoints.eventGroups(),
+    body: { status: "draft", line_items: [{ ...validLineItem(ctx), quantity: { unitSymbol: "kg", value: -5 } }] },
+  }),
+}
+```
+
+`expects` has three values, and the third one matters:
+
+- **`accept`** — 2xx. The request is legitimate and must work.
+- **`reject`** — 4xx. Invalid input must be refused *by the server*, with a
+  client error — not a 500, and not a silent success.
+- **`no-server-error`** — 2xx or 4xx. For boundaries where the correct answer is
+  genuinely undocumented. The case pins down that the server *decides* rather
+  than crashing, and the report records which way it went. Better than asserting
+  a guess and calling it a contract.
+
+`auth` on a case swaps the credentials it sends (`none`, `malformed`,
+`wrongSecret`, `noLightspeed`), which is how the authorization cases are written
+without a second login.
+
+Each case annotates itself with its kind, flow, expectation and rationale, and
+the reporter reads those annotations — so the grouping in the report follows the
+table automatically. A case with `skip` set is parked with its reason visible in
+the report rather than deleted.
 
 ## DB-driven client selection (any client, no hardcoding)
 
@@ -138,6 +240,13 @@ src/
   api/
     client.ts        ApiClient (per-identity baseURL + app-version, qs, ApiError)
     endpoints.ts     every endpoint path
+  cases/
+    types.ts         ApiCase / Expectation / AuthMode — the case contract
+    registry.ts      THE CASE TABLE: negative + edge cases per flow
+  report/
+    apiLog.ts        evidence recorder (JSONL per worker) + reader
+    model.ts         raw calls + test results → client/flow/kind/case model
+    html.ts          the model → one self-contained HTML file
   flows/
     bodies.ts        pure request-body builders (translated from the collection)
     enrich.ts        fetch trade-product ids + technical form uuids
@@ -149,6 +258,9 @@ src/
     vendorBid.ts     vendor: technical response + priced bid
     vendors.ts       vendor discovery / collection
 tests/
+  globalSetup.ts     clears reports/api-calls/ before a run
+  apiReporter.ts     writes reports/api-report.{html,json} after a run
+  cases.spec.ts      runs src/cases/registry.ts (negative + edge)
   auth.setup.ts, auth.spec.ts, reads.spec.ts
   events/create-event.spec.ts
   flows/{lifecycle,features,vendors,vendor-bid}.spec.ts

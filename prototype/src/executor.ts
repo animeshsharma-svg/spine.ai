@@ -12,6 +12,8 @@ import { config as loadEnv } from "dotenv";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isTokenClient } from "../config/tokenClients.js";
+import { openTokenClient } from "./tokenClient.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROCOL_TEST = join(here, "..", "..", "procol test");
@@ -88,6 +90,9 @@ async function loadSibling(): Promise<Sibling> {
  * so it can run flows AND the data-validation probe against the same session.
  */
 export async function openClientContext(companyId: number) {
+  // A token client is not a company on UAT: it has its own host and a static
+  // token, so the session lookup does not apply to it.
+  if (isTokenClient(companyId)) return openTokenClient(companyId) as any;
   return openClient(companyId);
 }
 
@@ -142,9 +147,25 @@ export async function runSelected(
   return out;
 }
 
-/** The capability map (flow on/off + reason) from an already-open client. */
+interface RegistryModule {
+  key: string;
+  title: string;
+  category: string;
+  enabledFor: (config: unknown) => { enabled: boolean; reason?: string };
+}
+
+/**
+ * The capability map (flow on/off + reason) from an already-open client.
+ *
+ * A token client carries no flow registry — its journeys live in the UAT
+ * database, which that account has none of — so it reports an empty map
+ * rather than every flow "off", which would read as a problem with the
+ * account rather than an absence of one.
+ */
 export function capabilityFromClient(client: Awaited<ReturnType<typeof openClientContext>>) {
-  return client.s.REGISTRY.map((m) => {
+  const registry = (client as { s?: { REGISTRY?: RegistryModule[] } }).s?.REGISTRY;
+  if (!registry) return [];
+  return registry.map((m: RegistryModule) => {
     const g = m.enabledFor(client.config);
     return {
       id: m.key,
@@ -235,6 +256,19 @@ function cleanError(err: unknown): string {
  * (The UI's "feature map" panel will use this.)
  */
 export async function getCapabilityMap(companyId: number) {
+  if (isTokenClient(companyId)) {
+    // Nothing to report: the sourcing journeys resolve their data from the UAT
+    // database. Say that, rather than showing every flow as "off" — which
+    // would read as a configuration problem on the account.
+    const client = await openTokenClient(companyId);
+    await client.dispose();
+    return {
+      companyId,
+      companyName: client.companyName,
+      flows: [],
+      note: `${client.tokenClient.name}: ${client.tokenClient.covers}`,
+    };
+  }
   const client = await openClient(companyId);
   try {
     return { companyId, companyName: client.companyName, flows: capabilityFromClient(client) };

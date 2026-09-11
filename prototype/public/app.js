@@ -15,6 +15,8 @@ const AGENT_ICON = {
 
 // ── state ──
 let currentClient = null;
+/** The selected company's display name, for the run-complete dialog. */
+let currentClientName = "";
 let execData = null; // flow results captured from the Executor
 let designedCases = null; // test cases captured from the Test-designer
 let checkRows = []; // live automation check results
@@ -25,7 +27,6 @@ let currentMap = null; // the loaded capability map (for the control panel)
 init();
 async function init() {
   loadFindings();
-  loadKnowledge();
   $("#ai-btn")?.addEventListener("click", runAiInstruction);
   $("#kb-go")?.addEventListener("click", () => loadKnowledge($("#kb-q").value.trim() || undefined));
   $("#kb-q")?.addEventListener("keydown", (e) => {
@@ -42,14 +43,27 @@ async function init() {
   }
   sel.value = String(defaultClient);
   currentClient = defaultClient;
+  currentClientName = clients.find((c) => String(c.id) === String(defaultClient))?.name ?? "";
   sel.addEventListener("change", () => {
     currentClient = Number(sel.value);
+    currentClientName = clients.find((c) => String(c.id) === String(currentClient))?.name ?? "";
+
+    /**
+     * Anything account-specific goes away the moment the account changes.
+     *
+     * Reading the new company's configuration takes a second or two (PROCOL
+     * DEMO longest of all), and until it lands the panel still shows the last
+     * account's state — which is how "Run PO automation" appeared under a
+     * client that has no PO module. Clear first, then reload.
+     */
+    resetAccountControls();
     // Switching company re-reads that company's configuration and rebuilds the
     // tree — the same way the real Procol console reconfigures itself.
     loadFeatures();
     loadUiFlows();
+    loadPoInput();
   });
-  $("#run").addEventListener("click", run);
+  $("#run")?.addEventListener("click", run);
   $("#ui-btn").addEventListener("click", runUi);
   $("#f-all").addEventListener("click", () => setFilter("all"));
   $("#f-fail").addEventListener("click", () => setFilter("fail"));
@@ -72,9 +86,41 @@ async function init() {
       document.querySelectorAll(".uibtn.running").forEach((b) => b.classList.remove("running"));
     }
   });
+  $("#po-run")?.addEventListener("click", runPoAutomation);
+
+  initDrawers();
+  initModal();
+  initExamples();
   loadFeatures();
   loadUiFlows();
+  loadPoInput();
   loadHistory();
+}
+
+/**
+ * One-click prompts. The ask box starts with text in it, which hides that it
+ * accepts anything — a few concrete examples show the range without a manual.
+ */
+function initExamples() {
+  const box = $("#rc-examples");
+  if (!box) return;
+  const examples = [
+    "Create a technical RFP + RFQ event, place a bid and award it",
+    "Create an RFQ-only event with 3 line items",
+    "Convert an approved PR into an event",
+    "Run a rank-based auction and award the winner",
+    "Create a product category, a product and a location",
+  ];
+  for (const text of examples) {
+    const chip = el("button", "rc-ex", text.length > 46 ? text.slice(0, 44) + "…" : text);
+    chip.type = "button";
+    chip.title = text;
+    chip.addEventListener("click", () => {
+      $("#request").value = text;
+      $("#request").focus();
+    });
+    box.appendChild(chip);
+  }
 }
 
 function setFilter(f) {
@@ -203,11 +249,32 @@ async function loadFeatures() {
   try {
     // Pass the client so the tree reflects THAT company's switched-on features —
     // the same source of truth the real Procol console uses.
-    const { groups, defaults, totalCases, company } = await (
+    const { groups, defaults, totalCases, company, scope } = await (
       await fetch("/api/features?c=" + currentClient)
     ).json();
     featureGroups = groups;
-    selected = new Set(defaults);
+    /**
+     * Start with nothing selected.
+     *
+     * The tree used to open with eleven features already ticked, so the first
+     * "Run selected" ran something nobody chose — and the count in the button
+     * described a selection the reader had not made. An empty tree asks the
+     * question instead of answering it for you.
+     */
+    void defaults;
+    selected = new Set();
+
+    // Some accounts only cover part of the product. Say so above the tree,
+    // otherwise a short list reads as something failing to load.
+    const scopeBox = $("#tree-scope");
+    if (scopeBox) {
+      if (scope?.note) {
+        scopeBox.innerHTML = `<b>${esc(scope.name)}</b> ${esc(scope.note)}`;
+        scopeBox.hidden = false;
+      } else {
+        scopeBox.hidden = true;
+      }
+    }
     const featureCount = groups.reduce((n, g) => n + g.children.length, 0);
     const off = groups.reduce((n, g) => n + g.children.filter((c) => c.config?.state === "off").length, 0);
     $("#tree-count").textContent = company?.loaded
@@ -226,73 +293,311 @@ async function loadFeatures() {
   }
 }
 
+/**
+ * Which modules are expanded. Kept outside the render so redrawing after a
+ * tick does not collapse what the reader had open.
+ */
+const openModules = new Set();
+
+/** Wires a drawer header to its body. */
+function initDrawers() {
+  for (const drawer of document.querySelectorAll(".drawer")) {
+    const head = drawer.querySelector(".drawer-head");
+    head.addEventListener("click", () => {
+      const open = drawer.classList.toggle("open");
+      head.setAttribute("aria-expanded", String(open));
+    });
+  }
+}
+
+/**
+ * The API-automation tree: module (a feature group) → sub-module (a feature).
+ *
+ * Ticking a module ticks every sub-module under it; a partly-ticked module
+ * shows an indeterminate box, so "some of this is selected" is visible without
+ * opening it.
+ */
 function renderTree() {
   const box = $("#tree");
   box.innerHTML = "";
-  for (const g of featureGroups) {
-    const wrap = el("div", "tgroup");
-    const kidIds = g.children.map((c) => c.id);
-    const onCount = kidIds.filter((id) => selected.has(id)).length;
+  let pickedCases = 0;
+  let pickedFeatures = 0;
 
-    const head = el("div", "tgroup-head");
+  for (const g of featureGroups) {
+    // Only features that actually have test cases can be run. The rest are
+    // listed — the tree doubles as a coverage map — but not selectable, so
+    // "Run selected" can never mean "run nothing".
+    const kidIds = g.children.filter((c) => c.cases > 0).map((c) => c.id);
+    const onCount = kidIds.filter((id) => selected.has(id)).length;
+    pickedFeatures += onCount;
+    pickedCases += g.children.reduce((n, c) => n + (selected.has(c.id) ? c.cases || 0 : 0), 0);
+
+    const mod = el("div", "module" + (openModules.has(g.id ?? g.label) ? " open" : ""));
+    const key = g.id ?? g.label;
+
+    const head = el("button", "module-head");
+    head.type = "button";
+    head.setAttribute("aria-expanded", String(openModules.has(key)));
+    head.appendChild(el("span", "module-caret"));
+
+    // The master checkbox sits inside the header but must not open the module.
     const master = el("input");
     master.type = "checkbox";
+    master.disabled = kidIds.length === 0;
     master.checked = onCount > 0;
     master.indeterminate = onCount > 0 && onCount < kidIds.length;
-    master.title = onCount ? "Untick the whole group" : "Tick the whole group";
+    master.title = kidIds.length
+      ? onCount
+        ? "Untick everything here"
+        : "Tick everything here that has tests"
+      : "no test cases written for this module yet";
+    master.addEventListener("click", (e) => e.stopPropagation());
     master.addEventListener("change", () => {
       if (master.checked) kidIds.forEach((id) => selected.add(id));
       else kidIds.forEach((id) => selected.delete(id));
       renderTree();
     });
     head.appendChild(master);
-    head.appendChild(el("span", "tgroup-ico", g.icon));
-    head.appendChild(el("span", "tgroup-name", esc(g.label)));
-    const groupCases = g.children.reduce((n, c) => n + (c.cases || 0), 0);
-    head.appendChild(el("span", "tgroup-n", `${onCount}/${kidIds.length} · ${groupCases} cases`));
-    wrap.appendChild(head);
-    wrap.appendChild(el("div", "tgroup-what", esc(g.what)));
 
-    const kids = el("div", "tkids");
+    head.appendChild(el("span", "module-ico", g.icon));
+    head.appendChild(el("span", "module-name", esc(g.label)));
+    const groupCases = g.children.reduce((n, c) => n + (c.cases || 0), 0);
+    // "1/7 · 29 cases" read as a fraction of nothing. Say what is picked and
+    // how many tests that module has, in words.
+    const n = el("span", "module-n" + (onCount ? " some" : ""),
+      `${onCount ? `${onCount} of ${kidIds.length} picked` : `${kidIds.length} parts`} · ${groupCases} test${groupCases === 1 ? "" : "s"}`);
+    head.appendChild(n);
+    head.addEventListener("click", () => {
+      if (openModules.has(key)) openModules.delete(key);
+      else openModules.add(key);
+      renderTree();
+    });
+    mod.appendChild(head);
+
+    const body = el("div", "module-body");
+    if (g.what) body.appendChild(el("div", "module-what", esc(g.what)));
+
     for (const f of g.children) {
-      const row = el("div", "tkid" + (f.cases ? "" : " none"));
+      const runnable = f.cases > 0;
+      const row = el("div", "submodule" + (runnable ? "" : " none") + (selected.has(f.id) ? " picked" : ""));
       const cb = el("input");
       cb.type = "checkbox";
-      cb.checked = selected.has(f.id);
+      cb.disabled = !runnable;
+      cb.checked = runnable && selected.has(f.id);
+      cb.title = runnable ? "" : "no test cases written for this yet";
+      cb.addEventListener("click", (e) => e.stopPropagation());
       cb.addEventListener("change", () => {
         cb.checked ? selected.add(f.id) : selected.delete(f.id);
         renderTree();
       });
       row.appendChild(cb);
-      const name = el("span", "tkid-name");
-      // Per-company configuration badge: on / off / unknown for THIS client.
-      let cfgBadge = "";
+
+      // Per-company configuration badge: a feature that is simply OFF here
+      // would otherwise look like a product bug when its tests are skipped.
+      let tags = "";
+      if (f.flowId) tags += ' <span class="sub-tag e2e" title="has a real end-to-end journey">e2e</span>';
       const st = f.config?.state;
-      if (st === "on") cfgBadge = ` <span class="cfg on" title="${esc(f.requiresConfig || "")} is ON for this company">on</span>`;
-      else if (st === "off")
-        cfgBadge = ` <span class="cfg off" title="${esc(f.requiresConfig || "")} is OFF for this company — its tests will be skipped, not failed">off</span>`;
-      else if (st === "unknown" && f.requiresConfig)
-        cfgBadge = ` <span class="cfg unk" title="could not read ${esc(f.requiresConfig)} for this company">config?</span>`;
-      name.innerHTML =
-        `${esc(f.label)}${f.flowId ? ' <span class="tkid-flow" title="has a real end-to-end journey">e2e</span>' : ""}${cfgBadge}` +
-        `<span class="tkid-what">${esc(f.what)}</span>`;
-      name.addEventListener("click", () => {
-        cb.checked = !cb.checked;
-        cb.checked ? selected.add(f.id) : selected.delete(f.id);
-        renderTree();
-      });
+      if (st === "on") tags += ` <span class="sub-tag on" title="${esc(f.requiresConfig || "")} is ON for this company">on</span>`;
+      else if (st === "off") tags += ` <span class="sub-tag off" title="${esc(f.requiresConfig || "")} is OFF here — its tests are skipped, not failed">off</span>`;
+      else if (st === "unknown" && f.requiresConfig) tags += ` <span class="sub-tag unk" title="could not read ${esc(f.requiresConfig)}">config?</span>`;
+
+      if (!runnable) {
+        tags += ' <span class="sub-tag notbuilt" title="no test cases written for this feature yet">no tests yet</span>';
+      }
+
+      const name = el("span", "sub-name");
+      name.innerHTML = `${esc(f.label)}${tags}<span class="sub-what">${esc(f.what)}</span>`;
       row.appendChild(name);
-      const n = el("span", "tkid-n", f.cases ? `${f.cases}` : "—");
-      n.title = f.cases ? `${f.cases} test cases` : "no test cases yet";
-      row.appendChild(n);
-      kids.appendChild(row);
+      row.appendChild(el("span", "sub-n", f.cases ? String(f.cases) : "—"));
+      if (runnable) {
+        row.addEventListener("click", () => {
+          const now = !selected.has(f.id);
+          now ? selected.add(f.id) : selected.delete(f.id);
+          renderTree();
+        });
+      }
+      body.appendChild(row);
     }
-    wrap.appendChild(kids);
-    box.appendChild(wrap);
+    mod.appendChild(body);
+    box.appendChild(mod);
   }
+
+  syncRunButton();
+  const meta = $("#api-meta");
+  if (meta)
+    meta.textContent = pickedFeatures
+      ? `${pickedFeatures} picked · ${pickedCases} test${pickedCases === 1 ? "" : "s"} will run`
+      : "nothing picked yet";
 }
 
 /** Run the test cases for every ticked feature. */
+let planSkipped = 0;
+
+/** Progress bar above the live case list. */
+function setRunBar(done, total) {
+  let bar = document.querySelector("#runbar");
+  if (!bar) {
+    bar = el("div", "runbar");
+    bar.id = "runbar";
+    bar.appendChild(el("i"));
+    $("#automation").before(bar);
+  }
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  bar.firstChild.style.width = pct + "%";
+  bar.hidden = total === 0;
+}
+
+/**
+ * The run-complete dialog.
+ *
+ * Reports what the run actually did, then offers the evidence. The report link
+ * is only enabled when a report file really exists — a dead link on a success
+ * dialog is worse than no link, so its presence is checked rather than assumed.
+ */
+async function showRunComplete({ total, passed, failed, skipped = 0, error = null }) {
+  const modal = $("#modal");
+  const ok = !error && failed === 0;
+  modal.classList.toggle("bad", !ok);
+  $("#modal-ico").textContent = ok ? "✓" : error ? "!" : "✕";
+  $("#modal-title").textContent = error
+    ? "Run stopped"
+    : ok
+      ? "Run successful"
+      : `Run complete — ${failed} failed`;
+  $("#modal-sub").textContent = error
+    ? error
+    : `${total} check${total === 1 ? "" : "s"} ran against ${currentClientName || "this client"}.`;
+
+  const stats = $("#modal-stats");
+  stats.innerHTML = "";
+  const stat = (n, label, cls = "") => {
+    const d = el("div", "mstat " + cls);
+    d.appendChild(el("b", "", String(n)));
+    d.appendChild(el("span", "", label));
+    return d;
+  };
+  stats.appendChild(stat(total, "checks"));
+  stats.appendChild(stat(passed, "passed", "good"));
+  stats.appendChild(stat(failed, "failed", failed ? "bad" : ""));
+  if (skipped) stats.appendChild(stat(skipped, "skipped"));
+
+  // What the report will cover, said before the click rather than after.
+  // It is always there to open: the case library exists whether or not this
+  // run reached every case, and a case that did not run says so in the report.
+  const link = $("#modal-report");
+  const note = $("#modal-note");
+  link.classList.remove("disabled");
+  const ticked = [...selected].length;
+  note.textContent = ticked
+    ? `The test report covers the ${ticked} ticked feature${ticked === 1 ? "" : "s"} — every case those modules define, each with its verdict and a curl.`
+    : "The test report covers every module in the case library — tick features on the left to narrow it.";
+
+  modal.hidden = false;
+}
+
+function initModal() {
+  // The run-complete dialog opens the platform's own test report, scoped to the
+  // ticked features; the sheet is the platform's findings for those modules.
+  // The side-panel links are about everything the platform knows; the centre
+  // bar and the popup are about the run that just finished, and are set by
+  // showReportsFor() when one does.
+  wireReportLink("#report-sheet", "/api/bug-report", "module");
+  wireReportLink("#report-tests", "/api/test-report", "features");
+  const modal = $("#modal");
+  const close = () => (modal.hidden = true);
+  $("#modal-close").addEventListener("click", close);
+  // Click the backdrop, not the card, to dismiss.
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) close(); });
+}
+
+/**
+ * The module the current tick-boxes mean, in the words the reports use, or ""
+ * when the selection spans several modules.
+ *
+ * Derived from the feature tree the sidebar is already rendering, so the UI,
+ * the test report and the bug sheet all name a module the same way and there
+ * is no second mapping to keep in step.
+ */
+function selectedModuleLabel() {
+  const labels = new Set();
+  for (const id of selected) {
+    const group = featureGroups.find((g) => g.children.some((c) => c.id === id));
+    if (group) labels.add(group.label);
+  }
+  return labels.size === 1 ? [...labels][0] : "";
+}
+
+/**
+ * Opens a report about exactly what is ticked in the tree.
+ *
+ * The module is chosen here, in the UI — the test report takes the feature ids
+ * as a query so its case list is those modules' cases, and the bug sheet takes
+ * the module name in the hash so it opens filtered. Nothing is typed on a
+ * command line, and nothing is scoped twice.
+ */
+function wireReportLink(id, href, mode) {
+  const link = $(id);
+  if (!link) return;
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    const ids = [...selected];
+    let url = href;
+    if (mode === "features" && ids.length) {
+      url += "?features=" + encodeURIComponent(ids.join(","));
+    } else if (mode === "module") {
+      const module = selectedModuleLabel();
+      if (module) url += "#module=" + encodeURIComponent(module);
+    }
+    window.open(url, "_blank", "noopener");
+  });
+}
+
+/** Keeps the run button honest about how much work it is about to do. */
+function syncRunButton() {
+  const btn = $("#t-run");
+  if (!btn) return;
+  const cases = featureGroups.reduce(
+    (n, g) => n + g.children.reduce((m, c) => m + (selected.has(c.id) ? c.cases || 0 : 0), 0),
+    0,
+  );
+  btn.textContent = cases ? `▶ Run ${cases} selected test${cases === 1 ? "" : "s"}` : "▶ Run selected tests";
+  btn.disabled = false;
+}
+
+/**
+ * Points the run's reports at the run that just happened.
+ *
+ * Before this, the links in the centre were always visible and always meant
+ * "everything the platform has ever run" — so after finishing one journey you
+ * could open a report about someone else's. Now they appear when a run ends,
+ * and carry that run: its id for the test report, its module for the sheet.
+ */
+function showReportsFor({ label, testHref, bugHref, testLabel = "📊 Test report" }) {
+  const bar = $("#report-bar");
+  if (!bar) return;
+  $("#report-bar-label").textContent = label;
+  const test = $("#open-api-report");
+  const bugs = $("#open-bug-sheet");
+  test.textContent = testLabel;
+  test.href = testHref;
+  bugs.href = bugHref;
+  bar.hidden = false;
+
+  // The popup offers the same two, so a reader lands in the same place
+  // whichever they click.
+  const modalReport = $("#modal-report");
+  const modalBugs = $("#modal-bugs");
+  if (modalReport) { modalReport.href = testHref; modalReport.textContent = testLabel; }
+  if (modalBugs) modalBugs.href = bugHref;
+}
+
+/** The bug sheet, narrowed to the module a run covered. */
+function bugHrefForSelection() {
+  const module = selectedModuleLabel();
+  return "/api/bug-report" + (module ? "#module=" + encodeURIComponent(module) : "");
+}
+
 function runSelectedFeatures() {
   const ids = [...selected];
   if (!ids.length) {
@@ -307,8 +612,37 @@ function runSelectedFeatures() {
   const es = new EventSource(`/api/features-run?${qs}`);
   es.addEventListener("plan", (ev) => {
     const p = JSON.parse(ev.data);
+    planSkipped = p.skipped?.length ?? 0;
     $("#auto-summary").textContent =
-      `${p.runnable} checks from ${p.cases} cases` + (p.skipped?.length ? ` · ${p.skipped.length} skipped` : "");
+      `${p.runnable} checks from ${p.cases} cases` + (planSkipped ? ` · ${planSkipped} skipped` : "");
+    setRunBar(0, p.runnable || 1);
+
+    /**
+     * Why each case was skipped.
+     *
+     * The server sends a reason with every skip and the UI used to count them
+     * and drop the rest, so "12 skipped" was a dead end — you could not tell
+     * whether a feature is switched off for this company, a case needs a
+     * different role, or a placeholder could not be resolved. Those are three
+     * completely different problems, and only one of them is yours to fix.
+     */
+    const box = $("#skips");
+    if (!box) return;
+    if (!p.skipped?.length) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML = "";
+    const sum = el("summary", "", `${p.skipped.length} of ${p.cases} cases did not run — why`);
+    box.appendChild(sum);
+    const list = el("ul", "skip-list");
+    for (const s of p.skipped) {
+      list.appendChild(
+        el("li", "", `<b>${esc(s.title || s.id)}</b><span>${esc(s.reason || "no reason given")}</span>`),
+      );
+    }
+    box.appendChild(list);
   });
   es.addEventListener("flow", (ev) => {
     const f = JSON.parse(ev.data);
@@ -322,15 +656,26 @@ function runSelectedFeatures() {
     const p = JSON.parse(ev.data);
     const failed = checkRows.filter((c) => !c.pass).length;
     $("#auto-summary").textContent = `${p.done}/${p.total} · ${p.done - failed} passed · ${failed} failed`;
+    setRunBar(p.done, p.total);
   });
   es.addEventListener("done", () => {
     es.close();
     const failed = checkRows.filter((c) => !c.pass).length;
     $("#auto-summary").textContent = `${checkRows.length} checks · ${checkRows.length - failed} passed · ${failed} failed`;
+    setRunBar(1, 1);
+    showRunComplete({
+      total: checkRows.length,
+      passed: checkRows.length - failed,
+      failed,
+      skipped: planSkipped,
+    });
   });
   es.addEventListener("fatal", (ev) => {
     es.close();
-    $("#auto-summary").textContent = `error: ${JSON.parse(ev.data).message || "run failed"}`;
+    setRunBar(0, 0);
+    const message = JSON.parse(ev.data).message || "run failed";
+    $("#auto-summary").textContent = `error: ${message}`;
+    showRunComplete({ total: checkRows.length, passed: 0, failed: checkRows.length, error: message });
   });
   document.querySelector("#automation")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -338,64 +683,101 @@ function runSelectedFeatures() {
 // ── UI coverage: the same 92 features, but which have a browser journey ───
 let uiSelected = new Set();
 
+/**
+ * The UI-automation tree, same module → sub-module shape as the API one.
+ *
+ * A feature with no journey built is shown but not selectable — hiding it would
+ * make UI coverage look complete when it is 20 of 92.
+ */
+const openUiModules = new Set();
+
 function renderUiTree() {
   const box = $("#ui-tree");
   if (!box) return;
   box.innerHTML = "";
-  let have = 0,
-    total = 0;
-  for (const g of featureGroups) {
-    // Only show groups that contain at least one feature (all of them do).
-    const wrap = el("div", "tgroup");
-    const head = el("div", "tgroup-head");
-    const kids = g.children.filter((f) => f.uiFlow);
-    head.appendChild(el("span", "tgroup-ico", g.icon));
-    head.appendChild(el("span", "tgroup-name", esc(g.label)));
-    head.appendChild(el("span", "tgroup-n", `${kids.length}/${g.children.length} in UI`));
-    wrap.appendChild(head);
+  let have = 0, total = 0;
 
-    const list = el("div", "tkids");
+  for (const g of featureGroups) {
+    const key = "ui:" + (g.id ?? g.label);
+    const built = g.children.filter((f) => f.uiFlow);
+    const picked = built.filter((f) => uiSelected.has(f.uiFlow)).length;
+    const mod = el("div", "module" + (openUiModules.has(key) ? " open" : ""));
+
+    const head = el("button", "module-head");
+    head.type = "button";
+    head.setAttribute("aria-expanded", String(openUiModules.has(key)));
+    head.appendChild(el("span", "module-caret"));
+
+    const master = el("input");
+    master.type = "checkbox";
+    master.disabled = built.length === 0;
+    master.checked = picked > 0;
+    master.indeterminate = picked > 0 && picked < built.length;
+    master.title = built.length ? "Tick every built journey in this module" : "no journeys built here yet";
+    master.addEventListener("click", (e) => e.stopPropagation());
+    master.addEventListener("change", () => {
+      if (master.checked) built.forEach((f) => uiSelected.add(f.uiFlow));
+      else built.forEach((f) => uiSelected.delete(f.uiFlow));
+      renderUiTree();
+    });
+    head.appendChild(master);
+
+    head.appendChild(el("span", "module-ico", g.icon));
+    head.appendChild(el("span", "module-name", esc(g.label)));
+    head.appendChild(el("span", "module-n" + (picked ? " some" : ""),
+      `${picked}/${built.length} built · ${g.children.length} total`));
+    head.addEventListener("click", () => {
+      if (openUiModules.has(key)) openUiModules.delete(key);
+      else openUiModules.add(key);
+      renderUiTree();
+    });
+    mod.appendChild(head);
+
+    const body = el("div", "module-body");
     for (const f of g.children) {
       total++;
       const available = !!f.uiFlow;
       if (available) have++;
-      const row = el("div", "tkid" + (available ? "" : " ui-na"));
+      const row = el("div", "submodule" + (available ? "" : " none") +
+        (available && uiSelected.has(f.uiFlow) ? " picked" : ""));
       const cb = el("input");
       cb.type = "checkbox";
-      cb.disabled = !available; // no journey built → cannot be picked
+      cb.disabled = !available;
       cb.checked = available && uiSelected.has(f.uiFlow);
+      cb.addEventListener("click", (e) => e.stopPropagation());
       cb.addEventListener("change", () => {
         cb.checked ? uiSelected.add(f.uiFlow) : uiSelected.delete(f.uiFlow);
         renderUiTree();
       });
       row.appendChild(cb);
-      const name = el("span", "tkid-name");
-      name.innerHTML =
-        `${esc(f.label)}` +
-        (available
-          ? ` <span class="tkid-flow" title="browser journey: ${esc(f.uiFlow)}">${esc(f.uiFlow)}</span>`
-          : ' <span class="ui-na-tag" title="no browser journey built for this feature yet">not built</span>');
-      if (available)
-        name.addEventListener("click", () => {
-          cb.checked = !cb.checked;
-          cb.checked ? uiSelected.add(f.uiFlow) : uiSelected.delete(f.uiFlow);
+
+      const name = el("span", "sub-name");
+      name.innerHTML = esc(f.label) + (available
+        ? ` <span class="sub-tag e2e" title="browser journey: ${esc(f.uiFlow)}">${esc(f.uiFlow)}</span>`
+        : ' <span class="sub-tag notbuilt" title="no browser journey built for this feature yet">not built</span>');
+      row.appendChild(name);
+      if (available) {
+        row.addEventListener("click", () => {
+          const now = !uiSelected.has(f.uiFlow);
+          now ? uiSelected.add(f.uiFlow) : uiSelected.delete(f.uiFlow);
           renderUiTree();
         });
-      row.appendChild(name);
-      list.appendChild(row);
+      }
+      body.appendChild(row);
     }
-    wrap.appendChild(list);
-    box.appendChild(wrap);
+    mod.appendChild(body);
+    box.appendChild(mod);
   }
-  $("#ui-cov-hint").textContent =
-    `${have} of ${total} features have a browser journey · ${uiSelected.size} picked`;
+
+  const meta = $("#ui-meta");
+  if (meta) meta.textContent = `${have}/${total} have a journey · ${uiSelected.size} picked`;
 }
 
-/** Run every ticked UI journey, one after another, in one window each. */
 async function runSelectedUiJourneys() {
   const keys = [...uiSelected];
   if (!keys.length) {
-    $("#ui-cov-hint").textContent = "tick at least one feature that has a journey";
+    const m = $("#ui-meta");
+    if (m) m.textContent = "tick at least one feature that has a journey";
     return;
   }
   const con = $("#ui-console");
@@ -414,14 +796,200 @@ let uiFlows = [];
 let uiLimits = null;
 let uiRunning = null; // EventSource of the active run
 
+/**
+ * What the next PO run will create, read from the suite's own input file.
+ *
+ * The values live in config/po-input.json — one header plus one line item per
+ * entry — and are not copied here: this only reports what that file currently
+ * says, so editing the file is what changes the run.
+ */
+/** Hides every control that belongs to one account, immediately. */
+function resetAccountControls() {
+  const bar = $("#po-bar");
+  if (bar) bar.hidden = true;
+  const btn = $("#po-run");
+  if (btn) btn.disabled = true;
+  for (const id of ["#tree-scope", "#ui-note", "#skips"]) {
+    const el = $(id);
+    if (el) el.hidden = true;
+  }
+}
+
+async function loadPoInput() {
+  const bar = $("#po-bar");
+  const what = $("#po-what");
+  if (!bar || !what) return;
+  try {
+    const info = await (await fetch("/api/po-input?c=" + currentClient)).json();
+    if (!info.account) {
+      bar.hidden = true;
+      return;
+    }
+    bar.hidden = false;
+    const btn = $("#po-run");
+    const plan = info.exists
+      ? `Creates a real PO on ${info.account} from config/po-input.json` +
+        (info.lineItems ? ` — 1 header + ${info.lineItems} line item${info.lineItems === 1 ? "" : "s"}` : "") +
+        (info.headerFields?.length ? `, fields set by hand: ${info.headerFields.join(", ")}` : ", every field generated") +
+        ". Anything left out of that file is generated."
+      : "config/po-input.json is missing — the suite generates every field.";
+
+    /**
+     * A dead credential stops the run before it starts.
+     *
+     * The token is a console session and expires, and when it does the flow
+     * gets all the way to the create and dies on a 401 — three minutes spent
+     * to learn something we could have checked in one call. So it is checked
+     * on load, the button is disabled, and the fix is named.
+     */
+    if (info.token && !info.token.ok) {
+      what.innerHTML =
+        `<b class="po-dead">This account's token has expired</b> — ${esc(
+          info.token.message || "authentication failed",
+        )}. Paste a fresh one into <code>${esc(info.tokenVar || "the access token")}</code> in the API ` +
+        `suite's <code>.env</code> (the same token <code>npm run po</code> uses), then reload this page. ` +
+        `<span class="po-plan">${esc(plan)}</span>`;
+      btn.disabled = true;
+      btn.title = "Refresh the account's token first";
+
+    } else {
+      what.innerHTML = `${esc(plan)}${
+        info.token?.ok ? ` <b class="po-live">token OK</b>` : ""
+      }`;
+      btn.disabled = false;
+      btn.title = "Runs the API suite's PO flow for this account";
+    }
+  } catch {
+    bar.hidden = true;
+  }
+}
+
+/** Run the API suite's PO flow, streaming its output into the console box. */
+function runPoAutomation() {
+  const btn = $("#po-run");
+  const con = $("#ui-console");
+  con.hidden = false;
+  con.innerHTML = "";
+  const write = (text, cls) => {
+    con.appendChild(el("div", cls || "", esc(text)));
+    con.scrollTop = con.scrollHeight;
+  };
+
+  btn.disabled = true;
+  btn.textContent = "▶ Running…";
+  $("#auto-summary").textContent = "creating a purchase order…";
+
+  const qs = new URLSearchParams({ c: String(currentClient) });
+  if (!$("#po-submit").checked) qs.set("submit", "0");
+  const es = new EventSource(`/api/po-run?${qs}`);
+
+  es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
+  // Rows in the run panel, the same as every other run in the platform. Live
+  // ones come from the "✓ / ✗" lines the suite prints as it goes; when it
+  // finishes, the report's own step list replaces them with exact figures.
+  checkRows = [];
+  renderAutomation();
+  let step = 0;
+
+  let sawAuthFailure = false;
+  es.addEventListener("log", (ev) => {
+    const line = JSON.parse(ev.data).line;
+    write(line);
+    const mark = line.match(/^\s*(✓|✗)\s*(.+)$/);
+    if (mark) {
+      step += 1;
+      checkRows.push({
+        id: `PO-${String(step).padStart(2, "0")}`,
+        category: "PO flow",
+        type: "functional",
+        module: "PO automation",
+        scenario: mark[2].trim(),
+        pass: mark[1] === "✓",
+        verdict: mark[1] === "✓" ? "done" : "this step failed — see the log",
+        rightLabel: "",
+        noRerun: true,
+      });
+      renderAutomation();
+      setRunBar(step, Math.max(step, 12));
+    }
+    if (!sawAuthFailure && /401|api_error_auth_failed|authentication failed/i.test(line)) {
+      sawAuthFailure = true;
+      const banner = el(
+        "div",
+        "bad",
+        "⚠ The account's token has expired — every call is being refused (401). Refresh it in the API suite's .env and run again.",
+      );
+      con.insertBefore(banner, con.firstChild);
+    }
+  });
+  // The authoritative step list arrives at the end, with call counts and
+  // timings the log does not carry. Collect it, then swap the live rows for it.
+  const finalRows = [];
+  es.addEventListener("step", (ev) => {
+    const { step: s } = JSON.parse(ev.data);
+    finalRows.push({
+      id: `PO-${String(finalRows.length + 1).padStart(2, "0")}`,
+      category: "PO flow",
+      type: "functional",
+      module: "PO automation",
+      scenario: s.title,
+      pass: s.status === "passed",
+      rightLabel: `${s.calls} call${s.calls === 1 ? "" : "s"}`,
+      verdict:
+        `${s.status === "passed" ? "passed" : "failed"} · ${s.calls} API call${s.calls === 1 ? "" : "s"}` +
+        `${s.failed ? `, ${s.failed} of them refused` : ""} · ${s.ms}ms`,
+      noRerun: true,
+    });
+  });
+  es.addEventListener("done", (ev) => {
+    const { exitCode, summary } = JSON.parse(ev.data);
+    if (finalRows.length) {
+      checkRows = finalRows;
+      renderAutomation();
+      setRunBar(finalRows.length, finalRows.length);
+    }
+    if (summary) {
+      $("#auto-summary").textContent =
+        `PO run: ${summary.steps} step(s), ${summary.calls} API call(s)` +
+        (summary.failedCalls ? ` · ${summary.failedCalls} failed` : "");
+    } else {
+      $("#auto-summary").textContent = exitCode === 0 ? "PO run finished" : `PO run stopped (exit ${exitCode})`;
+    }
+    write(exitCode === 0 ? "— finished —" : `— stopped, exit ${exitCode} —`, exitCode === 0 ? "ok" : "bad");
+    es.close();
+    btn.disabled = false;
+    btn.textContent = "▶ Run PO automation";
+  });
+  es.onerror = () => {
+    // A closed stream after "done" is normal; before it, the run died.
+    if (btn.disabled) {
+      write("the run stopped unexpectedly — see the platform's terminal for details", "bad");
+      es.close();
+      btn.disabled = false;
+      btn.textContent = "▶ Run PO automation";
+    }
+  };
+}
+
 async function loadUiFlows() {
   const box = $("#ui-flows");
   try {
-    const { flows, limits, erfxMode, boqAllowed } = await (
+    const { flows, limits, erfxMode, boqAllowed, note } = await (
       await fetch("/api/ui-flows?c=" + currentClient)
     ).json();
     uiFlows = flows;
     uiLimits = limits;
+
+    // No journeys for this account: say why, once, where the list would be.
+    const uiNote = $("#ui-note");
+    if (uiNote) {
+      if (note) {
+        uiNote.textContent = note;
+        uiNote.hidden = false;
+      } else {
+        uiNote.hidden = true;
+      }
+    }
 
     // Show this client's own line-item ceilings and pre-fill sensible values.
     const nonBoq = limits?.non_boq, boq = limits?.boq;
@@ -432,10 +1000,15 @@ async function loadUiFlows() {
       $("#li-boq").max = boq;
       $("#li-boq").value = Math.min(10, boq);
     }
-    $("#ui-flows-hint").textContent =
-      (erfxMode === true ? "ERFX mode" : erfxMode === false ? "non-ERFX mode" : "mode unknown") +
-      (boqAllowed === true ? " · BOQ on" : boqAllowed === false ? " · BOQ off" : "") +
-      " — pick a journey";
+    // The company's mode decides which journeys are meaningful at all, so it
+    // belongs next to the journey list rather than being dropped.
+    const sec = document.querySelector("#drawer-ui .drawer-sec");
+    if (sec) {
+      sec.textContent =
+        "Browser journeys — " +
+        (erfxMode === true ? "eRFX mode" : erfxMode === false ? "non-eRFX mode" : "mode unknown") +
+        (boqAllowed === true ? " · BOQ on" : boqAllowed === false ? " · BOQ off" : "");
+    }
     renderUiFlows();
   } catch {
     box.innerHTML = "";
@@ -645,12 +1218,13 @@ function run() {
   execData = null;
   designedCases = null;
   checkRows = [];
-  $("#run").disabled = true;
+  const runBtn = $("#run");
+  if (runBtn) runBtn.disabled = true;
   $("#status").textContent = "running…";
   $("#timeline").innerHTML = "";
   $("#automation").innerHTML = `<div class="empty">Building the automation suite…</div>`;
   $("#auto-summary").textContent = "";
-  $("#report").innerHTML = `<div class="empty">Agents are working — the report appears when they finish.</div>`;
+  if ($("#report")) $("#report").innerHTML = "";
 
   const es = new EventSource(`/api/run?c=${c}&q=${encodeURIComponent(q)}`);
   let current = null;
@@ -679,16 +1253,16 @@ function run() {
   });
   es.addEventListener("end", (ev) => {
     es.close();
-    $("#run").disabled = false;
+    if (runBtn) runBtn.disabled = false;
     $("#status").textContent = "done ✓ · saved to history";
     loadHistory();
   });
   es.addEventListener("fatal", (ev) => {
     const { message } = JSON.parse(ev.data);
     es.close();
-    $("#run").disabled = false;
+    if (runBtn) runBtn.disabled = false;
     $("#status").textContent = "error";
-    $("#report").innerHTML = `<div class="finding high"><div class="finding-title">Run failed</div><div class="agent-reason">${esc(message)}</div></div>`;
+    if ($("#report")) $("#report").innerHTML = `<div class="finding high"><div class="finding-title">Run failed</div><div class="agent-reason">${esc(message)}</div></div>`;
   });
 }
 
@@ -795,7 +1369,7 @@ function renderAutomation() {
   $("#auto-summary").innerHTML = total
     ? `<b>${passed}</b> passed · <b class="fx">${failed}</b> failed${
         serverErr ? ` · <b class="fx">${serverErr}</b> server-error` : ""
-      }${inconc ? ` · <b class="inconc">${inconc}</b> inconclusive` : ""} of ${total}`
+      }${inconc ? ` · <b class="inconc">${inconc}</b> couldn't tell` : ""} of ${total}`
     : "";
 
   const rows = checkFilter === "fail" ? checkRows.filter((c) => !c.pass && !c.inconclusive) : checkRows;
@@ -814,12 +1388,20 @@ function renderAutomation() {
       <span class="chk-id">${esc(c.id)}</span>
       <span class="chk-type ${typeClass[c.type] ?? ""}">${esc(c.category)}</span>
       <span class="chk-scn">${c.module === "AI-generated" ? '<span class="ai-tag" title="written by the AI for your request">AI</span>' : ""}${esc(c.scenario)}</span>
-      <span class="chk-http ${is5xx ? "err5" : ""}">${running ? "…" : (c.httpStatus ?? "err")}</span>`;
+      <span class="chk-http ${is5xx ? "err5" : ""}">${
+        running ? "…" : (c.rightLabel ?? c.httpStatus ?? "err")
+      }</span>`;
     const detail = el("div", "chk-detail");
-    detail.innerHTML = `<b>${esc(c.module)}${c.field ? " · " + esc(c.field) : ""}</b> — expected to <b>${esc(c.expected)}</b><br>input: <span class="mono">${esc(c.inputSummary)}</span><br>${esc(c.verdict)}<br>`;
-    const rerun = el("button", "chk-rerun", "↻ Re-run this check live");
-    rerun.addEventListener("click", (ev) => { ev.stopPropagation(); rerunCheck(c.flowId, c.id); });
-    detail.appendChild(rerun);
+    detail.innerHTML = `<b>${esc(c.module)}${c.field ? " · " + esc(c.field) : ""}</b>${
+      c.expected ? ` — expected to <b>${esc(c.expected)}</b>` : ""
+    }${c.inputSummary ? `<br>input: <span class="mono">${esc(c.inputSummary)}</span>` : ""}<br>${esc(c.verdict)}<br>`;
+    // A PO step is one phase of one document — there is nothing to re-run on
+    // its own, so the button only appears for library checks.
+    if (c.flowId && !c.noRerun) {
+      const rerun = el("button", "chk-rerun", "↻ Re-run this check live");
+      rerun.addEventListener("click", (ev) => { ev.stopPropagation(); rerunCheck(c.flowId, c.id); });
+      detail.appendChild(rerun);
+    }
     row.appendChild(detail);
     row.addEventListener("click", () => row.classList.toggle("open"));
     box.appendChild(row);
@@ -873,7 +1455,7 @@ function runUi() {
   const finish = () => {
     es.close();
     $("#ui-btn").disabled = false;
-    $("#ui-btn").textContent = "🖥 Watch UI test (Chromium)";
+    $("#ui-btn").textContent = "🖥 Watch a browser run it";
   };
   es.addEventListener("ui-done", finish);
   es.addEventListener("fatal", (ev) => {
@@ -885,6 +1467,9 @@ function runUi() {
 // ── report ──
 function renderReport(report) {
   const box = $("#report");
+  // The panel was removed from the UI; the agent pipeline still runs behind
+  // /api/run, so this becomes a no-op rather than an exception.
+  if (!box) return;
   box.innerHTML = "";
   if (!report) return;
 
@@ -980,13 +1565,28 @@ async function loadFindings() {
     const { groups, totals } = await (await fetch("/api/findings")).json();
     const hint = $("#findings-hint");
     if (hint)
-      hint.textContent = `${totals.defects} product · ${totals.gaps} gap · ${totals.harness} harness · ${totals.environment} env`;
+      // "gap / harness / env" meant nothing to anyone who had not read the
+      // code. Say what each is, and only mention the ones that exist.
+      hint.textContent = [
+        `${totals.defects} product bug${totals.defects === 1 ? "" : "s"}`,
+        totals.gaps ? `${totals.gaps} test gap${totals.gaps === 1 ? "" : "s"}` : "",
+        totals.harness ? `${totals.harness} tool problem${totals.harness === 1 ? "" : "s"}` : "",
+        totals.environment ? `${totals.environment} environment issue${totals.environment === 1 ? "" : "s"}` : "",
+      ].filter(Boolean).join(" · ");
     box.innerHTML = "";
     if (!groups.length) {
-      box.appendChild(el("div", "empty", "No defects recorded yet."));
+      box.appendChild(el("div", "empty", "No bugs found yet — run some tests and anything that breaks lands here."));
       return;
     }
-    for (const g of groups) {
+    /**
+     * A side panel is a summary, not the list.
+     *
+     * Every defect as a full card turned this column into a scroll nobody
+     * reads, while the same rows sit in the bug sheet with filters and
+     * editable columns. Show the worst few and point at the sheet.
+     */
+    const SHOWN = 8;
+    for (const g of groups.slice(0, SHOWN)) {
       const meta = VERDICT_META[g.kind] ?? VERDICT_META.automation_defect;
       const card = el("div", `finding ${meta.cls}`);
       card.appendChild(
@@ -1023,6 +1623,15 @@ async function loadFindings() {
           ),
         );
       box.appendChild(card);
+    }
+    if (groups.length > SHOWN) {
+      box.appendChild(
+        el(
+          "div",
+          "more-bugs",
+          `+ ${groups.length - SHOWN} more · <a href="/api/bug-report" target="_blank" rel="noopener">open the bug sheet</a>`,
+        ),
+      );
     }
   } catch (e) {
     box.innerHTML = "";

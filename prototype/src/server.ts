@@ -13,15 +13,19 @@
  *   GET /api/run?c=ID&q=TEXT   Server-Sent Events: each agent event, then report
  */
 import { createServer } from "node:http";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow, runSelected } from "./executor.js";
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
+import { apiModulesFor, singleApiModule } from "../config/apiModules.js";
 import { caseCountsByFeature, casesForFeatures, buildChecksFromCases, loadCases, resolveCaseContext, resolveActor, configRequirementOf } from "./checks/caseLibrary.js";
 import { runOrchestrator } from "./agents/orchestrator.js";
+import type { CheckResult } from "./ai/types.js";
 import { providerLabel } from "./ai/llm.js";
 import { DEFAULT_CLIENT } from "../config/settings.js";
+import { isTokenClient, tokenClient } from "../config/tokenClients.js";
+import { readToken, tokenClientChoices } from "./tokenClient.js";
 import { saveRun, listRuns, getRun, newRunId } from "./runStore.js";
 import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
 import { runCheck } from "./checks/engine.js";
@@ -31,9 +35,36 @@ import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
+import { allDefects, renderBugSheet } from "./report/bugSheet.js";
+import { isTriageField, loadTriage, saveTriageField } from "./triageStore.js";
+import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.js";
+import { renderUiReport, uiShotPath } from "./report/uiReport.js";
+import { checkToken, poInputSummary, runPoFlow } from "./poRunner.js";
+import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
+
+/**
+ * Where the API automation suite writes its reports.
+ *
+ * The maintained suite is the repo this platform sits inside
+ * (p2p_endtoend_flow_api_automation); "procol test" is the earlier copy kept
+ * as a fallback so an older checkout still serves something rather than 404ing.
+ * First one that has the file wins.
+ */
+const SUITE_REPORT_DIRS = [
+  join(here, "..", "..", "..", "reports"),
+  join(here, "..", "..", "procol test", "reports"),
+];
+const SUITE_NAME = "the API automation suite";
+
+/** The newest copy of a report file across the known suites, if any. */
+function suiteFile(name: string): string | undefined {
+  const found = SUITE_REPORT_DIRS.map((dir) => join(dir, name)).filter((file) => existsSync(file));
+  if (found.length <= 1) return found[0];
+  return found.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
+}
 const PORT = Number(process.env.PORT ?? 4300);
 
 // Curated demo clients (PROCOL DEMO is the known-fresh default).
@@ -53,6 +84,19 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
+/** Reads a request body, capped — nothing here needs more than a few kB. */
+function readBody(req: import("node:http").IncomingMessage, limit = 64_000): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > limit) reject(new Error("body too large"));
+    });
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
   const path = url.pathname;
@@ -60,7 +104,14 @@ const server = createServer(async (req, res) => {
   try {
     // ── API: client list ──
     if (path === "/api/clients") {
-      return json(res, { clients: CLIENTS, defaultClient: DEFAULT_CLIENT.companyId, provider: providerLabel() });
+      // UAT companies first, then the accounts that live on their own
+      // deployment — same dropdown, because to a reader they are both "which
+      // account am I testing".
+      return json(res, {
+        clients: [...CLIENTS, ...tokenClientChoices()],
+        defaultClient: DEFAULT_CLIENT.companyId,
+        provider: providerLabel(),
+      });
     }
 
     // ── API: capability map ──
@@ -154,7 +205,17 @@ const server = createServer(async (req, res) => {
           await client.dispose().catch(() => {});
         }
       }
-      const groups = FEATURE_TREE.map((g) => ({
+      // An account can declare that only part of the product applies to it —
+      // the sandbox demo is a purchase-order tenant, so offering it sourcing
+      // events would invite someone to tick a journey that cannot exist there.
+      const scoped = cid && isTokenClient(Number(cid)) ? tokenClient(Number(cid)) : undefined;
+      const tree = scoped
+        ? scoped.featureScope
+            .map((id) => FEATURE_TREE.find((g) => g.id === id))
+            .filter((g): g is (typeof FEATURE_TREE)[number] => Boolean(g))
+        : FEATURE_TREE;
+
+      const groups = tree.map((g) => ({
         ...g,
         children: g.children.map((f) => ({
           ...f,
@@ -162,9 +223,16 @@ const server = createServer(async (req, res) => {
           config: cfg ? featureConfigState(cfg, f.requiresConfig) : { state: f.requiresConfig ? "unknown" : "n/a" },
         })),
       }));
+
+      // Defaults have to live inside the scope too, or the run would start with
+      // features ticked that the tree does not even show.
+      const inScope = new Set(groups.flatMap((g) => g.children.map((f) => f.id)));
+      const defaults = defaultSelection().filter((id: string) => inScope.has(id));
+
       return json(res, {
         groups,
-        defaults: defaultSelection(),
+        defaults,
+        scope: scoped ? { note: scoped.scopeNote, name: scoped.name } : null,
         totalCases: loadCases().length,
         company: cfg
           ? {
@@ -184,6 +252,16 @@ const server = createServer(async (req, res) => {
     // ── API: the browser journeys available, + this client's line-item limits ──
     if (path === "/api/ui-flows") {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const tokenAccount = isTokenClient(c) ? tokenClient(c) : undefined;
+      if (tokenAccount && !tokenAccount.browserJourneys) {
+        return json(res, {
+          flows: [],
+          limits: null,
+          erfx: null,
+          boqAllowed: null,
+          note: tokenAccount.browserNote ?? "Browser journeys are not available for this account.",
+        });
+      }
       let limits: any = null;
       let erfx: boolean | null = null;
       let boqAllowed: boolean | null = null;
@@ -344,7 +422,9 @@ const server = createServer(async (req, res) => {
 
     // ── API: defects the platform has found, grouped by defect ──────────
     if (path === "/api/findings") {
-      const groups = summariseFindings();
+      // The same merged list the bug sheet renders, so the count in the UI and
+      // the rows in the sheet can never disagree.
+      const groups = allDefects();
       json(res, {
         groups,
         totals: {
@@ -453,7 +533,15 @@ const server = createServer(async (req, res) => {
         send("plan", { features: ids, cases: cases.length, runnable: checks.length, skipped });
 
         // Optional: also run the real end-to-end journeys for ticked features.
-        if (withFlows) {
+        if (withFlows && isTokenClient(c)) {
+          send("flow", {
+            flowId: "(all)",
+            status: "error",
+            message:
+              `${tokenClient(c)?.name} is a sandbox deployment with no UAT database behind it, ` +
+              `so the end-to-end journeys cannot run for it. Its API test cases still do.`,
+          });
+        } else if (withFlows) {
           const flowIds = [...new Set(ids.map((id) => findFeature(id)?.flowId).filter(Boolean))] as string[];
           for (const f of flowIds) {
             send("flow", { flowId: f, status: "running" });
@@ -467,11 +555,43 @@ const server = createServer(async (req, res) => {
         }
 
         let done = 0;
+        const results: CheckResult[] = [];
+        const startedAt = Date.now();
         for (const chk of checks) {
-          send("check", { check: await runCheck(client, chk) });
+          const result = await runCheck(client, chk);
+          results.push(result);
+          send("check", { check: result });
           send("progress", { done: ++done, total: checks.length });
         }
-        send("done", { ok: true, total: checks.length });
+
+        /**
+         * Keep the run.
+         *
+         * It used to stream every verdict to the browser and keep none of it,
+         * so the moment the page was closed the evidence was gone — and the
+         * test report had nothing to join its case list against. Saving it
+         * also puts a features run in "Recent runs" beside the agent runs,
+         * where a reader looks for it.
+         */
+        const savedRunId = newRunId();
+        saveRun({
+          id: savedRunId,
+          ts: new Date().toISOString(),
+          request: `features: ${ids.join(", ")}`,
+          companyId: c,
+          companyName: companyCfg.companyName ?? null,
+          provider: providerLabel(),
+          durationMs: Date.now() - startedAt,
+          report: undefined,
+          // The skip reasons belong with the run: the report shows them as why
+          // a case did not run, rather than leaving a bare "not run".
+          events: [{ agent: "System", kind: "plan", text: "feature run", data: { skipped } } as any],
+          flowResults: [],
+          validationResults: [],
+          checkResults: results,
+        });
+
+        send("done", { ok: true, total: checks.length, runId: savedRunId });
       } catch (err: any) {
         send("fatal", { message: err?.message ?? String(err) });
       } finally {
@@ -584,19 +704,298 @@ const server = createServer(async (req, res) => {
       return res.end();
     }
 
+    // ── API: the api-automation test report, generated by the `procol test`
+    //         Playwright suite next door. Served from here so the dashboard can
+    //         link straight to it — it lives outside PUBLIC, so the static
+    //         handler below would (correctly) refuse to serve it. ──
+    if (path === "/api/api-report" || path === "/api/api-report/meta") {
+      const report = suiteFile("api-report.html");
+      const summary = suiteFile("api-report.json");
+      if (path.endsWith("/meta")) {
+        if (!report) {
+          return json(res, { exists: false, hint: `run \`npm test\` in ${SUITE_NAME} to generate it` });
+        }
+        const stat = statSync(report);
+        let totals: any = null;
+        let modules: string[] = [];
+        let moduleScope: string | undefined;
+        if (summary) {
+          try {
+            const model = JSON.parse(readFileSync(summary, "utf8"));
+            totals = model.totals ?? null;
+            moduleScope = model.moduleScope ?? undefined;
+            // Which modules that report actually covers, so the UI can say
+            // whether the module someone ticked is in it.
+            modules = [
+              ...new Set(
+                (model.clients ?? []).flatMap((c: any) => (c.modules ?? []).map((m: any) => m.module))
+              ),
+            ] as string[];
+          } catch {
+            totals = null;
+          }
+        }
+        return json(res, {
+          exists: true,
+          generatedAt: stat.mtime.toISOString(),
+          bytes: stat.size,
+          totals,
+          modules,
+          moduleScope,
+        });
+      }
+      if (!report) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end(`No api-report.html yet — run \`npm test\` in ${SUITE_NAME}.`);
+      }
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(readFileSync(report));
+    }
+
+    // ── API: the test report — the ticked modules' cases, verdict, curl ──
+    // Built from the case library (what the module asks for) joined to the last
+    // run (what the product did). "features" is what the UI had ticked, so the
+    // module is chosen once, there, and never typed on a command line.
+    if (path === "/api/test-report") {
+      res.setHeader("cache-control", "no-store");
+      const asked = (url.searchParams.get("features") ?? "")
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean);
+      const runId = url.searchParams.get("run");
+      const run = runId ? getRun(runId) : latestRun();
+      // Default to the modules the RUN covered, not to the whole library. A
+      // report that answers "how did the Intake run go?" with 283 unrelated
+      // cases is not a report about that run.
+      const features = asked.length ? asked : featuresOfRun(run);
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(renderTestReport({ features, run }));
+    }
+
+    // ── API: what the next PO run will create ───────────────────────────
+    if (path === "/api/po-input") {
+      const summary = poInputSummary();
+      const account = isTokenClient(Number(url.searchParams.get("c") ?? 0))
+        ? tokenClient(Number(url.searchParams.get("c")))
+        : undefined;
+      if (!account) return json(res, { ...summary, account: null, suiteClient: null });
+
+      // Check the credential now, so the UI can say "this will not run" before
+      // anyone presses a button that writes real data.
+      let token: { ok: boolean; status?: number; message?: string };
+      try {
+        token = await checkToken({
+          apiBaseUrl: account.apiBaseUrl,
+          headerName: account.headerName,
+          appVersion: account.appVersion,
+          token: readToken(account),
+        });
+      } catch (err) {
+        token = { ok: false, message: (err as Error).message };
+      }
+      return json(res, {
+        ...summary,
+        account: account.name,
+        suiteClient: "procol_sandbox_demo",
+        token,
+        tokenVar: account.tokenVar,
+      });
+    }
+
+    // ── API: the suite's tiers, and what each one does ──────────────────
+    if (path === "/api/suite-tiers") {
+      return json(res, { tiers: TIERS });
+    }
+
+    // ── API: run one tier of the API suite (SSE) ─────────────────────────
+    // The same command a person would type, scoped by MODULE= to whatever is
+    // ticked here, so the run and its report are the suite's own.
+    if (path === "/api/suite-run") {
+      const tier = (url.searchParams.get("tier") ?? "config") as SuiteTier;
+      if (!TIERS.some((t) => t.id === tier)) {
+        res.writeHead(400, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: `unknown tier "${tier}"` }));
+      }
+      const module = url.searchParams.get("module") ?? undefined;
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const run = runSuiteTier({ tier, module }, (e) => send(e.type, e));
+      req.on("close", () => run.stop());
+      return;
+    }
+
+    // ── API: run the API suite's PO flow for this account (SSE) ─────────
+    // Header -> line items -> submit for approval, with the values in the
+    // suite's config/po-input.json. Creates real records, so it only ever runs
+    // when someone presses the button.
+    if (path === "/api/po-run") {
+      const c = Number(url.searchParams.get("c") ?? 0);
+      const account = isTokenClient(c) ? tokenClient(c) : undefined;
+      if (!account) {
+        res.writeHead(400, { "content-type": "application/json" });
+        return res.end(
+          JSON.stringify({
+            error:
+              "The PO flow runs against an account that has the flexi purchase-order module — " +
+              "pick Procol Sandbox Demo (PO) in the client list.",
+          }),
+        );
+      }
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const submit = url.searchParams.get("submit") !== "0";
+      const run = runPoFlow({ clientId: "procol_sandbox_demo", submit }, (e) => send(e.type, e));
+      req.on("close", () => run.stop());
+      return;
+    }
+
+    // ── API: the PO run's report ────────────────────────────────────────
+    // Written by the suite at the end of every PO run: each phase, every call,
+    // and the curl for it. Served here so the run and its evidence are one click
+    // apart instead of one project apart.
+    if (path === "/api/po-report") {
+      const file = suiteFile("po-run-report.html");
+      if (!file) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("No PO run report yet — run the PO automation first.");
+      }
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      return res.end(readFileSync(file));
+    }
+
+    // ── API: the UI automation report — what broke, and the screen it broke on ──
+    if (path === "/api/ui-report") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      return res.end(renderUiReport());
+    }
+
+    // ── API: one failure screenshot ─────────────────────────────────────
+    // Path-guarded: the report only ever asks for files under the UI suite's
+    // findings directory, and anything that resolves outside it is refused.
+    if (path === "/api/ui-shot") {
+      const rel = url.searchParams.get("f") ?? "";
+      const file = uiShotPath(rel);
+      if (!file) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("no such screenshot");
+      }
+      res.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" });
+      return res.end(readFileSync(file));
+    }
+
+    // ── API: which API module a feature selection means ─────────────────
+    // The UI holds feature ids; the API report is keyed on modules. One place
+    // translates, so the mapping cannot drift between the two.
+    if (path === "/api/api-modules") {
+      const features = (url.searchParams.get("features") ?? "")
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean);
+      return json(res, {
+        modules: apiModulesFor(features),
+        single: singleApiModule(features) ?? null,
+      });
+    }
+
+    // ── API: the bug report, as the QA bug sheet ────────────────────────
+    // This platform's own findings, in the columns the team's bug sheet uses.
+    // /api/report is the same findings as markdown, for pasting into a ticket;
+    // /api/suite-bug-report is the API suite's separate, hand-maintained list.
+    // ── API: a person's edits to the bug sheet ──────────────────────────
+    // One field per request, keyed on the defect's fingerprint, kept apart from
+    // what the platform derives so a re-run never overwrites a decision.
+    if (path === "/api/bug-triage") {
+      if (req.method === "POST") {
+        const raw = await readBody(req);
+        let payload: any;
+        try {
+          payload = JSON.parse(raw || "{}");
+        } catch {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: "body must be JSON" }));
+        }
+        const id = typeof payload.id === "string" ? payload.id : "";
+        const field = typeof payload.field === "string" ? payload.field : "";
+        if (!id || !isTriageField(field)) {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: "id and a known field are required" }));
+        }
+        const row = saveTriageField(id, field, String(payload.value ?? ""));
+        return json(res, { ok: true, row });
+      }
+      return json(res, { triage: loadTriage() });
+    }
+
+    if (path === "/api/bug-report") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      return res.end(renderBugSheet());
+    }
+
+    if (path === "/api/suite-bug-report") {
+      const sheet = suiteFile("bug-report.html");
+      if (!sheet) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end(`No bug-report.html yet — run \`npm run report:bugs\` in ${SUITE_NAME}.`);
+      }
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(readFileSync(sheet));
+    }
+
     // ── static files ──
     let file = path === "/" ? "/index.html" : path;
     const full = join(PUBLIC, file);
     if (full.startsWith(PUBLIC) && existsSync(full)) {
-      res.writeHead(200, { "content-type": MIME[extname(full)] ?? "text/plain" });
+      // no-store, because these files carry no version and no validator: with
+      // nothing to revalidate against, a browser is free to keep app.js for
+      // hours — which is exactly what happened, and left the UI showing old
+      // buttons wired to old endpoints while the server had moved on.
+      res.writeHead(200, {
+        "content-type": MIME[extname(full)] ?? "text/plain",
+        "cache-control": "no-store, must-revalidate",
+      });
       return res.end(readFileSync(full));
     }
     res.writeHead(404);
     res.end("Not found");
   } catch (err: any) {
+    const message = err?.message ?? String(err);
+    console.error(`[${req.method} ${req.url}] ${message}`);
+    // A streaming endpoint has already sent its headers, and writing them
+    // again throws INSIDE the catch — which took the whole process down. That
+    // is why a failed run looked like "nothing happens": the server was gone.
+    if (res.headersSent) {
+      try {
+        res.write(`event: fatal\ndata: ${JSON.stringify({ message })}\n\n`);
+      } catch {
+        /* the socket may already be closed */
+      }
+      return res.end();
+    }
     res.writeHead(500, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: err?.message ?? String(err) }));
+    res.end(JSON.stringify({ error: message }));
   }
+});
+
+/**
+ * Last resort.
+ *
+ * One unhandled rejection used to exit the process, so a single bad run took
+ * the UI down with it and every later click failed with "connection refused".
+ * Log it and stay up: a dead server is a worse answer than a failed request.
+ */
+process.on("unhandledRejection", (reason) => {
+  console.error(`[unhandled rejection] ${reason instanceof Error ? reason.message : String(reason)}`);
+});
+process.on("uncaughtException", (err) => {
+  console.error(`[uncaught] ${err.message}`);
 });
 
 function json(res: any, body: any) {

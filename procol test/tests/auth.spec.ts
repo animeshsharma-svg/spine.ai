@@ -12,6 +12,13 @@ import { CONFIG } from "../src/config.js";
  */
 test.describe("buyer auth", () => {
   test("logs in and reads dashboard configuration", async () => {
+    test.info().annotations.push(
+      { type: "kind", description: "positive" },
+      { type: "flow", description: "auth" },
+      { type: "flowTitle", description: "Authentication & authorization" },
+      { type: "expect", description: "accept" },
+      { type: "because", description: "the whole suite depends on this login working" },
+    );
     // 1) Login as buyer (phone OTP)
     const result = await login({ isVendor: false });
 
@@ -36,6 +43,13 @@ test.describe("buyer auth", () => {
   });
 
   test("rejects an authenticated call without a valid token", async () => {
+    test.info().annotations.push(
+      { type: "kind", description: "negative" },
+      { type: "flow", description: "auth" },
+      { type: "flowTitle", description: "Authentication & authorization" },
+      { type: "expect", description: "reject" },
+      { type: "because", description: "the error contract must actually fire, not resolve quietly" },
+    );
     // Build a client with a deliberately bogus token to confirm the error
     // contract (ApiError surfacing error.message) actually fires.
     const api = await ApiClient.create({

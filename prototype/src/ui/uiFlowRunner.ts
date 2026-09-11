@@ -79,6 +79,13 @@ export const UI_FLOWS: UiFlowDef[] = [
   { key: "user.erp_id_field", label: "ERP ID field present", group: "Master data" },
   { key: "display.draft_tab", label: "Drafts tab shown", group: "Display" },
   { key: "display.po_configurations", label: "PO configuration shown", group: "Display" },
+  // Negative journeys: these PASS when the console refuses the action.
+  {
+    key: "validation.publish_without_vendor",
+    label: "Publishing without a vendor is refused",
+    group: "Validation (must be refused)",
+    usesLineItems: true,
+  },
 ];
 
 export interface UiRunOptions {
