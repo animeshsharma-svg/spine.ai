@@ -269,6 +269,20 @@ Dashboard totals at time of writing: 26 finding groups — 6 defects, 15 harness
 
 ---
 
+## 15b. Speed
+
+A representative journey — create an RFQ eRFX event with two line items, template, sheet, schedule, invite, publish — was profiled from the per-step milliseconds every run records, and cut from **132 s to 60 s (−54%)**, still passing:
+
+| Step | before | after |
+|---|---|---|
+| add_line_items (2) | 58.4 s | **5.5 s** |
+| set_schedule | 30.6 s | **5.5 s** |
+| invite_vendor | 5.4 s | **1.4 s** |
+| open_create | 26.5 s | 23.8 s |
+| compose_stages | 14.6 s | 9.1 s |
+
+The avoidable idle was structural, not per-locator: a successful line-item pick was firing two more 5-second retries because a confirmation poll missed the chip (~13 s wasted per add — the app's own badge is the real oracle now); `dismissDistractions`, called 64 times, waited up to 1.5 s for a popup that was usually absent (now a single non-polling visibility pass, debounced); `set_schedule` blocked 30 s on a drawer-hidden wait that always timed out; and `pause()` was burning a networkidle wait that never settles on this long-connection console. What is left — open_create's ~22 s, compose_stages' ~9 s, select_template's ~8 s — is genuine React hydration and network round-trip latency, not harness idle.
+
 ## 16. Limits, stated plainly
 
 - Everything routed `ui-compile` (323 cases) depends on the compiler; its quality is bounded by the model the gateway actually serves (Kimi today, ASTRA when routing is fixed) and by the 36-step vocabulary. The ledger says what is missing; the honesty rules keep a missing step from becoming a false pass.
