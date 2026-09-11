@@ -251,15 +251,22 @@ export class EventsPage extends BasePage {
    * Returns null when no row carries the title.
    */
   async rowTextFor(title: string): Promise<string | null> {
-    const link = this.page.getByRole("link").filter({ hasText: title }).first();
-    if (!(await link.count())) {
-      const any = this.page.getByText(title, { exact: false }).first();
-      if (!(await any.count())) return null;
-      const block = any.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
-      return ((await ((await block.count()) ? block : any).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
+    // Walk up from the title until the block is a plausible ROW: it contains
+    // the title and is short. The old ancestor guess matched the whole list
+    // container once the tabs and filters were in the same block, and a
+    // lapse test then read "In - Evaluation" off the filter strip.
+    const anchor = this.page.getByText(title, { exact: false }).first();
+    if (!(await anchor.count())) return null;
+    let node = anchor;
+    for (let up = 0; up < 8; up++) {
+      const parent = node.locator("xpath=..");
+      if (!(await parent.count())) break;
+      const text = ((await parent.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+      if (!text.includes(title) || text.length > 420) break;
+      node = parent;
     }
-    const block = link.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
-    return ((await ((await block.count()) ? block : link).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
+    const text = ((await node.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+    return text || null;
   }
 
   /**

@@ -201,7 +201,11 @@ export class EventDetailPage extends BasePage {
       await events.searchByTitle(title);
       const row = (await events.rowTextFor(title)) ?? "";
       const m = row.match(/ends in\s*(?:(\d+)\s*h\s*:?\s*)?(\d+)\s*m\s*:?\s*(\d+)\s*s/i);
-      const over = /overdue|evaluate|closed|ended|history|completed/i.test(row) || (!m && !/ends in/i.test(row) && row.length > 0);
+      // Closed means the ROW no longer counts down AND shows an ended state.
+      // The first version accepted "evaluate" anywhere and matched the list's
+      // own filter labels 15 seconds into a 3-minute window.
+      const stillRunning = /ends in/i.test(row);
+      const over = row.length > 0 && !stillRunning && /overdue|evaluat|closed|ended|history|completed|expired/i.test(row);
       const seconds = m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
       return { text: row.slice(0, 160), seconds, over };
     };
