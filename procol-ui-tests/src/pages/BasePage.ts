@@ -150,48 +150,51 @@ export class BasePage {
    * Close whatever transient popups are currently on screen. Cheap and safe to
    * call before any important interaction; each dismissal is best-effort.
    */
+  /**
+   * Close whatever transient popups are on screen RIGHT NOW — in a single
+   * pass, without polling.
+   *
+   * The old version waited up to 1.5s for a distraction that usually was not
+   * there, and it is called 64 times across the suite, so a healthy run spent
+   * well over a minute waiting for popups to maybe appear. A distraction that
+   * is present is present now; one that shows up later is caught by the next
+   * call or by `click()`'s own retry-after-clearing path. Checking each
+   * candidate's visibility is a fast DOM query (no auto-wait), so the whole
+   * pass costs a few milliseconds when nothing is there.
+   *
+   * Debounced: repeated calls within 400ms are no-ops, which collapses the
+   * back-to-back calls inside tight retry loops.
+   */
+  private lastDismissAt = 0;
   async dismissDistractions(): Promise<boolean> {
+    if (Date.now() - this.lastDismissAt < 400) return false;
     const p = this.page;
-    return clickIfPresent(
-      p,
-      [
-        // browser-notification prompt
-        p.getByRole("button", { name: /^Not now$/i }),
-        // cookie banner
-        p.getByRole("button", { name: /^Got it$/i }),
-        // generic "stay updated" dismiss inside the antd notification
-        p.locator(".ant-notification-notice").getByRole("button", { name: /Not now|Close|Dismiss/i }),
-        p.locator(".ant-notification-notice-close"),
-
-        // The page-level yellow strip: "🔔 Turn on notifications to get real time
-        // updates for your events.  Enable Now   ✕".
-        // It is NOT an antd notification, so the selectors above never matched it
-        // and it sat over the page for the whole run. Close it via the ✕ that
-        // lives in the same strip — never the "Enable Now" link.
-        p
-          .locator("div, section, header")
-          .filter({ hasText: /Turn on notifications/i })
-          .last()
-          // NEVER the close button of a drawer or modal. The "Manage Line Items"
-          // panel closes via `button.ant-drawer-close[aria-label="Close"]`, so a
-          // generic close/dismiss candidate here slammed the panel shut the
-          // instant it opened — every line-item step then found nothing to type
-          // into. Dismissing distractions must never dismiss the thing we opened.
-          .locator(
-            "button:not(.ant-drawer-close):not(.ant-modal-close), [role='button']:not(.ant-drawer-close):not(.ant-modal-close)",
-          )
-          .last(),
-
-        // The accessibility dump of a stalled create page still showed
-        // `button "Not now"` next to `button "Yes, I'm in"` — a second, modal
-        // opt-in prompt that the strict /^Not now$/ match above misses when the
-        // label carries surrounding whitespace or an icon. Match it loosely and
-        // ALWAYS take the declining half, never "Yes, I'm in".
-        p.getByRole("button", { name: /not\s*now/i }),
-        p.locator("button", { hasText: /not\s*now/i }),
-      ],
-      { timeout: 1_500 },
-    );
+    const candidates: Locator[] = [
+      p.getByRole("button", { name: /^Not now$/i }),
+      p.getByRole("button", { name: /^Got it$/i }),
+      p.locator(".ant-notification-notice").getByRole("button", { name: /Not now|Close|Dismiss/i }),
+      p.locator(".ant-notification-notice-close"),
+      p
+        .locator("div, section, header")
+        .filter({ hasText: /Turn on notifications/i })
+        .last()
+        // Never a drawer/modal close — that would slam shut the panel we opened.
+        .locator(
+          "button:not(.ant-drawer-close):not(.ant-modal-close), [role='button']:not(.ant-drawer-close):not(.ant-modal-close)",
+        )
+        .last(),
+      p.getByRole("button", { name: /not\s*now/i }),
+    ];
+    let dismissed = false;
+    for (const c of candidates) {
+      const target = c.first();
+      // isVisible() does NOT auto-wait — it answers about the DOM as it is.
+      if (!(await target.isVisible().catch(() => false))) continue;
+      await target.click({ timeout: 1_000 }).catch(() => {});
+      dismissed = true;
+    }
+    this.lastDismissAt = Date.now();
+    return dismissed;
   }
 
   /** Wait for any antd loading spinner to disappear (best-effort). */
@@ -277,7 +280,11 @@ export class BasePage {
     const floor = Math.min(120, budget);
     await this.page.waitForTimeout(floor);
     if (budget > floor) {
-      await this.page.waitForLoadState("networkidle", { timeout: budget - floor }).catch(() => {});
+      // This console holds long-lived connections open, so networkidle never
+      // actually fires and the wait always burns its full budget for nothing.
+      // Cap the settle so a long nominal pause does not cost the earth; a real
+      // condition is waited on with waitFor elsewhere, never here.
+      await this.page.waitForLoadState("networkidle", { timeout: Math.min(budget - floor, 400) }).catch(() => {});
     }
   }
 

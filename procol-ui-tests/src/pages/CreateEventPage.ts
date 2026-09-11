@@ -1604,12 +1604,6 @@ export class CreateEventPage extends BasePage {
       // panel's tree before touching it, then fill the field that is LABELLED
       // as the duration, falling back to the first number input only if no
       // label matches — and read the chip afterwards to see what was kept.
-      await recordStuck(this.page, {
-        label: "capture:schedule-panel",
-        message: "captured on request — the Schedule panel before the duration is set",
-        triedCandidates: [],
-        healerTried: false,
-      }).catch(() => {});
       // Captured 2026-09-11: "End time" is a mode combobox ("Duration") followed
       // by a PRESET select whose display reads "30 Mins"; there is no number
       // input. Open the first select that shows a duration, list its options,
@@ -1647,12 +1641,6 @@ export class CreateEventPage extends BasePage {
         if (await fixed.count()) {
           await fixed.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
           await this.pause(500);
-          await recordStuck(this.page, {
-            label: "capture:schedule-fixed-time",
-            message: "captured on request — the Schedule panel in Fixed time mode",
-            triedCandidates: [],
-            healerTried: false,
-          }).catch(() => {});
           const end = new Date(Date.now() + (minutes + 1) * 60_000);
           const hh = end.getHours() % 12 || 12;
           const mm = String(end.getMinutes()).padStart(2, "0");
