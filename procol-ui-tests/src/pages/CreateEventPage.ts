@@ -759,6 +759,30 @@ export class CreateEventPage extends BasePage {
     return chosen;
   }
 
+  /**
+   * The keys of the pricing sheet's header row, as rendered.
+   *
+   * `sheet-header-<key>` testids are the template's widget keys made visible,
+   * which is what "the sheet schema comes from the template" means on screen.
+   * Returns [] when no sheet has rendered — an observation, not an error.
+   */
+  async sheetHeaderKeys(): Promise<string[]> {
+    await this.waitForSpinnerHidden();
+    return this.page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-testid^="sheet-header-"]'))
+        .map((el) => (el.getAttribute("data-testid") || "").replace("sheet-header-", ""))
+        .filter((k) => k && !["row_key", "delete"].includes(k)),
+    );
+  }
+
+  /** The template name the stage now shows, or null when the picker is still offering a choice. */
+  async appliedTemplateName(): Promise<string | null> {
+    if (await this.templatePickerPresent()) return null;
+    const trigger = this.page.locator("[class*='templateName'], [data-testid*='template-name'], [class*='selectedTemplate']").first();
+    const text = (await trigger.textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
+    return text || "(applied — name not displayed)";
+  }
+
   /** Switch to a stage tab (multi-stage layout). Firm click, tolerant if absent. */
   async switchToStageTab(label: RegExp): Promise<void> {
     await this.dismissDistractions();

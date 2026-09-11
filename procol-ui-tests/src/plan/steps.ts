@@ -66,6 +66,31 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "filter_events",
+    purpose: "On the events list, switch to a tab: Live, History, Drafts or Recurring.",
+    args: { tab: '"Live" | "History" | "Drafts" | "Recurring"' },
+  },
+  {
+    name: "expect_event_in_list",
+    purpose:
+      "Search the events list by title and assert a matching row exists. Defaults to the title this plan gave its own event, so use it after publish or save_draft to prove the event is where the case says it should be.",
+    args: { title: "title text to search for; omit to use this plan's own event title" },
+    assertion: true,
+  },
+  {
+    name: "expect_template_selected",
+    purpose: "Assert the current stage has a template applied — the picker no longer offers 'Select Templates' — and, when a name is given, that the stage shows it.",
+    args: { name: "substring of the expected template name (optional)" },
+    assertion: true,
+  },
+  {
+    name: "expect_sheet_columns",
+    purpose:
+      "Assert the pricing sheet's header row has rendered from the template. With no args, asserts at least one column exists; with columns, asserts each named key is present (e.g. price, quantity, buyer_hub).",
+    args: { columns: "array of header keys that must be present (optional)" },
+    assertion: true,
+  },
+  {
     name: "open_create",
     purpose: "Open the event-create screen. Always the first step of a create test.",
     args: { path: '"erfx" (multi-stage project, the default), "single-stage", or "boq"' },

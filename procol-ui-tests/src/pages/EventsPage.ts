@@ -207,6 +207,28 @@ export class EventsPage extends BasePage {
     return items;
   }
 
+  /**
+   * Switch the events list to one of its tabs — Live, History, Drafts,
+   * Recurring. The tab label carries a count badge ("LIVE 5606"), so match on
+   * the word, not the whole text.
+   */
+  async openTab(tab: string): Promise<string> {
+    await this.dismissDistractions();
+    const want = new RegExp(`^\\s*${tab.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    await this.click(
+      [
+        this.page.getByRole("tab", { name: want }),
+        this.page.locator(".ant-tabs-tab").filter({ hasText: want }).first(),
+        this.page.getByText(want).first(),
+      ],
+      { label: `events-tab:${tab.toLowerCase()}` },
+    );
+    await this.waitForSpinnerHidden();
+    await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.LONG }).catch(() => {});
+    const active = await this.page.locator(".ant-tabs-tab-active, [role='tab'][aria-selected='true']").first().textContent().catch(() => null);
+    return (active ?? tab).replace(/\s+/g, " ").trim();
+  }
+
   /** Search the events list by title and report whether any row matches. */
   async searchByTitle(query: string): Promise<void> {
     const search = await this.expect(

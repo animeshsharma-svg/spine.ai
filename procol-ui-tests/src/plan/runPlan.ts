@@ -57,6 +57,8 @@ interface RunState {
   surrogateBids: string[];
   /** Whether an award has been submitted, so expect_awarded can tell. */
   awarded: boolean;
+  /** The template select_template applied, for expect_template_selected. */
+  templateName?: string;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -80,6 +82,39 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "expect_events_list": {
       await s.events.expectListReady();
       return "the events list rendered";
+    }
+    case "filter_events": {
+      const tab = String(a.tab ?? "Live");
+      if (!/\/orders/.test(s.page.url())) await s.events.goto();
+      const active = await s.events.openTab(tab);
+      return `events list on the "${active}" tab`;
+    }
+    case "expect_event_in_list": {
+      const title = String(a.title ?? s.title ?? "");
+      if (!title) throw new Error("expect_event_in_list needs a title, and this plan has not created an event to look for");
+      if (!/\/orders/.test(s.page.url())) await s.events.goto();
+      await s.events.searchByTitle(title);
+      const found = await s.events.hasEventMatching(title);
+      if (!found) throw new Error(`no event titled "${title}" in the list after searching for it`);
+      return `"${title}" is in the list`;
+    }
+    case "expect_template_selected": {
+      const shown = await s.create.appliedTemplateName();
+      if (shown === null) throw new Error("the stage still offers 'Select Templates' — no template is applied");
+      const want = a.name ? String(a.name) : s.templateName;
+      if (want && !shown.toLowerCase().includes(want.toLowerCase()) && !/name not displayed/.test(shown)) {
+        throw new Error(`the stage shows template "${shown}", not "${want}"`);
+      }
+      return `template applied: ${shown}`;
+    }
+    case "expect_sheet_columns": {
+      const keys = await s.create.sheetHeaderKeys();
+      if (!keys.length) throw new Error("no pricing-sheet header has rendered — the template's schema is not on screen");
+      const want = Array.isArray(a.columns) ? a.columns.map(String) : [];
+      const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      const missing = want.filter((w) => !keys.some((k) => norm(k).includes(norm(w))));
+      if (missing.length) throw new Error(`sheet columns are [${keys.join(", ")}] — missing: ${missing.join(", ")}`);
+      return `sheet columns: ${keys.join(", ")}`;
     }
     case "expect_create_options": {
       const want = Array.isArray(a.options) ? a.options.map(String) : [];
@@ -138,6 +173,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "select_template": {
       const chosen = await s.create.selectTemplate(a.name ? String(a.name) : undefined);
+      s.templateName = chosen;
       // Later steps need the sheet schema, and it only comes from the template
       // response — so capture it here rather than re-deriving it.
       s.widgets = await s.create.selectFirstTemplateAndExtractWidgets().catch(() => ({}));

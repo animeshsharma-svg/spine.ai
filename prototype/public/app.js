@@ -1690,6 +1690,10 @@ const ROUTE_SENTENCE = {
 const STEP_WORDS = {
   open_events_list: () => "open the events list",
   expect_events_list: () => "check the events list rendered",
+  filter_events: (a) => `switch the events list to the ${a?.tab ?? "Live"} tab`,
+  expect_event_in_list: (a) => (a?.title ? `check "${a.title}" appears in the events list` : "check the event appears in the events list"),
+  expect_template_selected: (a) => (a?.name ? `check the "${a.name}" template is applied` : "check a template is applied to the stage"),
+  expect_sheet_columns: (a) => (Array.isArray(a?.columns) && a.columns.length ? `check the sheet has columns ${a.columns.join(", ")}` : "check the pricing sheet rendered from the template"),
   open_create: (a) => `open the ${a?.path === "single-stage" ? "single-stage" : a?.path === "boq" ? "BOQ" : "eRFX"} create screen`,
   compose_stages: (a) => `set the stages to ${Array.isArray(a?.stages) ? a.stages.join(" + ") : "what the case asks"}`,
   set_title: () => "give the event a title",
