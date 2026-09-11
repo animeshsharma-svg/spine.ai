@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 
 /**
@@ -222,6 +223,63 @@ export class VendorPortalPage extends BasePage {
   }
 
   /** True if a bid-submitted confirmation/state is visible. */
+  /**
+   * Accept the buyer's counter offer, from the vendor's side.
+   *
+   * The supplier portal is a separate app whose source is not checked out
+   * here, so this is built the way the buyer-side verb was: on the event's
+   * stage view, look for the counter-offer prompt and its Accept control;
+   * confirm; read the app's answer. When the control is not there, record the
+   * page — buttons, tabs, tree — so the next iteration is built on evidence,
+   * not on a guess. Returns what happened, in words.
+   */
+  async acceptCounterOffer(match?: string): Promise<string> {
+    const p = this.page;
+    // The prompt may sit on the overview or behind the stage tab; look on both.
+    const findAccept = async () => {
+      const candidates = [
+        p.getByRole("button", { name: /accept counter ?offer/i }),
+        p.locator("[class*='counter' i], [class*='offer' i], [data-testid*='counter' i]").getByRole("button", { name: /^accept\b/i }),
+        p.getByRole("button", { name: /^accept\b/i }),
+        p.getByText(/accept counter ?offer/i),
+      ];
+      for (const c of candidates) if ((await c.count()) && (await c.first().isVisible().catch(() => false))) return c.first();
+      return null;
+    };
+    let control = await findAccept();
+    if (!control) {
+      await this.startBidding(match);
+      control = await findAccept();
+    }
+    if (!control) {
+      const buttons = (await p.getByRole("button").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+      const tabs = (await p.getByRole("tab").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+      const mentions = (await p.getByText(/counter ?offer/i).allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 5);
+      await recordStuck(p, {
+        label: "accept-counter-offer:control",
+        message: `no Accept control for a counter offer on the vendor's event view — counter-offer mentions: ${mentions.join(" | ") || "none"}`,
+        triedCandidates: ["button /accept counter offer/i", "button /^accept/i near counter-offer text"],
+        healerTried: false,
+      }).catch(() => {});
+      throw new Error(
+        `the vendor's event view offers no Accept for a counter offer${mentions.length ? ` (it mentions: ${mentions.join(" | ")})` : " (no counter-offer text on the page — the offer may not have reached this vendor's view yet)"}. Tabs: ${tabs.join(" | ") || "none"}; buttons: ${buttons.slice(0, 14).join(" | ")}`,
+      );
+    }
+    await control.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    await control.click({ timeout: TIMEOUTS.MEDIUM });
+    // A confirmation may follow; take the affirmative half, never a reject.
+    await this.clickIfPresent(
+      [p.locator(".ant-modal-content, [role='dialog']").getByRole("button", { name: /^(accept|yes|confirm|ok|submit)/i })],
+      { label: "accept-counter-offer:confirm", timeout: TIMEOUTS.SHORT },
+    ).catch(() => {});
+    const err = await this.errorToastText(2_500);
+    if (err) throw new Error(`accepting the counter offer was refused: ${err}`);
+    const ok = await this.successToastText(6_000);
+    const accepted = ok || (await p.getByText(/accepted/i).first().isVisible().catch(() => false) ? "the view now reads accepted" : null);
+    await this.waitForSpinnerHidden();
+    return `counter offer accepted${accepted ? ` — ${accepted}` : ""}`;
+  }
+
   async bidSubmitted(): Promise<boolean> {
     const toast = await this.successToastText(TIMEOUTS.SHORT);
     if (toast && /submit|success|placed/i.test(toast)) return true;

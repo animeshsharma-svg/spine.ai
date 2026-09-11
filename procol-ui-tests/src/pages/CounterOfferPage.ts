@@ -238,6 +238,17 @@ export class CounterOfferPage extends BasePage {
     return `counter offer of ${opts.price} sent${opts.vendor ? ` to ${opts.vendor}` : ""}${ok ? ` — "${ok}"` : ""} (${filled} cell(s))`;
   }
 
+  /**
+   * The vendor's answer, as the buyer's grid shows it: the header carries a
+   * status mark — COUNTER_OFFER_ACCEPTED / COUNTER_OFFER_MODIFIED in the
+   * product's terms — once the vendor has acted. Match the word.
+   */
+  async counterOfferStatusFor(vendor: string | undefined, want: RegExp): Promise<{ ok: boolean; text: string }> {
+    const header = this.vendorHeader(vendor);
+    const text = ((await (await header.count()) ? header.textContent() : this.page.locator("body").textContent()) ?? "").replace(/\s+/g, " ").trim();
+    return { ok: want.test(text), text: text.slice(0, 200) };
+  }
+
   /** The grid marks a vendor whose bid carries a pending counter offer. */
   async counterOfferVisibleFor(vendor?: string): Promise<boolean> {
     const scope = vendor ? this.vendorHeader(vendor) : this.page.locator("body");

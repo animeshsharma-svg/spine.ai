@@ -67,6 +67,8 @@ interface RunState {
   counterOfferSent?: boolean;
   /** Whether close_event ended the stage in this plan. */
   closed?: boolean;
+  /** Whether the vendor accepted the counter offer in this plan. */
+  counterOfferAccepted?: boolean;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -258,6 +260,33 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const where = await s.events.openEvent({ id, title });
       if (title && !s.title) s.title = title;
       return `opened ${id ? `event ${id}` : `"${title}"`} at ${where}`;
+    }
+    case "accept_counter_offer": {
+      if (!s.counterOfferSent) throw new Error("no counter offer was sent in this plan — accept_counter_offer needs place_counter_offer before it");
+      const browser = s.page.context().browser();
+      if (!browser) throw new Error("no browser available to open a vendor session");
+      const vendorCtx = await browser.newContext();
+      const vendorPage = await vendorCtx.newPage();
+      try {
+        const portal = new VendorPortalPage(vendorPage);
+        await portal.goto();
+        await portal.login();
+        await portal.openEvent(s.title);
+        const detail = await portal.acceptCounterOffer(s.title);
+        s.counterOfferAccepted = true;
+        return detail;
+      } finally {
+        await vendorCtx.close().catch(() => {});
+      }
+    }
+    case "expect_counter_offer_accepted": {
+      if (!s.counterOfferAccepted) throw new Error("no counter offer was accepted in this plan — expect_counter_offer_accepted needs accept_counter_offer before it");
+      // Back on the buyer's page, the Responses grid should now carry the mark.
+      const co = new CounterOfferPage(s.page);
+      await s.page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+      const res = await co.counterOfferStatusFor(a.vendor ? String(a.vendor) : undefined, /accept/i);
+      if (!res.ok) throw new Error(`the buyer's grid does not yet mark the counter offer as accepted — the vendor header reads: ${res.text}`);
+      return "the buyer's grid marks the counter offer as accepted";
     }
     case "capture_screen": {
       const label = String(a.label ?? "capture").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "capture";

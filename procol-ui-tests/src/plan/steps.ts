@@ -141,6 +141,18 @@ export const STEP_CATALOG: StepSpec[] = [
     args: { id: "project id from a URL (optional)", title: "event title to search for (optional; defaults to this plan's own event)" },
   },
   {
+    name: "accept_counter_offer",
+    purpose:
+      "VENDOR side: sign into the supplier portal as the vendor, open the event and accept the buyer's pending counter offer. Use after place_counter_offer. The vendor's view is a separate portal; when no Accept is offered, the step reports what that view shows.",
+    args: { vendor: "vendor name (optional; the configured vendor identity is used)" },
+  },
+  {
+    name: "expect_counter_offer_accepted",
+    purpose: "Buyer side, on the stage's Responses grid: assert the vendor's header now marks the counter offer as accepted.",
+    args: { vendor: "vendor name (optional)" },
+    assertion: true,
+  },
+  {
     name: "capture_screen",
     purpose:
       "Record evidence of the current screen — a screenshot and the accessibility tree — under a label, without asserting anything. Use when a case wants to inspect or document a screen, or when the next thing to test has no step yet and a person needs to see the controls that exist.",
