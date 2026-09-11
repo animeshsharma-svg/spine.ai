@@ -290,6 +290,36 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // Vendor coherence. UI-AWD-001 invited five vendors by count, surrogate-bid
+  // for whichever came first, then asserted the Master QCS grid lists "AMD" —
+  // a vendor never invited. Whoever a later step names must be on the invite,
+  // and a bid that names nobody should bid as the vendor the plan cares about.
+  {
+    const named = new Set<string>();
+    for (const st of steps) {
+      if (["open_master_qcs"].includes(st.step) && Array.isArray(st.args?.vendors)) for (const v of st.args!.vendors as unknown[]) named.add(String(v));
+      if (["place_surrogate_bid", "place_bid", "place_counter_offer", "expect_counter_offer_sent"].includes(st.step) && st.args?.vendor) named.add(String(st.args.vendor));
+    }
+    if (named.size) {
+      const inv = steps.find((st) => st.step === "invite_vendor");
+      if (inv) {
+        const have = Array.isArray(inv.args?.names) ? (inv.args!.names as unknown[]).map(String) : [];
+        const missing = [...named].filter((v) => !have.some((h) => h.toLowerCase() === v.toLowerCase()));
+        if (missing.length) {
+          inv.args = { ...(inv.args ?? {}), names: [...have, ...missing] };
+          repairs.push(`invite_vendor now names ${missing.join(", ")} — a later step expects that vendor on the event`);
+        }
+      }
+      const [first] = [...named];
+      for (const st of steps) {
+        if (["place_surrogate_bid", "place_bid"].includes(st.step) && !st.args?.vendor) {
+          st.args = { ...(st.args ?? {}), vendor: first };
+          repairs.push(`${st.step} now bids as ${first} — the vendor the plan's assertions are about`);
+        }
+      }
+    }
+  }
+
   // convert_to_auction needs a PUBLISHED RFQ under the browser.
   if (has("convert_to_auction")) {
     const conv = indexOf("convert_to_auction");
