@@ -16,16 +16,67 @@ import { recordStuck } from "../oracle/stuck.js";
  * COUNTER_OFFER_ACCEPTED / COUNTER_OFFER_MODIFIED on the bid.
  */
 export class CounterOfferPage extends BasePage {
+  /**
+   * The counter-offer drawer, anchored on its own heading — "Counter Offer for
+   * <vendor>" — and bounded by the nearest ancestor that also holds its "Send
+   * Counter Offer" button. Captured 2026-09-11: a heading, a Bulk Update
+   * button, a legend, a product search box, a plain TABLE (S no. · Product ·
+   * Quantity Requested · Quantity Available · Price · Total Amount · Delivery
+   * location · GST · Product Variant) with one row per line item and a locked
+   * checkbox, a Sum Total, the remarks box "Enter your remarks here", and
+   * Cancel / Send Counter Offer. It is not the data-celltype sheet.
+   */
   private drawer() {
-    // orderDetails.jsx keeps both a CounterOfferDrawer and a counterOffer
-    // MODAL state; which one opens depends on the build. Match either, only
-    // when actually open, and prefer the last one mounted.
-    return this.page
-      .locator(
-        ".ant-drawer.ant-drawer-open .ant-drawer-content, .ant-drawer:not(.ant-drawer-hidden) .ant-drawer-content, .ant-modal-wrap:not([style*='display: none']) .ant-modal-content, [role='dialog']",
-      )
-      .filter({ hasText: /counter|offer|price|remark|send/i })
-      .last();
+    const heading = this.page.getByRole("heading", { name: /counter offer for/i }).last();
+    return heading.locator("xpath=ancestor::*[.//button[contains(normalize-space(.), 'Send Counter Offer')]][1]");
+  }
+
+  /**
+   * Put the counter price into the drawer's table. The price cell is a plain
+   * cell that opens an editor on click; when it does not, the drawer's Bulk
+   * Update applies one value to every row. Returns how many rows were set.
+   */
+  private async fillCounterTable(drawer: import("@playwright/test").Locator, price: number): Promise<number> {
+    const p = this.page;
+    const table = drawer.getByRole("table").first();
+    const headers = (await table.getByRole("columnheader").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
+    const priceCol = headers.findIndex((h) => /^price\b/i.test(h));
+    const rows = table.getByRole("row").filter({ hasNot: table.getByRole("columnheader") });
+    let filled = 0;
+    if (priceCol >= 0) {
+      for (let i = 0; i < (await rows.count()); i++) {
+        const cell = rows.nth(i).getByRole("cell").nth(priceCol);
+        if (!(await cell.count())) continue;
+        await cell.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
+        await cell.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        let input = cell.locator("input").first();
+        if (!(await input.count())) {
+          await cell.dblclick({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          input = cell.locator("input").first();
+        }
+        if (!(await input.count())) input = rows.nth(i).locator("input[type='number'], input.ant-input-number-input, input:not([type='checkbox'])").first();
+        if (!(await input.count())) continue;
+        await input.fill(String(price)).catch(() => {});
+        await p.keyboard.press("Tab").catch(() => {});
+        filled++;
+      }
+    }
+    if (!filled) {
+      // Bulk Update: one value for every line item.
+      const bulk = drawer.getByRole("button", { name: /bulk update/i }).first();
+      if (await bulk.count()) {
+        await bulk.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const pop = p.locator(".ant-popover:not(.ant-popover-hidden), .ant-modal-wrap:not([style*='display: none']) .ant-modal-content, [role='dialog']").last();
+        await pop.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const num = pop.locator("input[type='number'], input.ant-input-number-input, input").first();
+        if (await num.count()) {
+          await num.fill(String(price)).catch(() => {});
+          await pop.getByRole("button", { name: /^(apply|update|ok|save|done)/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          filled = await rows.count();
+        }
+      }
+    }
+    return filled;
   }
 
   /** The vendor's column header in the comparison grid, by name (or the first with a Counter Offer control). */
@@ -156,7 +207,8 @@ export class CounterOfferPage extends BasePage {
       throw new Error(`Counter Offer was pressed but no drawer or dialog opened${toast ? ` — the app said: ${toast}` : " (captured for a look)"}`);
     }
     await this.waitForSpinnerHidden();
-    const filled = await fillSheetPrices(p, drawer, opts.price);
+    let filled = await this.fillCounterTable(drawer, opts.price);
+    if (!filled) filled = await fillSheetPrices(p, drawer, opts.price); // the sheet-component variant, if a build uses it
     if (!filled) {
       await recordStuck(p, {
         label: "counter-offer:sheet",
@@ -164,14 +216,14 @@ export class CounterOfferPage extends BasePage {
         triedCandidates: ['[data-celltype="price"]', "input[type='number']"],
         healerTried: false,
       }).catch(() => {});
-      throw new Error("the Counter Offer drawer opened, but its sheet has no fillable price cell — the drawer's shape needs a look (captured)");
+      throw new Error("the Counter Offer drawer opened, but neither its Price cell nor Bulk Update took a value — captured for a look");
     }
-    const remarks = drawer.locator("textarea, input[placeholder*='remark' i]").first();
+    const remarks = drawer.getByPlaceholder(/enter your remarks/i).or(drawer.locator("textarea")).first();
     if (await remarks.count()) await remarks.fill(opts.remark ?? "Counter offer from the QA platform").catch(() => {});
 
     // 3 · send. The drawer's primary action is "Send" on this build's strings
     //     ("Send Bulk Counter Offer" for the bulk path); accept close synonyms.
-    const send = drawer.getByRole("button", { name: /^(send|submit|send counter offer|counter offer)$/i }).first();
+    const send = drawer.getByRole("button", { name: /^send counter offer$|^(send|submit)$/i }).first();
     if (!(await send.count())) {
       const buttons = (await drawer.getByRole("button").allTextContents()).map((t) => t.trim()).filter(Boolean);
       throw new Error(`the Counter Offer drawer has no Send control — buttons: ${buttons.join(", ")}`);
