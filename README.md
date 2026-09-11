@@ -273,12 +273,14 @@ A counter offer has no step and is refused, on the ledger.
 
 ## Counter offers, from the product's own trigger
 
-Each vendor's column header on Master QCS carries the buyer's **Counter
-Offer** (inside the header's caret menu on the live grid, beside Reject
-Quote / Edit Quote / Counter offer logs) while that bid is live and active.
-`place_counter_offer{vendor, price, remark}` opens it, fills the drawer's
-sheet, adds the remark and sends; `expect_counter_offer_sent` reads the mark
-on the bid. The vendor's acceptance has no step yet and is said so. The
+On a published stage's **Responses** sub-tab (the stage's own comparison
+grid — not the project-level Master QCS, which shows the same bids without
+header actions), each vendor's column header carries the buyer's **Counter
+Offer** button while that bid is live and active; a pending accept/reject
+request or an approval view takes that slot first. `place_counter_offer
+{vendor, price, remark}` waits for the stage page to finish loading, opens
+Responses, presses it, fills the drawer's sheet, adds the remark and sends;
+`expect_counter_offer_sent` reads the mark on the bid. The vendor's acceptance has no step yet and is said so. The
 surrogate drawer, the vendor portal's bid sheet and the counter-offer drawer
 share one sheet filler (`procol-ui-tests/src/support/sheet.ts`).
 
