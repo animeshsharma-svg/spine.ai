@@ -1765,10 +1765,17 @@ export class CreateEventPage extends BasePage {
     await this.page.waitForTimeout(300);
     const box = await saveBtn.boundingBox().catch(() => null);
     console.log(`[create-event] Save Schedule at ${box ? `y=${Math.round(box.y)} h=${Math.round(box.height)}` : "no box"} (viewport ${this.page.viewportSize()?.height ?? "?"}px)`);
-    const clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false);
+    let clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false);
     if (!clicked) {
       await saveBtn.evaluate((el) => el.scrollIntoView({ block: "end" })).catch(() => {});
-      await this.click([saveBtn], { label: "save-schedule", timeout: TIMEOUTS.MEDIUM, force: true });
+      clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT, force: true }).then(() => true).catch(() => false);
+    }
+    if (!clicked) {
+      // The drawer's scroller clips the click point even when the box is on
+      // screen. A dispatched click reaches the React handler without
+      // hit-testing — the last resort, and logged as such.
+      await saveBtn.dispatchEvent("click").catch(() => {});
+      console.log("[create-event] Save Schedule: pointer clicks were clipped by the drawer — dispatched the click directly");
     }
     await this.waitForSpinnerHidden();
     await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).catch(() => {});

@@ -54,6 +54,10 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         storageState: AUTH_FILE,
+        // The default 1280×720 leaves the Schedule drawer's Save button in a
+        // clipped strip at the bottom (y=672 of 720) where clicks land "outside
+        // of the viewport". Give the console a taller window.
+        viewport: { width: 1366, height: 900 },
         // A headed demo wants to be FOLLOWED by eye: UI_SLOWMO=250 spaces every
         // action out a quarter-second. Verification runs leave it unset.
         launchOptions: { slowMo: Number(process.env.UI_SLOWMO ?? 0) || 0 },
