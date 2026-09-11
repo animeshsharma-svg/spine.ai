@@ -1229,7 +1229,9 @@ function runTestCase(dryRun) {
     );
     // Repairs are shown, never hidden: a plan the linter had to fix says the
     // compiler needs improving, and that is worth seeing.
-    for (const w of p.warnings ?? []) write(`   ⚠ ${w}`, "note");
+    if (p.coverage === "none") write(`   ⛔ cannot test this case yet — no step for: ${(p.gaps || []).join("; ") || "what it checks"}. Not running something else in its place.`, "bad");
+    else if (p.coverage === "partial") write(`   ◐ only part of this case can be tested — no step for: ${(p.gaps || []).join("; ")}`, "note");
+    for (const w of p.warnings ?? []) if (!/^cannot test|^can only test/.test(w)) write(`   ⚠ ${w}`, "note");
   });
   es.addEventListener("log", (ev) => {
     const l = JSON.parse(ev.data).line;

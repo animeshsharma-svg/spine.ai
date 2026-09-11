@@ -34,7 +34,11 @@ interface Case {
   note?: string;
 }
 
-const names: string[] = JSON.parse(readFileSync(CATALOG, "utf8")).names;
+// Read at check time, not once at start-up: the compiler reads the live
+// vocabulary per compile, so a step added mid-run (there were three today)
+// otherwise shows up here as "unknown" — an invariant failing on its own
+// staleness, not on the plan.
+const names = (): string[] => JSON.parse(readFileSync(CATALOG, "utf8")).names;
 
 /** Structural rules a runnable plan must satisfy, independent of the test case. */
 function invariants(plan: TestPlan): string[] {
@@ -43,7 +47,8 @@ function invariants(plan: TestPlan): string[] {
   const at = (n: string) => steps.indexOf(n);
   const problems: string[] = [];
 
-  for (const s of steps) if (!names.includes(s)) problems.push(`unknown step "${s}"`);
+  const known = names();
+  for (const s of steps) if (!known.includes(s)) problems.push(`unknown step "${s}"`);
 
   // A plan about the events LIST is a different shape, and demanding
   // open_create/set_title of it was this check assuming every test is a create
@@ -122,6 +127,7 @@ const cases: Case[] = readFileSync(CORPUS, "utf8")
 
 console.log(`Compiling ${cases.length} test cases · ${providerLabel()}\n`);
 
+let refused = 0;
 let clean = 0;
 let repaired = 0;
 let broken = 0;
@@ -134,6 +140,14 @@ for (const c of cases) {
   } catch (e) {
     console.log(`BROKEN ${c.id}: compiler threw — ${(e as Error).message}`);
     broken++;
+    continue;
+  }
+  // A refusal — coverage "none", no steps — is the compiler saying the case
+  // cannot be tested with the steps that exist. That is a correct output, not
+  // a broken plan, and it is counted separately so the number is visible.
+  if (compiled.coverage === "none" && !compiled.plan.steps.length) {
+    refused++;
+    console.log(`REFUSED ${c.id}  ${c.testCase.slice(0, 60)}\n        no step for: ${compiled.gaps.join("; ").slice(0, 160)}`);
     continue;
   }
   const problems = invariants(compiled.plan);
@@ -169,9 +183,13 @@ for (const c of cases) {
 
 const total = cases.length;
 const runnable = clean + repaired;
+// A refusal is the right answer for a case the vocabulary cannot test, so it
+// is neither runnable nor broken — it leaves the denominator.
+const testable = total - refused;
 console.log(`
 Total test cases:      ${total}
-Runnable plans:        ${((runnable / total) * 100).toFixed(1)}%  (${runnable}/${total})
+Refused honestly:      ${refused}   (coverage "none" — no step for the case's subject; on the gap ledger)
+Runnable plans:        ${testable ? ((runnable / testable) * 100).toFixed(1) : "0.0"}%  (${runnable}/${testable} testable)
   compiled clean:      ${clean}
   needed repair:       ${repaired}   (the linter fixed these; the compiler should not have needed it)
 Not runnable:          ${broken}
@@ -179,8 +197,9 @@ Not runnable:          ${broken}
 
 writeFileSync(join(here, "..", "prompts", "last-planner-eval.json"), JSON.stringify(results, null, 2));
 const min = Number(process.env.EVAL_MIN_RUNNABLE ?? 0.9);
-if (runnable / total < min) {
-  console.log(`FAIL: ${(runnable / total * 100).toFixed(1)}% runnable is below the ${(min * 100).toFixed(0)}% threshold.`);
+const ratio = testable ? runnable / testable : 0;
+if (ratio < min) {
+  console.log(`FAIL: ${(ratio * 100).toFixed(1)}% runnable is below the ${(min * 100).toFixed(0)}% threshold.`);
   process.exit(1);
 }
-console.log(`OK: ${(runnable / total * 100).toFixed(1)}% of test cases compiled into runnable plans.`);
+console.log(`OK: ${(ratio * 100).toFixed(1)}% of testable cases compiled into runnable plans.`);

@@ -657,17 +657,38 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     return false;
   });
 
+  const declaredGaps = Array.isArray(parsed.cannotExpress)
+    ? (parsed.cannotExpress as unknown[]).map((g) => String(g).trim()).filter(Boolean)
+    : [];
   if (!steps.length) {
-    warnings.push("the model produced no runnable steps — used a default plan instead");
+    // The model returned no steps. If it also said WHY — coverage "none", or
+    // a list of things it cannot express — that is the honest answer to a case
+    // the vocabulary cannot test (an API-only case, a flow with no step), and
+    // it must be returned as such. BE-2.11 and FE-3.1 were compiled this way
+    // and then quietly replaced with the generic publish plan, which would run,
+    // pass, and have tested nothing the case was about.
+    if (parsed.coverage === "none" || declaredGaps.length) {
+      const gaps = declaredGaps.length ? declaredGaps : ["what this case checks has no step in the vocabulary"];
+      warnings.push(`cannot test this case yet — no step can observe: ${gaps.join("; ")}`);
+      recordVocabularyGaps(resolvedId ?? testCase.match(/^\s*((?:UI|API|FE|BE)-[A-Z]*-?[\w.]+)/)?.[1] ?? testCase.slice(0, 80), gaps);
+      return {
+        plan: { title: String(parsed.title ?? testCase.slice(0, 60)), steps: [] },
+        reasoning: String(parsed.reasoning ?? "The case's subject has no step in the vocabulary."),
+        context: { expectations, experience },
+        source: "llm",
+        warnings,
+        coverage: "none",
+        gaps,
+      };
+    }
+    warnings.push("the model produced no runnable steps and gave no reason — used a default plan instead");
     return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
   const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
   warnings.push(...linted.repairs);
 
-  const gaps = Array.isArray(parsed.cannotExpress)
-    ? (parsed.cannotExpress as unknown[]).map((g) => String(g).trim()).filter(Boolean)
-    : [];
+  const gaps = declaredGaps;
   let coverage: CompileResult["coverage"] =
     parsed.coverage === "none" ? "none" : parsed.coverage === "partial" || gaps.length ? "partial" : "full";
   // A model that lists gaps but claims full coverage is contradicting itself;

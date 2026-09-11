@@ -394,6 +394,13 @@ const server = createServer(async (req, res) => {
           res.end();
           return;
         }
+        // An empty plan would "pass" in zero steps. Say what is missing instead.
+        if (compiled.coverage === "none" || !compiled.plan.steps.length) {
+          send("log", { line: `[plan] not run — the automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}` });
+          send("done", { exitCode: 0, notRun: true });
+          res.end();
+          return;
+        }
 
         const runId = `plan-${Date.now().toString(36)}`;
         send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
