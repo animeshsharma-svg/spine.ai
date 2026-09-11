@@ -365,6 +365,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // journey that publishes single-stage events does exactly this.
         await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"));
         s.lineItemsAdded = 1;
+        const ranges = await s.single.fillRangeCells();
+        if (ranges) console.log(`[single-stage] filled ${ranges} traffic-light range cell(s) on the line item`);
         const wanted = asInt(a.count, 1);
         return wanted > 1
           ? `1 line item filled in the single-stage sheet (the case asked for ${wanted}; this screen's sheet takes one product row per flow here)`
