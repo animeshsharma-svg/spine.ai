@@ -48,7 +48,7 @@ function invariants(plan: TestPlan): string[] {
   // A plan about the events LIST is a different shape, and demanding
   // open_create/set_title of it was this check assuming every test is a create
   // test. It must still assert something, or it proves nothing.
-  const LIST_ASSERTS = ["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list"];
+  const LIST_ASSERTS = ["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list", "expect_event_status"];
   if (steps[0] === "open_events_list") {
     if (!LIST_ASSERTS.some(has)) problems.push("opens the events list and asserts nothing about it");
     return problems;

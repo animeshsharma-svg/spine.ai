@@ -200,7 +200,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // Decided ONCE, before anything is inserted: a list test that later gains an
   // open_create (for a URL check) must not turn into a create test, or the
   // create repairs move that open to the front and bolt a title onto it.
-  const LIST_STEPS = ["open_events_list", "expect_events_list", "expect_create_options", "filter_events", "expect_event_in_list"];
+  const LIST_STEPS = ["open_events_list", "expect_events_list", "expect_create_options", "filter_events", "expect_event_in_list", "expect_event_status"];
   const isListTest =
     steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
   if (isListTest) {
@@ -212,7 +212,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       steps.unshift(open);
       repairs.push("moved open_events_list to the front — the steps before it had no list on screen");
     }
-    if (!has("expect_events_list") && !has("expect_no_error") && !has("expect_create_options") && !has("expect_event_in_list")) {
+    if (!["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list", "expect_event_status"].some(has)) {
       steps.push({ step: "expect_events_list" });
       repairs.push("added expect_events_list — opening the list without asserting it rendered tests nothing");
     }

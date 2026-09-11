@@ -245,6 +245,23 @@ export class EventsPage extends BasePage {
     await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.LONG }).catch(() => {});
   }
 
+  /**
+   * The text of the list row (or card) that carries this title — the whole
+   * block, so the status chip ("Draft", "RFQ in Progress") comes with it.
+   * Returns null when no row carries the title.
+   */
+  async rowTextFor(title: string): Promise<string | null> {
+    const link = this.page.getByRole("link").filter({ hasText: title }).first();
+    if (!(await link.count())) {
+      const any = this.page.getByText(title, { exact: false }).first();
+      if (!(await any.count())) return null;
+      const block = any.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
+      return ((await ((await block.count()) ? block : any).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
+    }
+    const block = link.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
+    return ((await ((await block.count()) ? block : link).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
+  }
+
   async hasEventMatching(pattern: RegExp | string): Promise<boolean> {
     const count = await this.page.getByRole("link").filter({ hasText: pattern }).count();
     return count > 0;

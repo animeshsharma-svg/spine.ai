@@ -1695,6 +1695,7 @@ const STEP_WORDS = {
   expect_enabled: (a) => `check "${a?.control ?? "the control"}" is enabled`,
   filter_events: (a) => `switch the events list to the ${a?.tab ?? "Live"} tab`,
   expect_event_in_list: (a) => (a?.title ? `check "${a.title}" appears in the events list` : "check the event appears in the events list"),
+  expect_event_status: (a) => `check the event's row shows "${a?.status ?? "the expected status"}"`,
   expect_template_selected: (a) => (a?.name ? `check the "${a.name}" template is applied` : "check a template is applied to the stage"),
   expect_sheet_columns: (a) => (Array.isArray(a?.columns) && a.columns.length ? `check the sheet has columns ${a.columns.join(", ")}` : "check the pricing sheet rendered from the template"),
   open_create: (a) => `open the ${a?.path === "single-stage" ? "single-stage" : a?.path === "boq" ? "BOQ" : "eRFX"} create screen`,

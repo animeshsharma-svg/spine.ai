@@ -78,6 +78,13 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "expect_event_status",
+    purpose:
+      "On the events list, find the event's row by title and assert its status label contains this text (e.g. Draft, Live, RFQ in Progress, Closed). Defaults to this plan's own event title.",
+    args: { status: "status text the row must show", title: "title to look for; omit to use this plan's own event" },
+    assertion: true,
+  },
+  {
     name: "expect_template_selected",
     purpose: "Assert the current stage has a template applied — the picker no longer offers 'Select Templates' — and, when a name is given, that the stage shows it.",
     args: { name: "substring of the expected template name (optional)" },

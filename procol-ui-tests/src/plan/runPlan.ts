@@ -98,6 +98,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!found) throw new Error(`no event titled "${title}" in the list after searching for it`);
       return `"${title}" is in the list`;
     }
+    case "expect_event_status": {
+      const status = String(a.status ?? "").trim();
+      if (!status) throw new Error('expect_event_status needs a "status" to look for');
+      const title = String(a.title ?? s.title ?? "");
+      if (!title) throw new Error("expect_event_status needs a title, and this plan has not created an event to look for");
+      if (!/\/orders/.test(s.page.url())) await s.events.goto();
+      await s.events.searchByTitle(title);
+      const row = await s.events.rowTextFor(title);
+      if (!row) throw new Error(`no row titled "${title}" in the list after searching for it`);
+      if (!row.toLowerCase().includes(status.toLowerCase())) {
+        throw new Error(`the row for "${title}" reads: ${row.slice(0, 200)} — no "${status}" in it`);
+      }
+      return `"${title}" shows "${status}"`;
+    }
     case "expect_template_selected": {
       const shown = await s.create.appliedTemplateName();
       if (shown === null) throw new Error("the stage still offers 'Select Templates' — no template is applied");
