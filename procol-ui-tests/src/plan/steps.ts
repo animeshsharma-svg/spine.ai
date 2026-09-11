@@ -129,6 +129,12 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "close_event",
+    purpose:
+      "On a PUBLISHED event's page, end the current stage now: Settings → \"End <status>\" → remarks → OK (the product's force-end, shown only when the tenant allows it). Use before cases that need a closed event, e.g. Master QCS on a closed event, or awarding after bidding has ended.",
+    args: { remark: "remark for the end-time modal (optional)" },
+  },
+  {
     name: "open_event",
     purpose:
       "Open an EXISTING event — by project id (direct) or by title (search the events list and click the row) — landing on its project page. Use it for cases about an event that already exists, or to return to the event this plan created (default: this plan's own title).",

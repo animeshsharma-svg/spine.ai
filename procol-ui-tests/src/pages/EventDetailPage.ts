@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
 
 /**
@@ -121,6 +122,72 @@ export class EventDetailPage extends BasePage {
    * checkboxes are accepted deliberately — the flow asserts the conversion
    * carries the RFQ's data forward, which is the default behaviour.
    */
+  /**
+   * Force-end the current stage: Settings → "End <Status>" (eventHeader.jsx
+   * builds the label as `End ${status}` — "End Live", "End Rfq In Progress" —
+   * and renders it only when the tenant's trade_config.trade_force_close is
+   * on) → the end-time confirm modal → remarks → OK, which sends
+   * `force_end: true` and toasts "Event time updated successfully".
+   * Returns what happened in words; throws with the menu's own items when
+   * the option is not offered.
+   */
+  async forceEnd(remark = "Closed by the QA platform"): Promise<string> {
+    const p = this.page;
+    await this.dismissDistractions();
+    // The Settings menu belongs to the stage tab, not the project summary.
+    const onStage = await p.locator("[role='tab'][aria-selected='true'], .ant-tabs-tab-active").filter({ hasText: /rfq|auction|technical|rfp/i }).count();
+    if (!onStage) {
+      const tab = p.getByRole("tab", { name: /^(rfq|auction|technical|rfp)\b/i }).first();
+      if (await tab.count()) {
+        await tab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await this.waitForSpinnerHidden();
+      }
+    }
+    await p.getByText(/loading your event details/i).first().waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
+    const settings = p.getByTestId("event-settings-button").or(p.getByRole("button", { name: /settings/i })).first();
+    await settings.waitFor({ state: "visible", timeout: TIMEOUTS.LONG });
+    await this.dismissDistractions();
+    await settings.click({ timeout: TIMEOUTS.MEDIUM });
+    const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();
+    await menu.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+    const items = menu.locator(".ant-dropdown-menu-item, [role='menuitem']");
+    const offered = (await items.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const end = items.filter({ hasText: /^end\b(?!\s*time\s*$)/i }).first();
+    if (!(await end.count())) {
+      await p.keyboard.press("Escape").catch(() => {});
+      await recordStuck(p, {
+        label: "close-event:menu",
+        message: `Settings offers no "End …" item — offered: ${offered.join(", ") || "(nothing)"}`,
+        triedCandidates: ["menuitem /^End /"],
+        healerTried: false,
+      }).catch(() => {});
+      throw new Error(
+        `the stage's Settings menu offers no "End <status>" item (the product shows it only when the tenant's trade_force_close is on) — it offers: ${offered.join(", ") || "nothing"}`,
+      );
+    }
+    const label = ((await end.textContent()) ?? "").trim();
+    if ((await end.getAttribute("aria-disabled")) === "true" || /disabled/.test((await end.getAttribute("class")) ?? "")) {
+      await p.keyboard.press("Escape").catch(() => {});
+      throw new Error(`"${label}" is disabled on this event (old version or project on hold)`);
+    }
+    await end.click({ timeout: TIMEOUTS.SHORT });
+    const modal = p.locator(".ant-modal-wrap:not([style*='display: none']) .ant-modal-content, [role='dialog']").last();
+    await modal.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM });
+    const remarks = modal.locator("textarea, input[placeholder*='remark' i]").first();
+    if (await remarks.count()) await remarks.fill(remark).catch(() => {});
+    const ok = modal.getByRole("button", { name: /^(ok|confirm|yes|end|proceed|submit)/i }).first();
+    if (!(await ok.count())) {
+      const buttons = (await modal.getByRole("button").allTextContents()).map((t) => t.trim()).filter(Boolean);
+      throw new Error(`the end-time modal has no confirm control — buttons: ${buttons.join(", ")}`);
+    }
+    await ok.click({ timeout: TIMEOUTS.MEDIUM });
+    const err = await this.errorToastText(3_000);
+    if (err) throw new Error(`ending the event was refused: ${err}`);
+    const okToast = await this.successToastText(6_000);
+    await this.waitForSpinnerHidden();
+    return `${label} → ${okToast ?? "confirmed"}`;
+  }
+
   async convertToAuction(): Promise<Page> {
     const p = this.page;
     const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();

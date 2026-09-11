@@ -66,7 +66,7 @@ Vendors must be **invited** before publish (`invite_vendor{names}`); suggestions
 
 ## 7. Lifecycle after publish
 
-Draft (`save_draft` — enabled only once a template and a line item exist) · Live (`publish`) · Scheduled for later (`set_schedule{minutes}` with a future start) · History (closed). Withdrawing a live event needs a remark. Extend submission deadline reopens the vendor window. `filter_events{tab}` + `expect_event_in_list` / `expect_event_status` verify where an event landed.
+Draft (`save_draft` — enabled only once a template and a line item exist) · Live (`publish`) · **Closed now** (`close_event` — Settings → "End <status>" → remarks → OK; the product's force-end, present only when the tenant's `trade_force_close` is on; otherwise a closed event needs its window to lapse) · Scheduled for later (`set_schedule{minutes}` with a future start) · History (closed). Withdrawing a live event needs a remark. Extend submission deadline reopens the vendor window. `filter_events{tab}` + `expect_event_in_list` / `expect_event_status` verify where an event landed.
 
 ## 8. Valid combination grid (what a request can legitimately ask for)
 

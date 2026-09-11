@@ -1702,6 +1702,7 @@ const STEP_WORDS = {
   expect_events_list: () => "check the events list rendered",
   place_counter_offer: (a) => `send a counter offer${a?.price ? ` of ${a.price}` : ""}${a?.vendor ? ` to ${a.vendor}` : ""} from Master QCS`,
   expect_counter_offer_sent: (a) => `check the grid marks ${a?.vendor ? `${a.vendor}'s` : "the"} bid with a counter offer`,
+  close_event: () => "end the event now (Settings → End …)",
   open_event: (a) => `open the event ${a?.id ? a.id : a?.title ? `"${a.title}"` : "this plan created"}`,
   capture_screen: (a) => `capture the screen as "${a?.label ?? "capture"}" (screenshot + accessibility tree)`,
   open_participants: () => "open the published event's participants list",

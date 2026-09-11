@@ -65,6 +65,8 @@ interface RunState {
   templateName?: string;
   /** Whether a counter offer went out in this plan, so the assertion can tell. */
   counterOfferSent?: boolean;
+  /** Whether close_event ended the stage in this plan. */
+  closed?: boolean;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -238,6 +240,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const marked = await co.counterOfferVisibleFor(a.vendor ? String(a.vendor) : undefined);
       if (!marked) throw new Error("the counter offer was sent, but the grid shows no counter-offer mark on the bid yet");
       return "the grid marks the bid with a counter offer";
+    }
+    case "close_event": {
+      if (!/\/project\//.test(s.page.url())) throw new Error("close_event needs a published event's page — publish and expect_published (or open_event) first");
+      const detail = new EventDetailPage(s.page);
+      const done = await detail.forceEnd(a.remark ? String(a.remark) : undefined);
+      s.closed = true;
+      return `event ended: ${done}`;
     }
     case "open_event": {
       const id = a.id ? String(a.id) : undefined;
