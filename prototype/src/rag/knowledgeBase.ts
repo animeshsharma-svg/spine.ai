@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { embedOne, embedMany, similarity } from "./embedder.js";
+import { embedOne, embedMany, similarity, embedderId } from "./embedder.js";
 import { allCases } from "../checks/testCatalog.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -323,20 +323,39 @@ export async function build(): Promise<{ chunks: number; dims: number }> {
   chunks.forEach((c, i) => (c.embedding = embeddings[i]));
   writeFileSync(
     STORE_PATH,
-    JSON.stringify({ builtAt: new Date().toISOString(), chunks }, null, 0),
+    JSON.stringify({ builtAt: new Date().toISOString(), embedder: embedderId(), chunks }, null, 0),
   );
+  cache = undefined;
+  storeEmbedder = embedderId();
   return { chunks: chunks.length, dims: embeddings[0]?.length ?? 0 };
 }
 
 // ── 3. Load & retrieve ────────────────────────────────────────────────────
 let cache: Chunk[] | undefined;
+/** The embedder that built the loaded store. A store from before this was
+ *  recorded is assumed local, because local is all that existed then. */
+let storeEmbedder = "";
+let warnedMismatch = false;
 function load(): Chunk[] {
   if (cache) return cache;
   if (!existsSync(STORE_PATH)) {
     throw new Error("Vector store not built yet — run `npm run rag:build` first.");
   }
-  cache = JSON.parse(readFileSync(STORE_PATH, "utf8")).chunks as Chunk[];
+  const parsed = JSON.parse(readFileSync(STORE_PATH, "utf8"));
+  cache = parsed.chunks as Chunk[];
+  storeEmbedder = parsed.embedder ?? "local:Xenova/all-MiniLM-L6-v2";
   return cache;
+}
+
+/**
+ * True when the store was built by a different embedder than the one now in
+ * use — e.g. the Slingring key was added after the last `rag:build`. Dense
+ * scores are meaningless across that gap, so retrieval goes lexical-only and
+ * the dashboard says to rebuild.
+ */
+export function embedderMismatch(): { stale: boolean; store: string; current: string } {
+  load();
+  return { stale: storeEmbedder !== embedderId(), store: storeEmbedder, current: embedderId() };
 }
 
 /** Return the top-k chunks most relevant (by meaning) to the query. */
@@ -350,7 +369,14 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
   // A scope that matches nothing should fall back rather than return silence —
   // an empty retrieval reads to an agent as "there is nothing to know".
   const chunks = pool.length ? pool : all;
-  const q = await embedOne(query);
+  const { stale } = embedderMismatch();
+  if (stale && !warnedMismatch) {
+    warnedMismatch = true;
+    console.warn(`[rag] the memory was built with ${storeEmbedder} but ${embedderId()} is now in use — retrieving by words only until \`npm run rag:build\``);
+  }
+  // With a mismatched embedder the query vector is useless; skip the call and
+  // let term overlap carry the whole score rather than blending in zeros.
+  const q = stale ? null : await embedOne(query);
   const queryTerms = lexicalTerms(query);
   return chunks
     .map((c) => {
@@ -359,15 +385,15 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
       // almost no semantic signal but are exactly what someone searching for
       // them typed. Blending in literal term overlap means a query naming a
       // field or a case id actually finds it, while paraphrases still work.
-      const dense = similarity(q, c.embedding!);
       const lexical = lexicalOverlap(queryTerms, c);
+      const dense = q ? similarity(q, c.embedding!) : 0;
       return {
         source: c.source,
         kind: c.kind ?? "doc",
         module: c.module,
         labels: c.labels,
         text: c.text,
-        score: dense * 0.75 + lexical * 0.25,
+        score: q ? dense * 0.75 + lexical * 0.25 : lexical,
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -391,7 +417,13 @@ export async function recall(
 }
 
 /** Counts per kind, for the dashboard to show what the memory actually holds. */
-export function stats(): { total: number; byKind: Record<string, number>; byModule: Record<string, number> } {
+export function stats(): {
+  total: number;
+  byKind: Record<string, number>;
+  byModule: Record<string, number>;
+  embedder: string;
+  stale: boolean;
+} {
   const chunks = load();
   const byKind: Record<string, number> = {};
   const byModule: Record<string, number> = {};
@@ -399,7 +431,8 @@ export function stats(): { total: number; byKind: Record<string, number>; byModu
     byKind[c.kind ?? "doc"] = (byKind[c.kind ?? "doc"] ?? 0) + 1;
     if (c.module) byModule[c.module] = (byModule[c.module] ?? 0) + 1;
   }
-  return { total: chunks.length, byKind, byModule };
+  const { stale } = embedderMismatch();
+  return { total: chunks.length, byKind, byModule, embedder: storeEmbedder, stale };
 }
 
 export function isBuilt(): boolean {

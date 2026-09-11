@@ -34,7 +34,10 @@ async function init() {
   loadFindings();
   loadKnowledge();
   loadStuck();
+  loadGaps();
   initCatalog();
+  pollRunState();
+  setInterval(pollRunState, 2500);
   $("#ai-btn")?.addEventListener("click", runAiInstruction);
   $("#plan-btn")?.addEventListener("click", () => runTestCase(false));
   $("#plan-dry")?.addEventListener("click", () => runTestCase(true));
@@ -503,6 +506,7 @@ function runUiJourney(flow, btn, onDone) {
   const es = new EventSource(`/api/ui-run?${qs}`);
   uiRunning = es;
   es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
+  es.addEventListener("queued", (ev) => write("⏳ " + JSON.parse(ev.data).line, "warn"));
   es.addEventListener("note", (ev) => write("⚠ " + JSON.parse(ev.data).line, "note"));
   es.addEventListener("log", (ev) => write(JSON.parse(ev.data).line));
   // The Oracle's verdict is the point of the run: a journey that failed because
@@ -1069,7 +1073,9 @@ async function loadKnowledge(query) {
         box.appendChild(
           el("div", "kb-mods", mods.map(([m, n]) => `<span class="pill">${esc(m)} ${n}</span>`).join(" ")),
         );
-      $("#kb-hint").textContent = "what should happen · what has happened";
+      $("#kb-hint").textContent = data.stale
+        ? `memory built with ${data.embedder} but a different embedder is active — run npm run rag:build`
+        : `what should happen · what has happened · ${data.total ?? ""} chunks`;
       return;
     }
     // Two tiers, shown separately on purpose — mixing "the rules" with "what
@@ -1152,6 +1158,7 @@ function runAiInstruction() {
     }
   });
   es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
+  es.addEventListener("queued", (ev) => write("⏳ " + JSON.parse(ev.data).line, "warn"));
   es.addEventListener("note", (ev) => write("⚠ " + JSON.parse(ev.data).line, "note"));
   es.addEventListener("log", (ev) => write(JSON.parse(ev.data).line));
   es.addEventListener("verdicts", (ev) => {
@@ -1339,6 +1346,7 @@ function teachStuck(id, btn) {
   const es = new EventSource(`/api/stuck/fix?${qs}`);
   uiRunning = es;
   es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
+  es.addEventListener("queued", (ev) => write("⏳ " + JSON.parse(ev.data).line, "warn"));
   es.addEventListener("log", (ev) => {
     const l = JSON.parse(ev.data).line;
     if (/\[teach\]|\[healer\]|\[learned\]/.test(l)) write(l, /LEARNED/.test(l) ? "ok" : /FAILED/.test(l) ? "bad" : "");
@@ -1521,8 +1529,10 @@ function runPickedCases() {
   out.hidden = false;
   out.innerHTML = "";
   const write = (text, cls) => {
-    out.appendChild(el("div", `l ${cls || ""}`, esc(text)));
+    const n = el("div", `l ${cls || ""}`, esc(text));
+    out.appendChild(n);
     out.scrollTop = out.scrollHeight;
+    return n;
   };
   const badge = (id, text, cls) => {
     const b = document.querySelector(`#cat-${id} .cat-res`);
@@ -1531,6 +1541,7 @@ function runPickedCases() {
       b.className = `cat-res ${cls || ""}`;
     }
   };
+  const showRaw = () => $("#cat-raw")?.checked;
 
   const btn = $("#cat-run");
   btn.disabled = true;
@@ -1540,40 +1551,106 @@ function runPickedCases() {
   const es = new EventSource(`/api/case-run?${qs}`);
   catRunning = es;
 
+  // One line per step, updated in place as it goes from "…" to ✓/✗.
+  let stepLines = new Map();
+
   es.addEventListener("plan", (ev) => {
     const { cases } = JSON.parse(ev.data);
-    write(`${cases.length} case(s) queued — one at a time`, "hd");
-    for (const c of cases) write(`  ${c.id} → ${c.route.kind}: ${c.route.because}`);
+    write(`${cases.length} case${cases.length === 1 ? "" : "s"} to test — one at a time, in one browser window.`, "hd");
   });
   es.addEventListener("case", (ev) => {
     const d = JSON.parse(ev.data);
     if (d.status === "running") {
-      write(`▶ ${d.id} — ${d.title}`, "hd");
+      stepLines = new Map();
+      write(`Testing ${d.index} of ${d.total}: ${d.id} — ${d.title}`, "case");
+      write(ROUTE_SENTENCE[d.route.kind]?.(d.route) ?? d.route.because, "route");
       badge(d.id, "···", "run");
       return;
     }
-    const cls = d.status === "passed" ? "ok" : d.status === "failed" ? "bad" : "";
-    write(`  ${d.status.toUpperCase()} ${d.id}${d.summary ? ` — ${d.summary}` : ""}${d.reason ? ` — ${d.reason}` : ""}`, cls);
-    badge(d.id, d.status === "passed" ? "PASS" : d.status === "failed" ? "FAIL" : "—", cls);
+    if (d.status === "not-run") {
+      write(`Not run — ${d.reason}.`, "verdict part");
+      badge(d.id, "GAP", "part");
+      loadGaps();
+      return;
+    }
+    if (d.status === "partial") {
+      write(`Ran, but this is not the case passing — ${d.summary}.`, "verdict part");
+      badge(d.id, "PARTIAL", "part");
+      loadGaps();
+      return;
+    }
+    const ok = d.status === "passed";
+    const cls = ok ? "ok" : d.status === "failed" ? "bad" : "";
+    write(
+      ok
+        ? `Passed — ${d.summary}.`
+        : d.status === "failed"
+          ? `Failed — ${d.summary}.`
+          : `Skipped${d.summary ? ` — ${d.summary}` : ""}${d.reason ? ` — ${d.reason}` : ""}.`,
+      `verdict ${cls}`,
+    );
+    badge(d.id, ok ? "PASS" : d.status === "failed" ? "FAIL" : "—", cls);
   });
-  es.addEventListener("note", (ev) => write(`    · ${JSON.parse(ev.data).line}`));
+  es.addEventListener("queued", (ev) => write(`⏳ ${JSON.parse(ev.data).line}`, "queued"));
   es.addEventListener("compiled", (ev) => {
     const d = JSON.parse(ev.data);
-    write(`    compiled (${d.source}): ${d.steps.map((s) => s.step).join(" → ")}`);
-    for (const w of d.warnings || []) write(`    repaired: ${w}`);
+    write(
+      `Read the test case and decided on ${d.steps.length} steps: ${d.steps.map((s) => stepWords(s.step)).join(" → ")}.`,
+      "sub",
+    );
+    for (const w of d.warnings || []) if (!/^resolved |^cannot test|^can only test/.test(w)) write(`Adjusted: ${w}`, "sub");
+    if (d.coverage === "none") {
+      write(`Cannot test this case yet — no step can observe: ${(d.gaps || []).join("; ") || "what it checks"}. Refusing rather than running something else and calling it a pass.`, "gap");
+    } else if (d.coverage === "partial") {
+      write(`Only part of this case can be tested — no step yet for: ${(d.gaps || []).join("; ")}.`, "gap");
+    }
+    // Pre-list every step so the person sees the whole plan, then watch it fill in.
+    d.steps.forEach((s, i) => {
+      stepLines.set(i + 1, write(`Step ${i + 1} of ${d.steps.length} — ${stepWords(s.step, s.args)}`, "step"));
+    });
+  });
+  es.addEventListener("note", (ev) => {
+    const line = JSON.parse(ev.data).line;
+    const step = line.match(/^\[plan\] (\d+)\/(\d+) (\S+) (✓|✗) ?(.*)$/);
+    if (step) {
+      const [, i, n, name, mark, detail] = step;
+      const cls = mark === "✓" ? "ok" : "bad";
+      const text = `Step ${i} of ${n} — ${stepWords(name)}${detail ? `: ${detail}` : ""}`;
+      const existing = stepLines.get(Number(i));
+      if (existing) {
+        existing.textContent = text;
+        existing.className = `l step ${cls}`;
+      } else write(text, `step ${cls}`);
+      return;
+    }
+    if (/^\[plan\] .* — \d+ step/.test(line)) return; // the header, already narrated
+    const sub = line.match(/^\[(create-event|bid|surrogate|award|oracle|healer|learned|teach)\] (.*)$/);
+    if (sub) {
+      write(sub[2], "sub");
+      return;
+    }
+    if (/^(logging in|building the shared|running \d+ API case)/.test(line)) {
+      write(line[0].toUpperCase() + line.slice(1), "sub");
+      return;
+    }
+    // Everything else is Playwright talking to itself.
+    if (showRaw()) write(line, "raw");
   });
   es.addEventListener("api-case", (ev) => {
     const r = JSON.parse(ev.data).result;
-    const cls = r.status === "passed" ? "ok" : r.status === "failed" ? "bad" : "";
-    write(
-      `    ${r.status.toUpperCase()} ${r.id} ${r.method || ""} ${r.path || ""} → ${r.httpStatus ?? "?"} (want ${r.expectedStatus ?? "?"})` +
-        (r.message ? `\n      ${r.message}` : r.reason ? `\n      skipped: ${r.reason}` : ""),
-      cls,
-    );
+    if (r.status === "skipped") {
+      write(`${r.id} skipped — ${r.reason}`, "step");
+      return;
+    }
+    const cls = r.status === "passed" ? "ok" : "bad";
+    const got = `${r.method} ${r.path} → HTTP ${r.httpStatus}`;
+    const want = r.expectedStatus ? `the contract says ${r.expectedStatus}` : "";
+    write(`${r.id} — ${r.title}. ${got}${want ? `; ${want}` : ""}.`, `step ${cls}`);
+    if (r.message) write(r.message, "sub");
   });
   es.addEventListener("check", (ev) => {
     const k = JSON.parse(ev.data).check;
-    write(`    ${k.pass ? "PASS" : "FAIL"} ${k.scenario} → ${k.httpStatus ?? "?"}`, k.pass ? "ok" : "bad");
+    write(`${k.scenario} → HTTP ${k.httpStatus ?? "?"}`, `step ${k.pass ? "ok" : "bad"}`);
   });
   const finish = (msg, cls) => {
     write(msg, cls);
@@ -1582,11 +1659,10 @@ function runPickedCases() {
     es.close();
     catRunning = null;
     loadFindings();
+    pollRunState();
   };
-  es.addEventListener("done", () => finish("— run complete", "hd"));
+  es.addEventListener("done", () => finish("All done.", "hd"));
   es.addEventListener("error", (ev) => {
-    // EventSource fires `error` both for a server-sent error event and for the
-    // stream closing. Only the first carries data.
     let line = "";
     try {
       line = JSON.parse(ev.data).line;
@@ -1594,6 +1670,99 @@ function runPickedCases() {
       /* stream ended */
     }
     if (line) finish(`✗ ${line}`, "bad");
-    else if (catRunning) finish("— stream closed", "");
+    else if (catRunning) finish("— connection closed", "");
   });
+}
+
+// How each route reads to a person, before the run starts.
+const ROUTE_SENTENCE = {
+  "ui-journey": (r) => `A built, self-healing journey covers this exactly ("${r.target}") — running it in the browser.`,
+  "api-case": (r) => `The API framework implements this as ${r.target} — sending the real request.`,
+  "api-section": (r) =>
+    `No exact runner for this case. Running the API framework's ${r.target.split(",").length} cases for the same area instead — real traffic against the right endpoints, but not this case word for word.`,
+  "api-suite": (r) => `Running the "${r.target}" validation suite, which covers this section.`,
+  "ui-compile": () => `No built journey covers this — reading the written case and compiling it into steps the browser can perform.`,
+  manual: () => `The catalog says a person should do this one.`,
+  none: () => `Nothing can run this yet.`,
+};
+
+// The step vocabulary, in the words a person would use.
+const STEP_WORDS = {
+  open_events_list: () => "open the events list",
+  expect_events_list: () => "check the events list rendered",
+  open_create: (a) => `open the ${a?.path === "single-stage" ? "single-stage" : a?.path === "boq" ? "BOQ" : "eRFX"} create screen`,
+  compose_stages: (a) => `set the stages to ${Array.isArray(a?.stages) ? a.stages.join(" + ") : "what the case asks"}`,
+  set_title: () => "give the event a title",
+  switch_stage: (a) => `switch to the ${a?.stage ?? ""} stage tab`,
+  select_template: (a) => (a?.name ? `pick the "${a.name}" template` : "pick a pricing template"),
+  add_line_items: (a) => `add ${a?.count ?? "the"} line item${a?.count === 1 ? "" : "s"}`,
+  fill_sheet: () => "fill the pricing sheet",
+  fill_questionnaires: () => "fill the vendor assessment questionnaires",
+  assign_evaluator: () => "assign an evaluator",
+  set_schedule: () => "save the schedule",
+  invite_vendor: (a) => (a?.names?.length ? `invite ${a.names.join(", ")}` : "invite vendors"),
+  publish: () => "publish the event",
+  save_draft: () => "save as draft",
+  expect_line_items: (a) => `check the toolbar shows ${a?.count ?? "the"} line items`,
+  expect_published: () => "check the event is live on a project page",
+  expect_no_error: () => "check the app showed no error",
+  expect_error: (a) => `check the app refused${a?.message ? ` with "${a.message}"` : ""}`,
+  place_bid: (a) => `place a bid from the vendor portal${a?.vendor ? ` as ${a.vendor}` : ""}`,
+  place_surrogate_bid: (a) => `enter a surrogate bid${a?.vendor ? ` for ${a.vendor}` : ""}`,
+  award_event: () => "award the event",
+  expect_awarded: () => "check the award went through",
+  expect_bid_submitted: () => "check the bid was accepted",
+  expect_publish_blocked: () => "check publish is refused",
+  expect_stages: (a) => `check the stage tabs are ${Array.isArray(a?.stages) ? a.stages.join(" + ") : "as expected"}`,
+};
+function stepWords(name, args) {
+  const f = STEP_WORDS[name];
+  return f ? f(args || {}) : name.replace(/_/g, " ");
+}
+
+// ── the single browser: who has it, who is waiting ──────────────────────────
+async function pollRunState() {
+  try {
+    const [st, ai] = await Promise.all([
+      (await fetch("/api/run-state")).json(),
+      (await fetch("/api/ai-usage")).json(),
+    ]);
+    const dot = $("#rs-dot");
+    if (st.running) {
+      const secs = Math.round((Date.now() - st.running.since) / 1000);
+      $("#rs-text").textContent = `Browser busy: ${st.running.label} · ${secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`}`;
+      dot.className = "rs-dot busy";
+    } else {
+      $("#rs-text").textContent = "Browser idle — runs go one at a time, in one window";
+      dot.className = "rs-dot idle";
+    }
+    $("#rs-queue").textContent = st.waiting?.length ? `· ${st.waiting.length} waiting: ${st.waiting.join(", ")}` : "";
+    const spend = ai.totalUsd ? ` · $${ai.totalUsd.toFixed(3)} spent` : "";
+    const calls = Object.values(ai.byModel || {}).reduce((n, m) => n + m.calls, 0);
+    $("#rs-ai").textContent = `${ai.provider}${calls ? ` · ${calls} call${calls === 1 ? "" : "s"}` : ""}${spend}`;
+  } catch {
+    /* server restarting */
+  }
+}
+
+
+// ── steps the automation still needs ─────────────────────────────────────────
+async function loadGaps() {
+  try {
+    const { gaps } = await (await fetch("/api/vocabulary-gaps")).json();
+    const box = $("#gaps");
+    if (!gaps.length) return;
+    box.innerHTML = "";
+    $("#gaps-hint").textContent = `${gaps.length} missing capabilit${gaps.length === 1 ? "y" : "ies"} · most-asked-for first`;
+    for (const g of gaps.slice(0, 12)) {
+      const row = el("div", "gap");
+      row.appendChild(el("span", "gap-n", String(g.askedBy.length)));
+      const need = el("span", "gap-need", esc(g.need));
+      need.appendChild(el("span", "gap-by", esc(g.askedBy.slice(0, 6).join(" · ") + (g.askedBy.length > 6 ? ` +${g.askedBy.length - 6}` : ""))));
+      row.appendChild(need);
+      box.appendChild(row);
+    }
+  } catch {
+    /* server restarting */
+  }
 }

@@ -81,6 +81,34 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await s.events.expectListReady();
       return "the events list rendered";
     }
+    case "expect_create_options": {
+      const want = Array.isArray(a.options) ? a.options.map(String) : [];
+      const absent = Array.isArray(a.absent) ? a.absent.map(String) : [];
+      // The menu lives on the list; go there if the plan has not already.
+      if (!/\/orders\/?(\?|$)/.test(new URL(s.page.url()).pathname + new URL(s.page.url()).search)) await s.events.goto();
+      const offered = await s.events.readCreateMenu();
+      // "single-stage", "Single Stage" and "singlestage" are the same option
+      // to a person; punctuation and spacing must not decide a verdict.
+      const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      const has = (t: string) => offered.some((o) => norm(o).includes(norm(t)));
+      const missing = want.filter((t) => !has(t));
+      const present = absent.filter((t) => has(t));
+      if (missing.length || present.length) {
+        throw new Error(
+          `the Create Event menu offers [${offered.join(", ")}]` +
+            (missing.length ? ` — missing: ${missing.join(", ")}` : "") +
+            (present.length ? ` — should not offer: ${present.join(", ")}` : ""),
+        );
+      }
+      return `the menu offers ${offered.length ? offered.join(", ") : "no menu (direct create)"}`;
+    }
+    case "expect_url_contains": {
+      const text = String(a.text ?? "");
+      if (!text) throw new Error('expect_url_contains needs a "text"');
+      const url = s.page.url();
+      if (!url.includes(text)) throw new Error(`URL is ${url} — does not contain "${text}"`);
+      return `URL contains "${text}"`;
+    }
     case "open_create": {
       const path = String(a.path ?? "erfx");
       await s.events.goto();

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { chat, llmMode } from "../ai/llm.js";
 import { recall } from "../rag/knowledgeBase.js";
 import { caseById, caseAsProse } from "../checks/testCatalog.js";
+import { recordVocabularyGaps } from "./vocabularyGaps.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = join(here, "..", "..", "..", "procol-ui-tests", "plan-catalog.json");
@@ -52,6 +53,16 @@ export interface CompileResult {
   context: { expectations: string[]; experience: string[] };
   source: "llm" | "fallback";
   warnings: string[];
+  /**
+   * How much of the case the plan actually tests.
+   *   full     every behaviour the case checks has a step
+   *   partial  it runs, but something the case asks for has no step yet
+   *   none     the SUBJECT of the case has no step — running the plan would
+   *            prove nothing, so it should not run as this case
+   */
+  coverage: "full" | "partial" | "none";
+  /** What the case asked for that the vocabulary cannot express. */
+  gaps: string[];
 }
 
 function loadCatalog(): { steps: StepSpec[]; names: string[] } {
@@ -120,10 +131,11 @@ Ordering the product enforces (violating any of these makes the run fail):
 const SYSTEM = `You compile QA test cases into runnable plans for Procol, a B2B procurement product.
 
 Reply with ONLY a JSON object, no prose and no code fence:
-{"title":"<short name for this test>","reasoning":"<2 sentences: what you are testing and why the plan is shaped this way>","steps":[{"step":"<name from the catalog>","args":{...},"note":"<why this step>"}]}
+{"title":"<short name for this test>","reasoning":"<2 sentences: what you are testing and why the plan is shaped this way>","coverage":"full|partial|none","cannotExpress":["<each thing the case asks for that no catalog step can do — empty when coverage is full>"],"steps":[{"step":"<name from the catalog>","args":{...},"note":"<why this step>"}]}
 
 Rules:
-- Use ONLY step names from the catalog. Never invent one. If the test case asks for something no step covers, leave it out and say so in reasoning.
+- Use ONLY step names from the catalog. Never invent one.
+- BE HONEST ABOUT COVERAGE. First name the SUBJECT of the case: the specific behaviour whose outcome it checks (a menu's options, a validation message, a column's default, a vendor's view). If no step can observe that subject, coverage is "none" — list what is missing in cannotExpress and still return the closest steps, but do NOT pretend a nearby step tests it. If the subject is covered but some detail is not, coverage is "partial". A plan that runs and passes without observing the subject is the worst possible output; a plain "none" is a good one.
 - Include the assertions the test case implies. A test that acts but never checks proves nothing.
 - Omit args you have no value for rather than inventing one; the executor has sensible defaults.
 - Prefer the shortest plan that genuinely tests what was asked.`;
@@ -182,15 +194,43 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     "invite_vendor", "publish", "save_draft", "expect_published", "expect_line_items",
     "expect_stages", "expect_publish_blocked",
   ];
-  if (has("open_events_list") && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step))) {
-    if (indexOf("open_events_list") !== 0) {
+  // Steps that live on the events LIST. A plan made only of these (plus
+  // generic assertions) is a list test, whether or not the model remembered to
+  // open the list first.
+  // Decided ONCE, before anything is inserted: a list test that later gains an
+  // open_create (for a URL check) must not turn into a create test, or the
+  // create repairs move that open to the front and bolt a title onto it.
+  const LIST_STEPS = ["open_events_list", "expect_events_list", "expect_create_options"];
+  const isListTest =
+    steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
+  if (isListTest) {
+    if (!has("open_events_list")) {
+      steps.unshift({ step: "open_events_list" });
+      repairs.push("added open_events_list — the menu being checked is on the events list");
+    } else if (indexOf("open_events_list") !== 0) {
       const [open] = steps.splice(indexOf("open_events_list"), 1);
       steps.unshift(open);
       repairs.push("moved open_events_list to the front — the steps before it had no list on screen");
     }
-    if (!has("expect_events_list") && !has("expect_no_error")) {
+    if (!has("expect_events_list") && !has("expect_no_error") && !has("expect_create_options")) {
       steps.push({ step: "expect_events_list" });
       repairs.push("added expect_events_list — opening the list without asserting it rendered tests nothing");
+    }
+    // A URL assertion about the CREATE screen (projectCreation=true,
+    // quick-create, singleStage=true) needs that screen opened first. UI-ENV-002
+    // compiled to "read the menu, then check the URL" with nothing in between,
+    // so the check ran against /orders. Open the path the URL text names,
+    // immediately before the check.
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      if (st.step !== "expect_url_contains") continue;
+      const text = String(st.args?.text ?? "");
+      if (!/projectCreation|quick-create|singleStage|boq=true/i.test(text)) continue;
+      if (steps.slice(0, i).some((x) => x.step === "open_create")) continue;
+      const path = /singleStage/i.test(text) ? "single-stage" : /boq=true/i.test(text) ? "boq" : "erfx";
+      steps.splice(i, 0, { step: "open_create", args: { path } });
+      repairs.push(`added open_create(${path}) before the URL check — the URL it expects belongs to the create screen`);
+      i++;
     }
     return { plan: { ...plan, steps }, repairs };
   }
@@ -478,10 +518,13 @@ export function resolveCaseId(input: string): { text: string; id: string } | nul
 export async function compileTestCase(testCase: string, moduleHint = "events"): Promise<CompileResult> {
   const catalog = loadCatalog();
   const warnings: string[] = [];
+  /** The catalog id this came from, when it did — the gap ledger keys on it. */
+  let resolvedId: string | null = null;
 
   // "FE-9.7" is a reference, not a test case. Resolve it before planning.
   const resolved = resolveCaseId(testCase);
   if (resolved) {
+    resolvedId = resolved.id;
     warnings.push(`resolved ${resolved.id} from the test-case catalog`);
     testCase = `${resolved.id}: ${resolved.text}`;
   } else if (/^(?:FE|BE|PR)-[\w.-]+$/i.test(testCase.trim())) {
@@ -499,13 +542,17 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     warnings.push("the QA memory is not built, so the plan was written without it — run `npm run rag:build`");
   }
 
-  if (llmMode() === "fallback") {
+  // Gemini alone is still a model — only a machine with no key at all takes
+  // the deterministic path.
+  if (llmMode() === "fallback" && !process.env.GOOGLE_API_KEY) {
     warnings.push("no LLM key is set, so a default plan was used rather than one compiled from your test case");
     return {
       plan: fallbackPlan(testCase),
       reasoning: "Compiled without a language model: a standard create-and-publish plan shaped by the words in the test case.",
       context: { expectations, experience },
       source: "fallback",
+      coverage: "partial",
+      gaps: ["compiled without a model, so this is a generic plan rather than this case"],
       warnings,
     };
   }
@@ -529,6 +576,9 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       raw = await chat([{ role: "system", content: SYSTEM }, { role: "user", content: prompt }], {
+        // The compiler is where a wrong answer becomes a wrong run — it gets the
+        // strongest model the gateway has, at that model's price.
+        tier: "reason",
         temperature: 0,
         // Generous: a plan is ~600 tokens of JSON, and the model needs headroom
         // for its reasoning pass before it writes any of it.
@@ -550,21 +600,21 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
         lastErr instanceof Error ? lastErr.message : "empty response"
       }) — this plan is the generic default, NOT compiled from your test case`,
     );
-    return { plan: fallbackPlan(testCase), reasoning: "Model unavailable.", context: { expectations, experience }, source: "fallback", warnings };
+    return { plan: fallbackPlan(testCase), reasoning: "Model unavailable.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) {
     warnings.push("the model did not return JSON — used a default plan instead");
-    return { plan: fallbackPlan(testCase), reasoning: "Unparseable model output.", context: { expectations, experience }, source: "fallback", warnings };
+    return { plan: fallbackPlan(testCase), reasoning: "Unparseable model output.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
-  let parsed: { title?: string; reasoning?: string; steps?: PlanStep[] };
+  let parsed: { title?: string; reasoning?: string; steps?: PlanStep[]; coverage?: string; cannotExpress?: unknown };
   try {
     parsed = JSON.parse(match[0]);
   } catch (e) {
     warnings.push(`the model's JSON was malformed (${(e as Error).message}) — used a default plan instead`);
-    return { plan: fallbackPlan(testCase), reasoning: "Malformed model output.", context: { expectations, experience }, source: "fallback", warnings };
+    return { plan: fallbackPlan(testCase), reasoning: "Malformed model output.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
   // Drop steps the executor does not have rather than failing the whole plan:
@@ -579,16 +629,40 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
 
   if (!steps.length) {
     warnings.push("the model produced no runnable steps — used a default plan instead");
-    return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings };
+    return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
   const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
   warnings.push(...linted.repairs);
+
+  const gaps = Array.isArray(parsed.cannotExpress)
+    ? (parsed.cannotExpress as unknown[]).map((g) => String(g).trim()).filter(Boolean)
+    : [];
+  let coverage: CompileResult["coverage"] =
+    parsed.coverage === "none" ? "none" : parsed.coverage === "partial" || gaps.length ? "partial" : "full";
+  // A model that lists gaps but claims full coverage is contradicting itself;
+  // the gaps are the more specific claim, so they win.
+  if (coverage === "full" && gaps.length) coverage = "partial";
+  if (coverage !== "full") {
+    warnings.push(
+      coverage === "none"
+        ? `cannot test this case yet — no step can observe: ${gaps.join("; ") || "its subject"}`
+        : `can only test part of this — no step for: ${gaps.join("; ")}`,
+    );
+  }
+  // The ledger is keyed by case id whenever there is one — the dashboard hands
+  // over the case's prose, which begins with its id — and reconciled on every
+  // compile, so a gap that has since been built disappears from the list.
+  const ledgerKey = resolvedId ?? testCase.match(/^\s*((?:UI|API|FE|BE)-[A-Z]*-?[\w.]+)/)?.[1] ?? testCase.slice(0, 80);
+  recordVocabularyGaps(ledgerKey, coverage === "full" ? [] : gaps.length ? gaps : ["(unspecified)"]);
+
   return {
     plan: linted.plan,
     reasoning: String(parsed.reasoning ?? ""),
     context: { expectations, experience },
     source: "llm",
     warnings,
+    coverage,
+    gaps,
   };
 }

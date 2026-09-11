@@ -20,7 +20,8 @@ import { getCapabilityMap, openClientContext, runFlow, runSelected } from "./exe
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
 import { caseCountsByFeature, casesForFeatures, buildChecksFromCases, loadCases, resolveCaseContext, resolveActor, configRequirementOf } from "./checks/caseLibrary.js";
 import { runOrchestrator } from "./agents/orchestrator.js";
-import { providerLabel } from "./ai/llm.js";
+import { providerLabel, usageReport, llmMode } from "./ai/llm.js";
+import { slotState } from "./ui/browserSlot.js";
 import { DEFAULT_CLIENT } from "../config/settings.js";
 import { saveRun, listRuns, getRun, newRunId } from "./runStore.js";
 import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
@@ -35,6 +36,7 @@ import { buildMarkdownReport } from "./report/bugReport.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
+import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
@@ -65,6 +67,27 @@ const server = createServer(async (req, res) => {
     // ── API: client list ──
     if (path === "/api/clients") {
       return json(res, { clients: CLIENTS, defaultClient: DEFAULT_CLIENT.companyId, provider: providerLabel() });
+    }
+
+    // ── API: what the AI has cost, and what holds the browser ───────────
+    if (path === "/api/ai-usage") {
+      return json(res, { provider: providerLabel(), mode: llmMode(), ...usageReport() });
+    }
+    if (path === "/api/run-state") {
+      return json(res, slotState());
+    }
+    // What the written cases asked for that no step can do yet — the to-do
+    // list for growing the automation, most-asked-for first.
+    if (path === "/api/vocabulary-gaps") {
+      return json(res, { gaps: readVocabularyGaps() });
+    }
+
+    // ── API: what the AI has cost, and what holds the browser ───────────
+    if (path === "/api/ai-usage") {
+      return json(res, { provider: providerLabel(), mode: llmMode(), ...usageReport() });
+    }
+    if (path === "/api/run-state") {
+      return json(res, slotState());
     }
 
     // ── API: capability map ──
@@ -358,6 +381,8 @@ const server = createServer(async (req, res) => {
           reasoning: compiled.reasoning,
           source: compiled.source,
           warnings: compiled.warnings,
+          coverage: compiled.coverage,
+          gaps: compiled.gaps,
           context: {
             expectations: compiled.context.expectations.length,
             experience: compiled.context.experience.length,
@@ -639,10 +664,12 @@ const server = createServer(async (req, res) => {
         cases: picked.map((k) => ({ id: k.id, title: k.title, layer: k.layer, route: routeFor(k) })),
       });
 
+      let index = 0;
       for (const k of picked) {
         if (cancelled) break;
+        index += 1;
         const route = routeFor(k);
-        send("case", { id: k.id, title: k.title, status: "running", route });
+        send("case", { id: k.id, title: k.title, status: "running", route, index, total: picked.length });
 
         if (!route.runnable) {
           send("case", { id: k.id, status: "not-run", route, reason: route.because });
@@ -702,6 +729,7 @@ const server = createServer(async (req, res) => {
             await new Promise<void>((resolve) => {
               const { stop } = runUiFlow({ flowKey: route.target!, companyId: c, runId, headed }, (e) => {
                 if (e.type === "log") send("note", { id: k.id, line: e.line });
+                if (e.type === "queued") send("queued", { id: k.id, line: e.line });
                 if (e.type === "done" || e.type === "error") {
                   send("case", {
                     id: k.id,
@@ -729,21 +757,40 @@ const server = createServer(async (req, res) => {
             steps: compiled.plan.steps,
             warnings: compiled.warnings,
             source: compiled.source,
+            coverage: compiled.coverage,
+            gaps: compiled.gaps,
           });
+          // No step can observe what this case is about. Running the nearest
+          // steps would produce a green tick that means nothing — so it is
+          // reported as untestable, and the gap is on the ledger to build.
+          if (compiled.coverage === "none") {
+            send("case", {
+              id: k.id,
+              status: "not-run",
+              route,
+              reason: `the automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}`,
+            });
+            continue;
+          }
+          const partial = compiled.coverage === "partial";
           const runId = `case-${k.id}-${Date.now().toString(36)}`;
           await new Promise<void>((resolve) => {
             const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
               if (e.type === "log") send("note", { id: k.id, line: e.line });
+              if (e.type === "queued") send("queued", { id: k.id, line: e.line });
               if (e.type === "done" || e.type === "error") {
                 const result = readPlanResult(runId) as { steps?: Array<{ status?: string }> } | null;
                 const steps = result?.steps;
+                const stepSummary = steps
+                  ? `${steps.filter((s) => s.status === "ok").length}/${steps.length} steps`
+                  : `plan exited ${e.exitCode ?? "?"}`;
+                // A partial plan that passes is not this case passing.
+                const passed = e.exitCode === 0;
                 send("case", {
                   id: k.id,
-                  status: e.exitCode === 0 ? "passed" : "failed",
+                  status: passed ? (partial ? "partial" : "passed") : "failed",
                   route,
-                  summary: steps
-                    ? `${steps.filter((s) => s.status === "ok").length}/${steps.length} steps`
-                    : `plan exited ${e.exitCode ?? "?"}`,
+                  summary: partial && passed ? `${stepSummary} — but only part of the case is covered (no step for: ${compiled.gaps.join("; ")})` : stepSummary,
                   planResult: result,
                 });
                 resolve();

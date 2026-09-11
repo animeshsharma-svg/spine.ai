@@ -1,6 +1,7 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
+import { recordStuck } from "../oracle/stuck.js";
 
 export type CreatePath = "single-stage" | "erfx" | "boq";
 
@@ -144,6 +145,66 @@ export class EventsPage extends BasePage {
           `The "Create Event" control or its menu labels may have changed again.`,
       );
     }
+  }
+
+  /**
+   * Open the Create Event menu and return the options it offers, as text.
+   *
+   * The menu is what UI-ENV-002 and its neighbours are ABOUT — which paths a
+   * tenant is offered (eRFX, single-stage, BOQ) is tenant configuration made
+   * visible — so a step has to be able to observe it rather than click through
+   * it. Returns an empty list when the control navigates directly and there is
+   * no menu, which is itself an observation worth asserting on.
+   */
+  async readCreateMenu(): Promise<string[]> {
+    await this.dismissDistractions();
+    const open = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)");
+    const menu = open.locator(".ant-dropdown-menu-item, [role='menuitem']");
+
+    // The list hydrates slowly on this environment (the goto alone can take
+    // 25s), and a chevron clicked before the dropdown is wired does nothing.
+    // Try a few times, and only proceed once a menu is actually on screen.
+    for (let attempt = 0; attempt < 4 && (await open.count()) === 0; attempt++) {
+      // The "Want to stay updated?" card arrives 2-3s AFTER the list renders
+      // and sits exactly over the Create Event control, so a dismissal at
+      // page-open is too early. Dismiss again right before every attempt —
+      // the stuck screenshot for this step showed the card covering the button.
+      await this.dismissDistractions();
+      const button = this.page.getByRole("button", { name: /create event/i }).first();
+      // The accessibility tree names the control "icon: plus Create Event icon:
+      // down": the chevron is INSIDE the button, not a sibling of it.
+      const chevron = button.locator(".anticon-down, [aria-label='icon: down'], i[class*='down']").first();
+      const clicked = await chevron
+        .click({ timeout: TIMEOUTS.SHORT })
+        .then(() => true)
+        .catch(() => false);
+      if (!clicked) {
+        // antd Dropdown opens on hover; hovering the button is the next-best move.
+        await button.hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      }
+      await open.first().waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
+      if ((await open.count()) === 0) await this.page.waitForTimeout(800);
+    }
+
+    // Each item is a title plus a description; read leaf nodes separately so
+    // the text does not fuse into "Single StageSource through RFP".
+    const items: string[] = [];
+    for (const item of await menu.all()) {
+      const parts = (await item.locator("xpath=.//*[not(*)]").allTextContents()).map((t) => t.trim()).filter(Boolean);
+      const text = (parts.length ? parts : [await item.innerText().catch(() => "")]).join(" — ").replace(/\s+/g, " ").trim();
+      if (text) items.push(text);
+    }
+    if (!items.length) {
+      // Say what was on screen, so an empty read is diagnosable from the report.
+      await recordStuck(this.page, {
+        label: "create-menu:read",
+        message: "the Create Event menu did not open, or opened with no items",
+        triedCandidates: ["button[name=/create event/i] + following-sibling chevron", ".ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu-item"],
+        healerTried: false,
+      }).catch(() => {});
+    }
+    await this.page.keyboard.press("Escape").catch(() => {});
+    return items;
   }
 
   /** Search the events list by title and report whether any row matches. */

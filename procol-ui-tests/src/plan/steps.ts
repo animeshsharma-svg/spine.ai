@@ -50,6 +50,22 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "expect_create_options",
+    purpose:
+      "Open the Create Event menu on the events list and assert which paths it offers. Use for any case about what a tenant is offered when creating an event (eRFX, single-stage, BOQ). Case-insensitive substring match per option.",
+    args: {
+      options: 'array of option texts that MUST be present, e.g. ["eRFX","Single Stage"]',
+      absent: 'array of option texts that must NOT be present (optional)',
+    },
+    assertion: true,
+  },
+  {
+    name: "expect_url_contains",
+    purpose: "Assert the browser's current URL contains this text (a path, or a query parameter like projectCreation=true).",
+    args: { text: "the substring the URL must contain" },
+    assertion: true,
+  },
+  {
     name: "open_create",
     purpose: "Open the event-create screen. Always the first step of a create test.",
     args: { path: '"erfx" (multi-stage project, the default), "single-stage", or "boq"' },

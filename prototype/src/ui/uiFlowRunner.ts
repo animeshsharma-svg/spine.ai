@@ -20,6 +20,7 @@
  * more than that client actually permits.
  */
 import { spawn } from "node:child_process";
+import { acquireBrowser } from "./browserSlot.js";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -105,7 +106,8 @@ export interface UiRunOptions {
 }
 
 export interface UiRunEvent {
-  type: "start" | "log" | "done" | "error";
+  /** "queued" — another run holds the browser; this one starts when it ends. */
+  type: "start" | "log" | "done" | "error" | "queued";
   line?: string;
   command?: string;
   exitCode?: number;
@@ -115,6 +117,61 @@ export interface UiRunEvent {
  * Run one journey, streaming Playwright's output line by line.
  * Returns a stop() so a caller can cancel a run mid-flight.
  */
+// Terminal colour codes, matched by their escape byte written out so the
+// character never appears literally in this file.
+const ANSI = new RegExp("\\x1b\\[[0-9;]*m", "g");
+
+/**
+ * Spawn one Playwright child — after taking the single browser slot.
+ *
+ * Returns synchronously with a `stop`, exactly as before, so callers are
+ * unchanged. Internally it waits for the slot, tells the caller it is queued
+ * if it has to wait, spawns when granted, and releases on close. A `stop`
+ * before the spawn simply withdraws from the queue.
+ */
+function launch(
+  label: string,
+  args: string[],
+  env: Record<string, string>,
+  emit: (e: UiRunEvent) => void,
+  onStart: () => void,
+  stripAnsi = false,
+): { stop: () => void } {
+  let child: ReturnType<typeof spawn> | null = null;
+  let stopped = false;
+  const slot = acquireBrowser(label, (position, running) =>
+    emit({
+      type: "queued",
+      line: `waiting for the browser — "${running?.label ?? "another run"}" is using it (position ${position} in the queue)`,
+    }),
+  );
+  slot.ready.then((release) => {
+    if (stopped) return release();
+    onStart();
+    child = spawn("npx", args, { cwd: UI_TESTS_DIR, env, shell: false });
+    const pump = (buf: Buffer) => {
+      for (const raw of buf.toString().split("\n")) {
+        const line = stripAnsi ? raw.replace(ANSI, "").trimEnd() : raw;
+        if (line.trim()) emit({ type: "log", line });
+      }
+    };
+    child.stdout?.on("data", pump);
+    child.stderr?.on("data", pump);
+    child.on("error", (e) => emit({ type: "error", line: e.message }));
+    child.on("close", (code) => {
+      release();
+      emit({ type: "done", exitCode: code ?? 1 });
+    });
+  });
+  return {
+    stop: () => {
+      stopped = true;
+      slot.cancel();
+      child?.kill("SIGTERM");
+    },
+  };
+}
+
 /**
  * Run a compiled test plan instead of a named journey.
  *
@@ -145,15 +202,9 @@ export function runUiPlan(
   };
   if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
 
-  emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` });
-  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env });
-  const pump = (buf: Buffer) => {
-    for (const line of buf.toString().split("\n")) if (line.trim()) emit({ type: "log", line });
-  };
-  child.stdout.on("data", pump);
-  child.stderr.on("data", pump);
-  child.on("close", (code) => emit({ type: "done", exitCode: code ?? 1 }));
-  return { stop: () => child.kill("SIGTERM") };
+  return launch(`plan ${runId}`, args, env, emit, () =>
+    emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` }),
+  );
 }
 
 /** What each step of a finished plan actually did. */
@@ -219,15 +270,9 @@ export function runTeach(
   // Teaching IS the AI path; without a key there is nothing to ask.
   if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
 
-  emit({ type: "start", line: `teaching "${opts.stuckId}"`, command: `npx ${args.join(" ")}` });
-  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env });
-  const pump = (buf: Buffer) => {
-    for (const line of buf.toString().split("\n")) if (line.trim()) emit({ type: "log", line });
-  };
-  child.stdout.on("data", pump);
-  child.stderr.on("data", pump);
-  child.on("close", (code) => emit({ type: "done", exitCode: code ?? 1 }));
-  return { stop: () => child.kill("SIGTERM") };
+  return launch(`teach ${opts.stuckId}`, args, env, emit, () =>
+    emit({ type: "start", line: `teaching "${opts.stuckId}"`, command: `npx ${args.join(" ")}` }),
+  );
 }
 
 export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { stop: () => void } {
@@ -277,21 +322,7 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
       .map(([k, v]) => `${k}=${v}`)
       .join(" ")} npx ${args.join(" ")}`.trim();
 
-  emit({ type: "start", command, line: `$ ${command}` });
-
-  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env, shell: false });
-  const pump = (buf: Buffer) => {
-    for (const line of buf.toString().split("\n")) {
-      const t = line.replace(/\[[0-9;]*m/g, "").trimEnd();
-      if (t.trim()) emit({ type: "log", line: t });
-    }
-  };
-  child.stdout.on("data", pump);
-  child.stderr.on("data", pump);
-  child.on("error", (e) => emit({ type: "error", line: e.message }));
-  child.on("close", (code) => emit({ type: "done", exitCode: code ?? -1 }));
-
-  return { stop: () => child.kill("SIGTERM") };
+  return launch(`journey ${flow.key}`, args, env, emit, () => emit({ type: "start", command, line: `$ ${command}` }), true);
 }
 
 /** Clamp a requested line-item count to what this client actually allows. */

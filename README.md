@@ -229,6 +229,69 @@ npm run cases:compile UI-TPL-001
   open_create -> set_title -> select_template -> expect_no_error
 ```
 
+## The automation follows the test cases — and says when it cannot
+
+The compiler no longer just produces a plan; it says **how much of the case
+the plan actually tests**:
+
+| Coverage | What happens |
+|---|---|
+| `full` | Every behaviour the case checks has a step. Runs; can pass. |
+| `partial` | It runs, but something the case asks for has no step yet. The verdict is **PARTIAL**, never PASS. |
+| `none` | The *subject* of the case has no step. It is reported **not run** — running the nearest steps and calling it a pass is the worst possible outcome. |
+
+Everything the compiler could not express goes on a ledger,
+`prototype/data/vocabulary-gaps.json`, shown on the dashboard as **Steps the
+automation still needs**, most-asked-for first. That list is the build order:
+build the top gap as a step, regenerate the vocabulary, and every case that
+needed it compiles without anyone touching it.
+
+```bash
+cd procol-ui-tests && npx tsx scripts/dump-plan-catalog.ts   # publish the vocabulary after adding a step
+```
+
+Worked example, `UI-ENV-002` (the Create Event menu): the compiler said
+*partial — no step to assert which options the menu offers*; two steps were
+built (`expect_create_options`, `expect_url_contains`); the live run then read
+the menu — *Single Stage · eRFX Project · BOQ based RFX Project* — and the
+verdict stayed PARTIAL, because the case's negative branch (tenant flag off)
+still has no step. That is the correct answer.
+
+## One browser, one case at a time
+
+Every browser run takes a single process-wide slot
+(`prototype/src/ui/browserSlot.ts`) before spawning Chromium. Start a second
+run and it **queues** — the dashboard says *"waiting for the browser — X is
+using it (position 1)"* — and starts the moment the first finishes. The strip
+at the top of the dashboard shows what holds the browser and for how long.
+Two windows never open again, whichever buttons are pressed.
+
+## Plain-language runs
+
+The catalog panel narrates each run as it happens — *"Testing 2 of 5:
+UI-TPL-001 — … Read the test case and decided on 4 steps: open the eRFX create
+screen → give the event a title → pick a pricing template → check the app
+showed no error"* — with each step ticking in place. Tick **raw log** to see
+Playwright's own output underneath.
+
+## Slingring
+
+Procol's OpenAI-compatible gateway is the primary provider the moment
+`SLINGRING_API_KEY` is in `prototype/.env`:
+
+| Tier | Model | Used for |
+|---|---|---|
+| `reason` | `HACK26_GPT_6_ASTRA` | the compiler — where a wrong answer is a wrong run ($50/1M, spent deliberately) |
+| `fast` | `HACK26_GPT_5_6_LUNA` | routing, narration, the inner loop |
+| embeddings | `HACK26_TEXT_EMBED_3_LARGE` | the QA memory (`npm run rag:build` after adding the key) |
+
+Agent code names a **tier, never a model**. The chain is Slingring → Groq →
+Gemini, every hand-off logged, and the gateway's reported token usage is
+tallied per model at `/api/ai-usage` and on the dashboard strip, so the daily
+allowance is visible rather than discovered at 10am. The memory records which
+embedder built it; add the key after a build and retrieval goes word-only with
+a visible "run `npm run rag:build`" until you do.
+
 ## Measuring the AI, not trusting it
 
 ```bash
