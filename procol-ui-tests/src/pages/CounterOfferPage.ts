@@ -35,12 +35,29 @@ export class CounterOfferPage extends BasePage {
     const p = this.page;
     await this.dismissDistractions();
 
-    // 1 · the per-vendor control. Some builds hover-reveal the header actions.
+    // 0 · the right grid. The comparison grid that carries the header action
+    //     area is the STAGE's (layerDetails.jsx, the RFQ / Auction tab); the
+    //     project-level Master QCS renders the same bids without it. If we are
+    //     not on a stage tab, switch to the first trade stage tab.
+    const onStageTab = await p.locator("[role='tab'][aria-selected='true'], .ant-tabs-tab-active").filter({ hasText: /rfq|auction/i }).count();
+    if (!onStageTab) {
+      const stageTab = p.getByRole("tab", { name: /^(rfq|auction)\b/i }).first();
+      if (await stageTab.count()) {
+        await stageTab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await this.waitForSpinnerHidden();
+        await p.locator("[role='columnheader'], .rdg-header-row").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+      }
+    }
+
+    // 1 · the per-vendor control: `<Button id={CTA_ID.counterOffer}>Counter
+    //     Offer</Button>` in the header's action area, rendered when the bid is
+    //     live and active and no pending request / approval takes its place.
     const header = this.vendorHeader(opts.vendor);
     if (await header.count()) await header.hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
     const inHeader = header.getByRole("button", { name: /counter offer/i }).first();
+    const byId = p.locator("[id*='counterOffer' i], [id*='counter-offer' i], [id*='counter_offer' i]").filter({ hasText: /counter offer/i }).first();
     const anywhere = p.getByRole("button", { name: /^counter offer$/i }).first();
-    let control = (await inHeader.count()) ? inHeader : anywhere;
+    let control = (await inHeader.count()) ? inHeader : (await byId.count()) ? byId : anywhere;
     // The live grid (captured 2026-09-11) shows the vendor header with a
     // caret-down menu and no standalone button: the per-bid actions — Reject
     // Quote, Edit Quote, Counter offer logs, and Counter Offer itself — live
@@ -88,7 +105,7 @@ export class CounterOfferPage extends BasePage {
         healerTried: false,
       }).catch(() => {});
       throw new Error(
-        `no Counter Offer control on the comparison grid${opts.vendor ? ` for ${opts.vendor}` : ""} — the product offers it only while the bid is live and active, not under approval, and not hidden for RFQs by tenant config. Buttons on screen: ${offered.slice(0, 12).join(", ")}`,
+        `no Counter Offer control on the comparison grid${opts.vendor ? ` for ${opts.vendor}` : ""} — the product renders it in the vendor header's action area only while the bid is live and active, and a pending accept/reject request or an approval view takes that slot first. Buttons on screen: ${offered.slice(0, 12).join(", ")}`,
       );
     }
     await control.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
