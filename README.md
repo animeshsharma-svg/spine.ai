@@ -271,6 +271,17 @@ price, lot} → …`, and *"convert the published RFQ to an auction"* compiles t
 `compose_stages{rfq} → … → publish → expect_published → convert_to_auction`.
 A counter offer has no step and is refused, on the ledger.
 
+## Counter offers, from the product's own trigger
+
+Each vendor's column header on Master QCS carries the buyer's **Counter
+Offer** (inside the header's caret menu on the live grid, beside Reject
+Quote / Edit Quote / Counter offer logs) while that bid is live and active.
+`place_counter_offer{vendor, price, remark}` opens it, fills the drawer's
+sheet, adds the remark and sends; `expect_counter_offer_sent` reads the mark
+on the bid. The vendor's acceptance has no step yet and is said so. The
+surrogate drawer, the vendor portal's bid sheet and the counter-offer drawer
+share one sheet filler (`procol-ui-tests/src/support/sheet.ts`).
+
 ## Demos: visible login, demo pace
 
 Tick **demo pace + visible login** (headed runs only). The run drops the
