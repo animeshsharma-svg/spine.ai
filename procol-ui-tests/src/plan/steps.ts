@@ -155,6 +155,8 @@ export const STEP_CATALOG: StepSpec[] = [
       eventType: '"rfq" | "rfp" | "auction"',
       auctionSubtype: '"rank" | "price" | "traffic_light" (auction only; default rank)',
       awarding: '"lot" (entire lot to one vendor) | "line_item" (partially, multiple vendors)',
+      rangeLower: "traffic light only: lower bound of the specified range (optional)",
+      rangeUpper: "traffic light only: upper bound of the specified range (optional)",
     },
   },
   {

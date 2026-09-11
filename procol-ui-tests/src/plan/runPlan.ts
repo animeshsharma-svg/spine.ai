@@ -280,7 +280,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!/singleStage=true|single-stage/.test(s.page.url())) {
         throw new Error("configure_single_stage needs the single-stage create screen — use open_create with path \"single-stage\" first");
       }
-      await s.single.configure({ eventType: eventType as any, auctionSubtype: sub as any, awarding: awarding as any });
+      await s.single.configure({
+        eventType: eventType as any,
+        auctionSubtype: sub as any,
+        awarding: awarding as any,
+        rangeLower: a.rangeLower !== undefined ? Number(a.rangeLower) : undefined,
+        rangeUpper: a.rangeUpper !== undefined ? Number(a.rangeUpper) : undefined,
+      });
       return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}`;
     }
     case "convert_to_auction": {
@@ -462,7 +468,22 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "publish":
       if (onSingleStage(s)) {
         await s.single.publish(s.title);
-        await s.single.waitForRedirectToProject();
+        const redirected = await s.single.waitForRedirectToProject().then(() => true).catch(() => false);
+        if (!redirected) {
+          // Say what the screen says instead of "waitForURL timed out": the
+          // app refuses single-stage publishes inline (form messages), not
+          // with a toast, and the traffic-light range is the usual reason.
+          const inline = (await s.page.locator(".ant-form-explain, .has-error, [role='alert'], .ant-message-notice").allTextContents())
+            .map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 4);
+          const toast = await s.single.errorToastText(800);
+          await recordStuck(s.page, {
+            label: "single-stage-publish",
+            message: `publish did not reach a project page${toast ? ` — toast: ${toast}` : ""}${inline.length ? ` — on screen: ${inline.join(" | ")}` : ""}`,
+            triedCandidates: ["waitForURL(/project|orders/:id)"],
+            healerTried: false,
+          }).catch(() => {});
+          throw new Error(`the single-stage publish did not reach a project page${toast ? ` — the app said: ${toast}` : ""}${inline.length ? ` — on screen: ${inline.join(" | ")}` : " (captured for a look)"}`);
+        }
         const id = s.single.projectId();
         return `published as ${id ?? "(no id in URL)"} (single-stage)`;
       }

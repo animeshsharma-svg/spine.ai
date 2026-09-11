@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { InlineSheet } from "../helpers/inlineSheet.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { randomNumber } from "../helpers/data.js";
@@ -27,6 +28,9 @@ export interface SingleStageConfig {
   eventType: EventType;
   auctionSubtype?: AuctionSubtype;
   awarding?: Awarding;
+  /** Traffic light only: the specified range's bounds (defaults 50 / 150). */
+  rangeLower?: number;
+  rangeUpper?: number;
 }
 
 /**
@@ -112,6 +116,26 @@ export class SingleStagePage extends BasePage {
     await this.pause(500);
     if (cfg.eventType === "auction" && cfg.auctionSubtype) {
       await pick(SUBTYPE_LABEL[cfg.auctionSubtype], `subtype:${cfg.auctionSubtype}`);
+      if (cfg.auctionSubtype === "traffic_light") {
+        // Traffic light needs a "specified range" before Save (the journey was
+        // deferred for exactly this). The drawer's range controls have never
+        // been captured, so record them here — with the tree — and try the
+        // obvious shape: a range-type choice plus lower/upper number inputs.
+        await recordStuck(this.page, {
+          label: "capture:single-stage-traffic-light-drawer",
+          message: "captured on request — the traffic light range controls, before Save",
+          triedCandidates: [],
+          healerTried: false,
+        }).catch(() => {});
+        const nums = d.locator("input[type='number'], input.ant-input-number-input");
+        const n = await nums.count();
+        if (n >= 2) {
+          await nums.nth(0).fill(String(cfg.rangeLower ?? 50)).catch(() => {});
+          await nums.nth(1).fill(String(cfg.rangeUpper ?? 150)).catch(() => {});
+        } else if (n === 1) {
+          await nums.nth(0).fill(String(cfg.rangeLower ?? 50)).catch(() => {});
+        }
+      }
     }
     if (cfg.awarding) {
       await pick(AWARDING_LABEL[cfg.awarding], `awarding:${cfg.awarding}`);
