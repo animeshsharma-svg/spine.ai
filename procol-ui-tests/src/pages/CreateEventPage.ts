@@ -1658,18 +1658,48 @@ export class CreateEventPage extends BasePage {
           const mm = String(end.getMinutes()).padStart(2, "0");
           const ampm = end.getHours() >= 12 ? "PM" : "AM";
           const timeText = `${String(hh).padStart(2, "0")}:${mm} ${ampm}`;
-          // The end block's time input: antd v3 TimePicker renders an input the
-          // user types into; commit with Enter. Prefer the block's own inputs.
-          const timeInput = scope.locator("input.ant-time-picker-input, input[placeholder*='time' i]").last();
-          if (await timeInput.count()) {
-            await timeInput.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-            await timeInput.fill(timeText).catch(() => {});
-            await this.page.keyboard.press("Enter").catch(() => {});
-            await this.page.keyboard.press("Escape").catch(() => {});
-            chosen = minutes;
-            console.log(`[create-event] schedule fixed end time set to ${timeText} (${minutes} min from now)`);
+          // Fixed time (captured 2026-09-11): the End block gains textbox
+          // "Select date" and textbox "Select time" (defaulting to start+30).
+          // Typing into the antd v3 TimePicker input did not commit; drive its
+          // panel columns — hour, minute, AM/PM — then verify the textbox.
+          const endTime = scope.getByRole("textbox", { name: /select time/i }).last();
+          if (await endTime.count()) {
+            await endTime.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            await endTime.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            const panelSel = this.page.locator(".ant-time-picker-panel:not(.ant-time-picker-panel-hidden), .ant-time-picker-panel");
+            const opened = await panelSel.first().waitFor({ state: "visible", timeout: 4_000 }).then(() => true).catch(() => false);
+            if (opened) {
+              const cols = panelSel.first().locator(".ant-time-picker-panel-select");
+              const pickIn = async (col: number, text: string) => {
+                const li = cols.nth(col).locator("li").filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) }).first();
+                if (await li.count()) {
+                  await li.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
+                  await li.click({ timeout: 2_000 }).catch(() => {});
+                }
+              };
+              const n = await cols.count();
+              await pickIn(0, String(hh).padStart(2, "0"));
+              await pickIn(1, mm);
+              if (n >= 3) await pickIn(2, ampm);
+              const okBtn = panelSel.first().getByRole("button", { name: /^ok$/i });
+              if (await okBtn.count()) await okBtn.click({ timeout: 2_000 }).catch(() => {});
+              else await this.page.keyboard.press("Escape").catch(() => {});
+            } else {
+              await endTime.fill(timeText).catch(() => {});
+              await this.page.keyboard.press("Enter").catch(() => {});
+            }
+            await this.pause(400);
+            const now = ((await endTime.inputValue().catch(() => "")) || "").trim();
+            if (now === timeText) {
+              chosen = minutes;
+              console.log(`[create-event] schedule fixed end time set to ${timeText} (${minutes} min from now)`);
+            } else {
+              console.log(`[create-event] Fixed time: asked ${timeText}, the picker kept "${now}" — falling back to the duration preset`);
+              await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+              await this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /duration/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            }
           } else {
-            console.log("[create-event] Fixed time mode chosen but no time input found in the End time block — falling back to the duration preset");
+            console.log("[create-event] Fixed time mode chosen but no end 'Select time' textbox found — falling back to the duration preset");
             await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
             await this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /duration/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
           }
@@ -1721,10 +1751,11 @@ export class CreateEventPage extends BasePage {
       this.scheduleMinutesChosen = chosen;
     }
 
-    await this.click([panel.getByRole("button", { name: /save schedule/i })], {
-      label: "save-schedule",
-      timeout: TIMEOUTS.MEDIUM,
-    });
+    // Fixed time adds rows and pushes Save below the fold; a forced click does
+    // not scroll, so bring it into view first.
+    const saveBtn = panel.getByRole("button", { name: /save schedule/i }).first();
+    await saveBtn.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    await this.click([saveBtn], { label: "save-schedule", timeout: TIMEOUTS.MEDIUM, force: true });
     await this.waitForSpinnerHidden();
     await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).catch(() => {});
     await this.dismissDistractions();
