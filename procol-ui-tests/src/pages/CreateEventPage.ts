@@ -261,20 +261,17 @@ export class CreateEventPage extends BasePage {
         await this.page.waitForTimeout(300);
         continue;
       }
-      // Confirm from inside the drawer. Two earlier signals were wrong: the
-      // dropdown does NOT close (it is a multi-select, kept open for the next
-      // product), and the toolbar badge does not move until the drawer is
-      // SAVED. What does change immediately is the chosen product appearing as
-      // a chip in the select, and the row marking itself selected.
-      const deadline = Date.now() + 3_000;
-      while (Date.now() < deadline && !picked) {
-        const chips = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
-        const marked = await p
-          .locator(".ant-select-dropdown-menu-item-selected, [role='option'][aria-selected='true']")
-          .count();
-        const badge = await this.lineItemCountBadge();
-        if (chips > chipsBefore || marked > 0 || (badge !== null && before !== null && badge > before)) picked = true;
-        else await this.page.waitForTimeout(250);
+      // A successful click IS the pick. The confirmation signals below (a chip
+      // in the select, a marked row) usually show at once, but they sometimes
+      // do not surface within a poll on this build — and burning two more 5s
+      // find attempts on a dropdown that has already served us cost ~13s per
+      // successful add. So trust the click, glance once for a signal to log,
+      // and let `expect_line_items` read the app's own badge after saving —
+      // which is the real oracle and catches a genuine miss with a number.
+      picked = true;
+      const chips = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count().catch(() => 0);
+      if (chips <= chipsBefore) {
+        await this.page.waitForTimeout(250);
       }
     }
 
