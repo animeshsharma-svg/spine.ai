@@ -47,10 +47,20 @@ export class CounterOfferPage extends BasePage {
         await this.waitForSpinnerHidden();
       }
     }
+    // The stage page shows "Loading your event details..." for a good while
+    // (a stuck report caught the step looking for the control on exactly that
+    // screen). Wait for the page's own loading text to go and its sub-tabs to
+    // appear before looking for anything.
+    const loading = p.getByText(/loading your event details/i).first();
+    await loading.waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
+    const responses = p.getByRole("tab", { name: /^responses\b/i }).first();
+    await responses.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {});
+    if (await loading.isVisible().catch(() => false)) {
+      throw new Error("the stage page is still loading its event details after 60s — nothing to act on yet (environment, not the product)");
+    }
     // The stage page has sub-tabs — Responses | Overview | Participants |
     // Analytics | Price Trends (captured 2026-09-11). The bids, their vendor
     // headers and the Counter Offer action are under RESPONSES.
-    const responses = p.getByRole("tab", { name: /^responses\b/i }).first();
     if ((await responses.count()) && (await responses.getAttribute("aria-selected")) !== "true") {
       await responses.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
       await this.waitForSpinnerHidden();
