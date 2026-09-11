@@ -32,6 +32,12 @@ test("planned test case", async ({ page }) => {
   const check = validatePlan(parsed);
   if (!check.ok) throw new Error(`the plan is not runnable: ${check.reason}`);
   const plan = check.plan;
+  // A closed-event plan waits for a real bidding window to lapse — the
+  // product's smallest preset is 30 minutes and this tenant has no force-end.
+  // The default 6-minute test budget killed the wait at 137s; give such plans
+  // the time the product demands, and only such plans.
+  const waitsForWindow = plan.steps.some((st: { step: string }) => st.step === "close_event");
+  test.setTimeout(waitsForWindow ? 48 * 60_000 : 360_000);
 
   const collector = new EvidenceCollector(page, `plan.${plan.title.replace(/\s+/g, "_").slice(0, 40)}`);
   await collector.installToastRecorder();

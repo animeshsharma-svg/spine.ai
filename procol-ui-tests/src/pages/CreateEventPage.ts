@@ -1637,7 +1637,47 @@ export class CreateEventPage extends BasePage {
         await this.page.keyboard.press("Escape").catch(() => {});
       }
       let chosen: number | null = null;
-      if (await valueCol.count()) {
+      // The mode select offers "Duration | Fixed time" (captured 2026-09-11).
+      // Below the smallest preset (30 min), switch to Fixed time and set an
+      // explicit end a few minutes out; capture the panel in that mode so the
+      // next iteration is built on evidence if the pickers differ.
+      if (minutes < 30 && (await modeSel.count())) {
+        await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const fixed = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /fixed/i }).first();
+        if (await fixed.count()) {
+          await fixed.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          await this.pause(500);
+          await recordStuck(this.page, {
+            label: "capture:schedule-fixed-time",
+            message: "captured on request — the Schedule panel in Fixed time mode",
+            triedCandidates: [],
+            healerTried: false,
+          }).catch(() => {});
+          const end = new Date(Date.now() + (minutes + 1) * 60_000);
+          const hh = end.getHours() % 12 || 12;
+          const mm = String(end.getMinutes()).padStart(2, "0");
+          const ampm = end.getHours() >= 12 ? "PM" : "AM";
+          const timeText = `${String(hh).padStart(2, "0")}:${mm} ${ampm}`;
+          // The end block's time input: antd v3 TimePicker renders an input the
+          // user types into; commit with Enter. Prefer the block's own inputs.
+          const timeInput = scope.locator("input.ant-time-picker-input, input[placeholder*='time' i]").last();
+          if (await timeInput.count()) {
+            await timeInput.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            await timeInput.fill(timeText).catch(() => {});
+            await this.page.keyboard.press("Enter").catch(() => {});
+            await this.page.keyboard.press("Escape").catch(() => {});
+            chosen = minutes;
+            console.log(`[create-event] schedule fixed end time set to ${timeText} (${minutes} min from now)`);
+          } else {
+            console.log("[create-event] Fixed time mode chosen but no time input found in the End time block — falling back to the duration preset");
+            await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            await this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /duration/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          }
+        } else {
+          await this.page.keyboard.press("Escape").catch(() => {});
+        }
+      }
+      if (chosen === null && (await valueCol.count())) {
         const input = valueCol.locator("input").first();
         const clickTarget = (await valueCol.locator(".ant-select, .ant-select-selection, [role='combobox']").count())
           ? valueCol.locator(".ant-select, .ant-select-selection, [role='combobox']").first()
@@ -1694,7 +1734,7 @@ export class CreateEventPage extends BasePage {
     const chipText = (await chip.textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
     console.log(`[create-event] schedule saved${chipText ? ` — chip reads: ${chipText}` : ""}`);
     const expect = this.scheduleMinutesChosen ?? minutes;
-    if (expect && chipText && !new RegExp(`\\(\\s*${expect}\\s*Mins?\\)|\\(\\s*${expect / 60}\\s*Hours?\\)`, "i").test(chipText)) {
+    if (expect && chipText && expect >= 30 && !new RegExp(`\\(\\s*${expect}\\s*Mins?\\)|\\(\\s*${expect / 60}\\s*Hours?\\)`, "i").test(chipText)) {
       console.log(`[create-event] WARNING: chose ${expect} min but the chip does not show it — the selection did not take`);
     }
   }
