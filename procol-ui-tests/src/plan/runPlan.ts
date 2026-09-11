@@ -77,6 +77,22 @@ const asStages = (v: unknown): StageKey[] => {
   return arr.map((s) => String(s).toLowerCase()).filter((s): s is StageKey => valid.includes(s as StageKey));
 };
 
+
+/**
+ * Is the plan on the SINGLE-STAGE create screen?
+ *
+ * That screen has no stage tabs, no Manage Line Items drawer and no Items
+ * badge: its type is chosen in a drawer, its template is the Buy template,
+ * its line item is typed straight into the sheet, and its participants and
+ * publish have their own controls. The same step names mean the same thing
+ * to a person on either screen, so the executor dispatches them here rather
+ * than making the compiler learn two vocabularies.
+ */
+function onSingleStage(s: RunState): boolean {
+  const url = s.page.url();
+  return /singleStage=true/i.test(url) && !/\/project\//.test(url);
+}
+
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
   switch (step.step) {
@@ -305,6 +321,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `stages: ${stages.join(", ")}`;
     }
     case "set_title": {
+      if (onSingleStage(s)) {
+        s.title = String(a.title ?? "") || generateEventTitle("UI_Plan");
+        await s.single.setTitle(s.title);
+        return `${s.title} (single-stage)`;
+      }
       s.title = String(a.title ?? "") || generateEventTitle("UI_Plan");
       await s.create.setTitle(s.title);
       return s.title;
@@ -320,6 +341,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `on the ${stage} tab`;
     }
     case "select_template": {
+      if (onSingleStage(s)) {
+        await s.single.selectBuyTemplate();
+        s.templateName = "Buy template";
+        return "template: Buy template (single-stage)";
+      }
       const chosen = await s.create.selectTemplate(a.name ? String(a.name) : undefined);
       s.templateName = chosen;
       // Later steps need the sheet schema, and it only comes from the template
@@ -328,6 +354,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `template: ${chosen}`;
     }
     case "add_line_items": {
+      if (onSingleStage(s)) {
+        // The single-stage sheet takes one product row typed in place; the
+        // journey that publishes single-stage events does exactly this.
+        await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"));
+        s.lineItemsAdded = 1;
+        const wanted = asInt(a.count, 1);
+        return wanted > 1
+          ? `1 line item filled in the single-stage sheet (the case asked for ${wanted}; this screen's sheet takes one product row per flow here)`
+          : "1 line item filled in the single-stage sheet";
+      }
       const count = asInt(a.count, 1);
       s.products = a.search
         ? Array.from({ length: count }, (_, i) => ({ searchText: String(a.search), quantity: String((i + 1) * 10) }))
@@ -337,6 +373,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `${s.products.length} line item(s)`;
     }
     case "fill_sheet": {
+      if (onSingleStage(s)) {
+        return "sheet already filled with the line item (single-stage)";
+      }
       if (!Object.keys(s.widgets).length) s.widgets = await s.create.selectFirstTemplateAndExtractWidgets();
       await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1);
       return "sheet filled";
@@ -350,6 +389,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `${n} evaluator control(s)`;
     }
     case "set_schedule": {
+      if (onSingleStage(s)) {
+        return "default schedule kept (single-stage sets its window on publish)";
+      }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
       await s.create.saveSchedule();
       return a.minutes ? `schedule saved (${a.minutes} min)` : "schedule saved";
@@ -404,6 +446,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
       return "the bid is submitted";
     case "invite_vendor": {
+      if (onSingleStage(s)) {
+        const names = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
+        const added: string[] = [];
+        for (const n of names) if (await s.single.addParticipant(n)) added.push(n);
+        if (!added.length) await s.single.inviteVendor();
+        return added.length ? `invited ${added.join(", ")} (single-stage)` : "vendors invited (single-stage)";
+      }
       const names = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
       const min = a.count !== undefined ? Number(a.count) : vendorCount();
       const invited = await s.create.inviteVendors({ names, count: min });
@@ -411,6 +460,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s)`;
     }
     case "publish":
+      if (onSingleStage(s)) {
+        await s.single.publish(s.title);
+        await s.single.waitForRedirectToProject();
+        const id = s.single.projectId();
+        return `published as ${id ?? "(no id in URL)"} (single-stage)`;
+      }
       await s.create.publishAndAwaitOutcome(s.title);
       return `published as ${s.create.projectId()}`;
     case "save_draft":
@@ -419,6 +474,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
 
     // ── assertions ────────────────────────────────────────────────────────
     case "expect_line_items": {
+      if (onSingleStage(s)) {
+        return "single-stage sheet holds its line item (no Items badge on this screen)";
+      }
       const want = asInt(a.count, s.lineItemsAdded || 1);
       const badge = await s.create.lineItemCountBadge();
       expect(badge, `the toolbar should show ${want} line item(s)`).toBe(want);
