@@ -319,6 +319,21 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // expect_publish_blocked presses Publish itself and judges what follows. A
+  // plain publish step before it treats the refusal the case WANTS as a
+  // failure and stops the plan one step early — UI-PART-001 died on
+  // "publish was rejected: Please add participants to proceed!", which was the
+  // pass. Drop the plain publish (and expect_published) when the assertion is
+  // there to do the pressing.
+  if (has("expect_publish_blocked")) {
+    for (const drop of ["publish", "expect_published"]) {
+      while (has(drop)) {
+        steps.splice(indexOf(drop), 1);
+        repairs.push(`dropped ${drop} — expect_publish_blocked presses Publish itself and judges the refusal`);
+      }
+    }
+  }
+
   // A negative test about PARTICIPANTS must not invite any. UI-PART-001 —
   // "publish is blocked with no participants" — compiled with invite_vendor
   // in it, so the plan disproved its own premise before pressing Publish.
