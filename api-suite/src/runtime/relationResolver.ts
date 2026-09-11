@@ -160,7 +160,20 @@ export class RelationResolver {
         this.client, searchRecordsUrl(this.client, datasourceUuid, { page: 1, perPage: 1 })
       );
       if (!res.ok) {
-        failed.push({ field: field.name, reason: `record search returned HTTP ${res.status}` });
+        /**
+         * Say WHAT the app said, not just that it said no.
+         *
+         * "record search returned HTTP 422" is the same sentence whether the
+         * datasource is missing, the token is dead, or this login simply may
+         * not read it — three problems with three different fixes, reported
+         * identically. The app names which one it is in the body; repeating
+         * that costs a line and saves the reader a trip to the call log.
+         */
+        const said = appMessage(res.body);
+        failed.push({
+          field: field.name,
+          reason: `record search returned HTTP ${res.status}` + (said ? ` — ${said}` : ''),
+        });
         continue;
       }
       const rows = res.body?.records ?? res.body?.data ?? [];
@@ -268,4 +281,15 @@ export function datasourceIdIndex(client: ClientConfig): Map<string, number> {
     if (typeof datasource.numericId === 'number') index.set(key, datasource.numericId);
   }
   return index;
+}
+
+/** The message the app put in an error body, when it put one there. */
+function appMessage(body: unknown): string | undefined {
+  if (!body || typeof body !== 'object') return undefined;
+  const b = body as Record<string, any>;
+  const inner = b.error ?? b;
+  const text = typeof inner === 'string' ? inner : inner?.message;
+  if (typeof text !== 'string' || !text.trim()) return undefined;
+  const code = typeof inner === 'object' ? inner?.code : undefined;
+  return code ? `${text.trim()} (code ${code})` : text.trim();
 }

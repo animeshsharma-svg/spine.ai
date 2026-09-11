@@ -67,54 +67,58 @@ function featureLabel(featureId: string): string {
   return group?.label ?? featureId;
 }
 
-export function defectsFromRuns(limit = RUNS_CONSIDERED): DefectGroup[] {
-  const groups = new Map<string, DefectGroup>();
+/** Fold one run's failed checks into the defect map, grouped by fingerprint. */
+function collect(
+  groups: Map<string, DefectGroup>,
+  runId: string,
+  ts: string,
+  run: ReturnType<typeof getRun>,
+): void {
+  for (const check of run?.checkResults ?? []) {
+    // Only real defects: a failure that is not inconclusive.
+    if (check.pass || check.inconclusive) continue;
 
-  for (const summary of listRuns(limit)) {
-    const run = getRun(summary.id);
-    for (const check of run?.checkResults ?? []) {
-      // Only real defects: a failure that is not inconclusive.
-      if (check.pass || check.inconclusive) continue;
+    const key = fingerprint(check);
+    const existing = groups.get(key);
+    const evidence = `${check.id} · ${check.inputSummary} → HTTP ${check.httpStatus ?? "error"}${
+      check.message ? `: ${check.message}` : ""
+    }`;
 
-      const key = fingerprint(check);
-      const existing = groups.get(key);
-      const evidence = `${check.id} · ${check.inputSummary} → HTTP ${check.httpStatus ?? "error"}${
-        check.message ? `: ${check.message}` : ""
-      }`;
-
-      if (existing) {
-        existing.occurrences++;
-        if (!existing.flows.includes(check.flowId)) existing.flows.push(check.flowId);
-        if (!existing.runs.includes(summary.id)) existing.runs.push(summary.id);
-        if (existing.evidence.length < 8) existing.evidence.push(evidence);
-        existing.firstSeen = summary.ts < existing.firstSeen ? summary.ts : existing.firstSeen;
-        existing.lastSeen = summary.ts > existing.lastSeen ? summary.ts : existing.lastSeen;
-        continue;
-      }
-
-      groups.set(key, {
-        defectFingerprint: key,
-        kind: "product_defect",
-        severity: severityOf(check),
-        title: titleOf(check),
-        rationale:
-          `${check.verdict} The case "${check.scenario}" expected the API to ${check.expected}. ` +
-          `Recorded against ${featureLabel(check.flowId)} (${check.flowId}).`,
-        flows: [check.flowId],
-        runs: [summary.id],
-        occurrences: 1,
-        firstSeen: summary.ts,
-        lastSeen: summary.ts,
-        evidence: [evidence],
-        // The curl IS the reproduction — one command, no prose.
-        reproduction: check.request
-          ? toCurl(check.request, run?.companyId).split("\n")
-          : [check.inputSummary],
-        actionable: true,
-      });
+    if (existing) {
+      existing.occurrences++;
+      if (!existing.flows.includes(check.flowId)) existing.flows.push(check.flowId);
+      if (!existing.runs.includes(runId)) existing.runs.push(runId);
+      if (existing.evidence.length < 8) existing.evidence.push(evidence);
+      existing.firstSeen = ts < existing.firstSeen ? ts : existing.firstSeen;
+      existing.lastSeen = ts > existing.lastSeen ? ts : existing.lastSeen;
+      continue;
     }
-  }
 
+    groups.set(key, {
+      defectFingerprint: key,
+      kind: "product_defect",
+      severity: severityOf(check),
+      title: titleOf(check),
+      rationale:
+        `${check.verdict} The case "${check.scenario}" expected the API to ${check.expected}. ` +
+        `Recorded against ${featureLabel(check.flowId)} (${check.flowId}).`,
+      flows: [check.flowId],
+      runs: [runId],
+      occurrences: 1,
+      firstSeen: ts,
+      lastSeen: ts,
+      evidence: [evidence],
+      // The curl IS the reproduction — one command, no prose.
+      reproduction: check.request
+        ? toCurl(check.request, run?.companyId).split("\n")
+        : [check.inputSummary],
+      actionable: true,
+    });
+  }
+}
+
+/** Worst first, then by how much of the suite the defect touches. */
+function ordered(groups: Map<string, DefectGroup>): DefectGroup[] {
   const order: DefectGroup["severity"][] = ["critical", "high", "medium", "low"];
   return [...groups.values()].sort(
     (a, b) =>
@@ -122,4 +126,27 @@ export function defectsFromRuns(limit = RUNS_CONSIDERED): DefectGroup[] {
       b.occurrences - a.occurrences ||
       a.title.localeCompare(b.title),
   );
+}
+
+export function defectsFromRuns(limit = RUNS_CONSIDERED): DefectGroup[] {
+  const groups = new Map<string, DefectGroup>();
+  for (const summary of listRuns(limit)) {
+    collect(groups, summary.id, summary.ts, getRun(summary.id));
+  }
+  return ordered(groups);
+}
+
+/**
+ * What ONE run found — the sheet you open straight after pressing run.
+ *
+ * The all-time list answers "what is broken in the product"; this answers
+ * "what did the thing I just ran turn up", which is the question being asked
+ * while the run is still on screen. Same grouping, same evidence, one run.
+ */
+export function defectsFromRun(runId: string): DefectGroup[] {
+  const run = getRun(runId);
+  if (!run) return [];
+  const groups = new Map<string, DefectGroup>();
+  collect(groups, runId, run.ts, run);
+  return ordered(groups);
 }

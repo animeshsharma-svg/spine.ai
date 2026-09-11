@@ -310,6 +310,17 @@ export interface ApplicableFlow {
   name?: string;
   /** how many flows the platform considers applicable */
   count: number;
+  /**
+   * Did the platform actually answer the question?
+   *
+   * "No flow applies" and "the platform said nothing" both used to arrive as
+   * `applicable: false`, and the caller treated the pair identically: fall
+   * back to the configured flow uuid and submit into it anyway. So a record
+   * the platform had explicitly declared ineligible was submitted regardless,
+   * and came back "Invalid Approval" — a mystery 422 standing in for a clear
+   * answer the platform had already given.
+   */
+  answered: boolean;
 }
 
 /**
@@ -351,6 +362,7 @@ export async function resolveApplicableFlow(
     uuid: approvals[0]?.uuid,
     name: approvals[0]?.name,
     count: approvals.length,
+    answered: res.ok && typeof res.body?.approval_applicable === "boolean",
   };
 }
 
@@ -406,6 +418,7 @@ export async function makeSubmittable(
     uuid: approvals[0]?.uuid,
     name: approvals[0]?.name,
     count: approvals.length,
+    answered: typeof res.body?.approval_applicable === "boolean",
     transitioned: options[index],
   };
 }

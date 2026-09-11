@@ -165,12 +165,32 @@ export function planDocument(
       });
     }
 
+    const override = Object.prototype.hasOwnProperty.call(overrides, name) ? overrides[name] : undefined;
+
+    /**
+     * A value written down by hand is SENT, whatever the schema says about
+     * whose field it is.
+     *
+     * These roles are the platform's to fill, and skipping them is right when
+     * nobody asked for anything — a formula should not be overwritten with a
+     * guess. But the skip happened before the supplied values were even read,
+     * so a field named in po-input.json was dropped in silence: not sent, not
+     * listed as unsupported, no line in the run's output. The author had said
+     * exactly what they wanted and the request went out without it.
+     *
+     * Decathlon's `gst_type` is the case that exposed it — mandatory AND
+     * readOnly, a dropdown the platform requires and does not compute for a
+     * record created over the API. Every purchase order built this way failed
+     * validation at submit with "GST Type is required", and no amount of
+     * editing the input file could fix it. Writing the value down now works.
+     */
     if (role === 'system' || role === 'derived' || role === 'computed' || role === 'children') {
-      plan.skipped.push(name);
-      continue;
+      if (override === undefined) {
+        plan.skipped.push(name);
+        continue;
+      }
     }
 
-    const override = Object.prototype.hasOwnProperty.call(overrides, name) ? overrides[name] : undefined;
     const planned: PlannedField = { name, uuid: entry.uuid as string, value: override };
 
     if (role === 'relation') {

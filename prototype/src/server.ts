@@ -16,36 +16,47 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getCapabilityMap, openClientContext, runFlow, runSelected } from "./executor.js";
+import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
 import { apiModulesFor, singleApiModule } from "../config/apiModules.js";
-import { caseCountsByFeature, casesForFeatures, buildChecksFromCases, loadCases, resolveCaseContext, resolveActor, configRequirementOf } from "./checks/caseLibrary.js";
+import { caseCountsByFeature, casesForFeatures, buildChecksFromCases, idsFromReply, loadCases, resolveCaseContext, resolveActor, configRequirementOf } from "./checks/caseLibrary.js";
 import { runOrchestrator } from "./agents/orchestrator.js";
 import type { CheckResult } from "./ai/types.js";
-import { providerLabel } from "./ai/llm.js";
+import { providerLabel, usageReport, llmMode } from "./ai/llm.js";
+import { slotState } from "./ui/browserSlot.js";
+import { JourneyTrail } from "./ui/journeySteps.js";
+import { saveTrail, readTrail, deleteTrail } from "./ui/trailStore.js";
 import { DEFAULT_CLIENT } from "../config/settings.js";
 import { isTokenClient, tokenClient } from "../config/tokenClients.js";
 import { readToken, tokenClientChoices } from "./tokenClient.js";
-import { saveRun, listRuns, getRun, newRunId } from "./runStore.js";
+import { saveRun, listRuns, getRun, newRunId, deleteRun } from "./runStore.js";
+import { defectsFromRun } from "./report/checkDefects.js";
 import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
 import { runCheck } from "./checks/engine.js";
+import type { Check } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
-import { UI_FLOWS, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
+import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
+import { ensureEmbedderReady } from "./rag/embedder.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
 import { allDefects, renderBugSheet } from "./report/bugSheet.js";
 import { isTriageField, loadTriage, saveTriageField } from "./triageStore.js";
 import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.js";
 import { renderUiReport, uiShotPath } from "./report/uiReport.js";
+import { renderUiRunReport } from "./report/uiRunReport.js";
+import { readPoRun, readPoRunHtml, deletePoRun } from "./poRunStore.js";
+import { defectsFromPoRun } from "./report/poRunDefects.js";
 import { checkToken, poInputSummary, runPoFlow } from "./poRunner.js";
+import { resolveToken } from "./tokenMint.js";
 import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
 import { chainPlan, chainStatus, runChain } from "./poToBillRunner.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
+import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
@@ -123,6 +134,102 @@ const server = createServer(async (req, res) => {
         defaultClient: DEFAULT_CLIENT.companyId,
         provider: providerLabel(),
       });
+    }
+
+    /**
+     * THROW ONE RUN AWAY.
+     *
+     * A run that wrote a purchase order nobody wanted, or one made while
+     * testing the platform itself, is noise — in the history, in the reports
+     * built from it, and in the bug sheet, which counts a defect's blast
+     * radius by the runs that hit it. Deleting has to reach all three stores
+     * because a "run" is an API run, a PO run or a browser journey depending
+     * on what started it, and the reader pressing the button does not care
+     * which.
+     */
+    if (path === "/api/run-delete") {
+      const id = url.searchParams.get("run") ?? "";
+      if (!id) {
+        res.writeHead(400, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: "no run id given" }));
+      }
+      const removed = [
+        deleteRun(id) ? "api run" : null,
+        deletePoRun(id) ? "PO run" : null,
+        deleteTrail(id) ? "journey trail" : null,
+      ].filter(Boolean);
+      return json(res, { deleted: removed.length > 0, removed, runId: id });
+    }
+
+    /**
+     * THE TEST CATALOGUE ITSELF.
+     *
+     * Every other view answers "what happened when we ran it". None of them
+     * answered "what is there to run" — the tree counts cases per feature and
+     * stops, so the 283 written cases could be counted but never read. Someone
+     * asking whether a scenario is already covered had to open the library
+     * file. This serves the catalogue as it is written, scoped to the account
+     * the way the tree is, so the answer matches what that account can run.
+     */
+    if (path === "/api/catalogue") {
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const account = isTokenClient(c) ? tokenClient(c) : undefined;
+      const scope = account?.featureScope;
+      const inScope = (feature: string) =>
+        !scope || scope.some((s) => feature === s || feature.startsWith(`${s}.`));
+
+      const cases = loadCases()
+        .filter((t) => inScope(t.feature))
+        .map((t) => ({
+          id: t.id,
+          feature: t.feature,
+          title: t.title,
+          type: t.type,
+          priority: t.priority,
+          severity: t.severity,
+          method: t.method,
+          path: t.path,
+          expected: t.expected,
+          expectedResult: t.expectedResult,
+          preconditions: t.preconditions,
+          steps: t.steps ?? [],
+          // The payload IS the test data on an API case — the values the
+          // scenario is actually exercised with, which is the column a QA
+          // sheet reads first.
+          body: t.body ?? null,
+        }));
+
+      // Grouped the way the tree groups, so the drawer reads like the rest of
+      // the platform rather than as a flat dump of 283 rows.
+      const groups = FEATURE_TREE.map((g) => ({
+        id: g.id,
+        label: g.label,
+        icon: g.icon,
+        what: g.what,
+        features: g.children
+          .map((child) => ({
+            id: child.id,
+            label: child.label,
+            what: child.what,
+            cases: cases.filter((t) => t.feature === child.id),
+          }))
+          .filter((f) => f.cases.length > 0),
+      })).filter((g) => g.features.length > 0);
+
+      return json(res, { total: cases.length, groups, scopeNote: account?.scopeNote ?? null });
+    }
+
+    // ── API: what the AI has cost, and what holds the browser ───────────
+    if (path === "/api/ai-usage") {
+      return json(res, { provider: providerLabel(), mode: llmMode(), ...usageReport() });
+    }
+    if (path === "/api/run-state") {
+      return json(res, slotState());
+    }
+    // What the written cases asked for that no step can do yet — the to-do
+    // list for growing the automation, most-asked-for first.
+    if (path === "/api/vocabulary-gaps") {
+      return json(res, { gaps: readVocabularyGaps() });
     }
 
     // ── API: capability map ──
@@ -235,10 +342,29 @@ const server = createServer(async (req, res) => {
       // the sandbox demo is a purchase-order tenant, so offering it sourcing
       // events would invite someone to tick a journey that cannot exist there.
       const scoped = cid && isTokenClient(Number(cid)) ? tokenClient(Number(cid)) : undefined;
+      /**
+       * Scope to what this tenant actually has — down to the single feature.
+       *
+       * A scope of whole groups was too blunt: listing "p2p" brought delivery
+       * tracking and quality notes with it, and "finance" brought payment and
+       * credit notes, none of which exist on the sandbox. Someone ticking them
+       * would be testing a module the tenant has no datasource for. An entry
+       * is now either a group ("po") or one feature ("p2p.grn"), so the tree
+       * can say exactly what is there.
+       */
       const tree = scoped
-        ? scoped.featureScope
-            .map((id) => FEATURE_TREE.find((g) => g.id === id))
+        ? FEATURE_TREE.map((g) => {
+            if (scoped.featureScope.includes(g.id)) return g;
+            const picked = g.children.filter((f) => scoped.featureScope.includes(f.id));
+            return picked.length ? { ...g, children: picked } : null;
+          })
             .filter((g): g is (typeof FEATURE_TREE)[number] => Boolean(g))
+            // Keep the reader's order: the scope lists the document's journey.
+            .sort(
+              (a, b) =>
+                scoped.featureScope.findIndex((id) => id === a.id || id.startsWith(`${a.id}.`)) -
+                scoped.featureScope.findIndex((id) => id === b.id || id.startsWith(`${b.id}.`)),
+            )
         : FEATURE_TREE;
 
       const groups = tree.map((g) => ({
@@ -259,7 +385,16 @@ const server = createServer(async (req, res) => {
         groups,
         defaults,
         scope: scoped ? { note: scoped.scopeNote, name: scoped.name } : null,
-        totalCases: loadCases().length,
+        /**
+         * The cases this account can actually run, not the library's total.
+         *
+         * A scoped account showed "283 cases" over a tree holding 35 of them:
+         * the number described a library the reader could not reach from there.
+         */
+        totalCases: groups.reduce(
+          (n, g) => n + g.children.reduce((m, f) => m + (f.cases ?? 0), 0),
+          0,
+        ),
         company: cfg
           ? {
               id: cfg.companyId,
@@ -282,12 +417,26 @@ const server = createServer(async (req, res) => {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const tokenAccount = isTokenClient(c) ? tokenClient(c) : undefined;
       if (tokenAccount && !tokenAccount.browserJourneys) {
+        /**
+         * Almost none — but not none.
+         *
+         * The UAT journeys sign in through a database this deployment is not
+         * part of, which is what this flag means. A journey pinned to THIS
+         * account is a different matter: the purchase-to-bill suite signs into
+         * this very tenant, so returning a flat empty list hid the one browser
+         * journey that does work here.
+         */
+        const own = uiFlowsFor(c).filter((f) => f.clients?.includes(c));
         return json(res, {
-          flows: [],
+          flows: own,
           limits: null,
           erfx: null,
           boqAllowed: null,
-          note: tokenAccount.browserNote ?? "Browser journeys are not available for this account.",
+          note: own.length
+            ? `${tokenAccount.browserNote ?? "Most browser journeys are not available for this account."} ` +
+              `The ${own.length === 1 ? "journey" : "journeys"} below ${own.length === 1 ? "is" : "are"} the exception — ` +
+              `built against this deployment, so ${own.length === 1 ? "it runs" : "they run"} here and nowhere else.`
+            : (tokenAccount.browserNote ?? "Browser journeys are not available for this account."),
         });
       }
       let limits: any = null;
@@ -301,7 +450,7 @@ const server = createServer(async (req, res) => {
         boqAllowed = cfg.loaded ? isFlagOn(cfg.flags?.boq_in_erfx_allowed) : null;
         await client.dispose().catch(() => {});
       }
-      return json(res, { flows: UI_FLOWS, limits, erfxMode: erfx, boqAllowed });
+      return json(res, { flows: uiFlowsFor(c), limits, erfxMode: erfx, boqAllowed });
     }
 
     // ── API: run ONE browser journey, streaming Playwright's output (SSE) ──
@@ -330,6 +479,14 @@ const server = createServer(async (req, res) => {
       // Tag the run so the journey's Oracle findings can be picked up by id
       // instead of scraped out of stdout.
       const uiRunId = `ui-${Date.now().toString(36)}`;
+      /**
+       * The journey's narration, parsed once here.
+       *
+       * The page and the report both need the same steps; parsing on the
+       * server means they cannot disagree about where a run stopped.
+       */
+      const trail = new JourneyTrail();
+      const trailStart = Date.now();
       const { stop } = runUiFlow(
         {
           flowKey,
@@ -340,19 +497,42 @@ const server = createServer(async (req, res) => {
           headed,
         },
         async (e) => {
-          send(e.type, e);
-          if (e.type === "done" || e.type === "error") {
+          const ending = e.type === "done" || e.type === "run-error";
+          // Every narrated line becomes a step, streamed as it happens.
+          if ((e.type === "log" || e.type === "queued") && e.line) {
+            const step = trail.add(e.type === "queued" ? `[queue] ${e.line}` : e.line);
+            if (step) send("step", step);
+          }
+          if (ending) {
+            saveTrail({
+              runId: uiRunId,
+              flowKey,
+              companyId: c,
+              startedAt: new Date(trailStart).toISOString(),
+              endedAt: new Date().toISOString(),
+              durationMs: Date.now() - trailStart,
+              exitCode: e.type === "done" ? (e.exitCode ?? null) : null,
+              steps: trail.all(),
+              stoppedAt: trail.lastMeaningful(),
+            });
             // The verdict is the point of the run — a journey that failed
             // because the API 500'd is a very different result from one that
             // failed because a selector moved, and the dashboard should say so.
+            //
+            // Sent BEFORE the end event, because the browser closes the stream
+            // the moment it sees `done`: anything written after it is dropped,
+            // which is how the Oracle's verdicts stopped reaching the page.
             try {
               const verdicts = readRunVerdicts(uiRunId);
               if (verdicts.length) send("verdicts", { runId: uiRunId, verdicts });
             } catch {
               /* no findings written — nothing to add */
             }
-            res.end();
           }
+          // The client needs the run id to open this run's own report — carried
+          // on the end event only, so every other event keeps its plain shape.
+          send(e.type, ending ? { ...e, runId: uiRunId } : e);
+          if (ending) res.end();
         },
       );
       req.on("close", () => stop());
@@ -413,16 +593,19 @@ const server = createServer(async (req, res) => {
             headed,
           },
           (e) => {
-            send(e.type, e);
-            if (e.type === "done" || e.type === "error") {
-              // 4 · Judge. The verdict, not the exit code, is the answer.
+            const ending = e.type === "done" || e.type === "run-error";
+            if (ending) {
+              // 4 · Judge. The verdict, not the exit code, is the answer — and
+              // it goes out before `done`, which closes the stream at the far
+              // end and would take the verdict with it.
               try {
                 send("verdicts", { runId: uiRunId, verdicts: readRunVerdicts(uiRunId) });
               } catch {
                 /* nothing recorded */
               }
-              res.end();
             }
+            send(e.type, e);
+            if (ending) res.end();
           },
         );
         req.on("close", () => stop());
@@ -438,6 +621,8 @@ const server = createServer(async (req, res) => {
       const testCase = (url.searchParams.get("q") ?? "").trim();
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const headed = url.searchParams.get("headed") !== "0";
+      const showLogin = url.searchParams.get("login") === "1";
+      const slowMo = Number(url.searchParams.get("slowmo") ?? 0) || 0;
       const dryRun = url.searchParams.get("dry") === "1";
       res.writeHead(200, {
         "content-type": "text/event-stream",
@@ -460,6 +645,8 @@ const server = createServer(async (req, res) => {
           reasoning: compiled.reasoning,
           source: compiled.source,
           warnings: compiled.warnings,
+          coverage: compiled.coverage,
+          gaps: compiled.gaps,
           context: {
             expectations: compiled.context.expectations.length,
             experience: compiled.context.experience.length,
@@ -467,6 +654,13 @@ const server = createServer(async (req, res) => {
         });
         if (dryRun) {
           send("done", { exitCode: 0 });
+          res.end();
+          return;
+        }
+        // An empty plan would "pass" in zero steps. Say what is missing instead.
+        if (compiled.coverage === "none" || !compiled.plan.steps.length) {
+          send("log", { line: `[plan] not run — the automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}` });
+          send("done", { exitCode: 0, notRun: true });
           res.end();
           return;
         }
@@ -500,9 +694,13 @@ const server = createServer(async (req, res) => {
 
         const runId = `plan-${Date.now().toString(36)}`;
         send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
-        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
-          send(e.type, e);
-          if (e.type === "done" || e.type === "error") {
+        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
+          const ending = e.type === "done" || e.type === "run-error";
+          if (ending) {
+            // The result and the verdict go out before the end event: the
+            // browser closes the stream on `done`, so anything written after
+            // it is dropped — which is how a finished plan arrived with no
+            // steps and no verdict attached.
             const result = readPlanResult(runId);
             if (result) send("plan-result", result);
             try {
@@ -510,8 +708,9 @@ const server = createServer(async (req, res) => {
             } catch {
               /* nothing recorded */
             }
-            res.end();
           }
+          send(e.type, e);
+          if (ending) res.end();
         });
         req.on("close", () => stop());
       } catch (err: any) {
@@ -545,7 +744,7 @@ const server = createServer(async (req, res) => {
       }
       const { stop } = runTeach({ stuckId, instruction, headed }, (e) => {
         send(e.type, e);
-        if (e.type === "done" || e.type === "error") {
+        if (e.type === "done" || e.type === "run-error") {
           // Show what the store holds now, so the improvement is visible.
           send("learned", { learned: readLearned() });
           res.end();
@@ -620,10 +819,26 @@ const server = createServer(async (req, res) => {
     if (path === "/api/features-run") {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const ids = (url.searchParams.get("features") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-      const withFlows = url.searchParams.get("flows") === "1";
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      const client = await openClientContext(c);
+      /**
+       * A run of nothing is not a clean run.
+       *
+       * With no features named this answered `ok: true, total: 0` — the same
+       * shape a passing run has, so a caller that lost its parameter on the
+       * way (a mis-sliced list, a dropped query string) was told everything
+       * was fine. Nothing was tested; say that instead.
+       */
+      if (!ids.length) {
+        send("run-error", {
+          line: "no features were given, so nothing was run — tick at least one feature first",
+        });
+        send("done", { ok: false, total: 0, ran: false });
+        return res.end();
+      }
+      let client = await openClientContext(c);
+      /** Contexts replaced mid-run; disposed together once the run ends. */
+      const stale: Array<{ dispose?: () => Promise<unknown> }> = [];
       try {
         const cases = casesForFeatures(ids);
         // Read real ids (a PR, a vendor, a category, a city…) out of the live
@@ -633,7 +848,16 @@ const server = createServer(async (req, res) => {
           allowExistingRecordWrites: url.searchParams.get("allowWrites") === "1",
         });
         const actor = await resolveActor(client);
-        const { checks, skipped } = buildChecksFromCases(client, cases, caseCtx, actor);
+        const { checks, skipped, deferred } = buildChecksFromCases(client, cases, caseCtx, actor);
+        /**
+         * Ids created by this run, for the cases that come after.
+         *
+         * A case set usually opens by creating the record the rest of it acts
+         * on. Resolving placeholders only before the run meant those later
+         * cases were skipped every time — the RFQ set ran 1 of 3 cases, and
+         * the two it skipped included an injection test.
+         */
+        const liveCtx: Record<string, unknown> = { ...caseCtx };
 
         // Read this company's live configuration and drop the checks for
         // features it doesn't have switched on. Without this, a feature that is
@@ -680,38 +904,149 @@ const server = createServer(async (req, res) => {
         });
         checks.length = 0;
         checks.push(...runnable);
-        send("plan", { features: ids, cases: cases.length, runnable: checks.length, skipped });
-
-        // Optional: also run the real end-to-end journeys for ticked features.
-        if (withFlows && isTokenClient(c)) {
-          send("flow", {
-            flowId: "(all)",
-            status: "error",
-            message:
-              `${tokenClient(c)?.name} is a sandbox deployment with no UAT database behind it, ` +
-              `so the end-to-end journeys cannot run for it. Its API test cases still do.`,
-          });
-        } else if (withFlows) {
-          const flowIds = [...new Set(ids.map((id) => findFeature(id)?.flowId).filter(Boolean))] as string[];
-          for (const f of flowIds) {
-            send("flow", { flowId: f, status: "running" });
-            try {
-              const [r] = await runSelected(client, [f]);
-              send("flow", { flowId: f, status: "done", result: r });
-            } catch (e: any) {
-              send("flow", { flowId: f, status: "error", message: e?.message ?? String(e) });
-            }
-          }
-        }
+        // Deferred cases are expected to run, so the reader's denominator
+        // counts them rather than jumping when they do.
+        send("plan", {
+          features: ids,
+          cases: cases.length,
+          runnable: runnable.length + deferred.length,
+          skipped,
+        });
 
         let done = 0;
         const results: CheckResult[] = [];
         const startedAt = Date.now();
-        for (const chk of checks) {
-          const result = await runCheck(client, chk);
+        const harvest = (data: unknown, chk: Check) =>
+          Object.assign(liveCtx, idsFromReply(chk.request?.path ?? "", data));
+
+        const plannedTotal = runnable.length + deferred.length;
+
+        /**
+         * A DEAD SESSION IS NOTICED, NOT GROUND THROUGH.
+         *
+         * Sessions on this environment age out in minutes, and a 250-case run
+         * takes longer than that. Measured on a full sweep: the session died
+         * after 65 checks, and the platform carried on firing the remaining 93
+         * — every one of them a 401, every one recorded "inconclusive", none
+         * of them testing anything — for another 39 seconds, and then reported
+         * `ok: true`. Half a run of noise, presented as a clean result.
+         *
+         * Three consecutive auth failures is not a flake, it is the credential
+         * being gone. Log in again and carry on; if the second session is
+         * refused too, stop and say how far it got rather than filling the
+         * report with checks that never ran.
+         */
+        let consecutiveAuthFails = 0;
+        /**
+         * Renewing is worth ONE try, and only one.
+         *
+         * The session is not something this platform logs in for — it is read
+         * out of the `sessions` table, freshest first, and belongs to whoever
+         * last signed into that company's web console. So "renewing" re-reads
+         * the database: it helps when a newer row has appeared or the context
+         * itself went stale, and does nothing at all when the only session
+         * there has expired server-side. Twelve renewals proved that the hard
+         * way — 12 attempts, 36 checks spent failing, and it still stopped.
+         *
+         * One retry, then stop and name the only thing that actually fixes it.
+         */
+        let renewals = 0;
+        const MAX_RENEWALS = 1;
+        let stoppedEarly: string | null = null;
+
+        const isAuthFailure = (r: CheckResult) =>
+          r.httpStatus === 401 || /authentication failed/i.test(String(r.message ?? ""));
+
+        const runOne = async (chk: any): Promise<CheckResult | null> => {
+          const result = await runCheck(client, chk, harvest);
+          if (!isAuthFailure(result)) {
+            consecutiveAuthFails = 0;
+            return result;
+          }
+          if (++consecutiveAuthFails < 3) return result;
+
+          if (renewals < MAX_RENEWALS) {
+            renewals += 1;
+            send("note", {
+              line: `the session expired — signing in again and carrying on (renewal ${renewals})`,
+            });
+            try {
+              /**
+               * The old context is kept until the run is over, not disposed
+               * here. These clients share a Playwright request context, so
+               * tearing the stale one down mid-run closed the new one with it
+               * — "Target page, context or browser has been closed" on the
+               * next twenty-one checks. Dropped on the floor here, cleaned up
+               * in the `finally` once nothing is using it.
+               */
+              stale.push(client);
+              client = await openClientContext(c);
+              consecutiveAuthFails = 0;
+              // Re-run the one that exposed it, now that there is a session.
+              return await runCheck(client, chk, harvest);
+            } catch (err) {
+              stoppedEarly =
+                `the session expired and signing in again failed (${(err as Error).message}) — ` +
+                `stopped after ${done} check(s)`;
+              return null;
+            }
+          }
+          stoppedEarly =
+            `the session expired after ${done} check(s) and the database has no fresher one — re-reading it ` +
+            `returned the same dead session. Someone needs to log into this company's web console, which ` +
+            `writes a new session row; then run this again. Nothing after this point was attempted, because ` +
+            `every call would have been a 401 and proved nothing.`;
+          return null;
+        };
+
+        for (const chk of runnable) {
+          const result = await runOne(chk);
+          if (!result) break;
           results.push(result);
           send("check", { check: result });
-          send("progress", { done: ++done, total: checks.length });
+          send("progress", { done: ++done, total: plannedTotal });
+        }
+
+        /**
+         * Now the cases that were waiting on a record this run created.
+         *
+         * Repeated while it keeps unblocking something, so a chain deeper than
+         * one step resolves too. Whatever is still unresolved at the end is
+         * reported as skipped with its original reason — never silently lost.
+         */
+        let waiting = deferred;
+        while (waiting.length) {
+          const built = buildChecksFromCases(
+            client,
+            waiting.map((d) => d.record),
+            liveCtx,
+            actor,
+          );
+          if (!built.checks.length) {
+            for (const d of waiting) {
+              skipped.push({
+                id: d.record.id,
+                title: d.record.title,
+                reason:
+                  `needs ${d.needs.join(", ")}, which no case in this run produced — ` +
+                  "tick the case that creates it, or run the feature that does",
+              });
+            }
+            send("skips", { skipped });
+            break;
+          }
+          if (stoppedEarly) break;
+          for (const chk of built.checks) {
+            const result = await runOne(chk);
+            if (!result) break;
+            results.push(result);
+            send("check", { check: result });
+            send("progress", { done: ++done, total: Math.max(plannedTotal, done) });
+          }
+          if (stoppedEarly) break;
+          const ran = new Set(built.checks.map((c) => c.id));
+          waiting = built.deferred.filter((d) => !ran.has(d.record.id));
+          if (built.skipped.length) skipped.push(...built.skipped);
         }
 
         /**
@@ -741,11 +1076,23 @@ const server = createServer(async (req, res) => {
           checkResults: results,
         });
 
-        send("done", { ok: true, total: checks.length, runId: savedRunId });
+        // What actually ran, including the cases that were waiting on a record
+        // an earlier case created.
+        // A run cut short by a dead credential is not `ok`, and the reader is
+        // owed the reason rather than a total that quietly falls short.
+        if (stoppedEarly) send("run-error", { line: stoppedEarly });
+        send("done", {
+          ok: !stoppedEarly,
+          total: results.length,
+          planned: plannedTotal,
+          stoppedEarly,
+          runId: savedRunId,
+        });
       } catch (err: any) {
         send("fatal", { message: err?.message ?? String(err) });
       } finally {
         await client.dispose().catch(() => {});
+        for (const old of stale) await old.dispose?.().catch?.(() => {});
       }
       return res.end();
     }
@@ -788,6 +1135,8 @@ const server = createServer(async (req, res) => {
         .filter(Boolean);
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const headed = url.searchParams.get("headed") !== "0";
+      const showLogin = url.searchParams.get("login") === "1";
+      const slowMo = Number(url.searchParams.get("slowmo") ?? 0) || 0;
       res.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
@@ -810,10 +1159,12 @@ const server = createServer(async (req, res) => {
         cases: picked.map((k) => ({ id: k.id, title: k.title, layer: k.layer, route: routeFor(k) })),
       });
 
+      let index = 0;
       for (const k of picked) {
         if (cancelled) break;
+        index += 1;
         const route = routeFor(k);
-        send("case", { id: k.id, title: k.title, status: "running", route });
+        send("case", { id: k.id, title: k.title, status: "running", route, index, total: picked.length });
 
         if (!route.runnable) {
           send("case", { id: k.id, status: "not-run", route, reason: route.because });
@@ -873,7 +1224,8 @@ const server = createServer(async (req, res) => {
             await new Promise<void>((resolve) => {
               const { stop } = runUiFlow({ flowKey: route.target!, companyId: c, runId, headed }, (e) => {
                 if (e.type === "log") send("note", { id: k.id, line: e.line });
-                if (e.type === "done" || e.type === "error") {
+                if (e.type === "queued") send("queued", { id: k.id, line: e.line });
+                if (e.type === "done" || e.type === "run-error") {
                   send("case", {
                     id: k.id,
                     status: e.exitCode === 0 ? "passed" : "failed",
@@ -900,21 +1252,40 @@ const server = createServer(async (req, res) => {
             steps: compiled.plan.steps,
             warnings: compiled.warnings,
             source: compiled.source,
+            coverage: compiled.coverage,
+            gaps: compiled.gaps,
           });
+          // No step can observe what this case is about. Running the nearest
+          // steps would produce a green tick that means nothing — so it is
+          // reported as untestable, and the gap is on the ledger to build.
+          if (compiled.coverage === "none") {
+            send("case", {
+              id: k.id,
+              status: "not-run",
+              route,
+              reason: `the automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}`,
+            });
+            continue;
+          }
+          const partial = compiled.coverage === "partial";
           const runId = `case-${k.id}-${Date.now().toString(36)}`;
           await new Promise<void>((resolve) => {
-            const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
+            const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
               if (e.type === "log") send("note", { id: k.id, line: e.line });
-              if (e.type === "done" || e.type === "error") {
+              if (e.type === "queued") send("queued", { id: k.id, line: e.line });
+              if (e.type === "done" || e.type === "run-error") {
                 const result = readPlanResult(runId) as { steps?: Array<{ status?: string }> } | null;
                 const steps = result?.steps;
+                const stepSummary = steps
+                  ? `${steps.filter((s) => s.status === "ok").length}/${steps.length} steps`
+                  : `plan exited ${e.exitCode ?? "?"}`;
+                // A partial plan that passes is not this case passing.
+                const passed = e.exitCode === 0;
                 send("case", {
                   id: k.id,
-                  status: e.exitCode === 0 ? "passed" : "failed",
+                  status: passed ? (partial ? "partial" : "passed") : "failed",
                   route,
-                  summary: steps
-                    ? `${steps.filter((s) => s.status === "ok").length}/${steps.length} steps`
-                    : `plan exited ${e.exitCode ?? "?"}`,
+                  summary: partial && passed ? `${stepSummary} — but only part of the case is covered (no step for: ${compiled.gaps.join("; ")})` : stepSummary,
                   planResult: result,
                 });
                 resolve();
@@ -1114,23 +1485,33 @@ const server = createServer(async (req, res) => {
         : undefined;
       if (!account) return json(res, { ...summary, account: null, suiteClient: null });
 
-      // Check the credential now, so the UI can say "this will not run" before
-      // anyone presses a button that writes real data.
-      let token: { ok: boolean; status?: number; message?: string };
+      /**
+       * Get a working credential now, so the UI can say "this will not run"
+       * before anyone presses a button that writes real data.
+       *
+       * An expired token is no longer a dead end: this account can log itself
+       * in, so `resolveToken` tries the stored one and mints a fresh one when
+       * it has aged out. Only a login that fails outright is worth reporting.
+       */
+      let token: { ok: boolean; status?: number; message?: string; source?: string };
       try {
-        token = await checkToken({
-          apiBaseUrl: account.apiBaseUrl,
-          headerName: account.headerName,
-          appVersion: account.appVersion,
-          token: readToken(account),
-        });
+        const resolved = await resolveToken(account);
+        token = {
+          ...(await checkToken({
+            apiBaseUrl: account.apiBaseUrl,
+            headerName: account.headerName,
+            appVersion: account.appVersion,
+            token: resolved.token,
+          })),
+          source: resolved.source,
+        };
       } catch (err) {
         token = { ok: false, message: (err as Error).message };
       }
       return json(res, {
         ...summary,
         account: account.name,
-        suiteClient: "procol_sandbox_demo",
+        suiteClient: account.suiteClientId ?? null,
         token,
         tokenVar: account.tokenVar,
       });
@@ -1186,7 +1567,58 @@ const server = createServer(async (req, res) => {
       });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       const submit = url.searchParams.get("submit") !== "0";
-      const run = runPoFlow({ clientId: "procol_sandbox_demo", submit }, (e) => send(e.type, e));
+      /**
+       * Hand the run a token that works right now — for the account SELECTED.
+       *
+       * Both halves of this used to name the sandbox outright: the token was
+       * resolved for company 900001 whatever was picked, and the flow ran with
+       * `--client procol_sandbox_demo`. So an account with a working login
+       * could not be run at all, and the one that could be run had no login.
+       *
+       * The suite would otherwise read the .env copy, which is the one that
+       * expires — the run would get as far as the first call and stop on a
+       * 401. Logging in takes two requests and about a second; a failed run
+       * against a live tenant costs far more than that.
+       */
+      if (!account.suiteClientId) {
+        send("run-error", {
+          line: `${account.name} has no purchase-order flow configured in the API suite.`,
+        });
+        return res.end();
+      }
+      let fresh: { token: string; source: string } | null = null;
+      try {
+        fresh = await resolveToken(account);
+        if (fresh.source === "minted")
+          send("log", { line: "· the stored token had expired — logged in and minted a fresh one" });
+      } catch (err) {
+        send("run-error", {
+          line: `could not get a working token for ${account.name}: ${(err as Error).message}`,
+        });
+        return res.end();
+      }
+      /**
+       * Every PO run gets an id of its own.
+       *
+       * Without one there was nothing to hang this run's reports off, so the
+       * "Bug sheet" button after a PO run opened the platform's whole standing
+       * sheet — every finding ever filed, from every module — instead of what
+       * had just happened.
+       */
+      const poRunId = `po-${Date.now().toString(36)}`;
+      send("log", { line: `· run id ${poRunId}` });
+      const run = runPoFlow(
+        {
+          clientId: account.suiteClientId,
+          submit,
+          tokenVar: account.tokenVar,
+          token: fresh?.token,
+          runId: poRunId,
+          companyId: c,
+          companyName: account.name,
+        },
+        (e) => send(e.type, { ...e, runId: e.runId ?? poRunId }),
+      );
       req.on("close", () => run.stop());
       return;
     }
@@ -1223,6 +1655,25 @@ const server = createServer(async (req, res) => {
     // and the curl for it. Served here so the run and its evidence are one click
     // apart instead of one project apart.
     if (path === "/api/po-report") {
+      /**
+       * One run's report, when the link carries a run id.
+       *
+       * The suite keeps a single file and overwrites it, so opening "the PO
+       * report" from a run finished ten minutes ago showed whichever run had
+       * happened since. Each run's page is kept beside its report now.
+       */
+      const runId = url.searchParams.get("run");
+      if (runId) {
+        const html = readPoRunHtml(runId);
+        if (html) {
+          res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+          return res.end(html);
+        }
+        res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        return res.end(
+          `That run (${runId}) stopped before it wrote a report — its log and its bug sheet are what it left.`,
+        );
+      }
       const file = suiteFile("po-run-report.html");
       if (!file) {
         res.writeHead(404, { "content-type": "text/plain" });
@@ -1235,6 +1686,15 @@ const server = createServer(async (req, res) => {
     // ── API: the UI automation report — what broke, and the screen it broke on ──
     if (path === "/api/ui-report") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      /**
+       * One run, or every journey.
+       *
+       * The page opens this with the run id the moment the browser stops, so
+       * the first thing on screen is the verdict for the thing just run —
+       * and, when it broke, the step it stopped at.
+       */
+      const runId = url.searchParams.get("run");
+      if (runId) return res.end(renderUiRunReport(runId));
       return res.end(renderUiReport());
     }
 
@@ -1297,6 +1757,83 @@ const server = createServer(async (req, res) => {
 
     if (path === "/api/bug-report") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      /**
+       * Scoped to one run when asked.
+       *
+       * Opening the sheet straight after a run and reading someone else's
+       * all-time list — hand-raised PO bugs at the top, after an Intake run —
+       * is how the report stopped answering the question being asked.
+       */
+      const runId = url.searchParams.get("run");
+      if (runId) {
+        const run = getRun(runId);
+        if (run) {
+          return res.end(
+            renderBugSheet(defectsFromRun(runId), {
+              runId,
+              ts: run.ts,
+              request: run.request,
+              companyName: run.companyName,
+              checks: run.checkResults?.length ?? 0,
+            }),
+          );
+        }
+        /**
+         * Not an API run — a PO run.
+         *
+         * Its findings are the calls the app refused, which live in the report
+         * the run filed under its own id. Read before the journey branch
+         * because a PO run has neither checks nor a trail, and would otherwise
+         * fall through to an empty journey sheet.
+         */
+        const poRun = readPoRun(runId);
+        if (poRun) {
+          return res.end(
+            renderBugSheet(defectsFromPoRun(poRun), {
+              runId,
+              ts: poRun.startedAt,
+              request: "PO automation: create a purchase order and take it through approval",
+              companyName: poRun.companyName ?? null,
+              kind: "journey",
+              // "it passed" is about the calls; whether the document got where
+              // it was going is a different question, and the one a reader is
+              // actually asking after a purchase-order run.
+              outcome: poRun.issues?.length
+                ? "the purchase order was created, but the run could not finish the flow"
+                : poRun.exitCode === 0
+                  ? "it passed"
+                  : "it stopped early",
+              // Facts about the run, shown above the bugs and not counted as any.
+              notes: poRun.issues,
+            }),
+          );
+        }
+
+        /**
+         * Not an API run — a browser journey.
+         *
+         * Journeys keep their findings elsewhere (the Oracle writes them per
+         * run into the UI suite), so looking only in the API run store meant a
+         * journey's "Bug sheet" button fell through to the unscoped sheet: the
+         * hand-raised PO list, opened straight after a PR journey. Same
+         * question, different drawer to look in.
+         */
+        const trail = readTrail(runId);
+        const found = summariseFindings().filter((d) => d.runs.includes(runId));
+        return res.end(
+          renderBugSheet(found, {
+            runId,
+            ts: trail?.startedAt,
+            request: trail?.flowKey ? `browser journey: ${trail.flowKey}` : undefined,
+            companyName: trail?.companyId ? String(trail.companyId) : undefined,
+            // No `checks`: a journey has steps, not checks, and the header's
+            // "N checks ran" would be the wrong word for what it counted.
+            kind: "journey",
+            outcome:
+              trail == null ? undefined : trail.exitCode === 0 ? "it passed" : "it broke",
+          }),
+        );
+      }
       return res.end(renderBugSheet());
     }
 
@@ -1308,6 +1845,30 @@ const server = createServer(async (req, res) => {
       }
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       return res.end(readFileSync(sheet));
+    }
+
+    /**
+     * WHICH BUILD OF THE PAGE THIS IS.
+     *
+     * The static files are sent `no-store`, which stops a browser CACHING
+     * them — and does nothing at all for a tab that loaded them an hour ago
+     * and has been open ever since. That tab keeps running the JavaScript it
+     * started with, so a fix lands on disk, the server serves it, and the
+     * reader is still looking at the old page wondering why nothing changed.
+     * It has already cost one round trip of "I fixed that" / "no you didn't".
+     *
+     * The page polls this and reloads itself when the answer changes.
+     */
+    if (path === "/api/build") {
+      const parts = ["index.html", "app.js", "styles.css"].map((name) => {
+        try {
+          const st = statSync(join(PUBLIC, name));
+          return `${name}:${st.mtimeMs}:${st.size}`;
+        } catch {
+          return `${name}:absent`;
+        }
+      });
+      return json(res, { version: parts.join("|") });
     }
 
     // ── static files ──
@@ -1365,6 +1926,9 @@ function json(res: any, body: any) {
 }
 
 server.listen(PORT, () => {
+  // Settle which embedder is really available before anything reads the
+  // memory, so the dashboard's stale/fresh verdict is about reality.
+  ensureEmbedderReady().then((id) => console.log(`   Embedder: ${id}`)).catch(() => {});
   console.log(`\n🚀 Procol QA platform UI  →  http://localhost:${PORT}`);
   console.log(`   AI provider: ${providerLabel()}\n`);
 });

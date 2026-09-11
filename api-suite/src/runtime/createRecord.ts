@@ -137,15 +137,27 @@ export async function submitDocument(
   // the platform declines to say.
   // Also performs the status transition where a tenant gates approval on it.
   const applicable = await makeSubmittable(client, datasource, recordUuid);
-  const flowUuid = applicable.uuid ?? datasource.approvalFlowUuid;
+  /**
+   * The configured uuid is a fallback for SILENCE, not an override of a "no".
+   *
+   * When the platform has looked at this record and said no flow applies,
+   * submitting into a flow uuid captured months ago is not a second opinion —
+   * it is asking a question that has been answered and getting "Invalid
+   * Approval" back. The fallback belongs only where the platform declined to
+   * answer at all.
+   */
+  const flowUuid = applicable.uuid ?? (applicable.answered ? undefined : datasource.approvalFlowUuid);
 
   if (!flowUuid && !applicable.applicable) {
     return {
       ok: false, status: 0, durationMs: 0,
       error:
-        `${datasource.keyAttribute} record ${recordUuid} is not eligible for approval yet ` +
-        `(approval_applicable=false, ${applicable.count} flow(s) offered). Its values do ` +
-        `not satisfy any flow's conditions — check the mandatory driver fields.`,
+        `${datasource.keyAttribute} record ${recordUuid} is not eligible for approval` +
+        (applicable.transitioned ? ` even after moving it to "${applicable.transitioned}"` : "") +
+        `: the platform reports approval_applicable=false with ${applicable.count} flow(s) offered. ` +
+        `Every mandatory field is set, so this is the account's own approval rules — no flow on it ` +
+        `accepts a document raised by this user. Check that the login belongs to a team named as an ` +
+        `initiator on a flow for ${datasource.keyAttribute}.`,
     };
   }
 

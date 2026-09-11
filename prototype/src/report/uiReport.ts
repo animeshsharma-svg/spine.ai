@@ -26,6 +26,15 @@ import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const UI_TESTS_DIR = join(here, "..", "..", "..", "procol-ui-tests");
 const FINDINGS_DIR = join(UI_TESTS_DIR, "findings");
+/**
+ * The purchase-to-bill suite keeps its own records.
+ *
+ * Each browser suite writes beside itself rather than into a sibling's folder,
+ * so the platform is the thing that knows about both. Reading only the first
+ * is why a 3-way-match run that went start to finish still had no report.
+ */
+const THREE_WAY_FINDINGS = join(here, "..", "..", "..", "three-way-match", "findings");
+const FINDING_DIRS = [FINDINGS_DIR, THREE_WAY_FINDINGS];
 
 interface UiEvidence {
   flowKey: string;
@@ -71,6 +80,12 @@ export interface UiResult {
   error?: string;
   httpFailures?: number;
   toasts?: number;
+  /**
+   * Survivable oddities the journey saw: a dropdown that closed itself, a
+   * value that vanished and came back, a field that needed three attempts.
+   * None of these fail a run, and all of them are worth reading.
+   */
+  observations?: Array<{ kind: string; detail: string; at?: string; field?: string; value?: string; attempts?: number }>;
 }
 
 /**
@@ -79,23 +94,76 @@ export interface UiResult {
  * A pass leaves no finding, so without these a green run produced an empty
  * report — the one time someone definitely goes looking for it.
  */
-export function loadUiResults(): UiResult[] {
-  const dir = join(FINDINGS_DIR, "results");
-  if (!existsSync(dir)) return [];
+/**
+ * EVERY result on disk, uncollapsed.
+ *
+ * `loadUiResults` keeps the newest per journey, which is right for "what is
+ * the state of things" and wrong for counting: a wobble seen on six runs is
+ * six occurrences, and collapsing first would report it as one.
+ */
+export function loadAllUiResults(): UiResult[] {
   const all: UiResult[] = [];
-  for (const name of readdirSync(dir)) {
-    if (!name.endsWith(".json")) continue;
-    try {
-      const parsed = JSON.parse(readFileSync(join(dir, name), "utf8")) as UiResult;
-      if (parsed?.flowKey) all.push(parsed);
-    } catch {
-      /* skip a half-written file */
+  for (const findings of FINDING_DIRS) {
+    const dir = join(findings, "results");
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith(".json")) continue;
+      try {
+        const parsed = JSON.parse(readFileSync(join(dir, name), "utf8")) as UiResult;
+        if (parsed?.flowKey) all.push(parsed);
+      } catch {
+        /* skip a half-written file */
+      }
+    }
+  }
+  return all.sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
+}
+
+export function loadUiResults(): UiResult[] {
+  const all: UiResult[] = [];
+  for (const findings of FINDING_DIRS) {
+    const dir = join(findings, "results");
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith(".json")) continue;
+      try {
+        const parsed = JSON.parse(readFileSync(join(dir, name), "utf8")) as UiResult;
+        if (parsed?.flowKey) all.push(parsed);
+      } catch {
+        /* skip a half-written file */
+      }
     }
   }
   all.sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
   const latest = new Map<string, UiResult>();
   for (const r of all) if (!latest.has(r.flowKey)) latest.set(r.flowKey, r);
   return [...latest.values()];
+}
+
+/**
+ * ONE run's record, by id — not the newest for its journey.
+ *
+ * `loadUiResults` deliberately keeps only the latest result per journey, which
+ * is right for "what is the state of everything" and wrong for "show me THAT
+ * run": opening an older run's report through it returned nothing the moment a
+ * newer run of the same journey existed, so its screenshot, duration and
+ * verdict vanished and only the trail was left.
+ */
+export function findUiResult(runId: string): UiResult | undefined {
+  for (const findings of FINDING_DIRS) {
+    const dir = join(findings, "results");
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith(".json")) continue;
+      try {
+        const parsed = JSON.parse(readFileSync(join(dir, name), "utf8")) as UiResult;
+        if (parsed?.runId === runId) return parsed;
+      } catch {
+        /* skip a half-written file */
+      }
+    }
+  }
+  return undefined;
 }
 
 /** Findings on disk, newest first. One file per finding, written by the run. */
@@ -117,8 +185,13 @@ export function loadUiFindings(): UiFinding[] {
 /** Absolute path of a finding's screenshot, if it kept one. */
 export function uiShotPath(relative: string): string | undefined {
   if (/(^|\/)\.\./.test(relative)) return undefined;
-  const full = join(FINDINGS_DIR, relative);
-  return full.startsWith(FINDINGS_DIR) && existsSync(full) ? full : undefined;
+  // Whichever suite took it. The traversal guard is re-checked per root, so a
+  // second directory widens where a shot may live, not what may be reached.
+  for (const findings of FINDING_DIRS) {
+    const full = join(findings, relative);
+    if (full.startsWith(findings) && existsSync(full)) return full;
+  }
+  return undefined;
 }
 
 /**

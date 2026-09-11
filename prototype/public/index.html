@@ -29,101 +29,35 @@
       </div>
     </header>
 
-    <main>
-      <!-- LEFT: one drawer per automation type, each module opening into its sub-modules -->
-      <section class="col capability">
-        <div class="col-head">
-          <h2>What to test</h2>
-          <span class="hint" id="tree-count">loading…</span>
-        </div>
-        <!-- Folded away: useful once, in the way every day after that. -->
-        <details class="howto">
-          <summary>How this works</summary>
-          <ol>
-            <li><b>Tick</b> what you want tested below.</li>
-            <li><b>Press run.</b> Each test is a real request against UAT.</li>
-            <li><b>Read the report</b> — test report for results, bug sheet for what broke.</li>
-          </ol>
-        </details>
+    <div class="app">
+      <!--
+        The shell.
 
-        <!-- API automation -->
-        <div class="drawer open" id="drawer-api" data-kind="api">
-          <button class="drawer-head" aria-expanded="true" aria-controls="drawer-api-body">
-            <span class="drawer-caret" aria-hidden="true"></span>
-            <span class="drawer-ico" aria-hidden="true">⚡</span>
-            <span class="drawer-title">API tests <small class="drawer-what">no browser</small></span>
-            <span class="drawer-meta" id="api-meta"></span>
-          </button>
-          <div class="drawer-body" id="drawer-api-body">
-            <div class="drawer-bar">
-              <button id="t-run" class="run-btn small primary" title="Runs the ready-made test cases for everything ticked below">▶ Run selected</button>
-              <button id="t-none" class="chip" title="Untick everything">clear</button>
-              <!-- Shown only for an account whose PO module the API suite drives. -->
-              <div class="po-bar" id="po-bar" hidden>
-                <button id="po-run" class="run-btn small primary">▶ Run PO automation</button>
-                <label class="tgl-flow" title="On: the PO is submitted into its approval flow, which is what a buyer would do. Off: it stops after the line items.">
-                  <input type="checkbox" id="po-submit" checked /> <span>submit for approval</span>
-                </label>
-                <p class="po-what" id="po-what"></p>
-              </div>
-              <!-- The purchase-to-bill chain: its own project, its own tenant. -->
-              <div class="po-bar" id="chain-bar" hidden>
-                <button id="chain-run" class="run-btn small">▶ Run PO → Bill</button>
-                <p class="po-what" id="chain-what"></p>
-              </div>
-              <label class="tgl-flow" title="Slower, and it creates real records in UAT: the platform actually creates an event, places a bid and awards it, then checks the database to confirm each step really happened.">
-                <input type="checkbox" id="t-flows" />
-                <span>+ full journey <small>creates real data</small></span>
-              </label>
-            </div>
-            <p class="scope-note" id="tree-scope" hidden></p>
-            <div id="tree" class="modules">
-              <div class="loading">Loading modules…</div>
-            </div>
-          </div>
-        </div>
+        One nav, one view at a time. The old layout put every panel on one
+        screen at once — three columns of unrelated work, which is why it read
+        as scattered. Each view below is a place you go to do one thing, and
+        the nav says where you are. Routing is by hash, so a view can be
+        linked, bookmarked and reached with the back button.
+      -->
+      <nav class="nav" aria-label="Sections">
+        <a class="nav-item" href="#/run" data-view="run"><span class="nav-ico">▶</span><span>Run</span></a>
+        <a class="nav-item" href="#/api" data-view="api"><span class="nav-ico">⚡</span><span>API automation</span></a>
+        <a class="nav-item" href="#/ui" data-view="ui"><span class="nav-ico">🖥</span><span>UI automation</span></a>
+        <a class="nav-item" href="#/cases" data-view="cases"><span class="nav-ico">📚</span><span>Test cases</span></a>
+        <a class="nav-item" href="#/reports" data-view="reports"><span class="nav-ico">📊</span><span>Reports</span></a>
+        <a class="nav-item" href="#/bugs" data-view="bugs"><span class="nav-ico">🐞</span><span>Bugs</span></a>
+        <div class="nav-spacer"></div>
+        <div class="nav-foot" id="nav-foot"></div>
+      </nav>
 
-        <!-- UI automation -->
-        <div class="drawer" id="drawer-ui" data-kind="ui">
-          <button class="drawer-head" aria-expanded="false" aria-controls="drawer-ui-body">
-            <span class="drawer-caret" aria-hidden="true"></span>
-            <span class="drawer-ico" aria-hidden="true">🖥</span>
-            <span class="drawer-title">UI automation <small class="drawer-what">watches a real browser</small></span>
-            <span class="drawer-meta" id="ui-meta"></span>
-          </button>
-          <div class="drawer-body" id="drawer-ui-body">
-            <div class="drawer-bar">
-              <button id="ui-run-sel" class="run-btn small primary" title="Runs the browser journeys for everything ticked below">▶ Run selected</button>
-              <button id="ui-stop" class="chip" title="Stop the running journey">■ stop</button>
-              <button id="ui-none" class="chip">clear</button>
-            </div>
-            <div class="drawer-bar sub">
-              <label class="li-field" title="How many rows to put on a normal event">line items
-                <input type="number" id="li-normal" min="1" value="1" />
-                <span id="li-normal-max" class="li-max"></span>
-              </label>
-              <label class="li-field" title="How many rows to put on a BOQ (bill of quantities) event">BOQ items
-                <input type="number" id="li-boq" min="1" value="10" />
-                <span id="li-boq-max" class="li-max"></span>
-              </label>
-              <label class="tgl-flow" title="On: a browser window opens and you watch it work. Off: it runs invisibly, which is faster.">
-                <input type="checkbox" id="ui-headed" checked /> <span>show the browser</span>
-              </label>
-            </div>
-            <p class="scope-note" id="ui-note" hidden></p>
-            <div id="ui-tree" class="modules">
-              <div class="loading">Loading UI coverage…</div>
-            </div>
-            <div class="drawer-sec">Browser journeys</div>
-            <div id="ui-flows" class="ui-flows">
-              <div class="loading">Loading journeys…</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- CENTER: request + agent timeline -->
-      <section class="col center">
+      <main class="views">
+        <!-- ── Run: ask for something, watch it happen ─────────────── -->
+        <section class="view narrow" id="view-run" data-view="run">
+          <header class="view-head">
+            <h1>Run</h1>
+            <p>Ask in plain English, or run what you have picked under API and UI automation. Everything a run does appears below it.</p>
+          </header>
+          <div class="view-body narrow">
         <div class="request-card big">
           <div class="rc-head">
             <label for="request">Ask the QA platform, or paste a test case</label>
@@ -140,65 +74,17 @@
             <button id="plan-dry" class="chip" title="Compile without running, to see the plan first">plan only</button>
             <span id="status" class="run-status"></span>
           </div>
-          <p class="rc-foot">Runs it in a real browser. To run the ready-made tests instead, tick what you want
-          under <strong>API tests</strong> on the left and press <strong>Run selected tests</strong>.</p>
+          <p class="rc-foot">The platform works out what to test, writes the cases and runs them as real
+          requests — you watch it happen under <strong>Automation run</strong> below. To run the ready-made
+          tests instead, pick them under <strong>API automation</strong> or <strong>UI automation</strong>.</p>
         </div>
-
-
-        <!-- The written catalog — pick cases by hand and run them -->
-        <div class="col-head" style="margin-top: 18px">
-          <h2>Test catalog</h2>
-          <span class="hint" id="cat-hint">648 written cases · tick the ones you want and run them</span>
-        </div>
-        <div class="cat-bar">
-          <div class="cat-tabs">
-            <button class="chip active" data-layer="">all</button>
-            <button class="chip" data-layer="ui">UI</button>
-            <button class="chip" data-layer="api">API</button>
-          </div>
-          <select id="cat-section" class="cat-select" title="Catalog section"><option value="">every section</option></select>
-          <select id="cat-priority" class="cat-select" title="Priority">
-            <option value="">any priority</option>
-            <option value="P0">P0</option>
-            <option value="P1">P1</option>
-            <option value="P2">P2</option>
-            <option value="P3">P3</option>
-          </select>
-          <select id="cat-verdict" class="cat-select" title="What the catalog says to do with it">
-            <option value="">any verdict</option>
-            <option value="automate">automate</option>
-            <option value="automate-later">automate-later</option>
-            <option value="manual">manual</option>
-          </select>
-          <input id="cat-q" class="kb-input" placeholder="search the catalog, e.g. savings column" />
-        </div>
-        <div class="cat-bar">
-          <button id="cat-run" class="run-btn small">▶ Run selected cases</button>
-          <button id="cat-stop" class="chip" title="Stop the run">■ stop</button>
-          <button id="cat-none" class="chip">clear</button>
-          <label class="tgl-flow" title="Uncheck to run the browser cases without a visible window">
-            <input type="checkbox" id="cat-headed" checked /> watch it
-          </label>
-          <span id="cat-count" class="cat-count"></span>
-        </div>
-        <div id="cat-list" class="cat-list">
-          <div class="loading">Loading the catalog…</div>
-        </div>
-        <div id="cat-run-out" class="cat-run-out" hidden></div>
-
-        <div class="col-head">
-          <h2>Agent reasoning</h2>
-          <span class="hint">live · 7 agents · critic can loop back</span>
-        </div>
-        <div id="timeline" class="timeline">
-          <div class="empty">The agents' reasoning will stream here as they work.</div>
-        </div>
-
         <div class="col-head" style="margin-top: 18px">
           <h2>Automation run</h2>
           <span class="hint" id="auto-counts">real requests against UAT — each check is live</span>
         </div>
-        <div class="auto-controls">
+        <!-- Filters for a list that does not exist yet are furniture: hidden
+             until a run puts something here to filter. -->
+        <div class="auto-controls" id="auto-controls" hidden>
           <button id="f-all" class="chip active">All</button>
           <button id="f-fail" class="chip">Failed only</button>
           <span id="auto-summary" class="auto-summary"></span>
@@ -217,22 +103,162 @@
           <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
         </div>
 
-        <div id="ui-console" class="ui-console" hidden></div>
+        <!-- A journey, read as a journey. The raw Playwright output is still
+             one click away, because when something breaks that is what you need. -->
+        <div id="ui-steps" class="ui-steps" hidden></div>
+        <details id="ui-raw" class="ui-raw" hidden>
+          <summary><span class="ui-raw-label">Raw output</span><span class="ui-raw-n" id="ui-raw-n"></span></summary>
+          <div id="ui-console" class="ui-console"></div>
+        </details>
 
-      </section>
-
-      <!-- RIGHT: results + report + history -->
-      <section class="col results">
         <div class="col-head">
-          <h2>Reports</h2>
-          <span class="hint">what the last runs found</span>
+          <h2>Agent reasoning</h2>
+          <span class="hint">live · 7 agents · critic can loop back</span>
         </div>
+        <div id="timeline" class="timeline">
+          <div class="empty">The agents' reasoning will stream here as they work.</div>
+        </div>
+          </div>
+        </section>
+
+        <!-- ── API automation ──────────────────────────────────────── -->
+        <section class="view" id="view-api" data-view="api">
+          <header class="view-head">
+            <h1>API automation</h1>
+            <p>Ready-made cases that call the product's API directly. Pick what to test; only features with cases written for them can be selected.</p>
+          </header>
+          <div class="view-body">
+        <!-- Folded away: useful once, in the way every day after that. -->
+        <details class="howto">
+          <summary>How this works</summary>
+          <ol>
+            <li><b>Tick</b> what you want tested below.</li>
+            <li><b>Press run.</b> Each test is a real request against UAT.</li>
+            <li><b>Read the report</b> — test report for results, bug sheet for what broke.</li>
+          </ol>
+        </details>
+        <!-- API automation -->
+        <div class="drawer open" id="drawer-api" data-kind="api">
+          <button class="drawer-head" aria-expanded="true" aria-controls="drawer-api-body">
+            <span class="drawer-caret" aria-hidden="true"></span>
+            <span class="drawer-ico" aria-hidden="true">⚡</span>
+            <span class="drawer-title">API tests <small class="drawer-what">no browser</small></span>
+            <span class="drawer-meta" id="api-meta"></span>
+          </button>
+          <div class="drawer-body" id="drawer-api-body">
+            <div class="drawer-bar" id="api-run-bar">
+              <button id="t-run" class="run-btn small primary" title="Runs the ready-made test cases for everything ticked below">▶ Run selected</button>
+              <button id="t-none" class="chip" title="Untick everything">clear</button>
+            </div>
+            <!-- Its own block, not a second button in the row above: this runs
+                 a different thing from the ticked test cases, and two bare
+                 "run" buttons side by side read as a choice nobody can make. -->
+            <div class="po-bar" id="po-bar" hidden>
+              <!-- Two buttons on this account cover the same business flow from
+                   opposite ends, and nothing said so: this one calls the API,
+                   the journey under UI automation drives a browser. Each now
+                   names what it is and points at the other. -->
+              <div class="po-head">Create a purchase order · through the API, no browser</div>
+              <div class="po-row">
+                <button id="po-run" class="run-btn small primary">▶ Run PO automation</button>
+              </div>
+              <p class="po-what" id="po-what"></p>
+              <p class="po-what po-sibling" id="po-sibling" hidden></p>
+            </div>
+            <p class="scope-note" id="tree-scope" hidden></p>
+            <p class="tree-count" id="tree-count"></p>
+            <div id="tree" class="modules">
+              <div class="loading">Loading modules…</div>
+            </div>
+          </div>
+        </div>
+          </div>
+        </section>
+
+        <!-- ── UI automation ───────────────────────────────────────── -->
+        <section class="view" id="view-ui" data-view="ui">
+          <header class="view-head">
+            <h1>UI automation</h1>
+            <p>Journeys that sign in and click through Procol like a person. A journey has to be built before it can run — the rest are listed so the gap is visible.</p>
+          </header>
+          <div class="view-body">
+        <!-- UI automation -->
+        <div class="drawer" id="drawer-ui" data-kind="ui">
+          <button class="drawer-head" aria-expanded="false" aria-controls="drawer-ui-body">
+            <span class="drawer-caret" aria-hidden="true"></span>
+            <span class="drawer-ico" aria-hidden="true">🖥</span>
+            <span class="drawer-title">UI automation <small class="drawer-what">watches a real browser</small></span>
+            <span class="drawer-meta" id="ui-meta"></span>
+          </button>
+          <div class="drawer-body" id="drawer-ui-body">
+            <div class="drawer-bar">
+              <button id="ui-run-sel" class="run-btn small primary" title="Runs the browser journeys for everything ticked below">▶ Run selected</button>
+              <button id="ui-ai" class="run-btn small" title="Reads what you typed in the Run box, works out which journey it means, and runs that one in a browser">🤖 Let the AI pick a journey</button>
+              <button id="ui-stop" class="chip" title="Stop the running journey">■ stop</button>
+              <button id="ui-none" class="chip">clear</button>
+            </div>
+            <div class="drawer-bar sub" id="ui-inputs">
+              <label class="li-field" id="li-normal-field" title="How many rows to put on a normal event">line items
+                <input type="number" id="li-normal" min="1" value="1" />
+                <span id="li-normal-max" class="li-max"></span>
+              </label>
+              <label class="li-field" id="li-boq-field" title="How many rows to put on a BOQ (bill of quantities) event">BOQ items
+                <input type="number" id="li-boq" min="1" value="10" />
+                <span id="li-boq-max" class="li-max"></span>
+              </label>
+              <label class="tgl-flow" title="On: a browser window opens and you watch it work. Off: it runs invisibly, which is faster.">
+                <input type="checkbox" id="ui-headed" checked /> <span>show the browser</span>
+              </label>
+            </div>
+            <p class="scope-note" id="ui-note" hidden></p>
+            <p class="tree-count" id="ui-mode"></p>
+            <div id="ui-tree" class="modules">
+              <div class="loading">Loading UI coverage…</div>
+            </div>
+          </div>
+        </div>
+          </div>
+        </section>
+
+        <!-- ── Purchase-to-bill ────────────────────────────────────── -->
+
+        <!-- ── Test cases ──────────────────────────────────────────── -->
+        <section class="view" id="view-cases" data-view="cases">
+          <header class="view-head">
+            <h1>Test cases</h1>
+            <p>Every case the platform has written down, as it is written. This is the catalogue, not a run — read it to see whether something is already covered.</p>
+          </header>
+          <div class="view-body">
+            <div class="cat-bar">
+              <input id="cat-search" class="cat-search" type="search" placeholder="Search by id, title, endpoint…" />
+              <select id="cat-module" class="cat-select"><option value="">Every module</option></select>
+              <select id="cat-kind" class="cat-select">
+                <option value="">Every kind</option>
+                <option value="accept">Should be accepted</option>
+                <option value="reject">Should be refused</option>
+                <option value="no-5xx">Must not break</option>
+              </select>
+              <span class="hint" id="cat-count"></span>
+            </div>
+            <p class="cat-note" id="cat-note" hidden></p>
+            <div id="catalogue" class="catalogue">
+              <div class="empty">Reading the catalogue…</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Reports ─────────────────────────────────────────────── -->
+        <section class="view" id="view-reports" data-view="reports">
+          <header class="view-head">
+            <h1>Reports</h1>
+            <p>What the last runs found, and every run the platform has kept.</p>
+          </header>
+          <div class="view-body">
         <div class="cap-bar report-links">
           <a id="report-tests" class="chip" href="/api/test-report" target="_blank" rel="noopener">📊 API test report</a>
           <a id="report-ui" class="chip" href="/api/ui-report" target="_blank" rel="noopener">🖥 UI automation report</a>
           <a id="report-sheet" class="chip" href="/api/bug-report" target="_blank" rel="noopener">🐞 Bug sheet</a>
         </div>
-
         <div class="col-head" style="margin-top:16px">
           <h2>Recent runs</h2>
           <span class="hint">every run is kept</span>
@@ -240,7 +266,16 @@
         <div id="history" class="history">
           <div class="empty">No runs saved yet.</div>
         </div>
+          </div>
+        </section>
 
+        <!-- ── Bugs ────────────────────────────────────────────────── -->
+        <section class="view" id="view-bugs" data-view="bugs">
+          <header class="view-head">
+            <h1>Bugs</h1>
+            <p>One row per defect, however many tests hit it. The full sheet is editable — status, priority, owner, comments.</p>
+          </header>
+          <div class="view-body">
         <div class="col-head" style="margin-top:16px">
           <h2>Bugs found</h2>
           <span class="hint" id="findings-hint">one row per bug, however many tests hit it</span>
@@ -250,7 +285,6 @@
         <div id="findings" class="findings">
           <div class="empty">Run a journey — confirmed defects, test gaps and harness issues are separated here.</div>
         </div>
-
         <!-- Stuck points is new and earns its place: a locator that failed,
              taught once, stays fixed. QA memory and the agent "Results &
              report" panel were removed on this branch — the reports carry
@@ -262,8 +296,10 @@
         <div id="stuck" class="findings">
           <div class="empty">Nothing stuck. When a locator fails, it appears here with the screen it failed on.</div>
         </div>
-      </section>
-    </main>
+          </div>
+        </section>
+      </main>
+    </div>
 
     <!-- run-complete dialog: what happened, and where the evidence is -->
     <div id="modal" class="modal" hidden>

@@ -178,7 +178,7 @@ export class CreateEventPage extends BasePage {
         );
         opened = true;
       } catch {
-        await this.pause(300);
+        await this.page.waitForTimeout(150);
       }
     }
     if (!opened) {
@@ -243,29 +243,45 @@ export class CreateEventPage extends BasePage {
     const before = await this.lineItemCountBadge();
     const chipsBefore = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
     let picked = false;
-    for (let attempt = 0; attempt < 3 && !picked; attempt++) {
+    // The CLICK is what retries — up to 3 tries at getting a row to actually
+    // register. Confirming it is a SEPARATE, best-effort question asked only
+    // once a click has genuinely landed.
+    let clickedOnce = false;
+    for (let attempt = 0; attempt < 3 && !clickedOnce; attempt++) {
       // Wait for a populated list before reaching for a row.
       const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.MEDIUM });
       if (!list) {
-        await this.pause(800);
+        await this.page.waitForTimeout(300);
         continue;
       }
-      const clicked = await list
+      clickedOnce = await list
         .first()
         .click({ timeout: 5_000, force: attempt >= 1 })
         .then(() => true)
         .catch(() => false);
-      if (!clicked) {
+      if (!clickedOnce) {
         // Detached or covered; let the list settle and look again.
-        await this.pause(800);
-        continue;
+        await this.pause(300);
       }
+    }
+
+    if (clickedOnce) {
       // Confirm from inside the drawer. Two earlier signals were wrong: the
       // dropdown does NOT close (it is a multi-select, kept open for the next
       // product), and the toolbar badge does not move until the drawer is
       // SAVED. What does change immediately is the chosen product appearing as
       // a chip in the select, and the row marking itself selected.
-      const deadline = Date.now() + 6_000;
+      //
+      // This confirmation is diagnostic, not load-bearing — see below — so the
+      // window it gets is short. It used to be 6 seconds PER ATTEMPT, and a
+      // click that had already landed but produced no visible signal (which
+      // happens on this build) still burned the full budget on all 3 attempts:
+      // 18 real seconds spent confirming something that was never going to be
+      // re-verified this way. Worse, a "retry" at that point re-clicked the
+      // SAME already-picked row — on a multi-select that IS click-to-toggle,
+      // so it risked picking, then un-picking, then re-picking the product.
+      // A click that landed is never repeated now.
+      const deadline = Date.now() + 2_000;
       while (Date.now() < deadline && !picked) {
         const chips = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
         const marked = await p
@@ -273,22 +289,26 @@ export class CreateEventPage extends BasePage {
           .count();
         const badge = await this.lineItemCountBadge();
         if (chips > chipsBefore || marked > 0 || (badge !== null && before !== null && badge > before)) picked = true;
-        else await this.pause(600);
+        else await this.pause(250);
       }
     }
 
-    if (!picked) {
-      // Warn, do not fail. Not seeing a confirmation signal is not proof the
-      // pick failed, and turning it into an error invents a failure mode the
-      // old code never had. The honest oracle is `expect_line_items` once the
-      // drawer is saved — that reads the app's own tally and will catch a
-      // genuine miss with a number rather than a guess.
-      console.log(
-        `[create-event] could not confirm the pick for "${searchText}" from inside the drawer — ` +
-          "continuing; the line-item count is verified after saving",
-      );
+    // A click that landed but showed no confirmation signal is NOT reported.
+    //
+    // It used to print "could not confirm the pick for "a"" on every run, and
+    // that line was pure noise: this build simply doesn't render the signal it
+    // was looking for, the pick works anyway, and the real check — the app's
+    // own line-item tally, read by `expect_line_items` after the drawer is
+    // saved — comes a few steps later and would catch a genuine miss with a
+    // number. A warning nobody can act on, on every single run, trains readers
+    // to ignore warnings. Only a click that never landed is worth saying.
+    if (!clickedOnce) {
+      console.log(`[create-event] could not click a line-item option for "${searchText}" after 3 tries`);
     }
-    await this.pause(500);
+    // The loop above is an early-exiting settle wait, not just a logger: when
+    // it saw the pick register, the drawer has already caught up and waiting
+    // here is time spent for nothing.
+    if (!picked) await this.pause(250);
 
     // Quantity is optional here: on this build the drawer only picks products
     // and quantity is filled in the pricing sheet afterwards. Best-effort, so a
@@ -364,6 +384,39 @@ export class CreateEventPage extends BasePage {
       if (shown) return true;
     }
     return false;
+  }
+
+  /**
+   * Open a stage tab's `⋮` menu for a plan step and report what it holds.
+   *
+   * UI-CRE-010 checks that Delete is disabled while one stage remains; the
+   * item is invisible until this hover menu is open, so a step has to be able
+   * to open it and leave it open for the assertion that follows. Defaults to
+   * the only/first stage tab when none is named.
+   */
+  async openStageMenuFor(stage?: StageKey): Promise<Array<{ label: string; disabled: boolean }>> {
+    await this.dismissDistractions();
+    let target = stage;
+    if (!target) {
+      for (const k of Object.keys(STAGE_LABEL) as StageKey[]) {
+        if (await this.page.getByRole("tab", { name: STAGE_LABEL[k] }).count()) {
+          target = k;
+          break;
+        }
+      }
+    }
+    if (!target || !(await this.openStageMenu(target))) {
+      throw new Error(`could not open the ⋮ menu on the ${target ?? "stage"} tab — no stage tab, or the hover menu did not appear`);
+    }
+    const items = this.stageMenu().getByRole("menuitem");
+    const out: Array<{ label: string; disabled: boolean }> = [];
+    for (const it of await items.all()) {
+      const label = ((await it.textContent()) ?? "").replace(/\s+/g, " ").trim();
+      const aria = await it.getAttribute("aria-disabled").catch(() => null);
+      const cls = (await it.getAttribute("class").catch(() => "")) ?? "";
+      out.push({ label, disabled: aria === "true" || /disabled/.test(cls) });
+    }
+    return out;
   }
 
   /** Delete a stage tab. Returns false when the app refuses (see ensureStages). */
@@ -757,6 +810,30 @@ export class CreateEventPage extends BasePage {
     }
     console.log(`[create-event] template applied: ${chosen}${names.length > 1 ? ` (of ${names.length} offered)` : ""}`);
     return chosen;
+  }
+
+  /**
+   * The keys of the pricing sheet's header row, as rendered.
+   *
+   * `sheet-header-<key>` testids are the template's widget keys made visible,
+   * which is what "the sheet schema comes from the template" means on screen.
+   * Returns [] when no sheet has rendered — an observation, not an error.
+   */
+  async sheetHeaderKeys(): Promise<string[]> {
+    await this.waitForSpinnerHidden();
+    return this.page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-testid^="sheet-header-"]'))
+        .map((el) => (el.getAttribute("data-testid") || "").replace("sheet-header-", ""))
+        .filter((k) => k && !["row_key", "delete"].includes(k)),
+    );
+  }
+
+  /** The template name the stage now shows, or null when the picker is still offering a choice. */
+  async appliedTemplateName(): Promise<string | null> {
+    if (await this.templatePickerPresent()) return null;
+    const trigger = this.page.locator("[class*='templateName'], [data-testid*='template-name'], [class*='selectedTemplate']").first();
+    const text = (await trigger.textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
+    return text || "(applied — name not displayed)";
   }
 
   /** Switch to a stage tab (multi-stage layout). Firm click, tolerant if absent. */
@@ -1594,6 +1671,25 @@ export class CreateEventPage extends BasePage {
   /** Save the event as a draft instead of publishing (allow_draft_project_creation). */
   async saveAsDraft(): Promise<void> {
     await this.dismissDistractions();
+    // The button exists on every create screen but the app DISABLES it until
+    // the event has enough to be worth keeping. A run that only set a title
+    // spent 10s failing to click it and reported a locator problem; the stuck
+    // report's tree read `button "Save as draft" [disabled]`. Read the state
+    // first and say what the screen says, so the report is about the product.
+    const draft = this.page.getByRole("button", { name: /save as draft/i }).first();
+    if (await draft.isVisible({ timeout: TIMEOUTS.SHORT }).catch(() => false)) {
+      const disabled = (await draft.isDisabled().catch(() => false)) || (await draft.getAttribute("aria-disabled")) === "true";
+      if (disabled) {
+        // The button's accessible name is "icon: unordered-list Items 0" — no anchor.
+        const items = (await this.page.getByRole("button", { name: /items\s*\d+/i }).first().textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
+        const picker = await this.templatePickerPresent();
+        throw new Error(
+          `Save as draft is DISABLED on this screen — the app will not keep a draft in this state` +
+            ` (${picker ? "no template selected" : "template selected"}${items ? `, ${items}` : ""}).` +
+            ` Add what the case expects a draft to hold before saving.`,
+        );
+      }
+    }
     await this.click(
       [
         this.page.getByRole("button", { name: /save as draft/i }),

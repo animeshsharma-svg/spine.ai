@@ -54,12 +54,9 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         storageState: AUTH_FILE,
-        // Expose a CDP port so the AI healer (Stagehand) can attach to THIS
-        // browser when a deterministic selector fails, instead of launching a
-        // second one. Only opened when UI_AI_HEAL=1.
-        // The AI healer works purely off Playwright's own accessibility tree,
-        // so it needs no CDP port and no browser extension — nothing to add here.
-        launchOptions: {},
+        // A headed demo wants to be FOLLOWED by eye: UI_SLOWMO=250 spaces every
+        // action out a quarter-second. Verification runs leave it unset.
+        launchOptions: { slowMo: Number(process.env.UI_SLOWMO ?? 0) || 0 },
       },
       dependencies: ["setup"],
     },

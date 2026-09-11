@@ -229,6 +229,120 @@ npm run cases:compile UI-TPL-001
   open_create -> set_title -> select_template -> expect_no_error
 ```
 
+## The automation follows the test cases — and says when it cannot
+
+The compiler no longer just produces a plan; it says **how much of the case
+the plan actually tests**:
+
+| Coverage | What happens |
+|---|---|
+| `full` | Every behaviour the case checks has a step. Runs; can pass. |
+| `partial` | It runs, but something the case asks for has no step yet. The verdict is **PARTIAL**, never PASS. |
+| `none` | The *subject* of the case has no step. It is reported **not run** — running the nearest steps and calling it a pass is the worst possible outcome. |
+
+Everything the compiler could not express goes on a ledger,
+`prototype/data/vocabulary-gaps.json`, shown on the dashboard as **Steps the
+automation still needs**, most-asked-for first. That list is the build order:
+build the top gap as a step, regenerate the vocabulary, and every case that
+needed it compiles without anyone touching it.
+
+```bash
+cd procol-ui-tests && npx tsx scripts/dump-plan-catalog.ts   # publish the vocabulary after adding a step
+```
+
+Worked example, `UI-ENV-002` (the Create Event menu): the compiler said
+*partial — no step to assert which options the menu offers*; two steps were
+built (`expect_create_options`, `expect_url_contains`); the live run then read
+the menu — *Single Stage · eRFX Project · BOQ based RFX Project* — and the
+verdict stayed PARTIAL, because the case's negative branch (tenant flag off)
+still has no step. That is the correct answer.
+
+## Combinations — every event type, reached the way the product reaches it
+
+`prototype/knowledge/events/event-permutations.md` maps what a request can
+legitimately ask for — entry path × stages × auction strategy × line items ×
+vendors × bidding side × awarding rule × outcome — with the screen and the
+steps that reach each, and the combinations that are impossible (RFQ +
+Auction composed on one screen) or conversion-only (knockout, dutch). It is
+indexed into the memory and distilled into the compiler's rules, so a
+sentence like *"single-stage price-based auction, award the whole lot"*
+compiles to `open_create{single-stage} → configure_single_stage{auction,
+price, lot} → …`, and *"convert the published RFQ to an auction"* compiles to
+`compose_stages{rfq} → … → publish → expect_published → convert_to_auction`.
+The executor knows which screen it is on: the same step names — title, template, line items, invite, publish — act through the single-stage page object when the plan is on that screen, so the compiler keeps one vocabulary.
+
+## Counter offers, from the product's own trigger
+
+On a published stage's **Responses** sub-tab (the stage's own comparison
+grid — not the project-level Master QCS, which shows the same bids without
+header actions), each vendor's column header carries the buyer's **Counter
+Offer** button while that bid is live and active; a pending accept/reject
+request or an approval view takes that slot first. `place_counter_offer
+{vendor, price, remark}` waits for the stage page to finish loading, opens
+Responses, presses it, fills the drawer's sheet, adds the remark and sends;
+`expect_counter_offer_sent` reads the mark on the bid. Verified live on 11 September: a 16-step plan from one sentence — publish, vendor bid, Master QCS, counter offer of 90 to AMD, mark on the bid, and a **Revoke Counter Offer** control on screen afterwards. The vendor's acceptance has no step yet and is said so. The
+surrogate drawer, the vendor portal's bid sheet and the counter-offer drawer
+share one sheet filler (`procol-ui-tests/src/support/sheet.ts`).
+
+## Demos: visible login, demo pace
+
+Tick **demo pace + visible login** (headed runs only). The run drops the
+saved session in the *same* window, logs in for real so the OTP flow is
+seen, and spaces every action a quarter-second apart. Verification runs stay
+headless and fast, and the strip at the top narrates them step by step —
+*"Running plan … (headless) — step 4/9 fill sheet"*.
+
+## One browser, one case at a time
+
+Every browser run takes a single process-wide slot
+(`prototype/src/ui/browserSlot.ts`) before spawning Chromium. Start a second
+run and it **queues** — the dashboard says *"waiting for the browser — X is
+using it (position 1)"* — and starts the moment the first finishes. The strip
+at the top of the dashboard shows what holds the browser and for how long.
+Two windows never open again, whichever buttons are pressed.
+
+## Plain-language runs
+
+The catalog panel narrates each run as it happens — *"Testing 2 of 5:
+UI-TPL-001 — … Read the test case and decided on 4 steps: open the eRFX create
+screen → give the event a title → pick a pricing template → check the app
+showed no error"* — with each step ticking in place. Tick **raw log** to see
+Playwright's own output underneath.
+
+## Slingring
+
+Procol's OpenAI-compatible gateway is the primary provider the moment
+`SLINGRING_API_KEY` is in `prototype/.env`:
+
+| Tier | Model | Used for |
+|---|---|---|
+| `reason` | `HACK26_GPT_6_ASTRA` | the compiler — where a wrong answer is a wrong run ($50/1M, spent deliberately) |
+| `fast` | `HACK26_GPT_5_6_LUNA` | routing, narration, the inner loop |
+| embeddings | `HACK26_TEXT_EMBED_3_LARGE` | the QA memory (`npm run rag:build` after adding the key) |
+
+Agent code names a **tier, never a model**. The chain is Slingring → Groq →
+Gemini, every hand-off logged, and the gateway's reported token usage is
+tallied per model at `/api/ai-usage` and on the dashboard strip, so the daily
+allowance is visible rather than discovered at 10am. The memory records which
+embedder built it; add the key after a build and retrieval goes word-only with
+a visible "run `npm run rag:build`" until you do.
+
+**What the gateway actually did on 2026-09-11** (probed, not assumed):
+
+- Every `HACK26_GPT_*` request was served by `azure_ai/Kimi-K2.7-Code`, the
+  gateway's fallback — a *reasoning* model. The client therefore adds a
+  1,500-token reasoning allowance to every budget, treats empty `content` as a
+  failure to hand down the chain, and logs the model that **actually answered**
+  (`[llm] slingring served "HACK26_GPT_6_ASTRA" with azure_ai/Kimi-K2.7-Code`).
+  Spend is tallied against the served model.
+- `HACK26_TEXT_EMBED_3_LARGE` failed upstream (Azure key not configured on the
+  gateway, no fallback group). The embedder probes the endpoint once at startup
+  and at build time; on failure the whole process uses the local 384-dim model
+  and the store says so. Nothing is indexed half with one embedder and half
+  with another.
+- The hackathon key is scoped to the HACK26 models only; `FAST_SMALLER` and
+  `BIG_THINKING` are refused by name.
+
 ## Measuring the AI, not trusting it
 
 ```bash

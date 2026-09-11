@@ -235,9 +235,109 @@ export function readApiCalls(
   return calls.sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.seq - b.seq);
 }
 
-/** Clears the previous run's evidence. Called from globalSetup so a report
- * never mixes two runs together. */
-export function resetApiCallLog(dir: string = CALL_LOG_DIR): void {
-  fs.rmSync(dir, { recursive: true, force: true });
+/** Where finished runs' evidence is kept, one directory per run. */
+export const CALL_HISTORY_DIR = path.join(CALL_LOG_DIR, 'history');
+
+/** How many runs of evidence to keep. Small files; twenty is weeks of work. */
+const HISTORY_KEPT = 20;
+
+/**
+ * Files the run that is about to be replaced, instead of destroying it.
+ *
+ * The log used to be wiped at the start of every run, so the evidence behind a
+ * finding was gone the moment anyone ran the suite again — which is how a P0
+ * "create_row returns 500" ended up unverifiable: the only proof it ever had
+ * was deleted by the next run. Archived per run, a claim can still be checked
+ * a week later.
+ */
+function archivePreviousCalls(dir: string): void {
+  if (!fs.existsSync(dir)) return;
+  const logs = fs.readdirSync(dir).filter((name) => name.endsWith('.jsonl'));
+  if (logs.length === 0) return;
+
+  let label = '';
+  try {
+    label = String(
+      JSON.parse(fs.readFileSync(path.join(dir, RUN_MARKER), 'utf8')).runId ?? ''
+    );
+  } catch {
+    /* a run from before markers existed — fall back to its own timestamp */
+  }
+  if (!label) {
+    const when = fs.statSync(path.join(dir, logs[0])).mtime.toISOString();
+    label = when.replace(/[:.]/g, '-');
+  }
+
+  const dest = path.join(CALL_HISTORY_DIR, label);
+  fs.mkdirSync(dest, { recursive: true });
+  for (const name of [...logs, RUN_MARKER]) {
+    const from = path.join(dir, name);
+    if (fs.existsSync(from)) fs.renameSync(from, path.join(dest, name));
+  }
+  pruneHistory();
+}
+
+/** Keeps the newest HISTORY_KEPT runs and drops the rest. */
+function pruneHistory(): void {
+  if (!fs.existsSync(CALL_HISTORY_DIR)) return;
+  const runs = fs
+    .readdirSync(CALL_HISTORY_DIR)
+    .map((name) => ({ name, at: fs.statSync(path.join(CALL_HISTORY_DIR, name)).mtimeMs }))
+    .sort((a, b) => b.at - a.at);
+  for (const stale of runs.slice(HISTORY_KEPT)) {
+    fs.rmSync(path.join(CALL_HISTORY_DIR, stale.name), { recursive: true, force: true });
+  }
+}
+
+const RUN_MARKER = 'run.json';
+
+/** Every archived run, newest first — what evidence is still on disk. */
+export function listCallHistory(): Array<{ runId: string; at: string; calls: number }> {
+  if (!fs.existsSync(CALL_HISTORY_DIR)) return [];
+  return fs
+    .readdirSync(CALL_HISTORY_DIR)
+    .map((runId) => {
+      const at = path.join(CALL_HISTORY_DIR, runId);
+      const calls = fs
+        .readdirSync(at)
+        .filter((n) => n.endsWith('.jsonl'))
+        .reduce(
+          (n, f) => n + fs.readFileSync(path.join(at, f), 'utf8').split('\n').filter(Boolean).length,
+          0
+        );
+      return { runId, at: fs.statSync(at).mtime.toISOString(), calls };
+    })
+    .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** The calls one archived run made — the evidence behind a finding. */
+export function readRunCalls(runId: string): ApiCallRecord[] {
+  return readApiCalls(path.join(CALL_HISTORY_DIR, runId));
+}
+
+/**
+ * Starts a fresh log for this run, keeping the last one.
+ *
+ * Naming the run writes a marker beside the log, so when the NEXT run archives
+ * these files they are filed under the run id printed in the console — the one
+ * a finding quotes.
+ */
+export function resetApiCallLog(
+  opts: { runId?: string; dir?: string } = {}
+): void {
+  const dir = opts.dir ?? CALL_LOG_DIR;
   fs.mkdirSync(dir, { recursive: true });
+  archivePreviousCalls(dir);
+  // Only the loose logs go; the history directory beside them stays.
+  for (const name of fs.readdirSync(dir)) {
+    if (name.endsWith('.jsonl')) fs.rmSync(path.join(dir, name), { force: true });
+  }
+  if (opts.runId) {
+    fs.writeFileSync(
+      path.join(dir, RUN_MARKER),
+      JSON.stringify({ runId: opts.runId, startedAt: new Date().toISOString() }, null, 2)
+    );
+  }
+  // The next recorded call opens a new file rather than appending to the old.
+  logFile = undefined;
 }

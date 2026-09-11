@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { chat, llmMode } from "../ai/llm.js";
 import { recall } from "../rag/knowledgeBase.js";
 import { caseById, caseAsProse } from "../checks/testCatalog.js";
+import { recordVocabularyGaps } from "./vocabularyGaps.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CATALOG_PATH = join(here, "..", "..", "..", "procol-ui-tests", "plan-catalog.json");
@@ -52,6 +53,16 @@ export interface CompileResult {
   context: { expectations: string[]; experience: string[] };
   source: "llm" | "fallback";
   warnings: string[];
+  /**
+   * How much of the case the plan actually tests.
+   *   full     every behaviour the case checks has a step
+   *   partial  it runs, but something the case asks for has no step yet
+   *   none     the SUBJECT of the case has no step — running the plan would
+   *            prove nothing, so it should not run as this case
+   */
+  coverage: "full" | "partial" | "none";
+  /** What the case asked for that the vocabulary cannot express. */
+  gaps: string[];
 }
 
 function loadCatalog(): { steps: StepSpec[]; names: string[] } {
@@ -93,10 +104,24 @@ First decide WHICH SCREEN the test is about:
 - Is the SUBJECT of the test the events LIST itself — its rows, filters, tabs, sorting, search, or merely that the Create Event control is reachable? Then use open_events_list + expect_events_list and STOP. Do not add open_create, set_title or anything else: those act on a different screen, and a plan that opens the create screen to test the list passes while proving nothing.
 - Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
 
+Combinations (the permutation map — pick the path that can actually reach what the case asks for):
+- Auction STRATEGY (rank / price / traffic light) is chosen in the SINGLE-STAGE configuration drawer: open_create path "single-stage" then configure_single_stage{eventType:"auction", auctionSubtype, awarding}. There is no step that sets the strategy on an eRFX auction stage yet — say so in cannotExpress rather than substituting.
+- Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion: create and publish an RFQ (eRFX, compose_stages ["rfq"]), expect_published, then convert_to_auction. Never compose_stages ["rfq","auction"] — the screen forbids it.
+- Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
+- Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
+- Counter offer (buyer negotiates a vendor's bid): only after a vendor has bid — publish, place_bid (or place_surrogate_bid), open_master_qcs, then place_counter_offer{vendor, price}, then expect_counter_offer_sent. The vendor's ACCEPTANCE of a counter offer has no step yet — cannotExpress that part.
+- A technical (RFP) stage never carries an auction strategy or a pricing sheet; RFQ and Auction never coexist on one eRFX screen.
+- BOQ events: open_create path "boq"; line items are BOQ rows; still template-first.
+
 Ordering the product enforces (violating any of these makes the run fail):
 - open_create must come first on a CREATE test. Use path "erfx" unless the test explicitly says single-stage or non-eRFX: the eRFX screen is the one with stage tabs.
 - compose_stages, switch_stage and expect_stages EXIST ONLY on the eRFX screen. The single-stage screen has no stage tabs — its event type is chosen in a configuration drawer — so never combine path "single-stage" with those steps.
-- set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event.
+- set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event — UNLESS the case is about publishing without one (see negative tests below).
+
+NEGATIVE TESTS — when the case says the app SHOULD REFUSE something:
+- End the plan with expect_publish_blocked instead of publish + expect_published.
+- LEAVE OUT the step the case is about. "Publish without a title" means NO set_title; "without a template" means NO select_template; "with no line items" means NO add_line_items; "without a schedule" means NO set_schedule; "with no participants" means NO invite_vendor. The omission IS the test — putting the step back turns the case into an ordinary create and proves nothing.
+- Every rule above about what a publish needs describes a plan meant to SUCCEED. A refusal test is deliberately incomplete in exactly one way, and complete in every other.
 - The default stage is AUCTION. So: a test about an RFQ, a technical/RFP stage, or any two-stage event MUST call compose_stages. Only a plain auction test may omit it.
 - compose_stages before anything stage-specific. The screen starts with ONE Auction stage; asking for RFQ or a technical stage is a real change. RFQ and Auction cannot coexist. At most two stages.
 - select_template BEFORE add_line_items: the Items drawer is inert until a template is chosen.
@@ -120,10 +145,11 @@ Ordering the product enforces (violating any of these makes the run fail):
 const SYSTEM = `You compile QA test cases into runnable plans for Procol, a B2B procurement product.
 
 Reply with ONLY a JSON object, no prose and no code fence:
-{"title":"<short name for this test>","reasoning":"<2 sentences: what you are testing and why the plan is shaped this way>","steps":[{"step":"<name from the catalog>","args":{...},"note":"<why this step>"}]}
+{"title":"<short name for this test>","reasoning":"<2 sentences: what you are testing and why the plan is shaped this way>","coverage":"full|partial|none","cannotExpress":["<each thing the case asks for that no catalog step can do — empty when coverage is full>"],"steps":[{"step":"<name from the catalog>","args":{...},"note":"<why this step>"}]}
 
 Rules:
-- Use ONLY step names from the catalog. Never invent one. If the test case asks for something no step covers, leave it out and say so in reasoning.
+- Use ONLY step names from the catalog. Never invent one.
+- BE HONEST ABOUT COVERAGE. First name the SUBJECT of the case: the specific behaviour whose outcome it checks (a menu's options, a validation message, a column's default, a vendor's view). If no step can observe that subject, coverage is "none" — list what is missing in cannotExpress and still return the closest steps, but do NOT pretend a nearby step tests it. If the subject is covered but some detail is not, coverage is "partial". A plan that runs and passes without observing the subject is the worst possible output; a plain "none" is a good one.
 - Include the assertions the test case implies. A test that acts but never checks proves nothing.
 - Omit args you have no value for rather than inventing one; the executor has sensible defaults.
 - Prefer the shortest plan that genuinely tests what was asked.`;
@@ -182,15 +208,43 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     "invite_vendor", "publish", "save_draft", "expect_published", "expect_line_items",
     "expect_stages", "expect_publish_blocked",
   ];
-  if (has("open_events_list") && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step))) {
-    if (indexOf("open_events_list") !== 0) {
+  // Steps that live on the events LIST. A plan made only of these (plus
+  // generic assertions) is a list test, whether or not the model remembered to
+  // open the list first.
+  // Decided ONCE, before anything is inserted: a list test that later gains an
+  // open_create (for a URL check) must not turn into a create test, or the
+  // create repairs move that open to the front and bolt a title onto it.
+  const LIST_STEPS = ["open_events_list", "expect_events_list", "expect_create_options", "filter_events", "expect_event_in_list", "expect_event_status"];
+  const isListTest =
+    steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
+  if (isListTest) {
+    if (!has("open_events_list")) {
+      steps.unshift({ step: "open_events_list" });
+      repairs.push("added open_events_list — the menu being checked is on the events list");
+    } else if (indexOf("open_events_list") !== 0) {
       const [open] = steps.splice(indexOf("open_events_list"), 1);
       steps.unshift(open);
       repairs.push("moved open_events_list to the front — the steps before it had no list on screen");
     }
-    if (!has("expect_events_list") && !has("expect_no_error")) {
+    if (!["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list", "expect_event_status"].some(has)) {
       steps.push({ step: "expect_events_list" });
       repairs.push("added expect_events_list — opening the list without asserting it rendered tests nothing");
+    }
+    // A URL assertion about the CREATE screen (projectCreation=true,
+    // quick-create, singleStage=true) needs that screen opened first. UI-ENV-002
+    // compiled to "read the menu, then check the URL" with nothing in between,
+    // so the check ran against /orders. Open the path the URL text names,
+    // immediately before the check.
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      if (st.step !== "expect_url_contains") continue;
+      const text = String(st.args?.text ?? "");
+      if (!/projectCreation|quick-create|singleStage|boq=true/i.test(text)) continue;
+      if (steps.slice(0, i).some((x) => x.step === "open_create")) continue;
+      const path = /singleStage/i.test(text) ? "single-stage" : /boq=true/i.test(text) ? "boq" : "erfx";
+      steps.splice(i, 0, { step: "open_create", args: { path } });
+      repairs.push(`added open_create(${path}) before the URL check — the URL it expects belongs to the create screen`);
+      i++;
     }
     return { plan: { ...plan, steps }, repairs };
   }
@@ -216,6 +270,86 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const [open] = steps.splice(indexOf("open_create"), 1);
     steps.unshift(open);
     repairs.push("moved open_create to the front — the steps before it had no create screen to act on");
+  }
+
+  // configure_single_stage lives in the single-stage configuration drawer, so
+  // the plan must open THAT screen, and the eRFX-only stage steps have nothing
+  // to act on there. Decide the screen from the step the case really needs.
+  if (has("configure_single_stage")) {
+    const open = steps.find((st) => st.step === "open_create");
+    if (open && String(open.args?.path ?? "erfx") !== "single-stage") {
+      open.args = { ...(open.args ?? {}), path: "single-stage" };
+      repairs.push("switched open_create to the single-stage screen — configure_single_stage is that screen's drawer");
+    }
+    const stageSteps = ["compose_stages", "switch_stage", "expect_stages"];
+    let dropped = 0;
+    for (let i = steps.length - 1; i >= 0; i--) if (stageSteps.includes(steps[i].step)) { steps.splice(i, 1); dropped++; }
+    if (dropped) repairs.push("dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer");
+    // The drawer comes first, before a template or line items.
+    const cfg = indexOf("configure_single_stage");
+    const firstBody = steps.findIndex((st) => ["select_template", "add_line_items", "fill_sheet", "set_title"].includes(st.step));
+    if (firstBody >= 0 && cfg > firstBody) {
+      const [c] = steps.splice(cfg, 1);
+      steps.splice(firstBody, 0, c);
+      repairs.push("moved configure_single_stage before the body — the drawer decides the event type the rest is built on");
+    }
+  }
+
+  // A negative test about PARTICIPANTS must not invite any. UI-PART-001 —
+  // "publish is blocked with no participants" — compiled with invite_vendor
+  // in it, so the plan disproved its own premise before pressing Publish.
+  // (On this tenant the product audience adds vendors from the line items on
+  // its own, which the step reports; that is the product's answer, not ours.)
+  if (has("expect_publish_blocked") && has("invite_vendor") && /\b(no|without|zero|0)\s+(participants?|vendors?)\b/i.test(testCase)) {
+    steps.splice(indexOf("invite_vendor"), 1);
+    repairs.push("removed invite_vendor — the case is about publishing with no participants, so inviting any would defeat it");
+  }
+
+  // Vendor coherence. UI-AWD-001 invited five vendors by count, surrogate-bid
+  // for whichever came first, then asserted the Master QCS grid lists "AMD" —
+  // a vendor never invited. Whoever a later step names must be on the invite,
+  // and a bid that names nobody should bid as the vendor the plan cares about.
+  {
+    const named = new Set<string>();
+    for (const st of steps) {
+      if (["open_master_qcs"].includes(st.step) && Array.isArray(st.args?.vendors)) for (const v of st.args!.vendors as unknown[]) named.add(String(v));
+      if (["place_surrogate_bid", "place_bid", "place_counter_offer", "expect_counter_offer_sent"].includes(st.step) && st.args?.vendor) named.add(String(st.args.vendor));
+    }
+    if (named.size) {
+      const inv = steps.find((st) => st.step === "invite_vendor");
+      if (inv) {
+        const have = Array.isArray(inv.args?.names) ? (inv.args!.names as unknown[]).map(String) : [];
+        const missing = [...named].filter((v) => !have.some((h) => h.toLowerCase() === v.toLowerCase()));
+        if (missing.length) {
+          inv.args = { ...(inv.args ?? {}), names: [...have, ...missing] };
+          repairs.push(`invite_vendor now names ${missing.join(", ")} — a later step expects that vendor on the event`);
+        }
+      }
+      const [first] = [...named];
+      for (const st of steps) {
+        if (["place_surrogate_bid", "place_bid"].includes(st.step) && !st.args?.vendor) {
+          st.args = { ...(st.args ?? {}), vendor: first };
+          repairs.push(`${st.step} now bids as ${first} — the vendor the plan's assertions are about`);
+        }
+      }
+    }
+  }
+
+  // convert_to_auction needs a PUBLISHED RFQ under the browser.
+  if (has("convert_to_auction")) {
+    const conv = indexOf("convert_to_auction");
+    if (!has("publish")) {
+      steps.splice(conv, 0, { step: "publish" }, { step: "expect_published" });
+      repairs.push("added publish + expect_published before convert_to_auction — only a published RFQ can be converted");
+    } else if (indexOf("publish") > conv) {
+      const [c] = steps.splice(conv, 1);
+      steps.splice(Math.max(indexOf("expect_published"), indexOf("publish")) + 1, 0, c);
+      repairs.push("moved convert_to_auction after publish — only a published RFQ can be converted");
+    }
+    if (!has("compose_stages")) {
+      steps.splice(indexOf("open_create") + 1, 0, { step: "compose_stages", args: { stages: ["rfq"] } });
+      repairs.push("added compose_stages(rfq) — conversion applies to an RFQ, and the screen defaults to an Auction");
+    }
   }
 
   // Stage steps only exist on the eRFX screen. Pairing them with the
@@ -306,6 +440,36 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(`added ${step} — the test is about bidding and no bid step was planned`);
   }
 
+  // Vendors are suggested from the line items' product audience, so inviting
+  // before any line item exists finds nobody. UI-VAL-001 compiled invite_vendor
+  // as step 3 of 18 and stopped there. Move it after the last of the steps that
+  // give it something to invite against.
+  if (has("invite_vendor")) {
+    const after = Math.max(indexOf("add_line_items"), indexOf("fill_sheet"), indexOf("select_template"));
+    if (after > indexOf("invite_vendor")) {
+      const [inv] = steps.splice(indexOf("invite_vendor"), 1);
+      steps.splice(after, 0, inv);
+      repairs.push("moved invite_vendor after the line items — the vendor suggestions come from the products on the event");
+    }
+  }
+
+  // The app DISABLES "Save as draft" until a template is on the stage —
+  // UI-PUB-003 compiled to title-then-save and the button read [disabled].
+  // A draft with nothing in it is not something the product keeps, so give
+  // the draft the one thing the screen demands before saving it.
+  // Measured twice: disabled with a title alone, and STILL disabled with a
+  // template and Items 0. A draft needs a line item before the app keeps it.
+  if (has("save_draft")) {
+    if (!has("select_template")) {
+      steps.splice(indexOf("save_draft"), 0, { step: "select_template" });
+      repairs.push("added select_template before save_draft — the app disables Save as draft until a template is chosen");
+    }
+    if (!has("add_line_items")) {
+      steps.splice(indexOf("save_draft"), 0, { step: "add_line_items", args: { count: 1 } });
+      repairs.push("added add_line_items before save_draft — Save as draft stays disabled at Items 0");
+    }
+  }
+
   // A nameless event is refused at publish, and the title is also how a human
   // finds the event afterwards.
   if (!has("set_title")) {
@@ -383,7 +547,21 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
-  if (has("publish")) {
+  /**
+   * A PLAN THAT EXPECTS PUBLISH TO BE REFUSED IS LEFT ALONE.
+   *
+   * `submits` is already false when the plan asserts `expect_publish_blocked`,
+   * and the per-stage repairs above respect it — this pair did not, so it
+   * completed the very plan whose incompleteness was the test. "Try to publish
+   * without setting a schedule and check it is refused" was compiled, then
+   * repaired into a plan that sets the schedule, then reported as a gap the
+   * compiler could not express: five of the most-asked-for entries on the gap
+   * ledger are this one bug wearing different hats (no title, no template, no
+   * line items, no schedule, no participants).
+   *
+   * The vocabulary could always say it. The linter would not let it through.
+   */
+  if (has("publish") && submits) {
     if (!has("set_schedule")) insertBefore("publish", { step: "set_schedule" }, "added set_schedule — the schedule is displayed but not committed until saved");
     if (!has("invite_vendor")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
   }
@@ -478,10 +656,13 @@ export function resolveCaseId(input: string): { text: string; id: string } | nul
 export async function compileTestCase(testCase: string, moduleHint = "events"): Promise<CompileResult> {
   const catalog = loadCatalog();
   const warnings: string[] = [];
+  /** The catalog id this came from, when it did — the gap ledger keys on it. */
+  let resolvedId: string | null = null;
 
   // "FE-9.7" is a reference, not a test case. Resolve it before planning.
   const resolved = resolveCaseId(testCase);
   if (resolved) {
+    resolvedId = resolved.id;
     warnings.push(`resolved ${resolved.id} from the test-case catalog`);
     testCase = `${resolved.id}: ${resolved.text}`;
   } else if (/^(?:FE|BE|PR)-[\w.-]+$/i.test(testCase.trim())) {
@@ -499,13 +680,17 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     warnings.push("the QA memory is not built, so the plan was written without it — run `npm run rag:build`");
   }
 
-  if (llmMode() === "fallback") {
+  // Gemini alone is still a model — only a machine with no key at all takes
+  // the deterministic path.
+  if (llmMode() === "fallback" && !process.env.GOOGLE_API_KEY) {
     warnings.push("no LLM key is set, so a default plan was used rather than one compiled from your test case");
     return {
       plan: fallbackPlan(testCase),
       reasoning: "Compiled without a language model: a standard create-and-publish plan shaped by the words in the test case.",
       context: { expectations, experience },
       source: "fallback",
+      coverage: "partial",
+      gaps: ["compiled without a model, so this is a generic plan rather than this case"],
       warnings,
     };
   }
@@ -529,6 +714,9 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       raw = await chat([{ role: "system", content: SYSTEM }, { role: "user", content: prompt }], {
+        // The compiler is where a wrong answer becomes a wrong run — it gets the
+        // strongest model the gateway has, at that model's price.
+        tier: "reason",
         temperature: 0,
         // Generous: a plan is ~600 tokens of JSON, and the model needs headroom
         // for its reasoning pass before it writes any of it.
@@ -550,21 +738,21 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
         lastErr instanceof Error ? lastErr.message : "empty response"
       }) — this plan is the generic default, NOT compiled from your test case`,
     );
-    return { plan: fallbackPlan(testCase), reasoning: "Model unavailable.", context: { expectations, experience }, source: "fallback", warnings };
+    return { plan: fallbackPlan(testCase), reasoning: "Model unavailable.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) {
     warnings.push("the model did not return JSON — used a default plan instead");
-    return { plan: fallbackPlan(testCase), reasoning: "Unparseable model output.", context: { expectations, experience }, source: "fallback", warnings };
+    return { plan: fallbackPlan(testCase), reasoning: "Unparseable model output.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
-  let parsed: { title?: string; reasoning?: string; steps?: PlanStep[] };
+  let parsed: { title?: string; reasoning?: string; steps?: PlanStep[]; coverage?: string; cannotExpress?: unknown };
   try {
     parsed = JSON.parse(match[0]);
   } catch (e) {
     warnings.push(`the model's JSON was malformed (${(e as Error).message}) — used a default plan instead`);
-    return { plan: fallbackPlan(testCase), reasoning: "Malformed model output.", context: { expectations, experience }, source: "fallback", warnings };
+    return { plan: fallbackPlan(testCase), reasoning: "Malformed model output.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
   // Drop steps the executor does not have rather than failing the whole plan:
@@ -577,18 +765,63 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     return false;
   });
 
+  const declaredGaps = Array.isArray(parsed.cannotExpress)
+    ? (parsed.cannotExpress as unknown[]).map((g) => String(g).trim()).filter(Boolean)
+    : [];
   if (!steps.length) {
-    warnings.push("the model produced no runnable steps — used a default plan instead");
-    return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings };
+    // The model returned no steps. If it also said WHY — coverage "none", or
+    // a list of things it cannot express — that is the honest answer to a case
+    // the vocabulary cannot test (an API-only case, a flow with no step), and
+    // it must be returned as such. BE-2.11 and FE-3.1 were compiled this way
+    // and then quietly replaced with the generic publish plan, which would run,
+    // pass, and have tested nothing the case was about.
+    if (parsed.coverage === "none" || declaredGaps.length) {
+      const gaps = declaredGaps.length ? declaredGaps : ["what this case checks has no step in the vocabulary"];
+      warnings.push(`cannot test this case yet — no step can observe: ${gaps.join("; ")}`);
+      recordVocabularyGaps(resolvedId ?? testCase.match(/^\s*((?:UI|API|FE|BE)-[A-Z]*-?[\w.]+)/)?.[1] ?? testCase.slice(0, 80), gaps);
+      return {
+        plan: { title: String(parsed.title ?? testCase.slice(0, 60)), steps: [] },
+        reasoning: String(parsed.reasoning ?? "The case's subject has no step in the vocabulary."),
+        context: { expectations, experience },
+        source: "llm",
+        warnings,
+        coverage: "none",
+        gaps,
+      };
+    }
+    warnings.push("the model produced no runnable steps and gave no reason — used a default plan instead");
+    return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
   const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
   warnings.push(...linted.repairs);
+
+  const gaps = declaredGaps;
+  let coverage: CompileResult["coverage"] =
+    parsed.coverage === "none" ? "none" : parsed.coverage === "partial" || gaps.length ? "partial" : "full";
+  // A model that lists gaps but claims full coverage is contradicting itself;
+  // the gaps are the more specific claim, so they win.
+  if (coverage === "full" && gaps.length) coverage = "partial";
+  if (coverage !== "full") {
+    warnings.push(
+      coverage === "none"
+        ? `cannot test this case yet — no step can observe: ${gaps.join("; ") || "its subject"}`
+        : `can only test part of this — no step for: ${gaps.join("; ")}`,
+    );
+  }
+  // The ledger is keyed by case id whenever there is one — the dashboard hands
+  // over the case's prose, which begins with its id — and reconciled on every
+  // compile, so a gap that has since been built disappears from the list.
+  const ledgerKey = resolvedId ?? testCase.match(/^\s*((?:UI|API|FE|BE)-[A-Z]*-?[\w.]+)/)?.[1] ?? testCase.slice(0, 80);
+  recordVocabularyGaps(ledgerKey, coverage === "full" ? [] : gaps.length ? gaps : ["(unspecified)"]);
+
   return {
     plan: linted.plan,
     reasoning: String(parsed.reasoning ?? ""),
     context: { expectations, experience },
     source: "llm",
     warnings,
+    coverage,
+    gaps,
   };
 }

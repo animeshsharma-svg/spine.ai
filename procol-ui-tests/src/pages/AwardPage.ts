@@ -358,6 +358,11 @@ export class AwardPage extends BasePage {
    */
   async createAndSubmitProposal(): Promise<string> {
     const p = this.page;
+    // The stay-updated card covers this exact corner of the awarding grid a
+    // few seconds after it renders (stuck screenshot 2026-09-11). Clear it
+    // right before the click, not only when the page opened.
+    await this.dismissDistractions();
+    await p.getByRole("button", { name: /create proposal/i }).first().scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
     await this.click([p.getByRole("button", { name: /create proposal/i })], {
       label: "create-proposal",
       timeout: TIMEOUTS.MEDIUM,

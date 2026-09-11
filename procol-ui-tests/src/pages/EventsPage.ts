@@ -1,6 +1,7 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
+import { recordStuck } from "../oracle/stuck.js";
 
 export type CreatePath = "single-stage" | "erfx" | "boq";
 
@@ -146,6 +147,89 @@ export class EventsPage extends BasePage {
     }
   }
 
+  /**
+   * Open the Create Event menu and return the options it offers, as text.
+   *
+   * The menu is what UI-ENV-002 and its neighbours are ABOUT — which paths a
+   * tenant is offered (eRFX, single-stage, BOQ) is tenant configuration made
+   * visible — so a step has to be able to observe it rather than click through
+   * it. Returns an empty list when the control navigates directly and there is
+   * no menu, which is itself an observation worth asserting on.
+   */
+  async readCreateMenu(): Promise<string[]> {
+    await this.dismissDistractions();
+    const open = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)");
+    const menu = open.locator(".ant-dropdown-menu-item, [role='menuitem']");
+
+    // The list hydrates slowly on this environment (the goto alone can take
+    // 25s), and a chevron clicked before the dropdown is wired does nothing.
+    // Try a few times, and only proceed once a menu is actually on screen.
+    for (let attempt = 0; attempt < 4 && (await open.count()) === 0; attempt++) {
+      // The "Want to stay updated?" card arrives 2-3s AFTER the list renders
+      // and sits exactly over the Create Event control, so a dismissal at
+      // page-open is too early. Dismiss again right before every attempt —
+      // the stuck screenshot for this step showed the card covering the button.
+      await this.dismissDistractions();
+      const button = this.page.getByRole("button", { name: /create event/i }).first();
+      // The accessibility tree names the control "icon: plus Create Event icon:
+      // down": the chevron is INSIDE the button, not a sibling of it.
+      const chevron = button.locator(".anticon-down, [aria-label='icon: down'], i[class*='down']").first();
+      const clicked = await chevron
+        .click({ timeout: TIMEOUTS.SHORT })
+        .then(() => true)
+        .catch(() => false);
+      if (!clicked) {
+        // antd Dropdown opens on hover; hovering the button is the next-best move.
+        await button.hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      }
+      await open.first().waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
+      if ((await open.count()) === 0) await this.page.waitForTimeout(800);
+    }
+
+    // Each item is a title plus a description; read leaf nodes separately so
+    // the text does not fuse into "Single StageSource through RFP".
+    const items: string[] = [];
+    for (const item of await menu.all()) {
+      const parts = (await item.locator("xpath=.//*[not(*)]").allTextContents()).map((t) => t.trim()).filter(Boolean);
+      const text = (parts.length ? parts : [await item.innerText().catch(() => "")]).join(" — ").replace(/\s+/g, " ").trim();
+      if (text) items.push(text);
+    }
+    if (!items.length) {
+      // Say what was on screen, so an empty read is diagnosable from the report.
+      await recordStuck(this.page, {
+        label: "create-menu:read",
+        message: "the Create Event menu did not open, or opened with no items",
+        triedCandidates: ["button[name=/create event/i] + following-sibling chevron", ".ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu-item"],
+        healerTried: false,
+      }).catch(() => {});
+    }
+    await this.page.keyboard.press("Escape").catch(() => {});
+    return items;
+  }
+
+  /**
+   * Switch the events list to one of its tabs — Live, History, Drafts,
+   * Recurring. The tab label carries a count badge ("LIVE 5606"), so match on
+   * the word, not the whole text.
+   */
+  async openTab(tab: string): Promise<string> {
+    await this.dismissDistractions();
+    const want = new RegExp(`^\\s*${tab.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    await this.click(
+      [
+        this.page.getByRole("tab", { name: want }),
+        this.page.locator(".ant-tabs-tab").filter({ hasText: want }).first(),
+        this.page.getByText(want).first(),
+      ],
+      { label: `events-tab:${tab.toLowerCase()}` },
+    );
+    await this.waitForSpinnerHidden();
+    await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.LONG }).catch(() => {});
+    const active = await this.page.locator(".ant-tabs-tab-active, [role='tab'][aria-selected='true']").first().textContent().catch(() => null);
+    // The tab text carries its count badge ("Live5618"); the word is the answer.
+    return (active ?? tab).replace(/\d[\d,]*\s*$/, "").replace(/\s+/g, " ").trim() || tab;
+  }
+
   /** Search the events list by title and report whether any row matches. */
   async searchByTitle(query: string): Promise<void> {
     const search = await this.expect(
@@ -159,6 +243,23 @@ export class EventsPage extends BasePage {
     await search.fill(query);
     await search.press("Enter");
     await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.LONG }).catch(() => {});
+  }
+
+  /**
+   * The text of the list row (or card) that carries this title — the whole
+   * block, so the status chip ("Draft", "RFQ in Progress") comes with it.
+   * Returns null when no row carries the title.
+   */
+  async rowTextFor(title: string): Promise<string | null> {
+    const link = this.page.getByRole("link").filter({ hasText: title }).first();
+    if (!(await link.count())) {
+      const any = this.page.getByText(title, { exact: false }).first();
+      if (!(await any.count())) return null;
+      const block = any.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
+      return ((await ((await block.count()) ? block : any).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
+    }
+    const block = link.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
+    return ((await ((await block.count()) ? block : link).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
   }
 
   async hasEventMatching(pattern: RegExp | string): Promise<boolean> {

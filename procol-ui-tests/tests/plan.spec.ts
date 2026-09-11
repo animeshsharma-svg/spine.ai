@@ -8,6 +8,8 @@ import { judge } from "../src/oracle/oracle.js";
 import { recordFinding } from "../src/oracle/findings.js";
 import { Watchdog } from "../src/support/watchdog.js";
 import { BasePage } from "../src/pages/BasePage.js";
+import { LoginPage } from "../src/pages/LoginPage.js";
+import { CONFIG, STORAGE_KEYS } from "../src/config.js";
 
 /**
  * Run a compiled test plan.
@@ -44,6 +46,21 @@ test("planned test case", async ({ page }) => {
     },
   });
   watchdog.start();
+
+  // A demo wants the login SEEN. The saved session skips it, and forcing the
+  // setup project would open a second window. So: in this same window, drop
+  // the saved token, go to the login page and log in for real, then run the
+  // plan. Verification runs never set UI_SHOW_LOGIN.
+  if (process.env.UI_SHOW_LOGIN === "1") {
+    console.log("[plan] showing the login in this window before the plan runs");
+    await page.goto(CONFIG.appUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.evaluate((k) => localStorage.removeItem(k), STORAGE_KEYS.accessToken).catch(() => {});
+    await page.context().clearCookies().catch(() => {});
+    const login = new LoginPage(page);
+    await login.goto();
+    await login.login();
+    console.log(`[plan] logged in as the buyer — ${(await login.isLoggedIn()) ? "token present" : "token NOT present"}`);
+  }
 
   let failure: Error | null = null;
   let result;

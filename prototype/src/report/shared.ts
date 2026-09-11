@@ -76,6 +76,11 @@ h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -.01em; }
 .sub code, .lede code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin: 0 0 18px; }
 .card h2 { font-size: 15px; margin: 0 0 12px; }
+/* Run-level facts, not defects: kept visually apart from the bug table so
+   nothing here reads as engineering work. */
+.note-card { border-left: 3px solid var(--warn, #e0a34a); }
+.run-notes { margin: 8px 0 0; padding-left: 20px; line-height: 1.6; }
+.run-notes li { margin: 4px 0; }
 .count { font-size: 12px; color: var(--muted); font-weight: 400; }
 .lede { color: var(--muted); font-size: 12.5px; margin: 0 0 14px; line-height: 1.55; }
 .lede strong { color: var(--ink-2); }

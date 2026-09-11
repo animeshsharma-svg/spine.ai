@@ -149,6 +149,90 @@ function groupOfFeature(featureId: string) {
   return FEATURE_TREE.find((g) => g.id === groupId);
 }
 
+
+const EVERYTHING_NOTE =
+  "This covers every part of Procol the platform knows how to check. Tick a module in the platform to narrow it down.";
+
+/** A feature id ("events.rfq_only") as its readable label ("RFQ only"). */
+function labelOfFeature(featureId: string): string {
+  for (const group of FEATURE_TREE) {
+    const child = group.children.find((c) => c.id === featureId);
+    if (child) return child.label;
+  }
+  return featureId;
+}
+
+/** How many cases the whole library holds for a feature's parent module. */
+function moduleTotals(features: string[]): { module: string; inScope: number; total: number; parts: number } | null {
+  const groupIds = new Set(features.map((f) => f.split(".")[0]));
+  if (groupIds.size !== 1) return null;
+  const group = FEATURE_TREE.find((g) => g.id === [...groupIds][0]);
+  if (!group) return null;
+  const all = loadCases();
+  const ids = new Set(group.children.map((c) => c.id));
+  return {
+    module: group.label,
+    inScope: all.filter((c) => features.includes(c.feature)).length,
+    total: all.filter((c) => ids.has(c.feature)).length,
+    parts: group.children.length,
+  };
+}
+
+function describeScope(features: string[], sections: ModuleSection[]): string {
+  const names = features.map(labelOfFeature);
+  const listed =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const totals = moduleTotals(features);
+
+  let line =
+    `This is about <strong>${escapeHtml(listed)}</strong> and nothing else — ` +
+    `${features.length} part${features.length === 1 ? "" : "s"} of Procol, chosen before the run.`;
+
+  // The gap, named. Without this the reader compares three rows against a
+  // module they know holds dozens and concludes the library lost them.
+  if (totals && totals.total > totals.inScope) {
+    const missing = totals.total - totals.inScope;
+    line +=
+      ` <strong>${escapeHtml(totals.module)}</strong> has ${totals.parts} parts and ` +
+      `${totals.total} cases in total; ${missing} of them are not in this run. ` +
+      `Tick the module itself, rather than one part of it, to check all ${totals.total}.`;
+  } else if (!totals && sections.length > 1) {
+    line += ` They sit in ${sections.length} modules.`;
+  }
+  return line;
+}
+
+
+/**
+ * WHY THIS ONE PROVED NOTHING — in the app's own words.
+ *
+ * "Proved nothing — the request never reached what this test is about" is true
+ * and says nothing a reader can act on. It reads as the report hedging, when
+ * in fact the platform knows exactly what happened: the check expected one
+ * refusal and the app gave a different one, which means a precondition was not
+ * in place. EVT-RFQO-002 wanted "Same type of event already exists for this
+ * Project" and got "Order not active" — the event group was never published,
+ * so the duplicate-stage rule was never reached. That sentence is the whole
+ * answer, and it was already in the result.
+ */
+function inconclusiveInWords(row: CaseRow): string {
+  const got = row.result?.message?.trim();
+  // The case documents the refusal it expects as a quoted sentence inside
+  // `expectedResult`; the check carries the same string as `expectMessage`.
+  const wanted =
+    (row.result as { expectMessage?: string } | undefined)?.expectMessage?.trim() ??
+    row.test.expectedResult?.match(/'([^']{12,120})'/)?.[1]?.trim().replace(/\.$/, "");
+  if (got && wanted) {
+    return `Proved nothing — this needed “${wanted}” and the app said “${got}” instead, so the rule under test was never reached`;
+  }
+  if (got) {
+    return `Proved nothing — the app answered “${got}”, which is not the refusal this test is about`;
+  }
+  return "Proved nothing — the request never reached what this test is about";
+}
+
 /**
  * Builds the sections.
  *
@@ -247,7 +331,7 @@ function renderRow(row: CaseRow, companyId?: number): string {
             ? "Handled it without breaking"
             : "Worked, as it should"
         : row.verdict === "inconclusive"
-          ? "Proved nothing — the request never reached what this test is about"
+          ? inconclusiveInWords(row)
           : result?.accepted
             ? "Accepted something it should have refused"
             : (result?.httpStatus ?? 0) >= 500
@@ -380,16 +464,44 @@ export function renderTestReport({ features, run }: TestReportInput): string {
     notrun: rows.filter((r) => r.verdict === "notrun").length,
   };
 
+  /**
+   * A run the API turned away at the door.
+   *
+   * With an expired token every check comes back 401 and every verdict is
+   * honestly "couldn't tell" — which reads as an empty report rather than as
+   * "nothing was tested". Said once, at the top, in the reader's words.
+   */
+  const attempted = rows.filter((r) => r.verdict !== "notrun");
+  const refused = attempted.filter(
+    (r) => r.result?.httpStatus === 401 || r.result?.httpStatus === 403,
+  );
+  const allRefused = attempted.length > 0 && refused.length === attempted.length;
+  const refusalBanner = allRefused
+    ? `<p class="refused"><b>Nothing was tested in this run.</b> All ${attempted.length}
+       attempted check${attempted.length === 1 ? "" : "s"} came back
+       <code>HTTP ${refused[0].result?.httpStatus}</code>${
+         refused[0].result?.message ? ` — “${escapeHtml(refused[0].result.message)}”` : ""
+       }: the request was refused before it reached Procol's logic. That is an access problem, not a
+       product one — the account's token has expired or been revoked. Refresh it and run again; until
+       then neither a pass nor a failure below would mean anything.</p>`
+    : "";
+
   const tile = (label: string, value: number | string, cls = "") =>
     `<div class="tile ${cls}"><div class="tile-v">${escapeHtml(value)}</div><div class="tile-l">${escapeHtml(label)}</div></div>`;
 
-  const scopeLine = features.length
-    ? `This is about <strong>${escapeHtml(
-        [...new Set(sections.map((s) => s.label))].join(", "),
-      )}</strong> and nothing else — the ${features.length} part${
-        features.length === 1 ? "" : "s"
-      } of Procol this run was asked to check.`
-    : "This covers every part of Procol the platform knows how to check. Tick a module in the platform to narrow it down.";
+  /**
+   * SAY WHAT WAS TICKED, NOT WHAT IT BELONGS TO.
+   *
+   * This named the parent module — "Sourcing events (RFx)" — whichever part of
+   * it was actually selected. So a run of the three RFQ-only cases announced
+   * itself as a run of Sourcing events, whose library holds thirty-four, and
+   * the only honest conclusion a reader could draw was that thirty-one test
+   * cases had gone missing. They had not: they were never in scope.
+   *
+   * Naming the parts and counting what is left out turns "why so few?" into a
+   * sentence, and tells the reader exactly what to tick to get the rest.
+   */
+  const scopeLine = features.length ? describeScope(features, sections) : EVERYTHING_NOTE;
 
   return `<!doctype html>
 <html lang="en">
@@ -399,6 +511,12 @@ export function renderTestReport({ features, run }: TestReportInput): string {
 <title>Procol QA — test report</title>
 <style>
 ${PAGE_CSS}
+/* A run refused before it began — an access problem, not a product one. */
+.refused { margin: 0 0 14px; padding: 11px 13px; border-radius: 8px;
+  border: 1px solid var(--warn, #f0a800); background: var(--warn-soft, #fff8e1);
+  color: var(--ink, #4a3800); font-size: 13px; line-height: 1.6; }
+.refused b { color: var(--warn, #9a6b00); }
+.refused code { font-family: var(--mono, monospace); font-size: 12px; }
 /* ── module ─────────────────────────────────────────────────────────── */
 .module { margin: 0 0 26px; }
 .module-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
@@ -489,6 +607,7 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
 
   <section class="card">
     <h2>The short version</h2>
+    ${refusalBanner}
     <div class="tiles">
       ${tile("things we check", totals.total)}
       ${tile("worked", totals.passed, "good")}

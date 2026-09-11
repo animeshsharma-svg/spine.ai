@@ -20,6 +20,7 @@
  * more than that client actually permits.
  */
 import { spawn } from "node:child_process";
+import { acquireBrowser, setSlotProgress, setSlotHeaded } from "./browserSlot.js";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +28,16 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const UI_TESTS_DIR = join(here, "..", "..", "..", "procol-ui-tests");
 const SPEC = "tests/ui-master.spec.ts";
+/**
+ * The purchase-to-bill suite — its own Playwright project.
+ *
+ * A separate directory, config, login and target deployment, so it cannot be
+ * run by pointing the usual runner at a different spec file: it needs its own
+ * working directory too.
+ */
+const THREE_WAY_DIR = join(here, "..", "..", "..", "three-way-match");
+const THREE_WAY_SPEC = "tests/po_to_bill.spec.js";
+const THREE_WAY_TEST = "P2P Flow - 3 Way Match";
 
 /** The browser journeys, grouped the way the dashboard shows them. */
 export interface UiFlowDef {
@@ -37,6 +48,23 @@ export interface UiFlowDef {
   usesLineItems?: boolean;
   /** true when it's a BOQ journey (uses the BOQ line-item limit). */
   boq?: boolean;
+  /**
+   * Which Playwright project this journey lives in.
+   *
+   * Everything here used to be one suite against UAT, so the runner could
+   * assume a directory and a spec file. The 3-way-match journey is a separate
+   * project with its own config, its own login and its own deployment — so a
+   * journey now says which suite it belongs to rather than the runner guessing.
+   */
+  suite?: "ui-master" | "three-way-match";
+  /**
+   * The accounts this journey may be offered to, when it is not universal.
+   *
+   * The 3-way-match suite signs into the sandbox demo deployment specifically,
+   * so offering it under a UAT company would be offering a journey that cannot
+   * log in. Undefined means "every account the UAT journeys work for".
+   */
+  clients?: number[];
 }
 
 export const UI_FLOWS: UiFlowDef[] = [
@@ -87,7 +115,28 @@ export const UI_FLOWS: UiFlowDef[] = [
     group: "Validation (must be refused)",
     usesLineItems: true,
   },
+  /**
+   * The purchase-to-bill journey, driven through the browser.
+   *
+   * A different suite, a different deployment, a different login — it signs
+   * into the sandbox demo tenant the whole PO flow was built on and clicks the
+   * document all the way through: raise the PO, invoice it, receive it (GRN),
+   * then bill it and watch the 3-way match settle. That is why it is pinned to
+   * that one account: on a UAT company it could not even log in.
+   */
+  {
+    key: "finance.three_way",
+    label: "PO → Bill (3-way match)",
+    group: "Purchase to bill",
+    suite: "three-way-match",
+    clients: [900001],
+  },
 ];
+
+/** The journeys this account can actually run. */
+export function uiFlowsFor(companyId: number): UiFlowDef[] {
+  return UI_FLOWS.filter((f) => !f.clients || f.clients.includes(companyId));
+}
 
 export interface UiRunOptions {
   flowKey: string;
@@ -112,7 +161,13 @@ export interface UiRunOptions {
 }
 
 export interface UiRunEvent {
-  type: "start" | "log" | "done" | "error";
+  /** "queued" — another run holds the browser; this one starts when it ends. */
+  // "run-error", not "error": the SSE wire event name is this literally, and
+  // a browser EventSource treats a server-sent event named "error" as
+  // indistinguishable from its own connection-failure event — the exact
+  // collision that made "run error" appear after every normal, successful run
+  // elsewhere in this codebase. Every consumer forwards e.type verbatim.
+  type: "start" | "log" | "done" | "run-error" | "queued";
   line?: string;
   command?: string;
   exitCode?: number;
@@ -122,6 +177,74 @@ export interface UiRunEvent {
  * Run one journey, streaming Playwright's output line by line.
  * Returns a stop() so a caller can cancel a run mid-flight.
  */
+// Terminal colour codes, matched by their escape byte written out so the
+// character never appears literally in this file.
+const ANSI = new RegExp("\\x1b\\[[0-9;]*m", "g");
+
+/**
+ * Spawn one Playwright child — after taking the single browser slot.
+ *
+ * Returns synchronously with a `stop`, exactly as before, so callers are
+ * unchanged. Internally it waits for the slot, tells the caller it is queued
+ * if it has to wait, spawns when granted, and releases on close. A `stop`
+ * before the spawn simply withdraws from the queue.
+ */
+function launch(
+  label: string,
+  args: string[],
+  env: Record<string, string>,
+  emit: (e: UiRunEvent) => void,
+  onStart: () => void,
+  stripAnsi = false,
+  cwd: string = UI_TESTS_DIR,
+): { stop: () => void } {
+  let child: ReturnType<typeof spawn> | null = null;
+  let stopped = false;
+  const slot = acquireBrowser(label, (position, running) =>
+    emit({
+      type: "queued",
+      line: `waiting for the browser — "${running?.label ?? "another run"}" is using it (position ${position} in the queue)`,
+    }),
+  );
+  slot.ready.then((release) => {
+    if (stopped) return release();
+    onStart();
+    child = spawn("npx", args, { cwd, env, shell: false });
+    const pump = (buf: Buffer) => {
+      for (const raw of buf.toString().split("\n")) {
+        const line = stripAnsi ? raw.replace(ANSI, "").trimEnd() : raw;
+        if (line.trim()) emit({ type: "log", line });
+      }
+    };
+    setSlotHeaded(args.includes("--headed"));
+    setSlotProgress("starting the browser");
+    child.stdout?.on("data", (buf: Buffer) => {
+      // Mirror the run's own narration into the slot so the dashboard strip
+      // can say what a HEADLESS run is doing right now.
+      for (const raw of buf.toString().split("\n")) {
+        const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow|po-to-bill)\] (.{0,80})/);
+        if (m) setSlotProgress(m[3] ? `step ${m[1]}/${m[2]} — ${m[3].replace(/_/g, " ")}${m[4] ?? ""}` : m[2]);
+        if (/showing the login/.test(raw)) setSlotProgress("logging in (visible)");
+      }
+    });
+    child.stdout?.on("data", pump);
+    child.stderr?.on("data", pump);
+    // "run-error", not "error" — see the UiRunEvent type above.
+    child.on("error", (e) => emit({ type: "run-error", line: e.message }));
+    child.on("close", (code) => {
+      release();
+      emit({ type: "done", exitCode: code ?? 1 });
+    });
+  });
+  return {
+    stop: () => {
+      stopped = true;
+      slot.cancel();
+      child?.kill("SIGTERM");
+    },
+  };
+}
+
 /**
  * Run a compiled test plan instead of a named journey.
  *
@@ -129,7 +252,7 @@ export interface UiRunEvent {
  * and a shell has opinions about quoting that a JSON blob does not survive.
  */
 export function runUiPlan(
-  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean },
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number },
   emit: (e: UiRunEvent) => void,
 ): { stop: () => void } {
   const dir = join(UI_TESTS_DIR, ".plans");
@@ -151,16 +274,15 @@ export function runUiPlan(
     QA_RUN_ID: runId,
   };
   if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
+  // Blind waits shrink to 70% on every plan run; timeouts for real conditions
+  // are untouched. A headed demo can ask to SEE the login and to be slowed.
+  env.UI_SPEED = env.UI_SPEED ?? "0.7";
+  if (opts.headed !== false && opts.showLogin) env.UI_SHOW_LOGIN = "1";
+  if (opts.headed !== false && opts.slowMo) env.UI_SLOWMO = String(opts.slowMo);
 
-  emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` });
-  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env });
-  const pump = (buf: Buffer) => {
-    for (const line of buf.toString().split("\n")) if (line.trim()) emit({ type: "log", line });
-  };
-  child.stdout.on("data", pump);
-  child.stderr.on("data", pump);
-  child.on("close", (code) => emit({ type: "done", exitCode: code ?? 1 }));
-  return { stop: () => child.kill("SIGTERM") };
+  return launch(`plan ${runId}`, args, env, emit, () =>
+    emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` }),
+  );
 }
 
 /** What each step of a finished plan actually did. */
@@ -226,22 +348,55 @@ export function runTeach(
   // Teaching IS the AI path; without a key there is nothing to ask.
   if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
 
-  emit({ type: "start", line: `teaching "${opts.stuckId}"`, command: `npx ${args.join(" ")}` });
-  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env });
-  const pump = (buf: Buffer) => {
-    for (const line of buf.toString().split("\n")) if (line.trim()) emit({ type: "log", line });
-  };
-  child.stdout.on("data", pump);
-  child.stderr.on("data", pump);
-  child.on("close", (code) => emit({ type: "done", exitCode: code ?? 1 }));
-  return { stop: () => child.kill("SIGTERM") };
+  return launch(`teach ${opts.stuckId}`, args, env, emit, () =>
+    emit({ type: "start", line: `teaching "${opts.stuckId}"`, command: `npx ${args.join(" ")}` }),
+  );
 }
 
 export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { stop: () => void } {
   const flow = UI_FLOWS.find((f) => f.key === opts.flowKey);
   if (!flow) {
-    emit({ type: "error", line: `unknown UI flow "${opts.flowKey}"` });
+    emit({ type: "run-error", line: `unknown UI flow "${opts.flowKey}"` });
     return { stop: () => {} };
+  }
+
+  /**
+   * The purchase-to-bill suite runs itself, in its own directory.
+   *
+   * It has its own config (its own baseURL, its own login, its own timeout),
+   * so the only things to pass are whether to show the browser and whether to
+   * keep the demo pacing. Its spec file is named explicitly AND grepped by
+   * title, so no sibling spec in that project can be picked up by accident.
+   */
+  if (flow.suite === "three-way-match") {
+    const args = ["playwright", "test", THREE_WAY_SPEC, "-g", THREE_WAY_TEST, "--workers=1"];
+    const headed = opts.headed !== false;
+    if (headed) args.push("--headed");
+    const env: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+      // The vendored config reads both: visible and paced for watching, or
+      // invisible and at full speed when nobody is looking.
+      HEADLESS: headed ? "0" : "1",
+      SLOWMO: headed ? (process.env.SLOWMO ?? "300") : "0",
+      // Watching costs time: the same journey is ~1m40s headless and ~3m10s
+      // headed at 300ms an action. Give a watched run room rather than letting
+      // the pacing itself produce a timeout that reads as a product failure.
+      TEST_TIMEOUT_MS: headed ? "600000" : "300000",
+    };
+    if (opts.runId) env.QA_RUN_ID = opts.runId;
+    // The suite files its record under this key, so the platform can join the
+    // record to the journey the reader actually ticked.
+    env.QA_FLOW_KEY = flow.key;
+    const command = `npx ${args.join(" ")}`;
+    return launch(
+      `journey ${flow.key}`,
+      args,
+      env,
+      emit,
+      () => emit({ type: "start", command, line: `$ ${command}` }),
+      true,
+      THREE_WAY_DIR,
+    );
   }
 
   // `-g` is a REGEX, so an unescaped "." is a wildcard: `-g pr.list` also matched
@@ -284,21 +439,7 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
       .map(([k, v]) => `${k}=${v}`)
       .join(" ")} npx ${args.join(" ")}`.trim();
 
-  emit({ type: "start", command, line: `$ ${command}` });
-
-  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env, shell: false });
-  const pump = (buf: Buffer) => {
-    for (const line of buf.toString().split("\n")) {
-      const t = line.replace(/\[[0-9;]*m/g, "").trimEnd();
-      if (t.trim()) emit({ type: "log", line: t });
-    }
-  };
-  child.stdout.on("data", pump);
-  child.stderr.on("data", pump);
-  child.on("error", (e) => emit({ type: "error", line: e.message }));
-  child.on("close", (code) => emit({ type: "done", exitCode: code ?? -1 }));
-
-  return { stop: () => child.kill("SIGTERM") };
+  return launch(`journey ${flow.key}`, args, env, emit, () => emit({ type: "start", command, line: `$ ${command}` }), true);
 }
 
 /** Clamp a requested line-item count to what this client actually allows. */

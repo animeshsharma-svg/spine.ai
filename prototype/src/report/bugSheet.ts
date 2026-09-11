@@ -14,6 +14,7 @@ import {
   chipStyle,
 } from "./bugStatus.js";
 import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
+import { defectsFromObservations } from "./uiObservationDefects.js";
 
 /**
  * THE BUG REPORT — the platform's findings, as the QA bug sheet.
@@ -275,7 +276,7 @@ export function allDefects(): DefectGroup[] {
   // Curated rows lead, in their own issue-id order — that is the list people
   // read in standup. The platform's own findings follow, worst first.
   const curated = curatedAsDefects(loadCuratedBugs().bugs);
-  const found = [...summariseFindings(), ...defectsFromRuns()]
+  const found = [...summariseFindings(), ...defectsFromRuns(), ...defectsFromObservations()]
     .filter((g) => {
       if (seen.has(g.defectFingerprint)) return false;
       seen.add(g.defectFingerprint);
@@ -317,7 +318,39 @@ function table(
     </div>`;
 }
 
-export function renderBugSheet(groups: DefectGroup[] = allDefects()): string {
+/** The run a scoped sheet describes, for its heading. */
+export interface SheetScope {
+  runId: string;
+  ts?: string;
+  request?: string;
+  companyName?: string | null;
+  checks?: number;
+  /**
+   * What kind of run this was. A browser journey has steps, not checks, and
+   * files a bug only when something actually goes wrong — so an empty sheet
+   * after one means "nothing broke", not "nothing ran". Saying that in check
+   * vocabulary made a correct, empty page read as a broken one.
+   */
+  kind?: "checks" | "journey";
+  /** "it passed" / "it broke" — why the sheet below is the length it is. */
+  outcome?: string;
+  /**
+   * Things this run could not finish — facts about the run, not defects.
+   *
+   * A purchase order that never entered approval because the account has no
+   * flow accepting it is worth saying and is not a bug. Filed as one it got an
+   * issue id, a P1, a Dev ETA and a Sprint Week column, which invites someone
+   * to triage as engineering work something no engineer will ever fix. It
+   * belongs next to the run's outcome, above the bugs, where a run-level fact
+   * belongs.
+   */
+  notes?: string[];
+}
+
+export function renderBugSheet(
+  groups: DefectGroup[] = allDefects(),
+  scope?: SheetScope,
+): string {
   const triage = loadTriage();
   const blockers = groups.filter((g) => g.severity === "critical").length;
   const product = groups.filter((g) => g.kind === "product_defect" || g.kind === "contradiction").length;
@@ -346,8 +379,27 @@ ${EDITABLE_CSS}
 <body>
 <div class="wrap">
   <h1>Procol QA — bug report</h1>
-  <p class="sub">${groups.length} defect${groups.length === 1 ? "" : "s"} the platform has found ·
-  generated ${escapeHtml(stamp())}</p>
+  ${
+    scope
+      ? `<p class="sub">${groups.length} defect${groups.length === 1 ? "" : "s"} from
+        <b>this run</b>${scope.request ? ` — ${escapeHtml(scope.request)}` : ""}${
+          scope.companyName ? ` on ${escapeHtml(scope.companyName)}` : ""
+        }${scope.ts ? `, ${escapeHtml(new Date(scope.ts).toLocaleString())}` : ""}${
+          scope.checks ? ` · ${scope.checks} checks ran` : ""
+        }${scope.outcome ? ` · ${escapeHtml(scope.outcome)}` : ""}.<br><a href="/api/bug-report">Open the full sheet</a> for every run and the team's hand-raised list.</p>`
+      : `<p class="sub">${groups.length} defect${groups.length === 1 ? "" : "s"} the platform has found ·
+        generated ${escapeHtml(stamp())}</p>`
+  }
+
+  ${
+    scope?.notes?.length
+      ? `<section class="card note-card">
+    <h2>What this run could not finish</h2>
+    <p class="sub">Not defects — facts about this run and the account it ran against. Nothing here is engineering work.</p>
+    <ul class="run-notes">${scope.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>
+  </section>`
+      : ""
+  }
 
   <section class="card">
     <h2>Where this stands</h2>
@@ -366,15 +418,46 @@ ${EDITABLE_CSS}
 
   <section class="card">
     <h2>Bugs</h2>
-    <p class="save-note">Two lists, one sheet: the <b>hand-raised bugs</b> first — the D__ rows the team
-    maintains, each marked “raised by hand” — then everything the platform found on its own runs, marked
-    “found by the platform”. Status, ETA, priority, blocker, dev type, comments, sprint, user type, module and
-    notes are <b>editable</b> on both — change a cell and it saves itself. Your edits are kept separately from what
-    the platform found, so re-running the tests never overwrites them. The description, evidence and blast
-    radius are read-only: those are recomputed from each run.</p>
+    <p class="save-note">${
+      scope
+        ? `<b>Only what this run found</b> — grouped by defect, so one broken endpoint hit by four cases is
+           one row. Status, ETA, priority, blocker, dev type, comments, sprint, user type, module and notes are
+           <b>editable</b>; your edits are kept separately from what the platform found, so re-running never
+           overwrites them. The description, evidence and blast radius are read-only: those are recomputed from
+           each run.`
+        : `Two lists, one sheet: the <b>hand-raised bugs</b> first — the D__ rows the team
+           maintains, each marked “raised by hand” — then everything the platform found on its own runs, marked
+           “found by the platform”. Status, ETA, priority, blocker, dev type, comments, sprint, user type, module and
+           notes are <b>editable</b> on both — change a cell and it saves itself. Your edits are kept separately from what
+           the platform found, so re-running the tests never overwrites them. The description, evidence and blast
+           radius are read-only: those are recomputed from each run.`
+    }</p>
     ${
       groups.length === 0
-        ? `<p class="none">No defects recorded yet. Either no run has finished, or every check passed.</p>`
+        ? scope
+          ? scope.kind === "journey"
+            ? scope.notes?.length
+              /**
+               * An empty bug table is only "the good outcome" when the run did
+               * what it set out to do. This one did not finish, and saying so
+               * here — rather than congratulating it — is the difference
+               * between a report and a reassurance.
+               */
+              ? `<p class="none"><strong>Nothing to raise as a bug.</strong>
+               This run did not finish what it set out to do, and the reason is above under
+               <b>What this run could not finish</b> — it is a fact about this account, not engineering work,
+               so it is not filed as a defect. <a href="/api/ui-report?run=${encodeURIComponent(scope.runId)}">The run's own report</a>
+               has every step it took, and <a href="/api/bug-report">the full sheet</a> has everything the platform
+               has found across all runs.</p>`
+              : `<p class="none"><strong>Nothing to raise — ${escapeHtml(scope.outcome ?? "this journey filed nothing")}.</strong>
+               A journey files a bug when it stops on something, or when the app throws an error at it
+               while it works. This one did neither, so there is nothing here — that is the good outcome, not a
+               missing page. <a href="/api/ui-report?run=${encodeURIComponent(scope.runId)}">The run's own report</a>
+               has every step it took, and <a href="/api/bug-report">the full sheet</a> has everything the platform
+               has found across all runs.</p>`
+            : `<p class="none">This run found no defects — every check it ran either passed or was
+               inconclusive. <a href="/api/bug-report">The full sheet</a> shows what earlier runs found.</p>`
+          : `<p class="none">No defects recorded yet. Either no run has finished, or every check passed.</p>`
         : `
     <div class="filters">
       <input id="bq" type="search" placeholder="Filter bugs by text, module or journey…" aria-label="Filter bugs">

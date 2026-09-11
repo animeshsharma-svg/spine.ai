@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { fillSheetPrices } from "../support/sheet.js";
 import { TIMEOUTS } from "../config.js";
 
 /**
@@ -289,36 +290,8 @@ export class SurrogateBidPage extends BasePage {
    * still leave an incomplete bid.
    */
   private async fillBidSheet(drawer: ReturnType<SurrogateBidPage["drawer"]>, price: number): Promise<number> {
-    const cells = drawer.locator(
-      '[data-celltype="price"]:not([data-testid^="sheet-header"]), [data-celltype="participant_quantity"]:not([data-testid^="sheet-header"])',
-    );
-    let filled = 0;
-    const total = await cells.count();
-    for (let i = 0; i < total; i++) {
-      const cell = cells.nth(i);
-      if ((await cell.getAttribute("aria-disabled")) === "true") continue;
-      const type = await cell.getAttribute("data-celltype");
-      const value = type === "price" ? String(price) : "1";
-      await cell.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
-      await cell.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-      let input = cell.locator("input, textarea").first();
-      if (!(await input.count())) {
-        await cell.dblclick({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-        input = cell.locator("input, textarea").first();
-      }
-      if (!(await input.count())) continue;
-      await input.fill(value).catch(() => {});
-      await this.page.keyboard.press("Tab").catch(() => {});
-      filled++;
-    }
-    // Fall back to any number input in the drawer when the grid shape differs.
-    if (!filled) {
-      const inputs = drawer.locator("input[type='number'], input.ant-input-number-input");
-      for (let i = 0; i < (await inputs.count()); i++) {
-        await inputs.nth(i).fill(String(price)).catch(() => {});
-        filled++;
-      }
-    }
+    // One sheet filler for every bid-style drawer — see support/sheet.ts.
+    const filled = await fillSheetPrices(this.page, drawer, price);
     await this.pause(600);
     return filled;
   }

@@ -84,6 +84,27 @@ export const AI = {
     apiKeyEnvVar: "GOOGLE_API_KEY",
   },
 
+  // Slingring — Procol's OpenAI-compatible gateway for HACK26. When its key is
+  // present it is the FIRST provider tried; Groq and Gemini become fallbacks.
+  // Fallbacks and circuit breakers exist inside Slingring too, so a rate-limited
+  // request reroutes there before it ever reaches ours.
+  slingring: {
+    apiKeyEnvVar: "SLINGRING_API_KEY",
+    baseUrl: process.env.SLINGRING_BASE_URL ?? "http://slingring.procol.tech",
+    models: {
+      // The compiler and anything else where a wrong answer costs a wrong run.
+      // $50 per 1M tokens — used deliberately, not by default.
+      reason: process.env.SLINGRING_REASON_MODEL ?? "HACK26_GPT_6_ASTRA",
+      // Routing, narration, classification: the inner loop.
+      fast: process.env.SLINGRING_FAST_MODEL ?? "HACK26_GPT_5_6_LUNA",
+      // 1.1M context — for handing over a whole catalog section at once.
+      long: process.env.SLINGRING_LONG_MODEL ?? "HACK26_GPT_5_6_SOL",
+      embed: process.env.SLINGRING_EMBED_MODEL ?? "HACK26_TEXT_EMBED_3_LARGE",
+    },
+    // Published price per 1M tokens, so the dashboard can show spend.
+    usdPerMillion: { HACK26_GPT_6_ASTRA: 50 } as Record<string, number>,
+  },
+
   // Embeddings (text → numbers) run locally in-process via Transformers.js —
   // no install, no Docker, ₹0. This model is small and downloads once on first use.
   embeddings: {

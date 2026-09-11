@@ -50,6 +50,121 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "expect_create_options",
+    purpose:
+      "Open the Create Event menu on the events list and assert which paths it offers. Use for any case about what a tenant is offered when creating an event (eRFX, single-stage, BOQ). Case-insensitive substring match per option.",
+    args: {
+      options: 'array of option texts that MUST be present, e.g. ["eRFX","Single Stage"]',
+      absent: 'array of option texts that must NOT be present (optional)',
+    },
+    assertion: true,
+  },
+  {
+    name: "expect_url_contains",
+    purpose: "Assert the browser's current URL contains this text (a path, or a query parameter like projectCreation=true).",
+    args: { text: "the substring the URL must contain" },
+    assertion: true,
+  },
+  {
+    name: "filter_events",
+    purpose: "On the events list, switch to a tab: Live, History, Drafts or Recurring.",
+    args: { tab: '"Live" | "History" | "Drafts" | "Recurring"' },
+  },
+  {
+    name: "expect_event_in_list",
+    purpose:
+      "Search the events list by title and assert a matching row exists. Defaults to the title this plan gave its own event, so use it after publish or save_draft to prove the event is where the case says it should be.",
+    args: { title: "title text to search for; omit to use this plan's own event title" },
+    assertion: true,
+  },
+  {
+    name: "expect_event_status",
+    purpose:
+      "On the events list, find the event's row by title and assert its status label contains this text (e.g. Draft, Live, RFQ in Progress, Closed). Defaults to this plan's own event title.",
+    args: { status: "status text the row must show", title: "title to look for; omit to use this plan's own event" },
+    assertion: true,
+  },
+  {
+    name: "expect_template_selected",
+    purpose: "Assert the current stage has a template applied — the picker no longer offers 'Select Templates' — and, when a name is given, that the stage shows it.",
+    args: { name: "substring of the expected template name (optional)" },
+    assertion: true,
+  },
+  {
+    name: "expect_sheet_columns",
+    purpose:
+      "Assert the pricing sheet's header row has rendered from the template. With no args, asserts at least one column exists; with columns, asserts each named key is present (e.g. price, quantity, buyer_hub).",
+    args: { columns: "array of header keys that must be present (optional)" },
+    assertion: true,
+  },
+  {
+    name: "open_stage_menu",
+    purpose:
+      "Open a stage tab's ⋮ overflow menu (Edit title / Delete …) and leave it open, so expect_disabled / expect_enabled can check its items. Defaults to the first stage tab.",
+    args: { stage: '"rfp" | "rfq" | "auction" (optional)' },
+  },
+  {
+    name: "expect_disabled",
+    purpose:
+      "Assert a named control on the current screen is DISABLED (greyed out / aria-disabled). Use for rules like 'Save as draft is disabled until…', 'Delete is disabled while one stage remains', 'Savings is disabled before a template'. Matches buttons, menu items and tabs by their visible text.",
+    args: { control: "the control's visible text, e.g. \"Save as draft\", \"Delete\", \"Savings\"" },
+    assertion: true,
+  },
+  {
+    name: "expect_enabled",
+    purpose: "Assert a named control on the current screen is ENABLED and clickable. The counterpart of expect_disabled.",
+    args: { control: "the control's visible text" },
+    assertion: true,
+  },
+  {
+    name: "place_counter_offer",
+    purpose:
+      "Buyer side, on Master QCS after a vendor has bid: open the vendor's Counter Offer from their column header, enter a counter price in the drawer's sheet, add a remark and send it. The product offers the control only while the bid is live and active. Use open_master_qcs first.",
+    args: { vendor: "vendor name whose bid to counter (default: the first with a Counter Offer control)", price: "the counter price (number)", remark: "optional remark text" },
+  },
+  {
+    name: "expect_counter_offer_sent",
+    purpose: "Assert the comparison grid now marks the vendor's bid with a counter offer (the 'Counter offer initiated' mark).",
+    args: { vendor: "vendor name (optional)" },
+    assertion: true,
+  },
+  {
+    name: "capture_screen",
+    purpose:
+      "Record evidence of the current screen — a screenshot and the accessibility tree — under a label, without asserting anything. Use when a case wants to inspect or document a screen, or when the next thing to test has no step yet and a person needs to see the controls that exist.",
+    args: { label: "short name for the capture, e.g. \"order-details-counter-offer\"" },
+  },
+  {
+    name: "open_participants",
+    purpose:
+      "On a PUBLISHED event's project page, open the stage's Participants list (the surrogate-bid drawer lives here). Reaching the list is the success condition — it is paginated and only eligible vendors show an Add Bid control. Reports how many rows offer Add Bid.",
+    args: {},
+  },
+  {
+    name: "open_master_qcs",
+    purpose:
+      "On a published event with bids, open the Master QCS tab and assert the comparison grid rendered with its line items and bidding vendors. Optionally name vendors that must appear.",
+    args: { vendors: "array of vendor names that must be in the grid (optional)" },
+    assertion: true,
+  },
+  {
+    name: "configure_single_stage",
+    purpose:
+      "On the SINGLE-STAGE create screen (open_create path single-stage), open the configuration drawer and set the event type; for an auction, its strategy and the awarding rule. This is where auction strategy is chosen on this build — rank, price or traffic light; knockout and dutch exist only through RFQ→Auction conversion.",
+    args: {
+      eventType: '"rfq" | "rfp" | "auction"',
+      auctionSubtype: '"rank" | "price" | "traffic_light" (auction only; default rank)',
+      awarding: '"lot" (entire lot to one vendor) | "line_item" (partially, multiple vendors)',
+      rangeLower: "traffic light only: lower bound of the specified range (optional)",
+      rangeUpper: "traffic light only: upper bound of the specified range (optional)",
+    },
+  },
+  {
+    name: "convert_to_auction",
+    purpose:
+      "On a PUBLISHED RFQ's project page (after publish + expect_published), open Settings → Convert to Auction and continue. The app opens the converted event's create screen in a new tab, which becomes the page for every later step. Knockout and dutch auctions are reachable only this way.",
+  },
+  {
     name: "open_create",
     purpose: "Open the event-create screen. Always the first step of a create test.",
     args: { path: '"erfx" (multi-stage project, the default), "single-stage", or "boq"' },

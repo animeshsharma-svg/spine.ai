@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { InlineSheet } from "../helpers/inlineSheet.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { randomNumber } from "../helpers/data.js";
@@ -27,6 +28,9 @@ export interface SingleStageConfig {
   eventType: EventType;
   auctionSubtype?: AuctionSubtype;
   awarding?: Awarding;
+  /** Traffic light only: the specified range's bounds (defaults 50 / 150). */
+  rangeLower?: number;
+  rangeUpper?: number;
 }
 
 /**
@@ -83,6 +87,46 @@ export class SingleStagePage extends BasePage {
    * then Save. Selecting by role=radio name, falling back to clicking the card
    * that contains the label text.
    */
+  /** Set when a traffic-light auction was configured — the sheet needs the same bounds per line item. */
+  trafficLightRange: { green: string; yellow: string } | null = null;
+
+  /**
+   * The traffic-light sheet carries two extra REQUIRED columns per line item —
+   * "Green (Inclusive Range)*" and "Yellow (Inclusive Range)*" (captured
+   * 2026-09-11 on the publish that never redirected). Fill them on row 1 from
+   * the drawer's bounds. Returns how many cells took a value.
+   */
+  async fillRangeCells(): Promise<number> {
+    if (!this.trafficLightRange) return 0;
+    const p = this.page;
+    const headers = p.locator("[data-testid^='sheet-header-']");
+    const keys: Array<{ key: string; value: string }> = [];
+    for (let i = 0; i < (await headers.count()); i++) {
+      const h = headers.nth(i);
+      const text = ((await h.textContent()) ?? "").toLowerCase();
+      const key = ((await h.getAttribute("data-testid")) ?? "").replace("sheet-header-", "");
+      if (/green/.test(text)) keys.push({ key, value: this.trafficLightRange.green });
+      else if (/yellow/.test(text)) keys.push({ key, value: this.trafficLightRange.yellow });
+    }
+    let filled = 0;
+    for (const { key, value } of keys) {
+      const cell = p.locator(`[data-testid='sheet-cell-1-${key}']`).first();
+      if (!(await cell.count())) continue;
+      await cell.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
+      await cell.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      let input = cell.locator("input, textarea").first();
+      if (!(await input.count())) {
+        await cell.dblclick({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        input = cell.locator("input, textarea").first();
+      }
+      if (!(await input.count())) continue;
+      await input.fill(value).catch(() => {});
+      await p.keyboard.press("Tab").catch(() => {});
+      filled++;
+    }
+    return filled;
+  }
+
   async configure(cfg: SingleStageConfig): Promise<void> {
     await this.openConfigDrawer();
     const d = this.drawer();
@@ -112,6 +156,29 @@ export class SingleStagePage extends BasePage {
     await this.pause(500);
     if (cfg.eventType === "auction" && cfg.auctionSubtype) {
       await pick(SUBTYPE_LABEL[cfg.auctionSubtype], `subtype:${cfg.auctionSubtype}`);
+      if (cfg.auctionSubtype === "traffic_light") {
+        // Traffic light needs a "specified range" before Save (the journey was
+        // deferred for exactly this). The drawer's range controls have never
+        // been captured, so record them here — with the tree — and try the
+        // obvious shape: a range-type choice plus lower/upper number inputs.
+        await recordStuck(this.page, {
+          label: "capture:single-stage-traffic-light-drawer",
+          message: "captured on request — the traffic light range controls, before Save",
+          triedCandidates: [],
+          healerTried: false,
+        }).catch(() => {});
+        // Captured 2026-09-11: "* Group traffic light by: Price | Rank", then
+        // GREEN "Gross total less than" textbox "range green" (placeholder
+        // 3000) and YELLOW textbox "range yellow" — plain textboxes, not
+        // number inputs. Range is inclusive of price; green must be the lower.
+        const green = d.getByRole("textbox", { name: /range green/i }).first();
+        const yellow = d.getByRole("textbox", { name: /range yellow/i }).first();
+        const lo = String(cfg.rangeLower ?? 3000);
+        const hi = String(cfg.rangeUpper ?? 6000);
+        if (await green.count()) await green.fill(lo).catch(() => {});
+        if (await yellow.count()) await yellow.fill(hi).catch(() => {});
+        this.trafficLightRange = { green: lo, yellow: hi };
+      }
     }
     if (cfg.awarding) {
       await pick(AWARDING_LABEL[cfg.awarding], `awarding:${cfg.awarding}`);

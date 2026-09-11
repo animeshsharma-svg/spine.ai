@@ -266,7 +266,19 @@ export function buildChecksFromCases(
   cases: TestCaseRecord[],
   ctx: DynamicContext = {},
   actor: Actor = {},
-): { checks: Check[]; skipped: { id: string; title: string; reason: string }[] } {
+): {
+  checks: Check[];
+  skipped: { id: string; title: string; reason: string }[];
+  /**
+   * Cases blocked ONLY on a record an earlier case creates.
+   *
+   * These are not unrunnable — they are waiting. The RFQ set creates an event
+   * group in its first case and needs its uuid in the next two, and resolving
+   * every placeholder before the run meant those two (including the SQL
+   * injection case) were skipped every single time.
+   */
+  deferred: { record: TestCaseRecord; needs: string[] }[];
+} {
   const fullCtx: DynamicContext = {
     productUuid: client.ctx.catalog?.productUuid,
     productQualityUuid: client.ctx.catalog?.productQualityUuid,
@@ -276,6 +288,7 @@ export function buildChecksFromCases(
   };
   const checks: Check[] = [];
   const skipped: { id: string; title: string; reason: string }[] = [];
+  const deferred: { record: TestCaseRecord; needs: string[] }[] = [];
 
   /**
    * Pull the exact server message out of a case's documented expectedResult.
@@ -334,8 +347,53 @@ export function buildChecksFromCases(
       (check as any).preconditions = c.preconditions;
       checks.push(check);
     } else {
-      skipped.push({ id: c.id, title: c.title, reason: reason ?? "not runnable here" });
+      // Waiting on a record, or genuinely unrunnable? Only the first is worth
+      // retrying once earlier cases in this run have created something.
+      const waiting = reason?.match(/^unresolved placeholder\(s\):\s*(.+)$/);
+      if (waiting) {
+        deferred.push({ record: c, needs: waiting[1].split(",").map((n) => n.trim()).filter(Boolean) });
+      } else {
+        skipped.push({ id: c.id, title: c.title, reason: reason ?? "not runnable here" });
+      }
     }
   }
-  return { checks, skipped };
+  return { checks, skipped, deferred };
+}
+
+/**
+ * The ids a reply hands to the cases that follow it.
+ *
+ * `POST /event_groups` answering with a uuid provides `eventGroupUuid`; the
+ * next case's `{{eventGroupUuid}}` then resolves. The name is derived from the
+ * endpoint rather than a hand-written table, so a new creating endpoint feeds
+ * the cases after it without anyone wiring it up.
+ */
+export function idsFromReply(path: string, data: unknown): DynamicContext {
+  const uuid = findUuid(data);
+  if (!uuid) return {};
+  const segments = String(path).split("?")[0].split("/").filter(Boolean);
+  // Skip a trailing id so /event_groups/<uuid> is still named after the collection.
+  const resource = segments.reverse().find((seg) => /^[a-z][a-z_]*$/.test(seg)) ?? "";
+  if (!resource) return {};
+  const singular = resource.replace(/s$/, "");
+  const camel = singular.replace(/_([a-z])/g, (_m, ch) => ch.toUpperCase());
+  if (!camel) return {};
+  return { [`${camel}Uuid`]: uuid };
+}
+
+/** The first uuid-looking value in a reply, however the API wraps it. */
+function findUuid(data: unknown, depth = 0): string | undefined {
+  if (depth > 4 || !data || typeof data !== "object") return undefined;
+  const obj = data as Record<string, unknown>;
+  for (const key of ["uuid", "id", "event_group_uuid", "order_uuid"]) {
+    const v = obj[key];
+    if (typeof v === "string" && v.length >= 6) return v;
+  }
+  for (const v of Object.values(obj)) {
+    if (v && typeof v === "object") {
+      const found = findUuid(v, depth + 1);
+      if (found) return found;
+    }
+  }
+  return undefined;
 }

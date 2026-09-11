@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { savePoRun, savePoRunHtml } from "./poRunStore.js";
 
 /**
  * PO API AUTOMATION — run the API suite's purchase-order flow from here.
@@ -45,6 +47,10 @@ export interface PoRunEvent {
   exitCode?: number;
   step?: { title: string; status: string; calls: number; failed: number; ms: number };
   summary?: { steps: number; calls: number; failedCalls: number };
+  /** This run's id, so the reports it produces can be opened for it alone. */
+  runId?: string;
+  /** Where this run's report was snapshotted, if it wrote one. */
+  reportFile?: string;
 }
 
 /**
@@ -120,7 +126,31 @@ export function poInputSummary(): {
  * surprise.
  */
 export function runPoFlow(
-  opts: { clientId: string; submit?: boolean },
+  opts: {
+    clientId: string;
+    submit?: boolean;
+    /**
+     * A working token for this account, and the variable to hand it to.
+     *
+     * The suite reads its token from its own .env, which is exactly the copy
+     * that expires — so when the platform has just logged in and minted a
+     * fresh one, it passes it here. dotenv does not overwrite a variable that
+     * is already set, so the child uses this and the file is left alone.
+     */
+    tokenVar?: string;
+    token?: string;
+    /**
+     * The platform's id for this run.
+     *
+     * The suite has a run id of its own (it stamps it on the PO's name), but
+     * the platform needs one it minted itself to file the run's report under
+     * and to scope the bug sheet to. Carried through so both ends of the
+     * stream agree on which run is being talked about.
+     */
+    runId?: string;
+    companyId?: number | null;
+    companyName?: string;
+  },
   emit: (e: PoRunEvent) => void,
 ): { stop: () => void } {
   const args = ["tsx", "src/cli/createPo.ts", "--client", opts.clientId];
@@ -128,10 +158,23 @@ export function runPoFlow(
   const command = `npx ${args.join(" ")}`;
   emit({ type: "start", command, line: `$ ${command}` });
 
-  const child = spawn("npx", args, { cwd: SUITE_DIR, shell: false });
+  const env = { ...process.env };
+  if (opts.tokenVar && opts.token) env[opts.tokenVar] = opts.token;
+  /**
+   * Noted BEFORE the child starts, so a report can be told apart from the one
+   * already on disk. See where it is read, below.
+   */
+  const spawnedAt = Date.now();
+  /** Lines the run used to say it could not finish something. */
+  const issues: string[] = [];
+  const child = spawn("npx", args, { cwd: SUITE_DIR, shell: false, env });
   const pump = (buf: Buffer) => {
     for (const line of buf.toString().split("\n")) {
       const clean = line.replace(ANSI, "").trimEnd();
+      // "! not submitted …" and "✗ …" are the run telling us something did not
+      // complete. Kept, because the call log will not show it.
+      const notable = clean.match(/^\s*(?:!\s+not submitted|✗)\s+(.{4,400})$/);
+      if (notable) issues.push(notable[1].trim());
       if (clean.trim()) emit({ type: "log", line: clean });
     }
   };
@@ -140,9 +183,31 @@ export function runPoFlow(
   child.on("error", (e) => emit({ type: "run-error", line: e.message }));
 
   child.on("close", (code) => {
-    // The suite writes a full run report; read its steps out so the UI can show
-    // what each phase did rather than only the log it already streamed.
+    /**
+     * The suite writes a full run report; read its steps out so the UI can show
+     * what each phase did rather than only the log it already streamed.
+     *
+     * ONLY IF IT IS THIS RUN'S. The report lives at a fixed path and is
+     * overwritten each time, so "the file exists" was never the same question
+     * as "this run wrote it". When a run stopped without writing one, the
+     * previous run's file was read and its steps emitted as if they were this
+     * run's — which is how a run that died on a 422 came back with a full set
+     * of green ticks, and why the rows all appeared at once at the end
+     * instead of the log's own ✓/✗ standing. The suite now writes a report
+     * even when it stops (see createPo.ts), so a stale file means something
+     * killed the process; either way it is not evidence about this run.
+     */
     try {
+      if (existsSync(RUN_REPORT) && statSync(RUN_REPORT).mtimeMs < spawnedAt) {
+        emit({
+          type: "log",
+          line:
+            "· this run stopped before it could write a report — the steps above are the run's own log, " +
+            "not a report",
+        });
+        emit({ type: "done", exitCode: code ?? -1, runId: opts.runId });
+        return;
+      }
       if (existsSync(RUN_REPORT)) {
         const model = JSON.parse(readFileSync(RUN_REPORT, "utf8")) as {
           cases?: Array<{
@@ -152,6 +217,26 @@ export function runPoFlow(
           }>;
           totals?: { calls: number; failedCalls: number };
         };
+        // Filed under this run's id before anything is emitted, so the
+        // reports the UI is about to link to can actually be opened.
+        if (opts.runId) {
+          try {
+            const html = join(SUITE_DIR, "reports", "po-run-report.html");
+            if (existsSync(html)) savePoRunHtml(opts.runId, readFileSync(html, "utf8"));
+          } catch {
+            /* the JSON below is the part that matters */
+          }
+          savePoRun({
+            runId: opts.runId,
+            startedAt: new Date(spawnedAt).toISOString(),
+            endedAt: new Date().toISOString(),
+            exitCode: code ?? null,
+            companyId: opts.companyId ?? null,
+            companyName: opts.companyName,
+            issues,
+            report: model,
+          });
+        }
         for (const c of model.cases ?? []) {
           emit({
             type: "step",
@@ -167,6 +252,7 @@ export function runPoFlow(
         emit({
           type: "done",
           exitCode: code ?? -1,
+          runId: opts.runId,
           summary: {
             steps: model.cases?.length ?? 0,
             calls: model.totals?.calls ?? 0,
@@ -178,7 +264,7 @@ export function runPoFlow(
     } catch {
       /* fall through to the plain close below */
     }
-    emit({ type: "done", exitCode: code ?? -1 });
+    emit({ type: "done", exitCode: code ?? -1, runId: opts.runId });
   });
 
   return { stop: () => child.kill("SIGTERM") };

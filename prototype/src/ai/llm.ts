@@ -1,15 +1,19 @@
 /**
  * THE LLM PROVIDER — one place that talks to the "brain".
  *
- * Provider is a single setting (config/settings.ts → AI.provider). Today: Groq
- * free tier (Llama 3.3 70B). Swapping to Claude later = change the setting +
- * add a key; no agent code changes.
+ * Providers, in the order tried:
+ *   1. Slingring  — Procol's OpenAI-compatible gateway (SLINGRING_API_KEY)
+ *   2. Groq       — free tier, gpt-oss-120b (GROQ_API_KEY)
+ *   3. Gemini     — free tier (GOOGLE_API_KEY)
  *
- * KEY IDEA: if no API key is present, we run in "fallback" mode. The agents
- * still produce REAL decisions and REAL results (their logic is deterministic);
- * only the natural-language narration is templated instead of LLM-written. So
- * the whole platform runs end-to-end with ₹0 and no key — and lights up richer
- * prose the moment a key is added.
+ * Every call names a TIER rather than a model: "reason" for the compiler and
+ * anything where a wrong answer costs a wrong run, "fast" for routing and
+ * narration. Each provider maps the tier onto what it has, so agent code never
+ * spells a model name and swapping providers is a key, not a refactor.
+ *
+ * KEY IDEA: with no key at all the platform still runs end to end. The agents'
+ * decisions are deterministic; only the natural-language narration is
+ * templated instead of written. Nothing hard-fails in a demo.
  */
 import { AI } from "../../config/settings.js";
 
@@ -18,31 +22,204 @@ export interface ChatMessage {
   content: string;
 }
 
-export function llmMode(): "groq" | "fallback" {
+export type Tier = "reason" | "fast" | "long";
+
+export interface ChatOptions {
+  temperature?: number;
+  maxTokens?: number;
+  /** Groq's reasoning model needs this kept low or it spends the budget thinking. */
+  reasoningEffort?: "low" | "medium" | "high";
+  /** Which quality of model the call deserves. Defaults to "fast". */
+  tier?: Tier;
+}
+
+type Mode = "slingring" | "groq" | "fallback";
+
+export function llmMode(): Mode {
+  if (process.env[AI.slingring.apiKeyEnvVar]) return "slingring";
   if (AI.provider === "groq" && process.env[AI.groq.apiKeyEnvVar]) return "groq";
-  if (AI.provider === "claude" && process.env[AI.claude.apiKeyEnvVar]) return "groq"; // (same OpenAI-style path, later)
   return "fallback";
 }
 
 export function providerLabel(): string {
-  return llmMode() === "groq"
-    ? `${AI.provider} · ${AI.groq.model}`
-    : "deterministic fallback (no API key — set GROQ_API_KEY to enable the LLM)";
+  switch (llmMode()) {
+    case "slingring":
+      return `slingring · ${AI.slingring.models.reason} / ${AI.slingring.models.fast}`;
+    case "groq":
+      return `groq · ${AI.groq.model}`;
+    default:
+      return "deterministic fallback (no API key — set SLINGRING_API_KEY or GROQ_API_KEY to enable the LLM)";
+  }
+}
+
+/** Which provider actually served the last call, for honest reporting. */
+export let lastProviderUsed = "none";
+/** The model the gateway REPORTED serving, which may differ from the one asked for. */
+export let lastServedModel = "";
+const warnedReroute = new Set<string>();
+
+// ── spend, counted ──────────────────────────────────────────────────────────
+//
+// ASTRA is $50 per million tokens against a $50/day allowance. A compiler that
+// quietly re-tries three times with a 3,000-token budget can spend a meaningful
+// share of that in an afternoon, so every Slingring response's `usage` is
+// tallied per model and exposed to the dashboard. The number is what the
+// gateway reported, not an estimate.
+export interface UsageTally {
+  calls: number;
+  promptTokens: number;
+  completionTokens: number;
+  usd: number;
+}
+const usage = new Map<string, UsageTally>();
+export function usageReport(): { byModel: Record<string, UsageTally>; totalUsd: number } {
+  const byModel: Record<string, UsageTally> = {};
+  let totalUsd = 0;
+  for (const [m, t] of usage) {
+    byModel[m] = t;
+    totalUsd += t.usd;
+  }
+  return { byModel, totalUsd };
+}
+function tally(model: string, u: { prompt_tokens?: number; completion_tokens?: number } | undefined) {
+  if (!u) return;
+  const t = usage.get(model) ?? { calls: 0, promptTokens: 0, completionTokens: 0, usd: 0 };
+  t.calls += 1;
+  t.promptTokens += u.prompt_tokens ?? 0;
+  t.completionTokens += u.completion_tokens ?? 0;
+  const rate = AI.slingring.usdPerMillion[model];
+  if (rate) t.usd += (((u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0)) / 1_000_000) * rate;
+  usage.set(model, t);
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Raw chat call. Returns "" in fallback mode (callers supply their own text).
- * Retries once on a rate-limit (429) or transient (503), honouring Retry-After. */
+// ── providers ───────────────────────────────────────────────────────────────
+
+function slingringModel(tier: Tier = "fast"): string {
+  return AI.slingring.models[tier];
+}
+
 /**
- * Gemini, used when Groq cannot serve a call.
- *
- * Groq's free tier has a daily token ceiling, and hitting it mid-demo turns
- * every agent into its deterministic fallback with no visible cause. A second
- * provider costs nothing to add — the key is already here for the UI healer —
- * and turns a hard stop into a shrug.
+ * Slingring speaks OpenAI: same request, same response. One retry on 429/503
+ * even though the gateway has its own circuit breakers — a second attempt is
+ * cheap and a demo stalling on a transient is not.
  */
-async function geminiChat(messages: ChatMessage[], opts: { temperature?: number; maxTokens?: number }): Promise<string> {
+async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promise<string> {
+  const key = process.env[AI.slingring.apiKeyEnvVar]!;
+  const model = slingringModel(opts.tier);
+  // The gateway reroutes freely — on 2026-09-11 every HACK26 GPT model was
+  // being served by azure_ai/Kimi-K2.7-Code, a REASONING model that spends
+  // tokens on `reasoning_content` before any `content`. A 5-token budget came
+  // back as content:"" with finish_reason:"length". Give the answer its budget
+  // AND a reasoning allowance on top, whichever model ends up answering.
+  // Measured 2026-09-11: a compile (3,000-token answer budget) with a 1,500
+  // allowance still ended finish_reason:"length" with empty content — Kimi
+  // reasoned through the lot. The reason tier gets room to think; the fast
+  // tier answers short questions and needs far less.
+  const REASONING_ALLOWANCE = opts.tier === "reason" ? 6_000 : 1_500;
+  /**
+   * HOW LONG THIS TIER IS WORTH WAITING FOR.
+   *
+   * Measured 2026-09-11: the gateway serves every HACK26 model with
+   * azure_ai/Kimi-K2.7-Code, and a one-word answer takes ~11s. Groq answers
+   * the same prompt in ~0.6s. That is fine for the compiler, where a better
+   * plan is worth ten seconds — and it is the whole reason the 7-agent run
+   * looked dead: seven agents at 11-20s each is over two minutes of blank
+   * screen for work that used to take fifteen seconds.
+   *
+   * So the tiers get different patience. `reason` is allowed to think; the
+   * inner loop is not, and hands over to the next provider rather than making
+   * someone watch a spinner. Overridable per environment: a faster day on the
+   * gateway only needs SLINGRING_FAST_TIMEOUT_MS raised.
+   */
+  const deadline = opts.tier === "reason" || opts.tier === "long"
+    ? Number(process.env.SLINGRING_SLOW_TIMEOUT_MS ?? 90_000)
+    : Number(process.env.SLINGRING_FAST_TIMEOUT_MS ?? 4_000);
+  const body = JSON.stringify({
+    model,
+    messages,
+    temperature: opts.temperature ?? 0.3,
+    max_tokens: (opts.maxTokens ?? 900) + REASONING_ALLOWANCE,
+  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const stop = AbortSignal.timeout(deadline);
+    let res: Response;
+    try {
+      res = await fetch(`${AI.slingring.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body,
+        signal: stop,
+      });
+    } catch (err) {
+      // A deadline is a hand-off, not a crash: the chain tries the next one.
+      throw new Error(
+        (err as Error).name === "TimeoutError"
+          ? `slingring did not answer the ${opts.tier ?? "fast"} tier within ${deadline}ms`
+          : (err as Error).message,
+      );
+    }
+    if (res.ok) {
+      const j: any = await res.json();
+      const served = String(j.model ?? model);
+      tally(served, j.usage);
+      lastServedModel = served;
+      if (!served.includes(model) && !warnedReroute.has(model)) {
+        warnedReroute.add(model);
+        console.log(`[llm] slingring served "${model}" with ${served} (gateway fallback) — reported as such, not as ${model}`);
+      }
+      const content = String(j.choices?.[0]?.message?.content ?? "").trim();
+      const finish = j.choices?.[0]?.finish_reason;
+      // Empty content is a failure to be handed down the chain, not an answer.
+      if (!content) throw new Error(`${served} returned no content (finish_reason: ${finish})`);
+      return content;
+    }
+    if ((res.status === 429 || res.status === 503) && attempt === 0) {
+      const retryAfter = Number(res.headers.get("retry-after")) || 0;
+      await sleep(Math.min(6000, retryAfter * 1000 || 2500));
+      continue;
+    }
+    throw new Error(`Slingring ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+  return "";
+}
+
+async function groqChat(messages: ChatMessage[], opts: ChatOptions): Promise<string> {
+  const key = process.env[AI.groq.apiKeyEnvVar];
+  if (!key) throw new Error("no GROQ_API_KEY");
+  // `openai/gpt-oss-120b` is a REASONING model: it spends the token budget on a
+  // hidden `reasoning` field before emitting any `content`. Ask for a short
+  // answer and you get HTTP 200 with content:"" and finish_reason:"length".
+  // Keeping the reasoning effort low leaves the budget for the answer.
+  const body = JSON.stringify({
+    model: AI.groq.model,
+    messages,
+    temperature: opts.temperature ?? 0.3,
+    max_tokens: opts.maxTokens ?? 900,
+    reasoning_effort: opts.reasoningEffort ?? "low",
+  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(`${AI.groq.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+      body,
+    });
+    if (res.ok) {
+      const j: any = await res.json();
+      return j.choices?.[0]?.message?.content?.trim() ?? "";
+    }
+    if ((res.status === 429 || res.status === 503) && attempt === 0) {
+      const retryAfter = Number(res.headers.get("retry-after")) || 0;
+      await sleep(Math.min(6000, retryAfter * 1000 || 3500));
+      continue;
+    }
+    throw new Error(`Groq ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+  return "";
+}
+
+async function geminiChat(messages: ChatMessage[], opts: ChatOptions): Promise<string> {
   const key = process.env.GOOGLE_API_KEY;
   if (!key) throw new Error("no GOOGLE_API_KEY for the fallback provider");
   const model = process.env.AI_FALLBACK_MODEL ?? "gemini-flash-lite-latest";
@@ -66,82 +243,36 @@ async function geminiChat(messages: ChatMessage[], opts: { temperature?: number;
   return String(json?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ?? "");
 }
 
-/** Which provider actually served the last call, for honest reporting. */
-export let lastProviderUsed = "none";
+// ── the chain ───────────────────────────────────────────────────────────────
 
-export async function chat(
-  messages: ChatMessage[],
-  opts: { temperature?: number; maxTokens?: number; reasoningEffort?: "low" | "medium" | "high" } = {},
-): Promise<string> {
-  if (llmMode() === "fallback") {
-    // No Groq key, but a Gemini key may still be present.
-    if (process.env.GOOGLE_API_KEY) {
-      try {
-        const text = await geminiChat(messages, opts);
-        lastProviderUsed = "gemini";
-        return text;
-      } catch {
-        return "";
-      }
-    }
-    return "";
-  }
-  try {
-    const text = await groqChat(messages, opts);
-    if (text.trim()) {
-      lastProviderUsed = "groq";
+/**
+ * Ask the best available provider; fall through on failure, and log every
+ * hand-off so a run's output is never quietly attributed to the wrong model.
+ * Returns "" only when NO provider could answer.
+ */
+export async function chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
+  const chain: Array<[string, () => Promise<string>]> = [];
+  if (process.env[AI.slingring.apiKeyEnvVar]) chain.push([`slingring:${slingringModel(opts.tier)}`, () => slingringChat(messages, opts)]);
+  if (process.env[AI.groq.apiKeyEnvVar]) chain.push(["groq", () => groqChat(messages, opts)]);
+  if (process.env.GOOGLE_API_KEY) chain.push(["gemini", () => geminiChat(messages, opts)]);
+  if (!chain.length) return "";
+
+  let lastErr: Error | null = null;
+  for (let i = 0; i < chain.length; i++) {
+    const [name, call] = chain[i];
+    try {
+      const text = await call();
+      if (!text.trim()) throw new Error(`${name} returned no content`);
+      lastProviderUsed = name;
+      if (i > 0) console.log(`[llm] ${chain[i - 1][0]} unavailable (${lastErr?.message.slice(0, 90)}) — answered with ${name}`);
       return text;
+    } catch (err) {
+      lastErr = err as Error;
     }
-    throw new Error("groq returned no content");
-  } catch (err) {
-    if (!process.env.GOOGLE_API_KEY) throw err;
-    // Groq is out of quota or unwell — say which provider answered instead, so
-    // a run's output is never quietly attributed to the wrong model.
-    const text = await geminiChat(messages, opts);
-    lastProviderUsed = "gemini";
-    console.log(`[llm] Groq unavailable (${(err as Error).message.slice(0, 90)}) — answered with ${process.env.AI_FALLBACK_MODEL ?? "gemini-flash-lite-latest"}`);
-    return text;
   }
-}
-
-async function groqChat(
-  messages: ChatMessage[],
-  opts: { temperature?: number; maxTokens?: number; reasoningEffort?: "low" | "medium" | "high" } = {},
-): Promise<string> {
-  if (llmMode() === "fallback") return "";
-  const key = process.env[AI.groq.apiKeyEnvVar]!;
-  // `openai/gpt-oss-120b` is a REASONING model: it spends the token budget on a
-  // hidden `reasoning` field before emitting any `content`. Ask for a short
-  // answer and you get HTTP 200 with content:"" and finish_reason:"length" —
-  // which reads as success to any caller checking the status code, and as
-  // "the model said nothing" to any caller checking the text. Keeping the
-  // reasoning effort low leaves the budget for the answer we actually want.
-  const body = JSON.stringify({
-    model: AI.groq.model,
-    messages,
-    temperature: opts.temperature ?? 0.3,
-    max_tokens: opts.maxTokens ?? 900,
-    reasoning_effort: opts.reasoningEffort ?? "low",
-  });
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetch(`${AI.groq.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body,
-    });
-    if (res.ok) {
-      const j: any = await res.json();
-      return j.choices?.[0]?.message?.content?.trim() ?? "";
-    }
-    // On a rate-limit / transient error, wait and retry once.
-    if ((res.status === 429 || res.status === 503) && attempt === 0) {
-      const retryAfter = Number(res.headers.get("retry-after")) || 0;
-      await sleep(Math.min(6000, retryAfter * 1000 || 3500));
-      continue;
-    }
-    throw new Error(`Groq ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  }
+  // Every provider failed. Callers treat "" as "use the deterministic path".
+  console.log(`[llm] no provider could answer: ${lastErr?.message.slice(0, 120)}`);
+  if (chain.length === 1) throw lastErr!;
   return "";
 }
 
@@ -150,7 +281,7 @@ async function groqChat(
  * LLM-written when a key is present; the deterministic `facts` text otherwise.
  */
 export async function narrate(role: string, facts: string): Promise<string> {
-  if (llmMode() === "fallback") return facts;
+  if (llmMode() === "fallback" && !process.env.GOOGLE_API_KEY) return facts;
   try {
     const out = await chat(
       [
@@ -163,7 +294,7 @@ export async function narrate(role: string, facts: string): Promise<string> {
         },
         { role: "user", content: facts },
       ],
-      { temperature: 0.4, maxTokens: 260 },
+      { temperature: 0.4, maxTokens: 260, tier: "fast" },
     );
     return out || facts;
   } catch {

@@ -20,6 +20,25 @@ import { TOKEN_CLIENTS, tokenClient, type TokenClient } from "../config/tokenCli
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** The token, read from the API suite's .env at run time. Never cached to disk. */
+/**
+ * One variable out of the API suite's .env, whichever copy is present.
+ *
+ * Credentials belong in that file, not in this repository's source: a phone
+ * number and a fixed sandbox code are still credentials, and an account's
+ * login should be changeable without editing TypeScript. `readToken` is this
+ * for the token specifically; accounts that log in need two or three more.
+ */
+export function readEnvVar(client: TokenClient, varName: string): string | undefined {
+  for (const candidate of client.tokenFiles) {
+    const file = resolve(here, "..", candidate);
+    if (!existsSync(file)) continue;
+    const match = readFileSync(file, "utf8").match(new RegExp(`^${varName}=(.+)$`, "m"));
+    const value = match?.[1]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
 export function readToken(client: TokenClient): string {
   const tried: string[] = [];
   for (const candidate of client.tokenFiles) {

@@ -113,6 +113,9 @@ export const FEATURE_TREE: FeatureGroup[] = [
       { id: "bids.price_cap", label: "Price cap", what: "Per-vendor ceiling; a higher price cannot be entered." },
       { id: "bids.quick_fill", label: "Quick fill", what: "Auto-fills a vendor response from their standard offering.", portal: "vendor" },
       { id: "bids.participation", label: "Participate / decline", what: "Vendor accepts or skips an invitation.", portal: "vendor" },
+      // Five written cases named this feature and nothing in the tree claimed
+      // them, so they could not be ticked and never ran. Listed, they can.
+      { id: "bids.counter_offer", label: "Counter offers", what: "Buyer counters a bid; the vendor accepts, rejects or revokes." },
     ],
   },
   {
@@ -183,7 +186,7 @@ export const FEATURE_TREE: FeatureGroup[] = [
     icon: "🏦",
     what: "Matching the paperwork and paying the vendor.",
     children: [
-      { id: "finance.three_way", label: "3-way match", what: "PO vs invoice vs GRN — must match exactly." },
+      { id: "finance.three_way", uiFlow: "finance.three_way", label: "3-way match", what: "PO vs invoice vs GRN — must match exactly." },
       { id: "finance.bill", label: "Bill creation", what: "Only on a clean match; the bill triggers payment." },
       { id: "finance.payment", label: "Payment", what: "On invoice (advance) or on delivery." },
       { id: "finance.cn_dn", label: "Credit / debit notes", what: "Short or over delivery adjustments." },
