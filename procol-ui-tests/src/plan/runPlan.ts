@@ -462,7 +462,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (disabled) return "the confirm button is disabled, as expected";
       }
       const err = await s.create.errorToastText(6_000);
-      expect(err, "publishing was expected to be blocked, but the app allowed it${participantsNote}").toBeTruthy();
+      expect(err, `publishing was expected to be blocked, but the app allowed it${participantsNote}`).toBeTruthy();
       if (a.because) expect(err ?? "").toContain(String(a.because));
       return `blocked: ${err}`;
     }
