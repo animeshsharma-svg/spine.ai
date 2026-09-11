@@ -250,7 +250,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (/waiting for the window to lapse/.test(done)) {
         // The smallest duration preset is well above a few minutes; wait long
         // enough for it (the step refuses up front if the row says longer).
-        done = `${done}; ${await detail.waitForWindowToLapse(s.title, asInt(a.maxWaitMinutes, 25))}`;
+        // The product's smallest duration preset is 30 minutes (30 Mins · 1 Hrs
+        // · 4 Hrs · 1 Days, captured 2026-09-11), so a closed event on a tenant
+        // without force-end costs a real half-hour. Budget for it.
+        done = `${done}; ${await detail.waitForWindowToLapse(s.title, asInt(a.maxWaitMinutes, 36))}`;
       }
       s.closed = true;
       return `event closed: ${done}`;

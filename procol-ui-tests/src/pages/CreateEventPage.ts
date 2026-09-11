@@ -1625,6 +1625,17 @@ export class CreateEventPage extends BasePage {
       const valueCol = scope.locator("[class*='inputCol']").filter({ hasText: /^\s*\d+\s*(Mins?|Minutes?|Hours?)\s*$/i }).first();
       const inner = (await valueCol.evaluate((e) => e.outerHTML.replace(/\s+/g, " ").slice(0, 600)).catch(() => "")) || "";
       console.log(`[create-event] duration value control: ${inner || "not found"}`);
+      // Evidence for a shorter road: what does the End time MODE select offer
+      // besides "Duration"? (A fixed end time would allow a 3-minute window.)
+      const modeSel = scope.locator("[class*='inputCol'] .ant-select").filter({ hasText: /duration/i }).first();
+      if (await modeSel.count()) {
+        await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const modeOpts = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item");
+        await modeOpts.first().waitFor({ state: "visible", timeout: 3_000 }).catch(() => {});
+        const modes = (await modeOpts.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+        console.log(`[create-event] end-time mode options: ${modes.join(" | ") || "(none read)"}`);
+        await this.page.keyboard.press("Escape").catch(() => {});
+      }
       let chosen: number | null = null;
       if (await valueCol.count()) {
         const input = valueCol.locator("input").first();
