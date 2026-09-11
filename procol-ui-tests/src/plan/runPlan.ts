@@ -1,5 +1,6 @@
 import { Page, expect } from "@playwright/test";
 import { EventsPage } from "../pages/EventsPage.js";
+import { BasePage } from "../pages/BasePage.js";
 import { VendorPortalPage } from "../pages/VendorPortalPage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
@@ -534,41 +535,60 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // from the line items on its own, so "no participants" is often untrue.
       const participants = await s.create.participantCount().catch(() => -1);
       const participantsNote = participants >= 0 ? ` — ${participants} participant(s) were on the event (the product audience adds vendors from the line items)` : "";
-      // Two shapes of "blocked" exist on this screen and a test should accept
-      // either: the confirm button rendered but disabled, or the app refusing
-      // outright with a message. Insisting on one makes the test brittle about
-      // something it does not care about.
       const p = s.page;
+      const startUrl = p.url();
       await s.create.dismissDistractions();
       await p.getByRole("button", { name: /^publish( event)?$/i }).first().click({ timeout: 10_000 }).catch(() => {});
-      await p.waitForTimeout(2_000);
-      const confirm = p
-        .locator(".ant-modal-content, [role='dialog']")
-        .getByRole("button", { name: /^publish|confirm|yes/i })
-        .first();
+      await p.waitForTimeout(1_500);
+      // Shape 1 of "blocked": the confirm button rendered but disabled.
+      const confirm = p.locator(".ant-modal-content, [role='dialog']").getByRole("button", { name: /^publish|confirm|yes/i }).first();
       if (await confirm.count()) {
         const disabled = await confirm.isDisabled().catch(() => false);
         if (disabled) return "the confirm button is disabled, as expected";
+        // A live confirm: the app is asking, not refusing. Pressing it is what
+        // the case means by "publish"; a refusal may still follow.
+        await confirm.click({ timeout: 5_000 }).catch(() => {});
       }
-      const err = await s.create.errorToastText(6_000);
-      // The app allowed it. Decide what that MEANS before calling it anything:
-      // read the participant count on the published event. Zero means an event
-      // nobody can bid on went live — a product defect. More than zero means
-      // the product audience supplied vendors from the line items, so the
-      // case's premise "no participants" does not hold on this tenant.
-      let published = "";
-      try {
-        const chip = s.page.getByRole("button", { name: /participants\s*\d+/i }).or(s.page.getByRole("tab", { name: /participants/i })).first();
+      // Now wait for ONE of three outcomes, not just a toast. UI-PART-001's
+      // publish with no participants produced no toast — and no event under
+      // Live, Drafts or History either: the click did nothing observable.
+      // "No refusal" was being read as "allowed"; it was neither.
+      const deadline = Date.now() + 20_000;
+      let refusal: string | null = null;
+      let published = false;
+      while (Date.now() < deadline && !refusal && !published) {
+        refusal = await s.create.errorToastText(500);
+        if (!refusal) {
+          const inline = (await p.locator(".ant-message-notice, [role='alert'], .ant-form-explain, .has-error .ant-form-explain").allTextContents())
+            .map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+          if (inline.length) refusal = inline.join(" | ");
+        }
+        if (!refusal && BasePage.projectIdFromUrl(p.url())) published = true;
+        if (!refusal && !published) await p.waitForTimeout(500);
+      }
+      if (refusal) {
+        if (a.because) expect(refusal).toContain(String(a.because));
+        return `blocked: ${refusal}`;
+      }
+      if (published) {
+        // Decide what an allowed publish MEANS: read the published event's own
+        // participant count. Zero = an event nobody can bid on went live (a
+        // product defect); more = the product audience supplied vendors, so the
+        // case's premise cannot be reached on this tenant.
+        let note = "";
+        const chip = p.getByRole("button", { name: /participants\s*\d+/i }).or(p.getByRole("tab", { name: /participants/i })).first();
         await chip.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
         const text = ((await chip.textContent().catch(() => "")) || "").replace(/\s+/g, " ").trim();
         const n = Number((text.match(/(\d+)/) || [])[1]);
-        published = Number.isFinite(n) ? ` The published event shows ${n} participant(s)` + (n === 0 ? " — an event nobody can bid on was published: a product defect." : " — the product audience supplied them from the line items, so this tenant cannot reach the case's premise of no participants.") : "";
-      } catch {
-        /* no count readable; the message below still carries the pre-publish count */
+        if (Number.isFinite(n)) note = ` The published event shows ${n} participant(s)` + (n === 0 ? " — an event nobody can bid on was published: a product defect." : " — the product audience supplied them from the line items, so this tenant cannot reach the case's premise of no participants.");
+        throw new Error(`publishing was expected to be blocked, but the app published ${BasePage.projectIdFromUrl(p.url())}${participantsNote}.${note}`);
       }
-      expect(err, `publishing was expected to be blocked, but the app allowed it${participantsNote}.${published}`).toBeTruthy();
-      if (a.because) expect(err ?? "").toContain(String(a.because));
-      return `blocked: ${err}`;
+      // Neither: no message, no modal refusal, no navigation — and nothing to
+      // find in the events list afterwards. For a case that expects a message
+      // ("Please add participants to proceed!") this is the finding.
+      throw new Error(
+        `publishing was expected to be blocked WITH a message, but the app neither refused visibly nor published: after Publish the page stayed at ${new URL(startUrl).pathname} with no toast, no inline message and no navigation for 20s${participantsNote}. A silent no-op where the case expects "Please add participants to proceed!".`,
+      );
     }
     case "expect_stages": {
       const want = asStages(a.stages);
