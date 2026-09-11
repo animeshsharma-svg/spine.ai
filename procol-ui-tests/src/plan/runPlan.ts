@@ -284,7 +284,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // Back on the buyer's page, the Responses grid should now carry the mark.
       const co = new CounterOfferPage(s.page);
       await s.page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
-      const res = await co.counterOfferStatusFor(a.vendor ? String(a.vendor) : undefined, /accept/i);
+      const res = await co.counterOfferStatusFor(a.vendor ? String(a.vendor) : undefined, /accept/i, 60_000);
       if (!res.ok) throw new Error(`the buyer's grid does not yet mark the counter offer as accepted — the vendor header reads: ${res.text}`);
       return "the buyer's grid marks the counter offer as accepted";
     }

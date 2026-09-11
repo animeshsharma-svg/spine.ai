@@ -274,10 +274,28 @@ export class VendorPortalPage extends BasePage {
     ).catch(() => {});
     const err = await this.errorToastText(2_500);
     if (err) throw new Error(`accepting the counter offer was refused: ${err}`);
+    // Prove the click did something: a success toast, an "accepted" state on
+    // the view, or the Accept control gone. None of the three within 10s is
+    // reported as exactly that, with the page captured — not as "accepted".
     const ok = await this.successToastText(6_000);
-    const accepted = ok || (await p.getByText(/accepted/i).first().isVisible().catch(() => false) ? "the view now reads accepted" : null);
+    let evidence = ok ? `toast: ${ok}` : "";
+    const deadline = Date.now() + 10_000;
+    while (!evidence && Date.now() < deadline) {
+      if (await p.getByText(/accepted/i).first().isVisible().catch(() => false)) evidence = "the view reads accepted";
+      else if (!(await control.isVisible().catch(() => false))) evidence = "the Accept control is gone";
+      else await p.waitForTimeout(1_000);
+    }
     await this.waitForSpinnerHidden();
-    return `counter offer accepted${accepted ? ` — ${accepted}` : ""}`;
+    if (!evidence) {
+      await recordStuck(p, {
+        label: "capture:accept-counter-offer-after",
+        message: "Accept was pressed but no toast, no accepted state and the control is still there — captured",
+        triedCandidates: [],
+        healerTried: false,
+      }).catch(() => {});
+      throw new Error("Accept was pressed, but nothing confirmed it — no toast, no accepted state, the control still present (captured for a look)");
+    }
+    return `counter offer accepted — ${evidence}`;
   }
 
   async bidSubmitted(): Promise<boolean> {

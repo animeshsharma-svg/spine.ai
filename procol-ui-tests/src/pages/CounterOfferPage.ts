@@ -239,15 +239,52 @@ export class CounterOfferPage extends BasePage {
   }
 
   /**
+   * Bring the buyer's page to the stage's Responses grid and wait until it
+   * has actually rendered: the app shell ("You need to enable JavaScript…"),
+   * then "Loading your event details…", then the sub-tabs, then the grid.
+   * Reading any earlier returned the shell's text as if it were a header.
+   */
+  async ready(): Promise<void> {
+    const p = this.page;
+    await p.getByText(/loading your event details/i).first().waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
+    const onStageTab = await p.locator("[role='tab'][aria-selected='true'], .ant-tabs-tab-active").filter({ hasText: /rfq|auction/i }).count();
+    if (!onStageTab) {
+      const stageTab = p.getByRole("tab", { name: /^(rfq|auction)\b/i }).first();
+      await stageTab.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {});
+      if (await stageTab.count()) {
+        await stageTab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await this.waitForSpinnerHidden();
+      }
+    }
+    await p.getByText(/loading your event details/i).first().waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
+    const responses = p.getByRole("tab", { name: /^responses\b/i }).first();
+    await responses.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {});
+    if ((await responses.count()) && (await responses.getAttribute("aria-selected")) !== "true") {
+      await responses.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await this.waitForSpinnerHidden();
+    }
+    await p.locator("[role='columnheader'], .rdg-header-row").first().waitFor({ state: "visible", timeout: 60_000 }).catch(() => {});
+  }
+
+  /**
    * The vendor's answer, as the buyer's grid shows it: the header carries a
    * status mark — COUNTER_OFFER_ACCEPTED / COUNTER_OFFER_MODIFIED in the
-   * product's terms — once the vendor has acted. Match the word.
+   * product's terms — once the vendor has acted. Polls, because the mark
+   * follows the vendor's action by a moment and a reload.
    */
-  async counterOfferStatusFor(vendor: string | undefined, want: RegExp): Promise<{ ok: boolean; text: string }> {
-    const header = this.vendorHeader(vendor);
-    const scope = (await header.count()) ? header : this.page.locator("body");
-    const text = ((await scope.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
-    return { ok: want.test(text), text: text.slice(0, 200) };
+  async counterOfferStatusFor(vendor: string | undefined, want: RegExp, waitMs = 45_000): Promise<{ ok: boolean; text: string }> {
+    const deadline = Date.now() + waitMs;
+    let text = "";
+    while (Date.now() < deadline) {
+      await this.ready();
+      const header = this.vendorHeader(vendor);
+      const scope = (await header.count()) ? header : this.page.locator("[role='columnheader']").first();
+      text = ((await scope.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+      if (want.test(text)) return { ok: true, text: text.slice(0, 200) };
+      await this.page.waitForTimeout(5_000);
+      await this.page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+    }
+    return { ok: false, text: text.slice(0, 200) };
   }
 
   /** The grid marks a vendor whose bid carries a pending counter offer. */
