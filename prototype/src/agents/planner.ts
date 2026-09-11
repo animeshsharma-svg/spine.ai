@@ -290,6 +290,16 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // A negative test about PARTICIPANTS must not invite any. UI-PART-001 —
+  // "publish is blocked with no participants" — compiled with invite_vendor
+  // in it, so the plan disproved its own premise before pressing Publish.
+  // (On this tenant the product audience adds vendors from the line items on
+  // its own, which the step reports; that is the product's answer, not ours.)
+  if (has("expect_publish_blocked") && has("invite_vendor") && /\b(no|without|zero|0)\s+(participants?|vendors?)\b/i.test(testCase)) {
+    steps.splice(indexOf("invite_vendor"), 1);
+    repairs.push("removed invite_vendor — the case is about publishing with no participants, so inviting any would defeat it");
+  }
+
   // Vendor coherence. UI-AWD-001 invited five vendors by count, surrogate-bid
   // for whichever came first, then asserted the Master QCS grid lists "AMD" —
   // a vendor never invited. Whoever a later step names must be on the invite,
