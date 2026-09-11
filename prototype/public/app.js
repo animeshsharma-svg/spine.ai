@@ -1700,6 +1700,7 @@ const ROUTE_SENTENCE = {
 const STEP_WORDS = {
   open_events_list: () => "open the events list",
   expect_events_list: () => "check the events list rendered",
+  capture_screen: (a) => `capture the screen as "${a?.label ?? "capture"}" (screenshot + accessibility tree)`,
   open_participants: () => "open the published event's participants list",
   open_master_qcs: (a) => `open Master QCS and check the comparison grid${Array.isArray(a?.vendors) && a.vendors.length ? ` lists ${a.vendors.join(", ")}` : ""}`,
   configure_single_stage: (a) => `configure the single-stage event as ${a?.eventType ?? "rfq"}${a?.auctionSubtype ? ` · ${String(a.auctionSubtype).replace("_", " ")} auction` : ""}${a?.awarding ? ` · award ${String(a.awarding).replace("_", " ")}` : ""}`,

@@ -117,6 +117,12 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "capture_screen",
+    purpose:
+      "Record evidence of the current screen — a screenshot and the accessibility tree — under a label, without asserting anything. Use when a case wants to inspect or document a screen, or when the next thing to test has no step yet and a person needs to see the controls that exist.",
+    args: { label: "short name for the capture, e.g. \"order-details-counter-offer\"" },
+  },
+  {
     name: "open_participants",
     purpose:
       "On a PUBLISHED event's project page, open the stage's Participants list (the surrogate-bid drawer lives here). Reaching the list is the success condition — it is paginated and only eligible vendors show an Add Bid control. Reports how many rows offer Add Bid.",

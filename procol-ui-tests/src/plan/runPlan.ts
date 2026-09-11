@@ -1,6 +1,7 @@
 import { Page, expect } from "@playwright/test";
 import { EventsPage } from "../pages/EventsPage.js";
 import { VendorPortalPage } from "../pages/VendorPortalPage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
 import { AwardPage } from "../pages/AwardPage.js";
 import { vendorNames, vendorCount } from "../master/params.js";
@@ -201,6 +202,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const url = s.page.url();
       if (!url.includes(text)) throw new Error(`URL is ${url} — does not contain "${text}"`);
       return `URL contains "${text}"`;
+    }
+    case "capture_screen": {
+      const label = String(a.label ?? "capture").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "capture";
+      // Reuse the stuck-report writer: same screenshot + tree, same panel on
+      // the dashboard, but marked as requested rather than as a failure.
+      await recordStuck(s.page, {
+        label: `capture:${label}`,
+        message: "captured on request by the plan — not a failure",
+        triedCandidates: [],
+        healerTried: false,
+      });
+      const buttons = (await s.page.getByRole("button").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+      const tabs = (await s.page.getByRole("tab").allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+      return `captured "${label}" at ${new URL(s.page.url()).pathname} — tabs: ${tabs.slice(0, 8).join(" | ") || "none"}; buttons: ${buttons.slice(0, 14).join(" | ")}`;
     }
     case "open_participants": {
       if (!/\/project\//.test(s.page.url())) throw new Error("open_participants needs a published event's project page — publish and expect_published first");
