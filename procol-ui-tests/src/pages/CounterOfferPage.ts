@@ -40,7 +40,29 @@ export class CounterOfferPage extends BasePage {
     if (await header.count()) await header.hover({ timeout: TIMEOUTS.SHORT }).catch(() => {});
     const inHeader = header.getByRole("button", { name: /counter offer/i }).first();
     const anywhere = p.getByRole("button", { name: /^counter offer$/i }).first();
-    const control = (await inHeader.count()) ? inHeader : anywhere;
+    let control = (await inHeader.count()) ? inHeader : anywhere;
+    // The live grid (captured 2026-09-11) shows the vendor header with a
+    // caret-down menu and no standalone button: the per-bid actions — Reject
+    // Quote, Edit Quote, Counter offer logs, and Counter Offer itself — live
+    // in that menu. Open it and look there, excluding the "logs" item.
+    if (!(await control.count()) && (await header.count())) {
+      const caret = header.locator("button:has(.anticon-caret-down), button[aria-label*='caret-down'], button:has-text('caret-down')").first();
+      if (await caret.count()) {
+        await caret.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();
+        await menu.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const item = menu.locator("[role='menuitem'], .ant-dropdown-menu-item").filter({ hasText: /counter offer/i }).filter({ hasNotText: /logs/i }).first();
+        if (await item.count()) control = item;
+        else {
+          const items = (await menu.locator("[role='menuitem'], .ant-dropdown-menu-item").allTextContents()).map((t) => t.trim()).filter(Boolean);
+          await p.keyboard.press("Escape").catch(() => {});
+          throw new Error(
+            `the vendor header menu opened but offers no Counter Offer — items: ${items.join(", ") || "(none)"}. ` +
+              "The product shows it only while the bid is live and active, in trade mode, not under approval, and not hidden for RFQs by tenant config.",
+          );
+        }
+      }
+    }
     if (!(await control.count())) {
       const offered = (await p.getByRole("button").allTextContents()).map((t) => t.trim()).filter(Boolean);
       await recordStuck(p, {
