@@ -21,19 +21,19 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** The token, read from the API suite's .env at run time. Never cached to disk. */
 export function readToken(client: TokenClient): string {
-  const file = resolve(here, "..", client.tokenFile);
-  if (!existsSync(file)) {
-    throw new Error(
-      `${client.name}: token file not found at ${file} — this account's token lives in the API suite's .env`,
-    );
+  const tried: string[] = [];
+  for (const candidate of client.tokenFiles) {
+    const file = resolve(here, "..", candidate);
+    tried.push(file);
+    if (!existsSync(file)) continue;
+    const match = readFileSync(file, "utf8").match(new RegExp(`^${client.tokenVar}=(.+)$`, "m"));
+    const token = match?.[1]?.trim();
+    if (token) return token;
   }
-  const env = readFileSync(file, "utf8");
-  const match = env.match(new RegExp(`^${client.tokenVar}=(.+)$`, "m"));
-  const token = match?.[1]?.trim();
-  if (!token) {
-    throw new Error(`${client.name}: ${client.tokenVar} is not set in ${file}`);
-  }
-  return token;
+  throw new Error(
+    `${client.name}: ${client.tokenVar} is not set in any of ${tried.join(" or ")} — ` +
+      `put this account's token in the API suite's .env`,
+  );
 }
 
 export interface ApiError extends Error {

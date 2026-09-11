@@ -109,6 +109,29 @@ function beGroupCases(group: number): string[] {
   return [...implementedApiCases()].filter((id) => id.startsWith(`BE-${group}.`));
 }
 
+/**
+ * The sections the browser step catalog can actually express.
+ *
+ * Derived from the steps the planner owns (create/compose/template/line items/
+ * sheet/schedule/invite/publish/bid/evaluate/award), which are all sourcing
+ * event operations. Anything outside this list compiles into a default events
+ * plan, which is not the case someone asked for.
+ */
+const COMPILABLE_SECTIONS = new Set([
+  "UI-EG",
+  "UI-STG",
+  "UI-LI",
+  "UI-TPL",
+  "UI-SCH",
+  "UI-VND",
+  "UI-PUB",
+  "UI-BID",
+  "UI-EVL",
+  "UI-AWD",
+  "UI-AUC",
+  "UI-CONV",
+]);
+
 /** Section code → the validation suite that covers it, where one does. */
 const SECTION_SUITES: Record<string, string> = {
   "API-EG": "events.rfp_rfq",
@@ -154,10 +177,32 @@ export function routeFor(c: CatalogCase): CaseRoute {
     return { kind: "api-suite", target: suite, because: `the "${suite}" validation suite covers this section`, runnable: true };
   }
 
-  // 4 · the compiler can turn any written UI case into a plan. Worth offering,
-  //     but it is a compile, so the plan is shown before it runs.
+  /**
+   * 4 · the compiler, but only where it can actually build a plan.
+   *
+   * It writes plans from a step catalog that covers sourcing events and
+   * nothing else: create an event, stages, template, line items, sheet,
+   * schedule, invite a vendor, publish, bid, evaluate, award. For a case about
+   * anything else — purchase orders, GRNs, invoices, bills, auth, settings —
+   * the model finds no usable steps and a default events journey gets
+   * substituted. Calling those "runnable" is what made 588 of 648 look ready
+   * when a fraction of that is, so they are counted honestly instead.
+   */
   if (c.layer === "ui" && c.verdict !== "manual") {
-    return { kind: "ui-compile", because: "no journey covers this — the compiler builds a plan from the prose", runnable: true };
+    if (COMPILABLE_SECTIONS.has(c.group)) {
+      return {
+        kind: "ui-compile",
+        because: "no journey covers this — the compiler builds a plan from the prose",
+        runnable: true,
+      };
+    }
+    return {
+      kind: "ui-compile",
+      because:
+        "the browser step catalog covers sourcing events only, so the compiler cannot build a plan " +
+        "for this area yet",
+      runnable: false,
+    };
   }
 
   return {

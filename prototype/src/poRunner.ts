@@ -20,8 +20,18 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** The API suite: the repo this platform sits inside. */
-const SUITE_DIR = join(here, "..", "..", "..");
+/**
+ * The API suite, vendored into this repo.
+ *
+ * It used to be the parent repository, which meant the platform could not be
+ * opened on its own — close p2p_endtoend_flow_api_automation and the PO flow
+ * disappeared. It lives at ../api-suite now, and the parent is only a fallback
+ * for a checkout that predates the move.
+ */
+const VENDORED = join(here, "..", "..", "api-suite");
+const SUITE_DIR = existsSync(join(VENDORED, "src", "cli", "createPo.ts"))
+  ? VENDORED
+  : join(here, "..", "..", "..");
 const INPUT_FILE = join(SUITE_DIR, "config", "po-input.json");
 const RUN_REPORT = join(SUITE_DIR, "reports", "po-run-report.json");
 
@@ -113,7 +123,7 @@ export function runPoFlow(
   opts: { clientId: string; submit?: boolean },
   emit: (e: PoRunEvent) => void,
 ): { stop: () => void } {
-  const args = ["ts-node", "src/cli/createPo.ts", "--client", opts.clientId];
+  const args = ["tsx", "src/cli/createPo.ts", "--client", opts.clientId];
   if (opts.submit === false) args.push("--no-submit");
   const command = `npx ${args.join(" ")}`;
   emit({ type: "start", command, line: `$ ${command}` });

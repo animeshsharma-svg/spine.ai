@@ -1,0 +1,282 @@
+# The bug report.
+#
+# Rendered by `npm run report:bugs` into reports/bug-report.html — the same
+# columns, order and colours as the QA bug sheet, so a row can move between the
+# two without being re-keyed — and embedded in every run report so a run
+# carries what it has learned, not just what it did.
+#
+# This file is HAND-WRITTEN. A run can show that a call returned 500; it cannot
+# decide whether that is a defect, test data, or a wrong expectation. Two
+# separate columns record the two separate judgements:
+#
+#   status      how far VERIFICATION got
+#     confirmed     reproduced, and the behaviour is agreed to be wrong
+#     intermittent  real, but does not reproduce on demand
+#     unconfirmed   observed; could still be test data or a wrong expectation
+#     not-a-bug     kept because it was reported once and ruled out
+#
+#   devStatus   where the FIX has got to — the sheet's status column, value
+#               for value:
+#     FIXED | OPEN | TO BE TESTED | TO BE DEPLOYED | TO BE PICKED | TO DO
+#     TO BE DISCUSSED | NOT A BUG | FIX LATER | Duplicate Issue
+#     Feature Bug/ Enhancement | Re-open
+#
+# Everything else is a sheet column, and every one of them is optional:
+#
+#   issueId     "D__001". Derived from position in this file when absent.
+#   priority    P0..P3. Defaults from severity (high->P0, medium->P1, low->P2).
+#   blocker     yes/no — does this stop other work? Defaults to no.
+#   devType     BE | FE | CONFIG | DATA. Defaults to BE.
+#   devEta      what engineering committed to, if anything.
+#   devComment  what ENGINEERING said. Our own remarks go in `note`.
+#   sprintWeek  the sprint it was raised in or picked for.
+#   userType    who hits it — "All users", "User (General User)", "Admin".
+#   module      PO | GRN | Invoice | Approvals | Schema | Platform.
+#               Inferred from `endpoint` when absent.
+#   description the bug as the sheet states it; falls back to `title`.
+#   note        our remark — the sheet's trailing column.
+#   highlight   tints the description cell, as the sheet does by hand.
+#
+# `evidence` should name the case or command that shows it, so a reader can get
+# back to the request and the curl that reproduces it in the run report.
+
+findings:
+  # ---- confirmed -----------------------------------------------------------
+  - id: create-row-500-html
+    issueId: D__001
+    title: create_row intermittently returns HTTP 500 with an HTML error page
+    status: intermittent
+    severity: high
+    devStatus: OPEN
+    priority: P0
+    blocker: yes
+    devType: BE
+    userType: User (General User)
+    module: PO
+    highlight: true
+    client: procol_sandbox_demo
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      An ordinary PO create fails with 500 and a Rails "Action Controller:
+      Exception caught" HTML page. An identical retry succeeds. Seen on both the
+      header create and a line-item create during a plain `npm run po`, so it is
+      not confined to unusual values. The HTML body also breaks any caller that
+      expects JSON.
+    evidence: "npm run po — run MTV51MUKOD, line item 3"
+    note: forces writes to run one at a time; parallel creates hit it far more often
+
+  - id: expense-period-order-not-enforced
+    issueId: D__002
+    title: expense_period_end_date before start date is accepted
+    status: confirmed
+    severity: medium
+    devStatus: OPEN
+    priority: P1
+    blocker: no
+    devType: BE
+    userType: All users
+    module: PO
+    client: procol_sandbox_demo
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      The schema itself declares the rule end_date >= start_date, and the
+      platform ignores it — the record is created with 200. A rule the schema
+      publishes but does not enforce is worse than no rule, because callers
+      trust it.
+    evidence: "[negative] expense_period_end_date rejects a value before expense_period_start_date"
+
+  - id: mandatory-currency-omittable
+    issueId: D__003
+    title: mandatory currency can be omitted through the API
+    status: confirmed
+    severity: medium
+    devStatus: OPEN
+    priority: P1
+    blocker: no
+    devType: BE
+    userType: All users
+    module: PO
+    client: procol_sandbox_demo
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      currency is mandatory in the schema and cannot be cleared in the UI, which
+      defaults it to INR. The API accepts a create with it absent. A UI/API
+      divergence: the API permits a document the UI cannot produce.
+    evidence: "rejects a create that omits a mandatory field"
+
+  - id: proforma-linked-po-has-no-target
+    issueId: D__004
+    title: p2p_proforma_invoice.linked_po is a relation pointing at nothing
+    status: confirmed
+    severity: medium
+    devStatus: TO BE PICKED
+    priority: P1
+    blocker: no
+    devType: CONFIG
+    userType: All users
+    module: Proforma invoice
+    client: procol_sandbox_demo
+    endpoint: GET /api/flexi_datasources/{uuid}
+    detail: >-
+      The field is declared data_type "relational" but its field_type carries no
+      related_datasource_id, related_datasource_table or relation_id, so nothing
+      can populate it. Confirmed against the live schema, so it is tenant
+      configuration rather than stale local config. Needs tenant admin to fix.
+    evidence: "tier 1 + tier 2 'relation fields name a resolvable target' (quarantined as a known issue)"
+    note: tenant configuration, not code — quarantined in tier 2 so it does not mask new drift
+
+  - id: vendor-pan-not-autofilled
+    issueId: D__005
+    title: vendor_pan never autofills — no PAN held against the vendor
+    status: confirmed
+    severity: low
+    devStatus: OPEN
+    priority: P2
+    blocker: no
+    devType: DATA
+    userType: All users
+    module: PO
+    client: procol_sandbox_demo
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      vendor_pan is an external_relation reading companies.misc->>'pan'. After a
+      create it stays empty because the vendor master data holds no PAN against
+      the vendor name. A master-data gap rather than a resolution failure.
+    evidence: "the platform autofilled every derived field"
+    note: fix is master data, not the field
+
+  - id: populated-create-jumps-to-released
+    issueId: D__006
+    title: a create with fields lands the PO in "Released", skipping its whole lifecycle
+    status: confirmed
+    severity: high
+    devStatus: OPEN
+    priority: P0
+    blocker: yes
+    devType: BE
+    userType: All users
+    module: PO
+    highlight: true
+    client: decathlon
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      The UI creates an empty record (responses: []) and PATCHes fields in one at
+      a time; that record comes back status "0" (Draft). Sending the same fields
+      in a single create_row instead comes back status "3" (Released) — the
+      suite never sends status at all, it is in skipFields. So a populated
+      create silently skips Draft, In Approval and Submitted. A released PO has
+      nothing left to approve, which is the real cause of the bare 422 "Invalid
+      Approval" on submit. Not reproducible by hand: the UI cannot release a PO
+      at creation.
+    evidence: >-
+      captured UI create_row (responses: 0) -> status "0" Draft;
+      `npm run po -- --client decathlon` create_row (12 fields, no status)
+      -> status "3" Released, record Z05kY2Rj
+    note: blocks the whole approval flow end to end; nothing downstream can be tested until it moves
+
+  - id: state-code-silently-dropped
+    issueId: D__007
+    title: state_code is accepted then silently discarded
+    status: confirmed
+    severity: medium
+    devStatus: OPEN
+    priority: P1
+    blocker: no
+    devType: BE
+    userType: All users
+    module: PO
+    client: decathlon
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      state_code is mandatory and was sent as a valid widget_data_mappings
+      record uuid ("a1hnZE5k", the value existing POs carry). The create returns
+      200 and the field reads back absent. A mandatory field accepted and thrown
+      away leaves the document permanently incomplete with no error to act on.
+    evidence: "create payload for record Z05kY2Rj included state_code; field_responses has no value for it"
+
+  # ---- lower severity ------------------------------------------------------
+  - id: unknown-field-uuid-ignored
+    issueId: D__008
+    title: an unknown field_uuid is silently accepted and dropped
+    status: confirmed
+    severity: low
+    devStatus: OPEN
+    priority: P2
+    blocker: no
+    devType: BE
+    userType: All users
+    module: PO
+    client: procol_sandbox_demo
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      Posting a field_uuid that does not exist on the datasource returns 200 and
+      the value is discarded without comment. A typo'd or stale uuid therefore
+      looks like a successful write.
+    evidence: "rejects an unknown field uuid"
+
+  # ---- platform behaviour worth knowing ------------------------------------
+  - id: app-version-changes-payload
+    issueId: D__009
+    title: omitting app-version silently returns a reduced payload
+    status: confirmed
+    severity: medium
+    devStatus: TO BE DISCUSSED
+    priority: P1
+    blocker: no
+    devType: BE
+    userType: All users
+    module: Approvals
+    client: both
+    endpoint: GET /api/fx_responses/{uuid}/get_approvals
+    detail: >-
+      The platform selects a response serializer from the app-version header.
+      With no such header it answers 200 but strips every step and approver
+      uuid, so a document cannot be approved and the cause is invisible — the
+      call looks successful. Same effect on the approval-flows list, which
+      switches between numeric ids and encoded uuids. The suite now always
+      sends app-version.
+    evidence: "measured: no header -> approver.uuid undefined; 9.4.349 -> uuid present"
+    note: worked around in the suite by always sending app-version — decide whether the default should be the full payload
+
+  - id: no-applicable-flow-endpoint
+    issueId: D__010
+    title: no way to ask which approval flow applies to a document
+    status: confirmed
+    severity: medium
+    devStatus: TO BE DISCUSSED
+    priority: P1
+    blocker: no
+    devType: BE
+    userType: All users
+    module: Approvals
+    client: decathlon
+    endpoint: GET /api/approval_workflow/approval_flows
+    detail: >-
+      Decathlon has 75 active p2p_create_po flows, every one conditional and
+      several sharing the same name, so a flow cannot be identified by name.
+      /approval_flows/applicable returns 570 "Approval Flow not found". The only
+      way to learn the applicable flow is to write to the record and read
+      approval_applicable + approvals back off the response.
+    evidence: "probed live; traced through the captured UI session"
+    note: API gap rather than a defect — raised as a request
+
+  # ---- ruled out, kept so it is not re-filed -------------------------------
+  - id: duplicate-po-number
+    issueId: D__011
+    title: duplicate po_number is not rejected
+    status: not-a-bug
+    severity: none
+    devStatus: NOT A BUG
+    priority: P3
+    blocker: no
+    devType: BE
+    userType: All users
+    module: PO
+    client: procol_sandbox_demo
+    endpoint: POST /api/fx_responses/create_row
+    detail: >-
+      Reported by an early version of the suite. po_number is non-editable and
+      generated by the platform, so a duplicate can never be submitted and the
+      test could never pass. The test was wrong, not the product.
+    evidence: "rejects a duplicate of a field marked unique"
+    note: the test was wrong, not the product — kept so it is not re-filed as new

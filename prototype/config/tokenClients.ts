@@ -24,8 +24,14 @@ export interface TokenClient {
   apiBaseUrl: string;
   /** header the token goes in */
   headerName: string;
-  /** absolute-ish path (from this repo) of the env file holding the token */
-  tokenFile: string;
+  /**
+   * Env files that may hold the token, in order of preference.
+   *
+   * The vendored suite's own .env first, then the parent repository's — so a
+   * machine that has not copied its token across yet keeps working, and one
+   * that has needs nothing outside this repo.
+   */
+  tokenFiles: string[];
   tokenVar: string;
   appVersion: string;
   /** what this account is actually configured for, said plainly in the UI */
@@ -64,7 +70,7 @@ export const TOKEN_CLIENTS: TokenClient[] = [
     note: "sandbox deployment · token auth · the account the PO flow was built on",
     apiBaseUrl: "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api",
     headerName: "access-token",
-    tokenFile: "../../.env",
+    tokenFiles: ["../api-suite/.env", "../../.env"],
     tokenVar: "PROCOL_SANDBOX_DEMO_ACCESS_TOKEN",
     appVersion: "9.4.349",
     covers:

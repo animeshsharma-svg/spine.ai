@@ -42,6 +42,7 @@ import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.
 import { renderUiReport, uiShotPath } from "./report/uiReport.js";
 import { checkToken, poInputSummary, runPoFlow } from "./poRunner.js";
 import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
+import { chainPlan, chainStatus, runChain } from "./poToBillRunner.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
@@ -58,6 +59,7 @@ const PUBLIC = join(here, "..", "public");
  * First one that has the file wins.
  */
 const SUITE_REPORT_DIRS = [
+  join(here, "..", "..", "api-suite", "reports"),
   join(here, "..", "..", "..", "reports"),
   join(here, "..", "..", "procol test", "reports"),
 ];
@@ -465,6 +467,33 @@ const server = createServer(async (req, res) => {
         });
         if (dryRun) {
           send("done", { exitCode: 0 });
+          res.end();
+          return;
+        }
+
+        /**
+         * A plan the compiler did not get from your words is not your test case.
+         *
+         * When the model returns nothing usable, `compileTestCase` substitutes a
+         * standard create-and-publish journey. Running that silently is how a
+         * GRN test case turned into a sourcing-event run: the platform looked
+         * like it ignored what was typed. It stops here instead, says why, and
+         * offers the default as a suggestion — `force=1` runs it deliberately.
+         */
+        if (compiled.source === "fallback" && url.searchParams.get("force") !== "1") {
+          send("blocked", {
+            reason:
+              compiled.warnings.find((w) => /default plan|no runnable steps|no LLM/i.test(w)) ??
+              "the compiler could not turn that text into steps",
+            covers:
+              "The browser step catalog covers sourcing events: create an event, compose stages, " +
+              "template, line items, sheet, schedule, invite a vendor, publish, bid, evaluate, award. " +
+              "There are no GRN, invoice, bill or PO steps in it yet, so a purchase-to-bill case " +
+              "cannot be compiled into a browser journey.",
+            suggestion: compiled.plan.steps.map((st: { step: string }) => st.step),
+            hint: "Run the ready-made API cases for those modules instead, or add browser steps for them.",
+          });
+          send("done", { exitCode: 1 });
           res.end();
           return;
         }
@@ -1160,6 +1189,33 @@ const server = createServer(async (req, res) => {
       const run = runPoFlow({ clientId: "procol_sandbox_demo", submit }, (e) => send(e.type, e));
       req.on("close", () => run.stop());
       return;
+    }
+
+    // ── API: the PO -> Bill chain ───────────────────────────────────────
+    if (path === "/api/po-to-bill") {
+      return json(res, { ...chainStatus(), plan: chainPlan() });
+    }
+
+    if (path === "/api/po-to-bill/run") {
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const run = runChain((e) => send(e.type, e));
+      req.on("close", () => run.stop());
+      return;
+    }
+
+    if (path === "/api/po-to-bill/report") {
+      const file = join(here, "..", "..", "po-to-bill", "playwright-report", "index.html");
+      if (!existsSync(file)) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("No PO → Bill report yet — run the chain first.");
+      }
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      return res.end(readFileSync(file));
     }
 
     // ── API: the PO run's report ────────────────────────────────────────

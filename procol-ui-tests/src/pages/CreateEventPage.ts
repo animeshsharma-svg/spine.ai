@@ -1249,6 +1249,48 @@ export class CreateEventPage extends BasePage {
       .last();
   }
 
+  /** The chips themselves, so a wait can be about them rather than about time. */
+  private participantChips() {
+    return this.participantsRegion().locator(
+      ".ant-select-selection__choice, .ant-tag, [class*='chip']",
+    );
+  }
+
+  /**
+   * Waits until the event has at least one participant, and says how many.
+   *
+   * This replaced a loop that slept in 500ms steps and re-counted between them:
+   * it could spend three seconds waiting for an audience that had arrived after
+   * 200ms, and spent the full three on clients whose audience never arrives.
+   * Waiting on the chip itself returns the moment one appears — and gives up
+   * as soon as the deadline passes, rather than one step later.
+   */
+  private async waitForParticipants(timeout: number): Promise<number> {
+    await this.participantChips()
+      .first()
+      .waitFor({ state: "visible", timeout })
+      .catch(() => {});
+    return this.participantCount();
+  }
+
+  /**
+   * Waits for a vendor dropdown to have rows after a search.
+   *
+   * The search is a server round trip, so the old code slept two seconds and
+   * hoped. Returns as soon as the first row renders.
+   */
+  private async waitForVendorRows(timeout: number): Promise<boolean> {
+    const rows = this.page.locator(
+      ".ant-select-dropdown:not(.ant-select-dropdown-hidden) li, " +
+        ".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item",
+    );
+    return rows
+      .first()
+      .waitFor({ state: "visible", timeout })
+      .then(() => true)
+      .catch(() => false);
+  }
+
   /**
    * Make sure the event actually has vendors, and prove it.
    *
@@ -1283,16 +1325,12 @@ export class CreateEventPage extends BasePage {
       ],
       { label: "open-participants", timeout: TIMEOUTS.SHORT },
     );
-    await this.pause(500);
     const search = region.locator("input.ant-select-search__field:not([disabled]), input:not([disabled])").first();
+    await search.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
     if (!(await search.count())) return false;
     await search.fill(name).catch(() => {});
     // Vendor search is a server round-trip; wait for rows rather than guessing.
-    await p
-      .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) li, .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item")
-      .first()
-      .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
-      .catch(() => {});
+    await this.waitForVendorRows(TIMEOUTS.MEDIUM);
     // Identify the vendor dropdown by its own "VENDORS" group header. Taking
     // the LAST open dropdown was wrong: filling the sheet leaves a dozen
     // non-hidden antd dropdowns behind, so `.last()` landed on a stale sheet
@@ -1302,7 +1340,9 @@ export class CreateEventPage extends BasePage {
     const vendorPanel = (await byHeader.count()) ? byHeader.last() : open.last();
     const picked = await this.pickFirstNamedOption(`vendor "${name}"`, vendorPanel);
     await p.keyboard.press("Escape").catch(() => {});
-    await this.pause(500);
+    // The chip is the proof the pick landed; waiting for it is both faster and
+    // stricter than sleeping and hoping.
+    if (picked) await this.waitForParticipants(TIMEOUTS.SHORT);
     return picked;
   }
 
@@ -1339,14 +1379,14 @@ export class CreateEventPage extends BasePage {
 
   async inviteVendor(): Promise<void> {
     const p = this.page;
+    // Timed, because "it takes too long to select the vendor" is a claim worth
+    // being able to check rather than argue about.
+    const started = Date.now();
     await this.dismissDistractions();
 
-    // The audience fetch is asynchronous; give it a moment before deciding it
-    // has not happened.
-    for (let i = 0; i < 6 && (await this.participantCount()) === 0; i++) {
-      await this.pause(500);
-    }
-    let count = await this.participantCount();
+    // The audience fetch is asynchronous; wait for a chip rather than for a
+    // fixed number of half-seconds.
+    let count = await this.waitForParticipants(TIMEOUTS.MEDIUM);
     if (count > 0) {
       console.log(`[create-event] ${count} participant(s) already on the event`);
       return;
@@ -1357,10 +1397,8 @@ export class CreateEventPage extends BasePage {
       [p.getByRole("button", { name: /invite vendor/i }), p.getByText(/^Invite Vendor$/i)],
       { label: "invite-vendor", timeout: TIMEOUTS.SHORT },
     );
-    await this.pause(800);
     await this.dismissDistractions();
-
-    count = await this.participantCount();
+    count = await this.waitForParticipants(TIMEOUTS.SHORT);
     if (count === 0) {
       // Add one by hand through the participants combobox.
       const region = this.participantsRegion();
@@ -1372,18 +1410,18 @@ export class CreateEventPage extends BasePage {
         ],
         { label: "open-participants", timeout: TIMEOUTS.SHORT },
       );
-      await this.pause(600);
       const search = region
         .locator("input.ant-select-search__field:not([disabled]), input:not([disabled])")
         .first();
+      await search.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
       if (await search.count()) {
         await search.fill("a").catch(() => {});
-        await this.pause(2_000);
+        // The search is a round trip: wait for rows, then pick.
+        await this.waitForVendorRows(TIMEOUTS.MEDIUM);
         const picked = await this.pickFirstNamedOption("vendor");
         if (picked) await p.keyboard.press("Escape").catch(() => {});
       }
-      await this.pause(800);
-      count = await this.participantCount();
+      count = await this.waitForParticipants(TIMEOUTS.SHORT);
     }
 
     await this.dismissDistractions();
@@ -1393,7 +1431,9 @@ export class CreateEventPage extends BasePage {
           'produced a vendor, and publishing would create an event nobody can bid on ("Vendors invited: 0").',
       );
     }
-    console.log(`[create-event] ${count} participant(s) invited`);
+    console.log(
+      `[create-event] ${count} participant(s) invited in ${((Date.now() - started) / 1000).toFixed(1)}s`,
+    );
   }
 
   /**

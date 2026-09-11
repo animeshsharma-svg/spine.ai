@@ -21,6 +21,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** Newest copy across the maintained suite and the older sibling. */
 const SOURCES = [
+  join(here, "..", "..", "..", "api-suite", "reports", "findings.json"),
   join(here, "..", "..", "..", "..", "reports", "findings.json"),
   join(here, "..", "..", "..", "procol test", "reports", "findings.json"),
 ];

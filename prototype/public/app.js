@@ -98,6 +98,8 @@ async function init() {
     }
   });
   $("#po-run")?.addEventListener("click", runPoAutomation);
+  $("#chain-run")?.addEventListener("click", runChainFlow);
+  loadChain();
 
   initDrawers();
   initModal();
@@ -629,6 +631,20 @@ function runSelectedFeatures() {
   const qs = new URLSearchParams({ c: String(currentClient), features: ids.join(","), flows });
   $("#auto-summary").textContent = `starting ${ids.length} feature(s)…`;
   const es = new EventSource(`/api/features-run?${qs}`);
+  es.addEventListener("blocked", (ev) => {
+    /**
+     * The compiler could not use your words, so nothing was run.
+     *
+     * Said loudly and in full: which is better than running an unrelated
+     * journey and leaving someone to work out why the screens looked wrong.
+     */
+    const b = JSON.parse(ev.data);
+    write(`✗ Not run — ${b.reason}`, "bad");
+    if (b.covers) write(`   ${b.covers}`, "note");
+    if (b.hint) write(`   ${b.hint}`, "note");
+    if (b.suggestion?.length) write(`   the default plan it would have run: ${b.suggestion.join(" → ")}`, "note");
+  });
+
   es.addEventListener("plan", (ev) => {
     const p = JSON.parse(ev.data);
     planSkipped = p.skipped?.length ?? 0;
@@ -902,6 +918,113 @@ async function loadPoInput() {
   } catch {
     bar.hidden = true;
   }
+}
+
+/**
+ * The PO -> Bill chain: is it here, and what will it do?
+ *
+ * Shown always, not per client: it points at its own tenant through its own
+ * .env, so the account picked in this UI has nothing to do with it. Saying so
+ * on the button is the only way that is not confusing.
+ */
+async function loadChain() {
+  const bar = $("#chain-bar");
+  const what = $("#chain-what");
+  const btn = $("#chain-run");
+  if (!bar || !what || !btn) return;
+  try {
+    const info = await (await fetch("/api/po-to-bill")).json();
+    bar.hidden = false;
+    if (!info.ready) {
+      what.innerHTML = `<b class="po-dead">Not ready</b> — ${esc(info.reason || "the chain is unavailable")}.`;
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = false;
+    const p = info.plan || {};
+    what.innerHTML =
+      `${info.steps} steps: purchase order → GRN → invoice → bill, each asserting status, response time, ` +
+      `schema and data. <b>Creates real records</b> on ${esc(p.BASE_URL || "its own tenant")}` +
+      (p.PO_QTY ? ` — PO qty ${esc(p.PO_QTY)} × ${esc(p.PO_UNIT_PRICE || "?")}, GRN received ${esc(p.GRN_RECEIVED_QTY || "?")}, invoice qty ${esc(p.INVOICE_QTY || "?")}` : "") +
+      `. Change those in <code>po-to-bill/.env</code>.`;
+  } catch {
+    bar.hidden = true;
+  }
+}
+
+/** Run the chain, streaming its steps as rows like every other run. */
+function runChainFlow() {
+  const btn = $("#chain-run");
+  const con = $("#ui-console");
+  con.hidden = false;
+  con.innerHTML = "";
+  const write = (text, cls) => {
+    con.appendChild(el("div", cls || "", esc(text)));
+    con.scrollTop = con.scrollHeight;
+  };
+
+  checkRows = [];
+  renderAutomation();
+  btn.disabled = true;
+  btn.textContent = "▶ Running…";
+  $("#auto-summary").textContent = "running the purchase-to-bill chain…";
+
+  const es = new EventSource("/api/po-to-bill/run");
+  const seen = new Map();
+  const rowFor = (step) => ({
+    id: `PB-${String(seen.size + 1).padStart(2, "0")}`,
+    category: "PO → Bill",
+    type: "functional",
+    module: "3-way match",
+    scenario: step.title,
+    pass: step.status === "passed",
+    rightLabel: `${step.ms}ms`,
+    verdict:
+      step.status === "passed"
+        ? `passed in ${step.ms}ms`
+        : `${step.status} — ${step.error || "see the log"}`,
+    noRerun: true,
+  });
+
+  es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
+  es.addEventListener("log", (ev) => write(JSON.parse(ev.data).line));
+  es.addEventListener("run-error", (ev) => write("✗ " + (JSON.parse(ev.data).line || "run error"), "bad"));
+  es.addEventListener("step", (ev) => {
+    const { step } = JSON.parse(ev.data);
+    // The list reporter and the JSON report both describe the same step; keep
+    // one row per title so the final, exact result replaces the streamed one.
+    const row = rowFor(step);
+    if (seen.has(step.title)) {
+      const at = seen.get(step.title);
+      checkRows[at] = { ...checkRows[at], ...row, id: checkRows[at].id };
+    } else {
+      seen.set(step.title, checkRows.length);
+      checkRows.push(row);
+    }
+    renderAutomation();
+    setRunBar(checkRows.filter((r) => r.pass || !r.pass).length, Math.max(checkRows.length, 21));
+  });
+  es.addEventListener("done", (ev) => {
+    const { exitCode, summary } = JSON.parse(ev.data);
+    $("#auto-summary").textContent = summary
+      ? `PO → Bill: ${summary.passed} passed · ${summary.failed} failed${summary.skipped ? ` · ${summary.skipped} skipped` : ""} of ${summary.total}`
+      : exitCode === 0
+        ? "PO → Bill finished"
+        : `PO → Bill stopped (exit ${exitCode})`;
+    write(exitCode === 0 ? "— finished —" : `— exit ${exitCode} —`, exitCode === 0 ? "ok" : "bad");
+    es.close();
+    btn.disabled = false;
+    btn.textContent = "▶ Run PO → Bill";
+    showReportsFor({
+      label: "This PO → Bill run:",
+      testLabel: "📊 Chain report",
+      testHref: "/api/po-to-bill/report",
+      bugHref: "/api/bug-report",
+    });
+    if (summary) {
+      showRunComplete({ total: summary.total, passed: summary.passed, failed: summary.failed, skipped: summary.skipped });
+    }
+  });
 }
 
 /** Run the API suite's PO flow, streaming its output into the console box. */
