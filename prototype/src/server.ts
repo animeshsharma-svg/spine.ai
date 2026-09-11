@@ -81,6 +81,11 @@ const CLIENTS = [
 // Cache capability maps so re-selecting a client is instant.
 const capCache = new Map<number, any>();
 
+/** Feature trees, keyed by company. Ten minutes: a config change is rare, and
+ * a stale tree for that long is a smaller problem than a 36-second wait. */
+const featureCache = new Map<string, { at: number; payload: unknown }>();
+const FEATURE_CACHE_MS = 10 * 60 * 1000;
+
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -201,6 +206,21 @@ const server = createServer(async (req, res) => {
     if (path === "/api/features") {
       const counts = caseCountsByFeature();
       const cid = url.searchParams.get("c");
+
+      /**
+       * Cached per company.
+       *
+       * Reading a company's configuration means opening a live client — a
+       * database session lookup, then the catalog, the vendor and the evaluator
+       * — which took 36 seconds for PROCOL DEMO, during which the tree sat
+       * empty and the platform looked broken. The answer only changes when the
+       * company's own configuration does, so it is worth keeping.
+       */
+      const cacheKey = `features:${cid ?? "none"}`;
+      const cached = featureCache.get(cacheKey);
+      if (cached && Date.now() - cached.at < FEATURE_CACHE_MS) {
+        return json(res, cached.payload);
+      }
       let cfg: Awaited<ReturnType<typeof loadCompanyConfig>> | null = null;
       if (cid) {
         const client = await openClientContext(Number(cid)).catch(() => null);
@@ -233,7 +253,7 @@ const server = createServer(async (req, res) => {
       const inScope = new Set(groups.flatMap((g) => g.children.map((f) => f.id)));
       const defaults = defaultSelection().filter((id: string) => inScope.has(id));
 
-      return json(res, {
+      const payload = {
         groups,
         defaults,
         scope: scoped ? { note: scoped.scopeNote, name: scoped.name } : null,
@@ -250,7 +270,9 @@ const server = createServer(async (req, res) => {
               error: cfg.error,
             }
           : null,
-      });
+      };
+      featureCache.set(cacheKey, { at: Date.now(), payload });
+      return json(res, payload);
     }
 
     // ── API: the browser journeys available, + this client's line-item limits ──
@@ -347,7 +369,7 @@ const server = createServer(async (req, res) => {
       });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       if (!q) {
-        send("error", { line: "no instruction given" });
+        send("run-error", { line: "no instruction given" });
         res.end();
         return;
       }
@@ -403,7 +425,7 @@ const server = createServer(async (req, res) => {
         );
         req.on("close", () => stop());
       } catch (err: any) {
-        send("error", { line: `could not run that instruction: ${err?.message ?? err}` });
+        send("run-error", { line: `could not run that instruction: ${err?.message ?? err}` });
         res.end();
       }
       return;
@@ -422,7 +444,7 @@ const server = createServer(async (req, res) => {
       });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       if (!testCase) {
-        send("error", { line: "no test case given" });
+        send("run-error", { line: "no test case given" });
         res.end();
         return;
       }
@@ -464,7 +486,7 @@ const server = createServer(async (req, res) => {
         });
         req.on("close", () => stop());
       } catch (err: any) {
-        send("error", { line: `could not compile that test case: ${err?.message ?? err}` });
+        send("run-error", { line: `could not compile that test case: ${err?.message ?? err}` });
         res.end();
       }
       return;
@@ -488,7 +510,7 @@ const server = createServer(async (req, res) => {
       });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       if (!stuckId) {
-        send("error", { line: "no stuck id given" });
+        send("run-error", { line: "no stuck id given" });
         res.end();
         return;
       }
@@ -752,7 +774,7 @@ const server = createServer(async (req, res) => {
 
       const picked = ids.map((id) => caseById(id)).filter((x): x is NonNullable<typeof x> => !!x);
       if (!picked.length) {
-        send("error", { line: "none of those case ids are in the catalog" });
+        send("run-error", { line: "none of those case ids are in the catalog" });
         return res.end();
       }
       send("plan", {

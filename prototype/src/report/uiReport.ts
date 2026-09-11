@@ -315,12 +315,23 @@ export function renderUiReport(findings: UiFinding[] = loadUiFindings()): string
   for (const f of findings) if (!latest.has(f.flowKey)) latest.set(f.flowKey, f);
 
   const results = loadUiResults();
-  const passedKeys = new Set(results.filter((r) => r.status === "passed").map((r) => r.flowKey));
-  // A journey that has since passed is no longer broken, whatever an older
-  // finding says — the report describes now, not the worst day it ever had.
-  const broken = [...latest.values()].filter((f) => !passedKeys.has(f.flowKey));
+  const passedAt = new Map(
+    results.filter((r) => r.status === "passed").map((r) => [r.flowKey, r.startedAt ?? ""]),
+  );
+  /**
+   * A pass clears a break only if it came LATER.
+   *
+   * The first version dropped a journey from "broke" if it had ever passed, so
+   * a journey that worked on Tuesday and broke today read as healthy — the one
+   * case where a report must not be reassuring.
+   */
+  const broken = [...latest.values()].filter((f) => {
+    const passed = passedAt.get(f.flowKey);
+    return !passed || passed < (f.createdAt ?? "");
+  });
   const brokenKeys = new Set(broken.map((f) => f.flowKey));
   const passed = results.filter((r) => r.status === "passed" && !brokenKeys.has(r.flowKey));
+  void passedAt;
   const touched = new Set([...brokenKeys, ...passed.map((p) => p.flowKey)]);
   const clean = UI_FLOWS.filter((f) => !touched.has(f.key));
 
@@ -341,7 +352,7 @@ export function renderUiReport(findings: UiFinding[] = loadUiFindings()): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Procol QA — browser test report</title>
+<title>Procol QA — UI automation</title>
 <style>
 ${PAGE_CSS}
 .grow { flex: 1 1 auto; }
@@ -373,7 +384,7 @@ img.shot { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; d
 </head>
 <body>
 <div class="wrap">
-  <h1>Browser tests — what happened</h1>
+  <h1>UI automation — what happened</h1>
   <p class="sub">${UI_FLOWS.length} journeys the browser can drive · ${passed.length} worked ·
   ${broken.length} broke · generated ${escapeHtml(stamp())}</p>
 
@@ -387,7 +398,7 @@ img.shot { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; d
       ${tile("our tests' fault", harness, harness ? "warn" : "")}
       ${tile("not tried yet", clean.length)}
     </div>
-    <p class="lede" style="margin-top:14px">A browser test signs in and clicks through Procol like a person
+    <p class="lede" style="margin-top:14px">A UI automation journey signs in and clicks through Procol like a person
     would. <strong>Worked</strong> means it got all the way through and the app behaved — you can see the
     screen it finished on. <strong>Broke</strong> means it stopped, and each one says whether that is the
     <strong>product's fault</strong> (send it to engineering) or <strong>our tests' fault</strong> (a button
@@ -413,7 +424,7 @@ img.shot { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; d
       passed.length
         ? passed.map(renderPass).join("")
         : `<p class="none">No journey has passed yet in a run that kept its result. Run one from the platform —
-           <strong>Browser tests → Run selected journeys</strong> — and it appears here with its screenshot.</p>`
+           <strong>UI automation → Run selected</strong> — and it appears here with its screenshot.</p>`
     }
   </section>
 

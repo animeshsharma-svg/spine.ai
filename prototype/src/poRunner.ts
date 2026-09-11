@@ -29,7 +29,7 @@ const RUN_REPORT = join(SUITE_DIR, "reports", "po-run-report.json");
 const ANSI = new RegExp(String.fromCharCode(27) + "\\[[0-9;]*m", "g");
 
 export interface PoRunEvent {
-  type: "start" | "log" | "step" | "done" | "error";
+  type: "start" | "log" | "step" | "done" | "run-error";
   line?: string;
   command?: string;
   exitCode?: number;
@@ -127,7 +127,7 @@ export function runPoFlow(
   };
   child.stdout.on("data", pump);
   child.stderr.on("data", pump);
-  child.on("error", (e) => emit({ type: "error", line: e.message }));
+  child.on("error", (e) => emit({ type: "run-error", line: e.message }));
 
   child.on("close", (code) => {
     // The suite writes a full run report; read its steps out so the UI can show

@@ -75,7 +75,7 @@ async function init() {
     loadPoInput();
   });
   $("#run")?.addEventListener("click", run);
-  $("#ui-btn").addEventListener("click", runUi);
+  $("#ui-btn")?.addEventListener("click", runUi);
   $("#f-all").addEventListener("click", () => setFilter("all"));
   $("#f-fail").addEventListener("click", () => setFilter("fail"));
   $("#t-run").addEventListener("click", runSelectedFeatures);
@@ -256,7 +256,15 @@ let selected = new Set();
 async function loadFeatures() {
   const box = $("#tree");
   box.innerHTML = "";
-  box.appendChild(el("div", "loading", "Reading this company's configuration… "));
+  // Say what the wait is for. The first read of a company's configuration is a
+  // live round trip and can take half a minute; a bare spinner reads as broken.
+  box.appendChild(
+    el(
+      "div",
+      "loading",
+      `Reading ${esc(currentClientName || "this company")}'s configuration — the first read takes a moment…`,
+    ),
+  );
   try {
     // Pass the client so the tree reflects THAT company's switched-on features —
     // the same source of truth the real Procol console uses.
@@ -669,11 +677,25 @@ function runSelectedFeatures() {
     $("#auto-summary").textContent = `${p.done}/${p.total} · ${p.done - failed} passed · ${failed} failed`;
     setRunBar(p.done, p.total);
   });
-  es.addEventListener("done", () => {
+  es.addEventListener("done", (ev) => {
     es.close();
     const failed = checkRows.filter((c) => !c.pass).length;
     $("#auto-summary").textContent = `${checkRows.length} checks · ${checkRows.length - failed} passed · ${failed} failed`;
     setRunBar(1, 1);
+
+    // The reports for THIS run: its own id for the test report, its module for
+    // the sheet. Until a run finishes there is nothing to point at, which is
+    // why the bar is hidden before this.
+    let runId = "";
+    try {
+      runId = JSON.parse(ev.data).runId || "";
+    } catch {}
+    showReportsFor({
+      label: "This run:",
+      testHref: "/api/test-report" + (runId ? `?run=${encodeURIComponent(runId)}` : ""),
+      bugHref: bugHrefForSelection(),
+    });
+
     showRunComplete({
       total: checkRows.length,
       passed: checkRows.length - failed,
@@ -736,7 +758,9 @@ function renderUiTree() {
     head.appendChild(el("span", "module-ico", g.icon));
     head.appendChild(el("span", "module-name", esc(g.label)));
     head.appendChild(el("span", "module-n" + (picked ? " some" : ""),
-      `${picked}/${built.length} built · ${g.children.length} total`));
+      built.length
+        ? `${picked ? `${picked} of ${built.length} picked` : `${built.length} journey${built.length === 1 ? "" : "s"}`}`
+        : "none built"));
     head.addEventListener("click", () => {
       if (openUiModules.has(key)) openUiModules.delete(key);
       else openUiModules.add(key);
@@ -781,7 +805,12 @@ function renderUiTree() {
   }
 
   const meta = $("#ui-meta");
-  if (meta) meta.textContent = `${have}/${total} have a journey · ${uiSelected.size} picked`;
+  // "20/92 have a journey" read as "20 picked". Lead with the selection, which
+  // is the number a reader is actually looking for, and say the rest plainly.
+  if (meta)
+    meta.textContent = uiSelected.size
+      ? `${uiSelected.size} picked · ${have} journeys built`
+      : `nothing picked · ${have} of ${total} have a journey`;
 }
 
 async function runSelectedUiJourneys() {
@@ -970,6 +999,21 @@ function runPoAutomation() {
     es.close();
     btn.disabled = false;
     btn.textContent = "▶ Run PO automation";
+
+    // A PO run has its own report — every phase, every call, and the curl for
+    // it — so point at that rather than at the API case report.
+    showReportsFor({
+      label: "This PO run:",
+      testLabel: "📊 PO run report",
+      testHref: "/api/po-report",
+      bugHref: bugHrefForSelection(),
+    });
+    const failedSteps = finalRows.filter((r) => !r.pass).length;
+    showRunComplete({
+      total: finalRows.length,
+      passed: finalRows.length - failedSteps,
+      failed: failedSteps,
+    });
   });
   es.onerror = () => {
     // A closed stream after "done" is normal; before it, the run died.
@@ -1091,7 +1135,7 @@ function runUiJourney(flow, btn, onDone) {
     }
     loadFindings();
   });
-  es.addEventListener("error", (ev) => {
+  es.addEventListener("run-error", (ev) => {
     // A plain connection error has no data payload.
     let msg = "run error";
     try {
@@ -1321,11 +1365,24 @@ async function loadHistory() {
       const item = el("div", "run-item");
       item.dataset.id = r.id;
       const when = new Date(r.ts).toLocaleString();
+      /**
+       * A run's request can be eleven feature ids long, which turned this
+       * panel into a wall of identifiers. Name the first, count the rest.
+       */
+      const features = r.request?.match(/^\s*features:\s*(.+)$/i)?.[1];
+      const list = features ? features.split(",").map((f) => f.trim()).filter(Boolean) : null;
+      const title = list
+        ? list.length === 1
+          ? list[0]
+          : `${list[0]} + ${list.length - 1} more`
+        : r.request;
       const tag = r.findings
         ? `<span class="tag find">${r.findings} finding${r.findings > 1 ? "s" : ""}</span>`
         : `<span class="tag clean">clean</span>`;
       item.innerHTML = `
-        <div class="run-req">${esc(r.request)}</div>
+        <div class="run-req" title="${esc(r.request)}">${
+          list ? `<span class="run-kind">tests</span>` : `<span class="run-kind ai">AI</span>`
+        }${esc(title)}</div>
         <div class="run-meta">${esc(r.companyName ?? r.id)} · ${esc(when)} ${tag}
           <span>${r.passed}✓ ${r.failed}✗</span></div>`;
       item.addEventListener("click", () => openRun(r.id, item));
@@ -1794,7 +1851,7 @@ function runAiInstruction() {
     const code = JSON.parse(ev.data).exitCode;
     finish(code === 0 ? "✓ journey passed" : `✗ journey failed (exit ${code})`, code === 0 ? "ok" : "bad");
   });
-  es.addEventListener("error", (ev) => {
+  es.addEventListener("run-error", (ev) => {
     let msg = "run error";
     try {
       msg = JSON.parse(ev.data).line || msg;
@@ -1875,7 +1932,7 @@ function runTestCase(dryRun) {
     const code = JSON.parse(ev.data).exitCode;
     finish(dryRun ? "✓ compiled (not run)" : code === 0 ? "✓ test case passed" : `✗ test case failed (exit ${code})`, code === 0 ? "ok" : "bad");
   });
-  es.addEventListener("error", (ev) => {
+  es.addEventListener("run-error", (ev) => {
     let msg = "run error";
     try { msg = JSON.parse(ev.data).line || msg; } catch {}
     finish("✗ " + msg, "bad");
@@ -1973,7 +2030,7 @@ function teachStuck(id, btn) {
     const code = JSON.parse(ev.data).exitCode;
     finish(code === 0 ? "✓ taught — future runs will use it directly" : "✗ could not teach it from that screen", code === 0 ? "ok" : "bad");
   });
-  es.addEventListener("error", () => finish("✗ teaching failed", "bad"));
+  es.addEventListener("run-error", () => finish("✗ teaching failed", "bad"));
 }
 
 // ── the written test catalog ───────────────────────────────────────────────
@@ -2201,7 +2258,7 @@ function runPickedCases() {
     loadFindings();
   };
   es.addEventListener("done", () => finish("— run complete", "hd"));
-  es.addEventListener("error", (ev) => {
+  es.addEventListener("run-error", (ev) => {
     // EventSource fires `error` both for a server-sent error event and for the
     // stream closing. Only the first carries data.
     let line = "";

@@ -47,7 +47,7 @@ export const TIERS: Array<{ id: SuiteTier; label: string; what: string; writes: 
 ];
 
 export interface SuiteRunEvent {
-  type: "start" | "log" | "done" | "error";
+  type: "start" | "log" | "done" | "run-error";
   line?: string;
   command?: string;
   exitCode?: number;
@@ -81,7 +81,7 @@ export function runSuiteTier(
   };
   child.stdout.on("data", pump);
   child.stderr.on("data", pump);
-  child.on("error", (e) => emit({ type: "error", line: e.message }));
+  child.on("error", (e) => emit({ type: "run-error", line: e.message }));
 
   child.on("close", (code) => {
     // The suite writes its own report; read the totals so the UI can state the

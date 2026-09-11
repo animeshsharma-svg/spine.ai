@@ -20,7 +20,17 @@ import { Check, Client } from "./engine.js";
 import { gate, type DynamicContext, type DynamicSpec } from "./dynamicChecks.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const LIB_PATH = join(here, "..", "..", "data", "test-cases.json");
+/**
+ * The per-feature API case library.
+ *
+ * A separate file from data/test-cases.json on purpose: that one now holds the
+ * 648 WRITTEN cases (prose, steps, oracle) read by testCatalog.ts, a different
+ * shape entirely. The two systems shared a filename until the merge dropped
+ * the written catalog into it, at which point this library silently read zero
+ * cases and every feature in the tree greyed out — "Run selected" had nothing
+ * to run and said so in no way at all.
+ */
+const LIB_PATH = join(here, "..", "..", "data", "api-cases.json");
 
 export interface TestCaseRecord {
   id: string;
@@ -52,6 +62,15 @@ export function loadCases(): TestCaseRecord[] {
     const parsed = JSON.parse(readFileSync(LIB_PATH, "utf8"));
     const list: TestCaseRecord[] = Array.isArray(parsed) ? parsed : (parsed.cases ?? []);
     CACHE = list.filter((c) => c && c.id && c.feature && c.path && c.method);
+    if (list.length > 0 && CACHE.length === 0) {
+      // Every record was rejected: the file is a different shape than this
+      // library expects. Say so once, loudly, instead of behaving as if the
+      // product had no test cases.
+      console.error(
+        `[caseLibrary] ${LIB_PATH} holds ${list.length} record(s), none with the ` +
+          `feature/method/path shape this library needs — is it the written catalog?`,
+      );
+    }
   } catch {
     CACHE = [];
   }

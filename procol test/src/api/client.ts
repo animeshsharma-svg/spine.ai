@@ -276,7 +276,9 @@ export class ApiClient {
       // Transport failure: no HTTP status was ever assigned.
       return { ok: false, status: 0, data: undefined, message: (err as Error).message };
     }
+  }
 
+  /**
    * Like get/post/patch/... but never throws on a non-2xx response — it
    * returns the outcome instead (status, parsed body, error code/message).
    * Used by the contract-driven Oracle suite (`src/flows/eventsContract.ts`),
