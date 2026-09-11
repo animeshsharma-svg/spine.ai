@@ -23,6 +23,18 @@ export class VendorPortalPage extends BasePage {
 
   /** Email-OTP login. Switches to email mode, sends OTP, submits, waits to leave /login. */
   async login(email = CONFIG.vendorEmail, otp = CONFIG.vendorOtp): Promise<void> {
+    // The portal's login form renders well after its URL loads on this
+    // environment. Wait for either face of it — the email box or the
+    // "continue with email" switch — before the 10s fill budget starts, the
+    // same readiness wait open_create needed for the create screen.
+    await this.page
+      .getByRole("textbox", { name: /email/i })
+      .or(this.page.getByText(/continue with email/i))
+      .or(this.page.getByPlaceholder(/email/i))
+      .first()
+      .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
+      .catch(() => {});
+    await this.dismissDistractions();
     await this.clickIfPresent(
       [this.page.getByText(/continue with email/i), this.page.getByRole("button", { name: /continue with email/i })],
       { label: "email-mode", timeout: TIMEOUTS.SHORT },
