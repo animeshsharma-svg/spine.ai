@@ -83,6 +83,18 @@ export class BasePage {
     try {
       return await clickFirst(this.page, [...this.learned(opts.label), ...candidates], opts);
     } catch (err) {
+      // The "Want to stay updated?" card arrives seconds AFTER a screen renders
+      // and sits over its primary action — it covered the Create Event chevron,
+      // Save as draft and Create Proposal in one day, each time after the
+      // step's own dismissal had already run. If clearing a distraction NOW
+      // actually removes something, the click deserves one more try.
+      if (await this.dismissDistractions().catch(() => false)) {
+        try {
+          return await clickFirst(this.page, [...this.learned(opts.label), ...candidates], { ...opts, timeout: TIMEOUTS.SHORT });
+        } catch {
+          /* fall through to the stuck report with the original error */
+        }
+      }
       if (opts.label) {
         await recordStuck(this.page, {
           label: opts.label,
@@ -123,9 +135,9 @@ export class BasePage {
    * Close whatever transient popups are currently on screen. Cheap and safe to
    * call before any important interaction; each dismissal is best-effort.
    */
-  async dismissDistractions(): Promise<void> {
+  async dismissDistractions(): Promise<boolean> {
     const p = this.page;
-    await clickIfPresent(
+    return clickIfPresent(
       p,
       [
         // browser-notification prompt
