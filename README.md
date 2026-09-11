@@ -257,6 +257,28 @@ the menu — *Single Stage · eRFX Project · BOQ based RFX Project* — and the
 verdict stayed PARTIAL, because the case's negative branch (tenant flag off)
 still has no step. That is the correct answer.
 
+## Combinations — every event type, reached the way the product reaches it
+
+`prototype/knowledge/events/event-permutations.md` maps what a request can
+legitimately ask for — entry path × stages × auction strategy × line items ×
+vendors × bidding side × awarding rule × outcome — with the screen and the
+steps that reach each, and the combinations that are impossible (RFQ +
+Auction composed on one screen) or conversion-only (knockout, dutch). It is
+indexed into the memory and distilled into the compiler's rules, so a
+sentence like *"single-stage price-based auction, award the whole lot"*
+compiles to `open_create{single-stage} → configure_single_stage{auction,
+price, lot} → …`, and *"convert the published RFQ to an auction"* compiles to
+`compose_stages{rfq} → … → publish → expect_published → convert_to_auction`.
+A counter offer has no step and is refused, on the ledger.
+
+## Demos: visible login, demo pace
+
+Tick **demo pace + visible login** (headed runs only). The run drops the
+saved session in the *same* window, logs in for real so the OTP flow is
+seen, and spaces every action a quarter-second apart. Verification runs stay
+headless and fast, and the strip at the top narrates them step by step —
+*"Running plan … (headless) — step 4/9 fill sheet"*.
+
 ## One browser, one case at a time
 
 Every browser run takes a single process-wide slot
