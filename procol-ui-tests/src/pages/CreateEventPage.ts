@@ -1615,55 +1615,59 @@ export class CreateEventPage extends BasePage {
       // input. Open the first select that shows a duration, list its options,
       // and pick the smallest that covers the request — the app has no
       // 3-minute preset, so 3 becomes 15 and the plan is told so.
-      // Evidence for the control's real markup: the leaf that reads the current
-      // duration and three levels of its ancestry, classes included. The aria
-      // tree only says "text: 30 Mins", which is not enough to drive it.
-      const markup = await panel
-        .evaluate((el) => {
-          // The smallest element whose OWN text carries a duration ("30 Mins"),
-          // its ancestry with classes, and every antd Select in the panel with
-          // what it displays — enough to drive whichever control this is.
-          const nodes = [...el.querySelectorAll("*")].filter((e) => /\b\d+\s*(Mins?|Minutes?|Hours?)\b/i.test(e.textContent || ""));
-          nodes.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length);
-          const target = nodes[0];
-          const chain: string[] = [];
-          let n: Element | null = target ?? null;
-          for (let i = 0; i < 5 && n; i++) {
-            chain.push(`<${n.tagName.toLowerCase()} class="${(n as HTMLElement).className}" role="${n.getAttribute("role") ?? ""}" text="${(n.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40)}">`);
-            n = n.parentElement;
-          }
-          const selects = [...el.querySelectorAll(".ant-select, [role='combobox'], select")].map((s2) => `${s2.tagName.toLowerCase()}.${(s2 as HTMLElement).className.split(" ").slice(0, 3).join(".")}="${(s2.textContent || "").replace(/\s+/g, " ").trim().slice(0, 30)}"`);
-          return `chain: ${chain.join(" ⟵ ") || "none"} || selects(${selects.length}): ${selects.join(" ; ")} || html: ${(target?.parentElement?.outerHTML ?? "").replace(/\s+/g, " ").slice(0, 900)}`;
-        })
-        .catch((e) => `markup probe failed: ${(e as Error).message}`);
-      console.log(`[create-event] duration control markup: ${markup}`);
-      const valueSelects = panel.locator(".ant-select").filter({ hasText: /\d+\s*(mins?|minutes?|hours?|hrs?|days?)\b/i });
-      if (await valueSelects.count()) {
-        const sel = valueSelects.first();
-        await sel.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-        await sel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-        const options = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item");
-        await options.first().waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
-        const texts = (await options.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
+      // Captured markup (2026-09-11): the End time block is a
+      // `_timeInputWrapper` holding two `_inputCol`s — a mode select reading
+      // "Duration" and a sibling whose whole text is the value ("30 Mins").
+      // Drive that sibling: click it; if a dropdown opens, pick the smallest
+      // preset covering the request; if it exposes an input, type the minutes.
+      const endBlock = panel.locator("[class*='timeInputWrapper']").filter({ hasText: /end time/i }).first();
+      const scope = (await endBlock.count()) ? endBlock : panel;
+      const valueCol = scope.locator("[class*='inputCol']").filter({ hasText: /^\s*\d+\s*(Mins?|Minutes?|Hours?)\s*$/i }).first();
+      const inner = (await valueCol.evaluate((e) => e.outerHTML.replace(/\s+/g, " ").slice(0, 600)).catch(() => "")) || "";
+      console.log(`[create-event] duration value control: ${inner || "not found"}`);
+      let chosen: number | null = null;
+      if (await valueCol.count()) {
+        const input = valueCol.locator("input").first();
+        const clickTarget = (await valueCol.locator(".ant-select, .ant-select-selection, [role='combobox']").count())
+          ? valueCol.locator(".ant-select, .ant-select-selection, [role='combobox']").first()
+          : valueCol;
+        await clickTarget.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await clickTarget.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const options = this.page.locator(
+          ".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item, .ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu-item, [role='listbox'] [role='option']",
+        );
+        const opened = await options.first().waitFor({ state: "visible", timeout: 4_000 }).then(() => true).catch(() => false);
         const toMinutes = (t: string) => {
           const m = t.match(/(\d+)\s*(mins?|minutes?|hours?|hrs?|days?)/i);
           if (!m) return NaN;
           const n = Number(m[1]);
           return /hour|hr/i.test(m[2]) ? n * 60 : /day/i.test(m[2]) ? n * 1440 : n;
         };
-        const ranked = texts.map((t, i) => ({ t, i, m: toMinutes(t) })).filter((o) => Number.isFinite(o.m)).sort((a, b) => a.m - b.m);
-        const pick = ranked.find((o) => o.m >= minutes) ?? ranked[ranked.length - 1];
-        if (pick) {
-          await options.nth(pick.i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-          this.scheduleMinutesChosen = pick.m;
-          console.log(`[create-event] schedule duration: asked ${minutes} min, chose preset "${pick.t}" (options: ${ranked.map((o) => o.t).join(", ")})`);
+        if (opened) {
+          const texts = (await options.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
+          const ranked = texts.map((t, i) => ({ t, i, m: toMinutes(t) })).filter((o) => Number.isFinite(o.m)).sort((a, b) => a.m - b.m);
+          const pick = ranked.find((o) => o.m >= minutes) ?? ranked[ranked.length - 1];
+          if (pick) {
+            await options.nth(pick.i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            chosen = pick.m;
+            console.log(`[create-event] schedule duration: asked ${minutes} min, chose preset "${pick.t}" (options: ${ranked.map((o) => o.t).join(", ")})`);
+          } else {
+            await this.page.keyboard.press("Escape").catch(() => {});
+            console.log(`[create-event] the duration dropdown had no readable presets: ${texts.join(", ")}`);
+          }
+        } else if (await input.count()) {
+          await input.fill("").catch(() => {});
+          await input.fill(String(minutes)).catch(() => {});
+          await this.page.keyboard.press("Tab").catch(() => {});
+          chosen = minutes;
+          console.log(`[create-event] schedule duration typed: ${minutes} min`);
         } else {
-          await this.page.keyboard.press("Escape").catch(() => {});
-          console.log(`[create-event] the duration select offered no readable presets (${texts.join(", ")}) — keeping the default window`);
+          console.log("[create-event] the duration value control opened nothing and has no input — keeping the default window");
         }
       } else {
-        console.log("[create-event] no duration select in the Schedule panel — keeping the default window");
+        console.log("[create-event] no duration value column in the Schedule panel — keeping the default window");
       }
+      this.scheduleMinutesChosen = chosen;
     }
 
     await this.click([panel.getByRole("button", { name: /save schedule/i })], {
