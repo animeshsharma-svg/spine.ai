@@ -199,7 +199,7 @@ export class CreateEventPage extends BasePage {
         scope.locator("input.ant-select-search__field:not([disabled])"),
         scope.locator("[role='combobox'] input:not([disabled])"),
       ],
-      { label: "line-item-search", timeout: TIMEOUTS.MEDIUM },
+      { label: "line-item-search", timeout: TIMEOUTS.SHORT },
     );
 
     let typed = false;
@@ -246,7 +246,7 @@ export class CreateEventPage extends BasePage {
     let picked = false;
     for (let attempt = 0; attempt < 3 && !picked; attempt++) {
       // Wait for a populated list before reaching for a row.
-      const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.MEDIUM });
+      const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.SHORT });
       if (!list) {
         await this.page.waitForTimeout(300);
         continue;
@@ -266,7 +266,7 @@ export class CreateEventPage extends BasePage {
       // product), and the toolbar badge does not move until the drawer is
       // SAVED. What does change immediately is the chosen product appearing as
       // a chip in the select, and the row marking itself selected.
-      const deadline = Date.now() + 6_000;
+      const deadline = Date.now() + 3_000;
       while (Date.now() < deadline && !picked) {
         const chips = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
         const marked = await p
@@ -1766,7 +1766,8 @@ export class CreateEventPage extends BasePage {
       console.log("[create-event] Save Schedule: pointer clicks were clipped by the drawer — dispatched the click directly");
     }
     await this.waitForSpinnerHidden();
-    await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).catch(() => {});
+    // The drawer closes fast on a good save; do not block 30s when it lingers.
+    await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.SHORT }).catch(() => {});
     await this.dismissDistractions();
     // What did the app keep? The chip is labelled by its own value —
     // "Now - 03:27 pm, 11th Sep (30 Mins)" — so it is the ground truth.
