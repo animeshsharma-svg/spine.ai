@@ -1,5 +1,6 @@
 import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
 import { InlineSheet, WidgetConfig } from "../helpers/inlineSheet.js";
 import { forEachSequential } from "../helpers/data.js";
@@ -1595,12 +1596,31 @@ export class CreateEventPage extends BasePage {
     // 2 hours"), so it is driven from UI_SCHEDULE_MINUTES rather than baked in.
     const minutes = scheduleMinutes();
     if (minutes) {
-      const duration = panel.locator("input[type='number'], input").first();
+      // A 3-minute request produced a 30-minute window (UI-AWD-001, 11 Sep):
+      // the first input in the panel is evidently not the duration. Record the
+      // panel's tree before touching it, then fill the field that is LABELLED
+      // as the duration, falling back to the first number input only if no
+      // label matches — and read the chip afterwards to see what was kept.
+      await recordStuck(this.page, {
+        label: "capture:schedule-panel",
+        message: "captured on request — the Schedule panel before the duration is set",
+        triedCandidates: [],
+        healerTried: false,
+      }).catch(() => {});
+      const labelled = panel
+        .getByLabel(/duration|minutes|mins/i)
+        .or(panel.getByPlaceholder(/duration|minutes|mins/i))
+        .or(panel.getByRole("spinbutton", { name: /duration|minutes|mins/i }));
+      const duration = (await labelled.count()) ? labelled.first() : panel.locator("input[type='number'], input.ant-input-number-input").first();
       if (await duration.count()) {
+        await duration.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await duration.fill("").catch(() => {});
         await duration.fill(String(minutes)).catch(() => {});
         await this.page.keyboard.press("Tab").catch(() => {});
         await this.pause(400);
-        console.log(`[create-event] schedule duration set to ${minutes} min`);
+        const unit = panel.locator(".ant-select-selection-selected-value, .ant-select-selection-item").first();
+        const unitText = (await unit.textContent().catch(() => null))?.trim();
+        console.log(`[create-event] schedule duration field set to ${minutes}${unitText ? ` (unit selector reads "${unitText}")` : ""}`);
       } else {
         console.log("[create-event] no duration field in the Schedule panel — keeping the default window");
       }
@@ -1613,7 +1633,14 @@ export class CreateEventPage extends BasePage {
     await this.waitForSpinnerHidden();
     await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).catch(() => {});
     await this.dismissDistractions();
-    console.log("[create-event] schedule saved");
+    // What did the app keep? The chip is labelled by its own value —
+    // "Now - 03:27 pm, 11th Sep (30 Mins)" — so it is the ground truth.
+    const chip = this.page.locator("button:has(.anticon-clock-circle)").first();
+    const chipText = (await chip.textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
+    console.log(`[create-event] schedule saved${chipText ? ` — chip reads: ${chipText}` : ""}`);
+    if (minutes && chipText && !new RegExp(`\\(\\s*${minutes}\\s*Mins?\\)`, "i").test(chipText)) {
+      console.log(`[create-event] WARNING: asked for ${minutes} min but the chip does not show it — the duration field was not the one filled`);
+    }
   }
 
   /** Save the event as a draft instead of publishing (allow_draft_project_creation). */
