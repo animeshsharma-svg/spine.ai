@@ -106,8 +106,23 @@ export class BasePage {
       throw err;
     }
   }
-  fill(candidates: Candidate[], value: string, opts: FindOptions = {}) {
-    return fillFirst(this.page, [...this.learned(opts.label), ...candidates], value, opts);
+  async fill(candidates: Candidate[], value: string, opts: FindOptions = {}) {
+    try {
+      return await fillFirst(this.page, [...this.learned(opts.label), ...candidates], value, opts);
+    } catch (err) {
+      // A field that cannot be filled deserves the same evidence as a button
+      // that cannot be clicked. The vendor portal's email field failed once
+      // with no report at all, which left nothing to diagnose from.
+      if (opts.label) {
+        await recordStuck(this.page, {
+          label: opts.label,
+          message: (err as Error).message,
+          triedCandidates: this.describe(candidates),
+          healerTried: false,
+        });
+      }
+      throw err;
+    }
   }
   find(candidates: Candidate[], opts: FindOptions = {}) {
     return firstMatch([...this.learned(opts.label), ...candidates], opts);
