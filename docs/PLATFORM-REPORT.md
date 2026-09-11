@@ -49,7 +49,7 @@ Two read-only reference checkouts sit beside them and are **git-ignored and neve
 
 Sections: UI — Before you start, Composing the project, Templates and the pricing sheet, Line items, The technical (RFP) stage, Auction configuration, Schedule and the bid window, Participants and audience, Savings/terms, Publish and draft, RFQ → Auction conversion, BOQ events, PR → event, Classic single-stage, The vendor's bid, Surrogate bidding, Awarding, Isolation/masking/permissions, Data validation, Non-functional. API — Auth and session, Creating the draft event group, Creating stages, Activation, Line items, Audience and participants, Vendor technical response, Vendor bid, Surrogate bids, RFQ → Auction, Awarding, Lifecycle, Authorization matrix, Validation and robustness, Persistence, Non-functional.
 
-The catalog is also **indexed into the QA memory, one chunk per case** (944 of the memory's 1,295 chunks), so the compiler retrieves the written expectation for whatever it is about to test.
+The catalog is also **indexed into the QA memory, one chunk per case** (944 of the memory's 1,339 chunks), so the compiler retrieves the written expectation for whatever it is about to test.
 
 ---
 
@@ -85,7 +85,7 @@ Actions: `open_events_list`, `filter_events{tab}`, `open_stage_menu{stage?}`, `o
 
 Assertions: `expect_events_list`, `expect_create_options{options[],absent[]}`, `expect_url_contains{text}`, `expect_event_in_list{title?}`, `expect_event_status{status,title?}`, `expect_template_selected{name?}`, `expect_sheet_columns{columns[]?}`, `expect_disabled{control}`, `expect_enabled{control}`, `expect_line_items{count}`, `expect_published`, `expect_no_error`, `expect_error{message?}`, `expect_awarded`, `expect_bid_submitted`, `expect_publish_blocked`, `expect_stages{stages[]}`.
 
-Eight of these were built **on 11 September from the gap ledger** (section 5.5): the events-list and menu steps, template/sheet assertions, the status-row reader, the stage-menu opener and the disabled/enabled pair.
+Fifteen of the 43 were built **on 11 September from the gap ledger** (section 5.5): the events-list and menu steps, template/sheet assertions, the status-row reader, the stage-menu opener, the disabled/enabled pair, `open_participants`, `open_master_qcs`, `configure_single_stage`, `convert_to_auction`, `capture_screen`, and `place_counter_offer` / `expect_counter_offer_sent`. The executor dispatches shared step names to the single-stage page object when the plan is on that screen, so the compiler keeps one vocabulary.
 
 ### 5.2 The prompt
 
@@ -184,7 +184,7 @@ The dashboard's **Defects found** panel groups by defect, not by case; `GET /api
 
 ## 9. The memory — two-tier RAG
 
-`prototype/src/rag/knowledgeBase.ts`. **1,295 chunks**: `test-case` 944 (the written catalog, one per case, plus the mined frontend/backend cases), `doc` 227 (design docs, the create-screen contract, PRD notes, split by heading), `experience` 71 (previous findings and previous plan results — *how far a test of this shape got and which step stopped it*), `flow` 17.
+`prototype/src/rag/knowledgeBase.ts`. **1,339 chunks**: `test-case` 944 (the written catalog, one per case, plus the mined frontend/backend cases), `doc` 227 (design docs, the create-screen contract, PRD notes, split by heading), `experience` 71 (previous findings and previous plan results — *how far a test of this shape got and which step stopped it*), `flow` 17.
 
 Retrieval is **hybrid**: dense similarity × 0.75 + lexical term overlap × 0.25, because a 384-dimension sentence embedding is good at meaning and bad at identifiers (`buyer_hub`, `BE-2.1`) — exactly what someone searching for them typed. `recall(query)` returns *expectations* (what should happen) and *experience* (what has happened) separately; the compiler sees both, and the dashboard's QA memory panel shows them separately so a reader never mistakes history for spec.
 
@@ -234,6 +234,10 @@ Trajectory of "compiled clean, no repair needed" as the vocabulary grew: 16/25 �
 - The Create Event menu on this tenant offers **Single Stage · eRFX Project · BOQ based RFX Project**; the chevron is inside the button; the menu opens on hover.
 - **Save as draft** is disabled with a title alone and still disabled with a template and *Items 0*; it enables once a line item exists.
 - The "Want to stay updated?" notification card appears 2–5 s after a screen renders and covers the top-right action.
+- A published stage is `/project/:id/:stageId` with sub-tabs **Responses | Overview | Participants | Analytics | Price Trends**; the bids, the vendor column headers and the buyer's **Counter Offer** button live under *Responses*. The project-level Master QCS shows the same bids with no header actions. The page reads *"Loading your event details..."* for a long while first.
+- The counter-offer drawer is a plain table (S no. · Product · Quantity Requested · Quantity Available · Price · Total · Delivery location · GST · Variant) with an editable Price cell, **Bulk Update**, a remarks box and **Send Counter Offer**; afterwards the header offers **Revoke Counter Offer**. `hide_counter_offer_rfq` is off on PROCOL DEMO.
+- Traffic-light auctions need GREEN and YELLOW *"Gross total less than"* bounds in the configuration drawer **and** *Green (Inclusive Range)* / *Yellow (Inclusive Range)* per line item on the sheet; unfilled, *Publish Event* stays put with **no toast** — single-stage refusals are inline. The same drawer offers Knockout and Dutch radios on this tenant (enabled state unverified).
+- The product audience adds vendors from the line items on its own, so "publish with no participants" is often untrue as a premise here.
 - Awarding grid: the vendor's own *Select All* cell reads `AMD LTD Select All`; counters *Tot. selected line items n/m* and *Awarded Vendors (n/m)* must be read **after** `ant-spin` clears, or the oracle reads mid-update.
 
 ---
@@ -255,6 +259,10 @@ Dashboard totals at time of writing: 26 finding groups — 6 defects, 15 harness
 - **Happy flow, headed, 13/13, first attempt after the popover fix**, from one sentence: RFQ-only eRFX → template → 2 line items → sheet → schedule → invite AMD → publish (`WHBwY0Rn`) → surrogate bid for AMD → award 2 line items to 1 vendor, submitted → awarded ✓. (The run before it reached 14/16 and stopped on *Create Proposal* under the popover — diagnosed from the stuck screenshot.)
 - **Publish-then-find, 17/17**: create RFQ → publish (`Tk5jY0Rn`) → open the list → Live tab → found by its own title.
 - **Catalog cases**: UI-CRE-001, UI-CRE-003, UI-PUB-001 PASS (built journeys); UI-TPL-001 PASS 5/5 (was PARTIAL that morning); UI-CRE-010 PASS 4/4 (*"stage menu open: Edit title, Delete (disabled)"*); UI-PUB-003 9/9 PARTIAL (draft saved, found under Drafts; the row's status label check is the new `expect_event_status`); UI-ENV-002 PARTIAL (menu read live; the tenant-flag-off branch has no step); UI-LI-001 PARTIAL; UI-VAL-001 refused (a blank-title negative test needs a step that does not exist yet); API-EG-001/002/003, API-PUB-001 PASS; API-LI-003 and API-PERM/AUD/LC area runs surfaced the findings in section 14.
+- **Afternoon and evening, 11 September — the permutation batch, one sentence each, headless:** RFP-only **14/14** · RFP+RFQ **18/18** · RFP+Auction **17/17** · BOQ **11/11** · RFQ → Auction conversion **14/14** (`convert_to_auction` opened the converted create screen in a new tab) · vendor-portal bid **12/12** · single-stage **price** auction, lot award **10/10** · single-stage **traffic-light** auction, line-item award **11/11** (GREEN/YELLOW bounds in the drawer and the two required range columns on the sheet, both filled) · rank-based auction via the built journey. Every auction strategy this build exposes on the create screens now runs; knockout and dutch are reachable through conversion.
+- **Counter offer, 16/16:** publish an RFQ → AMD bids from the vendor portal → Master QCS → the stage's *Responses* tab → *Counter Offer* in AMD's column header → drawer *"Counter Offer for AMD LTD"* → price 90 → remark → *Send Counter Offer* → the grid marks the bid → a **Revoke Counter Offer** control is on screen afterwards. Built from the product's source, corrected three times from stuck-report evidence (the control's tab, the page's loading state, the drawer's real anatomy).
+- **Visible login, on record:** `[plan] showing the login in this window before the plan runs` → `logged in as the buyer — token present` → the plan ran in that same window.
+- **Catalog reruns under the new linter:** UI-SUR-001 **PASS 14/14** (participants list: 9 rows offer Add Bid) · UI-AWD-001 **13/13 PARTIAL** — the case wants the event *closed* before Master QCS; no step closes an event yet · UI-PART-001 — the invite correctly removed, the app **allowed a publish with 0 participants shown**; the step now reads the published event's own participant count to decide between a product defect and the audience being applied server-side.
 - **Queueing**: two concurrent case runs → second showed *"waiting for the browser … position 1"*, then ran. One window.
 
 ---
