@@ -131,8 +131,8 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "close_event",
     purpose:
-      "On a PUBLISHED event's page, end the current stage now: Settings → \"End <status>\" → remarks → OK (the product's force-end, shown only when the tenant allows it). Use before cases that need a closed event, e.g. Master QCS on a closed event, or awarding after bidding has ended.",
-    args: { remark: "remark for the end-time modal (optional)" },
+      "On a PUBLISHED event's page, make the event CLOSED: Settings → \"End <status>\" (the product's force-end, where the tenant allows it) — otherwise wait for the bidding window to lapse. Pair it with set_schedule{minutes: 3} before publish so the wait is short. Use before cases that need a closed event (Master QCS on a closed event, awarding after bidding has ended).",
+    args: { remark: "remark for the end-time modal (optional)", maxWaitMinutes: "when the tenant has no force-end, how long to wait for the bidding window to lapse (default 6)" },
   },
   {
     name: "open_event",

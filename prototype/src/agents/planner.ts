@@ -374,6 +374,23 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // close_event on this tenant means waiting for the bidding window to lapse
+  // (no force-end is offered). Give such a plan a 3-minute schedule before
+  // publish: long enough to place the bid, short enough to wait out.
+  if (has("close_event")) {
+    const sched = steps.find((st) => st.step === "set_schedule");
+    if (sched) {
+      const m = Number(sched.args?.minutes);
+      if (!Number.isFinite(m) || m > 3) {
+        sched.args = { ...(sched.args ?? {}), minutes: 3 };
+        repairs.push("set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end");
+      }
+    } else if (has("publish")) {
+      steps.splice(indexOf("publish"), 0, { step: "set_schedule", args: { minutes: 3 } });
+      repairs.push("added set_schedule(3 min) before publish — close_event needs a short window to wait out");
+    }
+  }
+
   // convert_to_auction needs a PUBLISHED RFQ under the browser.
   if (has("convert_to_auction")) {
     const conv = indexOf("convert_to_auction");

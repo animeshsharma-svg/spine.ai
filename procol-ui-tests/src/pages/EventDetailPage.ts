@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { EventsPage } from "./EventsPage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
 
@@ -155,15 +156,12 @@ export class EventDetailPage extends BasePage {
     const end = items.filter({ hasText: /^end\b(?!\s*time\s*$)/i }).first();
     if (!(await end.count())) {
       await p.keyboard.press("Escape").catch(() => {});
-      await recordStuck(p, {
-        label: "close-event:menu",
-        message: `Settings offers no "End …" item — offered: ${offered.join(", ") || "(nothing)"}`,
-        triedCandidates: ["menuitem /^End /"],
-        healerTried: false,
-      }).catch(() => {});
-      throw new Error(
-        `the stage's Settings menu offers no "End <status>" item (the product shows it only when the tenant's trade_force_close is on) — it offers: ${offered.join(", ") || "nothing"}`,
-      );
+      // Captured on PROCOL DEMO 2026-09-11: the menu offers Recreate Order,
+      // Shared With, Extend Submission Time, Withdraw, Convert to Auction,
+      // Rejected Bids, Order Activity, Edit Evaluation Time, Send Bulk Counter
+      // Offer — no "End …": trade_force_close is off here. The only road to a
+      // closed event on this tenant is letting the bidding window lapse.
+      return `no force-end on this tenant (Settings offers: ${offered.join(", ")}) — waiting for the window to lapse`;
     }
     const label = ((await end.textContent()) ?? "").trim();
     if ((await end.getAttribute("aria-disabled")) === "true" || /disabled/.test((await end.getAttribute("class")) ?? "")) {
@@ -186,6 +184,42 @@ export class EventDetailPage extends BasePage {
     const okToast = await this.successToastText(6_000);
     await this.waitForSpinnerHidden();
     return `${label} → ${okToast ?? "confirmed"}`;
+  }
+
+  /**
+   * Wait for the current event's bidding window to lapse, reading "Ends in
+   * Xm : Ys" from its row in the events list. Bounded: if the window is longer
+   * than `maxWaitMinutes`, say so rather than sit there — the plan should have
+   * published with a short schedule (set_schedule{minutes}).
+   */
+  async waitForWindowToLapse(title: string, maxWaitMinutes = 6): Promise<string> {
+    const p = this.page;
+    const projectId = BasePage.projectIdFromUrl(p.url());
+    const events = new EventsPage(p);
+    await events.goto();
+    const readRemaining = async (): Promise<{ text: string; seconds: number | null; over: boolean }> => {
+      await events.searchByTitle(title);
+      const row = (await events.rowTextFor(title)) ?? "";
+      const m = row.match(/ends in\s*(?:(\d+)\s*h\s*:?\s*)?(\d+)\s*m\s*:?\s*(\d+)\s*s/i);
+      const over = /overdue|evaluate|closed|ended|history|completed/i.test(row) || (!m && !/ends in/i.test(row) && row.length > 0);
+      const seconds = m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
+      return { text: row.slice(0, 160), seconds, over };
+    };
+    let state = await readRemaining();
+    if (!state.over && state.seconds !== null && state.seconds > maxWaitMinutes * 60) {
+      throw new Error(
+        `the bidding window still has ${Math.round(state.seconds / 60)} min to run and no force-end is offered on this tenant — publish with set_schedule{minutes: 3} for a closed-event case (row: ${state.text})`,
+      );
+    }
+    const deadline = Date.now() + maxWaitMinutes * 60_000 + 30_000;
+    while (!state.over && Date.now() < deadline) {
+      await p.waitForTimeout(20_000);
+      state = await readRemaining();
+    }
+    if (!state.over) throw new Error(`the bidding window had not lapsed after ${maxWaitMinutes} min (row: ${state.text})`);
+    // Back to the event.
+    if (projectId) await events.openEvent({ id: projectId });
+    return `window lapsed — the list row now reads: ${state.text}`;
   }
 
   async convertToAuction(): Promise<Page> {

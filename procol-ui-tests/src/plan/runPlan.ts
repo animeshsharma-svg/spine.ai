@@ -244,9 +244,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "close_event": {
       if (!/\/project\//.test(s.page.url())) throw new Error("close_event needs a published event's page — publish and expect_published (or open_event) first");
       const detail = new EventDetailPage(s.page);
-      const done = await detail.forceEnd(a.remark ? String(a.remark) : undefined);
+      let done = await detail.forceEnd(a.remark ? String(a.remark) : undefined);
+      if (/waiting for the window to lapse/.test(done)) {
+        done = `${done}; ${await detail.waitForWindowToLapse(s.title, asInt(a.maxWaitMinutes, 6))}`;
+      }
       s.closed = true;
-      return `event ended: ${done}`;
+      return `event closed: ${done}`;
     }
     case "open_event": {
       const id = a.id ? String(a.id) : undefined;
