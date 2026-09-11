@@ -46,7 +46,23 @@ export class CounterOfferPage extends BasePage {
     // Quote, Edit Quote, Counter offer logs, and Counter Offer itself — live
     // in that menu. Open it and look there, excluding the "logs" item.
     if (!(await control.count()) && (await header.count())) {
-      const caret = header.locator("button:has(.anticon-caret-down), button[aria-label*='caret-down'], button:has-text('caret-down')").first();
+      // The name and the caret sit in ADJACENT header cells: `columnheader
+      // "AMD LTD"` and then an unnamed columnheader holding the caret button.
+      // Search the header row for carets and take the first one to the RIGHT
+      // of the vendor's cell — that is this vendor's menu.
+      const row = header.locator("xpath=ancestor::*[@role='row'][1]");
+      const carets = (await row.count()) ? row.locator("button:has(.anticon-caret-down), button[aria-label*='caret-down'], button:has(i[class*='caret-down'])") : header.locator("button:has(.anticon-caret-down)");
+      const hbox = await header.boundingBox().catch(() => null);
+      let caret = carets.first();
+      if (hbox) {
+        for (let i = 0; i < (await carets.count()); i++) {
+          const b = await carets.nth(i).boundingBox().catch(() => null);
+          if (b && b.x >= hbox.x - 4) {
+            caret = carets.nth(i);
+            break;
+          }
+        }
+      }
       if (await caret.count()) {
         await caret.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
         const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();
