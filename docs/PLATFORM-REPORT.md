@@ -219,7 +219,7 @@ Two evaluation sets (not training data — they measure accuracy and catch regre
 - **Routing eval** — 102 instructions → does the right journey get picked with the right parameters? Journey accuracy 98.0%, parameters 100%, caveat precision/recall 100%. It exposed that vendor-portal and mobile requests produced no caveat.
 - **Planner eval** — 42 test cases (26 written sentences + 16 catalog ids) → does each compile to a runnable plan? Structural invariants (starts on the right screen, template before line items, schedule before publish, no list steps before the event is committed…) plus per-case `mustInclude` / `mustExclude` / `mustAnyOf`. It exposed the Groq empty-content trap, and today the compiler's empty-steps fallback. Refusals (coverage `none`, no steps) are counted on their own line and leave the runnable denominator; a case the vocabulary cannot test is not a broken plan.
 
-Trajectory of "compiled clean, no repair needed" as the vocabulary grew: 16/25 → 28/39 → 29/42 → 32–33/42 with the 32- and 36-step vocabularies. **[Rerun tally on the fixed code: see the end of this document.]**
+Trajectory of "compiled clean, no repair needed" as the vocabulary grew: 16/25 → 28/39 → 29/42 → 32–33/42 with the 32- and 36-step vocabularies. **Rerun on the fixed code: 38/39 testable runnable (97.4%), 33 clean, 3 honest refusals — see the appendix.**
 
 ---
 
@@ -308,4 +308,16 @@ Only one server per port; no hot reload (`Ctrl+C`, `npm run serve` again after c
 
 ## Appendix — planner eval, rerun on the fixed code
 
-*Filled in when the rerun completes.*
+**Rerun on the fixed code (11 September, 36-step vocabulary, served by Kimi via Slingring):**
+
+| | |
+|---|---|
+| Test cases | 42 (26 written sentences + 16 catalog ids) |
+| Refused honestly | **3** — coverage `none`, no steps: `FE-3.1` and `FE-12.4` need the RFQ→Auction conversion flow, `BE-2.11` is API-only. All three on the gap ledger. |
+| Testable | 39 |
+| Runnable plans | **38/39 — 97.4%** |
+| Compiled clean, no repair | **33** |
+| Needed a linter repair | 5 |
+| Not runnable | 1 — `tc042`: the model appended a list check to a create case that did not ask for one (over-planning, flagged by the case's own `mustExclude`) |
+
+The run before this one, on the same day and before the fixes: 36/42 runnable, 32 clean, 6 failures — four from a step added mid-run reading as "unknown", two honest refusals mislabelled as unreachable. Both classes fixed; nothing about the compiler's actual choices changed between the two runs.
