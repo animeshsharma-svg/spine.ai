@@ -24,9 +24,35 @@ env.allowLocalModels = true;
 
 type Provider = "slingring" | "local";
 
+/**
+ * Set the first time the gateway's embeddings endpoint fails for the process.
+ * On 2026-09-11 HACK26_TEXT_EMBED_3_LARGE returned an upstream Azure auth
+ * error with no fallback group — a gateway-side fault. Rather than crash the
+ * build or, worse, index half the corpus with one embedder and half with
+ * another, the whole process drops to local and `embedderId()` says so.
+ */
+let slingringEmbeddingsBroken = false;
+
 export function embedProvider(): Provider {
   if (process.env.EMBEDDINGS_PROVIDER === "local") return "local";
+  if (slingringEmbeddingsBroken) return "local";
   return process.env[AI.slingring.apiKeyEnvVar] ? "slingring" : "local";
+}
+
+/**
+ * Check the gateway embedder actually works before anything is embedded, so
+ * the decision is made once, up front, not halfway through a build.
+ */
+export async function ensureEmbedderReady(): Promise<string> {
+  if (embedProvider() === "slingring") {
+    try {
+      await slingringEmbed(["embedder readiness probe"]);
+    } catch (err) {
+      slingringEmbeddingsBroken = true;
+      console.warn(`[rag] Slingring embeddings unavailable (${(err as Error).message.slice(0, 140)}) — using the local embedder`);
+    }
+  }
+  return embedderId();
 }
 
 /** A stable name for the embedder in use — stored alongside the vectors. */
@@ -68,7 +94,9 @@ async function slingringEmbed(texts: string[]): Promise<number[][]> {
   });
   if (!res.ok) throw new Error(`Slingring embeddings ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const j: any = await res.json();
+  if (j.error) throw new Error(`Slingring embeddings: ${String(j.error.message ?? j.error).slice(0, 200)}`);
   const rows: Array<{ index: number; embedding: number[] }> = j.data ?? [];
+  if (!rows.length) throw new Error("Slingring embeddings returned no vectors");
   // The API may return rows out of order; put them back by index.
   const out: number[][] = new Array(texts.length);
   for (const r of rows) out[r.index] = normalise(r.embedding);

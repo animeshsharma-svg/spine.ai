@@ -292,6 +292,22 @@ allowance is visible rather than discovered at 10am. The memory records which
 embedder built it; add the key after a build and retrieval goes word-only with
 a visible "run `npm run rag:build`" until you do.
 
+**What the gateway actually did on 2026-09-11** (probed, not assumed):
+
+- Every `HACK26_GPT_*` request was served by `azure_ai/Kimi-K2.7-Code`, the
+  gateway's fallback — a *reasoning* model. The client therefore adds a
+  1,500-token reasoning allowance to every budget, treats empty `content` as a
+  failure to hand down the chain, and logs the model that **actually answered**
+  (`[llm] slingring served "HACK26_GPT_6_ASTRA" with azure_ai/Kimi-K2.7-Code`).
+  Spend is tallied against the served model.
+- `HACK26_TEXT_EMBED_3_LARGE` failed upstream (Azure key not configured on the
+  gateway, no fallback group). The embedder probes the endpoint once at startup
+  and at build time; on failure the whole process uses the local 384-dim model
+  and the store says so. Nothing is indexed half with one embedder and half
+  with another.
+- The hackathon key is scoped to the HACK26 models only; `FAST_SMALLER` and
+  `BIG_THINKING` are refused by name.
+
 ## Measuring the AI, not trusting it
 
 ```bash

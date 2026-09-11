@@ -54,6 +54,9 @@ export function providerLabel(): string {
 
 /** Which provider actually served the last call, for honest reporting. */
 export let lastProviderUsed = "none";
+/** The model the gateway REPORTED serving, which may differ from the one asked for. */
+export let lastServedModel = "";
+const warnedReroute = new Set<string>();
 
 // ── spend, counted ──────────────────────────────────────────────────────────
 //
@@ -105,11 +108,21 @@ function slingringModel(tier: Tier = "fast"): string {
 async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promise<string> {
   const key = process.env[AI.slingring.apiKeyEnvVar]!;
   const model = slingringModel(opts.tier);
+  // The gateway reroutes freely — on 2026-09-11 every HACK26 GPT model was
+  // being served by azure_ai/Kimi-K2.7-Code, a REASONING model that spends
+  // tokens on `reasoning_content` before any `content`. A 5-token budget came
+  // back as content:"" with finish_reason:"length". Give the answer its budget
+  // AND a reasoning allowance on top, whichever model ends up answering.
+  // Measured 2026-09-11: a compile (3,000-token answer budget) with a 1,500
+  // allowance still ended finish_reason:"length" with empty content — Kimi
+  // reasoned through the lot. The reason tier gets room to think; the fast
+  // tier answers short questions and needs far less.
+  const REASONING_ALLOWANCE = opts.tier === "reason" ? 6_000 : 1_500;
   const body = JSON.stringify({
     model,
     messages,
     temperature: opts.temperature ?? 0.3,
-    max_tokens: opts.maxTokens ?? 900,
+    max_tokens: (opts.maxTokens ?? 900) + REASONING_ALLOWANCE,
   });
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await fetch(`${AI.slingring.baseUrl}/chat/completions`, {
@@ -119,8 +132,18 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
     });
     if (res.ok) {
       const j: any = await res.json();
-      tally(j.model ?? model, j.usage);
-      return String(j.choices?.[0]?.message?.content ?? "").trim();
+      const served = String(j.model ?? model);
+      tally(served, j.usage);
+      lastServedModel = served;
+      if (!served.includes(model) && !warnedReroute.has(model)) {
+        warnedReroute.add(model);
+        console.log(`[llm] slingring served "${model}" with ${served} (gateway fallback) — reported as such, not as ${model}`);
+      }
+      const content = String(j.choices?.[0]?.message?.content ?? "").trim();
+      const finish = j.choices?.[0]?.finish_reason;
+      // Empty content is a failure to be handed down the chain, not an answer.
+      if (!content) throw new Error(`${served} returned no content (finish_reason: ${finish})`);
+      return content;
     }
     if ((res.status === 429 || res.status === 503) && attempt === 0) {
       const retryAfter = Number(res.headers.get("retry-after")) || 0;

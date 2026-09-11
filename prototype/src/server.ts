@@ -32,6 +32,7 @@ import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
+import { ensureEmbedderReady } from "./rag/embedder.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
@@ -935,6 +936,9 @@ function json(res: any, body: any) {
 }
 
 server.listen(PORT, () => {
+  // Settle which embedder is really available before anything reads the
+  // memory, so the dashboard's stale/fresh verdict is about reality.
+  ensureEmbedderReady().then((id) => console.log(`   Embedder: ${id}`)).catch(() => {});
   console.log(`\n🚀 Procol QA platform UI  →  http://localhost:${PORT}`);
   console.log(`   AI provider: ${providerLabel()}\n`);
 });

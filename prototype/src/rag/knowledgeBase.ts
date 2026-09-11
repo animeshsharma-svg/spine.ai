@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { embedOne, embedMany, similarity, embedderId } from "./embedder.js";
+import { embedOne, embedMany, similarity, embedderId, ensureEmbedderReady } from "./embedder.js";
 import { allCases } from "../checks/testCatalog.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -318,6 +318,7 @@ function splitMarkdown(raw: string, maxChars = 1100): string[] {
 
 // ── 2. Build & save the index ─────────────────────────────────────────────
 export async function build(): Promise<{ chunks: number; dims: number }> {
+  await ensureEmbedderReady();
   const chunks = gatherChunks();
   const embeddings = await embedMany(chunks.map((c) => c.text));
   chunks.forEach((c, i) => (c.embedding = embeddings[i]));
@@ -354,6 +355,8 @@ function load(): Chunk[] {
  * the dashboard says to rebuild.
  */
 export function embedderMismatch(): { stale: boolean; store: string; current: string } {
+  // NOTE: call ensureEmbedderReady() first where a network round-trip is
+  // acceptable; without it a broken gateway embedder still reads as "current".
   load();
   return { stale: storeEmbedder !== embedderId(), store: storeEmbedder, current: embedderId() };
 }
@@ -369,6 +372,7 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
   // A scope that matches nothing should fall back rather than return silence —
   // an empty retrieval reads to an agent as "there is nothing to know".
   const chunks = pool.length ? pool : all;
+  await ensureEmbedderReady();
   const { stale } = embedderMismatch();
   if (stale && !warnedMismatch) {
     warnedMismatch = true;
