@@ -295,6 +295,10 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // configure_single_stage lives in the single-stage configuration drawer, so
   // the plan must open THAT screen, and the eRFX-only stage steps have nothing
   // to act on there. Decide the screen from the step the case really needs.
+  if (has("configure_single_stage") && !/single[- ]?stage|classic|non-?erfx|rank[- ]based|price[- ]based|traffic light|knockout|dutch|award(ing)? (rule|the entire lot|line[- ]item)/i.test(testCase)) {
+    steps.splice(indexOf("configure_single_stage"), 1);
+    repairs.push("dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule");
+  }
   if (has("configure_single_stage")) {
     const open = steps.find((st) => st.step === "open_create");
     if (open && String(open.args?.path ?? "erfx") !== "single-stage") {
@@ -569,7 +573,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
 
   if (has("publish")) {
     if (!has("set_schedule")) insertBefore("publish", { step: "set_schedule" }, "added set_schedule — the schedule is displayed but not committed until saved");
-    if (!has("invite_vendor")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
+    // …unless the plan expects the publish to be REFUSED: a case about
+    // publishing with no participants must not be handed participants.
+    if (!has("invite_vendor") && !has("expect_publish_blocked")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
   }
 
   // Bidding needs something to bid on, and the vendor portal needs to know
