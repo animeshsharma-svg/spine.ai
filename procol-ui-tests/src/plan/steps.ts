@@ -117,6 +117,21 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "configure_single_stage",
+    purpose:
+      "On the SINGLE-STAGE create screen (open_create path single-stage), open the configuration drawer and set the event type; for an auction, its strategy and the awarding rule. This is where auction strategy is chosen on this build — rank, price or traffic light; knockout and dutch exist only through RFQ→Auction conversion.",
+    args: {
+      eventType: '"rfq" | "rfp" | "auction"',
+      auctionSubtype: '"rank" | "price" | "traffic_light" (auction only; default rank)',
+      awarding: '"lot" (entire lot to one vendor) | "line_item" (partially, multiple vendors)',
+    },
+  },
+  {
+    name: "convert_to_auction",
+    purpose:
+      "On a PUBLISHED RFQ's project page (after publish + expect_published), open Settings → Convert to Auction and continue. The app opens the converted event's create screen in a new tab, which becomes the page for every later step. Knockout and dutch auctions are reachable only this way.",
+  },
+  {
     name: "open_create",
     purpose: "Open the event-create screen. Always the first step of a create test.",
     args: { path: '"erfx" (multi-stage project, the default), "single-stage", or "boq"' },

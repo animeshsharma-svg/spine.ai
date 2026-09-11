@@ -5,6 +5,7 @@ import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
 import { AwardPage } from "../pages/AwardPage.js";
 import { vendorNames, vendorCount } from "../master/params.js";
 import { CreateEventPage, ProductInput, StageKey } from "../pages/CreateEventPage.js";
+import { EventDetailPage } from "../pages/EventDetailPage.js";
 import { SingleStagePage } from "../pages/SingleStagePage.js";
 import { generateEventTitle } from "../helpers/data.js";
 import { buildProducts } from "../master/params.js";
@@ -189,6 +190,33 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const url = s.page.url();
       if (!url.includes(text)) throw new Error(`URL is ${url} — does not contain "${text}"`);
       return `URL contains "${text}"`;
+    }
+    case "configure_single_stage": {
+      const eventType = String(a.eventType ?? "rfq").toLowerCase();
+      if (!["rfq", "rfp", "auction"].includes(eventType)) throw new Error(`configure_single_stage: eventType must be rfq, rfp or auction (got "${eventType}")`);
+      const sub = a.auctionSubtype ? String(a.auctionSubtype).toLowerCase().replace(/[\s-]+/g, "_") : undefined;
+      if (sub && !["rank", "price", "traffic_light"].includes(sub)) throw new Error(`configure_single_stage: auctionSubtype must be rank, price or traffic_light (got "${sub}")`);
+      const awarding = a.awarding ? (/line/i.test(String(a.awarding)) ? "line_item" : "lot") : undefined;
+      if (!/singleStage=true|single-stage/.test(s.page.url())) {
+        throw new Error("configure_single_stage needs the single-stage create screen — use open_create with path \"single-stage\" first");
+      }
+      await s.single.configure({ eventType: eventType as any, auctionSubtype: sub as any, awarding: awarding as any });
+      return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}`;
+    }
+    case "convert_to_auction": {
+      // Needs a published RFQ's project page under the browser.
+      if (!/\/project\//.test(s.page.url())) throw new Error("convert_to_auction needs a published event's project page — publish and expect_published first");
+      const detail = new EventDetailPage(s.page);
+      const offered = await detail.openStageOfferingConversion();
+      if (!offered) throw new Error(`Convert to Auction is not offered on this event${detail.lastReason ? ` — ${detail.lastReason}` : ""}`);
+      const newPage = await detail.convertToAuction();
+      // The converted event opens in a new tab; every later step acts there.
+      s.page = newPage;
+      s.events = new EventsPage(newPage);
+      s.create = new CreateEventPage(newPage);
+      s.single = new SingleStagePage(newPage);
+      await newPage.waitForLoadState("domcontentloaded").catch(() => {});
+      return `conversion opened: ${new URL(newPage.url()).pathname}${new URL(newPage.url()).search.slice(0, 80)}`;
     }
     case "open_create": {
       const path = String(a.path ?? "erfx");

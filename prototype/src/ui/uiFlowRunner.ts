@@ -20,7 +20,7 @@
  * more than that client actually permits.
  */
 import { spawn } from "node:child_process";
-import { acquireBrowser } from "./browserSlot.js";
+import { acquireBrowser, setSlotProgress, setSlotHeaded } from "./browserSlot.js";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -155,6 +155,17 @@ function launch(
         if (line.trim()) emit({ type: "log", line });
       }
     };
+    setSlotHeaded(!args.includes("--headed") ? false : true);
+    setSlotProgress("starting the browser");
+    child.stdout?.on("data", (buf: Buffer) => {
+      // Mirror the run's own narration into the slot so the dashboard strip
+      // can say what a HEADLESS run is doing right now.
+      for (const raw of buf.toString().split("\n")) {
+        const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow)\] (.{0,80})/);
+        if (m) setSlotProgress(m[3] ? `step ${m[1]}/${m[2]} — ${m[3].replace(/_/g, " ")}${m[4] ?? ""}` : m[2]);
+        if (/showing the login/.test(raw)) setSlotProgress("logging in (visible)");
+      }
+    });
     child.stdout?.on("data", pump);
     child.stderr?.on("data", pump);
     child.on("error", (e) => emit({ type: "error", line: e.message }));
@@ -179,7 +190,7 @@ function launch(
  * and a shell has opinions about quoting that a JSON blob does not survive.
  */
 export function runUiPlan(
-  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean },
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean; showLogin?: boolean; slowMo?: number },
   emit: (e: UiRunEvent) => void,
 ): { stop: () => void } {
   const dir = join(UI_TESTS_DIR, ".plans");
@@ -201,6 +212,11 @@ export function runUiPlan(
     QA_RUN_ID: runId,
   };
   if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
+  // Blind waits shrink to 70% on every plan run; timeouts for real conditions
+  // are untouched. A headed demo can ask to SEE the login and to be slowed.
+  env.UI_SPEED = env.UI_SPEED ?? "0.7";
+  if (opts.headed !== false && opts.showLogin) env.UI_SHOW_LOGIN = "1";
+  if (opts.headed !== false && opts.slowMo) env.UI_SLOWMO = String(opts.slowMo);
 
   return launch(`plan ${runId}`, args, env, emit, () =>
     emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` }),

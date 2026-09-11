@@ -360,6 +360,8 @@ const server = createServer(async (req, res) => {
       const testCase = (url.searchParams.get("q") ?? "").trim();
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const headed = url.searchParams.get("headed") !== "0";
+      const showLogin = url.searchParams.get("login") === "1";
+      const slowMo = Number(url.searchParams.get("slowmo") ?? 0) || 0;
       const dryRun = url.searchParams.get("dry") === "1";
       res.writeHead(200, {
         "content-type": "text/event-stream",
@@ -404,7 +406,7 @@ const server = createServer(async (req, res) => {
 
         const runId = `plan-${Date.now().toString(36)}`;
         send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
-        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
+        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
           send(e.type, e);
           if (e.type === "done" || e.type === "error") {
             const result = readPlanResult(runId);
@@ -650,6 +652,8 @@ const server = createServer(async (req, res) => {
         .filter(Boolean);
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const headed = url.searchParams.get("headed") !== "0";
+      const showLogin = url.searchParams.get("login") === "1";
+      const slowMo = Number(url.searchParams.get("slowmo") ?? 0) || 0;
       res.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
@@ -783,7 +787,7 @@ const server = createServer(async (req, res) => {
           const partial = compiled.coverage === "partial";
           const runId = `case-${k.id}-${Date.now().toString(36)}`;
           await new Promise<void>((resolve) => {
-            const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
+            const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
               if (e.type === "log") send("note", { id: k.id, line: e.line });
               if (e.type === "queued") send("queued", { id: k.id, line: e.line });
               if (e.type === "done" || e.type === "error") {

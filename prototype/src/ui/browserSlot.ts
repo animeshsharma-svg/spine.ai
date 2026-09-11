@@ -15,6 +15,18 @@
 export interface SlotHolder {
   label: string;
   since: number;
+  /** The run's own last progress line ("step 3/9 — fill the pricing sheet"), so a
+   *  headless run is as visible on the dashboard as a headed one in a window. */
+  progress?: string;
+  headed?: boolean;
+}
+
+/** Update what the current holder is doing right now. */
+export function setSlotProgress(progress: string): void {
+  if (holder) holder.progress = progress;
+}
+export function setSlotHeaded(headed: boolean): void {
+  if (holder) holder.headed = headed;
 }
 
 interface Waiter {

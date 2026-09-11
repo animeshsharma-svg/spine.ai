@@ -178,7 +178,7 @@ export class CreateEventPage extends BasePage {
         );
         opened = true;
       } catch {
-        await this.pause(300);
+        await this.page.waitForTimeout(150);
       }
     }
     if (!opened) {
@@ -247,7 +247,7 @@ export class CreateEventPage extends BasePage {
       // Wait for a populated list before reaching for a row.
       const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.MEDIUM });
       if (!list) {
-        await this.pause(800);
+        await this.page.waitForTimeout(300);
         continue;
       }
       const clicked = await list
@@ -257,7 +257,7 @@ export class CreateEventPage extends BasePage {
         .catch(() => false);
       if (!clicked) {
         // Detached or covered; let the list settle and look again.
-        await this.pause(800);
+        await this.page.waitForTimeout(300);
         continue;
       }
       // Confirm from inside the drawer. Two earlier signals were wrong: the
@@ -273,7 +273,7 @@ export class CreateEventPage extends BasePage {
           .count();
         const badge = await this.lineItemCountBadge();
         if (chips > chipsBefore || marked > 0 || (badge !== null && before !== null && badge > before)) picked = true;
-        else await this.pause(600);
+        else await this.page.waitForTimeout(250);
       }
     }
 
@@ -288,7 +288,7 @@ export class CreateEventPage extends BasePage {
           "continuing; the line-item count is verified after saving",
       );
     }
-    await this.pause(500);
+    await this.page.waitForTimeout(250);
 
     // Quantity is optional here: on this build the drawer only picks products
     // and quantity is filled in the pricing sheet afterwards. Best-effort, so a
@@ -1398,12 +1398,14 @@ export class CreateEventPage extends BasePage {
     const p = this.page;
     await this.dismissDistractions();
 
-    // The audience fetch is asynchronous; give it a moment before deciding it
-    // has not happened.
-    for (let i = 0; i < 6 && (await this.participantCount()) === 0; i++) {
-      await this.pause(500);
-    }
+    // The audience fetch is asynchronous. Poll briskly rather than sleeping in
+    // 500ms slabs — this console never goes network-idle, so every pause()
+    // was running its whole budget, and six of them cost 3s on every run.
     let count = await this.participantCount();
+    for (let i = 0; i < 12 && count === 0; i++) {
+      await p.waitForTimeout(250);
+      count = await this.participantCount();
+    }
     if (count > 0) {
       console.log(`[create-event] ${count} participant(s) already on the event`);
       return;
@@ -1414,7 +1416,6 @@ export class CreateEventPage extends BasePage {
       [p.getByRole("button", { name: /invite vendor/i }), p.getByText(/^Invite Vendor$/i)],
       { label: "invite-vendor", timeout: TIMEOUTS.SHORT },
     );
-    await this.pause(800);
     await this.dismissDistractions();
 
     count = await this.participantCount();
@@ -1429,17 +1430,24 @@ export class CreateEventPage extends BasePage {
         ],
         { label: "open-participants", timeout: TIMEOUTS.SHORT },
       );
-      await this.pause(600);
       const search = region
         .locator("input.ant-select-search__field:not([disabled]), input:not([disabled])")
         .first();
+      await search.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
       if (await search.count()) {
         await search.fill("a").catch(() => {});
-        await this.pause(2_000);
+        // Wait for the search RESULTS, not two seconds: the options appear when
+        // the vendor search returns, which is usually well under a second.
+        await p
+          .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item")
+          .first()
+          .waitFor({ state: "visible", timeout: 4_000 })
+          .catch(() => {});
         const picked = await this.pickFirstNamedOption("vendor");
         if (picked) await p.keyboard.press("Escape").catch(() => {});
       }
-      await this.pause(800);
+      // The participant chip renders once the add request returns.
+      for (let i = 0; i < 12 && (await this.participantCount()) === 0; i++) await p.waitForTimeout(250);
       count = await this.participantCount();
     }
 

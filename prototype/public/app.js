@@ -1215,6 +1215,10 @@ function runTestCase(dryRun) {
   const qs = new URLSearchParams({ c: String(currentClient), q });
   if (dryRun) qs.set("dry", "1");
   if (!$("#ui-headed").checked) qs.set("headed", "0");
+  else if ($("#plan-demo")?.checked) {
+    qs.set("login", "1");
+    qs.set("slowmo", "250");
+  }
   const es = new EventSource(`/api/plan-run?${qs}`);
   uiRunning = es;
 
@@ -1550,6 +1554,10 @@ function runPickedCases() {
   btn.textContent = "running…";
   const qs = new URLSearchParams({ ids: [...catPicked].join(","), c: currentClient ?? "" });
   if (!$("#cat-headed").checked) qs.set("headed", "0");
+  else if ($("#cat-demo")?.checked) {
+    qs.set("login", "1");
+    qs.set("slowmo", "250");
+  }
   const es = new EventSource(`/api/case-run?${qs}`);
   catRunning = es;
 
@@ -1692,6 +1700,8 @@ const ROUTE_SENTENCE = {
 const STEP_WORDS = {
   open_events_list: () => "open the events list",
   expect_events_list: () => "check the events list rendered",
+  configure_single_stage: (a) => `configure the single-stage event as ${a?.eventType ?? "rfq"}${a?.auctionSubtype ? ` · ${String(a.auctionSubtype).replace("_", " ")} auction` : ""}${a?.awarding ? ` · award ${String(a.awarding).replace("_", " ")}` : ""}`,
+  convert_to_auction: () => "convert the published RFQ to an auction (opens in a new tab)",
   open_stage_menu: (a) => `open the ${a?.stage ?? "stage"} tab's ⋮ menu`,
   expect_disabled: (a) => `check "${a?.control ?? "the control"}" is disabled`,
   expect_enabled: (a) => `check "${a?.control ?? "the control"}" is enabled`,
@@ -1740,7 +1750,9 @@ async function pollRunState() {
     const dot = $("#rs-dot");
     if (st.running) {
       const secs = Math.round((Date.now() - st.running.since) / 1000);
-      $("#rs-text").textContent = `Browser busy: ${st.running.label} · ${secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`}`;
+      const mode = st.running.headed === false ? "headless" : st.running.headed ? "in the visible window" : "";
+      const prog = st.running.progress ? ` — ${st.running.progress}` : "";
+      $("#rs-text").textContent = `Running ${st.running.label}${mode ? ` (${mode})` : ""}${prog} · ${secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`}`;
       dot.className = "rs-dot busy";
     } else {
       $("#rs-text").textContent = "Browser idle — runs go one at a time, in one window";
