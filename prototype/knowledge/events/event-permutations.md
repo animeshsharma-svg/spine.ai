@@ -32,8 +32,9 @@ Every stage needs a template (`select_template` on that tab); a stage with none 
 | Rank based (default) | single-stage configuration drawer; eRFX auction stage ("Rank on lot") | `configure_single_stage{eventType:"auction", auctionSubtype:"rank"}` |
 | Price based | single-stage configuration drawer | `configure_single_stage{…, auctionSubtype:"price"}` |
 | Traffic light | single-stage configuration drawer (rank-range / price-range variants; needs a "specified range" before Save) | `configure_single_stage{…, auctionSubtype:"traffic_light"}` |
-| Knockout | **only** via RFQ → Auction conversion in eRFX | `convert_to_auction`, then configure on the converted screen |
-| Dutch | **only** via RFQ → Auction conversion in eRFX (buy and sell price directions differ) | `convert_to_auction`, then configure |
+| Knockout | eRFX: **only** via RFQ → Auction conversion. Single-stage: the configuration drawer **offers a Knockout radio** on PROCOL DEMO (captured 2026-09-11) — whether it is enabled is unverified | eRFX: `convert_to_auction`, then configure. Single-stage: `configure_single_stage{auctionSubtype:"knockout"}` is not wired yet |
+| Dutch | eRFX: **only** via RFQ → Auction conversion (buy and sell price directions differ). Single-stage: the drawer **offers a Dutch Auction radio** (captured 2026-09-11) — enabled state unverified | as above |
+| Traffic light — the specifics | drawer: "Group traffic light by: Price / Rank"; GREEN and YELLOW "Gross total less than" bounds (inclusive of price); the sheet then requires **Green (Inclusive Range)** and **Yellow (Inclusive Range)** per line item, or Publish stays put with no toast | `configure_single_stage{auctionSubtype:"traffic_light", rangeLower, rangeUpper}` fills both the drawer and the sheet |
 | Book building | tenant-gated | not composable here |
 | Basket auction | multi-product single event; forces line-item savings | `add_line_items{count ≥ 2}` on an auction |
 
