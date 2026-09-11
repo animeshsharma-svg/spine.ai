@@ -238,6 +238,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!marked) throw new Error("the counter offer was sent, but the grid shows no counter-offer mark on the bid yet");
       return "the grid marks the bid with a counter offer";
     }
+    case "open_event": {
+      const id = a.id ? String(a.id) : undefined;
+      const title = a.title ? String(a.title) : id ? undefined : s.title;
+      if (!id && !title) throw new Error("open_event needs an id or a title, and this plan has not created an event to return to");
+      const where = await s.events.openEvent({ id, title });
+      if (title && !s.title) s.title = title;
+      return `opened ${id ? `event ${id}` : `"${title}"`} at ${where}`;
+    }
     case "capture_screen": {
       const label = String(a.label ?? "capture").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "capture";
       // Reuse the stuck-report writer: same screenshot + tree, same panel on

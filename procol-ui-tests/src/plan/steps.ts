@@ -129,6 +129,12 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "open_event",
+    purpose:
+      "Open an EXISTING event — by project id (direct) or by title (search the events list and click the row) — landing on its project page. Use it for cases about an event that already exists, or to return to the event this plan created (default: this plan's own title).",
+    args: { id: "project id from a URL (optional)", title: "event title to search for (optional; defaults to this plan's own event)" },
+  },
+  {
     name: "capture_screen",
     purpose:
       "Record evidence of the current screen — a screenshot and the accessibility tree — under a label, without asserting anything. Use when a case wants to inspect or document a screen, or when the next thing to test has no step yet and a person needs to see the controls that exist.",

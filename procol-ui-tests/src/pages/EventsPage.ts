@@ -262,6 +262,31 @@ export class EventsPage extends BasePage {
     return ((await ((await block.count()) ? block : link).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
   }
 
+  /**
+   * Open an existing event: by project id (direct URL) or by title (search the
+   * list, click the row). Lands on the project details page.
+   */
+  async openEvent(opts: { id?: string; title?: string }): Promise<string> {
+    const base = CONFIG.appUrl.replace(/\/$/, "");
+    if (opts.id) {
+      await this.page.goto(`${base}/project/${opts.id}/details`, NAV);
+      await this.dismissDistractions();
+      return `/project/${opts.id}/details`;
+    }
+    if (!opts.title) throw new Error("open_event needs an id or a title");
+    if (!/\/orders\/?(\?|$)/.test(new URL(this.page.url()).pathname)) await this.goto();
+    await this.searchByTitle(opts.title);
+    const link = this.page.getByRole("link").filter({ hasText: opts.title }).first();
+    const any = this.page.getByText(opts.title, { exact: false }).first();
+    const target = (await link.count()) ? link : any;
+    if (!(await target.count())) throw new Error(`no event titled "${opts.title}" in the list after searching for it`);
+    await target.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    await target.click({ timeout: TIMEOUTS.MEDIUM });
+    await this.page.waitForURL((u) => /\/(project|orders)\/[^/]+/.test(u.pathname) && !/quick-create/.test(u.pathname), { timeout: TIMEOUTS.LONG });
+    await this.dismissDistractions();
+    return new URL(this.page.url()).pathname;
+  }
+
   async hasEventMatching(pattern: RegExp | string): Promise<boolean> {
     const count = await this.page.getByRole("link").filter({ hasText: pattern }).count();
     return count > 0;
