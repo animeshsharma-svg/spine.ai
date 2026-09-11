@@ -116,6 +116,33 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (missing.length) throw new Error(`sheet columns are [${keys.join(", ")}] — missing: ${missing.join(", ")}`);
       return `sheet columns: ${keys.join(", ")}`;
     }
+    case "expect_disabled":
+    case "expect_enabled": {
+      const control = String(a.control ?? "").trim();
+      if (!control) throw new Error(`${step.step} needs a "control" — the visible text of the button, menu item or tab`);
+      const want = new RegExp(control.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      const candidates = [
+        s.page.getByRole("button", { name: want }),
+        s.page.getByRole("menuitem", { name: want }),
+        s.page.getByRole("tab", { name: want }),
+        s.page.locator("button, [role='button'], [role='menuitem'], .ant-dropdown-menu-item, .ant-btn").filter({ hasText: want }),
+      ];
+      let el = null as import("@playwright/test").Locator | null;
+      for (const c of candidates) {
+        if ((await c.count()) > 0) {
+          el = c.first();
+          break;
+        }
+      }
+      if (!el) throw new Error(`no control reading "${control}" is on this screen`);
+      const disabled =
+        (await el.isDisabled().catch(() => false)) ||
+        (await el.getAttribute("aria-disabled")) === "true" ||
+        /\b(ant-btn-disabled|ant-dropdown-menu-item-disabled|ant-tabs-tab-disabled|disabled)\b/.test((await el.getAttribute("class")) ?? "");
+      if (step.step === "expect_disabled" && !disabled) throw new Error(`"${control}" is ENABLED — the case expects it disabled here`);
+      if (step.step === "expect_enabled" && disabled) throw new Error(`"${control}" is DISABLED — the case expects it enabled here`);
+      return `"${control}" is ${disabled ? "disabled" : "enabled"}, as expected`;
+    }
     case "expect_create_options": {
       const want = Array.isArray(a.options) ? a.options.map(String) : [];
       const absent = Array.isArray(a.absent) ? a.absent.map(String) : [];
@@ -148,6 +175,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const path = String(a.path ?? "erfx");
       await s.events.goto();
       await s.events.startCreate(path === "single-stage" ? "single-stage" : path === "boq" ? "boq" : "erfx");
+      // Reaching the URL is not the same as the form being there. On this
+      // environment the create screen can take 20s+ to hydrate, and the very
+      // next step (set_title) was failing "could not fill within 10s" on a
+      // page that was simply not ready yet. Wait for the one control every
+      // create screen has before calling the step done.
+      await s.page
+        .getByPlaceholder(/title of the project|event title|title/i)
+        .first()
+        .waitFor({ state: "visible", timeout: 60_000 })
+        .catch(() => {});
       return `opened the ${path} create screen`;
     }
     case "compose_stages": {

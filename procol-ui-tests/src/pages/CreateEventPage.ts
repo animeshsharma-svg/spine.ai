@@ -1578,6 +1578,24 @@ export class CreateEventPage extends BasePage {
   /** Save the event as a draft instead of publishing (allow_draft_project_creation). */
   async saveAsDraft(): Promise<void> {
     await this.dismissDistractions();
+    // The button exists on every create screen but the app DISABLES it until
+    // the event has enough to be worth keeping. A run that only set a title
+    // spent 10s failing to click it and reported a locator problem; the stuck
+    // report's tree read `button "Save as draft" [disabled]`. Read the state
+    // first and say what the screen says, so the report is about the product.
+    const draft = this.page.getByRole("button", { name: /save as draft/i }).first();
+    if (await draft.isVisible({ timeout: TIMEOUTS.SHORT }).catch(() => false)) {
+      const disabled = (await draft.isDisabled().catch(() => false)) || (await draft.getAttribute("aria-disabled")) === "true";
+      if (disabled) {
+        const items = (await this.page.getByRole("button", { name: /^items\s*\d+/i }).first().textContent().catch(() => null))?.trim();
+        const picker = await this.templatePickerPresent();
+        throw new Error(
+          `Save as draft is DISABLED on this screen — the app will not keep a draft in this state` +
+            ` (${picker ? "no template selected" : "template selected"}${items ? `, ${items}` : ""}).` +
+            ` Add what the case expects a draft to hold before saving.`,
+        );
+      }
+    }
     await this.click(
       [
         this.page.getByRole("button", { name: /save as draft/i }),

@@ -91,6 +91,19 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "expect_disabled",
+    purpose:
+      "Assert a named control on the current screen is DISABLED (greyed out / aria-disabled). Use for rules like 'Save as draft is disabled until…', 'Delete is disabled while one stage remains', 'Savings is disabled before a template'. Matches buttons, menu items and tabs by their visible text.",
+    args: { control: "the control's visible text, e.g. \"Save as draft\", \"Delete\", \"Savings\"" },
+    assertion: true,
+  },
+  {
+    name: "expect_enabled",
+    purpose: "Assert a named control on the current screen is ENABLED and clickable. The counterpart of expect_disabled.",
+    args: { control: "the control's visible text" },
+    assertion: true,
+  },
+  {
     name: "open_create",
     purpose: "Open the event-create screen. Always the first step of a create test.",
     args: { path: '"erfx" (multi-stage project, the default), "single-stage", or "boq"' },

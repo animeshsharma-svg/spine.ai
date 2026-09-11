@@ -346,6 +346,28 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(`added ${step} — the test is about bidding and no bid step was planned`);
   }
 
+  // Vendors are suggested from the line items' product audience, so inviting
+  // before any line item exists finds nobody. UI-VAL-001 compiled invite_vendor
+  // as step 3 of 18 and stopped there. Move it after the last of the steps that
+  // give it something to invite against.
+  if (has("invite_vendor")) {
+    const after = Math.max(indexOf("add_line_items"), indexOf("fill_sheet"), indexOf("select_template"));
+    if (after > indexOf("invite_vendor")) {
+      const [inv] = steps.splice(indexOf("invite_vendor"), 1);
+      steps.splice(after, 0, inv);
+      repairs.push("moved invite_vendor after the line items — the vendor suggestions come from the products on the event");
+    }
+  }
+
+  // The app DISABLES "Save as draft" until a template is on the stage —
+  // UI-PUB-003 compiled to title-then-save and the button read [disabled].
+  // A draft with nothing in it is not something the product keeps, so give
+  // the draft the one thing the screen demands before saving it.
+  if (has("save_draft") && !has("select_template")) {
+    steps.splice(indexOf("save_draft"), 0, { step: "select_template" });
+    repairs.push("added select_template before save_draft — the app disables Save as draft until a template is chosen");
+  }
+
   // A nameless event is refused at publish, and the title is also how a human
   // finds the event afterwards.
   if (!has("set_title")) {
