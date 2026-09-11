@@ -45,9 +45,17 @@ export class CounterOfferPage extends BasePage {
       if (await stageTab.count()) {
         await stageTab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
         await this.waitForSpinnerHidden();
-        await p.locator("[role='columnheader'], .rdg-header-row").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
       }
     }
+    // The stage page has sub-tabs — Responses | Overview | Participants |
+    // Analytics | Price Trends (captured 2026-09-11). The bids, their vendor
+    // headers and the Counter Offer action are under RESPONSES.
+    const responses = p.getByRole("tab", { name: /^responses\b/i }).first();
+    if ((await responses.count()) && (await responses.getAttribute("aria-selected")) !== "true") {
+      await responses.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await this.waitForSpinnerHidden();
+    }
+    await p.locator("[role='columnheader'], .rdg-header-row").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
 
     // 1 · the per-vendor control: `<Button id={CTA_ID.counterOffer}>Counter
     //     Offer</Button>` in the header's action area, rendered when the bid is
