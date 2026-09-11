@@ -275,11 +275,24 @@ export class EventsPage extends BasePage {
     }
     if (!opts.title) throw new Error("open_event needs an id or a title");
     if (!/\/orders\/?(\?|$)/.test(new URL(this.page.url()).pathname)) await this.goto();
-    await this.searchByTitle(opts.title);
-    const link = this.page.getByRole("link").filter({ hasText: opts.title }).first();
-    const any = this.page.getByText(opts.title, { exact: false }).first();
-    const target = (await link.count()) ? link : any;
-    if (!(await target.count())) throw new Error(`no event titled "${opts.title}" in the list after searching for it`);
+    // An event can sit under Live, Drafts or History. Look in each before
+    // concluding it does not exist — and say where it was found, because
+    // "published, but only in Drafts" is a finding in itself.
+    let target = this.page.getByRole("link").filter({ hasText: opts.title }).first();
+    let foundIn = "";
+    for (const tab of ["Live", "Drafts", "History"]) {
+      await this.openTab(tab).catch(() => {});
+      await this.searchByTitle(opts.title);
+      const link = this.page.getByRole("link").filter({ hasText: opts.title }).first();
+      const any = this.page.getByText(opts.title, { exact: false }).first();
+      target = (await link.count()) ? link : any;
+      if (await target.count()) {
+        foundIn = tab;
+        break;
+      }
+    }
+    if (!foundIn) throw new Error(`no event titled "${opts.title}" under Live, Drafts or History after searching each`);
+    console.log(`[events] "${opts.title}" found under ${foundIn}`);
     await target.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
     await target.click({ timeout: TIMEOUTS.MEDIUM });
     await this.page.waitForURL((u) => /\/(project|orders)\/[^/]+/.test(u.pathname) && !/quick-create/.test(u.pathname), { timeout: TIMEOUTS.LONG });
