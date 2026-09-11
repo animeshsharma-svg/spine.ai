@@ -101,6 +101,7 @@ const DEFAULT_VENDOR = process.env.UI_DEFAULT_VENDOR ?? "AMD";
 
 const DOMAIN_RULES = `
 First decide WHICH SCREEN the test is about:
+- Is it about an EXISTING event (open it, inspect its participants / bids / status, act on it)? Then start with open_event{title|id} and STOP adding create steps — no open_create, no set_title. open_event lands on the event's project page.
 - Is the SUBJECT of the test the events LIST itself — its rows, filters, tabs, sorting, search, or merely that the Create Event control is reachable? Then use open_events_list + expect_events_list and STOP. Do not add open_create, set_title or anything else: those act on a different screen, and a plan that opens the create screen to test the list passes while proving nothing.
 - Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
 
@@ -215,7 +216,18 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // no title. The create repairs turned "open the event, open its
   // participants, capture" into open_create → set_title → open_event, which
   // ran against a fresh create screen. Settle these plans here and return.
-  if (has("open_event") && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step))) {
+  // The model, told "open_create must come first", tends to prepend
+  // open_create + set_title even to an existing-event plan. Those two (and a
+  // stage step) are not evidence of a create test; anything heavier —
+  // template, line items, publish — is.
+  const HEAVY_CREATE = CREATE_SCREEN_STEPS.filter((x) => !["open_create", "set_title", "compose_stages", "expect_stages"].includes(x));
+  if (has("open_event") && !steps.some((s) => HEAVY_CREATE.includes(s.step))) {
+    for (const drop of ["open_create", "set_title", "compose_stages", "expect_stages"]) {
+      while (has(drop)) {
+        steps.splice(indexOf(drop), 1);
+        repairs.push(`dropped ${drop} — this plan opens an existing event, it does not create one`);
+      }
+    }
     if (indexOf("open_event") !== 0) {
       const [open] = steps.splice(indexOf("open_event"), 1);
       steps.unshift(open);
