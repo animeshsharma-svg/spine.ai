@@ -1751,11 +1751,25 @@ export class CreateEventPage extends BasePage {
       this.scheduleMinutesChosen = chosen;
     }
 
-    // Fixed time adds rows and pushes Save below the fold; a forced click does
-    // not scroll, so bring it into view first.
+    // Fixed time adds rows and pushes Save below the fold, and a forced click
+    // on an off-screen element fails with "outside of the viewport". So: close
+    // any picker panel still open (it swallows scrolls), scroll Save into view
+    // through the DOM, click normally, and only then retry forced.
+    const openPicker = this.page.locator(".ant-time-picker-panel:not(.ant-time-picker-panel-hidden), .ant-calendar-picker-container:not([style*='display: none'])");
+    if (await openPicker.count()) {
+      await this.page.keyboard.press("Escape").catch(() => {});
+      await panel.getByText(/schedule event/i).first().click({ timeout: 1_500 }).catch(() => {});
+    }
     const saveBtn = panel.getByRole("button", { name: /save schedule/i }).first();
-    await saveBtn.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
-    await this.click([saveBtn], { label: "save-schedule", timeout: TIMEOUTS.MEDIUM, force: true });
+    await saveBtn.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest" })).catch(() => {});
+    await this.page.waitForTimeout(300);
+    const box = await saveBtn.boundingBox().catch(() => null);
+    console.log(`[create-event] Save Schedule at ${box ? `y=${Math.round(box.y)} h=${Math.round(box.height)}` : "no box"} (viewport ${this.page.viewportSize()?.height ?? "?"}px)`);
+    const clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false);
+    if (!clicked) {
+      await saveBtn.evaluate((el) => el.scrollIntoView({ block: "end" })).catch(() => {});
+      await this.click([saveBtn], { label: "save-schedule", timeout: TIMEOUTS.MEDIUM, force: true });
+    }
     await this.waitForSpinnerHidden();
     await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).catch(() => {});
     await this.dismissDistractions();
