@@ -543,7 +543,22 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (disabled) return "the confirm button is disabled, as expected";
       }
       const err = await s.create.errorToastText(6_000);
-      expect(err, `publishing was expected to be blocked, but the app allowed it${participantsNote}`).toBeTruthy();
+      // The app allowed it. Decide what that MEANS before calling it anything:
+      // read the participant count on the published event. Zero means an event
+      // nobody can bid on went live — a product defect. More than zero means
+      // the product audience supplied vendors from the line items, so the
+      // case's premise "no participants" does not hold on this tenant.
+      let published = "";
+      try {
+        const chip = s.page.getByRole("button", { name: /participants\s*\d+/i }).or(s.page.getByRole("tab", { name: /participants/i })).first();
+        await chip.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+        const text = ((await chip.textContent().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+        const n = Number((text.match(/(\d+)/) || [])[1]);
+        published = Number.isFinite(n) ? ` The published event shows ${n} participant(s)` + (n === 0 ? " — an event nobody can bid on was published: a product defect." : " — the product audience supplied them from the line items, so this tenant cannot reach the case's premise of no participants.") : "";
+      } catch {
+        /* no count readable; the message below still carries the pre-publish count */
+      }
+      expect(err, `publishing was expected to be blocked, but the app allowed it${participantsNote}.${published}`).toBeTruthy();
       if (a.because) expect(err ?? "").toContain(String(a.because));
       return `blocked: ${err}`;
     }
