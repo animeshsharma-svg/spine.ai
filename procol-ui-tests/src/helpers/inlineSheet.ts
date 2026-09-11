@@ -75,7 +75,43 @@ export class InlineSheet {
     return Array.from({ length: count }, () => this.generateRow(widgets));
   }
 
-  private valueForType(type: string): unknown {
+  /**
+   * The grid and the template schema name the same column differently.
+   *
+   * A cell's `data-celltype` is the column's key (`buyer_hub`), while the
+   * template's `input_type` is its kind (`delivery_location`). Anything reading
+   * columns off the rendered sheet gets the former, so it must be translated
+   * before asking how to fill it — otherwise the delivery location silently
+   * goes unfilled and the app refuses to publish with "Sheet partially filled".
+   */
+  canonicalType(cellType: string): string {
+    switch (cellType) {
+      case "buyer_hub":
+      case "delivery_location":
+        return "delivery_location";
+      case "creator_quantity":
+      case "participant_quantity":
+      case "quantity":
+        return "quantity";
+      case "gst":
+      case "price":
+      case "amount":
+        return "price";
+      case "variant":
+        return "dropdown";
+      case "product":
+        return "product";
+      case "total_amount":
+      case "formula":
+        return "formula"; // computed — never fillable
+      default:
+        return cellType;
+    }
+  }
+
+  /** A sensible value for a column of this type. Public so a caller sweeping
+   *  columns discovered at run time can ask for one without guessing. */
+  valueForType(type: string): unknown {
     switch (type) {
       case "product":
         return "a";

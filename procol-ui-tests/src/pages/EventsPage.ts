@@ -47,6 +47,28 @@ export class EventsPage extends BasePage {
     await this.dismissDistractions();
   }
 
+  /**
+   * Assert the list is genuinely on screen.
+   *
+   * "Create Event" is the one control that exists on the list and nowhere
+   * else, so it is the honest signal — checking for rows would pass on an
+   * empty tenant and checking the URL would pass on a page that failed to
+   * render.
+   */
+  async expectListReady(): Promise<void> {
+    const p = this.page;
+    await this.expect(
+      [
+        p.getByRole("button", { name: /create event/i }),
+        p.getByRole("link", { name: /create event/i }),
+        p.locator("button, a").filter({ hasText: /create event/i }).first(),
+      ],
+      { label: "events list ready", timeout: TIMEOUTS.LONG },
+    );
+    const err = await this.errorToastText(1_000);
+    if (err) throw new Error(`the events list showed an error: ${err}`);
+  }
+
   /** The direct URL for each creation path — our reliable fallback. */
   private createUrl(path: CreatePath): string {
     const base = CONFIG.appUrl.replace(/\/$/, "");

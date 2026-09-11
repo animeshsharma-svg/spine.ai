@@ -30,9 +30,10 @@ import { saveRun, listRuns, getRun, newRunId } from "./runStore.js";
 import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
 import { runCheck } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
-import { UI_FLOWS, runUiFlow, clampLineItems } from "./ui/uiFlowRunner.js";
+import { UI_FLOWS, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
+import { compileTestCase } from "./agents/planner.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
 import { allDefects, renderBugSheet } from "./report/bugSheet.js";
@@ -41,6 +42,9 @@ import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.
 import { renderUiReport, uiShotPath } from "./report/uiReport.js";
 import { checkToken, poInputSummary, runPoFlow } from "./poRunner.js";
 import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
+import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
+import { routeFor, routingCoverage } from "./checks/caseRouting.js";
+import { runApiCases } from "./checks/apiCaseRunner.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
@@ -405,6 +409,101 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // ── API: write a test case, watch it compiled and run ───────────────
+    if (path === "/api/plan-run") {
+      const testCase = (url.searchParams.get("q") ?? "").trim();
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const headed = url.searchParams.get("headed") !== "0";
+      const dryRun = url.searchParams.get("dry") === "1";
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (!testCase) {
+        send("error", { line: "no test case given" });
+        res.end();
+        return;
+      }
+
+      try {
+        send("stage", { name: "compile", line: `Compiling: "${testCase.slice(0, 120)}"` });
+        const compiled = await compileTestCase(testCase);
+        send("plan", {
+          title: compiled.plan.title,
+          steps: compiled.plan.steps,
+          reasoning: compiled.reasoning,
+          source: compiled.source,
+          warnings: compiled.warnings,
+          context: {
+            expectations: compiled.context.expectations.length,
+            experience: compiled.context.experience.length,
+          },
+        });
+        if (dryRun) {
+          send("done", { exitCode: 0 });
+          res.end();
+          return;
+        }
+
+        const runId = `plan-${Date.now().toString(36)}`;
+        send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
+        const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
+          send(e.type, e);
+          if (e.type === "done" || e.type === "error") {
+            const result = readPlanResult(runId);
+            if (result) send("plan-result", result);
+            try {
+              send("verdicts", { runId, verdicts: readRunVerdicts(runId) });
+            } catch {
+              /* nothing recorded */
+            }
+            res.end();
+          }
+        });
+        req.on("close", () => stop());
+      } catch (err: any) {
+        send("error", { line: `could not compile that test case: ${err?.message ?? err}` });
+        res.end();
+      }
+      return;
+    }
+
+    // ── API: where the automation got stuck, and what it has learned ────
+    if (path === "/api/stuck") {
+      json(res, { stuck: readStuck(), learned: readLearned() });
+      return;
+    }
+
+    // ── API: teach the automation a locator it got stuck on ─────────────
+    if (path === "/api/stuck/fix") {
+      const stuckId = (url.searchParams.get("id") ?? "").trim();
+      const instruction = url.searchParams.get("instruction") ?? undefined;
+      const headed = url.searchParams.get("headed") !== "0";
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (!stuckId) {
+        send("error", { line: "no stuck id given" });
+        res.end();
+        return;
+      }
+      const { stop } = runTeach({ stuckId, instruction, headed }, (e) => {
+        send(e.type, e);
+        if (e.type === "done" || e.type === "error") {
+          // Show what the store holds now, so the improvement is visible.
+          send("learned", { learned: readLearned() });
+          res.end();
+        }
+      });
+      req.on("close", () => stop());
+      return;
+    }
+
     // ── API: the bug report, as markdown a human can act on ─────────────
     if (path === "/api/report") {
       const md = await buildMarkdownReport({ withContext: url.searchParams.get("context") !== "0" });
@@ -597,6 +696,190 @@ const server = createServer(async (req, res) => {
       } finally {
         await client.dispose().catch(() => {});
       }
+      return res.end();
+    }
+
+
+    // ── API: the written test catalog, for picking cases by hand ────────
+    //
+    // 648 cases live in `test-cases/*.md`. This serves them with the route
+    // each one would take if run, so the dashboard can show a person what
+    // will actually happen rather than an undifferentiated Run button.
+    if (path === "/api/test-cases") {
+      const layer = url.searchParams.get("layer") as "ui" | "api" | null;
+      const found = findCases({
+        layer: layer ?? undefined,
+        group: url.searchParams.get("group") ?? undefined,
+        verdict: url.searchParams.get("verdict") ?? undefined,
+        priority: url.searchParams.get("priority") ?? undefined,
+        q: url.searchParams.get("q") ?? undefined,
+      });
+      const limit = Math.min(Number(url.searchParams.get("limit") ?? 400), 1000);
+      return json(res, {
+        total: found.length,
+        stats: catalogStats(),
+        coverage: routingCoverage(),
+        sections: sections(layer ?? undefined),
+        cases: found.slice(0, limit).map((c) => ({ ...c, route: routeFor(c) })),
+      });
+    }
+
+    // ── API: run the cases a person ticked (SSE) ────────────────────────
+    //
+    // Each case goes to its own route, and cases are run one at a time: a UI
+    // journey drives a real browser and the API cases share one login and one
+    // set of fixtures, so running them at once would have them fight over the
+    // same sandbox records.
+    if (path === "/api/case-run") {
+      const ids = (url.searchParams.get("ids") ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const headed = url.searchParams.get("headed") !== "0";
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      let cancelled = false;
+      let stopChild: (() => void) | null = null;
+      req.on("close", () => {
+        cancelled = true;
+        stopChild?.();
+      });
+
+      const picked = ids.map((id) => caseById(id)).filter((x): x is NonNullable<typeof x> => !!x);
+      if (!picked.length) {
+        send("error", { line: "none of those case ids are in the catalog" });
+        return res.end();
+      }
+      send("plan", {
+        cases: picked.map((k) => ({ id: k.id, title: k.title, layer: k.layer, route: routeFor(k) })),
+      });
+
+      for (const k of picked) {
+        if (cancelled) break;
+        const route = routeFor(k);
+        send("case", { id: k.id, title: k.title, status: "running", route });
+
+        if (!route.runnable) {
+          send("case", { id: k.id, status: "not-run", route, reason: route.because });
+          continue;
+        }
+
+        try {
+          if (route.kind === "api-case" || route.kind === "api-section") {
+            const beIds = (route.target ?? "").split(",").filter(Boolean);
+            // A section route runs the framework's cases for that AREA, which
+            // is not the same as running this written case. Say so in the
+            // stream so nobody reads the green as this case passing.
+            if (route.kind === "api-section") {
+              send("note", { id: k.id, line: `running ${beIds.length} API case(s) covering this area — not this case exactly` });
+            }
+            const results = await runApiCases(
+              beIds,
+              (r) => send("api-case", { id: k.id, result: r }),
+              (line) => send("note", { id: k.id, line }),
+            );
+            const failed = results.filter((r) => r.status === "failed").length;
+            const passed = results.filter((r) => r.status === "passed").length;
+            send("case", {
+              id: k.id,
+              status: failed ? "failed" : passed ? "passed" : "skipped",
+              route,
+              summary: `${passed} passed · ${failed} failed · ${results.length - passed - failed} skipped`,
+            });
+            continue;
+          }
+
+          if (route.kind === "api-suite") {
+            const client = await openClientContext(c);
+            try {
+              const checks = await buildChecksForFlow(client, route.target!);
+              let failed = 0;
+              for (const chk of checks) {
+                if (cancelled) break;
+                const done = await runCheck(client, chk);
+                if (!done.pass) failed += 1;
+                send("check", { id: k.id, check: done });
+              }
+              send("case", {
+                id: k.id,
+                status: failed ? "failed" : "passed",
+                route,
+                summary: `${checks.length - failed}/${checks.length} checks passed`,
+              });
+            } finally {
+              await client.dispose().catch(() => {});
+            }
+            continue;
+          }
+
+          if (route.kind === "ui-journey") {
+            const runId = `case-${k.id}-${Date.now().toString(36)}`;
+            await new Promise<void>((resolve) => {
+              const { stop } = runUiFlow({ flowKey: route.target!, companyId: c, runId, headed }, (e) => {
+                if (e.type === "log") send("note", { id: k.id, line: e.line });
+                if (e.type === "done" || e.type === "error") {
+                  send("case", {
+                    id: k.id,
+                    status: e.exitCode === 0 ? "passed" : "failed",
+                    route,
+                    summary: `journey ${route.target} exited ${e.exitCode ?? "?"}`,
+                  });
+                  resolve();
+                }
+              });
+              stopChild = () => {
+                stop();
+                resolve();
+              };
+            });
+            continue;
+          }
+
+          // ui-compile: the written case becomes a plan, which is streamed
+          // before it runs so a person can see what it decided to do.
+          const compiled = await compileTestCase(caseAsProse(k));
+          send("compiled", {
+            id: k.id,
+            title: compiled.plan.title,
+            steps: compiled.plan.steps,
+            warnings: compiled.warnings,
+            source: compiled.source,
+          });
+          const runId = `case-${k.id}-${Date.now().toString(36)}`;
+          await new Promise<void>((resolve) => {
+            const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed }, (e) => {
+              if (e.type === "log") send("note", { id: k.id, line: e.line });
+              if (e.type === "done" || e.type === "error") {
+                const result = readPlanResult(runId) as { steps?: Array<{ status?: string }> } | null;
+                const steps = result?.steps;
+                send("case", {
+                  id: k.id,
+                  status: e.exitCode === 0 ? "passed" : "failed",
+                  route,
+                  summary: steps
+                    ? `${steps.filter((s) => s.status === "ok").length}/${steps.length} steps`
+                    : `plan exited ${e.exitCode ?? "?"}`,
+                  planResult: result,
+                });
+                resolve();
+              }
+            });
+            stopChild = () => {
+              stop();
+              resolve();
+            };
+          });
+        } catch (err: any) {
+          send("case", { id: k.id, status: "failed", route, summary: `could not run it: ${err?.message ?? err}` });
+        }
+      }
+
+      send("done", { ok: true });
       return res.end();
     }
 

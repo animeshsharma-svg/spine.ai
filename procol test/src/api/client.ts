@@ -46,7 +46,20 @@ export class ApiError extends Error {
   }
 }
 
-type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+export type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+/** Outcome of a non-throwing request — used by the contract Oracle, which
+ * needs to inspect a REJECTED response (status + error code) as evidence, not
+ * as an exception. */
+export interface RawResult<T = unknown> {
+  status: number;
+  ok: boolean;
+  data: T | null;
+  errorCode?: string;
+  errorMessage?: string;
+  /** raw response text, truncated — used as the Oracle's evidence body. */
+  rawText: string;
+}
 
 /**
  * Authenticated API helper. Mirrors `src/services/baseClient.js`:
@@ -263,6 +276,56 @@ export class ApiClient {
       // Transport failure: no HTTP status was ever assigned.
       return { ok: false, status: 0, data: undefined, message: (err as Error).message };
     }
+
+   * Like get/post/patch/... but never throws on a non-2xx response — it
+   * returns the outcome instead (status, parsed body, error code/message).
+   * Used by the contract-driven Oracle suite (`src/flows/eventsContract.ts`),
+   * where a "negative" case's whole point is inspecting the rejection, not
+   * catching an exception for it.
+   */
+  async attempt<T = unknown>(
+    method: Method,
+    path: string,
+    opts: RequestOptions = {},
+  ): Promise<RawResult<T>> {
+    const url = this.buildUrl(path, opts.params);
+    const hasBody = opts.body !== undefined && opts.body !== null;
+    let res: APIResponse;
+    try {
+      res = await this.ctx.fetch(url, {
+        method,
+        headers: this.headers(opts.headers),
+        timeout: opts.timeoutMs ?? CONFIG.timeoutMs,
+        ...(hasBody ? { data: JSON.stringify(opts.body) } : {}),
+      });
+    } catch (err) {
+      return {
+        status: 0,
+        ok: false,
+        data: null,
+        errorMessage: err instanceof Error ? err.message : String(err),
+        rawText: "",
+      };
+    }
+    const status = res.status();
+    const text = await res.text();
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text || null;
+    }
+    const ok = status >= 200 && status < 205;
+    const errObj =
+      (data as { error?: { code?: string | number; message?: string }; message?: string } | null) ?? {};
+    return {
+      status,
+      ok,
+      data: data as T,
+      errorCode: errObj.error?.code !== undefined ? String(errObj.error.code) : undefined,
+      errorMessage: errObj.error?.message ?? errObj.message,
+      rawText: text.slice(0, 2000),
+    };
   }
 
   get<T = unknown>(path: string, opts?: RequestOptions): Promise<T> {

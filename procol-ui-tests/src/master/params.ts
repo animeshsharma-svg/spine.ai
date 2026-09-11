@@ -100,3 +100,22 @@ export function scheduleMinutes(): number | undefined {
   const n = Number(process.env.UI_SCHEDULE_MINUTES);
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
+
+/**
+ * Vendors to invite, by name.
+ *
+ * A bid test cannot use "whoever the audience contained" — it has to log into
+ * the vendor portal as a specific company — so the names are a run parameter.
+ */
+export function vendorNames(): string[] {
+  return (process.env.UI_VENDORS ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+/** Minimum participants a test needs on the event. */
+export function vendorCount(): number | undefined {
+  const n = Number(process.env.UI_VENDOR_COUNT);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}

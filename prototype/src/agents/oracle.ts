@@ -6,7 +6,18 @@ import type { Emit } from "./agents.js";
 import type { RunState } from "../ai/types.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const FINDINGS_DIR = join(here, "..", "..", "..", "procol-ui-tests", "findings");
+/**
+ * Both test layers write findings, and the report reads both.
+ *
+ * The UI journey and the API suite reach the product by completely different
+ * routes, so when they land on the same defect that is corroboration a single
+ * layer cannot give you — and when only one sees it, that itself is
+ * informative. Reading one directory would have hidden half the evidence.
+ */
+const FINDINGS_DIRS = [
+  join(here, "..", "..", "..", "procol-ui-tests", "findings"),
+  join(here, "..", "..", "..", "procol test", "findings"),
+];
 
 /**
  * THE ORACLE — decides whether what happened is actually WRONG.
@@ -72,16 +83,18 @@ interface UiFinding {
 
 /** Findings the UI framework's own Oracle wrote for this run. */
 function readUiFindings(runId?: string): UiFinding[] {
-  if (!existsSync(FINDINGS_DIR)) return [];
-  const files = readdirSync(FINDINGS_DIR).filter(
-    (f) => f.endsWith(".json") && !f.startsWith("run-") && (!runId || f.startsWith(`${runId}__`)),
-  );
   const out: UiFinding[] = [];
-  for (const f of files) {
-    try {
-      out.push(JSON.parse(readFileSync(join(FINDINGS_DIR, f), "utf8")));
-    } catch {
-      /* a half-written finding is not worth failing a run over */
+  for (const dir of FINDINGS_DIRS) {
+    if (!existsSync(dir)) continue;
+    const files = readdirSync(dir).filter(
+      (f) => f.endsWith(".json") && !f.startsWith("run-") && (!runId || f.startsWith(`${runId}__`)),
+    );
+    for (const f of files) {
+      try {
+        out.push(JSON.parse(readFileSync(join(dir, f), "utf8")));
+      } catch {
+        /* a half-written finding is not worth failing a run over */
+      }
     }
   }
   return out;

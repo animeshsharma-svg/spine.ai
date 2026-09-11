@@ -1,0 +1,11 @@
+import { config } from "dotenv";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+config({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
+import { compileTestCase } from "../src/agents/planner.js";
+const input = process.argv[2] ?? "UI-CRE-001";
+const r = await compileTestCase(input);
+console.log(`source: ${r.source}`);
+console.log(`title:  ${r.plan.title}`);
+console.log(`steps:  ${r.plan.steps.map((s: any) => s.step).join(" -> ")}`);
+for (const w of r.warnings) console.log(`repaired: ${w}`);

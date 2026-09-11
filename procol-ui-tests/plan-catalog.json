@@ -1,0 +1,195 @@
+{
+  "generatedAt": "2026-09-10T17:31:09.587Z",
+  "steps": [
+    {
+      "name": "open_events_list",
+      "purpose": "Open the events list at /orders. Use this — not open_create — for any test about the list itself: its rows, filters, tabs, or the Create Event control."
+    },
+    {
+      "name": "expect_events_list",
+      "purpose": "Assert the events list actually rendered: the Create Event control is present and no error is shown.",
+      "assertion": true
+    },
+    {
+      "name": "open_create",
+      "purpose": "Open the event-create screen. Always the first step of a create test.",
+      "args": {
+        "path": "\"erfx\" (multi-stage project, the default), \"single-stage\", or \"boq\""
+      }
+    },
+    {
+      "name": "compose_stages",
+      "purpose": "Set the stages exactly. RFQ and Auction cannot coexist; at most two stages. Auction is the default stage, so asking for anything else is a real change.",
+      "args": {
+        "stages": "array of \"rfp\" | \"rfq\" | \"auction\", e.g. [\"rfp\",\"rfq\"]"
+      }
+    },
+    {
+      "name": "set_title",
+      "purpose": "Give the event a title.",
+      "args": {
+        "title": "string; omit to auto-generate a unique one"
+      }
+    },
+    {
+      "name": "switch_stage",
+      "purpose": "Move to a stage's tab. Required on a multi-stage event: template, sheet, questionnaires and evaluator all apply to the CURRENT tab only, so each stage must be configured on its own tab.",
+      "args": {
+        "stage": "\"rfp\" | \"rfq\" | \"auction\""
+      }
+    },
+    {
+      "name": "select_template",
+      "purpose": "Pick the stage's pricing template. Required before line items can be added.",
+      "args": {
+        "name": "substring of the template name; omit to take the first offered"
+      }
+    },
+    {
+      "name": "add_line_items",
+      "purpose": "Add line items through the Manage Line Items drawer.",
+      "args": {
+        "count": "how many (1-50)",
+        "search": "optional product search text to use for all of them"
+      }
+    },
+    {
+      "name": "fill_sheet",
+      "purpose": "Fill the pricing sheet for every line item on screen."
+    },
+    {
+      "name": "fill_questionnaires",
+      "purpose": "Technical stages only: give every RFI section (the global Vendor Assessment and one per line item) a template and fill blank questions."
+    },
+    {
+      "name": "assign_evaluator",
+      "purpose": "Technical stages only: assign an evaluator to every control that needs one."
+    },
+    {
+      "name": "set_schedule",
+      "purpose": "Open the schedule drawer and commit it. Needed before publish.",
+      "args": {
+        "minutes": "optional event duration in minutes"
+      }
+    },
+    {
+      "name": "invite_vendor",
+      "purpose": "Put vendors on the event. Name them when the test cares WHICH vendor bids — a bid test must be able to sign in as that company — otherwise the product's own audience is used.",
+      "args": {
+        "vendors": "array of vendor names, e.g. [\"AMD\"]",
+        "count": "minimum number of participants required; fails if the audience cannot supply it"
+      }
+    },
+    {
+      "name": "publish",
+      "purpose": "Publish the event and wait for the outcome."
+    },
+    {
+      "name": "save_draft",
+      "purpose": "Save as draft instead of publishing."
+    },
+    {
+      "name": "expect_line_items",
+      "purpose": "Assert the toolbar badge shows this many line items.",
+      "args": {
+        "count": "expected number"
+      },
+      "assertion": true
+    },
+    {
+      "name": "expect_published",
+      "purpose": "Assert the browser reached a real project page with an id.",
+      "assertion": true
+    },
+    {
+      "name": "expect_no_error",
+      "purpose": "Assert the application showed no error message.",
+      "assertion": true
+    },
+    {
+      "name": "expect_error",
+      "purpose": "Assert the application DID refuse, optionally matching its wording. Use for negative tests.",
+      "args": {
+        "contains": "optional substring the message must contain"
+      },
+      "assertion": true
+    },
+    {
+      "name": "place_bid",
+      "purpose": "Sign into the VENDOR PORTAL as a vendor and submit a quote for the event just published. This is the vendor bidding for themselves. Needs the vendor to have been invited.",
+      "args": {
+        "vendor": "vendor name; defaults to the configured vendor account",
+        "price": "number, default 100"
+      }
+    },
+    {
+      "name": "place_surrogate_bid",
+      "purpose": "Enter a bid FOR a vendor from the buyer console, without leaving it (surrogate bidding). Use when the test says the buyer bids on a vendor's behalf. Not available for knockout or dutch auctions, nor for technical stages.",
+      "args": {
+        "vendor": "vendor name; defaults to the first vendor offering Add Bid",
+        "price": "number, default 100"
+      }
+    },
+    {
+      "name": "award_event",
+      "purpose": "Award the event after bidding: Master QCS -> Start Awarding -> allocate line items -> Create Proposal -> submit. Needs a published event that has at least one bid.",
+      "args": {
+        "vendor": "vendor to award to; defaults to whichever bid can be allocated"
+      }
+    },
+    {
+      "name": "expect_awarded",
+      "purpose": "Assert the award went through (a proposal was created and submitted).",
+      "assertion": true
+    },
+    {
+      "name": "expect_bid_submitted",
+      "purpose": "Assert the vendor's bid was accepted (the vendor portal shows the stage as Submitted).",
+      "assertion": true
+    },
+    {
+      "name": "expect_publish_blocked",
+      "purpose": "Assert the event CANNOT be published yet: press Publish and confirm either the confirm button is disabled or the app refuses. Use for tests about a precondition not being met.",
+      "args": {
+        "because": "optional substring of the message you expect"
+      },
+      "assertion": true
+    },
+    {
+      "name": "expect_stages",
+      "purpose": "Assert exactly these stage tabs are present.",
+      "args": {
+        "stages": "array of \"rfp\" | \"rfq\" | \"auction\""
+      },
+      "assertion": true
+    }
+  ],
+  "names": [
+    "open_events_list",
+    "expect_events_list",
+    "open_create",
+    "compose_stages",
+    "set_title",
+    "switch_stage",
+    "select_template",
+    "add_line_items",
+    "fill_sheet",
+    "fill_questionnaires",
+    "assign_evaluator",
+    "set_schedule",
+    "invite_vendor",
+    "publish",
+    "save_draft",
+    "expect_line_items",
+    "expect_published",
+    "expect_no_error",
+    "expect_error",
+    "place_bid",
+    "place_surrogate_bid",
+    "award_event",
+    "expect_awarded",
+    "expect_bid_submitted",
+    "expect_publish_blocked",
+    "expect_stages"
+  ]
+}

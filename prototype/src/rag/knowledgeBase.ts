@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { embedOne, embedMany, similarity } from "./embedder.js";
+import { allCases } from "../checks/testCatalog.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..");
@@ -24,6 +25,8 @@ const STORE_PATH = join(ROOT, "data", "vector-store.json");
  * still retrievable in September, so the planner can probe it again on purpose.
  */
 const FINDINGS_DIR = join(ROOT, "..", "procol-ui-tests", "findings");
+/** Step-by-step outcomes of previously compiled plans. */
+const PLANS_DIR = join(ROOT, "..", "procol-ui-tests", ".plans");
 
 /**
  * What a chunk IS, not just what it says.
@@ -107,6 +110,58 @@ function gatherChunks(): Chunk[] {
     }
   }
 
+  // (a3) THE WRITTEN CATALOG — 648 humanised cases, one chunk per case.
+  //      This is the richest statement of what SHOULD happen that the platform
+  //      has: unlike the mined JSON, each case says why it matters and how to
+  //      tell whether it worked, in the words of the person who wrote it. It
+  //      lives in `data/`, not `knowledge/`, because it is derived from
+  //      `test-cases/*.md` — so it needs its own pass rather than the walk.
+  for (const c of allCases()) {
+    chunks.push({
+      id: `catalog:${c.id}`,
+      source: `test-cases/events-${c.layer}.md`,
+      kind: "test-case",
+      module: "events",
+      labels: [c.id, c.group, c.priority, c.verdict, c.layer, ...(c.gate ? [c.gate] : [])],
+      text:
+        `${c.id} (${c.layer.toUpperCase()}, ${c.section}) — ${c.title}. ` +
+        `Why it matters: ${c.why} ` +
+        (c.setup ? `Setup: ${c.setup} ` : "") +
+        `Steps: ${c.steps} ` +
+        `Expected: ${c.expected} ` +
+        (c.oracle ? `How to tell: ${c.oracle} ` : "") +
+        `[${c.priority}, ${c.verdict}${c.gate ? `, gated on ${c.gate}` : ""}]`,
+    });
+  }
+
+  // (b2) EXPERIENCE: how previous PLANS fared, step by step.
+  //      A finding says what broke; a plan result says how far a test of this
+  //      shape got and which step stopped it. That is what lets the compiler
+  //      learn that, say, a two-stage plan needs a template per tab — the
+  //      evidence is in the step that failed, not in the defect report.
+  for (const file of walk(PLANS_DIR, "-result.json")) {
+    let r: Record<string, any>;
+    try {
+      r = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(r.steps)) continue;
+    const failed = r.steps.find((s: any) => s.status === "failed");
+    const sequence = r.steps.map((s: any) => s.step).join(" -> ");
+    chunks.push({
+      id: `plan:${basename(file)}`,
+      source: `plan/${r.title ?? "untitled"}`,
+      kind: "experience",
+      module: "events",
+      labels: [r.passed ? "passed" : "failed", failed?.step].filter(Boolean),
+      text:
+        `PREVIOUS PLAN "${r.title}" ${r.passed ? "passed" : "FAILED"}. Steps: ${sequence}. ` +
+        (failed ? `It stopped at "${failed.step}": ${failed.detail}. ` : "") +
+        (r.verdict?.rationale ? `Verdict: ${r.verdict.rationale}` : ""),
+    });
+  }
+
   // (c) EXPERIENCE: what previous runs actually found. Written by the UI
   //     framework's Oracle, so the platform remembers its own history.
   for (const file of walk(FINDINGS_DIR, ".json")) {
@@ -154,6 +209,39 @@ function gatherChunks(): Chunk[] {
     }
   }
   return chunks;
+}
+
+/**
+ * Terms worth matching literally: long-ish words, snake_case identifiers and
+ * case ids. Common English is dropped — matching "the" helps nobody.
+ */
+const STOP = new Set(
+  "the a an and or of to in on for with is are was were be been it this that at by from as if then than so no not".split(" "),
+);
+
+function lexicalTerms(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .toLowerCase()
+        .split(/[^a-z0-9_.:-]+/)
+        .filter((t) => t.length > 2 && !STOP.has(t)),
+    ),
+  ];
+}
+
+/** How much of the query's vocabulary this chunk actually contains, 0..1. */
+function lexicalOverlap(queryTerms: string[], chunk: Chunk): number {
+  if (!queryTerms.length) return 0;
+  const hay = (chunk.text + " " + (chunk.labels ?? []).join(" ") + " " + chunk.source).toLowerCase();
+  let hits = 0;
+  for (const t of queryTerms) {
+    if (!hay.includes(t)) continue;
+    // An identifier or a case id matching is worth more than a common word:
+    // it is far less likely to be a coincidence.
+    hits += /[_:.]|\d/.test(t) || t.length > 8 ? 1.5 : 1;
+  }
+  return Math.min(1, hits / queryTerms.length);
 }
 
 /** Every file under `dir` with the given extension, at any depth. */
@@ -263,15 +351,25 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
   // an empty retrieval reads to an agent as "there is nothing to know".
   const chunks = pool.length ? pool : all;
   const q = await embedOne(query);
+  const queryTerms = lexicalTerms(query);
   return chunks
-    .map((c) => ({
-      source: c.source,
-      kind: c.kind ?? "doc",
-      module: c.module,
-      labels: c.labels,
-      text: c.text,
-      score: similarity(q, c.embedding!),
-    }))
+    .map((c) => {
+      // Hybrid scoring. A 384-dimension sentence embedding is good at meaning
+      // and bad at identifiers: "buyer_hub", "BE-2.1" and "event_groups" carry
+      // almost no semantic signal but are exactly what someone searching for
+      // them typed. Blending in literal term overlap means a query naming a
+      // field or a case id actually finds it, while paraphrases still work.
+      const dense = similarity(q, c.embedding!);
+      const lexical = lexicalOverlap(queryTerms, c);
+      return {
+        source: c.source,
+        kind: c.kind ?? "doc",
+        module: c.module,
+        labels: c.labels,
+        text: c.text,
+        score: dense * 0.75 + lexical * 0.25,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
 }

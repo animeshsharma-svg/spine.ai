@@ -62,7 +62,24 @@ export class LoginPage extends BasePage {
       },
       { apiUrl: CONFIG.apiUrl, key: STORAGE_KEYS.selectedApi },
     );
-    await this.page.goto(`${CONFIG.appUrl.replace(/\/$/, "")}/login`, NAV);
+    // Retry the first navigation. Everything downstream depends on this one
+    // request, and a single slow response here fails the whole suite at setup
+    // with a bare "page.goto: Timeout" — the least informative failure we can
+    // produce, and the one most likely to be transient.
+    const url = `${CONFIG.appUrl.replace(/\/$/, "")}/login`;
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await this.page.goto(url, NAV);
+        lastErr = undefined;
+        break;
+      } catch (err) {
+        lastErr = err;
+        console.log(`[login] navigation to ${url} failed (attempt ${attempt}/3) — retrying`);
+        await this.page.waitForTimeout(3_000);
+      }
+    }
+    if (lastErr) throw lastErr;
     await this.dismissDistractions();
   }
 

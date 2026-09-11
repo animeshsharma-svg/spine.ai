@@ -117,7 +117,7 @@ function buildReadSuite(def: ReadSuiteDef, client: Client): Check[] {
         flowId: def.flowId,
         module: def.module,
         field: def.paramLabel,
-        scenario: `${def.paramLabel ?? "Parameter"}: ${a.label}`,
+        scenario: `Should handle ${(def.paramLabel ?? "the parameter").toLowerCase()} being ${a.label}`,
         type: catToType(a.category),
         category: a.category,
         priority: sevToPri[a.severity] ?? "P2",

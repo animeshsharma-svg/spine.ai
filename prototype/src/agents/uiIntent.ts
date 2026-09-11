@@ -56,9 +56,18 @@ const UNBUILT: Array<{ asks: RegExp; satisfiedBy: (key: string) => boolean; note
     note: "no BOQ journey is built yet, so the closest non-BOQ journey ran instead — BOQ upload and its dynamic line items are untested",
   },
   {
-    asks: /vendor portal|supplier hub|as a vendor|vendor side/i,
-    satisfiedBy: (key) => /bid|vendor/.test(key),
-    note: "this journey drives the buyer console only; the vendor-portal side was not exercised",
+    // `bid.submit` is the ONLY journey that signs into the vendor portal.
+    // `vendor.management` sounds like it should qualify but is buyer-side
+    // vendor administration — accepting it here suppressed the caveat on every
+    // vendor-portal request, which the routing eval caught.
+    asks: /vendor portal|supplier hub|as a vendor|vendor[- ]side|quotes\.|vendor's own/i,
+    satisfiedBy: (key) => /^bid\./.test(key),
+    note: "only the bid journey signs into the vendor portal; this run drove the buyer console, so the vendor-side screens were not exercised",
+  },
+  {
+    asks: /\bmobile app\b|\bandroid\b|\bios\b|\bon my phone\b|push notification/i,
+    satisfiedBy: () => false,
+    note: "there is no mobile journey — the platform drives a desktop browser only, so nothing about the mobile app was tested",
   },
 ];
 

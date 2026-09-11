@@ -9,16 +9,17 @@ real product in a browser, judges the evidence, and remembers what it found.
 > (`procol-backend/`, `procol-client-dashboard/`) is deliberately git-ignored and is **not** part of
 > this project.
 
-## The three pieces
+## The pieces
 
 | Directory | What it is |
 |---|---|
 | `prototype/` | The platform: LangGraph agent orchestration, the two-tier QA memory (RAG), the Oracle, the dashboard. |
 | `procol-ui-tests/` | Playwright browser automation — the journeys the platform actually runs, plus the execution-layer Oracle that records evidence and issues verdicts. |
 | `procol test/` | Playwright API automation — the same idea at the HTTP layer. |
+| `test-cases/` | The written catalog both automations implement — 648 humanised UI and API cases for the whole events flow, traced to the PRD, the backend contract and the create-screen contract. **The source of truth**: edit the markdown, then `npm run cases:import`. |
 
-`prototype` spawns `procol-ui-tests` as a child process, so **keep the three directories siblings**
-exactly as they are checked out. Relative paths (`../procol-ui-tests`) depend on it.
+`prototype` spawns `procol-ui-tests` as a child process, so **keep the three code directories
+siblings** exactly as they are checked out. Relative paths (`../procol-ui-tests`) depend on it.
 
 ## How it fits together
 
@@ -116,14 +117,173 @@ Both TypeScript projects must typecheck before you push:
 cd prototype && npx tsc --noEmit && cd ../procol-ui-tests && npx tsc --noEmit
 ```
 
-## Known blocker in the environment
+## Writing a test case and having it run
 
-Every eRFX event save and publish currently fails with
-`PATCH /api/event_groups/:id → 500 Internal Server Error`, for both `status: "draft"` and
-`status: "active"`. It is a regression: the same automation published successfully at 07:49 on
-2026-09-08 and has failed since ~16:29 that day. Non-eRFX single-stage creation still works.
+Type a test case in plain English on the dashboard and press **Compile my test
+case & run it**. It is compiled into a plan of steps the executor implements,
+shown to you before it runs, and executed against the live console:
 
-The write-up, with the ranked causes and what would confirm each, is in
-[`prototype/knowledge/events/regression-event-group-update-500.md`](prototype/knowledge/events/regression-event-group-update-500.md).
-So the seven eRFX journeys reach publish and stop there — that is the product failing, not the
-automation, and the Oracle labels it as such.
+```
+open_create -> compose_stages{rfp,rfq} -> set_title -> switch_stage{rfp} ->
+select_template -> add_line_items{3} -> expect_line_items{3} ->
+fill_questionnaires -> assign_evaluator -> switch_stage{rfq} ->
+select_template -> fill_sheet -> set_schedule -> invite_vendor -> publish ->
+expect_published -> expect_no_error
+```
+
+It is a **compiler, not a code generator**. The vocabulary is fixed
+(`procol-ui-tests/src/plan/steps.ts`), a step that does not exist is dropped by
+name, and each step delegates to the same healed, self-verifying page-object
+method a hand-written journey uses. A model that can only choose verbs the
+machine can perform cannot produce a run that silently tests nothing.
+
+A **linter** then repairs the plan against the invariants the product enforces —
+a template before line items, a technical stage's questionnaires and evaluator,
+the schedule committed before publish — and names each repair rather than
+correcting silently.
+
+You can also give it a catalog id (`FE-2.4`, `BE-2.11`) and it will resolve the
+real case from `knowledge/events/` before planning.
+
+## The written catalog, and running a case by hand
+
+`test-cases/events-ui.md` and `events-api.md` hold **648 cases written for
+people** — each one says why it matters before it says what to do, and how to
+tell whether it worked. They are the source of truth; everything below is
+derived from them.
+
+```bash
+cd prototype
+npm run cases:import      # test-cases/*.md  →  data/test-cases.json
+npm run cases:coverage    # what the catalog covers vs what actually runs
+```
+
+The dashboard's **Test catalog** panel lists them with filters (layer, section,
+priority, verdict, free text). Tick the ones you want, press **Run selected
+cases**, and each one is run one at a time.
+
+The point of that panel is the little tag on every row, which says how that
+case will actually be run:
+
+| Tag | What happens |
+|---|---|
+| `built journey` | A hand-written, healed journey covers it exactly — deterministic, no compile step. |
+| `exact API case` | The API framework already implements this case by its own id, and runs it. |
+| `API area only` | **Weaker.** No exact runner; the framework's cases for that area run instead. Real traffic against the right endpoints, but not this case. |
+| `compiled plan` | The prose is compiled into a plan, shown to you, then executed. |
+| `for a person` / `no runner yet` | Not runnable, and not offered as if it were. |
+
+Measured, not claimed — `npm run cases:coverage`:
+
+```
+Catalog: 648 cases — 362 UI, 286 API
+Routable to a real runner: 588/648  (60 not)
+  ui-compile   323      api-case     22
+  api-section  208      api-suite    18
+  manual        23      ui-journey   17
+  none          37
+```
+
+The 37 with no runner are honest gaps: the vendor's technical response, the DB
+persistence oracles, auth/session and the non-functional cases have nothing at
+the API layer that covers them yet.
+
+**A distinction worth keeping.** `API area only` is deliberately a different
+colour from `exact API case`. Running the framework's line-item cases is not
+running `API-LI-007`; a dashboard where all 648 rows showed the same green tick
+would make the pass rate meaningless, which is worse than showing a gap.
+
+### The API cases run in process
+
+`procol test/` implements the contract cases and judges them with its own
+Oracle. The platform imports those modules directly by `file://` URL rather
+than spawning `npx playwright test`, so one login and one set of fixtures are
+shared across every case you pick:
+
+```
+building the shared fixtures (draft, staged, active, auction events)…
+PASS  BE-1.1  POST /event_groups          200 (want 200)  609ms
+PASS  BE-1.2  POST /event_groups          422 (want 422)  341ms
+PASS  BE-3.1  PATCH /event_groups/:id     200 (want 200)  507ms
+```
+
+About half a second per case once warm, against roughly a minute each if every
+case paid for its own runner start-up, login and fixture build. The verdict is
+the framework's own `judgeContractCase` — there is one Oracle, and it stays
+deterministic.
+
+```bash
+npm run cases:api BE-1.1 BE-1.2 BE-3.1     # straight from the terminal
+npm run cases:compile UI-TPL-001           # compile one written case to a plan
+```
+
+### The catalog is also memory
+
+Every case is indexed into the QA memory as its own chunk (1240 chunks total),
+so the planner retrieves the written expectation for whatever it is about to
+test. A catalog id is accepted anywhere a test case is:
+
+```
+npm run cases:compile UI-TPL-001
+  resolved UI-TPL-001 from the test-case catalog
+  open_create -> set_title -> select_template -> expect_no_error
+```
+
+## Measuring the AI, not trusting it
+
+```bash
+cd prototype
+npm run eval:routing    # 102 cases: does an instruction reach the right journey?
+npm run eval:planner    # 42 cases: does a test case compile into a runnable plan?
+```
+
+Current, measured live:
+
+| | |
+|---|---|
+| Routing — journey accuracy | 98.0% (100/102) |
+| Routing — parameters (line items, template, duration) | 100% |
+| Routing — caveat precision / recall | 100% / 100% |
+| Planner — runnable plans | 100% (42/42) |
+| Planner — compiled clean, no repair needed | 28/42 |
+
+These are **evaluation** sets, not training data: they measure accuracy and
+catch regressions, they do not change model weights.
+
+Both evals have earned their keep. The routing one exposed that vendor-portal
+and mobile requests produced no caveat; the planner one exposed that
+`openai/gpt-oss-120b` is a reasoning model returning HTTP 200 with empty content,
+which was silently degrading every plan to a generic default.
+
+The planner eval also carries the case that found the worst bug in the
+compiler. `UI-ENV-001` is about reaching the events **list**; the vocabulary had
+no step for that, so the compiler reached for `open_create`, the linter added a
+mandatory title, and the plan **passed** — having opened the create screen and
+never looked at the list. `open_events_list` / `expect_events_list` now exist,
+`lintPlan` decides which screen a test is about before any repair runs, and
+three eval cases hold it in place: a list case, the same case in different
+words, and a create case that must not pick the list step up.
+
+## Providers
+
+Groq first, Gemini as fallback (`GOOGLE_API_KEY`, already needed for the UI
+healer). Groq's free tier has a 200,000 token daily ceiling; hitting it
+mid-demo would otherwise turn every agent into its deterministic fallback with
+no visible cause. The swap is logged so output is never attributed to the wrong
+model. With no key at all, routing falls back to keyword matching and the
+platform still runs end to end.
+
+## A note on the environment
+
+`PATCH /api/event_groups/:id` used to return 500 on every event save and
+publish. The cause was ours, not the product's: the pricing sheet's **Delivery
+location** was never filled, because the grid names that column `buyer_hub`
+while the template schema calls it `delivery_location`. With it filled, events
+publish.
+
+That 500 is still worth reporting — a missing required input should produce a
+422, not an unhandled 500 — but it is not a release blocker, and the earlier
+write-up in
+[`prototype/knowledge/events/regression-event-group-update-500.md`](prototype/knowledge/events/regression-event-group-update-500.md)
+draws the wrong conclusion. Read it as a record of the investigation, not as a
+current finding.

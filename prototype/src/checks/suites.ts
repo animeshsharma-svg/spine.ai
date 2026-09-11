@@ -48,6 +48,28 @@ function buildSuite(def: SuiteDef, client: Client): Check[] {
       if (val === OMIT) delete p[name];
       else p[name] = val;
     });
+  /**
+   * Say what a check DOES, in a sentence.
+   *
+   * The scenario line is what a reader sees in the report, and
+   * "Phone prefix: empty" tells them nothing about whether that is meant to
+   * work. Naming the expectation turns a label into a claim someone can agree
+   * or disagree with — which is the whole point of writing a test down.
+   */
+  const scenarioSentence = (fieldLabel: string, valueLabel: string, expected: "accept" | "reject"): string => {
+    const subject = fieldLabel.toLowerCase();
+    const value = valueLabel.toLowerCase();
+    // "empty" / "missing" read better as a state than a value.
+    const phrase = /^(empty|missing|blank|absent|null)$/.test(value)
+      ? `no ${subject}`
+      : /^(too long|too short|over the limit|below the limit)$/.test(value)
+        ? `${subject} that is ${value}`
+        : `${subject} of "${valueLabel}"`;
+    return expected === "reject"
+      ? `Should refuse ${phrase}`
+      : `Should accept ${phrase}`;
+  };
+
   const post = (payload: any) => apiAttempt(client.ctx.buyerApi, def.endpoint, payload);
 
   // 1) functional baseline
@@ -74,7 +96,7 @@ function buildSuite(def: SuiteDef, client: Client): Check[] {
         flowId: def.flowId,
         module: def.module,
         field: f.name,
-        scenario: `${f.label}: ${vv.label}`,
+        scenario: scenarioSentence(f.label, vv.label, vv.expected),
         type: catToType(vv.category),
         category: vv.category,
         priority: sevToPri[vv.severity] ?? "P2",
@@ -128,7 +150,7 @@ function userDef(): SuiteDef {
     extras: ({ mk, makeBase, post }) => [
       mk({
         field: "phone_prefix",
-        scenario: "Phone prefix: wrong country (+1)",
+        scenario: 'Should refuse a phone prefix from the wrong country ("+1")',
         type: "data-validation",
         category: "Data Validation",
         priority: "P1",
@@ -139,7 +161,7 @@ function userDef(): SuiteDef {
       }),
       mk({
         field: "phone_prefix",
-        scenario: "Phone prefix: missing plus (91)",
+        scenario: 'Should refuse a phone prefix written without its plus sign ("91")',
         type: "edge",
         category: "Edge",
         priority: "P2",
@@ -150,7 +172,7 @@ function userDef(): SuiteDef {
       }),
       mk({
         field: "phone_prefix",
-        scenario: "Phone prefix: empty",
+        scenario: "Should refuse a login with no phone prefix",
         type: "data-validation",
         category: "Data Validation",
         priority: "P1",

@@ -21,7 +21,7 @@ export class MasterDataPage extends BasePage {
     await this.page.goto(this.base + route, NAV);
     await this.page.waitForLoadState("networkidle", { timeout: TIMEOUTS.LONG }).catch(() => {});
     await this.dismissDistractions();
-    await this.page.waitForTimeout(800);
+    await this.pause(800);
   }
 
   /**
@@ -49,11 +49,11 @@ export class MasterDataPage extends BasePage {
       );
     }
     if (!clicked) return false;
-    await this.page.waitForTimeout(300);
+    await this.pause(300);
     if (opts.search) {
       const input = this.page.locator("input.ant-select-selection-search-input, .ant-select-open input").first();
       await input.fill(opts.search).catch(() => {});
-      await this.page.waitForTimeout(900);
+      await this.pause(900);
     }
     return this.clickIfPresent(
       [
@@ -102,9 +102,9 @@ export class MasterDataPage extends BasePage {
       .first();
     if ((await catToggle.getAttribute("aria-checked").catch(() => null)) === "true") {
       await catToggle.click().catch(() => {});
-      await this.page.waitForTimeout(400);
+      await this.pause(400);
     }
-    await this.page.waitForTimeout(500);
+    await this.pause(500);
     await this.submit(/^(submit|create|save)$/i);
     return { name, ok: await this.created() };
   }
@@ -161,7 +161,7 @@ export class MasterDataPage extends BasePage {
     await this.fill([this.page.locator('input[name="articleCode"]'), this.page.getByPlaceholder(/unique identifier/i)], `ART${randomNumber()}`, { label: "article-code" }).catch(() => {});
     // A product needs at least one variant.
     await this.clickIfPresent([this.page.getByRole("button", { name: /add product variant/i }), this.page.getByText(/add product variant/i)], { label: "add-variant", timeout: TIMEOUTS.SHORT });
-    await this.page.waitForTimeout(600);
+    await this.pause(600);
     await this.fill([this.page.locator("input").filter({ hasNot: this.page.locator("[disabled]") }).last()], `Variant_${randomString(4)}`, { label: "variant-name" }).catch(() => {});
     await this.submit(/^(create|submit|save)$/i);
     return { name, ok: await this.created() };

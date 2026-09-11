@@ -33,6 +33,7 @@
  * before, so this can never make a passing run worse.
  */
 import type { Locator, Page } from "@playwright/test";
+import { learn } from "./learned.js";
 
 const MODEL = process.env.UI_AI_MODEL ?? "gemini-flash-lite-latest";
 const API = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -131,7 +132,7 @@ function locatorFor(page: Page, plan: Plan): Locator | null {
  * Returns true when it actually acted, false otherwise — callers treat false as
  * "the step genuinely could not be done".
  */
-export async function heal(page: Page, instruction: string): Promise<boolean> {
+export async function heal(page: Page, instruction: string, label?: string): Promise<boolean> {
   if (!healerEnabled()) return false;
   try {
     console.log(`[healer] deterministic step failed → asking AI: "${instruction}"`);
@@ -177,6 +178,24 @@ export async function heal(page: Page, instruction: string): Promise<boolean> {
     }
     await page.waitForTimeout(600); // let the SPA react before the caller asserts
     console.log(`[healer] AI completed: "${instruction}"`);
+
+    // Remember it. A heal that is not written down is paid for again on every
+    // future run: the same model call, the same seconds, the same risk of the
+    // model choosing differently. Recorded against the step's label, the next
+    // run reaches the element deterministically and never asks the AI at all.
+    if (label) {
+      const recipe =
+        plan.strategy === "role" && plan.role
+          ? { kind: "role" as const, value: plan.role, name: plan.name }
+          : plan.strategy === "text" && plan.text
+            ? { kind: "text" as const, value: plan.text }
+            : plan.strategy === "placeholder"
+              ? { kind: "selector" as const, value: `placeholder:${plan.name ?? plan.text ?? ""}` }
+              : plan.strategy === "label"
+                ? { kind: "selector" as const, value: `label:${plan.name ?? ""}` }
+                : null;
+      if (recipe) learn(label, { ...recipe, url: page.url() });
+    }
     return true;
   } catch (e: any) {
     console.log(`[healer] AI could not do it: ${e?.message ?? e}`);

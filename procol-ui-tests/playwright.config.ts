@@ -15,9 +15,18 @@ export default defineConfig({
   outputDir: "./test-results",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: [["html", { outputFolder: "playwright-report", open: "never" }], ["list"]],
+  // Retry a failed journey once by default. A run against a live environment
+  // fails for reasons that have nothing to do with the product — a slow
+  // response, a popup landing mid-click — and a second attempt separates those
+  // from a defect that reproduces every time. The Oracle sees both attempts, so
+  // a real defect is still reported; only the flake disappears.
+  // No retries by default. A retry re-runs the journey in a FRESH browser
+  // window, which is the opposite of "one flow at a time in one window" — and
+  // it hides the flake it absorbs. Opt in with UI_RETRIES=1 when a run is
+  // unattended and a second attempt is worth more than the signal.
+  retries: Number(process.env.UI_RETRIES ?? 0),
   // Event flows legitimately take minutes on this app: composing stages means a
   // sequence of add/delete round-trips (Auction is the default stage and Delete
   // is disabled while one stage remains), then line items, template, sheet and

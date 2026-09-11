@@ -20,6 +20,7 @@
  * more than that client actually permits.
  */
 import { spawn } from "node:child_process";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -121,6 +122,121 @@ export interface UiRunEvent {
  * Run one journey, streaming Playwright's output line by line.
  * Returns a stop() so a caller can cancel a run mid-flight.
  */
+/**
+ * Run a compiled test plan instead of a named journey.
+ *
+ * The plan is handed over as a file rather than an argument: plans get long,
+ * and a shell has opinions about quoting that a JSON blob does not survive.
+ */
+export function runUiPlan(
+  opts: { plan: unknown; companyId: number; runId?: string; headed?: boolean },
+  emit: (e: UiRunEvent) => void,
+): { stop: () => void } {
+  const dir = join(UI_TESTS_DIR, ".plans");
+  mkdirSync(dir, { recursive: true });
+  const runId = opts.runId ?? `plan-${Date.now().toString(36)}`;
+  const planFile = join(dir, `${runId}.json`);
+  const resultFile = join(dir, `${runId}-result.json`);
+  writeFileSync(planFile, JSON.stringify(opts.plan, null, 2));
+
+  const args = ["playwright", "test", "tests/plan.spec.ts", "--workers=1"];
+  if (opts.headed !== false) args.push("--headed");
+
+  const env: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    COMPANY_ID: String(opts.companyId),
+    UI_PLAN_FILE: planFile,
+    UI_PLAN_RESULT: resultFile,
+    UI_QUIET_MAP: "1",
+    QA_RUN_ID: runId,
+  };
+  if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
+
+  emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` });
+  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env });
+  const pump = (buf: Buffer) => {
+    for (const line of buf.toString().split("\n")) if (line.trim()) emit({ type: "log", line });
+  };
+  child.stdout.on("data", pump);
+  child.stderr.on("data", pump);
+  child.on("close", (code) => emit({ type: "done", exitCode: code ?? 1 }));
+  return { stop: () => child.kill("SIGTERM") };
+}
+
+/** What each step of a finished plan actually did. */
+export function readPlanResult(runId: string): unknown | null {
+  const f = join(UI_TESTS_DIR, ".plans", `${runId}-result.json`);
+  if (!existsSync(f)) return null;
+  try {
+    return JSON.parse(readFileSync(f, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/** Stuck points the automation has recorded, newest first. */
+export function readStuck(): Array<Record<string, unknown>> {
+  const dir = join(UI_TESTS_DIR, "stuck");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => {
+      try {
+        const r = JSON.parse(readFileSync(join(dir, f), "utf8"));
+        // The accessibility tree is large; send a usable slice, not all of it.
+        return { ...r, accessibilityTree: String(r.accessibilityTree ?? "").slice(0, 4_000) };
+      } catch {
+        return null;
+      }
+    })
+    .filter((r): r is Record<string, unknown> => r !== null)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+/** What the automation has learned, so the dashboard can show it improving. */
+export function readLearned(): Record<string, unknown> {
+  const f = join(UI_TESTS_DIR, "locators.learned.json");
+  if (!existsSync(f)) return {};
+  try {
+    return JSON.parse(readFileSync(f, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Teach the automation a locator it got stuck on.
+ *
+ * Reopens the stuck screen, asks the AI to find the control, and persists what
+ * it finds so the step becomes deterministic. This is what the dashboard's fix
+ * button runs.
+ */
+export function runTeach(
+  opts: { stuckId: string; instruction?: string; headed?: boolean },
+  emit: (e: UiRunEvent) => void,
+): { stop: () => void } {
+  const args = ["playwright", "test", "tests/teach.spec.ts", "--workers=1"];
+  if (opts.headed !== false) args.push("--headed");
+  const env: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    TEACH_STUCK_ID: opts.stuckId,
+    UI_QUIET_MAP: "1",
+  };
+  if (opts.instruction) env.TEACH_INSTRUCTION = opts.instruction;
+  // Teaching IS the AI path; without a key there is nothing to ask.
+  if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
+
+  emit({ type: "start", line: `teaching "${opts.stuckId}"`, command: `npx ${args.join(" ")}` });
+  const child = spawn("npx", args, { cwd: UI_TESTS_DIR, env });
+  const pump = (buf: Buffer) => {
+    for (const line of buf.toString().split("\n")) if (line.trim()) emit({ type: "log", line });
+  };
+  child.stdout.on("data", pump);
+  child.stderr.on("data", pump);
+  child.on("close", (code) => emit({ type: "done", exitCode: code ?? 1 }));
+  return { stop: () => child.kill("SIGTERM") };
+}
+
 export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { stop: () => void } {
   const flow = UI_FLOWS.find((f) => f.key === opts.flowKey);
   if (!flow) {
