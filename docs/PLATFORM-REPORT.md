@@ -49,7 +49,7 @@ Two read-only reference checkouts sit beside them and are **git-ignored and neve
 
 Sections: UI — Before you start, Composing the project, Templates and the pricing sheet, Line items, The technical (RFP) stage, Auction configuration, Schedule and the bid window, Participants and audience, Savings/terms, Publish and draft, RFQ → Auction conversion, BOQ events, PR → event, Classic single-stage, The vendor's bid, Surrogate bidding, Awarding, Isolation/masking/permissions, Data validation, Non-functional. API — Auth and session, Creating the draft event group, Creating stages, Activation, Line items, Audience and participants, Vendor technical response, Vendor bid, Surrogate bids, RFQ → Auction, Awarding, Lifecycle, Authorization matrix, Validation and robustness, Persistence, Non-functional.
 
-The catalog is also **indexed into the QA memory, one chunk per case** (944 of the memory's 1,259 chunks), so the compiler retrieves the written expectation for whatever it is about to test.
+The catalog is also **indexed into the QA memory, one chunk per case** (944 of the memory's 1,295 chunks), so the compiler retrieves the written expectation for whatever it is about to test.
 
 ---
 
@@ -79,7 +79,7 @@ Why the distinction matters: a dashboard where all 648 rows show the same green 
 
 ### 5.1 The vocabulary
 
-The executor implements a **fixed set of 36 steps** (`procol-ui-tests/src/plan/steps.ts`, published to `plan-catalog.json`). A model can only choose verbs the machine can perform; a step that does not exist is dropped by name. That is what makes it a compiler: the target instruction set is fixed and every instruction is a healed, self-verifying page-object method.
+The executor implements a **fixed set of 43 steps** (36 at the time of the first eval below; 43 by evening — see §5.5 and the appendix) (`procol-ui-tests/src/plan/steps.ts`, published to `plan-catalog.json`). A model can only choose verbs the machine can perform; a step that does not exist is dropped by name. That is what makes it a compiler: the target instruction set is fixed and every instruction is a healed, self-verifying page-object method.
 
 Actions: `open_events_list`, `filter_events{tab}`, `open_stage_menu{stage?}`, `open_create{path: erfx|single-stage|boq}`, `compose_stages{stages[]}`, `set_title{title?}`, `switch_stage{stage}`, `select_template{name?}`, `add_line_items{count}`, `fill_sheet`, `fill_questionnaires`, `assign_evaluator`, `set_schedule{minutes?}`, `invite_vendor{names?|count?}`, `publish`, `save_draft`, `place_bid{vendor?}`, `place_surrogate_bid{vendor?}`, `award_event`.
 
@@ -184,7 +184,7 @@ The dashboard's **Defects found** panel groups by defect, not by case; `GET /api
 
 ## 9. The memory — two-tier RAG
 
-`prototype/src/rag/knowledgeBase.ts`. **1,259 chunks**: `test-case` 944 (the written catalog, one per case, plus the mined frontend/backend cases), `doc` 227 (design docs, the create-screen contract, PRD notes, split by heading), `experience` 71 (previous findings and previous plan results — *how far a test of this shape got and which step stopped it*), `flow` 17.
+`prototype/src/rag/knowledgeBase.ts`. **1,295 chunks**: `test-case` 944 (the written catalog, one per case, plus the mined frontend/backend cases), `doc` 227 (design docs, the create-screen contract, PRD notes, split by heading), `experience` 71 (previous findings and previous plan results — *how far a test of this shape got and which step stopped it*), `flow` 17.
 
 Retrieval is **hybrid**: dense similarity × 0.75 + lexical term overlap × 0.25, because a 384-dimension sentence embedding is good at meaning and bad at identifiers (`buyer_hub`, `BE-2.1`) — exactly what someone searching for them typed. `recall(query)` returns *expectations* (what should happen) and *experience* (what has happened) separately; the compiler sees both, and the dashboard's QA memory panel shows them separately so a reader never mistakes history for spec.
 
@@ -321,3 +321,15 @@ Only one server per port; no hot reload (`Ctrl+C`, `npm run serve` again after c
 | Not runnable | 1 — `tc042`: the model appended a list check to a create case that did not ask for one (over-planning, flagged by the case's own `mustExclude`) |
 
 The run before this one, on the same day and before the fixes: 36/42 runnable, 32 clean, 6 failures — four from a step added mid-run reading as "unknown", two honest refusals mislabelled as unreachable. Both classes fixed; nothing about the compiler's actual choices changed between the two runs.
+
+**Second rerun, later the same day — 50 cases, 43-step vocabulary (eight permutation cases added, including a counter offer):**
+
+| | |
+|---|---|
+| Test cases | 50 |
+| Refused honestly | **1** — `BE-2.11`, API-only (PATCH a non-existent event group). `FE-3.1` and `FE-12.4`, refused in the morning, now **compile** — `convert_to_auction` exists. |
+| Testable | 49 |
+| Runnable plans | **48/49 — 98.0%** |
+| Compiled clean, no repair | **41** |
+| Needed a linter repair | 7 |
+| Not runnable | 1 — `tc042`, the same over-planning (a list check appended to a create case) |
