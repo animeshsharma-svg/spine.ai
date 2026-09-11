@@ -17,7 +17,15 @@ import { recordStuck } from "../oracle/stuck.js";
  */
 export class CounterOfferPage extends BasePage {
   private drawer() {
-    return this.page.locator(".ant-drawer:not(.ant-drawer-hidden) .ant-drawer-content, .ant-modal:not([style*='display: none']) .ant-modal-content").last();
+    // orderDetails.jsx keeps both a CounterOfferDrawer and a counterOffer
+    // MODAL state; which one opens depends on the build. Match either, only
+    // when actually open, and prefer the last one mounted.
+    return this.page
+      .locator(
+        ".ant-drawer.ant-drawer-open .ant-drawer-content, .ant-drawer:not(.ant-drawer-hidden) .ant-drawer-content, .ant-modal-wrap:not([style*='display: none']) .ant-modal-content, [role='dialog']",
+      )
+      .filter({ hasText: /counter|offer|price|remark|send/i })
+      .last();
   }
 
   /** The vendor's column header in the comparison grid, by name (or the first with a Counter Offer control). */
@@ -131,7 +139,22 @@ export class CounterOfferPage extends BasePage {
 
     // 2 · the drawer, and its sheet.
     const drawer = this.drawer();
-    await drawer.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM });
+    const opened = await drawer
+      .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
+      .then(() => true)
+      .catch(() => false);
+    if (!opened) {
+      // Say what DID happen after the click, with the tree — a modal with an
+      // unexpected shape, a confirmation, an error toast, or nothing.
+      const toast = await this.errorToastText(1_000);
+      await recordStuck(p, {
+        label: "counter-offer:drawer",
+        message: `Counter Offer was pressed but no drawer or dialog opened within ${TIMEOUTS.LONG}ms${toast ? ` — the app said: ${toast}` : ""}`,
+        triedCandidates: [".ant-drawer-open .ant-drawer-content", ".ant-modal-wrap .ant-modal-content", "[role='dialog']"],
+        healerTried: false,
+      }).catch(() => {});
+      throw new Error(`Counter Offer was pressed but no drawer or dialog opened${toast ? ` — the app said: ${toast}` : " (captured for a look)"}`);
+    }
     await this.waitForSpinnerHidden();
     const filled = await fillSheetPrices(p, drawer, opts.price);
     if (!filled) {
