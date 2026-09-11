@@ -366,6 +366,39 @@ export class CreateEventPage extends BasePage {
     return false;
   }
 
+  /**
+   * Open a stage tab's `⋮` menu for a plan step and report what it holds.
+   *
+   * UI-CRE-010 checks that Delete is disabled while one stage remains; the
+   * item is invisible until this hover menu is open, so a step has to be able
+   * to open it and leave it open for the assertion that follows. Defaults to
+   * the only/first stage tab when none is named.
+   */
+  async openStageMenuFor(stage?: StageKey): Promise<Array<{ label: string; disabled: boolean }>> {
+    await this.dismissDistractions();
+    let target = stage;
+    if (!target) {
+      for (const k of Object.keys(STAGE_LABEL) as StageKey[]) {
+        if (await this.page.getByRole("tab", { name: STAGE_LABEL[k] }).count()) {
+          target = k;
+          break;
+        }
+      }
+    }
+    if (!target || !(await this.openStageMenu(target))) {
+      throw new Error(`could not open the ⋮ menu on the ${target ?? "stage"} tab — no stage tab, or the hover menu did not appear`);
+    }
+    const items = this.stageMenu().getByRole("menuitem");
+    const out: Array<{ label: string; disabled: boolean }> = [];
+    for (const it of await items.all()) {
+      const label = ((await it.textContent()) ?? "").replace(/\s+/g, " ").trim();
+      const aria = await it.getAttribute("aria-disabled").catch(() => null);
+      const cls = (await it.getAttribute("class").catch(() => "")) ?? "";
+      out.push({ label, disabled: aria === "true" || /disabled/.test(cls) });
+    }
+    return out;
+  }
+
   /** Delete a stage tab. Returns false when the app refuses (see ensureStages). */
   private async deleteStage(stage: StageKey): Promise<boolean> {
     const p = this.page;
@@ -1587,7 +1620,8 @@ export class CreateEventPage extends BasePage {
     if (await draft.isVisible({ timeout: TIMEOUTS.SHORT }).catch(() => false)) {
       const disabled = (await draft.isDisabled().catch(() => false)) || (await draft.getAttribute("aria-disabled")) === "true";
       if (disabled) {
-        const items = (await this.page.getByRole("button", { name: /^items\s*\d+/i }).first().textContent().catch(() => null))?.trim();
+        // The button's accessible name is "icon: unordered-list Items 0" — no anchor.
+        const items = (await this.page.getByRole("button", { name: /items\s*\d+/i }).first().textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
         const picker = await this.templatePickerPresent();
         throw new Error(
           `Save as draft is DISABLED on this screen — the app will not keep a draft in this state` +

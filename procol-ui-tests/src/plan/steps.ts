@@ -91,6 +91,12 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "open_stage_menu",
+    purpose:
+      "Open a stage tab's ⋮ overflow menu (Edit title / Delete …) and leave it open, so expect_disabled / expect_enabled can check its items. Defaults to the first stage tab.",
+    args: { stage: '"rfp" | "rfq" | "auction" (optional)' },
+  },
+  {
     name: "expect_disabled",
     purpose:
       "Assert a named control on the current screen is DISABLED (greyed out / aria-disabled). Use for rules like 'Save as draft is disabled until…', 'Delete is disabled while one stage remains', 'Savings is disabled before a template'. Matches buttons, menu items and tabs by their visible text.",

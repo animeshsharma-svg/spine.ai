@@ -1690,6 +1690,7 @@ const ROUTE_SENTENCE = {
 const STEP_WORDS = {
   open_events_list: () => "open the events list",
   expect_events_list: () => "check the events list rendered",
+  open_stage_menu: (a) => `open the ${a?.stage ?? "stage"} tab's ⋮ menu`,
   expect_disabled: (a) => `check "${a?.control ?? "the control"}" is disabled`,
   expect_enabled: (a) => `check "${a?.control ?? "the control"}" is enabled`,
   filter_events: (a) => `switch the events list to the ${a?.tab ?? "Live"} tab`,

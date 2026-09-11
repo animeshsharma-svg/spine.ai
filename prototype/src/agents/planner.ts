@@ -363,9 +363,17 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // UI-PUB-003 compiled to title-then-save and the button read [disabled].
   // A draft with nothing in it is not something the product keeps, so give
   // the draft the one thing the screen demands before saving it.
-  if (has("save_draft") && !has("select_template")) {
-    steps.splice(indexOf("save_draft"), 0, { step: "select_template" });
-    repairs.push("added select_template before save_draft — the app disables Save as draft until a template is chosen");
+  // Measured twice: disabled with a title alone, and STILL disabled with a
+  // template and Items 0. A draft needs a line item before the app keeps it.
+  if (has("save_draft")) {
+    if (!has("select_template")) {
+      steps.splice(indexOf("save_draft"), 0, { step: "select_template" });
+      repairs.push("added select_template before save_draft — the app disables Save as draft until a template is chosen");
+    }
+    if (!has("add_line_items")) {
+      steps.splice(indexOf("save_draft"), 0, { step: "add_line_items", args: { count: 1 } });
+      repairs.push("added add_line_items before save_draft — Save as draft stays disabled at Items 0");
+    }
   }
 
   // A nameless event is refused at publish, and the title is also how a human

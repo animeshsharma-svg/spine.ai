@@ -116,6 +116,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (missing.length) throw new Error(`sheet columns are [${keys.join(", ")}] — missing: ${missing.join(", ")}`);
       return `sheet columns: ${keys.join(", ")}`;
     }
+    case "open_stage_menu": {
+      const stage = a.stage ? asStages([a.stage])[0] : undefined;
+      const items = await s.create.openStageMenuFor(stage);
+      return `stage menu open: ${items.map((i) => `${i.label}${i.disabled ? " (disabled)" : ""}`).join(", ") || "(no items)"}`;
+    }
     case "expect_disabled":
     case "expect_enabled": {
       const control = String(a.control ?? "").trim();

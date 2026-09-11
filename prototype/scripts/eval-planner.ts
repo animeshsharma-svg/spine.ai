@@ -48,13 +48,19 @@ function invariants(plan: TestPlan): string[] {
   // A plan about the events LIST is a different shape, and demanding
   // open_create/set_title of it was this check assuming every test is a create
   // test. It must still assert something, or it proves nothing.
+  const LIST_ASSERTS = ["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list"];
   if (steps[0] === "open_events_list") {
-    if (!has("expect_events_list") && !has("expect_no_error")) {
-      problems.push("opens the events list and asserts nothing about it");
-    }
+    if (!LIST_ASSERTS.some(has)) problems.push("opens the events list and asserts nothing about it");
     return problems;
   }
-  if (has("open_events_list")) problems.push("mixes the events list into a create plan");
+  // A create plan may END on the list — publish, then go and find the event
+  // there. That is verification, and a case can ask for it ("a just-published
+  // event appears in Live"). What it may not do is open the list BEFORE the
+  // create steps, which would run them against the wrong screen.
+  if (has("open_events_list")) {
+    const commit = Math.max(at("publish"), at("save_draft"), at("expect_published"));
+    if (commit < 0 || at("open_events_list") < commit) problems.push("mixes the events list into a create plan before the event is committed");
+  }
 
   if (steps[0] !== "open_create") problems.push("does not start with open_create");
   if (!has("set_title")) problems.push("never sets a title");
