@@ -245,7 +245,8 @@ export class CounterOfferPage extends BasePage {
    */
   async counterOfferStatusFor(vendor: string | undefined, want: RegExp): Promise<{ ok: boolean; text: string }> {
     const header = this.vendorHeader(vendor);
-    const text = ((await (await header.count()) ? header.textContent() : this.page.locator("body").textContent()) ?? "").replace(/\s+/g, " ").trim();
+    const scope = (await header.count()) ? header : this.page.locator("body");
+    const text = ((await scope.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
     return { ok: want.test(text), text: text.slice(0, 200) };
   }
 
