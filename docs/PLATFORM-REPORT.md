@@ -53,6 +53,54 @@ The catalog is also **indexed into the QA memory, one chunk per case** (944 of t
 
 ---
 
+## 3b. The catalog, arranged as user journeys
+
+The catalog is authored **by section** — how a reader navigates it. A **user
+journey** is the orthogonal cut: the ordered path a persona takes to finish one
+job, which may draw on several sections. `prototype/src/checks/journeys.ts`
+folds the 36 sections into **17 journeys**, each with a persona, a one-line
+goal, the vocabulary steps it exercises (its *spine*), and its cases ordered
+UI-first then by priority.
+
+It is **derived, not transcribed**: journeys are computed from the live catalog
+at request time (`/api/journeys`), so a case that is added, edited, or
+re-grouped follows its journey automatically and nothing here is touched. Every
+one of the 648 cases lands in exactly one journey — 0 orphans — and an unmapped
+section would surface as an orphan rather than disappear. `npm run
+cases:journeys` (and every `cases:import`) also writes `data/journeys.json` for
+sharing, and `public/journeys.html` (linked from the dashboard, 🧭) renders them.
+
+| # | Journey | Persona | Cases |
+|---|---|---|---|
+| 1 | Arriving at the events area | Buyer | 18 |
+| 2 | Composing a sourcing event | Buyer | 122 |
+| 3 | Running a technical evaluation | Buyer & evaluator | 30 |
+| 4 | Configuring an auction | Buyer | 30 |
+| 5 | Scheduling, savings and terms | Buyer | 30 |
+| 6 | Inviting the audience | Buyer | 34 |
+| 7 | Going live — or saving a draft | Buyer | 54 |
+| 8 | The vendor's bid | Vendor | 70 |
+| 9 | Bidding on a vendor's behalf | Buyer | 46 |
+| 10 | Awarding and negotiating | Buyer & vendor | 42 |
+| 11 | Converting an RFQ to an auction | Buyer | 26 |
+| 12 | BOQ events | Buyer | 12 |
+| 13 | From purchase request to event | Buyer | 10 |
+| 14 | Classic single-stage events | Buyer | 14 |
+| 15 | The event's lifecycle | Buyer | 14 |
+| 16 | Permissions and isolation | Every role | 32 |
+| 17 | Validation and robustness | Buyer & system | 64 |
+
+### "Run multiple agents", reconciled with one browser
+
+A whole journey can be **compiled in parallel** — `/api/journey-compile`
+fans its UI cases across several planner agents at once (concurrency 6, no
+browser) and streams each plan with its coverage verdict. That is the safe
+reading of *run multiple agents*: the planning layer parallelises freely
+(Slingring serves 1000+ requests/min), while **browser execution stays single
+and sequential** — the one-window rule the platform enforces with its
+process-wide browser slot. Parallelising the browser would reintroduce exactly
+the multiple-Chromium mess that rule exists to prevent.
+
 ## 4. Routing — how a case reaches a runner, honestly
 
 `prototype/src/checks/caseRouting.ts` assigns each case the **most specific runner that genuinely exists**, most specific first:
