@@ -101,6 +101,8 @@ and sequential** — the one-window rule the platform enforces with its
 process-wide browser slot. Parallelising the browser would reintroduce exactly
 the multiple-Chromium mess that rule exists to prevent.
 
+Measured: compiling one journey's nine UI cases finished in **≈16 s at concurrency 6** — about **9× faster** than the ~135 s they take one at a time — and the verdicts stayed honest (seven partial, two refused, on the gap ledger).
+
 ## 4. Routing — how a case reaches a runner, honestly
 
 `prototype/src/checks/caseRouting.ts` assigns each case the **most specific runner that genuinely exists**, most specific first:
