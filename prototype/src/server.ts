@@ -36,6 +36,7 @@ import { ensureEmbedderReady } from "./rag/embedder.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
+import { buildJourneys } from "./checks/journeys.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
 import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 
@@ -637,6 +638,61 @@ const server = createServer(async (req, res) => {
         sections: sections(layer ?? undefined),
         cases: found.slice(0, limit).map((c) => ({ ...c, route: routeFor(c) })),
       });
+    }
+
+
+    // ── API: the catalog arranged as USER JOURNEYS (derived, always in sync) ──
+    if (path === "/api/journeys") {
+      const { journeys, orphans } = buildJourneys();
+      return json(res, { journeys, orphans });
+    }
+
+    // ── API: compile a whole journey's cases IN PARALLEL (many planner agents,
+    //         no browser) — this is the "run multiple agents" that is safe with
+    //         a single browser: planning fans out, execution stays sequential.
+    if (path === "/api/journey-compile") {
+      const jid = url.searchParams.get("id") ?? "";
+      const conc = Math.max(1, Math.min(Number(url.searchParams.get("concurrency") ?? 6), 12));
+      const { journeys } = buildJourneys();
+      const journey = journeys.find((j) => j.id === jid);
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (!journey) {
+        send("error", { line: `no journey "${jid}"` });
+        return res.end();
+      }
+      // Only the cases the compiler actually plans (a written UI case → a plan).
+      const compilable = journey.cases.filter((c) => c.routeKind === "ui-compile");
+      send("plan", { id: journey.id, title: journey.title, total: compilable.length, concurrency: conc });
+      let cancelled = false;
+      req.on("close", () => (cancelled = true));
+      let i = 0;
+      const worker = async () => {
+        while (!cancelled) {
+          const idx = i++;
+          if (idx >= compilable.length) return;
+          const jc = compilable[idx];
+          const c = caseById(jc.id);
+          if (!c) continue;
+          send("compiling", { id: jc.id });
+          try {
+            const compiled = await compileTestCase(caseAsProse(c));
+            send("compiled", {
+              id: jc.id,
+              title: jc.title,
+              coverage: compiled.coverage,
+              steps: compiled.plan.steps.map((st) => st.step),
+              gaps: compiled.gaps,
+              source: compiled.source,
+            });
+          } catch (err: any) {
+            send("compiled", { id: jc.id, title: jc.title, coverage: "error", steps: [], gaps: [String(err?.message ?? err)], source: "error" });
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: conc }, () => worker()));
+      send("done", { ok: true });
+      return res.end();
     }
 
     // ── API: run the cases a person ticked (SSE) ────────────────────────
