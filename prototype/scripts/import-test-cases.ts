@@ -154,3 +154,14 @@ console.log(`  by priority: ${Object.entries(byPriority).sort().map(([k, v]) => 
 console.log(`  gated cases: ${all.filter((c) => c.gate).length}`);
 if (missing.length) console.log(`  ⚠ ${missing.length} case(s) missing a field: ${missing.slice(0, 5).map((c) => c.id).join(", ")}`);
 console.log(`Wrote ${OUT}`);
+
+// Keep the derived user-journeys file in sync with the catalog we just wrote.
+try {
+  const { buildJourneys } = await import("../src/checks/journeys.js");
+  const { writeFileSync } = await import("node:fs");
+  const { journeys, orphans } = buildJourneys();
+  writeFileSync(join(here, "..", "data", "journeys.json"), JSON.stringify({ generatedAt: new Date().toISOString(), journeys, orphans }, null, 2));
+  console.log(`Journeys: ${journeys.length} · ${journeys.reduce((n, j) => n + j.counts.total, 0)} cases placed · ${orphans.length} orphan(s)`);
+} catch (e) {
+  console.warn("journeys not rebuilt:", (e as Error).message);
+}
