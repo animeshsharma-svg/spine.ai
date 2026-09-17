@@ -203,10 +203,18 @@ const JOURNEYS: JourneyDef[] = [
 export interface JourneyCase {
   id: string;
   layer: "ui" | "api";
+  group: string;
+  section: string;
+  sectionNo: number;
   title: string;
+  /** The full written detail, so a viewer needs nothing but this object. */
+  why: string;
+  setup: string;
+  steps: string;
+  expected: string;
+  oracle: string;
   priority: string;
   verdict: string;
-  section: string;
   routeKind: string;
   runnable: boolean;
 }
@@ -243,10 +251,17 @@ export function buildJourneys(): { journeys: Journey[]; orphans: string[] } {
       return {
         id: c.id,
         layer: c.layer,
+        group: c.group,
+        section: c.section,
+        sectionNo: c.sectionNo,
         title: c.title,
+        why: c.why,
+        setup: c.setup,
+        steps: c.steps,
+        expected: c.expected,
+        oracle: c.oracle,
         priority: c.priority,
         verdict: c.verdict,
-        section: c.section,
         routeKind: r.kind,
         runnable: r.runnable,
       };

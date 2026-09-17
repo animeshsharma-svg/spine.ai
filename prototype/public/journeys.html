@@ -30,6 +30,9 @@
   .jcard.open .clist { display:block; }
   .crow { display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px; }
   .crow:first-child { border-top:none; }
+  .cwrap:first-child .crow { border-top:none; }
+  .cdetail { display:none; padding:2px 0 10px 92px; font-size:11.5px; color:var(--ink-soft); line-height:1.5; }
+  .cwrap.open .cdetail { display:block; }
   .cid { font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); min-width:92px; }
   .ctitle { flex:1; }
   .tag { font-size:9.5px; padding:0 5px; border-radius:3px; background:rgba(122,162,247,.16); color:var(--accent); white-space:nowrap; }
@@ -95,14 +98,19 @@ function card(j) {
 
   const list = el("div","clist");
   for (const x of j.cases) {
-    const r = el("div","crow"); r.id = "jc-"+x.id;
+    const wrap = el("div","cwrap");
+    const r = el("div","crow"); r.id = "jc-"+x.id; r.style.cursor="pointer";
     r.appendChild(el("span","cid", esc(x.id)));
     r.appendChild(el("span","ctitle", esc(x.title)));
     r.appendChild(el("span",`tag ${x.priority==="P0"?"p0":""}`, esc(x.priority)));
+    r.appendChild(el("span","tag", esc(x.verdict)));
     if (x.layer==="api") r.appendChild(el("span","tag api","API"));
     if (!x.runnable) r.appendChild(el("span","tag none","no runner"));
-    r.appendChild(el("span","cres","")); 
-    list.appendChild(r);
+    const detail = el("div","cdetail");
+    detail.innerHTML = `<b>Why.</b> ${esc(x.why)}<br>`+(x.setup?`<b>Setup.</b> ${esc(x.setup)}<br>`:"")+`<b>Steps.</b> ${esc(x.steps)}<br><b>Expected.</b> ${esc(x.expected)}`+(x.oracle?`<br><b>How to tell.</b> ${esc(x.oracle)}`:"");
+    r.onclick = () => wrap.classList.toggle("open");
+    wrap.appendChild(r); wrap.appendChild(detail);
+    list.appendChild(wrap);
   }
   c.appendChild(list);
   return c;
