@@ -13,7 +13,17 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SRC = join(here, "..", "data", "cases-src");
-const OUT = join(here, "..", "data", "test-cases.json");
+/**
+ * The RUNNABLE library.
+ *
+ * This used to write data/test-cases.json. That filename now belongs to the 648
+ * WRITTEN cases (prose, steps, oracle) that testCatalog.ts reads, so running
+ * this script would have silently destroyed the written catalog and left the
+ * runner with a file full of records it rejects — see the note in
+ * src/checks/caseLibrary.ts, which is where that collision was first paid for.
+ */
+const OUT = join(here, "..", "data", "api-cases.json");
+const TREE = join(here, "..", "config", "featureTree.ts");
 
 if (!existsSync(SRC)) mkdirSync(SRC, { recursive: true });
 
@@ -64,13 +74,34 @@ for (const file of readdirSync(SRC).filter((f) => f.endsWith(".json"))) {
   console.log(`  ${file}: ${kept}/${list.length} kept`);
 }
 
-all.sort((a, b) => a.feature.localeCompare(b.feature) || a.id.localeCompare(b.id));
+/**
+ * Journey order, not alphabetical order.
+ *
+ * Sorting by feature id put "auction.convert" above "award.proposal" above
+ * "bids.place" — the reverse of the order a buyer meets them, and the reason
+ * the tree read as unsorted however carefully featureTree.ts was arranged. The
+ * order of leaf ids in featureTree.ts IS the journey, so read it from there;
+ * anything the tree doesn't name sorts last rather than disappearing.
+ */
+const treeOrder = new Map(
+  [...readFileSync(TREE, "utf8").matchAll(/id:\s*"([a-z0-9_]+\.[a-z0-9_]+)"/g)]
+    .map((m, i) => [m[1], i]),
+);
+const rank = (f) => treeOrder.get(f) ?? Number.MAX_SAFE_INTEGER;
+all.sort(
+  (a, b) =>
+    rank(a.feature) - rank(b.feature) ||
+    a.feature.localeCompare(b.feature) ||
+    // Within a feature: the step of the journey this case sits at, then its id.
+    (a.journeyStep ?? 99) - (b.journeyStep ?? 99) ||
+    a.id.localeCompare(b.id),
+);
 writeFileSync(OUT, JSON.stringify(all, null, 2));
 
 const byFeature = {};
 for (const c of all) byFeature[c.feature] = (byFeature[c.feature] ?? 0) + 1;
 
-console.log(`\n✅ wrote ${all.length} test cases → data/test-cases.json`);
+console.log(`\n✅ wrote ${all.length} runnable cases → data/api-cases.json`);
 console.log(`   features covered: ${Object.keys(byFeature).length}`);
 for (const [f, n] of Object.entries(byFeature).sort()) console.log(`     ${String(n).padStart(3)}  ${f}`);
 if (rejected.length) {

@@ -76,6 +76,15 @@ export interface ApiCase {
   expects: Expectation;
   /** why the case exists; printed on failure and shown in the report */
   because: string;
+  /** Override the plain-English "what this step does" the report shows.
+   * Most cases do not need one — `title` is already a sentence, and
+   * `plainSentence` turns it into one a non-engineer reads. */
+  plain?: string;
+  /** Override the plain-English expected result. Same story: `expects` plus
+   * `because` composes a sentence that says exactly as much as the case
+   * actually asserts, so overriding is for cases that promise something more
+   * specific than a status class. */
+  expected?: string;
   /** set a reason to park a case without deleting it */
   skip?: string;
   /** needs an existing event group to address */
@@ -105,5 +114,39 @@ export function describeExpectation(expects: Expectation): string {
       return "refuse the request with a client error (4xx)";
     case "no-server-error":
       return "answer deliberately, with a 2xx or a 4xx — never a 5xx";
+  }
+}
+
+/**
+ * The case, as a non-engineer reads it in the report.
+ *
+ * Case titles are already written as sentences ("a negative quantity is
+ * refused"), so this only has to frame them as the check they are.
+ */
+export function plainSentence(apiCase: ApiCase): string {
+  if (apiCase.plain) return apiCase.plain;
+  const title = apiCase.title.trim().replace(/\.$/, "");
+  return `Check that ${title}.`;
+}
+
+/**
+ * What should happen, in one sentence — composed from what the case actually
+ * asserts, never from what came back.
+ *
+ * Deliberately no more specific than `expects`: a case that only checks the
+ * status class must not claim in the report to have checked the body, or the
+ * report overstates its own coverage.
+ */
+export function expectedSentence(apiCase: ApiCase): string {
+  if (apiCase.expected) return apiCase.expected;
+  const because = apiCase.because.trim().replace(/\.$/, "");
+  const why = because ? ` ${because.charAt(0).toUpperCase()}${because.slice(1)}.` : "";
+  switch (apiCase.expects) {
+    case "accept":
+      return `The API accepts the request and answers with success (HTTP 2xx).${why}`;
+    case "reject":
+      return `The API refuses the request with a client error (HTTP 4xx) — not a success, and not a server crash.${why}`;
+    case "no-server-error":
+      return `The API answers deliberately — either a success or a client error, never a 5xx server error.${why}`;
   }
 }

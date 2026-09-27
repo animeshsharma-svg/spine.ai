@@ -2,6 +2,8 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSyn
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { activeStep, ActiveStep } from "./steps.js";
+
 /**
  * Evidence capture for every API call the suite makes.
  *
@@ -84,6 +86,8 @@ export interface ApiCallRecord {
   /** error code from the platform's `{ error: { code } }` contract */
   errorCode?: string;
   test?: ApiTestContext;
+  /** the journey step this call was made inside — see `steps.ts` */
+  step?: ActiveStep;
 }
 
 let seq = 0;
@@ -162,12 +166,61 @@ async function currentTest(): Promise<ApiTestContext | undefined> {
  */
 export type ApiCallInput = Omit<
   ApiCallRecord,
-  "seq" | "pid" | "uri" | "test" | "truncated"
+  "seq" | "pid" | "uri" | "test" | "truncated" | "step"
 >;
+
+/**
+ * Strips credentials out of a query string.
+ *
+ * `redactHeaders` only covers headers, and the suite deliberately includes a
+ * case that sends the access-token as a query parameter — so without this, the
+ * one case whose whole point is "credentials must not travel in the URL"
+ * would publish a live credential into every report and log file it touches.
+ * Applied to the recorded url and uri both, because the report renders both.
+ */
+export function redactQuery(url: string): string {
+  try {
+    // `uri` is a bare path+query, which `new URL` will not parse on its own;
+    // the placeholder origin is stripped again below.
+    const relative = !/^[a-z][a-z0-9+.-]*:\/\//i.test(url);
+    const parsed = new URL(url, relative ? "http://redact.invalid" : undefined);
+    let changed = false;
+    for (const name of [...parsed.searchParams.keys()]) {
+      if (!SECRET_HEADERS.test(name)) continue;
+      const length = (parsed.searchParams.get(name) ?? "").length;
+      // URL-safe placeholder: the angle-bracket form used for headers would
+      // come back percent-encoded and unreadable inside a query string.
+      parsed.searchParams.set(name, `redacted-${length}-chars`);
+      changed = true;
+    }
+    if (!changed) return url;
+    return relative ? `${parsed.pathname}${parsed.search}` : parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Credential-shaped text, anywhere in a free-text field.
+ *
+ * `redactHeaders` covers headers and `redactQuery` covers the URL, which left
+ * one gap: the API's own error messages sometimes quote the request, so a
+ * failure on a call that carried a token in its query string wrote that token
+ * into `error` — a field both the report and the bug sheet print verbatim.
+ */
+export function redactText(value: string | undefined): string | undefined {
+  if (!value) return value;
+  return value
+    .replace(
+      /((?:access|api|auth|session|lightspeed|refresh)[-_]?token\s*[:=]\s*)[^\s&"'<>]+/gi,
+      "$1<redacted>",
+    )
+    .replace(/((?:authorization|cookie|password|secret|otp)\s*[:=]\s*(?:bearer\s+)?)[^\s&"'<>]+/gi, "$1<redacted>");
+}
 
 function pathOf(url: string): string {
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(redactQuery(url));
     return `${parsed.pathname}${parsed.search}`;
   } catch {
     return url;
@@ -178,6 +231,7 @@ function pathOf(url: string): string {
  * report-writing problem must not turn a passing test red. */
 export async function recordApiCall(call: ApiCallInput): Promise<void> {
   try {
+    const stepAtCall = activeStep();
     const request = capBody(call.requestBody);
     const response = capBody(call.responseBody ?? call.responseText);
 
@@ -185,13 +239,19 @@ export async function recordApiCall(call: ApiCallInput): Promise<void> {
       ...call,
       seq: ++seq,
       pid: process.pid,
+      url: redactQuery(call.url),
       uri: pathOf(call.url),
       requestHeaders: redactHeaders(call.requestHeaders),
       requestBody: request.value,
       ...(call.responseBody === undefined && call.responseText !== undefined
         ? { responseText: response.value as string }
         : { responseBody: response.value }),
+      error: redactText(call.error),
       truncated: request.truncated || response.truncated || undefined,
+      // Read synchronously, before the await below: it is the step that was
+      // running when the call was made, not whatever is running by the time
+      // the record is written.
+      step: stepAtCall,
       test: await currentTest(),
     };
     appendFileSync(resolveLogFile(), `${JSON.stringify(record)}\n`, "utf8");
@@ -209,7 +269,15 @@ export function readApiCalls(dir: string = CALL_LOG_DIR): ApiCallRecord[] {
     for (const line of readFileSync(join(dir, name), "utf8").split("\n")) {
       if (!line.trim()) continue;
       try {
-        calls.push(JSON.parse(line) as ApiCallRecord);
+        const record = JSON.parse(line) as ApiCallRecord;
+        // Also on the way back in, so evidence written before `redactQuery`
+        // existed cannot leak a credential into a freshly built report.
+        record.url = redactQuery(record.url);
+        record.uri = redactQuery(record.uri);
+        // Same reason as the two above: evidence written before this existed
+        // must not leak a credential into a freshly built report.
+        record.error = redactText(record.error);
+        calls.push(record);
       } catch {
         // A half-written final line from a killed process. Skip it.
       }

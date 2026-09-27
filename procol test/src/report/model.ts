@@ -1,5 +1,7 @@
 import { ApiCallRecord, CaseKind } from "./apiLog.js";
 import { Finding, loadFindings } from "./findings.js";
+import { CaseOutcome, deriveOutcome, deriveStepOutcome, StepOutcome } from "./outcome.js";
+import { parseSteps } from "./steps.js";
 
 /**
  * Shapes the raw evidence into what the report renders: run → client → flow →
@@ -15,6 +17,8 @@ export type TestStatus = "passed" | "failed" | "timedOut" | "skipped" | "interru
 /** One executed (or skipped) test, normalised away from Playwright's types. */
 export interface ExecutedTest {
   id: string;
+  /** 0-based position in the run — the order the runner actually executed it. */
+  order: number;
   title: string;
   titlePath: string[];
   file: string;
@@ -32,12 +36,32 @@ export interface ExecutedTest {
 
 export interface ReportCase {
   test: ExecutedTest;
+  /** 1-based step number in the run, as a reader counts them */
+  step: number;
   /** registry flow id, e.g. "events.rfp_rfq" */
   flowKey: string;
   /** human flow name */
   flow: string;
   /** grouping, e.g. "events" | "masterdata" | "auth" */
   category: string;
+  /**
+   * The stage of the module's own lifecycle this case belongs to — "Creating
+   * an event", "Publishing an event". Declared by the spec; it is what cuts a
+   * hundred mined cases into sections a reader can navigate.
+   */
+  area?: string;
+  /** the case's own id in whatever catalogue it came from, e.g. "BE-2.4" */
+  ref?: string;
+  /**
+   * The journey broken into the business steps it really is, in order — empty
+   * for a case that makes a single request. See `steps.ts`.
+   */
+  steps: StepOutcome[];
+  /**
+   * Set when the journey stopped part way: its last recorded step failed, so
+   * whatever the flow would have done next never ran.
+   */
+  stoppedAtStep?: number;
   kind: CaseKind;
   /** what the case expects the API to do */
   expects: "accept" | "reject";
@@ -46,6 +70,8 @@ export interface ReportCase {
   calls: ApiCallRecord[];
   /** calls that did not return 2xx */
   failedCalls: ApiCallRecord[];
+  /** expected vs actual vs verdict, derived from this run — see outcome.ts */
+  outcome: CaseOutcome;
 }
 
 export interface FlowGroup {
@@ -67,6 +93,31 @@ export interface ClientGroup {
   flows: FlowGroup[];
 }
 
+/**
+ * A run of consecutive steps that belong to the same area — "signing in", then
+ * "creating events", then "master data".
+ *
+ * Grouping is by adjacency, never by sorting: a section only ever covers steps
+ * that really did run back to back, so the report can carry headings without
+ * ever reordering the run. If the suite interleaves two areas, that shows up as
+ * two sections with the same name, which is the truth.
+ */
+export interface RunSection {
+  key: string;
+  /** plain-English name for the area */
+  title: string;
+  /** the module the area belongs to, when the section is an area within one */
+  context?: string;
+  /** the spec file these steps came from */
+  file: string;
+  cases: ReportCase[];
+  firstStep: number;
+  lastStep: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+}
+
 export interface Totals {
   tests: number;
   passed: number;
@@ -79,6 +130,8 @@ export interface Totals {
   p95Ms: number;
   maxMs: number;
   totalApiMs: number;
+  /** cases where the HTTP evidence contradicts the runner's verdict */
+  disagreements: number;
 }
 
 export interface ReportModel {
@@ -89,8 +142,10 @@ export interface ReportModel {
   /** environment the run went against */
   environment: { clientId: string; baseUrl?: string; companyId?: number };
   clients: ClientGroup[];
-  /** every case, flat — the detail table */
+  /** every case, flat, IN THE ORDER THE RUN EXECUTED THEM — the main table */
   cases: ReportCase[];
+  /** the same cases, cut into consecutive same-area runs for headings */
+  sections: RunSection[];
   /** calls that belong to no test (global setup, teardown) */
   orphanCalls: ApiCallRecord[];
   totals: Totals;
@@ -138,6 +193,8 @@ function classify(test: ExecutedTest): {
   flowKey: string;
   flow: string;
   category: string;
+  area?: string;
+  ref?: string;
   kind: CaseKind;
   expects: "accept" | "reject";
   because?: string;
@@ -168,7 +225,16 @@ function classify(test: ExecutedTest): {
     (annotation("expect") as "accept" | "reject" | undefined) ??
     (kind === "negative" ? "reject" : "accept");
 
-  return { flowKey, flow: flow || flowKey, category, kind, expects, because: annotation("because") };
+  return {
+    flowKey,
+    flow: flow || flowKey,
+    category,
+    area: annotation("area"),
+    ref: annotation("ref"),
+    kind,
+    expects,
+    because: annotation("because"),
+  };
 }
 
 /**
@@ -197,6 +263,72 @@ function callsByTest(calls: ApiCallRecord[]): {
   return { byId, byPath };
 }
 
+/**
+ * Plain-English names for the areas a run moves through, so a section heading
+ * reads as a stage of the job rather than as a source directory.
+ */
+const SECTION_TITLES: Record<string, string> = {
+  auth: "Signing in and access control",
+  reads: "Reading existing data",
+  events: "Creating sourcing events (RFQ, RFP, auction)",
+  entrypath: "Starting procurement from a purchase request",
+  masterdata: "Master data setup (categories, products, locations, teams, users)",
+  vendor: "Vendors and suppliers",
+  vendors: "Vendors and suppliers",
+  flows: "End-to-end business journeys",
+  clients: "Per-company end-to-end journeys",
+  db: "Company selection from the database",
+  http: "General API behaviour (methods, payloads, unknown routes)",
+  cases: "Checks on the test suite itself",
+  setup: "Run setup",
+};
+
+const sectionTitle = (key: string): string =>
+  SECTION_TITLES[key] ??
+  key.replace(/[._-]+/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+/**
+ * Cuts the ordered case list into consecutive same-area runs.
+ *
+ * Adjacency, not grouping: the steps inside a section are always contiguous in
+ * the run, so numbering stays 1..N with no gaps and no step ever appears out of
+ * the order it executed in.
+ */
+function buildSections(cases: ReportCase[]): RunSection[] {
+  const sections: RunSection[] = [];
+  for (const reportCase of cases) {
+    // Keyed on file, area AND the module's own lifecycle stage: a spec that
+    // walks several areas in a row (the case table does) breaks into the areas
+    // it actually walked, in order, while a spec that stays in one area stays
+    // one section. A module that declares its own stages — the mined events
+    // cases do — breaks further, so a hundred cases arrive as the eight stages
+    // of an event's life rather than as one undifferentiated block.
+    const key = `${reportCase.test.file}|${reportCase.category}|${reportCase.area ?? ""}`;
+    let current = sections[sections.length - 1];
+    if (!current || current.key !== key) {
+      current = {
+        key,
+        title: reportCase.area ?? sectionTitle(reportCase.category),
+        context: reportCase.area ? sectionTitle(reportCase.category) : undefined,
+        file: reportCase.test.file,
+        cases: [],
+        firstStep: reportCase.step,
+        lastStep: reportCase.step,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+      };
+      sections.push(current);
+    }
+    current.cases.push(reportCase);
+    current.lastStep = reportCase.step;
+    if (reportCase.outcome.verdict === "pass") current.passed++;
+    else if (reportCase.outcome.verdict === "not-run") current.skipped++;
+    else current.failed++;
+  }
+  return sections;
+}
+
 export function buildModel(input: {
   tests: ExecutedTest[];
   calls: ApiCallRecord[];
@@ -207,14 +339,52 @@ export function buildModel(input: {
 }): ReportModel {
   const { byId, byPath } = callsByTest(input.calls);
 
-  const cases: ReportCase[] = input.tests.map((test) => {
+  // RUN ORDER IS THE REPORT'S SPINE. `order` is stamped by the reporter as each
+  // test ends, which under this project's `workers: 1, fullyParallel: false` is
+  // the order they executed. Sorting on it here (rather than trusting array
+  // position) keeps that true even if a caller assembles the list some other
+  // way — and nothing downstream re-sorts the flat list.
+  const ordered = [...input.tests].sort((a, b) => a.order - b.order);
+
+  const cases: ReportCase[] = ordered.map((test, index) => {
     const meta = classify(test);
     const calls = byId.get(test.id) ?? byPath.get(test.titlePath.join(" › ")) ?? [];
+    const failedCalls = calls.filter((c) => !c.ok);
+    // A journey's own account of itself: the business steps it declared as it
+    // went, each holding the calls made inside it.
+    const steps = parseSteps(test.annotations).map((record) =>
+      deriveStepOutcome(
+        record,
+        calls.filter((call) => call.step?.id === record.id),
+      ),
+    );
+    const last = steps[steps.length - 1];
     return {
       test,
+      step: index + 1,
       ...meta,
+      steps,
+      // The run only records a step that started. If the last one it recorded
+      // failed, everything the flow would have done after it never happened —
+      // which is a fact about coverage, so the report states it rather than
+      // leaving the sequence to trail off.
+      stoppedAtStep: last && last.verdict === "fail" ? last.index : undefined,
       calls,
-      failedCalls: calls.filter((c) => !c.ok),
+      failedCalls,
+      outcome: deriveOutcome({
+        steps,
+        title: test.title,
+        status: test.status,
+        errorMessage: test.errorMessage,
+        skipReason: test.skipReason,
+        annotations: test.annotations,
+        kind: meta.kind,
+        expects: meta.expects,
+        because: meta.because,
+        flow: meta.flow,
+        calls,
+        failedCalls,
+      }),
     };
   });
 
@@ -278,9 +448,16 @@ export function buildModel(input: {
     p95Ms: percentile(durations, 95),
     maxMs: durations.length ? Math.max(...durations) : 0,
     totalApiMs: durations.reduce((a, b) => a + b, 0),
+    disagreements: cases.filter((c) => c.outcome.disagreement).length,
   };
 
   const notes = [...(input.notes ?? [])];
+  if (totals.disagreements > 0) {
+    notes.push(
+      `${totals.disagreements} case(s) were recorded with a verdict the HTTP evidence does not support. ` +
+        `They are flagged in the run table and must be explained before this report is trusted.`,
+    );
+  }
   for (const kind of ["positive", "negative", "edge"] as CaseKind[]) {
     if (byKind[kind].total === 0) {
       notes.push(`No ${kind} cases ran in this run — that is a coverage gap, not a pass.`);
@@ -299,6 +476,7 @@ export function buildModel(input: {
     environment: input.environment,
     clients: [...clientMap.values()].sort((a, b) => a.clientId.localeCompare(b.clientId)),
     cases,
+    sections: buildSections(cases),
     orphanCalls: input.calls.filter((c) => !c.test),
     totals,
     notes,

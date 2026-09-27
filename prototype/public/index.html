@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Procol · Autonomous QA</title>
+    <title>spine.ai</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
   </head>
@@ -12,19 +12,38 @@
       <div class="brand">
         <span class="logo">🤖</span>
         <div>
-          <div class="title">Procol · Autonomous QA</div>
-          <div class="subtitle">AI agents that plan, run, and report the tests themselves</div>
+          <div class="title">spine.ai</div>
+          <div class="subtitle">Autonomous QA for Procol — AI agents that plan, run, and report the tests themselves</div>
         </div>
       </div>
       <div class="controls">
         <label class="field">
           <span>Environment</span>
-          <select id="env"><option value="uat">UAT</option></select>
+          <select id="env">
+            <option value="uat">UAT</option>
+            <option value="custom">Custom URL…</option>
+          </select>
+        </label>
+        <!-- Shown only when "Custom URL" is picked. Every API call the platform
+             makes for this session goes to whatever is typed here. -->
+        <label class="field wide" id="env-custom-field" hidden>
+          <span>Base URL</span>
+          <input id="env-custom" type="url" placeholder="https://your-host.ag-ri.in/api" spellcheck="false" />
         </label>
         <label class="field">
           <span>Client</span>
           <select id="client"></select>
         </label>
+        <!-- Shown when "+ Add a client…" is picked in the list above. -->
+        <span class="field wide" id="client-add-field" hidden>
+          <span>New client</span>
+          <span class="field-row">
+            <input id="client-add-id" type="number" placeholder="company id, e.g. 198678" />
+            <input id="client-add-name" type="text" placeholder="name (optional)" />
+            <button type="button" id="client-add-go" class="run-btn small primary">Add</button>
+            <button type="button" id="client-add-cancel" class="chip">cancel</button>
+          </span>
+        </span>
         <span id="provider" class="provider" title="AI provider">…</span>
       </div>
     </header>
@@ -43,6 +62,7 @@
         <a class="nav-item" href="#/run" data-view="run"><span class="nav-ico">▶</span><span>Run</span></a>
         <a class="nav-item" href="#/api" data-view="api"><span class="nav-ico">⚡</span><span>API automation</span></a>
         <a class="nav-item" href="#/ui" data-view="ui"><span class="nav-ico">🖥</span><span>UI automation</span></a>
+        <a class="nav-item" href="#/journeys" data-view="journeys"><span class="nav-ico">🧭</span><span>Journeys</span></a>
         <a class="nav-item" href="#/cases" data-view="cases"><span class="nav-ico">📚</span><span>Test cases</span></a>
         <a class="nav-item" href="#/reports" data-view="reports"><span class="nav-ico">📊</span><span>Reports</span></a>
         <a class="nav-item" href="#/bugs" data-view="bugs"><span class="nav-ico">🐞</span><span>Bugs</span></a>
@@ -58,27 +78,64 @@
             <p>Ask in plain English, or run what you have picked under API and UI automation. Everything a run does appears below it.</p>
           </header>
           <div class="view-body narrow">
+        <!--
+          WHAT IS LOADED, WHERE IT IS SPENT.
+
+          These numbers existed only in 10.5px grey at the foot of the nav,
+          which is where they still belong for the views that have no strip of
+          their own — but this is the view that spends them, and here they are
+          worth reading. Each tile links to the place its number comes from, so
+          the strip is navigation as much as a status line. The last tile
+          answers what the two pickers in the header raise and never confirm:
+          what is this run about to touch?
+        -->
+        <div class="glance" id="glance">
+          <a class="glance-tile" href="#/api">
+            <span class="glance-n" id="glance-api">—</span>
+            <span class="glance-k">API cases</span>
+          </a>
+          <a class="glance-tile" href="#/ui">
+            <span class="glance-n" id="glance-ui">—</span>
+            <span class="glance-k">browser journeys</span>
+          </a>
+          <a class="glance-tile" href="#/reports">
+            <span class="glance-n" id="glance-runs">—</span>
+            <span class="glance-k">runs saved</span>
+          </a>
+          <div class="glance-tile target">
+            <span class="glance-n sm" id="glance-client">…</span>
+            <span class="glance-k" id="glance-env">target</span>
+          </div>
+        </div>
         <div class="request-card big">
           <div class="rc-head">
-            <label for="request">Ask the QA platform, or paste a test case</label>
+            <label for="request">Ask spine.ai, or paste a test case</label>
             <span class="rc-hint">plain English — it works out the journey and the cases</span>
+            <!-- The box is where the hands already are; saying so costs a line
+                 and saves a reach for the mouse on every single run. -->
+            <span class="rc-kbd"><kbd>⌘</kbd><kbd>↵</kbd> to run</span>
           </div>
           <textarea id="request" rows="5" placeholder="e.g. test a technical event with bidding and awarding">Create a technical RFP + RFQ event, place a bid and award it</textarea>
-          <div class="rc-examples" id="rc-examples"></div>
+          <!-- Labelled, because unlabelled pills under a text box read as tags
+               applied to it rather than as things you can click to fill it. -->
+          <div class="rc-tryrow">
+            <span class="rc-try">Try</span>
+            <div class="rc-examples" id="rc-examples"></div>
+          </div>
           <div class="row rc-actions">
             <!-- One primary action for the box, and the test-case compiler
                  beside it — it reads the same box, so it belongs here. The
                  run buttons for the ready-made suites live in the drawers. -->
             <button id="ai-btn" class="run-btn primary big-btn">🤖 Run my instruction</button>
-            <button id="plan-btn" class="run-btn small">🧪 Compile this test case &amp; run it</button>
+            <span class="rc-or">or</span>
+            <button id="plan-btn" class="run-btn small ghost">🧪 Compile this test case &amp; run it</button>
             <button id="plan-dry" class="chip" title="Compile without running, to see the plan first">plan only</button>
             <span id="status" class="run-status"></span>
           </div>
-          <p class="rc-foot">The platform works out what to test, writes the cases and runs them as real
-          requests — you watch it happen under <strong>Automation run</strong> below. To run the ready-made
-          tests instead, pick them under <strong>API automation</strong> or <strong>UI automation</strong>.</p>
+          <p class="rc-foot">Whatever you ask for is planned, written as test cases and run as real requests —
+          it appears under <strong>Automation run</strong> below as it happens.</p>
         </div>
-        <div class="col-head" style="margin-top: 18px">
+        <div class="col-head">
           <h2>Automation run</h2>
           <span class="hint" id="auto-counts">real requests against UAT — each check is live</span>
         </div>
@@ -116,7 +173,8 @@
           <span class="hint">live · 7 agents · critic can loop back</span>
         </div>
         <div id="timeline" class="timeline">
-          <div class="empty">The agents' reasoning will stream here as they work.</div>
+          <div class="empty"><b>No reasoning yet</b>Seven agents plan, write, run and critique
+          the tests. Their reasoning streams here as they work, one card each.</div>
         </div>
           </div>
         </section>
@@ -146,9 +204,24 @@
             <span class="drawer-meta" id="api-meta"></span>
           </button>
           <div class="drawer-body" id="drawer-api-body">
+            <!-- Run bar and inputs stick to the top as ONE block. Left as two
+                 separate bars, only the first was sticky and the inputs slid
+                 away underneath it the moment the tree was scrolled. -->
+            <div class="drawer-sticky">
             <div class="drawer-bar" id="api-run-bar">
               <button id="t-run" class="run-btn small primary" title="Runs the ready-made test cases for everything ticked below">▶ Run selected</button>
               <button id="t-none" class="chip" title="Untick everything">clear</button>
+            </div>
+            <!-- Line items are a SIZE, not a tick-box, so they live here as a
+                 number rather than as a locked row inside the tree. Shown only
+                 when something ticked below actually creates an event. -->
+            <div class="drawer-bar sub" id="api-inputs" hidden>
+              <label class="li-field" id="api-li-field" title="How many line items each event this run creates should carry">line items per event
+                <input type="number" id="api-line-items" min="1" value="1" />
+                <span id="api-li-max" class="li-max"></span>
+              </label>
+              <span class="li-note" id="api-li-note"></span>
+            </div>
             </div>
             <!-- Its own block, not a second button in the row above: this runs
                  a different thing from the ticked test cases, and two bare
@@ -209,6 +282,9 @@
               <label class="tgl-flow" title="On: a browser window opens and you watch it work. Off: it runs invisibly, which is faster.">
                 <input type="checkbox" id="ui-headed" checked /> <span>show the browser</span>
               </label>
+              <label class="tgl-flow" title="On: the journey signs in through the login screen — phone number, one-time code, Login — so you see the sign-in and the login page itself is tested. Off: it starts already signed in with a saved session, which is faster.">
+                <input type="checkbox" id="ui-login" checked /> <span>sign in on screen</span>
+              </label>
             </div>
             <p class="scope-note" id="ui-note" hidden></p>
             <p class="tree-count" id="ui-mode"></p>
@@ -223,6 +299,41 @@
         <!-- ── Purchase-to-bill ────────────────────────────────────── -->
 
         <!-- ── Test cases ──────────────────────────────────────────── -->
+        <!-- ── Journeys ────────────────────────────────────────────── -->
+        <section class="view" id="view-journeys" data-view="journeys">
+          <header class="view-head">
+            <h1>Journeys</h1>
+            <p>The same catalogue, ordered the way a buyer walks the product — arriving at the events list through to an awarded event. Every case sits where its journey exercises it.</p>
+          </header>
+          <div class="view-body">
+            <div class="jy-bar">
+              <input id="jy-q" class="cat-search" type="search" placeholder="Search id, title, why, steps, expected…" />
+              <span class="jy-seg" role="group" aria-label="Layer">
+                <button type="button" class="jy-segb" data-layer="" aria-pressed="true">All</button>
+                <button type="button" class="jy-segb" data-layer="ui" aria-pressed="false">UI</button>
+                <button type="button" class="jy-segb" data-layer="api" aria-pressed="false">API</button>
+              </span>
+              <select id="jy-journey" class="cat-select"><option value="">All journeys</option></select>
+              <select id="jy-priority" class="cat-select">
+                <option value="">Any priority</option>
+                <option value="P0">P0</option><option value="P1">P1</option>
+                <option value="P2">P2</option><option value="P3">P3</option>
+              </select>
+              <select id="jy-verdict" class="cat-select">
+                <option value="">Any verdict</option>
+                <option value="automate">automate</option>
+                <option value="automate-later">automate-later</option>
+                <option value="manual">manual</option>
+              </select>
+              <span class="hint" id="jy-count"></span>
+            </div>
+            <div id="jy-totals" class="jy-totals"></div>
+            <div id="journeys" class="journeys">
+              <div class="empty">Reading the journeys…</div>
+            </div>
+          </div>
+        </section>
+
         <section class="view" id="view-cases" data-view="cases">
           <header class="view-head">
             <h1>Test cases</h1>
@@ -254,11 +365,6 @@
             <p>What the last runs found, and every run the platform has kept.</p>
           </header>
           <div class="view-body">
-        <div class="cap-bar report-links">
-          <a id="report-tests" class="chip" href="/api/test-report" target="_blank" rel="noopener">📊 API test report</a>
-          <a id="report-ui" class="chip" href="/api/ui-report" target="_blank" rel="noopener">🖥 UI automation report</a>
-          <a id="report-sheet" class="chip" href="/api/bug-report" target="_blank" rel="noopener">🐞 Bug sheet</a>
-        </div>
         <div class="col-head" style="margin-top:16px">
           <h2>Recent runs</h2>
           <span class="hint">every run is kept</span>
@@ -274,14 +380,56 @@
           <header class="view-head">
             <h1>Bugs</h1>
             <p>One row per defect, however many tests hit it. The full sheet is editable — status, priority, owner, comments.</p>
+            <!-- The standing sheet lives HERE, not on Reports. Per-run sheets
+                 hang off their own run card; this is the one with content no
+                 single run has: the team's hand-raised D__ rows, plus every
+                 defect found across all runs. -->
+            <p class="cap-bar report-links">
+              <a id="report-sheet" class="chip" href="/api/bug-report" target="_blank" rel="noopener">🐞 Open the full bug sheet</a>
+              <span class="hint">hand-raised bugs + everything found across all runs · editable</span>
+            </p>
           </header>
           <div class="view-body">
-        <div class="col-head" style="margin-top:16px">
-          <h2>Bugs found</h2>
-          <span class="hint" id="findings-hint">one row per bug, however many tests hit it</span>
+        <!-- Triage at a glance, then the queue. The numbers are the pitch:
+             what is blocking, what is the product's, and what is ours. -->
+        <div id="bug-board" class="bug-board" hidden>
+          <div class="bug-tiles">
+            <button type="button" class="bug-tile crit" data-sev="critical">
+              <span class="bug-tile-v" id="bt-crit">0</span>
+              <span class="bug-tile-l">blockers</span>
+            </button>
+            <button type="button" class="bug-tile warn" data-sev="high">
+              <span class="bug-tile-v" id="bt-high">0</span>
+              <span class="bug-tile-l">high</span>
+            </button>
+            <button type="button" class="bug-tile" data-sev="medium">
+              <span class="bug-tile-v" id="bt-med">0</span>
+              <span class="bug-tile-l">medium · low</span>
+            </button>
+            <button type="button" class="bug-tile prod" data-kind="product">
+              <span class="bug-tile-v" id="bt-prod">0</span>
+              <span class="bug-tile-l">the product's</span>
+            </button>
+            <button type="button" class="bug-tile ours" data-kind="notproduct">
+              <span class="bug-tile-v" id="bt-ours">0</span>
+              <span class="bug-tile-l">not the product's</span>
+            </button>
+          </div>
+          <div class="bug-bar" id="bug-bar" aria-hidden="true"></div>
+          <p class="bug-legend" id="bug-legend"></p>
         </div>
-        <div class="uibar">
+
+        <div class="bug-controls" id="bug-controls" hidden>
+          <input id="bug-search" class="cat-search" type="search" placeholder="Search bugs by title, module or evidence…" />
+          <select id="bug-kind" class="cat-select">
+            <option value="">Everything</option>
+            <option value="product">Product defects</option>
+            <option value="notproduct">Not the product (harness, environment, test)</option>
+          </select>
+          <span class="hint" id="bug-count"></span>
+          <button type="button" id="bug-clear" class="chip" hidden>clear filters</button>
         </div>
+
         <div id="findings" class="findings">
           <div class="empty">Run a journey — confirmed defects, test gaps and harness issues are separated here.</div>
         </div>

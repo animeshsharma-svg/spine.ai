@@ -219,7 +219,7 @@ export class CounterOfferPage extends BasePage {
       throw new Error("the Counter Offer drawer opened, but neither its Price cell nor Bulk Update took a value — captured for a look");
     }
     const remarks = drawer.getByPlaceholder(/enter your remarks/i).or(drawer.locator("textarea")).first();
-    if (await remarks.count()) await remarks.fill(opts.remark ?? "Counter offer from the QA platform").catch(() => {});
+    if (await remarks.count()) await remarks.fill(opts.remark ?? "Counter offer from spine.ai").catch(() => {});
 
     // 3 · send. The drawer's primary action is "Send" on this build's strings
     //     ("Send Bulk Counter Offer" for the bulk path); accept close synonyms.

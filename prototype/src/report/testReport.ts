@@ -1,9 +1,19 @@
 import { FEATURE_TREE } from "../../config/featureTree.js";
 import { loadCases, type TestCaseRecord } from "../checks/caseLibrary.js";
+import { knownBugSentence } from "./knownBugs.js";
+import { journeyPlan, journeyWalksFeature } from "../checks/journeyModel.js";
 import { getRun, listRuns, type RunRecord } from "../runStore.js";
 import type { CheckResult } from "../ai/types.js";
 import { isTemplate, toCurl, TOKEN_VAR } from "./curl.js";
 import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
+import {
+  JOURNEY_CSS,
+  nestCasesUnderSteps,
+  readJourney,
+  renderJourneyLede,
+  renderJourneyLegend,
+  renderJourneySection,
+} from "./journeyReport.js";
 
 /**
  * THE TEST REPORT — what was checked, what the product did, and how to see it
@@ -24,16 +34,24 @@ import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
  *  3. INCONCLUSIVE IS ITS OWN VERDICT. A 401, or a rejection for the wrong
  *     reason, proves nothing — reporting either as a pass is how a green
  *     report stops meaning anything.
+ *  4. A SOURCING RUN READS AS A JOURNEY. When the run walked the Postman
+ *     collection — sign in, draft, rounds, publish, vendor, bid, wait, award —
+ *     that walk is the spine of the report, one numbered step per row, and the
+ *     library cases sit under the step they vary. The rendering lives in
+ *     `journeyReport.ts`; this file decides where it goes and hands it the
+ *     case-row renderer so the nested rows look like the module ones.
  */
 
 type Verdict = "pass" | "fail" | "inconclusive" | "notrun";
 
-interface CaseRow {
+export interface CaseRow {
   test: TestCaseRecord;
   result?: CheckResult;
   verdict: Verdict;
   /** why it did not run, when the run said so */
   skipReason?: string;
+  /** position in the run — the order the API was actually called in */
+  ranAt?: number;
 }
 
 interface ModuleSection {
@@ -78,6 +96,12 @@ function skipInWords(reason: string | undefined): string {
   if (placeholders) {
     return `needs something this run did not have — ${placeholders[1].trim()}`;
   }
+  // The deferred path words it differently: the case waited for a record that
+  // an earlier case was supposed to create, and none did.
+  const deferred = reason.match(/needs ([\w, ]+?), which no case in this run produced/i);
+  if (deferred) {
+    return `waited for ${deferred[1].trim()} — nothing in this run created one`;
+  }
   const flagOff = reason.match(/"([^"]+)" is OFF for (.+?) —/);
   if (flagOff) {
     return `“${flagOff[1]}” is switched off for ${flagOff[2]}, so there is nothing to check`;
@@ -94,6 +118,81 @@ function skipInWords(reason: string | undefined): string {
     return "the platform is not allowed to call that endpoint";
   }
   return reason;
+}
+
+/**
+ * What each missing record IS, and the step of the journey that creates it.
+ *
+ * A placeholder name is the machinery's word for a prerequisite: `tradeId`
+ * means "a live stage", and a live stage exists only once an event has been
+ * created and activated. Naming the step means the reader can go and tick it
+ * instead of guessing which of ninety-three features makes a `tradeId` appear.
+ */
+const PREREQUISITE: Record<string, { what: string; how: string }> = {
+  eventGroupUuid: { what: "a draft event", how: "tick Sourcing events → any event type; creating the draft supplies it" },
+  tradeId: { what: "a live stage", how: "tick Sourcing events → an event type and Publish event, so a stage goes live" },
+  bidUuid: { what: "a bid that has been placed", how: "tick Bidding → Place a bid in the same run" },
+  proposalUuid: { what: "an award proposal", how: "tick Awarding → Create award proposal in the same run" },
+  vendorUuid: { what: "a vendor this buyer deals with", how: "check this client has at least one active vendor under Vendors" },
+  vendorCompanyId: { what: "a vendor company", how: "check this client has at least one active vendor under Vendors" },
+  productUuid: { what: "a product in master data", how: "tick Master data → Products, or add one for this client" },
+  productQualityUuid: { what: "a product variant", how: "tick Master data → Products; a product with no variant cannot be ordered" },
+  locationUuid: { what: "a delivery location", how: "tick Master data → Locations, or add one for this client" },
+  prId: { what: "a purchase request", how: "tick Purchase requests → PR list, or raise one for this client" },
+  prItemId: { what: "a line on a purchase request", how: "this client needs a PR that has at least one line item" },
+  poUuid: { what: "a purchase order", how: "tick Purchase orders → Generate PO in the same run" },
+  orderUuid: { what: "an order", how: "tick Purchase orders → Generate PO in the same run" },
+  categoryUuid: { what: "a product category", how: "tick Master data → Categories" },
+  teamUuid: { what: "a team", how: "tick Users, roles & teams → Teams" },
+  userUuid: { what: "a user", how: "tick Users, roles & teams → Create user" },
+};
+
+/**
+ * The fix, not just the diagnosis.
+ *
+ * "needs something this run did not have — tradeId" tells the reader their run
+ * was incomplete and nothing about what to do next. Every reason this platform
+ * can produce has a concrete next action, so the not-checked rows carry it.
+ */
+function howToRunIt(reason: string | undefined, test: TestCaseRecord, hasRun: boolean): string {
+  if (!reason) {
+    // No reason means nobody skipped it — either nothing has run at all, or
+    // the run ended before reaching it. Those need different answers.
+    return hasRun
+      ? `This run was in scope for it but stopped before firing it. Run ${test.feature} again on its own; if it keeps stopping short, the run is ending early.`
+      : `No run on record yet. Tick ${test.feature} under API automation and press Run selected tests.`;
+  }
+  const placeholders =
+    reason.match(/unresolved placeholder\(s\):\s*(.+)/i) ??
+    reason.match(/needs ([\w, ]+?), which no case in this run produced/i);
+  if (placeholders) {
+    const names = placeholders[1].split(",").map((n) => n.trim()).filter(Boolean);
+    const known = names.filter((n) => PREREQUISITE[n]);
+    if (!known.length) {
+      return `This run had no ${names.join(" or ")} to use. Run the feature that creates one first, in the same run.`;
+    }
+    // One run creates records the later cases reuse, so ordering the selection
+    // is usually the whole fix.
+    return known
+      .map((n) => `Needs ${PREREQUISITE[n].what} — ${PREREQUISITE[n].how}.`)
+      .join(" ");
+  }
+  const flagOff = reason.match(/"([^"]+)" is OFF for/);
+  if (flagOff) {
+    return `Switch “${flagOff[1]}” on for this company, or run this case against a client that already has it on. Until then there is nothing to test — this is not a failure.`;
+  }
+  if (/only holds when "([^"]+)" is ON/.test(reason)) {
+    const flag = reason.match(/only holds when "([^"]+)" is ON/)?.[1];
+    return `This case only describes behaviour that exists when “${flag}” is on. Run it against a client where it is.`;
+  }
+  const needsRole = reason.match(/needs (.+?); this run is authenticated as "([^"]+)"/);
+  if (needsRole) {
+    return `Re-run signed in as ${needsRole[1]}. Run as ${needsRole[2]} it would prove nothing — the wrong actor is allowed to do this.`;
+  }
+  if (/not on the allowlist/i.test(reason)) {
+    return `${test.method} ${test.path} is not on the runner's allowlist, so it cannot be fired from here. Check it by hand, or add the endpoint in src/checks/dynamicChecks.ts if it is safe to automate.`;
+  }
+  return `Resolve: ${reason}`;
 }
 
 function statusInWords(status: number | null | undefined): string {
@@ -125,8 +224,9 @@ const VERDICT_PILL: Record<Verdict, { cls: string; label: string; meaning: strin
     cls: "p-incon",
     label: "Couldn’t tell",
     meaning:
-      "We asked, but the answer proves nothing either way — usually the account was not allowed to do it, " +
-      "so the thing we wanted to check never got exercised. Not a pass, and not Procol’s fault.",
+      "The request was refused before it reached the behaviour under test — usually the record it acts on " +
+      "was not in a usable state, or the account was not allowed to do it. The endpoint answered cleanly, " +
+      "so this is not a defect; it is also not a pass. Clear the precondition and it becomes one or the other.",
   },
   notrun: {
     cls: "p-notrun",
@@ -238,13 +338,30 @@ function inconclusiveInWords(row: CaseRow): string {
  *
  * `features` is what the UI had ticked. Empty means "everything the library
  * knows", which is the right default for a report opened without a selection.
+ *
+ * `keep` lets the caller leave rows out — the ones the journey section has
+ * already absorbed under its steps. A row left out is not counted in the
+ * section's tallies either, and a section with nothing left is not returned,
+ * so a case is never printed twice. Without `keep` every case is returned,
+ * which is what the tiles and the audit script want.
  */
-export function buildSections(features: string[], run: RunRecord | null): ModuleSection[] {
+export function buildSections(
+  features: string[],
+  run: RunRecord | null,
+  keep?: (row: CaseRow) => boolean,
+): ModuleSection[] {
   const wanted = new Set(features);
-  const cases = loadCases().filter((c) => wanted.size === 0 || wanted.has(c.feature));
+  // Pasted cases exist only in their run; the library has no row for them.
+  const cases = (run?.pastedCases ?? loadCases()).filter((c) => wanted.size === 0 || wanted.has(c.feature));
 
   const results = new Map<string, CheckResult>();
-  for (const r of run?.checkResults ?? []) results.set(r.id, r);
+  // `checkResults` is appended as each check finishes and a run is sequential,
+  // so its index IS the order the API was called in.
+  const ranAt = new Map<string, number>();
+  (run?.checkResults ?? []).forEach((r, i) => {
+    results.set(r.id, r);
+    if (!ranAt.has(r.id)) ranAt.set(r.id, i);
+  });
 
   // Cases the run deliberately skipped, with the reason it gave.
   const skipped = new Map<string, string>();
@@ -275,17 +392,54 @@ export function buildSections(features: string[], run: RunRecord | null): Module
     const section = sections.get(id)!;
     const result = results.get(test.id);
     const verdict = verdictOf(result);
-    section.rows.push({ test, result, verdict, skipReason: skipped.get(test.id) });
+    const row: CaseRow = { test, result, verdict, skipReason: skipped.get(test.id), ranAt: ranAt.get(test.id) };
+    if (keep && !keep(row)) continue;
+    section.rows.push(row);
     if (verdict === "pass") section.passed++;
     else if (verdict === "fail") section.failed++;
     else if (verdict === "inconclusive") section.inconclusive++;
     else section.notrun++;
   }
 
-  // Modules with something wrong first — a reader opens this to find failures.
-  return [...sections.values()].sort(
-    (a, b) => b.failed - a.failed || b.inconclusive - a.inconclusive || a.label.localeCompare(b.label),
-  );
+  /**
+   * Journey order — the order the buyer walks the product, which is the order
+   * FEATURE_TREE is written in.
+   *
+   * This used to sort by failure count and then alphabetically, so a report
+   * opened with Awarding above Intake above Sourcing events: three modules in
+   * an order that matched neither the product nor the tree the reader had just
+   * ticked them in. Failures are still findable — the tiles count them and the
+   * filter shows only them — but the spine of the document is the journey, so
+   * reading top to bottom follows one event from creation to payment.
+   */
+  /**
+   * Within a module: the sequence the run actually fired, not the library's.
+   *
+   * The run puts functional cases first — they create the records the rest
+   * address — so reading a section top to bottom now follows the same path the
+   * API took: the event is created, then everything done to it. Cases that
+   * never ran keep their library position and sit after the ones that did,
+   * since they have no place in a sequence they were not part of.
+   */
+  for (const section of sections.values()) {
+    section.rows = section.rows
+      .map((row, i) => ({ row, i }))
+      .sort(
+        (a, b) =>
+          (a.row.ranAt ?? Number.MAX_SAFE_INTEGER) - (b.row.ranAt ?? Number.MAX_SAFE_INTEGER) ||
+          a.i - b.i,
+      )
+      .map((x) => x.row);
+  }
+
+  const order = new Map(FEATURE_TREE.map((g, i) => [g.id, i]));
+  return [...sections.values()]
+    .filter((s) => s.rows.length > 0)
+    .sort(
+      (a, b) =>
+        (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER) ||
+        a.label.localeCompare(b.label),
+    );
 }
 
 /**
@@ -298,7 +452,27 @@ export function buildSections(features: string[], run: RunRecord | null): Module
  * own documentation and the curl, which is what you want only after something
  * has caught your eye.
  */
-function renderRow(row: CaseRow, companyId?: number): string {
+/**
+ * A case that DOCUMENTS a specific success but only asserts "did not crash".
+ *
+ * Nearly half the library is typed Robustness, which asserts `no-5xx`: any
+ * status but a 500 passes. That is the right assertion for hostile input, where
+ * serving and refusing are both defensible. It is the wrong assertion for a
+ * case whose own expected result says "Created." or "200 with a trade uuid" —
+ * there, a 422 passes while the documented behaviour plainly did not happen,
+ * and the report prints the two side by side as though they agreed.
+ *
+ * Detected from the case's own words rather than from a list, so it stays true
+ * as cases are added. It changes no verdict — a weak assertion is not a
+ * failure — it just refuses to let a weak check read as a strong one.
+ */
+function documentsASuccess(test: TestCaseRecord): boolean {
+  if (test.expected !== "no-5xx") return false;
+  const doc = (test.expectedResult ?? "").trim();
+  return /^(200|201)\b/.test(doc) || /\b20[01] with\b/.test(doc) || /^Created\b/i.test(doc);
+}
+
+function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean): string {
   const pill = VERDICT_PILL[row.verdict];
   const result = row.result;
   // The request as fired when we have it; the library's template otherwise —
@@ -338,8 +512,14 @@ function renderRow(row: CaseRow, companyId?: number): string {
               ? "The server broke on it"
               : "Refused something it should have accepted";
 
+  // The module the case belongs to travels with the row, because a row nested
+  // under a journey step is no longer inside its module's section and the
+  // module filter still has to find it.
+  const moduleLabel = groupOfFeature(row.test.feature)?.label ?? row.test.feature.split(".")[0];
+
   return `
 <details class="case v-${row.verdict}" data-verdict="${row.verdict}" data-feature="${escapeHtml(row.test.feature)}"
+         data-module="${escapeHtml(moduleLabel)}"
          data-search="${escapeHtml(`${row.test.id} ${row.test.title} ${row.test.feature} ${request.path}`.toLowerCase())}">
   <summary>
     <span class="col-verdict"><span class="pill ${pill.cls}">${escapeHtml(pill.label)}</span></span>
@@ -367,6 +547,25 @@ function renderRow(row: CaseRow, companyId?: number): string {
               : "accept this"
         }</strong>. ${escapeHtml(row.test.expectedResult)}</p>
         ${
+          // Why this row's verdict is weaker than the outcome it documents, in
+          // priority order: the case's own reason (written when the library was
+          // built, and the most specific — it names the change that is missing
+          // from the request), the runner's downgrade, then the generic case of
+          // a documented success checked only for "did not crash".
+          row.test.weakReason
+            ? `<p class="weakened"><b>Not fully checked.</b> ${escapeHtml(row.test.weakReason)}</p>`
+            : (row.result as { weakenedTo5xxOnly?: string } | undefined)?.weakenedTo5xxOnly
+              ? `<p class="weakened"><b>Not fully checked.</b> ${escapeHtml(
+                  (row.result as { weakenedTo5xxOnly?: string }).weakenedTo5xxOnly!,
+                )}</p>`
+              : documentsASuccess(row.test)
+                ? `<p class="weakened"><b>Not fully checked.</b> This case describes a specific success, but it is
+                   typed <code>${escapeHtml(row.test.type)}</code>, which only asserts that the server did not
+                   crash. Any status below 500 passes it — so a pass here does not mean the result above
+                   happened. To check that, the case needs to assert the success it documents.</p>`
+                : ""
+        }
+        ${
           row.test.steps?.length
             ? `<h5>How the test goes</h5><ol class="steps">${row.test.steps
                 .map((st) => `<li>${escapeHtml(st.replace(/^\d+\.\s*/, ""))}</li>`)
@@ -385,11 +584,27 @@ function renderRow(row: CaseRow, companyId?: number): string {
           result?.verdict ?? skipInWords(row.skipReason),
         )}</p>
         ${
+          row.verdict === "notrun"
+            ? `<div class="todo"><h5>To make this one run</h5><p>${escapeHtml(
+                howToRunIt(row.skipReason, row.test, hasRun),
+              )}</p></div>`
+            : ""
+        }
+        ${
           !result && row.skipReason && skipInWords(row.skipReason) !== row.skipReason
             ? `<p class="pre">In the machinery's own words: ${escapeHtml(row.skipReason)}</p>`
             : ""
         }
         ${result?.message ? `<p class="apisaid"><span>The app said:</span> ${escapeHtml(result.message)}</p>` : ""}
+        ${
+          result?.knownBug
+            ? `<p class="${/fixed|closed/i.test(result.knownBug.status) ? "known-fixed" : "known-open"}"><b>${
+                /fixed|closed/i.test(result.knownBug.status) ? "Known bug, now confirmed fixed." : "Known bug."
+              }</b> ${escapeHtml(knownBugSentence(result.knownBug))} “${escapeHtml(result.knownBug.title)}”</p>`
+            : row.verdict === "fail"
+              ? `<p class="known-new"><b>New.</b> Not on any of the team's bug sheets yet.</p>`
+              : ""
+        }
         ${result ? `<p class="took">${Math.round(result.durationMs)}ms</p>` : ""}
         <details class="curl">
           <summary>${
@@ -409,7 +624,54 @@ function renderRow(row: CaseRow, companyId?: number): string {
 }
 
 /** A module: how much of it is green, then its cases. */
-function renderSection(section: ModuleSection, companyId?: number): string {
+/**
+ * What the run BUILT before it checked anything.
+ *
+ * The cases in this section are all things done to one event, and a list of
+ * verdicts about an event nobody has seen is unreadable. So the section opens
+ * with the setup chain as it actually ran — created the event group, added the
+ * stage, published it — with the real call, status and timing behind each step.
+ * Then the cases follow, as things done to that event.
+ */
+function renderSetup(run: RunRecord | null): string {
+  const steps = run?.setupSteps ?? [];
+  const made = run?.setupSummary;
+  if (!steps.length) return "";
+
+  return `
+<div class="setup">
+  <div class="setup-head">
+    <span class="setup-kicker">First, the run built something to test</span>
+    ${
+      made
+        ? `<span class="setup-made">“${escapeHtml(made.title)}” — <b>${escapeHtml(made.status)}</b>, ${
+            made.stageCount
+          } stage${made.stageCount === 1 ? "" : "s"}</span>`
+        : ""
+    }
+  </div>
+  <ol class="setup-steps">
+    ${steps
+      .map(
+        (s) => `<li class="${s.ok ? "ok" : "bad"}">
+          <span class="setup-did">${escapeHtml(s.did)}</span>
+          <code class="setup-call">${escapeHtml(s.method)} ${escapeHtml(s.path)}</code>
+          <span class="setup-status ${s.ok ? "ok" : "bad"}">${s.status}</span>
+          <span class="setup-ms">${s.ms}ms</span>
+        </li>`,
+      )
+      .join("")}
+  </ol>
+  <p class="setup-note">Everything below was checked against that event.</p>
+</div>`;
+}
+
+function renderSection(
+  section: ModuleSection,
+  companyId: number | undefined,
+  hasRun: boolean,
+  setup = "",
+): string {
   const total = section.rows.length || 1;
   const bar = (n: number, cls: string) =>
     n ? `<span class="seg ${cls}" style="width:${((n / total) * 100).toFixed(1)}%"></span>` : "";
@@ -434,19 +696,23 @@ function renderSection(section: ModuleSection, companyId?: number): string {
     )}
   </div>
   ${section.what ? `<p class="mwhat">${escapeHtml(section.what)}</p>` : ""}
+  ${setup}
   <div class="rows">
-    <div class="rowhead">
+    ${ROW_HEAD}
+    ${section.rows.map((row) => renderRow(row, companyId, hasRun)).join("")}
+  </div>
+</section>`;
+}
+
+/** The column headings every case table opens with — the module sections' and the ones nested under journey steps. */
+const ROW_HEAD = `<div class="rowhead">
       <span class="col-verdict">Result</span>
       <span class="col-id">Test</span>
       <span class="col-title">What we checked</span>
       <span class="col-call">Where we checked it</span>
       <span class="col-status">The app replied</span>
       <span class="col-outcome">What that means</span>
-    </div>
-    ${section.rows.map((row) => renderRow(row, companyId)).join("")}
-  </div>
-</section>`;
-}
+    </div>`;
 
 export interface TestReportInput {
   features: string[];
@@ -454,8 +720,47 @@ export interface TestReportInput {
 }
 
 export function renderTestReport({ features, run }: TestReportInput): string {
-  const sections = buildSections(features, run);
-  const rows = sections.flatMap((s) => s.rows);
+  /**
+   * Every case first, for the tiles and the filter's module list; then, when
+   * the run walked a journey, the module sections again without the rows the
+   * journey absorbed under its steps. A case with a step is printed once,
+   * under that step; a case with none keeps its module section as before.
+   */
+  const journey = readJourney(run);
+  /**
+   * A journey run no longer replays the library against the event it built,
+   * so the sourcing features' cases are not "not checked" — they were never in
+   * scope. Listing them would put a hundred grey rows under a green journey.
+   * Older runs that did fire them still have their results and keep them.
+   */
+  const plan = journeyPlan(features);
+  const replayedLibrary = (run?.checkResults ?? []).some((r) => journeyWalksFeature(r.flowId, plan));
+  const caseFeatures =
+    journey && !replayedLibrary
+      ? (() => {
+          const kept = features.filter((f) => !journeyWalksFeature(f, plan));
+          // An empty list means "everything" to buildSections; this means "nothing".
+          return kept.length ? kept : ["__journey_only__"];
+        })()
+      : features;
+  const allSections = buildSections(caseFeatures, run);
+  const rows = allSections.flatMap((s) => s.rows);
+  const nest = journey ? nestCasesUnderSteps(journey, rows) : undefined;
+  const sections = nest ? buildSections(caseFeatures, run, (row) => !nest.absorbed.has(row.test.id)) : allSections;
+  const eventsGroup = FEATURE_TREE.find((g) => g.id === "events");
+  const journeySection =
+    journey && nest
+      ? renderJourneySection({
+          journey,
+          nest,
+          run,
+          icon: eventsGroup?.icon ?? "•",
+          moduleLabel: eventsGroup?.label ?? "Sourcing events",
+          renderCase: (row) => renderRow(row, run?.companyId, Boolean(run)),
+          statusInWords,
+          rowHead: ROW_HEAD,
+        })
+      : "";
   const totals = {
     total: rows.length,
     passed: rows.filter((r) => r.verdict === "pass").length,
@@ -501,14 +806,58 @@ export function renderTestReport({ features, run }: TestReportInput): string {
    * Naming the parts and counting what is left out turns "why so few?" into a
    * sentence, and tells the reader exactly what to tick to get the rest.
    */
-  const scopeLine = features.length ? describeScope(features, sections) : EVERYTHING_NOTE;
+  const scopeLine = run?.pastedCases?.length
+    ? `This run is the <strong>${run.pastedCases.length} test cases pasted into spine.ai</strong>, in the order they were written, ` +
+      `each run as its own step against ${escapeHtml(run.companyName ?? "the client")}.`
+    : features.length
+      ? describeScope(features, allSections)
+      : EVERYTHING_NOTE;
+
+  /**
+   * How to read the page, said differently when there is a journey: the
+   * spine is then the steps, and the cases are variations under them, so the
+   * old "each row below is one thing we expect" would send the reader looking
+   * for a flat table that is no longer there.
+   */
+  const howToRead = journey
+    ? rows.length
+      ? `<p class="lede">First comes the journey: the run signed in, built an event, answered it as the vendor, waited
+    for the window to close and awarded it — <strong>one step per row, in the order the Postman collection runs
+    them</strong>. Folded under each step are the variations we tried at that point: each is one thing we expect Procol
+    to do, or to refuse, tried for real against a second copy of the event. <strong>Every variation is listed whether
+    or not this run got to it</strong>, so the gaps show as well as the results. Open a step or a row to see what we
+    expected, what the app replied, and the exact command to try it yourself.</p>`
+      : `<p class="lede">The run signed in, built the event, answered it as the vendor, waited for the window to close
+    and awarded it — <strong>one step per row, in the order the Postman collection runs them</strong>. Every step
+    says what we expected and what the app replied. Open a step for the exact command to try it yourself.</p>`
+    : `<p class="lede">Each row below is one thing we expect Procol to do — or to refuse. The platform asked the
+    app to do it for real, and wrote down what came back. <strong>Every row is listed whether or not this run
+    got to it</strong>, so you can see the gaps as well as the results. Open a row to see the steps it takes,
+    what the app replied, and the exact command to try it yourself.</p>`;
+
+  /**
+   * NO "WHAT WASN'T CHECKED" PANEL.
+   *
+   * It grouped the not-run cases by the fix that would unblock them, biggest
+   * group first. In practice one permanent blockage — the cases whose body is
+   * a paraphrase of the real payload — was the whole list on almost every run,
+   * so the panel opened the report with the same paragraph every time and said
+   * nothing about the run underneath it. Those cases are now held out of the
+   * dashboard entirely (`heldCases()` in `src/checks/caseLibrary.ts`), and the
+   * panel went with them.
+   *
+   * Nothing is hidden by this: the NOT CHECKED tile still counts them, every
+   * not-run case still has its own row in its module, and opening that row
+   * still shows "To make this one run" with the reason for that case. What is
+   * gone is the summary that repeated itself.
+   */
 
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Procol QA — test report</title>
+<title>spine.ai — test report</title>
 <style>
 ${PAGE_CSS}
 /* A run refused before it began — an access problem, not a product one. */
@@ -519,6 +868,34 @@ ${PAGE_CSS}
 .refused code { font-family: var(--mono, monospace); font-size: 12px; }
 /* ── module ─────────────────────────────────────────────────────────── */
 .module { margin: 0 0 26px; }
+/* A case whose documented success is NOT what was actually asserted. Sits
+   directly under the expectation it contradicts, because that is the only
+   place a reader would otherwise be misled. */
+.weakened { margin-top: 8px; padding: 9px 11px; border-radius: 8px; font-size: 12.5px;
+  background: rgba(224,162,74,.12); color: var(--warn, #b06c12);
+  border: 1px solid rgba(224,162,74,.3); }
+.weakened b { color: inherit; }
+/* ── what the run built, before it checked anything ── */
+.setup { margin: 12px 0 4px; border: 1px solid var(--line); border-left: 3px solid var(--accent, #6ea2ef);
+  border-radius: 10px; background: rgba(110,162,239,.05); padding: 12px 14px; }
+.setup-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.setup-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent, #6ea2ef); }
+.setup-made { font-size: 13px; color: var(--ink); }
+.setup-steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: 5px; }
+.setup-steps li { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; font-size: 13px;
+  padding-left: 26px; position: relative; }
+.setup-steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0;
+  width: 18px; height: 18px; border-radius: 5px; font-size: 10.5px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(110,162,239,.16); color: var(--accent, #6ea2ef); }
+.setup-did { font-weight: 600; color: var(--ink); }
+.setup-call { font-size: 11.5px; color: var(--ink-soft); }
+.setup-status { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.setup-status.ok { color: var(--ok, #4cc38a); }
+.setup-status.bad { color: var(--bad, #ef6a5a); }
+.setup-ms { font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.setup-note { margin: 9px 0 0; font-size: 12px; color: var(--ink-soft); }
 .module-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .module-head h3 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
 .mico { font-size: 16px; }
@@ -575,10 +952,19 @@ details.case.v-notrun { box-shadow: inset 3px 0 0 #cfd4d9; }
 h5 { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 0 5px; }
 .expect, .pre, .said, .said-bad { font-size: 12.5px; line-height: 1.55; margin: 0; }
 .pre { color: var(--muted); }
+/* The action, not the diagnosis. A not-checked case is unfinished business, so
+   its next step gets the weight of an instruction rather than a footnote. */
+.todo { margin: 10px 0 0; border-left: 3px solid var(--accent, #3b6fd4); background: color-mix(in srgb, var(--accent, #3b6fd4) 7%, transparent); border-radius: 0 6px 6px 0; padding: 8px 11px; }
+.todo h5 { margin: 0 0 3px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent, #3b6fd4); }
+.todo p { margin: 0; font-size: 12.5px; line-height: 1.5; }
 .said-bad { color: var(--bad); }
 .apisaid { margin: 8px 0 0; font-size: 12px; background: color-mix(in srgb, var(--bad) 12%, transparent); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); border-radius: 6px; padding: 7px 9px; }
 .apisaid span { color: var(--bad); font-weight: 600; }
 .took { margin: 8px 0 0; font-size: 11px; color: var(--muted); }
+.known-open, .known-fixed, .known-new { margin: 8px 0 0; font-size: 12px; padding: 6px 9px; border-radius: 6px; line-height: 1.45; }
+.known-open { background: #fce8e6; color: #7a1010; }
+.known-fixed { background: #e6f4ea; color: #0f5a2a; }
+.known-new { background: #fff4d6; color: #6b4b00; }
 .steps { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
 details.curl { margin: 12px 0 0; }
 details.curl > summary { cursor: pointer; font-size: 11.5px; color: var(--link); list-style: none; width: fit-content; }
@@ -593,7 +979,9 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
 .legend { display: grid; gap: 7px; margin: 12px 0 0; }
 .legend div { display: flex; gap: 9px; align-items: baseline; font-size: 12px; color: var(--muted); line-height: 1.5; }
 .legend .pill { flex: 0 0 auto; }
+/* ── what wasn't checked: a worklist, ordered by how much it unblocks ── */
 .filters { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 10px 0; margin-bottom: 4px; }
+${JOURNEY_CSS}
 </style>
 </head>
 <body>
@@ -608,19 +996,32 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
   <section class="card">
     <h2>The short version</h2>
     ${refusalBanner}
-    <div class="tiles">
+    ${journey ? renderJourneyLede(journey) : ""}
+    ${
+      journey && !rows.length
+        ? `<div class="tiles">
+      ${tile("steps in the journey", journey.steps.length)}
+      ${tile("worked", journey.steps.filter((st) => st.verdict === "worked").length, "good")}
+      ${tile("refused", journey.steps.filter((st) => st.verdict === "refused").length, journey.steps.some((st) => st.verdict === "refused") ? "warn" : "")}
+      ${tile("broken", journey.steps.filter((st) => st.verdict === "broken").length, journey.steps.some((st) => st.verdict === "broken") ? "crit" : "")}
+      ${tile("not run", journey.steps.filter((st) => st.verdict === "not-run").length)}
+    </div>`
+        : `<div class="tiles">
       ${tile("things we check", totals.total)}
       ${tile("worked", totals.passed, "good")}
       ${tile("broken", totals.failed, totals.failed ? "crit" : "")}
       ${tile("couldn’t tell", totals.inconclusive, totals.inconclusive ? "warn" : "")}
       ${tile("not checked", totals.notrun)}
-    </div>
-    <p class="lede" style="margin-top:14px">${scopeLine}</p>
-    <p class="lede">Each row below is one thing we expect Procol to do — or to refuse. The platform asked the
-    app to do it for real, and wrote down what came back. <strong>Every row is listed whether or not this run
-    got to it</strong>, so you can see the gaps as well as the results. Open a row to see the steps it takes,
-    what the app replied, and the exact command to try it yourself.</p>
-    <h5 style="margin-top:18px">What the four results mean</h5>
+    </div>`
+    }
+    ${journey && !rows.length ? "" : `<p class="lede" style="margin-top:14px">${scopeLine}</p>`}
+    ${howToRead}
+    ${
+      // One legend, for what is actually on the page: the steps' words when the
+      // run is a journey alone, the cases' words (and then the steps') otherwise.
+      journey && !rows.length
+        ? renderJourneyLegend()
+        : `<h5 style="margin-top:18px">What the four results mean${journey ? " for a case" : ""}</h5>
     <div class="legend">
       ${(["pass", "fail", "inconclusive", "notrun"] as Verdict[])
         .map(
@@ -631,7 +1032,10 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
         )
         .join("")}
     </div>
+    ${journey ? renderJourneyLegend() : ""}`
+    }
   </section>
+
 
   <div class="filters">
     <input id="q" type="search" placeholder="Search these tests…" aria-label="Filter cases">
@@ -644,13 +1048,27 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
     </select>
     <select id="fmodule" aria-label="Filter by module">
       <option value="">Every part of Procol</option>
-      ${sections.map((s) => `<option value="${escapeHtml(s.label)}">${escapeHtml(s.label)} (${s.rows.length})</option>`).join("")}
+      ${allSections.map((s) => `<option value="${escapeHtml(s.label)}">${escapeHtml(s.label)} (${s.rows.length})</option>`).join("")}
     </select>
     <button id="expand" type="button" class="copy">Open everything that broke</button>
     <span class="count" id="showing"></span>
   </div>
 
-  ${sections.length ? sections.map((s) => renderSection(s, run?.companyId)).join("") : `<p class="none">No cases in the library for this selection.</p>`}
+  ${journeySection}
+  ${
+    sections.length
+      ? sections
+          .map((s) =>
+            // The legacy setup block is what a run had before it had a
+            // journey; with a journey the second event is described inside
+            // the journey section instead.
+            renderSection(s, run?.companyId, Boolean(run), s.id === "events" && !journey ? renderSetup(run) : ""),
+          )
+          .join("")
+      : journeySection
+        ? ""
+        : `<p class="none">No cases in the library for this selection.</p>`
+  }
 </div>
 <script>
 (function () {
@@ -659,22 +1077,75 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
   var fm = document.getElementById("fmodule");
   var showing = document.getElementById("showing");
   var cases = [].slice.call(document.querySelectorAll("details.case"));
+  var steps = [].slice.call(document.querySelectorAll("details.jstep"));
+
+  // A case's module travels on the row (data-module) because a row nested
+  // under a journey step is not inside its module's section any more.
+  function moduleOf(el) {
+    var own = el.getAttribute("data-module");
+    if (own) return own;
+    var section = el.closest("section.module");
+    return section ? section.getAttribute("data-module") : "";
+  }
 
   function apply() {
     var text = q.value.trim().toLowerCase();
     var seen = 0;
     cases.forEach(function (el) {
       var ok = (!fv.value || el.getAttribute("data-verdict") === fv.value)
+        && (!fm.value || moduleOf(el) === fm.value)
         && (!text || (el.getAttribute("data-search") || "").indexOf(text) !== -1);
       el.classList.toggle("hidden", !ok);
       if (ok) seen++;
     });
-    [].forEach.call(document.querySelectorAll("section.module"), function (m) {
-      var wrongModule = Boolean(fm.value) && m.getAttribute("data-module") !== fm.value;
-      var live = m.querySelectorAll("details.case:not(.hidden)").length;
-      m.classList.toggle("hidden", wrongModule || live === 0);
+    // A journey step stays when it matches on its own, or when any variation
+    // folded under it does: the filter should never show a case without the
+    // step it belongs to.
+    var stepsSeen = 0;
+    steps.forEach(function (el) {
+      var section = el.closest("section.module");
+      var own = (!fv.value || el.getAttribute("data-verdict") === fv.value)
+        && (!fm.value || (section && section.getAttribute("data-module") === fm.value))
+        && (!text || (el.getAttribute("data-search") || "").indexOf(text) !== -1);
+      var live = el.querySelectorAll("details.case:not(.hidden)").length;
+      [].forEach.call(el.querySelectorAll("details.variations"), function (v) {
+        v.classList.toggle("hidden", v.querySelectorAll("details.case:not(.hidden)").length === 0);
+      });
+      var show = own || live > 0;
+      el.classList.toggle("hidden", !show);
+      // The "journey stopped here" line belongs to its step and goes with it.
+      var stopped = el.parentElement && el.parentElement.querySelector(".step-stopped");
+      if (stopped) stopped.classList.toggle("hidden", !show);
+      // A search that matched only a folded variation opens the fold, or
+      // the reader sees the count change and nothing else.
+      if (text && !own && live > 0) {
+        el.open = true;
+        [].forEach.call(el.querySelectorAll("details.variations"), function (v) { v.open = true; });
+      }
+      if (show) stepsSeen++;
     });
-    showing.textContent = seen === cases.length ? cases.length + " cases" : "showing " + seen + " of " + cases.length + " cases";
+    [].forEach.call(document.querySelectorAll("section.module"), function (m) {
+      var isJourney = m.classList.contains("journey");
+      var wrongModule = Boolean(fm.value) && m.getAttribute("data-module") !== fm.value;
+      var live = isJourney
+        ? m.querySelectorAll("details.jstep:not(.hidden)").length
+        : m.querySelectorAll("details.case:not(.hidden)").length;
+      // The journey section answers to the module filter through its steps,
+      // which already know whether a nested case matched.
+      m.classList.toggle("hidden", (isJourney ? false : wrongModule) || live === 0);
+    });
+    var stepText = steps.length
+      ? (stepsSeen === steps.length ? steps.length + " steps" : "showing " + stepsSeen + " of " + steps.length + " steps") + " · "
+      : "";
+    showing.textContent = stepText + (seen === cases.length ? cases.length + " cases" : "showing " + seen + " of " + cases.length + " cases");
+  }
+
+  // Opening a row buried under a step and a folded table needs every
+  // <details> above it open too, or nothing visibly happens.
+  function reveal(el) {
+    el.open = true;
+    var p = el.parentElement;
+    while (p) { if (p.tagName === "DETAILS") p.open = true; p = p.parentElement; }
   }
 
   [q, fv, fm].forEach(function (el) { el.addEventListener("input", apply); el.addEventListener("change", apply); });
@@ -690,7 +1161,8 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
   apply();
 
   document.getElementById("expand").addEventListener("click", function () {
-    cases.forEach(function (el) { if (el.getAttribute("data-verdict") === "fail") el.open = true; });
+    steps.forEach(function (el) { if (el.getAttribute("data-verdict") === "fail") reveal(el); });
+    cases.forEach(function (el) { if (el.getAttribute("data-verdict") === "fail") reveal(el); });
   });
 
   [].forEach.call(document.querySelectorAll("button.copy[data-copy]"), function (b) {
@@ -720,6 +1192,8 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
  */
 export function featuresOfRun(run: RunRecord | null): string[] {
   const match = run?.request?.match(/^\s*features:\s*(.+)$/i);
+  // A pasted-case run's scope is whatever its cases touched.
+  if (!match && run?.pastedCases?.length) return [...new Set(run.pastedCases.map((c) => c.feature))];
   if (!match) return [];
   return match[1]
     .split(",")

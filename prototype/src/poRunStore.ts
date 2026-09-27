@@ -73,6 +73,25 @@ export function savePoRunHtml(runId: string, html: string): void {
   }
 }
 
+/** Newest first — for the run history, which keeps every kind of run. */
+export function listPoRuns(limit = KEPT): PoRunRecord[] {
+  try {
+    if (!existsSync(PO_RUN_DIR)) return [];
+    const out: PoRunRecord[] = [];
+    for (const name of readdirSync(PO_RUN_DIR).filter((n) => n.endsWith(".json")).sort().reverse()) {
+      if (out.length >= limit) break;
+      try {
+        out.push(JSON.parse(readFileSync(join(PO_RUN_DIR, name), "utf8")) as PoRunRecord);
+      } catch {
+        /* skip a half-written file */
+      }
+    }
+    return out.sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
+  } catch {
+    return [];
+  }
+}
+
 export function readPoRunHtml(runId: string): string | null {
   try {
     const file = join(PO_RUN_DIR, `${runId}.html`);

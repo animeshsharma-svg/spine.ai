@@ -158,6 +158,13 @@ export interface UiRunOptions {
   scheduleMinutes?: number;
   /** false → run without opening a visible window. */
   headed?: boolean;
+  /**
+   * Sign in through the login screen instead of dropping a session into the
+   * browser. Someone watching the run sees the sign-in, and the login page —
+   * part of the product too — is actually exercised. The journey narrates
+   * each login step, so they reach the trail and the report.
+   */
+  showLogin?: boolean;
 }
 
 export interface UiRunEvent {
@@ -421,6 +428,9 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   // AI-drivable without touching the runner or the flow.
   if (opts.template) env.UI_TEMPLATE = opts.template;
   if (opts.scheduleMinutes) env.UI_SCHEDULE_MINUTES = String(opts.scheduleMinutes);
+  // The spec reads this and signs in through the login screen (see
+  // `loginOnScreen` in the UI suite) instead of injecting a session.
+  if (opts.showLogin) env.UI_SHOW_LOGIN = "1";
   // Turn the AI healer on whenever a Gemini key is available. It only engages
   // after the deterministic locators have all failed, so it costs nothing on a
   // healthy run and rescues a run when a selector has drifted.
@@ -434,6 +444,7 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
       UI_AI_HEAL: env.UI_AI_HEAL,
       UI_TEMPLATE: env.UI_TEMPLATE,
       UI_SCHEDULE_MINUTES: env.UI_SCHEDULE_MINUTES,
+      UI_SHOW_LOGIN: env.UI_SHOW_LOGIN,
     })
       .filter(([, v]) => v)
       .map(([k, v]) => `${k}=${v}`)

@@ -1,8 +1,11 @@
+import { knownBugSentence } from "./knownBugs.js";
 import { FEATURE_TREE } from "../../config/featureTree.js";
 import type { CheckResult } from "../ai/types.js";
 import type { DefectGroup } from "../agents/oracle.js";
+import type { JourneyRecord, JourneyStepRecord } from "../checks/journeyModel.js";
 import { getRun, listRuns } from "../runStore.js";
 import { toCurl } from "./curl.js";
+import { readJourney } from "./journeyReport.js";
 
 /**
  * DEFECTS FROM CHECK RUNS — the bugs a "run ticked features" run found.
@@ -20,6 +23,14 @@ import { toCurl } from "./curl.js";
  * Inconclusive checks are deliberately NOT here. A 401, or a refusal for the
  * wrong reason, proves nothing about the product — the test report shows them
  * as inconclusive, and calling them bugs would fill this sheet with noise.
+ *
+ * The JOURNEY's steps are here too. A run that walks the Postman collection
+ * records each step as worked, refused, broken or not run; a step that broke
+ * is the most direct defect a run can find — the buyer cannot publish, the
+ * vendor cannot bid — and a step the app refused is one until its message
+ * says otherwise. Steps that never ran are not defects: they are the shadow
+ * of the one that stopped the journey, and filing them would count one bug
+ * many times.
  */
 
 /**
@@ -98,10 +109,12 @@ function collect(
       defectFingerprint: key,
       kind: "product_defect",
       severity: severityOf(check),
-      title: titleOf(check),
+      title: check.knownBug ? check.knownBug.title : titleOf(check),
       rationale:
         `${check.verdict} The case "${check.scenario}" expected the API to ${check.expected}. ` +
-        `Recorded against ${featureLabel(check.flowId)} (${check.flowId}).`,
+        `Recorded against ${featureLabel(check.flowId)} (${check.flowId}).` +
+        (check.knownBug ? ` ${knownBugSentence(check.knownBug)}` : ""),
+      knownBug: check.knownBug,
       flows: [check.flowId],
       runs: [runId],
       occurrences: 1,
@@ -112,6 +125,106 @@ function collect(
       reproduction: check.request
         ? toCurl(check.request, run?.companyId).split("\n")
         : [check.inputSummary],
+      actionable: true,
+    });
+  }
+
+  const journey = readJourney(run);
+  if (journey) collectJourney(groups, runId, ts, journey, run?.companyId);
+}
+
+/**
+ * A refusal that reads as the environment, not the product.
+ *
+ * "Order not active", "already awarded", "not found": the app is describing
+ * the state of the record, and the step fired against a record in the wrong
+ * state. That wants fixing in the run, not in the product, so it is filed as
+ * an environment problem at medium — visible, but not on engineering's queue.
+ */
+const PRECONDITION_MESSAGE = /not active|still open|closed|already|not allowed|permission|not found|does not exist/i;
+
+/**
+ * A route with its ids blanked, and nothing else blanked.
+ *
+ * The check fingerprint above treats any long segment as an id, which turns
+ * `/event_groups` into `{id}` too; it is left as it is so old groupings hold.
+ * Here a segment is an id only when it looks like one — it carries a digit,
+ * base64 padding or mixed case — so `POST /proposal/{id}/add_response` stays
+ * legible in the sheet. Snake-case words never match because `_` is outside
+ * the class, and short segments like `v1` are kept by the length floor.
+ */
+function routeWithIdsBlanked(path: string): string {
+  return path
+    .split("?")[0]
+    .replace(/\/([A-Za-z0-9=-]{6,})(?=\/|$)/g, (whole, segment: string) =>
+      /[0-9=]/.test(segment) || (/[a-z]/.test(segment) && /[A-Z]/.test(segment)) ? "/{id}" : whole,
+    );
+}
+
+/** The step's identity: the route with ids blanked, what came back, and the start of the message. */
+function journeyFingerprint(step: JourneyStepRecord): string {
+  const endpoint = step.call
+    ? `${step.call.method.toUpperCase()} ${routeWithIdsBlanked(step.call.path)}`
+    : `step ${step.kind}`;
+  const message = (step.message ?? "").toLowerCase().replace(/[0-9a-f-]{8,}/g, "{id}").slice(0, 60);
+  return `${endpoint} -> ${step.status || "err"} ${message}`;
+}
+
+/** Fold one run's refused and broken journey steps into the defect map. */
+function collectJourney(
+  groups: Map<string, DefectGroup>,
+  runId: string,
+  ts: string,
+  journey: JourneyRecord,
+  companyId: number | undefined,
+): void {
+  for (const step of journey.steps) {
+    // Only steps that were attempted and went wrong. A not-run step is the
+    // consequence of one of these, never a defect of its own.
+    if (step.verdict !== "broken" && step.verdict !== "refused") continue;
+
+    const key = journeyFingerprint(step);
+    const status = step.status ? `HTTP ${step.status}` : "no reply";
+    const evidence =
+      `Step ${step.n} · ${step.title} · ${step.call ? `${step.call.method.toUpperCase()} ${step.call.path.split("?")[0]}` : step.kind} → ` +
+      `${status}${step.message ? `: ${step.message}` : ""}`;
+    const flow = `journey.${journey.eventType}`;
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.occurrences++;
+      if (!existing.flows.includes(flow)) existing.flows.push(flow);
+      if (!existing.runs.includes(runId)) existing.runs.push(runId);
+      if (existing.evidence.length < 8) existing.evidence.push(evidence);
+      existing.firstSeen = ts < existing.firstSeen ? ts : existing.firstSeen;
+      existing.lastSeen = ts > existing.lastSeen ? ts : existing.lastSeen;
+      continue;
+    }
+
+    const broke = step.verdict === "broken";
+    const environment = !broke && PRECONDITION_MESSAGE.test(step.message ?? "");
+    const verb = broke ? "broke" : "was refused";
+    groups.set(key, {
+      defectFingerprint: key,
+      kind: environment ? "environment" : "product_defect",
+      severity: broke ? "critical" : environment ? "medium" : "high",
+      title: `Step ${step.n} — ${step.title} ${verb}: ${status}${step.message ? ` ${step.message}` : ""}`,
+      rationale:
+        `Step ${step.n} of the ${journey.label} journey ${verb}. ` +
+        `Expected: ${step.expected} Actual: ${step.actual} ` +
+        (broke
+          ? "A 5xx or no reply on a step the collection walks is a defect regardless of the data sent."
+          : environment
+            ? "The message describes the state of the record rather than a wrong answer, so this is filed as an " +
+              "environment problem to clear before the journey is run again."
+            : "A clean refusal of a step the collection expects to work is a product defect until the message explains otherwise."),
+      flows: [flow],
+      runs: [runId],
+      occurrences: 1,
+      firstSeen: ts,
+      lastSeen: ts,
+      evidence: [evidence],
+      reproduction: step.call ? toCurl(step.call, companyId).split("\n") : [evidence],
       actionable: true,
     });
   }

@@ -5,6 +5,7 @@ import { createRfqTechnicalEvent } from "../../src/flows/createEvent.js";
 import { placeSurrogateBid } from "../../src/flows/surrogate.js";
 import { createProposal, getApprovalFlows } from "../../src/flows/awarding.js";
 import { Endpoints } from "../../src/api/endpoints.js";
+import { declareCase } from "../../src/report/caseSpec.js";
 
 /**
  * Buyer-driven event lifecycle (no vendor login required):
@@ -15,6 +16,17 @@ import { Endpoints } from "../../src/api/endpoints.js";
  */
 test.describe("event lifecycle (buyer-driven)", () => {
   test("create → surrogate bid → open award proposal", async () => {
+    declareCase({
+      plain:
+        "Run a whole sourcing round from the buyer's side: create and publish a two-round event, enter a supplier's bid on their behalf, then open an award proposal and read the approval chain it needs.",
+      expected:
+        "The event goes live with both rounds, both halves of the bid are accepted on the supplier's behalf, an award proposal opens with an approval workflow attached, and the event is still live at the end.",
+      flow: "events.surrogate_award",
+      flowTitle: "Buyer-driven event lifecycle",
+      kind: "positive",
+      expect: "accept",
+      because: "this is the longest journey the suite can drive without real supplier credentials",
+    });
     const buyer = await asBuyer();
     const evaluator = await asEvaluator();
     try {

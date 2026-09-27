@@ -312,6 +312,13 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   border: 1px solid var(--card-line); background: var(--panel); color: var(--ink);
   text-transform: none; letter-spacing: 0; }
 .li-max { font-size: 10.5px; color: var(--ink-soft); text-transform: none; letter-spacing: 0; }
+/* What the chosen count will actually do to this selection — written beside the
+   field rather than left to be discovered once the run is already going. */
+/* Its own line: trailing the input, it reads as a caption at 1400px and turns
+   into a ragged wrap the moment the window is narrower. */
+.li-note { flex-basis: 100%; font-size: 11.5px; color: var(--ink-soft);
+  text-transform: none; letter-spacing: 0; }
+.li-note.capped { color: var(--warn); }
 .ui-console { margin-top: 10px; background: #0a0f18; color: #c7d2e5; border-radius: 9px;
   padding: 10px 12px; font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
   max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
@@ -445,6 +452,11 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   position: sticky; top: 0; background: var(--panel); z-index: 2;
 }
 .drawer-bar.sub { border-bottom: 1px dashed var(--line); position: static; }
+/* A sticky GROUP, so the run bar and the inputs under it travel together.
+   Sticking each bar on its own needs the first one's height as the second's
+   `top`, which is wrong the moment the buttons wrap onto two rows. */
+.drawer-sticky { position: sticky; top: 0; z-index: 3; background: var(--panel); }
+.drawer-sticky .drawer-bar { position: static; }
 .drawer-sec {
   padding: 10px 12px 6px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft);
@@ -462,6 +474,25 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 }
 .module-head:hover { background: var(--idle-soft); }
 .module-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* ── journey position ──
+   The tree is ordered the way a buyer walks the product. These two rules are
+   what make that order readable instead of merely true. */
+.module-step {
+  flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border-radius: 5px; background: var(--accent-soft); color: var(--accent);
+}
+/* Master data, users, vendors, config: real, but not a stage of the journey. */
+.module-step.nostep { background: var(--idle-soft); color: var(--ink-soft); font-weight: 400; }
+.module-when {
+  padding: 0 12px 8px 42px; font-size: 11px; color: var(--ink-soft);
+  font-style: italic; margin-top: -4px;
+}
+.sub-step {
+  flex: 0 0 auto; min-width: 22px; padding-top: 1px;
+  font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
 .module-ico { font-size: 14px; }
 .module-name { font-weight: 600; font-size: 13px; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .module-n {
@@ -490,6 +521,13 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .submodule.none input[type="checkbox"] { cursor: not-allowed; }
 .submodule.none:hover { background: transparent; }
 .submodule.picked { background: var(--accent-soft); }
+/* ── ruled out by the choice already made ──
+   Greyed like an unbuilt feature, but for a different reason, so it says so:
+   this one is available, it is just not this run. Kept a shade lighter than
+   `.none` because it comes back the moment the other type is unticked. */
+.submodule.blocked { opacity: .5; cursor: not-allowed; }
+.submodule.blocked input[type="checkbox"] { cursor: not-allowed; }
+.submodule.blocked:hover { background: transparent; }
 /* ── a journey reporting its own run, on the row you ticked ── */
 .submodule.running, .submodule.ok, .submodule.bad { box-shadow: inset 3px 0 0 currentColor; }
 .submodule.running { background: var(--accent-soft); color: var(--accent); }
@@ -499,6 +537,18 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .submodule.running .sub-name, .submodule.ok .sub-name, .submodule.bad .sub-name { color: var(--ink); }
 .submodule.running .module-spin { margin-left: auto; }
 .submodule input { margin-top: 3px; }
+/* ── a prerequisite, not a choice ──
+   Indented past the event types and tied to them by its own guide line: these
+   are steps INSIDE building any event, not alternatives to picking one. The
+   locked checkbox reads as "already decided", which it is. */
+.submodule.prereq { padding-left: 48px; cursor: default; }
+.submodule.prereq::before { left: 38px; border-left-style: dotted; }
+.submodule.prereq:hover { background: transparent; }
+.submodule.prereq input[type="checkbox"] { cursor: default; opacity: .85; }
+.sub-tag.req {
+  background: var(--good-soft, rgba(63,185,80,.12));
+  color: var(--good, #3fb950);
+}
 .sub-name { font-size: 12.5px; font-weight: 550; line-height: 1.4; }
 .sub-what { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; }
 .sub-n {
@@ -514,6 +564,7 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .sub-tag.off { background: var(--bad-soft); color: var(--bad); }
 .sub-tag.unk { background: var(--warn-soft); color: var(--warn); }
 .sub-tag.notbuilt { background: var(--idle-soft); color: var(--idle); }
+.sub-tag.held { background: var(--idle-soft); color: var(--idle); }
 
 /* ── the ask box, given room to be the main input ── */
 .request-card.big { padding: 16px 18px; }
@@ -1006,10 +1057,48 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   background: var(--card, #151b26); color: var(--ink, #e6edf6); font: inherit; }
 .cat-note { margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent, #6b8afd);
   background: var(--card, #151b26); border-radius: 0 8px 8px 0; font-size: 12.5px; color: var(--ink-soft, #9aa6b6); }
-.cat-group { margin-bottom: 30px; }
-.cat-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.cat-group-head h2 { margin: 0; font-size: 15px; }
-.cat-what { margin: 2px 0 10px; font-size: 12.5px; color: var(--ink-soft, #7c8798); }
+/* The catalogue opens as a contents page: modules folded, each saying what it
+   holds, so 283 rows are reachable without being in the way. */
+.cat-summary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
+  padding: 11px 14px; margin: 0 0 16px; border-radius: 10px;
+  background: var(--card, #151b26); border: 1px solid var(--line, #26303f);
+  font-size: 12.5px; color: var(--ink-soft, #9aa6b6);
+}
+.cat-summary b { color: var(--ink, #e6edf6); font-size: 14px; }
+.cat-expand { margin-left: auto; display: flex; gap: 6px; }
+.cat-expand button {
+  border: 1px solid var(--line, #26303f); background: transparent; cursor: pointer;
+  color: var(--ink-soft, #9aa6b6); font: inherit; font-size: 11.5px;
+  padding: 3px 10px; border-radius: 999px;
+}
+.cat-expand button:hover { color: var(--ink, #e6edf6); border-color: var(--accent, #6b8afd); }
+
+.cat-group { margin-bottom: 10px; border: 1px solid var(--line, #26303f); border-radius: 10px; overflow: hidden; }
+.cat-group[open] { margin-bottom: 22px; }
+.cat-group-head {
+  display: flex; align-items: center; gap: 14px; cursor: pointer; list-style: none;
+  padding: 12px 14px; background: var(--card, #151b26);
+}
+.cat-group-head::-webkit-details-marker { display: none; }
+.cat-group-head::before {
+  content: "▸"; color: var(--ink-soft, #7c8798); font-size: 11px; transition: transform .12s ease;
+}
+.cat-group[open] > .cat-group-head::before { transform: rotate(90deg); }
+.cat-group[open] > .cat-group-head { border-bottom: 1px solid var(--line, #26303f); }
+/* A folded module does NO layout work. Chromium was still laying out all 283
+   rows and merely clipping them behind overflow:hidden — the page looked right
+   and paid for the whole catalogue on every render. */
+.cat-group:not([open]) > *:not(summary) { display: none; }
+.cat-group-head:hover { background: var(--card2, #1b2330); }
+.cat-group-head h2 { margin: 0; font-size: 14.5px; flex: 1 1 auto; }
+.cat-group-nums { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: var(--ink-soft, #9aa6b6); flex-wrap: wrap; }
+.cat-group-nums b { color: var(--ink, #e6edf6); }
+.cat-split { color: var(--ink-soft, #7c8798); }
+.cat-p0 { background: var(--bad-soft, #3a1d22); color: var(--bad, #ef6b73); padding: 1px 8px; border-radius: 999px; font-weight: 600; font-size: 10.5px; }
+.cat-what { margin: 12px 14px 4px; font-size: 12.5px; color: var(--ink-soft, #7c8798); }
+.cat-feature { padding: 0 14px; }
+.cat-group .cat-table-wrap { border: 0; border-radius: 0; }
 
 .cat-table-wrap { overflow-x: auto; border: 1px solid var(--line, #26303f); border-radius: 10px; }
 .cat-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 900px; }
@@ -1041,6 +1130,13 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .exp-lead { display: block; color: var(--ink, #e6edf6); }
 .exp-rest { display: block; margin-top: 3px; color: var(--ink-soft, #9aa6b6); }
 .cat-endpoint { font-size: 11px; color: var(--ink, #e6edf6); word-break: break-all; margin-bottom: 3px; }
+/* Quiet on purpose: a caveat the reader needs when a case goes red, not a
+   badge competing with the test data it sits under. */
+.cat-origin {
+  display: inline-block; margin-top: 4px; font-size: 9.5px; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--warn, #d29922);
+  border: 1px dashed currentColor; border-radius: 3px; padding: 0 4px; cursor: help;
+}
 .cat-datum { font-size: 11px; word-break: break-word; }
 .cat-more { margin-top: 5px; }
 .cat-more > summary { cursor: pointer; font-size: 11px; color: var(--accent, #6b8afd); }
@@ -1062,3 +1158,402 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 }
 .why-one { color: var(--ink-soft, #9aa6b6); }
 .why-note { display: block; margin-top: 4px; font-size: 11.5px; color: var(--ink-soft, #7c8798); }
+
+/* A run's own reports, on the run. Quiet until hovered so the list still reads
+   as a list rather than a wall of links. */
+.run-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.run-link {
+  font-size: 11px; padding: 3px 9px; border-radius: 999px; text-decoration: none;
+  border: 1px solid var(--line, #26303f); color: var(--ink-soft, #9aa6b6);
+  background: var(--card2, #1b2330); white-space: nowrap;
+}
+.run-link:hover { color: var(--ink, #e6edf6); border-color: var(--accent, #6b8afd); }
+.run-kind.ui { background: var(--idle-soft, #1d2532); color: #6ea8e0; }
+.run-kind.po { background: #2a2416; color: #e0a34a; }
+
+/* ── the bug queue ──
+   Shape first (what blocks, whose it is), then every finding worst-first under
+   severity headers that stay put while scrolling. */
+.bug-board { margin: 4px 0 14px; }
+.bug-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; }
+.bug-tile {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 12px 14px; border-radius: 10px; cursor: pointer; text-align: left;
+  background: var(--panel); border: 1px solid var(--card-line); color: var(--ink);
+  font: inherit; transition: border-color .12s ease, background .12s ease;
+}
+.bug-tile:hover { border-color: var(--accent); }
+.bug-tile.on { border-color: var(--accent); background: var(--accent-soft); }
+.bug-tile-v { font-size: 24px; font-weight: 700; line-height: 1.1; }
+.bug-tile-l { font-size: 11.5px; color: var(--ink-soft); }
+.bug-tile.crit .bug-tile-v { color: var(--bad); }
+.bug-tile.warn .bug-tile-v { color: var(--warn); }
+.bug-tile.prod .bug-tile-v { color: var(--accent); }
+.bug-tile.ours .bug-tile-v { color: var(--idle); }
+
+.bug-bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; margin: 12px 0 8px; background: var(--idle-soft); }
+.bug-bar .seg { display: block; height: 100%; }
+.seg.s-critical { background: var(--bad); }
+.seg.s-high { background: var(--warn); }
+.seg.s-medium { background: var(--accent); }
+.seg.s-low { background: var(--idle); }
+.bug-legend { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+.bug-legend b { color: var(--ink); }
+
+.bug-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 12px; }
+
+.bug-sev-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 2px; margin: 18px 0 6px;
+  background: var(--paper); font-size: 12px; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.bug-sev-head b { color: var(--ink); letter-spacing: 0; text-transform: none; font-size: 13px; }
+.bug-sev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); }
+.bug-sev-head.s-critical .bug-sev-dot { background: var(--bad); }
+.bug-sev-head.s-high .bug-sev-dot { background: var(--warn); }
+.bug-sev-head.s-medium .bug-sev-dot { background: var(--accent); }
+
+.bug {
+  border: 1px solid var(--card-line); border-left: 3px solid var(--idle);
+  border-radius: 10px; background: var(--panel); margin-bottom: 8px; overflow: hidden;
+}
+.bug.s-critical { border-left-color: var(--bad); }
+.bug.s-high { border-left-color: var(--warn); }
+.bug.s-medium { border-left-color: var(--accent); }
+.bug > summary {
+  display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+  cursor: pointer; list-style: none; font-size: 13px;
+}
+.bug > summary::-webkit-details-marker { display: none; }
+.bug > summary:hover { background: var(--accent-soft); }
+.bug[open] > summary { border-bottom: 1px solid var(--card-line); }
+.bug-kind { font-size: 14px; line-height: 1; }
+.bug-title { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.bug-where { display: flex; gap: 5px; flex-wrap: wrap; }
+.bug-flow {
+  font-size: 10.5px; padding: 2px 7px; border-radius: 999px;
+  background: var(--idle-soft); color: var(--ink-soft); white-space: nowrap;
+}
+.bug-seen { font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.bug-body { padding: 12px 14px 14px; font-size: 12.5px; color: var(--ink-soft); }
+.bug-why { margin: 0 0 10px; line-height: 1.55; }
+.bug-why b { color: var(--ink); }
+.bug-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin: 10px 0 5px; }
+.bug-ev { margin: 0; padding-left: 18px; }
+.bug-ev li { margin: 3px 0; font-size: 11.5px; overflow-wrap: anywhere; }
+.bug-steps { margin: 0; padding-left: 20px; }
+.bug-steps li { margin: 3px 0; }
+.bug-open { display: inline-block; margin-top: 12px; font-size: 12px; color: var(--accent); text-decoration: none; }
+.bug-open:hover { text-decoration: underline; }
+
+/* Add-a-client and the custom base URL: header controls that appear only when
+   asked for, and never widen the bar past the screen. */
+.field.wide { min-width: 0; }
+.field-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.field-row input { min-width: 0; }
+#client-add-id { width: 148px; }
+#client-add-name { width: 150px; }
+#env-custom { width: 260px; max-width: 100%; }
+.field input {
+  padding: 6px 9px; border-radius: 8px; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+}
+.field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.field input[aria-invalid="true"] { border-color: var(--bad); }
+
+/* ══ the Run view, as a page rather than a stack of paragraphs ══════════════
+ *
+ * This view is empty most of the time it is looked at — before a run there is
+ * a box and two headings over three lines of grey text, which is why it read
+ * as unfinished rather than as ready. Three things fix that and none of them
+ * is decoration:
+ *
+ *   1. the numbers the platform already knew, at the top instead of in the
+ *      corner of the nav, each one a link to where it came from;
+ *   2. a composer with a hierarchy — one primary action, one alternative, one
+ *      quiet option — instead of three buttons of three different shapes;
+ *   3. placeholders that are framed and centred, so "nothing has run yet"
+ *      looks like a state the page is in and not like content that failed.
+ */
+
+/* ── what is loaded ── */
+.glance {
+  display: grid;
+  /* Four across on a laptop, two on a phone, without a breakpoint. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+.glance-tile {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--card-line); border-radius: 12px;
+  background: var(--panel); color: inherit; text-decoration: none;
+  transition: border-color .14s ease, transform .12s ease, box-shadow .14s ease;
+}
+a.glance-tile:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
+a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.glance-n {
+  font-size: 21px; font-weight: 700; line-height: 1.15; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* The account name is a name, not a quantity: same slot, different weight. */
+.glance-n.sm {
+  font-size: 13.5px; font-weight: 650; letter-spacing: 0; line-height: 1.5;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.glance-k {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The one tile that reports rather than links: a hairline of accent says the
+   run is pointed somewhere, without pretending to be clickable. */
+.glance-tile.target { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* ── the composer ── */
+.request-card.big .rc-head { flex-wrap: wrap; }
+.rc-kbd { margin-left: auto; font-size: 10.5px; color: var(--ink-soft); white-space: nowrap; }
+.rc-kbd kbd {
+  font-family: var(--mono); font-size: 10px; padding: 1px 5px; margin-right: 2px;
+  border: 1px solid var(--card-line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--panel); color: var(--ink-soft);
+}
+.rc-tryrow { display: flex; align-items: flex-start; gap: 9px; margin: 11px 0 2px; }
+.rc-try {
+  flex: 0 0 auto; padding-top: 5px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft);
+}
+.rc-tryrow .rc-examples { margin: 0; flex: 1 1 auto; min-width: 0; }
+/* Three buttons of three shapes said nothing about which one to press. Filled
+   is the action, outlined is the alternative, the pill is the aside. */
+.rc-actions { margin-top: 14px; gap: 9px; flex-wrap: wrap; row-gap: 9px; }
+.rc-or { font-size: 11.5px; color: var(--ink-soft); }
+.rc-actions .run-btn.ghost { border-color: var(--card-line); color: var(--ink); background: var(--panel); }
+.rc-actions .run-btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+.rc-actions .run-status { margin-left: auto; text-align: right; }
+.rc-foot { max-width: 70ch; }
+
+/* ── section rhythm ── */
+/* A rule and a right-aligned status turn two loose headings into two sections. */
+#view-run .col-head {
+  margin-top: 28px; padding-top: 15px; border-top: 1px solid var(--line);
+}
+#view-run .col-head .hint { margin-left: auto; text-align: right; }
+
+/* ── placeholders ── */
+/*
+ * `.empty.done` is excluded on purpose: that one is a NOTE about a run that
+ * finished and produced nothing, not a placeholder for a run that has not
+ * started, and it carries its own frame already.
+ */
+#automation > .empty:not(.done),
+#timeline > .empty {
+  display: block; max-width: 54ch; margin: 6px auto; padding: 28px 24px;
+  border: 1px dashed var(--card-line); border-radius: 13px;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  text-align: center; font-size: 12.5px; line-height: 1.65; color: var(--ink-soft);
+}
+#automation > .empty:not(.done)::before,
+#timeline > .empty::before {
+  display: block; font-size: 20px; line-height: 1; margin-bottom: 10px; opacity: .55;
+}
+#automation > .empty:not(.done)::before { content: "▶"; }
+#timeline > .empty::before { content: "🧠"; }
+#automation > .empty:not(.done) b { color: var(--ink); font-weight: 650; }
+
+/* ── the provider chip ── */
+/* It is a badge saying who is answering. Slingring names two models, which is
+   two long identifiers of chrome; they are worth a tooltip, not a header. */
+.provider::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; margin-right: 6px; vertical-align: 1px;
+}
+
+@media (max-width: 900px) {
+  .glance { gap: 8px; margin-bottom: 14px; }
+  .glance-tile { padding: 10px 12px; }
+  .glance-n { font-size: 18px; }
+  .rc-actions .run-status { margin-left: 0; text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  a.glance-tile:hover { transform: none; }
+}
+/* Full text, trimmed by the window rather than by a character count. */
+.rc-ex { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The first line of a placeholder is its verdict — "nothing has run yet" —
+   and the paragraph under it is the instructions. They are not one sentence. */
+#automation > .empty:not(.done) > b:first-child,
+#timeline > .empty > b:first-child {
+  display: block; margin-bottom: 5px;
+  font-size: 13.5px; font-weight: 650; color: var(--ink);
+}
+
+/* ── Journeys ───────────────────────────────────────────────────────────────
+   The catalogue read as a sequence: 17 journeys in order, each cut into the
+   stages it walks, each stage's cases numbered continuously. Numbering is
+   used because the content genuinely is ordered — it is what the view is for. */
+.jy-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.jy-seg { display: inline-flex; border: 1px solid var(--card-line); border-radius: 8px; overflow: hidden; }
+.jy-segb {
+  font: inherit; font-size: 13px; font-weight: 500; padding: 7px 12px; cursor: pointer;
+  border: 0; background: var(--panel); color: var(--ink-soft);
+}
+.jy-segb + .jy-segb { border-left: 1px solid var(--card-line); }
+.jy-segb[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.jy-segb:focus-visible, .jy-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.jy-totals { display: flex; gap: 20px; flex-wrap: wrap; margin: 0 0 20px; }
+.jy-totals div { display: flex; flex-direction: column; }
+.jy-totals b { font-family: var(--mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.jy-totals span { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); }
+
+.jy { margin-bottom: 30px; }
+.jy-head { display: grid; grid-template-columns: auto 1fr; gap: 0 14px; align-items: start; }
+.jy-num {
+  font-family: var(--mono); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--accent); background: var(--accent-soft);
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; margin-top: 2px;
+}
+.jy-h { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+.jy-persona { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.jy-goal { margin: 7px 0 0; color: var(--ink-soft); max-width: 72ch; font-size: 14px; }
+
+/* the journey's own sequence, in words */
+.jy-flow {
+  list-style: none; margin: 12px 0 0; padding: 0;
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+.jy-flow li {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--card-line); border-radius: 999px; padding: 3px 11px 3px 4px;
+}
+.jy-fn {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: var(--accent);
+  background: var(--accent-soft); width: 18px; height: 18px; border-radius: 50%;
+  display: inline-grid; place-items: center;
+}
+.jy-stats { display: flex; gap: 13px; flex-wrap: wrap; margin: 11px 0 0; font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
+.jy-stats b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.jy-cases { margin-top: 14px; border: 1px solid var(--card-line); border-radius: 11px; background: var(--panel); overflow: hidden; }
+.jy-stage + .jy-stage { border-top: 1px solid var(--card-line); }
+.jy-stage-head {
+  display: flex; align-items: baseline; gap: 9px; padding: 9px 14px;
+  background: var(--paper); border-bottom: 1px solid var(--card-line);
+}
+.jy-stage-name { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.jy-stage-n { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); }
+
+.jy-row {
+  display: grid; grid-template-columns: 30px 108px 1fr auto; gap: 11px; align-items: baseline;
+  width: 100%; padding: 10px 14px; cursor: pointer; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left;
+}
+.jy-row:hover { background: var(--paper); }
+.jy-case + .jy-case .jy-row { border-top: 1px solid var(--line); }
+.jy-n { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.jy-id { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
+.jy-title { color: var(--ink); font-size: 14px; }
+.jy-chips { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.jy-chip { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.jy-chip.pri { font-family: var(--mono); letter-spacing: .02em; }
+.pri-P0 { color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 42%, transparent); }
+.pri-P1 { color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 42%, transparent); }
+.pri-P2 { color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent); }
+.pri-P3 { color: var(--ink-soft); border: 1px solid var(--card-line); }
+.v-automate { color: var(--good); background: var(--good-soft); }
+.v-automate-later { color: var(--warn); background: var(--warn-soft); }
+.v-manual { color: var(--ink-soft); background: var(--paper); border: 1px solid var(--card-line); }
+.jy-chip.api { color: var(--accent); background: var(--accent-soft); font-family: var(--mono); letter-spacing: .04em; }
+
+.jy-row[aria-expanded="true"] + .jy-detail { display: block; }
+.jy-detail { display: none; padding: 2px 14px 16px; background: var(--paper); border-top: 1px dashed var(--card-line); }
+.jy-detail dl { margin: 0; display: grid; grid-template-columns: 112px 1fr; gap: 8px 15px; }
+.jy-detail dt { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); padding-top: 3px; }
+.jy-detail dd { margin: 0; color: var(--ink); max-width: 80ch; font-size: 13.5px; }
+.jy-detail code {
+  font-family: var(--mono); font-size: .86em; padding: 1px 5px; border-radius: 4px;
+  background: var(--panel); border: 1px solid var(--card-line); overflow-wrap: anywhere;
+}
+.jy-prov {
+  grid-column: 1 / -1; margin-top: 3px; padding-top: 8px; border-top: 1px solid var(--card-line);
+  font-family: var(--mono); font-size: 11px; color: var(--ink-soft); display: flex; gap: 13px; flex-wrap: wrap;
+}
+.jy-empty { padding: 22px 14px; text-align: center; color: var(--ink-soft); font-style: italic; margin: 0; }
+
+@media (max-width: 720px) {
+  .jy-head { grid-template-columns: 1fr; gap: 9px; }
+  .jy-row { grid-template-columns: 26px 1fr; gap: 5px 10px; }
+  .jy-id { grid-column: 2; }
+  .jy-title { grid-column: 2; }
+  .jy-chips { grid-column: 2; flex-wrap: wrap; }
+  .jy-detail dl { grid-template-columns: 1fr; gap: 2px; }
+  .jy-detail dt { padding-top: 9px; }
+}
+
+/* ── the API journey, narrated live in the run panel ─────────────────────
+   A numbered list of what the run is doing in the order a buyer would do it:
+   each row is a step's plain-English title, the sentence saying what the app
+   actually did, and the request behind it in small type. The row in flight is
+   tinted like a running check; the ones still to come are dimmed. Same tokens
+   and radii as the check rows, so the two read as one panel. */
+.journey { border: 1px solid var(--card-line); border-radius: 10px; background: var(--panel);
+  padding: 12px 14px 10px; margin-bottom: 6px; flex: none; }
+.journey-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.journey-head b { font-size: 13px; }
+.journey-tally { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.journey-steps { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.jstep { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start;
+  padding: 6px 8px; border-radius: 7px; border-left: 2px solid transparent;
+  font-size: 12.5px; line-height: 1.5; animation: chkIn .22s cubic-bezier(.2, .8, .3, 1) both; }
+.jstep-n { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  text-align: right; padding-top: 2px; }
+.jstep-body { min-width: 0; }
+.jstep-title { color: var(--ink); font-weight: 600; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.jstep-actor { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 6px; border-radius: 999px; background: var(--idle-soft); color: var(--idle); white-space: nowrap; }
+.jstep-actor.buyer { background: var(--accent-soft); color: var(--accent); }
+.jstep-actor.vendor { background: var(--warn-soft); color: var(--warn); }
+.jstep-actor.evaluator { background: var(--good-soft); color: var(--good); }
+.jstep-actual { color: var(--ink); margin-top: 1px; overflow-wrap: anywhere; }
+.jstep-call { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); margin-top: 2px; overflow-wrap: anywhere; }
+.jstep-progress { font-style: italic; color: var(--ink-soft); font-size: 12px; margin-top: 1px; }
+.jstep-verdict { font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  margin-top: 1px; background: var(--idle-soft); color: var(--idle); }
+.jstep.worked .jstep-verdict { background: var(--good-soft); color: var(--good); }
+.jstep.refused .jstep-verdict { background: var(--warn-soft); color: var(--warn); }
+.jstep.broken .jstep-verdict { background: var(--bad-soft); color: var(--bad); }
+.jstep.working .jstep-verdict { background: var(--accent-soft); color: var(--accent); }
+.jstep.refused { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn-soft) 55%, transparent); }
+.jstep.broken { border-left-color: var(--bad); background: var(--bad-soft); }
+.jstep.working { border-left-color: var(--accent); background: var(--accent-soft); }
+.jstep.pending { opacity: .55; }
+.jstep.pending .jstep-title { font-weight: 500; }
+.jstep.not-run .jstep-title { color: var(--ink-soft); }
+.jstep-verdict .spin { display: inline-block; animation: spin .85s linear infinite; }
+/* The one sentence the journey ends on, and the note about the second event. */
+.journey-outcome { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--card-line);
+  font-size: 12.5px; line-height: 1.5; }
+.journey-outcome b { display: block; }
+.journey-outcome.ok b { color: var(--good); }
+.journey-outcome.bad b { color: var(--bad); }
+.journey-took { color: var(--ink-soft); font-size: 12px; }
+.journey-variations { margin-top: 5px; font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+.journey-notes { margin-top: 8px; font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.journey-note.bad { color: var(--bad); }
+/* On a Recent-runs card: the journey's one-line verdict on its own row. */
+.run-journey { flex-basis: 100%; min-width: 0; font-size: 10.5px; color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-journey.ok::before { content: "✓ "; color: var(--good); font-weight: 700; }
+.run-journey.bad::before { content: "✗ "; color: var(--bad); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .jstep, .jstep-verdict .spin { animation: none; }
+}
+
+/* a live row that reproduces a bug QA already logged, or one nobody has */
+.known-bug { display: inline-block; margin-top: 6px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.known-bug.open { background: #fce8e6; color: #a50e0e; }
+.known-bug.fixed { background: #e6f4ea; color: #137333; }
+.known-bug.new { background: #fff4d6; color: #7a5200; }

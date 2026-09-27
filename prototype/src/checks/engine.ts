@@ -54,6 +54,18 @@ export interface Check {
    * for the wrong reason is a false pass, and those quietly destroy trust.
    */
   expectMessage?: string;
+  /**
+   * Set when this case DOCUMENTS a specific success but is only being checked
+   * for "did not crash".
+   *
+   * The accuracy guard in `dynamicChecks.ts` weakens `accept` to `no-5xx` for
+   * endpoints whose payload cannot be built completely here — which is right,
+   * or a request we could not construct would be reported as a product bug.
+   * What was wrong was doing it silently: the report went on printing the
+   * case's documented "200 with a trade uuid" beside a check that passes on
+   * any status, so a reader had no way to know the two did not match.
+   */
+  weakenedTo5xxOnly?: string;
   layer: "api" | "ui";
   inputSummary: string;
   /**
@@ -85,8 +97,12 @@ export interface Check {
  * then cannot leak what it never received.
  */
 const SECRET_PATTERNS: Array<[RegExp, string]> = [
-  // Header lines, however they are punctuated in a call-log dump.
-  [/((?:access|api|auth|session|lightspeed)[-_]?token\s*[:=]\s*)\S+/gi, "$1<redacted>"],
+  // Header lines, however they are punctuated in a call-log dump — and query
+  // parameters, which is how a token reaches a console error or a WebSocket
+  // URL. Stopping at & and quote characters matters: `\S+` ran to the end of
+  // the URL and took `app-version` and everything after it with it, so a line
+  // came out safe but unreadable.
+  [/((?:access|api|auth|session|lightspeed)[-_]?token\s*[:=]\s*)[^\s&"'<>]+/gi, "$1<redacted>"],
   [/(authorization\s*[:=]\s*(?:bearer\s+)?)\S+/gi, "$1<redacted>"],
   [/(cookie\s*[:=]\s*)[^\n]+/gi, "$1<redacted>"],
   // A bare base64 blob long enough to be a credential, wherever it appears.
@@ -149,10 +165,39 @@ export async function apiPatch(api: any, path: string, body: any): Promise<Check
   }
 }
 
+/**
+ * Messages that say THE RECORD UNDER TEST was unusable — not that the case's
+ * own input was wrong.
+ *
+ * Same problem as the 401 below, one layer in: the endpoint refused before it
+ * ever looked at what this case was varying, so the refusal is evidence about
+ * the fixture, not about the product's validation. A whole RFQ stage suite can
+ * come back 422 "Order not active" and score green on every `no-5xx` case,
+ * having tested nothing at all.
+ *
+ * Deliberately narrow. A bare /not found/ would swallow the many cases whose
+ * whole point is that a fabricated uuid IS refused with a not-found — those are
+ * working, and `anticipates` below keeps them passing.
+ */
+const FIXTURE_UNUSABLE =
+  /\border not active\b|\bproject does not exist\b|\bevent ?group (?:does not exist|not found)\b|\bno longer active\b|\btrade not found\b/i;
+
+/** Did the case DOCUMENT this outcome? Then it is the case working, not a
+ * broken precondition. */
+function anticipates(documented: string | undefined, message: string): boolean {
+  if (!documented) return false;
+  const want = documented.toLowerCase();
+  // Compare on the distinctive phrase the server actually used.
+  const phrase = message.toLowerCase().replace(/[.!]$/, "").trim();
+  return phrase.length > 6 && want.includes(phrase);
+}
+
 export function classify(
   expected: "accept" | "reject" | "no-5xx",
   o: CheckOutcome,
   expectMessage?: string,
+  /** the case's own documented expected result, verbatim */
+  documented?: string,
 ): { pass: boolean; verdict: string; inconclusive?: boolean } {
   if (o.httpStatus !== null && o.httpStatus >= 500)
     return { pass: false, verdict: `server error ${o.httpStatus} — a 5xx is always a defect` };
@@ -169,6 +214,26 @@ export function classify(
         `authentication failed (401) — the request never reached this endpoint's logic, ` +
         `so nothing was verified. This client's session/app-key likely has no access to it.`,
     };
+  // The record this case acts on was not usable, so the endpoint never reached
+  // the behaviour under test. Same reasoning as the 401 above: a refusal that
+  // says "the thing you named is not there / not active" is a fact about the
+  // fixture, and scoring it green is a vacuous pass.
+  if (
+    o.message &&
+    FIXTURE_UNUSABLE.test(o.message) &&
+    !anticipates(documented, o.message) &&
+    !(expectMessage && o.message.toLowerCase().includes(expectMessage.toLowerCase()))
+  ) {
+    return {
+      pass: false,
+      inconclusive: true,
+      verdict:
+        `the record under test was not usable — the API answered "${o.message}" ` +
+        `(HTTP ${o.httpStatus ?? "err"}), so this endpoint never reached what the case checks. ` +
+        `Nothing was proved either way; fix the precondition (the event this case acts on) and re-run.`,
+    };
+  }
+
   // Robustness: survived hostile input without crashing. Served or refused are
   // both fine — that's the server's choice, not a defect.
   if (expected === "no-5xx")
@@ -218,7 +283,12 @@ export async function runCheck(
   } catch (e: any) {
     outcome = { httpStatus: e?.status ?? null, accepted: false, message: redactSecrets(e?.message ?? String(e)), durationMs: Date.now() - t };
   }
-  const { pass, verdict, inconclusive } = classify(check.expected, outcome, check.expectMessage);
+  const { pass, verdict, inconclusive } = classify(
+    check.expected,
+    outcome,
+    check.expectMessage,
+    (check as { expectedResult?: string }).expectedResult,
+  );
   const { exec, ...meta } = check;
   const { data, ...recorded } = outcome;
   if (data !== undefined) onData?.(data, check);

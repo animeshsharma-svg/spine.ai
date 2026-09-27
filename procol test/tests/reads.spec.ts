@@ -1,5 +1,6 @@
 import { test, expect } from "../src/fixtures.js";
 import { Endpoints } from "../src/api/endpoints.js";
+import { declareCase } from "../src/report/caseSpec.js";
 
 /**
  * Read-only ("safe GET") coverage for the buyer session.
@@ -11,6 +12,17 @@ test.describe("read-only endpoints", () => {
   test("GET /v1/dashboard_configuration returns the config + permissions", async ({
     buyerApi,
   }) => {
+    declareCase({
+      plain:
+        "Read the company's dashboard settings — the record of which modules it has switched on and what the signed-in user is allowed to do.",
+      expected:
+        "The API returns the settings, and they include both the configuration block and the list of the user's permissions.",
+      flow: "reads.config",
+      flowTitle: "Reading company configuration",
+      kind: "positive",
+      expect: "accept",
+      because: "every config-gated flow in the suite branches on these permissions",
+    });
     const cfg = await buyerApi.get<Record<string, unknown>>(
       Endpoints.dashboardConfiguration(),
     );
@@ -24,6 +36,14 @@ test.describe("read-only endpoints", () => {
   test("GET /session/recent_account_activity returns session info", async ({
     buyerApi,
   }) => {
+    declareCase({
+      plain: "Read back the signed-in user's own session — which session is current, and which others are still open.",
+      expected: "The API returns the session record, naming the current session and listing the active ones.",
+      flow: "reads.session",
+      flowTitle: "Reading session information",
+      kind: "positive",
+      expect: "accept",
+    });
     const res = await buyerApi.get<Record<string, unknown>>(
       Endpoints.recentAccountActivity(),
     );
@@ -34,6 +54,14 @@ test.describe("read-only endpoints", () => {
 
   test.describe("purchase orders", () => {
     test("GET /orders returns a paginated PO list", async ({ buyerApi }) => {
+      declareCase({
+        plain: "Open the purchase order list the way the dashboard does, one page at a time.",
+        expected: "The API returns a page of purchase orders together with the total number of pages.",
+        flow: "reads.orders",
+        flowTitle: "Reading purchase orders",
+        kind: "positive",
+        expect: "accept",
+      });
       const res = await buyerApi.get<{ data: unknown[]; total_pages: number }>(
         Endpoints.orders(),
       );
@@ -44,6 +72,14 @@ test.describe("read-only endpoints", () => {
 
     for (const tab of ["live", "history"] as const) {
       test(`GET /orders?tab=${tab} returns a PO list`, async ({ buyerApi }) => {
+        declareCase({
+          plain: `Open the purchase order list filtered to the "${tab}" tab, as a buyer does from the dashboard.`,
+          expected: "The API returns a list of purchase orders for that tab.",
+          flow: "reads.orders",
+          flowTitle: "Reading purchase orders",
+          kind: "positive",
+          expect: "accept",
+        });
         const res = await buyerApi.get<{ data: unknown[] }>(Endpoints.orders(), {
           params: { tab },
         });
@@ -54,6 +90,17 @@ test.describe("read-only endpoints", () => {
 
   test.describe("event / trade detail (chained from PO list)", () => {
     test("orders → trade schema → event indicators", async ({ buyerApi }) => {
+      declareCase({
+        plain:
+          "Follow the trail a buyer follows: open the purchase order list, pick an order that came from an event, then open that event's full definition and its progress indicators.",
+        expected:
+          "Both the event definition and its indicators come back, and the definition carries the event's identifier, title and sheets.",
+        flow: "reads.event",
+        flowTitle: "Reading event detail",
+        kind: "positive",
+        expect: "accept",
+        because: "this is the chain the dashboard walks to render an event behind a PO",
+      });
       const list = await buyerApi.get<{ data: Array<{ event_details?: { event_uuid?: string } }> }>(
         Endpoints.orders(),
       );

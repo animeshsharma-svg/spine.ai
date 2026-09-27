@@ -462,7 +462,7 @@ function locationDef(cityUuid: string): SuiteDef {
       city_uuid: cityUuid,
       location_type: "buying_team_hub",
       location_code: `QALOC${stamp()}`,
-      address: "QA Platform address",
+      address: "spine.ai test address",
     }),
     fields: [
       { name: "name", type: "text", label: "Location name", required: true },

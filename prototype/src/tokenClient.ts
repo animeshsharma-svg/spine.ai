@@ -173,5 +173,5 @@ export async function openTokenClient(id: number) {
 
 /** The dropdown entries for every token client. */
 export function tokenClientChoices() {
-  return TOKEN_CLIENTS.map((c) => ({ id: c.id, name: c.name, note: c.note, covers: c.covers }));
+  return TOKEN_CLIENTS.filter((c) => !c.hidden).map((c) => ({ id: c.id, name: c.name, note: c.note, covers: c.covers }));
 }

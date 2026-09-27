@@ -9,6 +9,7 @@ import { runAwarding } from "../../src/flows/awarding.js";
 import { ApiError } from "../../src/api/client.js";
 import type { CreateEventResult } from "../../src/flows/createEvent.js";
 import type { Identity } from "../../src/identities.js";
+import { declareCase } from "../../src/report/caseSpec.js";
 
 /**
  * Full vendor lifecycle (fully dynamic, mirrors the collection end-to-end):
@@ -23,6 +24,17 @@ import type { Identity } from "../../src/identities.js";
 test.describe("vendor lifecycle (invite → bid → evaluate → award)", () => {
   test("end-to-end vendor bid, evaluation and award", async () => {
     test.setTimeout(180_000);
+    declareCase({
+      plain:
+        "Run the full supplier journey with real supplier credentials: invite a supplier to an event, sign in as them, submit a technical response and a priced bid, wait for the technical round to close, score it as the evaluator, then award the bid as the buyer.",
+      expected:
+        "A supplier is found who can bid, their bid is submitted, the evaluator's scoring is created and submitted, and the buyer's award proposal is raised and submitted.",
+      flow: "events.vendor_e2e",
+      flowTitle: "Supplier lifecycle (invite → bid → evaluate → award)",
+      kind: "positive",
+      expect: "accept",
+      because: "the only journey that exercises award against a genuinely submitted supplier bid",
+    });
     const buyer = await asBuyer();
     const evaluator = await asEvaluator();
 

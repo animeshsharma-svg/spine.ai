@@ -288,7 +288,7 @@ export async function narrate(role: string, facts: string): Promise<string> {
         {
           role: "system",
           content:
-            `You are the "${role}" agent in an autonomous QA system for Procol, a B2B procurement platform. ` +
+            `You are the "${role}" agent in spine.ai, an autonomous QA system for Procol, a B2B procurement platform. ` +
             `Explain your reasoning to a smart non-technical stakeholder in 2–4 short, confident sentences. ` +
             `Be concrete and ground every claim in the FACTS provided. Never invent details beyond the facts. No preamble.`,
         },

@@ -40,6 +40,7 @@ export const JOURNEY_PHASES: Record<string, { label: string; icon: string }> = {
   learned: { label: "Learned a locator", icon: "🧠" },
   stuck: { label: "Stuck", icon: "🚧" },
   oracle: { label: "Verdict", icon: "⚖️" },
+  verify: { label: "Checking what it built", icon: "🔍" },
   "po-to-bill": { label: "Purchase order to bill", icon: "🧾" },
   queue: { label: "Waiting for the browser", icon: "⏳" },
   playwright: { label: "Playwright", icon: "▶" },
@@ -60,10 +61,31 @@ function humanise(rest: string): string {
     return hit ? fn(hit) : null;
   };
   return (
+    // "[login] …" — the sign-in, narrated by the login page as a person sees it.
+    m(/^showing the login screen — signing in as (.+?) \(phone ending (\d+)\)$/i, (h) =>
+      `Opening the login screen to sign in as ${h[1]}, phone ending ${h[2]}`) ||
+    m(/^opened the sign-in page$/i, () => "The sign-in page is open") ||
+    m(/^typed the phone number ending (\d+) and asked for a one-time code$/i, (h) =>
+      `Typed the phone number ending ${h[1]} and asked for a one-time code`) ||
+    m(/^the one-time code field appeared$/i, () => "The code field appeared — the app sent the one-time code") ||
+    m(/^typed the code and pressed Login$/i, () => "Typed the code and pressed Login") ||
+    m(/^signed in — the app opened (.+)$/i, (h) => `Signed in — the app opened ${h[1]}`) ||
+    m(/^the login screen did not let us in(?: — the app said: (.+))?$/i, (h) =>
+      `The login screen did not let us in${h[1] ? ` — the app said: ${h[1]}` : ""}`) ||
+    m(/^falling back to the saved web-console session so the journey can still run — (.+)$/i, (h) =>
+      `Signed in with the saved web-console session instead, so the journey could still run — the login screen failed: ${h[1]}`) ||
+    m(/^this company's signed-in user has no phone on record.*$/i, () =>
+      "This company's signed-in user has no phone on record, so the configured buyer's phone was used") ||
     m(/^stages round \d+: on screen \[([^\]]*)\], want \[([^\]]*)\]$/i, (h) =>
       `Setting up the event type — Procol's create screen doesn't start on the right one, so it adds ` +
       `and removes tabs until it matches. Wanted: ${h[2] || "none"} · showing: ${h[1] || "none"}`) ||
     m(/^stages composed: \[([^\]]*)\]$/i, (h) => `The event is now set up as: ${h[1]}`) ||
+    // "[verify] It is live: wanted active, found active — matches"
+    m(/^(.+?): wanted (.+?), found (.+?) — matches$/i, (h) => `${h[1]} — ${h[3]}, as asked`) ||
+    m(/^(.+?): wanted (.+?), found (.+?) — DOES NOT MATCH$/i, (h) =>
+      `${h[1]} — asked for ${h[2]}, found ${h[3]}`) ||
+    m(/^(.+?): wanted (.+?), found .+? — could not check — (.+)$/i, (h) =>
+      `${h[1]} — could not be checked: ${h[3]}`) ||
     m(/^template applied: (.+?)(?: \(of (\d+) offered\))?$/i, (h) =>
       `Picked the pricing template "${h[1]}" — this decides what columns the pricing sheet has next` +
       `${h[2] ? ` (chosen from ${h[2]} available)` : ""}`) ||
@@ -99,6 +121,12 @@ function humanise(rest: string): string {
 /** Warnings read as warnings; a step that failed reads as failed. */
 function kindOf(tag: string, rest: string): JourneyStep["kind"] {
   if (tag === "plan") return /✗/.test(rest) ? "bad" : /✓/.test(rest) ? "ok" : "info";
+  // A read-back check states its own verdict at the end of the line.
+  if (tag === "verify") {
+    if (/DOES NOT MATCH/.test(rest)) return "bad";
+    if (/could not check/i.test(rest)) return "warn";
+    return "ok";
+  }
   if (tag === "stuck") return "bad";
   if (tag === "healer") {
     if (/could not/i.test(rest)) return "bad";
@@ -107,6 +135,12 @@ function kindOf(tag: string, rest: string): JourneyStep["kind"] {
     return "ok";
   }
   if (tag === "learned") return "ok";
+  // The sign-in says how it went in its own words.
+  if (tag === "login") {
+    if (/did not let us in|falling back/i.test(rest)) return "warn";
+    if (/^signed in/i.test(rest)) return "ok";
+    return "info";
+  }
   if (/(failed|could not|never appeared|not offered|no vendor matched|is disabled|not in the|would not open|no selectable)/i.test(rest))
     return "warn";
   if (/(composed|applied|filled|saved|submitted|invited|allocated|completed)/i.test(rest)) return "ok";

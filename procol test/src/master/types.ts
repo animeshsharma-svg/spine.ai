@@ -23,6 +23,18 @@ export interface FlowModule {
   category: string;
   /** human title */
   title: string;
+  /**
+   * What this flow does, in one sentence a non-engineer reads — shown as the
+   * test case in the report.
+   */
+  plain: string;
+  /**
+   * What should be true when it finishes, in one sentence. Stated here, in the
+   * registry, so the report's expected result is fixed before the flow runs
+   * and says exactly what the flow's assertions actually check — including
+   * the Postgres rows, where it verifies those.
+   */
+  expected: string;
   /** Decide if this flow applies to the client, from its config. */
   enabledFor(config: ClientConfig): Gate;
   /** Run the flow; throw to fail. */

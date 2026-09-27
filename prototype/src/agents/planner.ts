@@ -295,14 +295,37 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
-  // A negative test about PARTICIPANTS must not invite any. UI-PART-001 —
-  // "publish is blocked with no participants" — compiled with invite_vendor
-  // in it, so the plan disproved its own premise before pressing Publish.
-  // (On this tenant the product audience adds vendors from the line items on
-  // its own, which the step reports; that is the product's answer, not ours.)
-  if (has("expect_publish_blocked") && has("invite_vendor") && /\b(no|without|zero|0)\s+(participants?|vendors?)\b/i.test(testCase)) {
-    steps.splice(indexOf("invite_vendor"), 1);
-    repairs.push("removed invite_vendor — the case is about publishing with no participants, so inviting any would defeat it");
+  /**
+   * A NEGATIVE TEST MUST NOT DO THE THING IT IS ABOUT.
+   *
+   * "Publish with no participants" compiled with invite_vendor in it, so the
+   * plan disproved its own premise before pressing Publish. That was patched
+   * for participants alone; the same thing happens for every other omission —
+   * a title, a template, line items, a schedule.
+   *
+   * Telling the compiler not to do it is not enough. The prompt now carries a
+   * NEGATIVE TESTS section, and the model still emits set_title, because the
+   * rule above it says set_title is MANDATORY on every create test and that is
+   * the stronger instruction. Reading the omission out of the case text and
+   * removing the step is deterministic, which is what this needs to be: the
+   * test is only that test if the step is absent.
+   *
+   * (On this tenant the product audience adds vendors from the line items on
+   * its own, which the step reports; that is the product's answer, not ours.)
+   */
+  if (has("expect_publish_blocked")) {
+    const OMISSIONS: Array<[RegExp, string, string]> = [
+      [/\b(no|without|missing|blank|empty)\s+(a\s+)?title\b/i, "set_title", "a title"],
+      [/\b(no|without|missing)\s+(a\s+)?template\b/i, "select_template", "a template"],
+      [/\b(no|without|missing|zero|0)\s+(line\s*)?items?\b/i, "add_line_items", "line items"],
+      [/\b(no|without|missing)\s+(a\s+)?schedule\b/i, "set_schedule", "a schedule"],
+      [/\b(no|without|zero|0)\s+(participants?|vendors?)\b/i, "invite_vendor", "participants"],
+    ];
+    for (const [pattern, step, what] of OMISSIONS) {
+      if (!pattern.test(testCase) || !has(step)) continue;
+      steps.splice(indexOf(step), 1);
+      repairs.push(`removed ${step} — the case is about publishing with ${what === "participants" ? "no participants" : `no ${what}`}, so including it would defeat the test`);
+    }
   }
 
   // Vendor coherence. UI-AWD-001 invited five vendors by count, surrogate-bid

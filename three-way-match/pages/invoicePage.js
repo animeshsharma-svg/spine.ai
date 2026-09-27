@@ -156,5 +156,59 @@ export async function createAndSubmitInvoice_Flow4(page, lineItems = [
 
   await submitInvoiceButton(page).click();
   await page.waitForLoadState('domcontentloaded');
+  await confirmInvoiceApprovalIfAsked(page);
   await page.getByText('Approved').first().waitFor({ state: 'visible', timeout: 20000 });
+}
+
+/**
+ * The invoice grew an approval step.
+ *
+ * When this journey was written, Submit Invoice went straight to "Approved".
+ * The sandbox now has an "Invoice Submission Approval" workflow: pressing
+ * Submit opens a dialog naming the approver and asking for a second Submit,
+ * and the invoice then waits for that approver — who, on this account, is the
+ * same person who is signed in. A person would press Submit and then approve
+ * their own step; the journey does the same, and says so, because a product
+ * that gained an approval step is a fact for the report, not a reason to stop.
+ * Nothing here is required: an account with no workflow never sees the dialog
+ * and the flow behaves exactly as before.
+ */
+async function confirmInvoiceApprovalIfAsked(page) {
+  const dialog = page.getByRole('dialog').filter({ hasText: /Approval Workflow/i });
+  const appeared = await dialog.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
+  if (!appeared) return;
+  const approvers = await dialog.locator('[class*="approver"], [class*="member"], button, span')
+    .filter({ hasText: /^[A-Z][a-z]+ [A-Z][a-z]+$/ }).allTextContents().catch(() => []);
+  const who = approvers.length ? approvers.join(', ') : 'the configured approver';
+  say(`an approval workflow applies to this invoice — it goes to ${who}; submitting it`);
+  await dialog.getByRole('button', { name: /^Submit$/ }).click();
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(2000);
+  // Approving moves the browser onto the approval note; the GRN step that
+  // follows expects to be back on the document it just left.
+  const invoiceUrl = page.url();
+
+  // Approve it ourselves where the signed-in user is the approver — the
+  // sandbox has one person doing every job. If no Approve control appears the
+  // invoice is with someone else, and the "Approved" wait below reports that.
+  const approve = page.getByRole('button', { name: /^Approve$/ }).first();
+  const canApprove = await approve.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
+  if (!canApprove) {
+    say('the invoice is waiting for its approver — this account cannot approve it');
+    return;
+  }
+  say('the signed-in user is the approver — approving the invoice');
+  await approve.click();
+  await page.waitForTimeout(800);
+  const remarks = page.getByRole('textbox', { name: /remarks/i });
+  if (await remarks.isVisible().catch(() => false)) await remarks.fill('approved by the journey');
+  const confirm = page.getByRole('button', { name: /^Approve$/ }).last();
+  if (await confirm.isVisible().catch(() => false)) await confirm.click();
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(2000);
+  say('invoice approved');
+  if (page.url() !== invoiceUrl) {
+    await page.goto(invoiceUrl, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
+  }
 }

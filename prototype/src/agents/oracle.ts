@@ -227,6 +227,8 @@ export interface DefectGroup {
   evidence: string[];
   reproduction: string[];
   actionable: boolean;
+  /** The QA-sheet row this defect was already logged as, when it was. */
+  knownBug?: import("../report/knownBugs.js").KnownBugRef;
 }
 
 /**

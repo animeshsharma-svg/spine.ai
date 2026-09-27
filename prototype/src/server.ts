@@ -17,15 +17,19 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
+import { needsEventFixture } from "./checks/eventsFixture.js";
+import { journeyPlan, journeyWalksFeature, STEP_META } from "./checks/journeyModel.js";
+import type { JourneyRecord, JourneyStepRecord } from "./checks/journeyModel.js";
+import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./checks/eventJourney.js";
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
 import { apiModulesFor, singleApiModule } from "../config/apiModules.js";
-import { caseCountsByFeature, casesForFeatures, buildChecksFromCases, idsFromReply, loadCases, resolveCaseContext, resolveActor, configRequirementOf } from "./checks/caseLibrary.js";
+import { caseCountsByFeature, lineItemCaseCountsByFeature, casesForFeatures, buildChecksFromCases, idsFromReply, loadCases, resolveCaseContext, resolveActor, configRequirementOf } from "./checks/caseLibrary.js";
 import { runOrchestrator } from "./agents/orchestrator.js";
 import type { CheckResult } from "./ai/types.js";
 import { providerLabel, usageReport, llmMode } from "./ai/llm.js";
 import { slotState } from "./ui/browserSlot.js";
 import { JourneyTrail } from "./ui/journeySteps.js";
-import { saveTrail, readTrail, deleteTrail } from "./ui/trailStore.js";
+import { saveTrail, readTrail, deleteTrail, listTrails } from "./ui/trailStore.js";
 import { DEFAULT_CLIENT } from "../config/settings.js";
 import { isTokenClient, tokenClient } from "../config/tokenClients.js";
 import { readToken, tokenClientChoices } from "./tokenClient.js";
@@ -42,24 +46,45 @@ import { compileTestCase } from "./agents/planner.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
 import { ensureEmbedderReady } from "./rag/embedder.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
-import { allDefects, renderBugSheet } from "./report/bugSheet.js";
+import { allDefects, renderBugSheet, stillOpenFor } from "./report/bugSheet.js";
+import { uiRunDefects } from "./report/uiFrictionDefects.js";
 import { isTriageField, loadTriage, saveTriageField } from "./triageStore.js";
 import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.js";
 import { renderUiReport, uiShotPath } from "./report/uiReport.js";
 import { renderUiRunReport } from "./report/uiRunReport.js";
-import { readPoRun, readPoRunHtml, deletePoRun } from "./poRunStore.js";
+import { readPoRun, readPoRunHtml, deletePoRun, listPoRuns } from "./poRunStore.js";
 import { defectsFromPoRun } from "./report/poRunDefects.js";
 import { checkToken, poInputSummary, runPoFlow } from "./poRunner.js";
 import { resolveToken } from "./tokenMint.js";
 import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
-import { chainPlan, chainStatus, runChain } from "./poToBillRunner.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
 import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
+import { parsePastedCases, runPastedCases } from "./checks/pastedCases.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
+
+/**
+ * The base URL this request should talk to, when the reader has chosen one.
+ *
+ * "Custom URL" in the header sends `?base=`; without it the client's own
+ * configured host is used, which is what every existing caller expects. Only
+ * http(s) is accepted — a base URL is a destination for real requests, and
+ * anything else is either a mistake or an attempt to make the server fetch
+ * something it should not.
+ */
+function baseOverride(url: URL): string | undefined {
+  const raw = url.searchParams.get("base")?.trim();
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "http:" || u.protocol === "https:" ? raw.replace(/\/$/, "") : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Where the API automation suite writes its reports.
@@ -92,7 +117,7 @@ const CLIENTS = [
 ];
 
 // Cache capability maps so re-selecting a client is instant.
-const capCache = new Map<number, any>();
+const capCache = new Map<string, any>();
 
 /** Feature trees, keyed by company. Ten minutes: a config change is rare, and
  * a stale tree for that long is a smaller problem than a 36-second wait. */
@@ -171,6 +196,28 @@ const server = createServer(async (req, res) => {
      * file. This serves the catalogue as it is written, scoped to the account
      * the way the tree is, so the answer matches what that account can run.
      */
+    /**
+     * The journey catalogue: the same 648 cases the test-case view lists, but
+     * ordered into the 17 journeys a buyer actually walks, each case in the
+     * position its journey exercises it. Served as-is — it is authored, not
+     * derived, so the platform reads it rather than rebuilding it.
+     */
+    if (path === "/api/journeys") {
+      const file = join(here, "..", "data", "journeys.json");
+      if (!existsSync(file)) {
+        return json(res, { journeys: [], orphans: [], missing: true });
+      }
+      try {
+        return json(res, JSON.parse(readFileSync(file, "utf8")));
+      } catch (e) {
+        return json(res, {
+          journeys: [],
+          orphans: [],
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
     if (path === "/api/catalogue") {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const account = isTokenClient(c) ? tokenClient(c) : undefined;
@@ -197,6 +244,15 @@ const server = createServer(async (req, res) => {
           // scenario is actually exercised with, which is the column a QA
           // sheet reads first.
           body: t.body ?? null,
+          /**
+           * Where the endpoint came from, for cases imported from the written
+           * catalog: "stated" (the case names it), "carried" (an earlier case
+           * in the same section named it) or "anchor" (the section's default).
+           * A red result on an inferred path may be our inference rather than
+           * the product, and the reader has to be able to tell which.
+           */
+          pathSource: (t as any).pathSource ?? null,
+          writtenRef: (t as any).writtenRef ?? null,
         }));
 
       // Grouped the way the tree groups, so the drawer reads like the rest of
@@ -235,15 +291,84 @@ const server = createServer(async (req, res) => {
     // ── API: capability map ──
     if (path === "/api/capability") {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
-      if (capCache.has(c)) return json(res, capCache.get(c));
+      const capKey = `${c}:${baseOverride(url) ?? "default"}`;
+      if (capCache.has(capKey)) return json(res, capCache.get(capKey));
       const map = await getCapabilityMap(c);
-      capCache.set(c, map);
+      capCache.set(capKey, map);
       return json(res, map);
     }
 
     // ── API: run history ──
     if (path === "/api/runs") {
-      return json(res, { runs: listRuns(20) });
+      /**
+       * EVERY RUN THE PLATFORM HAS KEPT — which is what the page claims.
+       *
+       * It listed API runs only. Browser journeys and PO runs are kept too,
+       * with their own reports, and neither appeared here: 26 journeys and 22
+       * purchase-order runs on disk, none of them reachable from the one view
+       * whose job is to reach them. A reader who had just watched a journey
+       * finish could not find it again.
+       *
+       * Each run also says which reports it HAS. A journey has no API test
+       * report and an API run has no screenshots; offering every link on every
+       * card would just be three links, one of which is always empty.
+       */
+      const q = (id: string) => encodeURIComponent(id);
+      const api = listRuns(20).map((r) => ({
+        ...r,
+        kind: "api" as const,
+        reports: [
+          { label: "📊 Test report", href: `/api/test-report?run=${q(r.id)}` },
+          { label: "🐞 Bug sheet", href: `/api/bug-report?run=${q(r.id)}` },
+        ],
+      }));
+
+      const journeys = listTrails(20).map((t) => ({
+        id: t.runId,
+        ts: t.startedAt,
+        request: `browser journey: ${t.flowKey}`,
+        companyName: t.companyId ? String(t.companyId) : null,
+        headline: t.stoppedAt?.text ?? null,
+        passed: t.exitCode === 0 ? 1 : 0,
+        failed: t.exitCode === 0 ? 0 : 1,
+        inconclusive: 0,
+        checks: 0,
+        findings: 0,
+        mismatches: 0,
+        provider: "",
+        kind: "journey" as const,
+        steps: t.steps?.length ?? 0,
+        durationMs: t.durationMs,
+        reports: [
+          { label: "🖥 UI report", href: `/api/ui-report?run=${q(t.runId)}` },
+          { label: "🐞 Bug sheet", href: `/api/bug-report?run=${q(t.runId)}` },
+        ],
+      }));
+
+      const poRuns = listPoRuns(20).map((r) => ({
+        id: r.runId,
+        ts: r.startedAt,
+        request: `PO automation on ${r.companyName ?? "this account"}`,
+        companyName: r.companyName ?? null,
+        headline: r.issues?.length ? "created, but did not finish the flow" : null,
+        passed: r.exitCode === 0 && !r.issues?.length ? 1 : 0,
+        failed: r.exitCode === 0 ? 0 : 1,
+        inconclusive: r.issues?.length ? 1 : 0,
+        checks: 0,
+        findings: 0,
+        mismatches: 0,
+        provider: "",
+        kind: "po" as const,
+        reports: [
+          { label: "📊 PO run report", href: `/api/po-report?run=${q(r.runId)}` },
+          { label: "🐞 Bug sheet", href: `/api/bug-report?run=${q(r.runId)}` },
+        ],
+      }));
+
+      const runs = [...api, ...journeys, ...poRuns]
+        .sort((a, b) => String(b.ts ?? "").localeCompare(String(a.ts ?? "")))
+        .slice(0, 40);
+      return json(res, { runs });
     }
     if (path.startsWith("/api/runs/")) {
       const rec = getRun(decodeURIComponent(path.slice("/api/runs/".length)));
@@ -292,6 +417,61 @@ const server = createServer(async (req, res) => {
       return res.end();
     }
 
+    // ── API: test cases pasted into the dashboard, run one by one ────────
+    // A numbered list in the reader's own words. Each case is a row on the
+    // live panel, runs in turn, and the run is saved so its test report and
+    // bug sheet can be opened. Streams the same events as a features run so
+    // the dashboard needs no second listener.
+    if (path === "/api/cases-run") {
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const text = url.searchParams.get("text") ?? "";
+      const cases = parsePastedCases(text);
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (!cases.length) {
+        send("fatal", { message: "No test cases found in what was pasted — number them, one per line." });
+        return res.end();
+      }
+      if (process.env.SPINE_SCRIPTED_CASES === "0") {
+        send("fatal", { message: "The pasted-case runner is switched off on this server (SPINE_SCRIPTED_CASES=0)." });
+        return res.end();
+      }
+      const startedAt = Date.now();
+      const companyName = isTokenClient(c) ? (tokenClient(c)?.name ?? null) : (await openClientContext(c).then(async (cl) => { const cfg = await loadCompanyConfig(cl, c).catch(() => null); await cl.dispose().catch(() => {}); return cfg?.companyName ?? null; }).catch(() => null));
+      send("plan", { cases: cases.length, runnable: cases.length, skipped: [], pasted: true });
+      try {
+        const { results, records } = await runPastedCases(cases, {
+          check: (check) => send("check", { check }),
+          line: (line) => send("line", { line }),
+          progress: (done, total) => send("progress", { done, total }),
+        });
+        const savedRunId = newRunId();
+        saveRun({
+          id: savedRunId,
+          ts: new Date().toISOString(),
+          request: `test cases: ${cases.length} pasted`,
+          companyId: c,
+          companyName,
+          provider: providerLabel(),
+          durationMs: Date.now() - startedAt,
+          report: undefined,
+          events: [{ agent: "System", kind: "plan", text: "pasted cases", data: { skipped: [] } } as any],
+          flowResults: [],
+          validationResults: [],
+          checkResults: results,
+          pastedCases: records,
+        });
+        send("done", { ok: true, total: results.length, runId: savedRunId });
+      } catch (err: any) {
+        send("fatal", { message: err?.message ?? String(err) });
+      }
+      return res.end();
+    }
+
     // ── API: multi-company (company switcher) checks against the sandbox env ──
     if (path === "/api/multi-company") {
       const { runMultiCompanyChecks } = await import("./flows/multiCompanyChecks.js");
@@ -314,6 +494,7 @@ const server = createServer(async (req, res) => {
     // this client actually has it switched on.
     if (path === "/api/features") {
       const counts = caseCountsByFeature();
+      const lineItemCounts = lineItemCaseCountsByFeature();
       const cid = url.searchParams.get("c");
 
       /**
@@ -325,14 +506,17 @@ const server = createServer(async (req, res) => {
        * empty and the platform looked broken. The answer only changes when the
        * company's own configuration does, so it is worth keeping.
        */
-      const cacheKey = `features:${cid ?? "none"}`;
+      // The base URL is part of the identity of this answer: the same company
+      // on a different host is a different configuration, and keying without
+      // it served the previous environment's tree after switching.
+      const cacheKey = `features:${cid ?? "none"}:${baseOverride(url) ?? "default"}`;
       const cached = featureCache.get(cacheKey);
       if (cached && Date.now() - cached.at < FEATURE_CACHE_MS) {
         return json(res, cached.payload);
       }
       let cfg: Awaited<ReturnType<typeof loadCompanyConfig>> | null = null;
       if (cid) {
-        const client = await openClientContext(Number(cid)).catch(() => null);
+        const client = await openClientContext(Number(cid), baseOverride(url)).catch(() => null);
         if (client) {
           cfg = await loadCompanyConfig(client, Number(cid));
           await client.dispose().catch(() => {});
@@ -372,6 +556,9 @@ const server = createServer(async (req, res) => {
         children: g.children.map((f) => ({
           ...f,
           cases: counts[f.id] ?? 0,
+          // How many of them send line items — decides whether the count field
+          // applies to a selection at all.
+          lineItemCases: lineItemCounts[f.id] ?? 0,
           config: cfg ? featureConfigState(cfg, f.requiresConfig) : { state: f.requiresConfig ? "unknown" : "n/a" },
         })),
       }));
@@ -442,7 +629,7 @@ const server = createServer(async (req, res) => {
       let limits: any = null;
       let erfx: boolean | null = null;
       let boqAllowed: boolean | null = null;
-      const client = await openClientContext(c).catch(() => null);
+      const client = await openClientContext(c, baseOverride(url)).catch(() => null);
       if (client) {
         const cfg = await loadCompanyConfig(client, c);
         limits = cfg.flags?.allowed_maximum_line_items ?? null;
@@ -460,12 +647,16 @@ const server = createServer(async (req, res) => {
       const wantItems = Number(url.searchParams.get("lineItems") ?? "") || undefined;
       const wantBoq = Number(url.searchParams.get("boqItems") ?? "") || undefined;
       const headed = url.searchParams.get("headed") !== "0";
+      // "sign in on screen": the journey goes through the login page instead
+      // of starting already signed in. Opt-in on the wire so older callers of
+      // this endpoint keep the fast path; the dashboard's switch defaults on.
+      const showLogin = url.searchParams.get("login") === "1";
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
       // Never ask for more line items than this client's config permits.
       let limits: any = null;
-      const probe = await openClientContext(c).catch(() => null);
+      const probe = await openClientContext(c, baseOverride(url)).catch(() => null);
       if (probe) {
         limits = (await loadCompanyConfig(probe, c)).flags?.allowed_maximum_line_items ?? null;
         await probe.dispose().catch(() => {});
@@ -495,6 +686,7 @@ const server = createServer(async (req, res) => {
           lineItems: wantItems ? normal.value : undefined,
           boqItems: wantBoq ? boq.value : undefined,
           headed,
+          showLogin,
         },
         async (e) => {
           const ending = e.type === "done" || e.type === "run-error";
@@ -591,6 +783,7 @@ const server = createServer(async (req, res) => {
             template: intent.template,
             scheduleMinutes: intent.scheduleMinutes,
             headed,
+            showLogin: url.searchParams.get("login") === "1",
           },
           (e) => {
             const ending = e.type === "done" || e.type === "run-error";
@@ -806,7 +999,7 @@ const server = createServer(async (req, res) => {
     // ── API: one company's resolved configuration (flags + permissions) ──
     if (path === "/api/company-config") {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
-      const client = await openClientContext(c);
+      const client = await openClientContext(c, baseOverride(url));
       try {
         const cfg = await loadCompanyConfig(client, c);
         return json(res, cfg);
@@ -836,19 +1029,130 @@ const server = createServer(async (req, res) => {
         send("done", { ok: false, total: 0, ran: false });
         return res.end();
       }
-      let client = await openClientContext(c);
+      /**
+       * THE PLAN FIRST, THEN THE SIGN-IN.
+       *
+       * Opening the client is a database session lookup and a configuration
+       * read — seven seconds on a good day, far more when UAT is busy — and
+       * the plan needs none of it: it is computed from the ticked features
+       * alone. Sending it before the client opens puts the whole journey on
+       * screen in the first second, with a line saying what the wait is for,
+       * instead of a blank card until the first call fires.
+       */
+      const plan = journeyPlan(ids);
+      if (plan.wanted) {
+        send("journey-plan", {
+          plan,
+          steps: plan.steps.map((kind, i) => ({ n: i + 1, kind, ...STEP_META[kind] })),
+        });
+      }
+      send("line", { line: "Opening a session for this client…" });
+      let client = await openClientContext(c, baseOverride(url));
       /** Contexts replaced mid-run; disposed together once the run ends. */
       const stale: Array<{ dispose?: () => Promise<unknown> }> = [];
       try {
-        const cases = casesForFeatures(ids);
+        let cases = casesForFeatures(ids);
         // Read real ids (a PR, a vendor, a category, a city…) out of the live
         // client so cases referencing them can actually run.
         // Off by default: writing to real proposals/bids/trades is opt-in only.
-        const caseCtx = await resolveCaseContext(client, {
+        // Started here, awaited only when the cases need them: the journey
+        // does not, so these look-ups run alongside it instead of before it.
+        const caseCtxP = resolveCaseContext(client, {
           allowExistingRecordWrites: url.searchParams.get("allowWrites") === "1",
         });
-        const actor = await resolveActor(client);
-        const { checks, skipped, deferred } = buildChecksFromCases(client, cases, caseCtx, actor);
+        const actorP = resolveActor(client);
+        const companyCfgP = loadCompanyConfig(client, c);
+
+        /**
+         * Walk the collection as a journey, BEFORE any case runs.
+         *
+         * The run used to open by building one RFQ event through a fixture and
+         * then firing forty variations at its activation endpoint — and the
+         * browser showed a single line about it. What a reader wanted to see
+         * was the collection in order: sign in, create the draft, add the
+         * rounds, publish, sign in as the vendor, respond, bid, wait for the
+         * window to close, evaluate, award. So the run now walks exactly that,
+         * one real request per step, and streams each step as it lands. The
+         * library cases then act on a SECOND copy of the event the journey
+         * builds, so the journey's own event can run to its close undisturbed.
+         *
+         * The runner never throws: a failure is a step verdict, and a step
+         * whose prerequisites never appeared is recorded not-run with the
+         * reason. A run of features that have nothing to do with sourcing
+         * events (`plan.wanted` false) skips the journey entirely.
+         */
+        let journey: JourneyRecord | undefined;
+        if (plan.wanted) {
+          /**
+           * The journey IS the run for the sourcing features.
+           *
+           * The first version walked the journey and then fired the library's
+           * hundred-odd variations at a second copy of the event — forty
+           * activations of the same endpoint after the reader had just watched
+           * the event be built, bid on and awarded. It read as padding, and it
+           * doubled the run time. So a ticked sourcing feature now means "walk
+           * the collection for that event type", and only the modules with no
+           * journey (purchase requests, master data, users…) still run as
+           * individual cases. The library is untouched; it is simply not
+           * replayed after the thing it describes has already been done.
+           */
+          cases = cases.filter((cs) => !journeyWalksFeature(cs.feature, plan));
+          // The plan itself was sent before the client opened, so the list was
+          // on screen while the session was being made.
+          const walked = await runEventJourney(client, plan, {
+            baseURL: baseOverride(url),
+            stageSeconds: Number(url.searchParams.get("stageSeconds")) || 45,
+            buildVariationsEvent: false,
+            onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step, planned }),
+            onLine: (line: string) => send("line", { line }),
+          });
+          journey = walked.journey;
+          send("journey", { journey });
+          // The second event's ids are what `{{eventGroupUuid}}`, `{{tradeId}}`
+          // and `{{lineItemUuid}}` resolve to in the cases that follow.
+          const caseCtx = await caseCtxP;
+          if (walked.forCases) Object.assign(caseCtx, walked.forCases);
+          // Without a second copy, the cases that remain act on the journey's
+          // own event — by then closed, which a case about a live event will
+          // say, honestly, as "couldn't tell".
+          const made = journey.made ?? {};
+          if (!walked.forCases && made.eventGroupUuid) {
+            Object.assign(caseCtx, {
+              eventGroupUuid: made.eventGroupUuid,
+              ...(made.pricingTradeUuid || made.technicalTradeUuid
+                ? { tradeId: made.pricingTradeUuid ?? made.technicalTradeUuid }
+                : {}),
+              ...(made.lineItemUuid ? { lineItemUuid: made.lineItemUuid } : {}),
+              ...(made.bidUuid ? { bidUuid: made.bidUuid } : {}),
+              ...(made.proposalUuid ? { proposalUuid: made.proposalUuid } : {}),
+            });
+          }
+        }
+
+        // How many line items the events this run creates should carry. Capped
+        // to the company's own `allowed_maximum_line_items` rather than sent as
+        // asked — a request over the ceiling would be refused by the product
+        // and read as a test failure, which is the platform's bug, not theirs.
+        // Read once, here: the ceiling is needed before the checks are built,
+        // and the feature gating below needs the same configuration.
+        const caseCtx = await caseCtxP;
+        const actor = await actorP;
+        const companyCfg = await companyCfgP;
+        const askedLineItems = Number(url.searchParams.get("lineItems") ?? "") || undefined;
+        const lineItemCap = clampLineItems(
+          askedLineItems,
+          companyCfg.flags?.allowed_maximum_line_items ?? null,
+          "non_boq",
+        );
+        const wantLineItems = askedLineItems ? lineItemCap.value : undefined;
+
+        const { checks, skipped, deferred, lineItems } = buildChecksFromCases(
+          client,
+          cases,
+          caseCtx,
+          actor,
+          { lineItems: wantLineItems },
+        );
         /**
          * Ids created by this run, for the cases that come after.
          *
@@ -859,11 +1163,10 @@ const server = createServer(async (req, res) => {
          */
         const liveCtx: Record<string, unknown> = { ...caseCtx };
 
-        // Read this company's live configuration and drop the checks for
-        // features it doesn't have switched on. Without this, a feature that is
-        // simply OFF here looks like a product bug — which is exactly how two
-        // unprovable BOQ "failures" were reported before.
-        const companyCfg = await loadCompanyConfig(client, c);
+        // Drop the checks for features this company doesn't have switched on.
+        // Without this, a feature that is simply OFF here looks like a product
+        // bug — which is exactly how two unprovable BOQ "failures" were
+        // reported before. (`companyCfg` was read above, for the line-item cap.)
         const byId = new Map(cases.map((cs) => [cs.id, cs]));
         const runnable: typeof checks = [];
         for (const chk of checks) {
@@ -880,16 +1183,27 @@ const server = createServer(async (req, res) => {
           }
           // (b) this individual CASE may depend on a setting that's off, which
           //     would make its expected outcome wrong rather than the product buggy
-          const ruleFlag = companyCfg.loaded
+          const rule = companyCfg.loaded
             ? configRequirementOf(byId.get(chk.id)?.preconditions, companyCfg.flags)
             : null;
-          if (ruleFlag && !isFlagOn(companyCfg.flags[ruleFlag])) {
-            skipped.push({
-              id: chk.id,
-              title: chk.scenario,
-              reason: `this case only holds when "${ruleFlag}" is ON; it is OFF for ${companyCfg.companyName ?? "this company"}, so the expected outcome would not apply`,
-            });
-            continue;
+          if (rule) {
+            const on = isFlagOn(companyCfg.flags[rule.flag]);
+            // Both directions, because a case can need a setting ON (the rule it
+            // tests only exists then) or OFF (the refusal it expects is that
+            // setting's absence). Running one in the wrong workspace does not
+            // find a bug, it manufactures one.
+            const wrong = rule.mustBe === "on" ? !on : on;
+            if (wrong) {
+              skipped.push({
+                id: chk.id,
+                title: chk.scenario,
+                reason:
+                  `this case only holds when "${rule.flag}" is ${rule.mustBe.toUpperCase()}; it is ` +
+                  `${on ? "ON" : "OFF"} for ${companyCfg.companyName ?? "this company"}, so the outcome ` +
+                  `it expects would not apply here`,
+              });
+              continue;
+            }
           }
           runnable.push(chk);
         }
@@ -911,6 +1225,14 @@ const server = createServer(async (req, res) => {
           cases: cases.length,
           runnable: runnable.length + deferred.length,
           skipped,
+          // Said out loud, because a count that reached only some of the set
+          // would otherwise look like it reached all of it.
+          lineItems: {
+            ...lineItems,
+            asked: askedLineItems,
+            capped: lineItemCap.capped,
+            limit: lineItemCap.limit,
+          },
         });
 
         let done = 0;
@@ -957,6 +1279,33 @@ const server = createServer(async (req, res) => {
         const isAuthFailure = (r: CheckResult) =>
           r.httpStatus === 401 || /authentication failed/i.test(String(r.message ?? ""));
 
+        /**
+         * A 401 IS NOT ALWAYS THE SESSION.
+         *
+         * The bids API answers the buyer's web-console token with 401
+         * "Authentication failed": bidding is a vendor-app action, and the
+         * token is the wrong actor for it, not an expired one. Thirty bid
+         * cases in a row read exactly like a dead session to the counter
+         * above, and a run with a perfectly good session was stopped at 78 of
+         * 120 checks with a message telling someone to log in again.
+         *
+         * So before the session is declared dead it is asked: one GET of the
+         * dashboard configuration, the same call the journey opens with. If
+         * that is accepted the session is alive, the refusals belong to the
+         * endpoints, and the run carries on — the cases stay "couldn't tell",
+         * which is what they are. Only a probe that is itself refused, or
+         * that cannot be made, goes on to the renewal below.
+         */
+        let actorRefusalsNoted = false;
+        const sessionAlive = async (): Promise<boolean> => {
+          try {
+            const r = await client?.ctx?.buyerApi?.attempt?.("GET", "/v1/dashboard_configuration", {});
+            return r?.ok === true;
+          } catch {
+            return false;
+          }
+        };
+
         const runOne = async (chk: any): Promise<CheckResult | null> => {
           const result = await runCheck(client, chk, harvest);
           if (!isAuthFailure(result)) {
@@ -964,6 +1313,21 @@ const server = createServer(async (req, res) => {
             return result;
           }
           if (++consecutiveAuthFails < 3) return result;
+
+          if (await sessionAlive()) {
+            consecutiveAuthFails = 0;
+            if (!actorRefusalsNoted) {
+              actorRefusalsNoted = true;
+              send("note", {
+                line:
+                  `three calls in a row were refused as unauthorised, but the buyer's session is alive — ` +
+                  `those endpoints (${chk.request?.method ?? ""} ${String(chk.request?.path ?? "").split("?")[0]} and its ` +
+                  `neighbours) do not accept the buyer's console token; they need the vendor's. The cases are recorded as ` +
+                  `"couldn't tell" and the run carries on.`,
+              });
+            }
+            return result;
+          }
 
           if (renewals < MAX_RENEWALS) {
             renewals += 1;
@@ -980,7 +1344,7 @@ const server = createServer(async (req, res) => {
                * in the `finally` once nothing is using it.
                */
               stale.push(client);
-              client = await openClientContext(c);
+              client = await openClientContext(c, baseOverride(url));
               consecutiveAuthFails = 0;
               // Re-run the one that exposed it, now that there is a session.
               return await runCheck(client, chk, harvest);
@@ -1021,6 +1385,10 @@ const server = createServer(async (req, res) => {
             waiting.map((d) => d.record),
             liveCtx,
             actor,
+            // Same count as the first pass. A deferred case rebuilt without it
+            // would quietly run with one line item while the rest of the run
+            // used the count that was asked for.
+            { lineItems: wantLineItems },
           );
           if (!built.checks.length) {
             for (const d of waiting) {
@@ -1074,6 +1442,11 @@ const server = createServer(async (req, res) => {
           flowResults: [],
           validationResults: [],
           checkResults: results,
+          // The journey is the record; the two legacy shapes are derived from
+          // it so readers written before the journey keep working.
+          journey,
+          setupSteps: journey ? journeyToSetupSteps(journey) : undefined,
+          setupSummary: journey ? journeyToSetupSummary(journey) : undefined,
         });
 
         // What actually ran, including the cases that were waiting on a record
@@ -1087,6 +1460,10 @@ const server = createServer(async (req, res) => {
           planned: plannedTotal,
           stoppedEarly,
           runId: savedRunId,
+          // The journey's one-line verdict, so the run-complete dialog can say
+          // it beside the check counts — the counts alone say nothing about
+          // whether a buyer could run a sourcing round on this build.
+          journey: journey ? { outcome: journey.outcome, stoppedAt: journey.stoppedAt } : undefined,
         });
       } catch (err: any) {
         send("fatal", { message: err?.message ?? String(err) });
@@ -1197,7 +1574,7 @@ const server = createServer(async (req, res) => {
           }
 
           if (route.kind === "api-suite") {
-            const client = await openClientContext(c);
+            const client = await openClientContext(c, baseOverride(url));
             try {
               const checks = await buildChecksForFlow(client, route.target!);
               let failed = 0;
@@ -1222,7 +1599,7 @@ const server = createServer(async (req, res) => {
           if (route.kind === "ui-journey") {
             const runId = `case-${k.id}-${Date.now().toString(36)}`;
             await new Promise<void>((resolve) => {
-              const { stop } = runUiFlow({ flowKey: route.target!, companyId: c, runId, headed }, (e) => {
+              const { stop } = runUiFlow({ flowKey: route.target!, companyId: c, runId, headed, showLogin }, (e) => {
                 if (e.type === "log") send("note", { id: k.id, line: e.line });
                 if (e.type === "queued") send("queued", { id: k.id, line: e.line });
                 if (e.type === "done" || e.type === "run-error") {
@@ -1323,7 +1700,7 @@ const server = createServer(async (req, res) => {
         : ALL_SUITES.filter((s) => only === "all" || s.kind === only);
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      const client = await openClientContext(c);
+      const client = await openClientContext(c, baseOverride(url));
       try {
         send("plan", { suites: wanted.map((s) => ({ id: s.id, label: s.label, kind: s.kind })) });
         for (const s of wanted) {
@@ -1360,7 +1737,7 @@ const server = createServer(async (req, res) => {
       const flow = url.searchParams.get("flow") ?? "";
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      const client = await openClientContext(c);
+      const client = await openClientContext(c, baseOverride(url));
       try {
         const checks = await buildChecksForFlow(client, flow);
         send("total", { total: checks.length });
@@ -1379,7 +1756,7 @@ const server = createServer(async (req, res) => {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const flow = url.searchParams.get("flow") ?? "";
       const id = url.searchParams.get("id") ?? "";
-      const client = await openClientContext(c);
+      const client = await openClientContext(c, baseOverride(url));
       try {
         const checks = await buildChecksForFlow(client, flow);
         const check = checks.find((k) => k.id === id);
@@ -1556,7 +1933,7 @@ const server = createServer(async (req, res) => {
           JSON.stringify({
             error:
               "The PO flow runs against an account that has the flexi purchase-order module — " +
-              "pick Procol Sandbox Demo (PO) in the client list.",
+              "pick Sandbox (P2P flow) in the client list.",
           }),
         );
       }
@@ -1621,33 +1998,6 @@ const server = createServer(async (req, res) => {
       );
       req.on("close", () => run.stop());
       return;
-    }
-
-    // ── API: the PO -> Bill chain ───────────────────────────────────────
-    if (path === "/api/po-to-bill") {
-      return json(res, { ...chainStatus(), plan: chainPlan() });
-    }
-
-    if (path === "/api/po-to-bill/run") {
-      res.writeHead(200, {
-        "content-type": "text/event-stream",
-        "cache-control": "no-cache",
-        connection: "keep-alive",
-      });
-      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      const run = runChain((e) => send(e.type, e));
-      req.on("close", () => run.stop());
-      return;
-    }
-
-    if (path === "/api/po-to-bill/report") {
-      const file = join(here, "..", "..", "po-to-bill", "playwright-report", "index.html");
-      if (!existsSync(file)) {
-        res.writeHead(404, { "content-type": "text/plain" });
-        return res.end("No PO → Bill report yet — run the chain first.");
-      }
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-      return res.end(readFileSync(file));
     }
 
     // ── API: the PO run's report ────────────────────────────────────────
@@ -1768,13 +2118,15 @@ const server = createServer(async (req, res) => {
       if (runId) {
         const run = getRun(runId);
         if (run) {
+          const found = defectsFromRun(runId);
           return res.end(
-            renderBugSheet(defectsFromRun(runId), {
+            renderBugSheet(found, {
               runId,
               ts: run.ts,
               request: run.request,
               companyName: run.companyName,
               checks: run.checkResults?.length ?? 0,
+              stillOpen: stillOpenFor(featuresOfRun(run), found),
             }),
           );
         }
@@ -1819,7 +2171,14 @@ const server = createServer(async (req, res) => {
          * question, different drawer to look in.
          */
         const trail = readTrail(runId);
-        const found = summariseFindings().filter((d) => d.runs.includes(runId));
+        // A journey that passed files no finding, so this used to render an
+        // empty sheet for a run that spent two minutes fighting the product.
+        // Its friction — waits, retries, heals, failed background calls — is
+        // the sheet for a green run.
+        const found = [
+          ...summariseFindings().filter((d) => d.runs.includes(runId)),
+          ...uiRunDefects(runId),
+        ];
         return res.end(
           renderBugSheet(found, {
             runId,
@@ -1929,6 +2288,6 @@ server.listen(PORT, () => {
   // Settle which embedder is really available before anything reads the
   // memory, so the dashboard's stale/fresh verdict is about reality.
   ensureEmbedderReady().then((id) => console.log(`   Embedder: ${id}`)).catch(() => {});
-  console.log(`\n🚀 Procol QA platform UI  →  http://localhost:${PORT}`);
+  console.log(`\n🚀 spine.ai  →  http://localhost:${PORT}`);
   console.log(`   AI provider: ${providerLabel()}\n`);
 });

@@ -33,6 +33,32 @@ export interface RequestOptions {
 }
 
 /** Error thrown on non 200–204 responses, surfacing `{ error: { message } }`. */
+/**
+ * Coerces whatever the API put in a message field into a string.
+ *
+ * Rails validation failures arrive as `["can't be blank"]`, and letting an
+ * array through means every consumer that treats the message as text — the
+ * thrown `ApiError`, the recorded evidence, the report — has to defend itself
+ * against a type the field is not declared to hold. Normalising once, here,
+ * is the only place that has to know.
+ */
+function messageText(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "string") return value || undefined;
+  if (Array.isArray(value)) {
+    const parts = value.map((v) => messageText(v)).filter(Boolean);
+    return parts.length ? parts.join("; ") : undefined;
+  }
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return undefined;
+    }
+  }
+  return String(value);
+}
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -221,17 +247,20 @@ export class ApiClient {
     const isSuccess = status >= 200 && status < 205;
     const errObj =
       (data as {
-        error?: { code?: string; message?: string } | string;
-        message?: string;
+        error?: { code?: string; message?: unknown } | string;
+        message?: unknown;
       }) ?? {};
     // The platform's documented contract is `{ error: { message } }`, but its
-    // 500 handler answers `{ error: "Internal Server Error" }` — a string. Both
-    // shapes have to be read, or a 500 loses the only text it carries.
+    // 500 handler answers `{ error: "Internal Server Error" }` — a string —
+    // and its model validations answer `{ message: ["can't be blank"] }` — an
+    // array. All three shapes have to be read, or a failure loses the only
+    // text it carries, and `messageText` guarantees a string comes out
+    // whichever one arrived.
     const errorText =
-      typeof errObj.error === "string" ? errObj.error : errObj.error?.message;
+      typeof errObj.error === "string" ? errObj.error : messageText(errObj.error?.message);
     const message = isSuccess
       ? undefined
-      : errorText ?? errObj.message ?? `HTTP ${status} on ${method} ${path}`;
+      : errorText ?? messageText(errObj.message) ?? `HTTP ${status} on ${method} ${path}`;
 
     await recordApiCall({
       ...evidence,
@@ -292,25 +321,53 @@ export class ApiClient {
   ): Promise<RawResult<T>> {
     const url = this.buildUrl(path, opts.params);
     const hasBody = opts.body !== undefined && opts.body !== null;
+    const requestHeaders = this.headers(opts.headers);
+    const timestamp = new Date().toISOString();
+    const started = Date.now();
+
+    // Recorded on exactly the same terms as `request` does it. A contract case
+    // is the one that most needs its evidence in the report — it is the row
+    // that says the product is wrong — and for a long time this path recorded
+    // nothing, so those rows arrived with no call, no response and no curl.
+    const evidence = {
+      timestamp,
+      clientId: this.clientId,
+      companyId: this.companyId,
+      identity: this.identity,
+      method,
+      url: this.absoluteUrl(url),
+      requestHeaders,
+      requestBody: hasBody ? opts.body : undefined,
+    };
+
     let res: APIResponse;
     try {
       res = await this.ctx.fetch(url, {
         method,
-        headers: this.headers(opts.headers),
+        headers: requestHeaders,
         timeout: opts.timeoutMs ?? CONFIG.timeoutMs,
         ...(hasBody ? { data: JSON.stringify(opts.body) } : {}),
       });
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await recordApiCall({
+        ...evidence,
+        ok: false,
+        status: 0,
+        durationMs: Date.now() - started,
+        error: `Request never completed: ${message}`,
+      });
       return {
         status: 0,
         ok: false,
         data: null,
-        errorMessage: err instanceof Error ? err.message : String(err),
+        errorMessage: message,
         rawText: "",
       };
     }
     const status = res.status();
     const text = await res.text();
+    const durationMs = Date.now() - started;
     let data: unknown = null;
     try {
       data = text ? JSON.parse(text) : null;
@@ -319,13 +376,29 @@ export class ApiClient {
     }
     const ok = status >= 200 && status < 205;
     const errObj =
-      (data as { error?: { code?: string | number; message?: string }; message?: string } | null) ?? {};
+      (data as { error?: { code?: string | number; message?: unknown }; message?: unknown } | null) ??
+      {};
+    const errorCode = errObj.error?.code !== undefined ? String(errObj.error.code) : undefined;
+    const errorMessage = messageText(errObj.error?.message) ?? messageText(errObj.message);
+
+    await recordApiCall({
+      ...evidence,
+      ok,
+      status,
+      statusText: res.statusText(),
+      responseHeaders: res.headers(),
+      ...(typeof data === "string" ? { responseText: data } : { responseBody: data }),
+      durationMs,
+      error: ok ? undefined : errorMessage ?? `HTTP ${status} on ${method} ${path}`,
+      errorCode: ok ? undefined : errorCode,
+    });
+
     return {
       status,
       ok,
       data: data as T,
-      errorCode: errObj.error?.code !== undefined ? String(errObj.error.code) : undefined,
-      errorMessage: errObj.error?.message ?? errObj.message,
+      errorCode,
+      errorMessage,
       rawText: text.slice(0, 2000),
     };
   }

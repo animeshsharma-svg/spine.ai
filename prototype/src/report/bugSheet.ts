@@ -1,6 +1,8 @@
+import { knownBugSentence } from "./knownBugs.js";
 import { FEATURE_TREE } from "../../config/featureTree.js";
 import { summariseFindings, type DefectGroup } from "../agents/oracle.js";
 import { defectsFromRuns } from "./checkDefects.js";
+import { uiRunDefects } from "./uiFrictionDefects.js";
 import { curatedAsDefects, loadCuratedBugs, type CuratedBug } from "./curatedBugs.js";
 import { loadTriage, type Triage, type TriageStore } from "../triageStore.js";
 import {
@@ -76,6 +78,9 @@ details.more > summary::before { content: "▸ "; }
 details.more[open] > summary::before { content: "▾ "; }
 details.more p, details.more li { font-size: 11px; color: #3c4043; line-height: 1.5; margin: 5px 0 0; }
 details.more ol { margin: 4px 0 0; padding-left: 18px; }
+.known { display: block; margin: 4px 0 2px; font-size: 11px; padding: 3px 7px; border-radius: 4px; }
+.k-open { background: #fce8e6; color: #a50e0e; }
+.k-fixed { background: #e6f4ea; color: #137333; }
 `;
 
 const COLUMNS = [
@@ -180,9 +185,9 @@ function row(group: DefectGroup, index: number, triage: TriageStore): string {
   // A curated row brings its own columns — someone already filled them in.
   const curated = (group as DefectGroup & { curated?: CuratedBug }).curated;
 
-  const issueId = curated?.issueId ?? `D__${String(index + 1).padStart(3, "0")}`;
-  const status = saved.status ?? curated?.devStatus ?? kind.status;
-  const priority = saved.priority ?? curated?.priority ?? PRIORITY[group.severity];
+  const issueId = curated?.issueId ?? group.knownBug?.id ?? `D__${String(index + 1).padStart(3, "0")}`;
+  const status = saved.status ?? curated?.devStatus ?? group.knownBug?.status ?? kind.status;
+  const priority = saved.priority ?? curated?.priority ?? group.knownBug?.priority ?? PRIORITY[group.severity];
   const blocker = saved.blocker ?? (curated ? (curated.blocker ? "YES" : "NO") : group.severity === "critical" ? "YES" : "NO");
   const devType = saved.devType ?? curated?.devType ?? kind.devType;
   const module = saved.module ?? curated?.module ?? modulesOf(group.flows);
@@ -235,6 +240,13 @@ function row(group: DefectGroup, index: number, triage: TriageStore): string {
                   }`
             }
           </span>
+          ${
+            group.knownBug
+              ? `<span class="known ${/fixed|closed/i.test(group.knownBug.status) ? "k-fixed" : "k-open"}">${escapeHtml(
+                  knownBugSentence(group.knownBug),
+                )}</span>`
+              : ""
+          }
           <details class="more">
             <summary>what we found${group.reproduction.length ? " · how to reproduce" : ""}</summary>
             <p>${escapeHtml(group.rationale)}</p>
@@ -276,7 +288,15 @@ export function allDefects(): DefectGroup[] {
   // Curated rows lead, in their own issue-id order — that is the list people
   // read in standup. The platform's own findings follow, worst first.
   const curated = curatedAsDefects(loadCuratedBugs().bugs);
-  const found = [...summariseFindings(), ...defectsFromRuns(), ...defectsFromObservations()]
+  const found = [
+    ...summariseFindings(),
+    ...defectsFromRuns(),
+    ...defectsFromObservations(),
+    // What a browser run put up with on its way to passing: the waits, the
+    // retries, and the calls the app made in the background that failed. A
+    // green journey used to contribute nothing here at all.
+    ...uiRunDefects(),
+  ]
     .filter((g) => {
       if (seen.has(g.defectFingerprint)) return false;
       seen.add(g.defectFingerprint);
@@ -345,6 +365,40 @@ export interface SheetScope {
    * belongs.
    */
   notes?: string[];
+  /**
+   * What earlier runs found on the SAME modules and nobody has closed.
+   *
+   * A journey that works files nothing, and the sheet for it was a blank page
+   * — which read as "the platform found nothing", when three product defects
+   * on this very module were sitting in the all-time list. Carried here,
+   * labelled as earlier findings, so a clean run says "nothing new, and here
+   * is what is still open" instead of nothing at all.
+   */
+  stillOpen?: DefectGroup[];
+}
+
+/**
+ * The defects from every kept run that touch the modules a run covered,
+ * minus the ones that run found itself.
+ */
+export function stillOpenFor(features: string[], found: DefectGroup[]): DefectGroup[] {
+  const modules = new Set(features.map((f) => f.split(".")[0]));
+  if (!modules.size) return [];
+  const seen = new Set(found.map((g) => g.defectFingerprint));
+  const triage = loadTriage();
+  // "Still open" has to mean reproduced lately, more than once. The all-time
+  // list also holds one-off failures from runs weeks ago, many of them the
+  // platform's own earlier mistakes since corrected; carrying those onto a
+  // fresh run's sheet would be padding of the worst kind.
+  const recent = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  return defectsFromRuns().filter((g) => {
+    if (seen.has(g.defectFingerprint)) return false;
+    if (new Date(g.lastSeen).getTime() < recent || g.occurrences < 2) return false;
+    if (g.kind !== "product_defect" && g.kind !== "contradiction") return false;
+    const status = (triage[g.defectFingerprint] as Triage | undefined)?.status;
+    if (status && /fixed|closed|won.t fix|not a bug/i.test(status)) return false;
+    return g.flows.some((f) => modules.has(f.split(".")[0]));
+  }).slice(0, 12);
 }
 
 export function renderBugSheet(
@@ -367,7 +421,7 @@ export function renderBugSheet(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Procol QA — bug report</title>
+<title>spine.ai — bug report</title>
 <style>
 ${PAGE_CSS}
 ${SHEET_CSS}
@@ -378,7 +432,7 @@ ${EDITABLE_CSS}
 </head>
 <body>
 <div class="wrap">
-  <h1>Procol QA — bug report</h1>
+  <h1>spine.ai — bug report</h1>
   ${
     scope
       ? `<p class="sub">${groups.length} defect${groups.length === 1 ? "" : "s"} from
@@ -455,8 +509,11 @@ ${EDITABLE_CSS}
                missing page. <a href="/api/ui-report?run=${encodeURIComponent(scope.runId)}">The run's own report</a>
                has every step it took, and <a href="/api/bug-report">the full sheet</a> has everything the platform
                has found across all runs.</p>`
-            : `<p class="none">This run found no defects — every check it ran either passed or was
-               inconclusive. <a href="/api/bug-report">The full sheet</a> shows what earlier runs found.</p>`
+            : `<p class="none">This run found no defects — every step of the journey worked${
+                scope.checks ? ", and every case it ran either passed or was inconclusive" : ""
+              }. The cases that probe the product with bad input live under
+               <b>Event validation</b> and <b>API hardening</b>; tick those with the event type to run them.
+               <a href="/api/bug-report">The full sheet</a> shows what earlier runs found.</p>`
           : `<p class="none">No defects recorded yet. Either no run has finished, or every check passed.</p>`
         : `
     <div class="filters">
@@ -493,6 +550,18 @@ ${EDITABLE_CSS}
       // ever share an issue id.
       groups.filter((g) => (g as DefectGroup & { curated?: CuratedBug }).curated).length,
     )}`
+    }
+    ${
+      scope?.stillOpen?.length
+        ? table(
+            "Still open from earlier runs on these modules",
+            "Not found by this run — found before, on the same part of Procol, and not yet marked fixed. Listed so a " +
+              "clean run reads as \"nothing new\" rather than \"nothing known\".",
+            scope.stillOpen,
+            triage,
+            groups.length,
+          )
+        : ""
     }
   </section>
 </div>

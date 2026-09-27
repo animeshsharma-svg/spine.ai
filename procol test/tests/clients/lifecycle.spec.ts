@@ -4,6 +4,7 @@ import { placeSurrogateBid } from "../../src/flows/surrogate.js";
 import { createProposal, getApprovalFlows } from "../../src/flows/awarding.js";
 import { Endpoints } from "../../src/api/endpoints.js";
 import { getEventGroupByTitle, getTradesByEventGroupId } from "../../src/db/verify.js";
+import { declareCase } from "../../src/report/caseSpec.js";
 
 /**
  * Fully DB-driven client lifecycle. Everything (login, catalog, vendor,
@@ -17,6 +18,17 @@ test.describe("client lifecycle (DB-driven)", () => {
     client,
   }) => {
     test.setTimeout(120_000);
+    declareCase({
+      plain:
+        "Run a full sourcing round for whichever company was selected, using only that company's own data — its catalogue, its suppliers, its evaluator — and then check the records really landed in the database, not just that the API said so.",
+      expected:
+        "The event goes live with both rounds, the bid is accepted on the supplier's behalf, an award proposal opens with an approval workflow, the event is still live on re-read, and Postgres holds the event group plus both of its rounds under the same owning company.",
+      flow: "clients.lifecycle",
+      flowTitle: "Per-company end-to-end journey",
+      kind: "positive",
+      expect: "accept",
+      because: "nothing here is hardcoded — it is the proof the framework runs against any client account",
+    });
     test.info().annotations.push({
       type: "client",
       description: `COMPANY_ID=${client.companyId} "${client.companyName ?? ""}"`,

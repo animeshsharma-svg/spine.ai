@@ -10,6 +10,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentEvent, Report, CheckResult } from "./ai/types.js";
+import type { TestCaseRecord } from "./checks/caseLibrary.js";
+import type { JourneyRecord } from "./checks/journeyModel.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS_DIR = join(here, "..", "data", "runs");
@@ -27,6 +29,38 @@ export interface RunRecord {
   flowResults: any[];
   validationResults: any[];
   checkResults?: CheckResult[];
+  /**
+   * The calls that BUILT the thing this run tested, before any case ran.
+   *
+   * A reader's first question about an events run is "what did it make?" — the
+   * report opens the section with these, so the cases read as things done to a
+   * specific event rather than as a list of verdicts about nothing in
+   * particular.
+   */
+  setupSteps?: Array<{
+    n: number;
+    did: string;
+    method: string;
+    path: string;
+    status: number;
+    ms: number;
+    ok: boolean;
+  }>;
+  /** what the setup produced, for the report's heading */
+  setupSummary?: { title: string; status: string; eventGroupUuid: string; tradeId?: string; stageCount: number };
+  /**
+   * The journey this run walked before any case ran: sign in, build the
+   * event, respond as the vendor, wait for the window, evaluate, award — one
+   * record per step, narrated. `setupSteps` and `setupSummary` above are
+   * derived from it for readers that predate the journey; this is the source.
+   */
+  journey?: JourneyRecord;
+  /**
+   * Cases that were pasted into the dashboard for this run, in the library's
+   * shape. The test report reads its rows from here instead of the library,
+   * because these cases exist only in this run.
+   */
+  pastedCases?: TestCaseRecord[];
 }
 
 export interface RunSummary {
@@ -44,6 +78,12 @@ export interface RunSummary {
   findings: number;
   mismatches: number;
   provider: string;
+  /**
+   * The journey in one line, for the Recent-runs card: how many steps worked
+   * of how many, and where it stopped if it did. A feature run's verdict is
+   * this sentence far more than its check counts.
+   */
+  journey?: { outcome: string; worked: number; steps: number; stoppedAt?: number };
 }
 
 function ensureDir() {
@@ -122,6 +162,14 @@ export function listRuns(limit = 20): RunSummary[] {
         findings: r.report?.findings?.length ?? 0,
         mismatches: (r.validationResults ?? []).filter((v: any) => v.mismatch).length,
         provider: r.provider,
+        journey: r.journey
+          ? {
+              outcome: r.journey.outcome,
+              worked: (r.journey.steps ?? []).filter((s) => s.verdict === "worked").length,
+              steps: (r.journey.steps ?? []).length,
+              ...(r.journey.stoppedAt ? { stoppedAt: r.journey.stoppedAt } : {}),
+            }
+          : undefined,
       });
     } catch {
       /* skip a corrupt file */

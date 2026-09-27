@@ -98,6 +98,16 @@ export interface TokenClient {
    * the button mean "run it against what I have selected".
    */
   suiteClientId?: string;
+  /**
+   * Kept in the configuration but not offered in the client list.
+   *
+   * The sandbox demo account was retired from the dropdown once Decathlon
+   * carried the whole PO → Bill chain: two accounts for the same journey was
+   * one more thing to pick wrong. Its config stays because the vendored
+   * three-way-match suite is still pinned to it and a scripted run may still
+   * name it; only the menu stops showing it.
+   */
+  hidden?: boolean;
   /** false when browser journeys cannot run for this account */
   browserJourneys: boolean;
   /** said in place of the journey list when they cannot run */
@@ -108,6 +118,7 @@ export const TOKEN_CLIENTS: TokenClient[] = [
   {
     id: 900001,
     name: "Procol Sandbox Demo (PO)",
+    hidden: true,
     note: "sandbox deployment · token auth · the account the PO flow was built on",
     apiBaseUrl: "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api",
     headerName: "access-token",
@@ -187,7 +198,7 @@ export const TOKEN_CLIENTS: TokenClient[] = [
      * driven this account for a while. Nothing new is stored here.
      */
     id: 900002,
-    name: "Decathlon (PO → Bill)",
+    name: "Sandbox (P2P flow)",
     note: "logs in per run · the full purchase-to-bill chain",
     apiBaseUrl: "https://sec-api.ag-ri.in/api",
     headerName: "access-token",

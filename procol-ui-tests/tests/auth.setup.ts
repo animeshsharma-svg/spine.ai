@@ -42,9 +42,21 @@ function savedSessionIsFresh(): { fresh: boolean; reason: string } {
 
 const saved = savedSessionIsFresh();
 
+/**
+ * A run that signs in on screen (UI_SHOW_LOGIN=1) logs in for real in its own
+ * window, and drops the saved session first. Refreshing that session here as
+ * well would open a second browser and show two logins for one journey. The
+ * saved file still has to exist — the main project loads it as storage state
+ * — so the skip applies only once there is one.
+ */
+const onScreenLoginAhead = process.env.UI_SHOW_LOGIN === "1" && existsSync(AUTH_FILE);
+
 setup("authenticate", async ({ page }) => {
   // Skipped before the browser is needed, so no second window opens.
-  setup.skip(saved.fresh && process.env.UI_FORCE_LOGIN !== "1", saved.reason);
+  setup.skip(
+    (saved.fresh || onScreenLoginAhead) && process.env.UI_FORCE_LOGIN !== "1",
+    onScreenLoginAhead && !saved.fresh ? "the journey signs in on screen itself" : saved.reason,
+  );
   assertConfigured();
   const loginPage = new LoginPage(page);
   await loginPage.goto();

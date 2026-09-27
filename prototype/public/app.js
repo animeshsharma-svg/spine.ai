@@ -38,7 +38,7 @@ let currentMap = null; // the loaded capability map (for the control panel)
  */
 // Purchase-to-bill is off the nav for now: its runner and endpoints stay,
 // so restoring it is a nav entry and a view block, nothing more.
-const VIEWS = ["run", "api", "ui", "cases", "reports", "bugs"];
+const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs"];
 const DEFAULT_VIEW = "run";
 
 function currentView() {
@@ -58,7 +58,7 @@ function showView(name) {
   }
   // A view change is a navigation: start at the top of the new one.
   document.querySelector(".views")?.scrollTo({ top: 0, behavior: "instant" });
-  document.title = name === DEFAULT_VIEW ? "Procol QA" : `Procol QA · ${name}`;
+  document.title = name === DEFAULT_VIEW ? "spine.ai" : `spine.ai · ${name}`;
 }
 
 /**
@@ -83,17 +83,46 @@ function openDrawersInViews() {
  * eight-second round trip; asking for it a second time would make the whole
  * footer wait on the slowest answer, so each number appears as it lands.
  */
-const navCounts = { api: null, ui: null, chain: null };
+const navCounts = { api: null, ui: null };
+
+/** One figure on the Run view's glance strip, blank until its loader lands. */
+function setGlance(id, value, title) {
+  const node = document.getElementById(id);
+  if (!node) return;
+  node.textContent = value;
+  if (title) node.title = title;
+}
+
+/**
+ * What this run is about to touch, said once.
+ *
+ * The header has two pickers and neither confirms anything: "UAT" and a
+ * company name sit in chrome you stop reading after a minute. On the view
+ * where the run is started, it is worth a tile.
+ */
+function setTargetGlance() {
+  const custom = $("#env")?.value === "custom";
+  setGlance(
+    "glance-client",
+    currentClientName || "—",
+    currentClient ? `${currentClientName} · company ${currentClient}` : "",
+  );
+  setGlance(
+    "glance-env",
+    custom ? "custom URL" : "UAT environment",
+    custom ? $("#env-custom")?.value?.trim() || "custom base URL" : "",
+  );
+}
 
 function setNavCount(key, value) {
   navCounts[key] = value;
+  if (key === "api" || key === "ui") setGlance(`glance-${key}`, value == null ? "—" : String(value));
   const foot = $("#nav-foot");
   if (!foot) return;
   const line = (n, one, many) => (n == null ? "" : `${n} ${n === 1 ? one : many}`);
   foot.innerHTML = [
     line(navCounts.api, "API case", "API cases"),
     line(navCounts.ui, "browser journey", "browser journeys"),
-    line(navCounts.chain, "purchase-to-bill step", "purchase-to-bill steps"),
   ]
     .filter(Boolean)
     .join("<br>");
@@ -176,6 +205,7 @@ function goToRun(label, hint) {
     runEmptyNote = "";
     runStartedAt = Date.now();
     runCurrentStep = "";
+    resetJourney();
     renderAutomation();
     setRunBar(0, 0);
   }
@@ -299,27 +329,113 @@ init();
 async function init() {
   loadFindings();
   loadStuck();
+  loadJourneys();
+
+  // Journeys: one delegated handler, because every row is rendered up front.
+  $("#journeys")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".jy-row");
+    if (btn) openJourneyCase(btn);
+  });
+  $("#jy-q")?.addEventListener("input", filterJourneys);
+  for (const id of ["#jy-journey", "#jy-priority", "#jy-verdict"]) {
+    $(id)?.addEventListener("change", filterJourneys);
+  }
+  for (const b of document.querySelectorAll(".jy-segb")) {
+    b.addEventListener("click", () => {
+      for (const o of document.querySelectorAll(".jy-segb")) {
+        o.setAttribute("aria-pressed", String(o === b));
+      }
+      filterJourneys();
+    });
+  }
   // The chat box has one button, and it drives the run whose output appears
   // directly beneath it. Letting the AI pick a browser journey is a different
   // thing that prints to a different console, so it lives in UI automation.
   $("#ai-btn")?.addEventListener("click", run);
+  // Enter alone must stay a newline — a test case pasted in here is several
+  // lines long — so the run is on the modifier, as every other composer does it.
+  $("#request")?.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !$("#ai-btn")?.disabled) {
+      e.preventDefault();
+      run();
+    }
+  });
   $("#plan-btn")?.addEventListener("click", () => runTestCase(false));
   $("#plan-dry")?.addEventListener("click", () => runTestCase(true));
   const { clients, defaultClient, provider } = await (await fetch("/api/clients")).json();
   setProvider(provider);
   const sel = $("#client");
-  for (const c of clients) {
-    const o = el("option");
-    o.value = c.id;
-    o.textContent = `${c.name} (${c.id})`;
-    sel.appendChild(o);
-  }
+  /**
+   * CLIENTS ADDED HERE SURVIVE A RELOAD.
+   *
+   * The list comes from config, which is right for the accounts the team keeps
+   * — and no help at all when someone wants to point the platform at a company
+   * id they have just been given. Anything typed in is kept per browser, which
+   * is the honest home for it: it is one person trying one account, not a
+   * change to what the team ships.
+   */
+  const added = readAddedClients();
+  const allClients = [...clients, ...added.filter((a) => !clients.some((c) => String(c.id) === String(a.id)))];
+  const fillClientList = () => {
+    sel.innerHTML = "";
+    for (const c of allClients) {
+      const o = el("option");
+      o.value = c.id;
+      o.textContent = `${c.name} (${c.id})${c.added ? " · added" : ""}`;
+      sel.appendChild(o);
+    }
+    // Last, and visually apart: it is an action, not an account.
+    const add = el("option");
+    add.value = "__add__";
+    add.textContent = "＋ Add a client…";
+    sel.appendChild(add);
+  };
+  fillClientList();
   sel.value = String(defaultClient);
   currentClient = defaultClient;
-  currentClientName = clients.find((c) => String(c.id) === String(defaultClient))?.name ?? "";
+  currentClientName = allClients.find((c) => String(c.id) === String(defaultClient))?.name ?? "";
+  setTargetGlance();
+
+  let lastClient = String(defaultClient);
+  const addField = $("#client-add-field");
+  const showAdd = (on) => {
+    if (addField) addField.hidden = !on;
+    if (on) $("#client-add-id")?.focus();
+  };
+  $("#client-add-cancel")?.addEventListener("click", () => {
+    showAdd(false);
+    sel.value = lastClient;
+  });
+  $("#client-add-go")?.addEventListener("click", () => {
+    const id = Number(($("#client-add-id")?.value ?? "").trim());
+    if (!Number.isFinite(id) || id <= 0) {
+      $("#client-add-id")?.focus();
+      return;
+    }
+    const name = ($("#client-add-name")?.value ?? "").trim() || `Company ${id}`;
+    if (!allClients.some((c) => String(c.id) === String(id))) {
+      allClients.push({ id, name, added: true });
+      saveAddedClients(allClients.filter((c) => c.added));
+    }
+    fillClientList();
+    sel.value = String(id);
+    showAdd(false);
+    const idBox = $("#client-add-id"); if (idBox) idBox.value = "";
+    const nameBox = $("#client-add-name"); if (nameBox) nameBox.value = "";
+    sel.dispatchEvent(new Event("change"));
+  });
+
   sel.addEventListener("change", () => {
+    // The last entry is an action, not an account: show the box and put the
+    // selection back where it was, so cancelling changes nothing.
+    if (sel.value === "__add__") {
+      showAdd(true);
+      return;
+    }
+    showAdd(false);
+    lastClient = sel.value;
     currentClient = Number(sel.value);
-    currentClientName = clients.find((c) => String(c.id) === String(currentClient))?.name ?? "";
+    currentClientName = allClients.find((c) => String(c.id) === String(currentClient))?.name ?? "";
 
     /**
      * Anything account-specific goes away the moment the account changes.
@@ -329,6 +445,7 @@ async function init() {
      * account's state — which is how "Run PO automation" appeared under a
      * client that has no PO module. Clear first, then reload.
      */
+    setTargetGlance();
     resetAccountControls();
     // Switching company re-reads that company's configuration and rebuilds the
     // tree — the same way the real Procol console reconfigures itself.
@@ -345,6 +462,9 @@ async function init() {
     selected.clear();
     renderTree();
   });
+  // The note under the field restates the count in words, so it has to move
+  // with the field rather than only on the next tree render.
+  $("#api-line-items")?.addEventListener("input", syncApiInputs);
   $("#ui-run-sel").addEventListener("click", runSelectedUiJourneys);
   $("#ui-none").addEventListener("click", () => {
     uiSelected.clear();
@@ -360,8 +480,6 @@ async function init() {
     }
   });
   $("#po-run")?.addEventListener("click", runPoAutomation);
-  $("#chain-run")?.addEventListener("click", runChainFlow);
-  loadChain();
 
   initRouter();
   renderAutomation();
@@ -374,6 +492,9 @@ async function init() {
   loadPoInput();
   loadHistory();
   loadCatalogue();
+  initBugControls();
+  initEnvControl();
+  setTargetGlance();
   for (const id of ["#cat-search", "#cat-module", "#cat-kind"]) {
     $(id)?.addEventListener("input", renderCatalogue);
   }
@@ -394,7 +515,14 @@ function initExamples() {
     "Create a product category, a product and a location",
   ];
   for (const text of examples) {
-    const chip = el("button", "rc-ex", text.length > 46 ? text.slice(0, 44) + "…" : text);
+    /**
+     * No character count. Cut at 46, every one of these lost its verb —
+     * "Create a technical RFP + RFQ event, place a …" — and a suggestion you
+     * cannot read is not a suggestion. The row is 800px wide and the longest
+     * example is sixty characters; whether that fits is a question about the
+     * window, not about the string, so CSS trims it and only when it must.
+     */
+    const chip = el("button", "rc-ex", text);
     chip.type = "button";
     chip.title = text;
     chip.addEventListener("click", () => {
@@ -414,9 +542,19 @@ function setFilter(f) {
 
 function setProvider(p) {
   const n = $("#provider");
-  n.textContent = "AI: " + p.split(" (")[0];
+  /**
+   * A badge, not a heading.
+   *
+   * Slingring's label names both models it is pointed at — two shouty
+   * identifiers that were the widest thing in the header and told a reader
+   * nothing they could act on. The name is the status; the models are detail,
+   * and detail belongs in the tooltip.
+   */
+  n.textContent = "AI · " + p.split(" (")[0].split(" · ")[0];
   n.title = p;
-  n.classList.toggle("live", /groq|claude/i.test(p));
+  // Green means an LLM is actually answering. The old test named two
+  // providers by hand and so went grey the day a third one was added.
+  n.classList.toggle("live", !/deterministic|no API key/i.test(p));
 }
 
 // ── control panel: run a flow directly (like the Procol platform's buttons) ──
@@ -465,7 +603,7 @@ async function loadFeatures() {
     // Pass the client so the tree reflects THAT company's switched-on features —
     // the same source of truth the real Procol console uses.
     const { groups, defaults, totalCases, company, scope } = await (
-      await fetch("/api/features?c=" + currentClient)
+      await fetch("/api/features?c=" + currentClient + baseParam())
     ).json();
     featureGroups = groups;
     setNavCount("api", totalCases);
@@ -543,7 +681,74 @@ function initDrawers() {
  * shows an indeterminate box, so "some of this is selected" is visible without
  * opening it.
  */
+/**
+ * Keep the prerequisites honest.
+ *
+ * Line items and event configuration are not things you choose instead of an
+ * event type — no event exists without them. So the moment anything else in
+ * their group is picked they join the run, and when nothing is picked they
+ * leave it, rather than sitting there as a selection of their own that would
+ * run line-item validation against no event.
+ *
+ * Done as one invariant over `selected` rather than at the run button, so every
+ * reader of the set — the counts, the button, the run payload — agrees.
+ */
+function syncPrerequisites() {
+  for (const g of featureGroups) {
+    const pre = g.children.filter((c) => c.prerequisite && c.cases > 0);
+    if (!pre.length) continue;
+    const anyChosen = g.children.some((c) => !c.prerequisite && selected.has(c.id));
+    for (const p of pre) {
+      if (anyChosen) selected.add(p.id);
+      else selected.delete(p.id);
+    }
+  }
+}
+
+/**
+ * Keep a one-of choice a choice.
+ *
+ * The four event types are one decision — an event is an RFQ or an auction,
+ * never both — so a selection must never hold two of them. Anything that adds
+ * to a set (the master "tick everything", a restored selection) goes through
+ * here, and the earliest in tree order wins, because that is the one the
+ * reader can see is ticked.
+ *
+ * Written over (set, key) rather than over `selected`, because the same rule
+ * governs both trees: the API tree selects features by id, the UI tree selects
+ * journeys by `uiFlow`, and "one event type per run" is a fact about the
+ * product, not about which of the two lists you are looking at.
+ */
+function syncExclusive(selection, keyOf) {
+  const taken = new Set();
+  for (const g of featureGroups) {
+    for (const f of g.children) {
+      const key = keyOf(f);
+      if (!f.oneOf || !key || !selection.has(key)) continue;
+      if (taken.has(f.oneOf)) selection.delete(key);
+      else taken.add(f.oneOf);
+    }
+  }
+}
+
+/** The node already holding `f`'s one-of choice, if it is not `f` itself. */
+function exclusiveHolder(f, selection, keyOf) {
+  if (!f.oneOf) return null;
+  for (const g of featureGroups) {
+    for (const other of g.children) {
+      const key = keyOf(other);
+      if (other.oneOf === f.oneOf && other.id !== f.id && key && selection.has(key)) return other;
+    }
+  }
+  return null;
+}
+
+const byFeatureId = (f) => f.id;
+const byUiFlow = (f) => f.uiFlow;
+
 function renderTree() {
+  syncExclusive(selected, byFeatureId);
+  syncPrerequisites();
   const box = $("#tree");
   box.innerHTML = "";
   let pickedCases = 0;
@@ -553,7 +758,9 @@ function renderTree() {
     // Only features that actually have test cases can be run. The rest are
     // listed — the tree doubles as a coverage map — but not selectable, so
     // "Run selected" can never mean "run nothing".
-    const kidIds = g.children.filter((c) => c.cases > 0).map((c) => c.id);
+    // Prerequisites are not choices, so they are not part of "tick everything
+    // here" and do not count towards "3 of 7 picked" — they follow whatever is.
+    const kidIds = g.children.filter((c) => c.cases > 0 && !c.prerequisite).map((c) => c.id);
     const onCount = kidIds.filter((id) => selected.has(id)).length;
     pickedFeatures += onCount;
     pickedCases += g.children.reduce((n, c) => n + (selected.has(c.id) ? c.cases || 0 : 0), 0);
@@ -579,11 +786,22 @@ function renderTree() {
       : "no test cases written for this module yet";
     master.addEventListener("click", (e) => e.stopPropagation());
     master.addEventListener("change", () => {
+      // "Tick everything here" cannot tick two event types, so it takes the
+      // first of each one-of choice and leaves the rest — `syncExclusive`
+      // would drop them anyway, and doing it here keeps the box honest.
       if (master.checked) kidIds.forEach((id) => selected.add(id));
       else kidIds.forEach((id) => selected.delete(id));
       renderTree();
     });
     head.appendChild(master);
+
+    // Journey position. The tree is ordered the way a buyer walks the product,
+    // but order alone is invisible once a reader scrolls — the number says it.
+    // Supporting groups (master data, users, vendors, config) carry no step and
+    // get a dot, because they are not a stage anybody passes through.
+    const stepBadge = el("span", "module-step" + (g.step ? "" : " nostep"), g.step ? String(g.step) : "·");
+    stepBadge.title = g.step ? `Step ${g.step} of the procure-to-pay journey` : "Set up underneath the journey, not a stage of it";
+    head.appendChild(stepBadge);
 
     head.appendChild(el("span", "module-ico", g.icon));
     head.appendChild(el("span", "module-name", esc(g.label)));
@@ -602,21 +820,49 @@ function renderTree() {
 
     const body = el("div", "module-body");
     if (g.what) body.appendChild(el("div", "module-what", esc(g.what)));
+    // When in the journey this happens — the sentence the step number is short for.
+    if (g.when) body.appendChild(el("div", "module-when", esc(g.when)));
 
-    for (const f of g.children) {
+    for (const [fi, f] of g.children.entries()) {
       const runnable = f.cases > 0;
-      const row = el("div", "submodule" + (runnable ? "" : " none") + (selected.has(f.id) ? " picked" : ""));
+      const isPre = !!f.prerequisite && runnable;
+      // Another event type is already picked. This one is not unavailable in
+      // the product — it is simply not this run, and it comes back the moment
+      // the other is unticked.
+      const heldBy = exclusiveHolder(f, selected, byFeatureId);
+      const row = el(
+        "div",
+        "submodule" + (runnable ? "" : " none") + (isPre ? " prereq" : "") +
+          (heldBy ? " blocked" : "") + (selected.has(f.id) ? " picked" : ""),
+      );
       const cb = el("input");
       cb.type = "checkbox";
-      cb.disabled = !runnable;
-      cb.checked = runnable && selected.has(f.id);
-      cb.title = runnable ? "" : "no test cases written for this yet";
+      // A prerequisite is shown ticked and locked: it is not a decision, and a
+      // box you can untick would promise you could create an event without
+      // line items.
+      cb.disabled = !runnable || isPre || !!heldBy;
+      cb.checked = isPre ? true : runnable && selected.has(f.id);
+      cb.title = heldBy
+        ? `One event type per run — untick “${heldBy.label}” to pick this instead`
+        : isPre
+          ? "Always runs — every event type goes through this step"
+          : runnable
+            ? ""
+            : "no test cases written for this yet";
       cb.addEventListener("click", (e) => e.stopPropagation());
-      cb.addEventListener("change", () => {
-        cb.checked ? selected.add(f.id) : selected.delete(f.id);
-        renderTree();
-      });
+      if (!isPre && !heldBy) {
+        cb.addEventListener("change", () => {
+          cb.checked ? selected.add(f.id) : selected.delete(f.id);
+          renderTree();
+        });
+      }
       row.appendChild(cb);
+
+      // Order within the stage, e.g. 3.6 = the sixth thing you do while
+      // building a sourcing event. Without it the list reads as unsorted.
+      const ord = el("span", "sub-step", g.step ? `${g.step}.${fi + 1}` : `${fi + 1}`);
+      ord.title = "Order within this stage";
+      row.appendChild(ord);
 
       // Per-company configuration badge: a feature that is simply OFF here
       // would otherwise look like a product bug when its tests are skipped.
@@ -625,17 +871,28 @@ function renderTree() {
       const st = f.config?.state;
       if (st === "on") tags += ` <span class="sub-tag on" title="${esc(f.requiresConfig || "")} is ON for this company">on</span>`;
       else if (st === "off") tags += ` <span class="sub-tag off" title="${esc(f.requiresConfig || "")} is OFF here — its tests are skipped, not failed">off</span>`;
-      else if (st === "unknown" && f.requiresConfig) tags += ` <span class="sub-tag unk" title="could not read ${esc(f.requiresConfig)}">config?</span>`;
+      // No "config?" badge. It fired whenever a per-company flag could not be
+      // read, which is a fact about OUR read, not about the feature — and it
+      // sat on the four event types permanently, shouting a question nobody
+      // could answer. "off" still shows, because that one changes what runs.
 
       if (!runnable) {
         tags += ' <span class="sub-tag notbuilt" title="no test cases written for this feature yet">no tests yet</span>';
+      }
+      if (isPre) {
+        tags += ' <span class="sub-tag req" title="every event type goes through this — it runs whenever you pick one">always runs</span>';
+      }
+      if (heldBy) {
+        tags += ` <span class="sub-tag held" title="${esc(
+          `An event has one type. “${heldBy.label}” is picked for this run; untick it to choose this one.`,
+        )}">one type per run</span>`;
       }
 
       const name = el("span", "sub-name");
       name.innerHTML = `${esc(f.label)}${tags}<span class="sub-what">${esc(f.what)}</span>`;
       row.appendChild(name);
       row.appendChild(el("span", "sub-n", f.cases ? String(f.cases) : "—"));
-      if (runnable) {
+      if (runnable && !isPre && !heldBy) {
         row.addEventListener("click", () => {
           const now = !selected.has(f.id);
           now ? selected.add(f.id) : selected.delete(f.id);
@@ -648,6 +905,7 @@ function renderTree() {
     box.appendChild(mod);
   }
 
+  syncApiInputs();
   syncRunButton();
   syncNav();
   const meta = $("#api-meta");
@@ -655,6 +913,43 @@ function renderTree() {
     meta.textContent = pickedFeatures
       ? `${pickedFeatures} picked · ${pickedCases} test${pickedCases === 1 ? "" : "s"} will run`
       : "nothing picked yet";
+}
+
+/**
+ * The line-item count, shown only when this selection actually builds events.
+ *
+ * A number field sitting over a selection it cannot affect is worse than no
+ * field: it invites someone to set 10, watch a run of purchase-order cases go
+ * past, and conclude the setting is broken. So the strip appears exactly when
+ * the ticked cases include some that actually send line items — counted from
+ * the case data itself, so it stays right as cases are added.
+ */
+function apiLineItemCases() {
+  let n = 0;
+  for (const g of featureGroups) {
+    for (const f of g.children) {
+      if (selected.has(f.id)) n += f.lineItemCases || 0;
+    }
+  }
+  return n;
+}
+
+function syncApiInputs() {
+  const wrap = $("#api-inputs");
+  if (!wrap) return;
+  const cases = apiLineItemCases();
+  wrap.hidden = cases === 0;
+  const note = $("#api-li-note");
+  if (!note) return;
+  if (!cases) {
+    note.textContent = "";
+    return;
+  }
+  const n = Math.max(1, Number($("#api-line-items")?.value) || 1);
+  note.textContent =
+    `${cases} of the ticked case${cases === 1 ? "" : "s"} build an event — each will send ` +
+    `${n} line item${n === 1 ? "" : "s"}. Cases written around a count of their own keep it, ` +
+    `and the run says which.`;
 }
 
 /** Run the test cases for every ticked feature. */
@@ -708,9 +1003,16 @@ async function showRunComplete({
   /** Text and href for the single action button — defaults to the report. */
   actionLabel = null,
   actionHref = null,
+  /**
+   * For an API run that walked the collection first: its one-line outcome,
+   * where it stopped (if it did) and the step tally. A journey that stopped
+   * is not a successful run, however many checks passed afterwards.
+   */
+  journey = null,
 }) {
   const modal = $("#modal");
-  const ok = !error && failed === 0;
+  const journeyStopped = !!(journey && journey.stoppedAt);
+  const ok = !error && failed === 0 && !journeyStopped;
   modal.classList.toggle("bad", !ok);
   $("#modal-ico").textContent = ok ? "✓" : error ? "!" : "✕";
   $("#modal-title").textContent = error
@@ -721,11 +1023,20 @@ async function showRunComplete({
         : "Run successful"
       : kind === "journey"
         ? "The journey broke"
-        : `Run complete — ${failed} failed`;
+        : journeyStopped && failed === 0
+          ? `Run complete — the journey stopped at step ${journey.stoppedAt}`
+          : `Run complete — ${failed} failed`;
+  // A run that walked the journey and had no cases after it is measured in
+  // steps. "0 checks · 0 passed · 0 failed" under fifteen green steps read as
+  // nothing having happened.
+  const journeyOnly = !!(journey && journey.steps && total === 0);
   $("#modal-sub").textContent =
     error ??
     subtitle ??
-    `${total} check${total === 1 ? "" : "s"} ran against ${currentClientName || "this client"}.`;
+    (journeyOnly
+      ? `${journey.outcome} ${journey.steps} step${journey.steps === 1 ? "" : "s"}, from signing in to the award, against ${currentClientName || "this client"}.`
+      : (journey ? `Journey: ${journey.outcome} ` : "") +
+        `${total} check${total === 1 ? "" : "s"} ran against ${currentClientName || "this client"}.`);
 
   const stats = $("#modal-stats");
   stats.innerHTML = "";
@@ -739,7 +1050,17 @@ async function showRunComplete({
     if (took != null) stats.appendChild(stat(took, "took"));
     if (steps != null) stats.appendChild(stat(steps, "steps"));
     stats.appendChild(stat(ok ? "✓" : "✗", ok ? "worked" : "broke", ok ? "good" : "bad"));
+  } else if (journeyOnly) {
+    const broken = journeyStopped ? 1 : 0;
+    const notRun = Math.max(0, journey.steps - journey.worked - broken);
+    stats.appendChild(stat(journey.steps, "steps"));
+    stats.appendChild(stat(journey.worked, "worked", "good"));
+    stats.appendChild(stat(broken, "broken", broken ? "bad" : ""));
+    if (notRun) stats.appendChild(stat(notRun, "not run"));
   } else {
+    if (journey && journey.steps) {
+      stats.appendChild(stat(`${journey.worked}/${journey.steps}`, "journey steps", journeyStopped ? "bad" : "good"));
+    }
     stats.appendChild(stat(total, "checks"));
     stats.appendChild(stat(passed, "passed", "good"));
     stats.appendChild(stat(failed, "failed", failed ? "bad" : ""));
@@ -755,7 +1076,9 @@ async function showRunComplete({
   if (actionLabel != null) link.textContent = actionLabel;
   if (actionHref != null) link.href = actionHref;
   const ticked = [...selected].length;
-  note.textContent = reportNote ?? (ticked
+  note.textContent = reportNote ?? (journeyOnly
+    ? "The test report walks the same steps in order — what was expected, what the app replied, and the request behind each."
+    : ticked
     ? `The test report covers the ${ticked} ticked feature${ticked === 1 ? "" : "s"} — every case those modules define, each with its verdict and a curl.`
     : "The test report covers every module in the case library — tick features on the left to narrow it.");
 
@@ -763,11 +1086,16 @@ async function showRunComplete({
 }
 
 function initModal() {
-  // The run-complete dialog opens the platform's own test report, scoped to the
-  // ticked features; the sheet is the platform's findings for those modules.
-  // The side-panel links are about everything the platform knows; the centre
-  // bar and the popup are about the run that just finished, and are set by
-  // showReportsFor() when one does.
+  /**
+   * Two audiences, two kinds of link.
+   *
+   * A run's reports hang off its own card in the history and off the bar the
+   * run leaves behind — set by showReportsFor(). What remains here is the
+   * standing sheet on the Bugs view, which is about everything the platform
+   * knows rather than about any one run. #report-tests is gone from the
+   * markup; wireReportLink no-ops on a missing element, and the call is kept
+   * so the behaviour comes back with the element if it ever returns.
+   */
   wireReportLink("#report-sheet", "/api/bug-report", "module");
   wireReportLink("#report-tests", "/api/test-report", "features");
   const modal = $("#modal");
@@ -879,9 +1207,114 @@ function runSelectedFeatures() {
   renderAutomation();
 
   const qs = new URLSearchParams({ c: String(currentClient), features: ids.join(",") });
+  if (customBase) qs.set("base", customBase);
+  // Only when the selection actually builds events — otherwise the parameter
+  // would travel with runs it cannot affect and read as if it had.
+  if (apiLineItemCases()) {
+    qs.set("lineItems", String(Math.max(1, Number($("#api-line-items")?.value) || 1)));
+  }
   $("#auto-summary").textContent = `starting ${ids.length} feature(s)…`;
+  // One-line notes about the run (line-item caps, skips, wait progress) go
+  // under the journey list, which is the run's own narration.
+  const write = (text, cls) => noteJourney(text, cls);
   const es = new EventSource(`/api/features-run?${qs}`);
+  wireRunStream(es, write);
+  document.querySelector("#automation")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/** How many numbered lines make a paste a list of test cases. */
+function looksLikeCaseList(text) {
+  const starts = /^\s*(?:(?:TC|DC|QA|BM)[-_ ]?\d+|\d+)\s*[.):|-]?\s+\S/i;
+  return text.split(/\r?\n/).filter((l) => starts.test(l)).length >= 3;
+}
+
+/**
+ * Test cases pasted into the box, run one by one.
+ *
+ * Every case is a row from the first second — greyed, "running…" — and fills
+ * in with its verdict as it finishes, so the whole list is visible before
+ * anything has happened and nothing appears out of nowhere. The stream is the
+ * features-run stream; only the URL differs.
+ */
+function runPastedCases(text) {
+  const n = looksLikeCaseList(text) ? text.split(/\r?\n/).filter((l) => /^\s*(?:(?:TC|DC|QA|BM)[-_ ]?\d+|\d+)\s*[.):|-]?\s+\S/i.test(l)).length : 0;
+  goToRun(`${n} pasted test case${n === 1 ? "" : "s"}`, "Reading each case, working out which screens and calls it needs, then running them in order.");
+  checkRows = [];
+  renderAutomation();
+  const runBtn = $("#ai-btn");
+  if (runBtn) runBtn.disabled = true;
+  $("#status").textContent = "running…";
+  $("#auto-summary").textContent = `starting ${n} test cases…`;
+  const qs = new URLSearchParams({ c: String(currentClient), text });
+  const es = new EventSource(`/api/cases-run?${qs}`);
+  wireRunStream(es, (t, cls) => noteJourney(t, cls), () => {
+    if (runBtn) runBtn.disabled = false;
+    $("#status").textContent = "done ✓ · saved to history";
+    loadHistory();
+  });
+  document.querySelector("#automation")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function wireRunStream(es, write, onEnd) {
   watchStreamEnd(es);
+
+  /**
+   * THE JOURNEY, AS IT HAPPENS.
+   *
+   * The server walks the Postman collection first — sign in, create the
+   * draft, add the rounds, publish, respond as the vendor, wait, evaluate,
+   * award — and narrates each step. The plan arrives before any call is made,
+   * so the whole list is on screen at once with every step still to come;
+   * each then fills in with what the app actually did, and the one in flight
+   * says so. The wait step reports its progress as plain lines.
+   */
+  es.addEventListener("journey-plan", (ev) => {
+    const p = JSON.parse(ev.data);
+    const kinds = p.plan?.steps ?? [];
+    journeyLive = {
+      label: p.plan?.label ?? "",
+      steps: p.steps ?? kinds.map((kind, i) => ({ n: i + 1, kind, title: kind.replace(/_/g, " "), actor: "" })),
+    };
+    journeyStepsLive = [];
+    journeyRecord = null;
+    journeyProgress = "";
+    renderJourney();
+    // Re-word the waiting card for what is actually happening. Written
+    // directly rather than through setRunPending, which would also restart
+    // the elapsed clock — this is the same run, a second in.
+    runPendingHint =
+      `Walking the ${journeyLive.label} journey — ${journeyLive.steps.length} steps, from signing in to awarding.`;
+    renderAutomation();
+  });
+  es.addEventListener("journey-step", (ev) => {
+    const { step, planned } = JSON.parse(ev.data);
+    if (!step) return;
+    journeyStepsLive[step.n - 1] = step;
+    if (planned) journeyPlanned = planned;
+    journeyProgress = "";
+    // The card's "Currently:" line names what is in flight NOW — the next
+    // planned step — not the one that just finished.
+    const next = journeyLive?.steps?.[step.n];
+    runCurrentStep = next ? `${next.n}. ${next.title}` : "";
+    tickRunCard();
+    renderJourney();
+  });
+  es.addEventListener("line", (ev) => {
+    const line = String(JSON.parse(ev.data).line ?? "").trim();
+    if (!line) return;
+    journeyProgress = line;
+    runCurrentStep = line;
+    tickRunCard();
+    renderJourney();
+  });
+  es.addEventListener("journey", (ev) => {
+    journeyRecord = JSON.parse(ev.data).journey ?? null;
+    journeyProgress = "";
+    runCurrentStep = "the journey is finished — now running the ticked cases as variations";
+    tickRunCard();
+    renderJourney();
+  });
+
   es.addEventListener("blocked", (ev) => {
     /**
      * The compiler could not use your words, so nothing was run.
@@ -900,9 +1333,42 @@ function runSelectedFeatures() {
     const p = JSON.parse(ev.data);
     planSkipped = p.skipped?.length ?? 0;
     runPlanned = p.runnable || 0;
-    $("#auto-summary").textContent =
-      `${p.runnable} checks from ${p.cases} cases` + (planSkipped ? ` · ${planSkipped} skipped` : "");
+    // A journey run carries no library cases; saying "0 checks from 0 cases"
+    // would read as nothing happening while fifteen steps are on screen.
+    $("#auto-summary").textContent = p.pasted
+      ? `${p.cases} test cases, run in the order you wrote them`
+      : p.cases
+      ? `${p.runnable} checks from ${p.cases} cases` + (planSkipped ? ` · ${planSkipped} skipped` : "")
+      : journeyLive
+        ? `the ${journeyLive.label} journey, step by step`
+        : "nothing to run for this selection";
     setRunBar(0, p.runnable || 1);
+
+    /**
+     * What the line-item count actually reached.
+     *
+     * Written into the run output, not just onto the control, because the two
+     * numbers that matter — how many cases took the count and how many kept
+     * their own — are only known once the server has been through the set. A
+     * knob that silently applies to two thirds of a run is how a report ends up
+     * claiming to have tested a size it never tested.
+     */
+    const li = p.lineItems;
+    if (li && li.requested) {
+      if (li.capped) {
+        write(
+          `ℹ ${li.asked} line items was more than this company allows (max ${li.limit}) — ran with ${li.requested}`,
+          "note",
+        );
+      }
+      write(
+        `ℹ line items per event: ${li.requested} — applied to ${li.expanded} of ${li.eligible} event-creating case(s)`,
+        "note",
+      );
+      for (const h of li.held ?? []) {
+        write(`   · ${h.title} kept ${h.count} — ${h.reason}`, "note");
+      }
+    }
 
     /**
      * Why each case was skipped.
@@ -932,7 +1398,10 @@ function runSelectedFeatures() {
     box.appendChild(list);
   });
   es.addEventListener("check", (ev) => {
-    checkRows.push(JSON.parse(ev.data).check);
+    const check = JSON.parse(ev.data).check;
+    const i = checkRows.findIndex((c) => c.id === check.id);
+    if (i >= 0) checkRows[i] = check;
+    else checkRows.push(check);
     renderAutomation();
   });
   es.addEventListener("progress", (ev) => {
@@ -945,14 +1414,26 @@ function runSelectedFeatures() {
   });
   es.addEventListener("done", (ev) => {
     es.close();
+    let d = {};
+    try {
+      d = JSON.parse(ev.data) || {};
+    } catch {}
     const failed = checkRows.filter((c) => !c.pass && !c.inconclusive).length;
     // Whatever the plan said, what ran is what ran.
     runPlanned = checkRows.length;
+    const walked = journeyStepsLive.filter(Boolean).length;
     if (!checkRows.length) {
-      runEmptyNote = planSkipped
-        ? `That run checked nothing: all ${planSkipped} case${planSkipped === 1 ? "" : "s"} were skipped. ` +
-          "The reasons are under <b>why cases were skipped</b> above."
-        : "That run finished without running a single check — nothing matched what was ticked.";
+      // A run that walked the journey and had no cases to try afterwards is
+      // not an empty run — the journey above is its result.
+      runEmptyNote = walked
+        ? `The journey above is this run's result: ${walked} step${walked === 1 ? "" : "s"} were walked. ` +
+          (planSkipped
+            ? `The ${planSkipped} ticked case${planSkipped === 1 ? "" : "s"} did not run — the reasons are under <b>why cases were skipped</b> above.`
+            : "No library cases were ticked to run after it.")
+        : planSkipped
+          ? `That run checked nothing: all ${planSkipped} case${planSkipped === 1 ? "" : "s"} were skipped. ` +
+            "The reasons are under <b>why cases were skipped</b> above."
+          : "That run finished without running a single check — nothing matched what was ticked.";
     }
     runFinished();
     renderAutomation();
@@ -961,10 +1442,7 @@ function runSelectedFeatures() {
     // The reports for THIS run: its own id for the test report, its module for
     // the sheet. Until a run finishes there is nothing to point at, which is
     // why the bar is hidden before this.
-    let runId = "";
-    try {
-      runId = JSON.parse(ev.data).runId || "";
-    } catch {}
+    const runId = d.runId || "";
     showReportsFor({
       label: "This run:",
       testHref: "/api/test-report" + (runId ? `?run=${encodeURIComponent(runId)}` : ""),
@@ -974,6 +1452,16 @@ function runSelectedFeatures() {
     });
 
     const refused = authRefusal(checkRows);
+    // The journey's own verdict travels with the run's: "0 failed" says
+    // nothing when the vendor could not sign in at step 7.
+    const journey = d.journey
+      ? {
+          outcome: d.journey.outcome,
+          stoppedAt: d.journey.stoppedAt,
+          worked: journeyStepsLive.filter((st) => st && st.verdict === "worked").length,
+          steps: walked,
+        }
+      : null;
     showRunComplete({
       total: checkRows.length,
       // Counted, not inferred: an inconclusive check is not a pass, and
@@ -984,7 +1472,9 @@ function runSelectedFeatures() {
       // "Run complete — 0 failed" is true and useless when every request was
       // turned away at the door.
       error: refused,
+      journey,
     });
+    onEnd?.();
   });
   es.addEventListener("fatal", (ev) => {
     es.close();
@@ -993,8 +1483,8 @@ function runSelectedFeatures() {
     const message = JSON.parse(ev.data).message || "run failed";
     $("#auto-summary").textContent = `error: ${message}`;
     showRunComplete({ total: checkRows.length, passed: 0, failed: checkRows.length, error: message });
+    onEnd?.();
   });
-  document.querySelector("#automation")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // ── UI coverage: the same 92 features, but which have a browser journey ───
@@ -1037,6 +1527,9 @@ function syncUiInputs() {
 function renderUiTree() {
   const box = $("#ui-tree");
   if (!box) return;
+  // Same rule as the API tree: an event has one type, so one journey of the
+  // four can be picked for a run.
+  syncExclusive(uiSelected, byUiFlow);
   box.innerHTML = "";
   let have = 0, total = 0;
 
@@ -1065,6 +1558,14 @@ function renderUiTree() {
     });
     head.appendChild(master);
 
+    // Journey position. The tree is ordered the way a buyer walks the product,
+    // but order alone is invisible once a reader scrolls — the number says it.
+    // Supporting groups (master data, users, vendors, config) carry no step and
+    // get a dot, because they are not a stage anybody passes through.
+    const stepBadge = el("span", "module-step" + (g.step ? "" : " nostep"), g.step ? String(g.step) : "·");
+    stepBadge.title = g.step ? `Step ${g.step} of the procure-to-pay journey` : "Set up underneath the journey, not a stage of it";
+    head.appendChild(stepBadge);
+
     head.appendChild(el("span", "module-ico", g.icon));
     head.appendChild(el("span", "module-name", esc(g.label)));
     head.appendChild(el("span", "module-n" + (picked ? " some" : ""),
@@ -1083,26 +1584,38 @@ function renderUiTree() {
       total++;
       const available = !!f.uiFlow;
       if (available) have++;
+      const heldBy = available ? exclusiveHolder(f, uiSelected, byUiFlow) : null;
       const row = el("div", "submodule" + (available ? "" : " none") +
+        (heldBy ? " blocked" : "") +
         (available && uiSelected.has(f.uiFlow) ? " picked" : ""));
       if (available) row.dataset.flow = f.uiFlow;
       const cb = el("input");
       cb.type = "checkbox";
-      cb.disabled = !available;
+      cb.disabled = !available || !!heldBy;
       cb.checked = available && uiSelected.has(f.uiFlow);
+      cb.title = heldBy
+        ? `One event type per run — untick “${heldBy.label}” to pick this instead`
+        : "";
       cb.addEventListener("click", (e) => e.stopPropagation());
-      cb.addEventListener("change", () => {
-        cb.checked ? uiSelected.add(f.uiFlow) : uiSelected.delete(f.uiFlow);
-        renderUiTree();
-      });
+      if (!heldBy) {
+        cb.addEventListener("change", () => {
+          cb.checked ? uiSelected.add(f.uiFlow) : uiSelected.delete(f.uiFlow);
+          renderUiTree();
+        });
+      }
       row.appendChild(cb);
 
       const name = el("span", "sub-name");
       name.innerHTML = esc(f.label) + (available
         ? ` <span class="sub-tag e2e" title="browser journey: ${esc(f.uiFlow)}">${esc(f.uiFlow)}</span>`
-        : ' <span class="sub-tag notbuilt" title="no browser journey built for this feature yet">not built</span>');
+        : ' <span class="sub-tag notbuilt" title="no browser journey built for this feature yet">not built</span>') +
+        (heldBy
+          ? ` <span class="sub-tag held" title="${esc(
+              `An event has one type. “${heldBy.label}” is picked for this run; untick it to choose this one.`,
+            )}">one type per run</span>`
+          : "");
       row.appendChild(name);
-      if (available) {
+      if (available && !heldBy) {
         row.addEventListener("click", () => {
           const now = !uiSelected.has(f.uiFlow);
           now ? uiSelected.add(f.uiFlow) : uiSelected.delete(f.uiFlow);
@@ -1481,7 +1994,7 @@ async function loadPoInput() {
   const what = $("#po-what");
   if (!bar || !what) return;
   try {
-    const info = await (await fetch("/api/po-input?c=" + currentClient)).json();
+    const info = await (await fetch("/api/po-input?c=" + currentClient + baseParam())).json();
     if (!info.account) {
       bar.hidden = true;
       setSingleRunner(false);
@@ -1556,158 +2069,6 @@ async function loadPoInput() {
   }
 }
 
-/**
- * The PO -> Bill chain: is it here, and what will it do?
- *
- * Shown always, not per client: it points at its own tenant through its own
- * .env, so the account picked in this UI has nothing to do with it. Saying so
- * on the button is the only way that is not confusing.
- */
-async function loadChain() {
-  const bar = $("#drawer-chain");
-  const what = $("#chain-what");
-  const btn = $("#chain-run");
-  if (!bar || !what || !btn) return;
-  try {
-    const info = await (await fetch("/api/po-to-bill")).json();
-    setNavCount("chain", info.ready ? info.steps : 0);
-    bar.hidden = false;
-    const meta = $("#chain-meta");
-    if (meta) meta.textContent = info.ready ? `${info.steps} API steps` : "not ready";
-    if (!info.ready) {
-      what.innerHTML = `<b class="po-dead">Not ready</b> — ${esc(info.reason || "the chain is unavailable")}.`;
-      btn.disabled = true;
-      return;
-    }
-    btn.disabled = false;
-    const p = info.plan || {};
-    what.innerHTML =
-      `${info.steps} steps: purchase order → GRN → invoice → bill, each asserting status, response time, ` +
-      `schema and data. <b>Creates real records</b> on ${esc(p.BASE_URL || "its own tenant")}` +
-      (p.PO_QTY ? ` — PO qty ${esc(p.PO_QTY)} × ${esc(p.PO_UNIT_PRICE || "?")}, GRN received ${esc(p.GRN_RECEIVED_QTY || "?")}, invoice qty ${esc(p.INVOICE_QTY || "?")}` : "") +
-      `. Change those in <code>po-to-bill/.env</code>.`;
-  } catch {
-    bar.hidden = true;
-  }
-}
-
-/** Run the chain, streaming its steps as rows like every other run. */
-/**
- * Why the chain stopped, rather than how many steps went red.
- *
- * Each step consumes the record the one before it created, so a refusal at
- * step one skips the other twenty. "1 failed · 20 skipped" reads as twenty-one
- * separate problems; it is one, and the fix is at the step that broke.
- */
-function chainVerdict(summary) {
-  if (!summary) return "PO → Bill finished.";
-  if (!summary.failed && !summary.skipped)
-    return `All ${summary.total} purchase-to-bill steps passed.`;
-
-  const at = checkRows.findIndex((r) => !r.pass);
-  if (at < 0) return `${summary.passed} of ${summary.total} purchase-to-bill steps passed.`;
-
-  const step = checkRows[at];
-  const after = summary.total - at - 1;
-  const auth = /\b40[13]\b|unauthori[sz]ed|forbidden/i.test(step.verdict ?? "");
-  return (
-    `Stopped at step ${at + 1} of ${summary.total} — ${step.scenario}: ${step.verdict}.` +
-    (after > 0
-      ? ` The remaining ${after} step${after === 1 ? "" : "s"} need the record it would have created, so ${after === 1 ? "it" : "they"} never ran.`
-      : "") +
-    (auth ? " The chain's own token was refused — refresh ACCESS_TOKEN_RAW in po-to-bill/.env." : "")
-  );
-}
-
-function runChainFlow() {
-  goToRun("the purchase-to-bill chain");
-  const btn = $("#chain-run");
-  const con = $("#ui-console");
-  showRunLog();
-  con.innerHTML = "";
-  const write = (text, cls) => {
-    con.appendChild(el("div", cls || "", esc(text)));
-    con.scrollTop = con.scrollHeight;
-  };
-
-  checkRows = [];
-  renderAutomation();
-  btn.disabled = true;
-  btn.textContent = "▶ Running…";
-  $("#auto-summary").textContent = "running the purchase-to-bill chain…";
-
-  const es = new EventSource("/api/po-to-bill/run");
-  watchStreamEnd(es);
-  const seen = new Map();
-  const rowFor = (step) => ({
-    id: `PB-${String(seen.size + 1).padStart(2, "0")}`,
-    category: "PO → Bill",
-    type: "functional",
-    module: "3-way match",
-    scenario: step.title,
-    pass: step.status === "passed",
-    rightLabel: `${step.ms}ms`,
-    verdict:
-      step.status === "passed"
-        ? `passed in ${step.ms}ms`
-        : `${step.status} — ${step.error || "see the log"}`,
-    noRerun: true,
-  });
-
-  es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
-  es.addEventListener("log", (ev) => write(JSON.parse(ev.data).line));
-  es.addEventListener("run-error", (ev) => write("✗ " + (JSON.parse(ev.data).line || "run error"), "bad"));
-  es.addEventListener("step", (ev) => {
-    const { step } = JSON.parse(ev.data);
-    // The list reporter and the JSON report both describe the same step; keep
-    // one row per title so the final, exact result replaces the streamed one.
-    const row = rowFor(step);
-    if (seen.has(step.title)) {
-      const at = seen.get(step.title);
-      checkRows[at] = { ...checkRows[at], ...row, id: checkRows[at].id };
-    } else {
-      seen.set(step.title, checkRows.length);
-      checkRows.push(row);
-    }
-    renderAutomation();
-    setRunBar(checkRows.length, Math.max(checkRows.length, 21));
-  });
-  es.addEventListener("done", (ev) => {
-    const { exitCode, summary } = JSON.parse(ev.data);
-    const verdict = summary
-      ? chainVerdict(summary)
-      : exitCode === 0
-        ? "PO → Bill finished."
-        : `PO → Bill stopped (exit ${exitCode}).`;
-    $("#auto-summary").textContent = verdict;
-    write(exitCode === 0 ? "— finished —" : `— exit ${exitCode} —`, exitCode === 0 ? "ok" : "bad");
-    if (exitCode !== 0) write(verdict, "bad");
-    es.close();
-    runFinished();
-    btn.disabled = false;
-    btn.textContent = "▶ Run PO → Bill";
-    showReportsFor({
-      label: "This PO → Bill run:",
-      testLabel: "📊 Chain report",
-      testHref: "/api/po-to-bill/report",
-      bugHref: "/api/bug-report",
-    });
-    if (summary) {
-      showRunComplete({
-        total: summary.total,
-        passed: summary.passed,
-        failed: summary.failed,
-        skipped: summary.skipped,
-        // The chain runs on its own tenant, so the selected client's name has
-        // nothing to do with it, and the verdict says what actually happened.
-        subtitle: verdict,
-        reportNote:
-          "The chain report lists all 21 steps with the request, the reply and the time each took.",
-      });
-    }
-  });
-}
-
 /** Run the API suite's PO flow, streaming its output into the console box. */
 function runPoAutomation() {
   goToRun("PO automation");
@@ -1728,6 +2089,7 @@ function runPoAutomation() {
   // items is not a purchase order anyone raised, and the toggle only offered a
   // way to run half the flow by accident.
   const qs = new URLSearchParams({ c: String(currentClient) });
+  if (customBase) qs.set("base", customBase);
   const es = new EventSource(`/api/po-run?${qs}`);
   watchStreamEnd(es);
 
@@ -1939,7 +2301,7 @@ async function loadUiFlows() {
   const box = $("#ui-tree");
   try {
     const { flows, limits, erfxMode, boqAllowed, note } = await (
-      await fetch("/api/ui-flows?c=" + currentClient)
+      await fetch("/api/ui-flows?c=" + currentClient + baseParam())
     ).json();
     uiFlows = flows;
     setNavCount("ui", flows.length);
@@ -1962,6 +2324,16 @@ async function loadUiFlows() {
     $("#li-normal-max").textContent = nonBoq ? `max ${nonBoq}` : "";
     $("#li-boq-max").textContent = boq ? `max ${boq}` : "";
     if (nonBoq) $("#li-normal").max = nonBoq;
+    // The API side reads the same ceiling. The server clamps to it regardless,
+    // but showing it here means nobody types 50 and waits for a run to explain.
+    const apiMax = $("#api-li-max");
+    if (apiMax) apiMax.textContent = nonBoq ? `max ${nonBoq}` : "";
+    const apiLi = $("#api-line-items");
+    if (apiLi && nonBoq) {
+      apiLi.max = nonBoq;
+      if (Number(apiLi.value) > nonBoq) apiLi.value = String(nonBoq);
+    }
+    syncApiInputs();
     if (boq) {
       $("#li-boq").max = boq;
       $("#li-boq").value = Math.min(10, boq);
@@ -2043,12 +2415,15 @@ function runUiJourney(flow, onDone, opts = {}) {
   };
 
   const qs = new URLSearchParams({ c: String(currentClient), flow: flow.key });
+  if (customBase) qs.set("base", customBase);
   // Only send the count the journey actually uses.
   if (flow.usesLineItems) {
     if (flow.boq) qs.set("boqItems", $("#li-boq").value || "1");
     else qs.set("lineItems", $("#li-normal").value || "1");
   }
   if (!$("#ui-headed").checked) qs.set("headed", "0");
+  // Sign in through the login screen, so the watcher sees it and the login page is tested.
+  if ($("#ui-login")?.checked) qs.set("login", "1");
 
   const es = new EventSource(`/api/ui-run?${qs}`);
   // A stream that dies mid-journey resolves the sequence too, or the run after
@@ -2148,8 +2523,11 @@ let allSuites = [];
 
 // ── run (SSE) ──
 function run() {
-  goToRun("your instruction");
   const q = $("#request").value.trim();
+  // A numbered list is a set of test cases, not one instruction: each becomes
+  // a row on the live panel and runs in turn.
+  if (looksLikeCaseList(q)) return runPastedCases(q);
+  goToRun("your instruction");
   const c = currentClient;
   execData = null;
   designedCases = null;
@@ -2287,6 +2665,7 @@ async function loadHistory() {
   const box = $("#history");
   try {
     const { runs } = await (await fetch("/api/runs")).json();
+    setGlance("glance-runs", String(runs.length));
     if (!runs.length) {
       box.innerHTML = `<div class="empty">No runs saved yet.</div>`;
       return;
@@ -2314,25 +2693,81 @@ async function loadHistory() {
        * from an agent report these runs never write. A run that recorded
        * nothing is not clean — it is empty, and says so.
        */
-      const ran = r.checks ?? r.passed + r.failed;
-      const tag = r.findings
-        ? `<span class="tag find">${r.findings} finding${r.findings > 1 ? "s" : ""}</span>`
-        : !ran
-          ? `<span class="tag none">nothing ran</span>`
-          : r.failed
-            ? `<span class="tag find">${r.failed} failed</span>`
-            : `<span class="tag clean">clean</span>`;
-      const counts = ran
-        ? `<span>${r.passed}✓ ${r.failed}✗${r.inconclusive ? ` ${r.inconclusive}≈` : ""}</span>`
+      // A journey has steps, not checks; a PO run has phases. The tag below
+      // speaks in whichever the run actually produced.
+      const ran = r.kind === "journey" || r.kind === "po" ? 1 : (r.checks ?? r.passed + r.failed);
+      const tag =
+        r.kind === "journey" || r.kind === "po"
+          // One run, one verdict — "1 failed" reads oddly about a single journey.
+          ? r.inconclusive
+            ? `<span class="tag none">${esc(r.headline ?? "did not finish")}</span>`
+            : r.failed
+              ? `<span class="tag find">broke</span>`
+              : `<span class="tag clean">passed</span>`
+          : r.findings
+            ? `<span class="tag find">${r.findings} finding${r.findings > 1 ? "s" : ""}</span>`
+            : !ran
+              ? `<span class="tag none">nothing ran</span>`
+              : r.failed
+                ? `<span class="tag find">${r.failed} failed</span>`
+                : `<span class="tag clean">clean</span>`;
+      const counts =
+        r.kind === "journey"
+          ? `<span>${r.steps ?? 0} step${(r.steps ?? 0) === 1 ? "" : "s"}</span>`
+          : r.kind === "po"
+            ? ""
+            : ran
+              ? `<span>${r.passed}✓ ${r.failed}✗${r.inconclusive ? ` ${r.inconclusive}≈` : ""}</span>`
+              : "";
+      /**
+       * Every card carries its OWN reports.
+       *
+       * The three buttons at the top of this view open the all-time reports,
+       * which is right for them and no help at all here: to read what one run
+       * found you had to click the row, then find the link that had changed
+       * underneath. A run's reports belong on the run.
+       *
+       * Which reports exist depends on the kind — a journey has screenshots and
+       * no API test report, an API run the reverse — so the server says which,
+       * and a link is never offered for a report that would open empty.
+       */
+      const kindTag =
+        r.kind === "journey"
+          ? `<span class="run-kind ui">journey</span>`
+          : r.kind === "po"
+            ? `<span class="run-kind po">PO</span>`
+            : list
+              ? `<span class="run-kind">tests</span>`
+              : `<span class="run-kind ai">AI</span>`;
+      const links = (r.reports ?? [])
+        .map((l) => `<a class="run-link" href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)}</a>`)
+        .join("");
+      // A feature run that walked the collection says how the journey went,
+      // in the one sentence the server wrote for it — that is the run's
+      // verdict far more than its check counts are.
+      const journeyLine = r.journey
+        ? `<span class="run-journey ${r.journey.stoppedAt ? "bad" : "ok"}" title="${esc(r.journey.outcome)}">` +
+          `${esc(r.journey.outcome)}</span>`
         : "";
       item.innerHTML = `
-        <div class="run-req" title="${esc(r.request)}">${
-          list ? `<span class="run-kind">tests</span>` : `<span class="run-kind ai">AI</span>`
-        }${esc(title)}</div>
+        <div class="run-req" title="${esc(r.request)}">${kindTag}${esc(title)}</div>
         <div class="run-meta">${esc(r.companyName ?? r.id)} · ${esc(when)} ${tag}
-          ${counts}</div>
+          ${counts}${journeyLine}</div>
+        ${links ? `<div class="run-links">${links}</div>` : ""}
         <button class="run-del" title="Remove this run from the history and from every report built on it">✕</button>`;
-      item.addEventListener("click", () => openRun(r.id, item));
+      // A report link opens the report; it must not also replay the run
+      // underneath it.
+      for (const a of item.querySelectorAll(".run-link")) {
+        a.addEventListener("click", (ev) => ev.stopPropagation());
+      }
+      item.addEventListener("click", () => {
+        // Only an API run has checks to replay into the panel. Opening a
+        // journey or a PO run that way showed an empty panel and looked broken;
+        // their report IS their result, so go straight to it.
+        if (r.kind === "api" || !r.kind) return openRun(r.id, item);
+        const first = (r.reports ?? [])[0];
+        if (first) window.open(first.href, "_blank", "noopener");
+      });
       /**
        * Deleting is confirmed, because a run is a record of something that
        * really happened and there is no undo. The click is stopped from
@@ -2364,6 +2799,7 @@ async function openRun(id, item) {
     execData = { flowResults: rec.flowResults };
     designedCases = null;
     checkRows = rec.checkResults || [];
+    journeyFromRecord(rec.journey);
     renderAutomation();
     replayTrace(rec.events);
     renderReport(rec.report);
@@ -2439,7 +2875,16 @@ function paintRow(node, c) {
   const detail = node.querySelector(".chk-detail");
   detail.innerHTML = `<b>${esc(c.module)}${c.field ? " · " + esc(c.field) : ""}</b>${
     c.expected ? ` — expected to <b>${esc(c.expected)}</b>` : ""
-  }${c.inputSummary ? `<br>input: <span class="mono">${esc(c.inputSummary)}</span>` : ""}<br>${esc(c.verdict)}<br>`;
+  }${c.inputSummary ? `<br>input: <span class="mono">${esc(c.inputSummary)}</span>` : ""}<br>${esc(c.verdict)}<br>` +
+    (c.knownBug
+      ? `<span class="known-bug ${/fixed|closed/i.test(c.knownBug.status) ? "fixed" : "open"}">${
+          /fixed|closed/i.test(c.knownBug.status) ? "Known bug, confirmed fixed" : "Known bug"
+        } · ${esc(c.knownBug.id)} in the ${esc(String(c.knownBug.sheet).replace(/^Internal RFX_Bugs - /, ""))} sheet${
+          c.knownBug.qa ? ` by ${esc(c.knownBug.qa)}` : ""
+        } · ${esc(c.knownBug.status)}${c.knownBug.blocker ? " · blocker" : ""}</span>`
+      : !c.pass && !c.inconclusive && !c._running
+        ? `<span class="known-bug new">New — not on any bug sheet yet</span>`
+        : "");
   // A PO step is one phase of one document — there is nothing to re-run on its
   // own, so the button only appears for library checks.
   if (c.flowId && !c.noRerun) {
@@ -2498,6 +2943,198 @@ function groupFailureCauses(rows) {
   return [...buckets.values()].sort((a, b) => b.count - a.count);
 }
 
+// ── the API journey, narrated live ────────────────────────────────────────
+/**
+ * WHAT THE RUN IS DOING, IN THE ORDER A BUYER WOULD DO IT.
+ *
+ * An API run used to open with one line — "Building a real RFQ event…" — and
+ * then a wall of verdicts about a single endpoint. Watching it, you could not
+ * tell what had been done or where it was up to. The server now walks the
+ * Postman collection as a journey and narrates each step; this list is that
+ * narration. The planned steps appear the moment the plan is known, each one
+ * fills in with what the app actually did as its call comes back, and the one
+ * in flight says so — with the wait step's progress lines under it.
+ *
+ * Module state rather than DOM state, because renderAutomation rebuilds the
+ * panel's contents whenever a check lands and the journey has to survive
+ * that, sitting above the case rows once they start. The node itself is kept
+ * and re-mounted; its contents are redrawn from these arrays.
+ */
+let journeyLive = null;      // { label, steps: [{ n, kind, title, actor }] } — the plan
+let journeyStepsLive = [];   // the step records, by position, as they arrive
+let journeyPlanned = 0;      // how many steps the plan has
+let journeyRecord = null;    // the finished journey, once the server sends it
+let journeyProgress = "";    // the latest progress line for the step in flight
+let journeyNotes = [];       // { text, cls } — one-line notes about the run
+let journeyNode = null;
+
+const JOURNEY_VERDICT_WORD = { worked: "Worked", refused: "Refused", broken: "Broken", "not-run": "Not run" };
+const JOURNEY_ACTOR_WORD = { buyer: "Buyer", vendor: "Vendor", evaluator: "Evaluator", platform: "Platform" };
+
+function resetJourney() {
+  journeyLive = null;
+  journeyStepsLive = [];
+  journeyPlanned = 0;
+  journeyRecord = null;
+  journeyProgress = "";
+  journeyNotes = [];
+  renderJourney();
+}
+
+/** A saved run replays its journey the way a live one shows it. */
+function journeyFromRecord(journey) {
+  resetJourney();
+  if (!journey) return;
+  journeyLive = {
+    label: journey.label ?? "",
+    steps: (journey.steps ?? []).map((st) => ({ n: st.n, kind: st.kind, title: st.title, actor: st.actor })),
+  };
+  journeyStepsLive = (journey.steps ?? []).slice();
+  journeyPlanned = journeyStepsLive.length;
+  journeyRecord = journey;
+  renderJourney();
+}
+
+function noteJourney(text, cls) {
+  journeyNotes.push({ text: String(text ?? ""), cls: cls || "" });
+  renderJourney();
+}
+
+function ensureJourneyNode() {
+  if (!journeyNode) {
+    journeyNode = el("div", "journey");
+    journeyNode.id = "journey-live";
+    journeyNode.hidden = true;
+  }
+  return journeyNode;
+}
+
+/** Put the journey list into the panel, first or last, without moving it if it is already there. */
+function mountJourney(box, where) {
+  const node = ensureJourneyNode();
+  if (node.parentNode === box) return;
+  if (where === "first") box.prepend(node);
+  else box.appendChild(node);
+}
+
+/** "420ms", "1.2s", "1m 42s" — a call's time as a reader says it. */
+function journeyMs(ms) {
+  if (ms == null) return "";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1).replace(/\.0$/, "")}s`;
+  return elapsedInWords(ms);
+}
+
+function renderJourney() {
+  const node = ensureJourneyNode();
+  const planned = journeyLive?.steps ?? [];
+  const hasContent = planned.length > 0 || journeyStepsLive.some(Boolean) || journeyNotes.length > 0;
+  node.hidden = !hasContent;
+  if (!hasContent) {
+    node.innerHTML = "";
+    return;
+  }
+
+  const records = journeyStepsLive.filter(Boolean);
+  const worked = records.filter((st) => st.verdict === "worked").length;
+  const refused = records.filter((st) => st.verdict === "refused").length;
+  const broken = records.filter((st) => st.verdict === "broken").length;
+  const notRun = records.filter((st) => st.verdict === "not-run").length;
+  const total = Math.max(journeyPlanned, planned.length, records.length);
+  // The step in flight is the first planned one with no record yet — but only
+  // while the journey is still going; once it is over nothing is in flight.
+  let current = -1;
+  if (!journeyRecord) {
+    for (let i = 0; i < planned.length; i++) {
+      if (!journeyStepsLive[i]) {
+        current = i;
+        break;
+      }
+    }
+  }
+
+  let html = "";
+  if (planned.length || records.length) {
+    const tally = records.length
+      ? `${records.length} of ${total} step${total === 1 ? "" : "s"} · ${worked} worked` +
+        (refused ? ` · ${refused} refused` : "") +
+        (broken ? ` · ${broken} broken` : "") +
+        (notRun ? ` · ${notRun} not run` : "")
+      : `${total} step${total === 1 ? "" : "s"} planned`;
+    html +=
+      `<div class="journey-head"><b>The journey this run walks${journeyLive?.label ? ` — ${esc(journeyLive.label)}` : ""}</b>` +
+      `<span class="journey-tally">${esc(tally)}</span></div>`;
+    html += '<ol class="journey-steps">';
+    const count = Math.max(planned.length, journeyStepsLive.length);
+    for (let i = 0; i < count; i++) {
+      const rec = journeyStepsLive[i];
+      const plan = planned[i] ?? {};
+      const n = rec?.n ?? plan.n ?? i + 1;
+      const title = rec?.title ?? plan.title ?? "";
+      const actor = rec?.actor ?? plan.actor ?? "";
+      const actorChip = actor
+        ? `<span class="jstep-actor ${esc(actor)}">${esc(JOURNEY_ACTOR_WORD[actor] ?? actor)}</span>`
+        : "";
+      if (rec) {
+        const call = rec.call
+          ? `${rec.call.method} ${String(rec.call.path ?? "").split("?")[0]}` +
+            ` · ${rec.status ? rec.status : "no reply"}` +
+            (rec.ms != null ? ` · ${journeyMs(rec.ms)}` : "")
+          : rec.kind === "wait_close" && rec.ms != null
+            ? `waited ${journeyMs(rec.ms)}`
+            : "";
+        const reason =
+          rec.verdict === "not-run" && rec.reason && !String(rec.actual ?? "").includes(rec.reason)
+            ? `<div class="jstep-progress">${esc(rec.reason)}</div>`
+            : "";
+        html +=
+          `<li class="jstep ${esc(rec.verdict)}"><span class="jstep-n">${n}</span><div class="jstep-body">` +
+          `<div class="jstep-title">${esc(title)}${actorChip}</div>` +
+          (rec.actual ? `<div class="jstep-actual">${esc(rec.actual)}</div>` : "") +
+          reason +
+          (call ? `<div class="jstep-call">${esc(call)}</div>` : "") +
+          `</div><span class="jstep-verdict">${esc(JOURNEY_VERDICT_WORD[rec.verdict] ?? rec.verdict)}</span></li>`;
+      } else if (i === current) {
+        html +=
+          `<li class="jstep working"><span class="jstep-n">${n}</span><div class="jstep-body">` +
+          `<div class="jstep-title">${esc(title)}${actorChip}</div>` +
+          (journeyProgress ? `<div class="jstep-progress">${esc(journeyProgress)}</div>` : "") +
+          `</div><span class="jstep-verdict"><span class="spin">⟳</span> working…</span></li>`;
+      } else {
+        html +=
+          `<li class="jstep pending"><span class="jstep-n">${n}</span><div class="jstep-body">` +
+          `<div class="jstep-title">${esc(title)}${actorChip}</div></div><span class="jstep-verdict">to do</span></li>`;
+      }
+    }
+    html += "</ol>";
+  }
+
+  if (journeyRecord) {
+    const stopped = !!journeyRecord.stoppedAt;
+    const took = journeyRecord.durationMs != null ? elapsedInWords(journeyRecord.durationMs) : "";
+    const waited = journeyRecord.waitedMs ? elapsedInWords(journeyRecord.waitedMs) : "";
+    html +=
+      `<div class="journey-outcome ${stopped ? "bad" : "ok"}"><b>${stopped ? "✗" : "✓"} ${esc(journeyRecord.outcome ?? "")}</b>` +
+      (took ? `<span class="journey-took">Took ${esc(took)}${waited ? `, ${esc(waited)} of it waiting for the bidding window` : ""}.</span>` : "") +
+      "</div>";
+    const ve = journeyRecord.variationsEvent;
+    if (ve) {
+      html +=
+        `<div class="journey-variations">${esc(ve.note ?? "")} ` +
+        `The second event is “${esc(ve.title ?? "")}”${ve.status ? `, ${esc(ve.status)}` : ""}` +
+        `${ve.stageCount ? ` with ${ve.stageCount} round${ve.stageCount === 1 ? "" : "s"}` : ""}.</div>`;
+    }
+  }
+
+  if (journeyNotes.length) {
+    html +=
+      '<div class="journey-notes">' +
+      journeyNotes.map((nt) => `<div class="journey-note ${esc(nt.cls)}">${esc(nt.text)}</div>`).join("") +
+      "</div>";
+  }
+  node.innerHTML = html;
+}
+
 /**
  * A run the API refused outright.
  *
@@ -2524,7 +3161,8 @@ function renderAutomation() {
   // Inconclusive checks are neither passes nor bugs — count them separately so
   // the failure number always means "something is actually wrong".
   const inconc = checkRows.filter((c) => c.inconclusive).length;
-  const failed = total - passed - inconc;
+  const running = checkRows.filter((c) => c._running).length;
+  const failed = total - passed - inconc - running;
   const serverErr = checkRows.filter((c) => !c.pass && (c.httpStatus || 0) >= 500).length;
   // How far through, first — it is the question being asked while it runs.
   const planned = Math.max(runPlanned, total);
@@ -2572,9 +3210,14 @@ function renderAutomation() {
         }</span></div></div>`
       : runEmptyNote
         ? `<div class="empty done">${runEmptyNote}</div>`
-        : '<div class="empty">This is where a run happens. Tick what you want tested under ' +
-          "<b>API automation</b> or <b>UI automation</b> and press its run button, or ask for something " +
-          "in the box above — every case then appears here as it runs, with its verdict and the request behind it.</div>";
+        : '<div class="empty"><b>Nothing has run yet</b>Ask for something in the box above, or tick what ' +
+          "you want tested under <b>API automation</b> or <b>UI automation</b> and press its run button. " +
+          "Every case appears here as it runs, with its verdict and the request behind it.</div>";
+    // The journey list lives inside the waiting state: under the card while
+    // the run is in flight (the card carries the clock and the "Currently:"
+    // line, the list carries what has been done), above the closing note once
+    // it is over. Rebuilding the card wiped it, so it is put back here.
+    mountJourney(box, runPending ? "last" : "first");
     if (controls) controls.hidden = true;
     if (counts)
       counts.textContent = runPending
@@ -2592,6 +3235,9 @@ function renderAutomation() {
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 48;
   // Both the idle placeholder and the "starting…" card go once results exist.
   for (const gone of box.querySelectorAll(":scope > .empty, :scope > .starting")) gone.remove();
+  // The journey stays, above the case rows: the cases are variations tried
+  // at its steps, and read that way only under it.
+  mountJourney(box, "first");
 
   const refusal = authRefusal(checkRows);
   let banner = box.querySelector(":scope > .refused");
@@ -2624,7 +3270,12 @@ function renderAutomation() {
   if (causes.length && failed > 1) {
     if (!why) {
       why = el("div", "why-failing");
-      box.prepend(why);
+      // The causes are about the case rows, so they sit just above those rows
+      // and just under the journey — prepending them pushed the journey, the
+      // run's own story, below a banner about its footnotes.
+      const journey = box.querySelector(":scope > #journey-live");
+      if (journey) journey.after(why);
+      else box.prepend(why);
     }
     why.innerHTML =
       `<b>${failed} failing for ${causes.length} reason${causes.length === 1 ? "" : "s"}</b> — ` +
@@ -2777,6 +3428,109 @@ function renderReport(report) {
 // Grouped by DEFECT rather than by journey: seven event flows failing on the
 // same 500 is one release blocker with a blast radius of seven, and listing it
 // seven times is how a triage queue stops being read.
+
+/**
+ * Clients someone added by hand, kept per browser.
+ *
+ * localStorage, deliberately: this is one person pointing the platform at one
+ * company id, not a change to the accounts the team ships in config. It can
+ * come back empty — a private window, cleared data — and the list is simply
+ * the configured one again, which is the correct fallback.
+ */
+function readAddedClients() {
+  try {
+    const raw = localStorage.getItem("qa.addedClients");
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter((c) => c && c.id).map((c) => ({ ...c, added: true })) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAddedClients(list) {
+  try {
+    localStorage.setItem("qa.addedClients", JSON.stringify(list.map(({ id, name }) => ({ id, name }))));
+  } catch {
+    /* a browser that will not store it still works for this session */
+  }
+}
+
+
+/**
+ * THE ENVIRONMENT THE READER PICKED, ON EVERY REQUEST.
+ *
+ * "Custom URL" is only worth offering if it changes where the calls go, so the
+ * chosen host rides along as `base=` and the server hands it to the client it
+ * opens. Kept per browser like an added client: it is one person pointing the
+ * platform somewhere for an afternoon, not a change to what the team ships.
+ */
+let customBase = "";
+
+function baseParam() {
+  return customBase ? `&base=${encodeURIComponent(customBase)}` : "";
+}
+
+function initEnvControl() {
+  const env = $("#env");
+  const field = $("#env-custom-field");
+  const box = $("#env-custom");
+  if (!env || !field || !box) return;
+
+  try {
+    customBase = localStorage.getItem("qa.customBase") ?? "";
+  } catch {
+    customBase = "";
+  }
+  if (customBase) {
+    env.value = "custom";
+    box.value = customBase;
+    field.hidden = false;
+  }
+
+  env.addEventListener("change", () => {
+    const on = env.value === "custom";
+    field.hidden = !on;
+    setTargetGlance();
+    if (on) {
+      box.focus();
+    } else {
+      customBase = "";
+      try { localStorage.removeItem("qa.customBase"); } catch {}
+      reloadForAccount();
+    }
+  });
+
+  const apply = () => {
+    const v = box.value.trim().replace(/\/$/, "");
+    // Only a real http(s) URL: anything else would be sent to the server and
+    // quietly ignored, which is worse than refusing it here.
+    if (v && !/^https?:\/\//i.test(v)) {
+      box.setAttribute("aria-invalid", "true");
+      return;
+    }
+    box.removeAttribute("aria-invalid");
+    if (v === customBase) return;
+    customBase = v;
+    try {
+      if (v) localStorage.setItem("qa.customBase", v);
+      else localStorage.removeItem("qa.customBase");
+    } catch {}
+    reloadForAccount();
+  };
+  box.addEventListener("change", apply);
+  box.addEventListener("blur", apply);
+}
+
+/** Everything account-specific, read again. */
+function reloadForAccount() {
+  setTargetGlance();
+  resetAccountControls();
+  loadFeatures();
+  loadUiFlows();
+  loadPoInput();
+  loadCatalogue();
+}
+
 const VERDICT_META = {
   product_defect: { icon: "🐞", label: "Product defect", cls: "v-bug" },
   contradiction: { icon: "🕳", label: "Silent failure", cls: "v-bug" },
@@ -2785,85 +3539,205 @@ const VERDICT_META = {
   environment: { icon: "☁️", label: "Environment", cls: "v-env" },
 };
 
+/**
+ * THE BUG QUEUE, AS A QUEUE.
+ *
+ * This showed the worst eight findings as flat cards and pointed at the sheet
+ * for the rest — so a platform holding ninety-one findings, fifteen of them
+ * blockers, looked like it had found eight things. The severity that decides
+ * what anyone does first was a word on a chip; the split between "the app is
+ * broken" and "our automation is broken" — the distinction the whole report
+ * rests on — was invisible until you opened a card.
+ *
+ * Now: the shape of the queue first (what blocks, what is theirs, what is
+ * ours), then every finding, worst first, grouped under severity headers that
+ * stay put while you scroll. Tiles are filters, so "show me the blockers" is
+ * one click rather than a scroll.
+ */
+let bugGroups = [];
+let bugFilter = { sev: "", kind: "", q: "" };
+
+const SEV_ORDER = ["critical", "high", "medium", "low"];
+const SEV_LABEL = {
+  critical: "Blockers",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+/** Is this finding the product's problem, or ours? */
+const isProductBug = (g) => g.kind === "product_defect" || g.kind === "contradiction";
+
 async function loadFindings() {
   const box = $("#findings");
   if (!box) return;
   try {
-    const { groups, totals } = await (await fetch("/api/findings")).json();
-    const hint = $("#findings-hint");
-    if (hint)
-      // "gap / harness / env" meant nothing to anyone who had not read the
-      // code. Say what each is, and only mention the ones that exist.
-      hint.textContent = [
-        `${totals.defects} product bug${totals.defects === 1 ? "" : "s"}`,
-        totals.gaps ? `${totals.gaps} test gap${totals.gaps === 1 ? "" : "s"}` : "",
-        totals.harness ? `${totals.harness} tool problem${totals.harness === 1 ? "" : "s"}` : "",
-        totals.environment ? `${totals.environment} environment issue${totals.environment === 1 ? "" : "s"}` : "",
-      ].filter(Boolean).join(" · ");
-    box.innerHTML = "";
-    if (!groups.length) {
-      box.appendChild(el("div", "empty", "No bugs found yet — run some tests and anything that breaks lands here."));
-      return;
-    }
-    /**
-     * A side panel is a summary, not the list.
-     *
-     * Every defect as a full card turned this column into a scroll nobody
-     * reads, while the same rows sit in the bug sheet with filters and
-     * editable columns. Show the worst few and point at the sheet.
-     */
-    const SHOWN = 8;
-    for (const g of groups.slice(0, SHOWN)) {
-      const meta = VERDICT_META[g.kind] ?? VERDICT_META.automation_defect;
-      const card = el("div", `finding ${meta.cls}`);
-      card.appendChild(
-        el(
-          "div",
-          "finding-head",
-          `<span class="finding-icon">${meta.icon}</span>` +
-            `<span class="finding-title">${esc(g.title)}</span>` +
-            `<span class="finding-sev sev-${esc(g.severity)}">${esc(g.severity)}</span>`,
-        ),
-      );
-      card.appendChild(
-        el(
-          "div",
-          "finding-meta",
-          `${meta.label} · affects <b>${g.flows.length}</b> journey${g.flows.length === 1 ? "" : "s"}` +
-            ` · seen ${g.occurrences}×`,
-        ),
-      );
-      card.appendChild(el("div", "finding-why", esc(g.rationale)));
-      if (g.evidence?.length)
-        card.appendChild(
-          el("div", "finding-ev", g.evidence.map((e) => `<code>${esc(e)}</code>`).join("<br />")),
-        );
-      if (g.flows.length)
-        card.appendChild(el("div", "finding-flows", g.flows.map((f) => `<span class="pill">${esc(f)}</span>`).join(" ")));
-      if (g.reproduction?.length)
-        card.appendChild(
-          el(
-            "details",
-            "finding-repro",
-            `<summary>reproduction (${g.reproduction.length} steps)</summary>` +
-              g.reproduction.map((r) => `<div>${esc(r)}</div>`).join(""),
-          ),
-        );
-      box.appendChild(card);
-    }
-    if (groups.length > SHOWN) {
-      box.appendChild(
-        el(
-          "div",
-          "more-bugs",
-          `+ ${groups.length - SHOWN} more · <a href="/api/bug-report" target="_blank" rel="noopener">open the bug sheet</a>`,
-        ),
-      );
-    }
-  } catch (e) {
-    box.innerHTML = "";
-    box.appendChild(el("div", "empty", `Could not load findings: ${esc(e.message)}`));
+    const { groups } = await (await fetch("/api/findings")).json();
+    bugGroups = groups ?? [];
+  } catch {
+    box.innerHTML = '<div class="empty">Could not load the findings.</div>';
+    return;
   }
+  renderBugs();
+}
+
+function renderBugs() {
+  const box = $("#findings");
+  if (!box) return;
+  const board = $("#bug-board");
+  const controls = $("#bug-controls");
+  if (board) board.hidden = bugGroups.length === 0;
+  if (controls) controls.hidden = bugGroups.length === 0;
+
+  if (!bugGroups.length) {
+    box.innerHTML =
+      '<div class="empty">No bugs found yet — run some tests and anything that breaks lands here.</div>';
+    return;
+  }
+
+  // ── the board: counts, and a bar that shows the mix without being read ──
+  const by = (f) => bugGroups.filter(f).length;
+  const crit = by((g) => g.severity === "critical");
+  const high = by((g) => g.severity === "high");
+  const rest = by((g) => g.severity === "medium" || g.severity === "low");
+  const prod = by(isProductBug);
+  const ours = bugGroups.length - prod;
+  const set = (id, n) => { const e = $(id); if (e) e.textContent = String(n); };
+  set("#bt-crit", crit); set("#bt-high", high); set("#bt-med", rest);
+  set("#bt-prod", prod); set("#bt-ours", ours);
+
+  const bar = $("#bug-bar");
+  if (bar) {
+    const total = bugGroups.length || 1;
+    bar.innerHTML = SEV_ORDER.map((sev) => {
+      const n = by((g) => g.severity === sev);
+      return n
+        ? `<span class="seg s-${sev}" style="width:${(n / total) * 100}%" title="${n} ${SEV_LABEL[sev].toLowerCase()}"></span>`
+        : "";
+    }).join("");
+  }
+  const legend = $("#bug-legend");
+  if (legend) {
+    legend.innerHTML =
+      `<b>${bugGroups.length}</b> distinct defect${bugGroups.length === 1 ? "" : "s"}, ` +
+      `grouped so one broken endpoint hit by four tests is one row — ` +
+      `<b>${prod}</b> for engineering, <b>${ours}</b> ours to fix.`;
+  }
+
+  // Tiles act as filters, and show which one is on.
+  for (const tile of document.querySelectorAll(".bug-tile")) {
+    const on =
+      (tile.dataset.sev && bugFilter.sev === tile.dataset.sev) ||
+      (tile.dataset.kind && bugFilter.kind === tile.dataset.kind);
+    tile.classList.toggle("on", !!on);
+  }
+
+  // ── the queue ──
+  const q = bugFilter.q.toLowerCase();
+  const shown = bugGroups.filter((g) => {
+    if (bugFilter.sev === "critical" && g.severity !== "critical") return false;
+    if (bugFilter.sev === "high" && g.severity !== "high") return false;
+    if (bugFilter.sev === "medium" && !["medium", "low"].includes(g.severity)) return false;
+    if (bugFilter.kind === "product" && !isProductBug(g)) return false;
+    if (bugFilter.kind === "notproduct" && isProductBug(g)) return false;
+    if (!q) return true;
+    return `${g.title} ${g.rationale} ${(g.flows ?? []).join(" ")} ${(g.evidence ?? []).join(" ")}`
+      .toLowerCase()
+      .includes(q);
+  });
+
+  const count = $("#bug-count");
+  if (count) {
+    count.textContent =
+      shown.length === bugGroups.length
+        ? `${bugGroups.length} bugs`
+        : `${shown.length} of ${bugGroups.length} bugs`;
+  }
+  const clear = $("#bug-clear");
+  if (clear) clear.hidden = !bugFilter.sev && !bugFilter.kind && !bugFilter.q;
+
+  box.innerHTML = "";
+  if (!shown.length) {
+    box.appendChild(el("div", "empty", "No bug matches that."));
+    return;
+  }
+
+  for (const sev of SEV_ORDER) {
+    const inSev = shown.filter((g) => g.severity === sev);
+    if (!inSev.length) continue;
+    const head = el("div", `bug-sev-head s-${sev}`);
+    head.innerHTML = `<span class="bug-sev-dot"></span><b>${SEV_LABEL[sev]}</b><span class="hint">${inSev.length}</span>`;
+    box.appendChild(head);
+    for (const g of inSev) box.appendChild(bugCard(g));
+  }
+}
+
+/** One defect: what it is at a glance, the whole story when opened. */
+function bugCard(g) {
+  const meta = VERDICT_META[g.kind] ?? VERDICT_META.automation_defect;
+  const card = el("details", `bug s-${g.severity} ${meta.cls}`);
+  const seen =
+    g.occurrences > 1 || (g.runs ?? []).length > 1
+      ? `seen ${g.occurrences}× across ${(g.runs ?? []).length || 1} run${(g.runs ?? []).length === 1 ? "" : "s"}`
+      : "seen once";
+  const where = (g.flows ?? []).slice(0, 3).map((f) => `<span class="bug-flow">${esc(f)}</span>`).join("");
+  const more = (g.flows ?? []).length > 3 ? `<span class="bug-flow">+${g.flows.length - 3}</span>` : "";
+
+  card.innerHTML = `
+    <summary>
+      <span class="bug-kind ${meta.cls}" title="${esc(meta.label)}">${meta.icon}</span>
+      <span class="bug-title">${esc(g.title)}</span>
+      <span class="bug-where">${where}${more}</span>
+      <span class="bug-seen">${esc(seen)}</span>
+    </summary>
+    <div class="bug-body">
+      <p class="bug-why"><b>${esc(meta.label)}</b> — ${esc(g.rationale ?? "")}</p>
+      ${
+        (g.evidence ?? []).length
+          ? `<div class="bug-sub">What we saw</div><ul class="bug-ev">${g.evidence
+              .slice(0, 4)
+              .map((e) => `<li class="mono">${esc(e)}</li>`)
+              .join("")}</ul>`
+          : ""
+      }
+      ${
+        (g.reproduction ?? []).length
+          ? `<div class="bug-sub">How to reproduce</div><ol class="bug-steps">${g.reproduction
+              .map((r) => `<li>${esc(r)}</li>`)
+              .join("")}</ol>`
+          : ""
+      }
+      <a class="bug-open" href="/api/bug-report" target="_blank" rel="noopener">Open in the editable sheet →</a>
+    </div>`;
+  return card;
+}
+
+function initBugControls() {
+  for (const tile of document.querySelectorAll(".bug-tile")) {
+    tile.addEventListener("click", () => {
+      // Clicking the tile that is already on turns it off — a filter you
+      // cannot undo by pressing the same thing again is a trap.
+      if (tile.dataset.sev) bugFilter.sev = bugFilter.sev === tile.dataset.sev ? "" : tile.dataset.sev;
+      if (tile.dataset.kind) bugFilter.kind = bugFilter.kind === tile.dataset.kind ? "" : tile.dataset.kind;
+      const pick = $("#bug-kind");
+      if (pick) pick.value = bugFilter.kind;
+      renderBugs();
+    });
+  }
+  $("#bug-search")?.addEventListener("input", (e) => {
+    bugFilter.q = e.target.value;
+    renderBugs();
+  });
+  $("#bug-kind")?.addEventListener("change", (e) => {
+    bugFilter.kind = e.target.value;
+    renderBugs();
+  });
+  $("#bug-clear")?.addEventListener("click", () => {
+    bugFilter = { sev: "", kind: "", q: "" };
+    const sb = $("#bug-search"); if (sb) sb.value = "";
+    const pk = $("#bug-kind"); if (pk) pk.value = "";
+    renderBugs();
+  });
 }
 
 // ── AI: instruction → real browser run ────────────────────────────────────
@@ -2894,6 +3768,9 @@ function runAiInstruction() {
   };
 
   const qs = new URLSearchParams({ c: String(currentClient), q });
+  // Sign in through the login screen, so the watcher sees it and the login page is tested.
+  if ($("#ui-login")?.checked) qs.set("login", "1");
+  if (customBase) qs.set("base", customBase);
   if (!$("#ui-headed").checked) qs.set("headed", "0");
   const es = new EventSource(`/api/ai-run?${qs}`);
   watchStreamEnd(es);
@@ -2999,6 +3876,7 @@ function runTestCase(dryRun) {
   };
 
   const qs = new URLSearchParams({ c: String(currentClient), q });
+  if (customBase) qs.set("base", customBase);
   if (dryRun) qs.set("dry", "1");
   if (!$("#ui-headed").checked) qs.set("headed", "0");
   else if ($("#plan-demo")?.checked) {
@@ -3313,12 +4191,320 @@ setInterval(checkBuild, 5000);
  */
 let catalogueData = null;
 
+/**
+ * THE JOURNEY CATALOGUE — the same cases the Test cases view lists, ordered
+ * into the 17 journeys a buyer actually walks.
+ *
+ * Read-only on purpose: `data/journeys.json` is authored, and its `cases`
+ * arrays are already in the order each journey exercises them. So nothing here
+ * sorts, samples or paginates — every case is rendered where its journey puts
+ * it, and the filters only hide.
+ */
+let journeysData = null;
+
+/**
+ * Searchable text per case id, held in JS rather than in a `data-` attribute.
+ *
+ * It started as `data-hay` and lost 7 of the 68 matches for "auction": this
+ * file's `esc()` escapes `& < >` but not `"`, so a case whose `why` contains
+ * a quoted phrase ("start from RFQ", `{"status":500}`) closed the attribute
+ * early and the rest of its text was never searched. Free text in an
+ * attribute is a trap; a Map has no quoting rules to get wrong.
+ */
+const jyHay = new Map();
+
+/**
+ * The spine step names in plain English.
+ *
+ * The file carries them as `open_events_list` / `add_line_items` — fine as
+ * keys, useless as a description of what a buyer does. A journey's spine is
+ * the one place the page can say "first this, then this", so it is written
+ * out rather than printed raw.
+ */
+const JY_STEP = {
+  open_events_list: "Open the events list",
+  filter_events: "Filter the events list",
+  expect_events_list: "See the events list",
+  expect_create_options: "See the create options",
+  open_create: "Open the create screen",
+  set_title: "Set the title",
+  configure_single_stage: "Configure a single-stage event",
+  compose_stages: "Compose the stages",
+  switch_stage: "Switch stage",
+  add_line_items: "Add line items",
+  expect_line_items: "Check the line items",
+  select_template: "Select a template",
+  expect_sheet_columns: "Check the sheet columns",
+  fill_sheet: "Fill the pricing sheet",
+  fill_questionnaires: "Fill the questionnaires",
+  assign_evaluator: "Assign an evaluator",
+  set_schedule: "Set the bid window",
+  open_participants: "Open the participants list",
+  invite_vendor: "Invite a vendor",
+  save_draft: "Save as a draft",
+  publish: "Publish the event",
+  expect_published: "Confirm it is live",
+  expect_publish_blocked: "Confirm publishing is blocked",
+  expect_event_status: "Check the event status",
+  place_bid: "Place a bid",
+  place_surrogate_bid: "Bid on the vendor's behalf",
+  expect_bid_submitted: "Confirm the bid is submitted",
+  place_counter_offer: "Send a counter-offer",
+  expect_counter_offer_sent: "Confirm the counter-offer went out",
+  accept_counter_offer: "Accept the counter-offer",
+  open_master_qcs: "Open the comparison sheet",
+  convert_to_auction: "Convert the stage to an auction",
+  award_event: "Award the event",
+  expect_awarded: "Confirm it is awarded",
+  close_event: "Close the event",
+  expect_error: "Confirm it is refused",
+  expect_no_error: "Confirm nothing broke",
+  expect_disabled: "Confirm the control is disabled",
+};
+
+const jyStep = (key) =>
+  JY_STEP[key] ?? String(key).replace(/_/g, " ").replace(/^./, (ch) => ch.toUpperCase());
+
+/**
+ * A journey's cases, cut into the stages it walks.
+ *
+ * The file's `cases` array interleaves its sections — journey 2 runs
+ * §2, §4, §3, §2, §4, §3 — because the UI and API catalogues number their own
+ * sections independently and were merged case by case. Read straight down,
+ * that looks like a random pile. Grouping by stage in order of FIRST
+ * appearance gives back the sequence a person expects (compose the project,
+ * then line items, then templates) without moving any case relative to
+ * another in its own stage.
+ */
+function jyStages(journey) {
+  const stages = [];
+  const byName = new Map();
+  for (const c of journey.cases) {
+    const name = c.section || "Other";
+    let stage = byName.get(name);
+    if (!stage) {
+      stage = { name, no: c.sectionNo, cases: [] };
+      byName.set(name, stage);
+      stages.push(stage);
+    }
+    stage.cases.push(c);
+  }
+  return stages;
+}
+
+/** The case text is authored with `code` and **bold**; render those two only. */
+function jyRich(text) {
+  return esc(text)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
+async function loadJourneys() {
+  const box = $("#journeys");
+  if (!box) return;
+  box.innerHTML = `<div class="loading">Reading the journeys…</div>`;
+  try {
+    journeysData = await (await fetch("/api/journeys")).json();
+  } catch {
+    box.innerHTML = `<div class="empty">Could not read the journeys.</div>`;
+    return;
+  }
+  if (journeysData.missing) {
+    box.innerHTML = `<div class="empty">No <code>data/journeys.json</code> in this checkout yet.</div>`;
+    return;
+  }
+  if (journeysData.error || !journeysData.journeys?.length) {
+    box.innerHTML = `<div class="empty">The journeys file could not be read${
+      journeysData.error ? ` — ${esc(journeysData.error)}` : ""
+    }.</div>`;
+    return;
+  }
+
+  const list = [...journeysData.journeys].sort((a, b) => a.order - b.order);
+  journeysData.journeys = list;
+
+  const pick = $("#jy-journey");
+  if (pick) {
+    pick.innerHTML =
+      '<option value="">All journeys</option>' +
+      list
+        .map((j) => `<option value="${esc(j.id)}">${j.order}. ${esc(j.title)} (${j.cases.length})</option>`)
+        .join("");
+  }
+
+  const all = list.flatMap((j) => j.cases);
+  const tot = $("#jy-totals");
+  if (tot) {
+    const n = (fn) => all.filter(fn).length;
+    tot.innerHTML = [
+      [all.length, "test cases"],
+      [list.length, "journeys"],
+      [n((c) => c.layer === "ui"), "browser"],
+      [n((c) => c.layer === "api"), "api"],
+      [n((c) => c.verdict === "automate"), "to automate"],
+      [n((c) => c.runnable), "runnable now"],
+    ]
+      .map(([v, k]) => `<div><b>${v}</b><span>${esc(k)}</span></div>`)
+      .join("");
+  }
+
+  renderJourneys();
+}
+
+function renderJourneys() {
+  const box = $("#journeys");
+  if (!box || !journeysData?.journeys?.length) return;
+
+  jyHay.clear();
+  box.innerHTML = journeysData.journeys
+    .map((j) => {
+      const stats = [
+        ["total", j.counts.total],
+        ["ui", j.counts.ui],
+        ["api", j.counts.api],
+        ["runnable", j.counts.runnable],
+        ["automate", j.counts.automate],
+      ]
+        .map(([k, v]) => `<span>${k} <b>${v}</b></span>`)
+        .join("");
+
+      // What a buyer does in this journey, in order and in words.
+      const flow = (j.spine || [])
+        .map((x, i) => `<li><span class="jy-fn">${i + 1}</span>${esc(jyStep(x))}</li>`)
+        .join("");
+
+      // Continuous numbering across the whole journey, so the sequence is
+      // visible on the page rather than implied by position.
+      let n = 0;
+      const stages = jyStages(j)
+        .map((stage) => {
+          const rows = stage.cases
+            .map((c) => {
+              n += 1;
+              const idx = j.cases.indexOf(c);
+              jyHay.set(c.id, [c.id, c.title, c.why, c.steps, c.expected].join(" \u241f ").toLowerCase());
+              return `<div class="jy-case" data-id="${esc(c.id)}" data-layer="${esc(c.layer)}"
+                           data-pri="${esc(c.priority)}" data-verdict="${esc(c.verdict)}">
+                <button class="jy-row" type="button" aria-expanded="false" data-j="${esc(j.id)}" data-i="${idx}">
+                  <span class="jy-n">${n}</span>
+                  <span class="jy-id">${esc(c.id)}</span>
+                  <span class="jy-title">${esc(c.title)}</span>
+                  <span class="jy-chips">
+                    <span class="jy-chip pri pri-${esc(c.priority)}">${esc(c.priority)}</span>
+                    <span class="jy-chip v-${esc(c.verdict)}">${esc(c.verdict)}</span>
+                    ${c.layer === "api" ? '<span class="jy-chip api">API</span>' : ""}
+                  </span>
+                </button>
+                <div class="jy-detail"></div>
+              </div>`;
+            })
+            .join("");
+
+          return `<div class="jy-stage" data-stage="${esc(stage.name)}">
+            <div class="jy-stage-head">
+              <span class="jy-stage-name">${esc(stage.name)}</span>
+              <span class="jy-stage-n">${stage.cases.length} case${stage.cases.length === 1 ? "" : "s"}</span>
+            </div>
+            ${rows}
+          </div>`;
+        })
+        .join("");
+
+      return `<section class="jy" data-jid="${esc(j.id)}">
+        <div class="jy-head">
+          <span class="jy-num">${j.order}</span>
+          <div>
+            <h2 class="jy-h">${esc(j.title)}</h2>
+            <p class="jy-persona">${esc(j.persona)}</p>
+            <p class="jy-goal">${esc(j.goal)}</p>
+            ${flow ? `<ol class="jy-flow">${flow}</ol>` : ""}
+            <p class="jy-stats">${stats}</p>
+          </div>
+        </div>
+        <div class="jy-cases">${stages}<p class="jy-empty" hidden>Every case here is filtered out.</p></div>
+      </section>`;
+    })
+    .join("");
+
+  filterJourneys();
+}
+
+/** Expand one case. Built on first open, from the fields exactly as authored. */
+function openJourneyCase(btn) {
+  const wasOpen = btn.getAttribute("aria-expanded") === "true";
+  btn.setAttribute("aria-expanded", wasOpen ? "false" : "true");
+  const pane = btn.nextElementSibling;
+  if (wasOpen || pane.dataset.built) return;
+
+  const journey = journeysData.journeys.find((j) => j.id === btn.dataset.j);
+  const c = journey?.cases[Number(btn.dataset.i)];
+  if (!c) return;
+
+  const rows = [
+    ["Why", c.why],
+    ["Setup", c.setup && String(c.setup).trim() ? c.setup : null],
+    ["Steps", c.steps],
+    ["Expected", c.expected],
+    ["How to tell", c.oracle],
+  ]
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<dt>${k}</dt><dd>${jyRich(v)}</dd>`)
+    .join("");
+
+  pane.innerHTML = `<dl>${rows}
+    <div class="jy-prov">
+      <span>${esc(c.group)}</span>
+      <span>\u00a7${esc(c.sectionNo)} ${esc(c.section)}</span>
+      <span>${esc(c.routeKind)}</span>
+      <span>${c.runnable ? "runnable" : "not runnable"}</span>
+    </div></dl>`;
+  pane.dataset.built = "1";
+}
+
+function filterJourneys() {
+  const box = $("#journeys");
+  if (!box || !journeysData?.journeys?.length) return;
+  const text = ($("#jy-q")?.value ?? "").trim().toLowerCase();
+  const wantJ = $("#jy-journey")?.value ?? "";
+  const wantP = $("#jy-priority")?.value ?? "";
+  const wantV = $("#jy-verdict")?.value ?? "";
+  const layer = document.querySelector(".jy-segb[aria-pressed='true']")?.dataset.layer ?? "";
+  const total = journeysData.journeys.reduce((n, j) => n + j.cases.length, 0);
+  let shown = 0;
+
+  for (const sec of box.querySelectorAll(".jy")) {
+    const jOk = !wantJ || sec.dataset.jid === wantJ;
+    let here = 0;
+    for (const el of sec.querySelectorAll(".jy-case")) {
+      const ok =
+        jOk &&
+        (!layer || el.dataset.layer === layer) &&
+        (!wantP || el.dataset.pri === wantP) &&
+        (!wantV || el.dataset.verdict === wantV) &&
+        (!text || (jyHay.get(el.dataset.id) ?? "").includes(text));
+      el.hidden = !ok;
+      if (ok) here++;
+    }
+    // A stage heading with nothing left under it is noise.
+    for (const stage of sec.querySelectorAll(".jy-stage")) {
+      stage.hidden = ![...stage.querySelectorAll(".jy-case")].some((el) => !el.hidden);
+    }
+    sec.hidden = !jOk || here === 0;
+    const empty = sec.querySelector(".jy-empty");
+    if (empty) empty.hidden = here !== 0;
+    shown += here;
+  }
+
+  const count = $("#jy-count");
+  if (count) count.textContent = shown === total ? `${total} cases` : `${shown} of ${total} cases`;
+}
+
 async function loadCatalogue() {
   const box = $("#catalogue");
   if (!box) return;
   box.innerHTML = `<div class="loading">Reading the catalogue…</div>`;
   try {
-    catalogueData = await (await fetch("/api/catalogue?c=" + currentClient)).json();
+    catalogueData = await (await fetch("/api/catalogue?c=" + currentClient + baseParam())).json();
   } catch {
     box.innerHTML = `<div class="empty">Could not read the catalogue.</div>`;
     return;
@@ -3361,10 +4547,28 @@ function renderCatalogue() {
 
     const total = features.reduce((n, f) => n + f.cases.length, 0);
     shown += total;
-    const section = el("div", "cat-group");
+    /**
+     * ONE MODULE, FOLDED UNTIL WANTED.
+     *
+     * Fourteen tables stacked end to end is 283 rows of scrolling before you
+     * know what is in here. Folded, the page opens as a contents page — every
+     * module, what it covers, how many cases and how they split — and a module
+     * opens when someone actually wants it. Searching or filtering opens the
+     * matches automatically, because then the reader has already said what
+     * they are looking for.
+     */
+    const refused = features.reduce((n, f) => n + f.cases.filter((c) => c.expected === "reject").length, 0);
+    const p0 = features.reduce((n, f) => n + f.cases.filter((c) => /^p0$/i.test(c.priority ?? "")).length, 0);
+    const section = el("details", "cat-group");
+    if (q || module || kind) section.open = true;
     section.innerHTML =
-      `<div class="cat-group-head"><h2>${esc(group.icon)} ${esc(group.label)}</h2>` +
-      `<span class="hint">${total} case${total === 1 ? "" : "s"}</span></div>` +
+      `<summary class="cat-group-head">` +
+      `<h2>${esc(group.icon)} ${esc(group.label)}</h2>` +
+      `<span class="cat-group-nums">` +
+      `<b>${total}</b> case${total === 1 ? "" : "s"}` +
+      `<span class="cat-split">${refused} should be refused · ${total - refused} accepted</span>` +
+      (p0 ? `<span class="cat-p0">${p0} P0</span>` : "") +
+      `</span></summary>` +
       `<p class="cat-what">${esc(group.what ?? "")}</p>`;
 
     /**
@@ -3400,6 +4604,29 @@ function renderCatalogue() {
     box.appendChild(section);
   }
 
+  if (shown) {
+    // What is in front of you, before the modules: the shape of the catalogue
+    // rather than the first row of it.
+    const all = catalogueData.groups.flatMap((g) => g.features.flatMap((f) => f.cases));
+    const inView = q || module || kind;
+    const strip = el("div", "cat-summary");
+    strip.innerHTML =
+      `<span><b>${shown}</b> case${shown === 1 ? "" : "s"}${inView ? " matching" : ""}</span>` +
+      `<span><b>${all.filter((c) => c.expected === "reject").length}</b> should be refused</span>` +
+      `<span><b>${all.filter((c) => c.expected === "accept").length}</b> should be accepted</span>` +
+      // The third kind, or the numbers do not add up to the total beside them.
+      `<span><b>${all.filter((c) => c.expected === "no-5xx").length}</b> must not break</span>` +
+      `<span><b>${all.filter((c) => /^p0$/i.test(c.priority ?? "")).length}</b> P0</span>` +
+      `<span class="cat-expand"><button type="button" data-all="open">expand all</button>` +
+      `<button type="button" data-all="close">collapse all</button></span>`;
+    strip.querySelectorAll("button").forEach((b) =>
+      b.addEventListener("click", () => {
+        const open = b.dataset.all === "open";
+        box.querySelectorAll(".cat-group").forEach((d) => { d.open = open; });
+      }),
+    );
+    box.prepend(strip);
+  }
   if (!shown) box.innerHTML = `<div class="empty">No case matches that.</div>`;
   const count = $("#cat-count");
   if (count) {
@@ -3466,6 +4693,23 @@ function caseRow(t, feature) {
   const data = testDataOf(t)
     .map((line, i) => `<div class="${i === 0 ? "cat-endpoint mono" : "cat-datum"}">${esc(line)}</div>`)
     .join("");
+  /**
+   * Whether we were TOLD this endpoint or worked it out.
+   *
+   * Cases imported from the written catalog describe behaviour; only some name
+   * the call. The rest inherit one from their section. That distinction has to
+   * survive to the reader, because a red result on an inferred endpoint may be
+   * our inference being wrong rather than the product being broken — and a red
+   * result here becomes a bug report.
+   */
+  const origin =
+    t.pathSource && t.pathSource !== "stated"
+      ? `<div class="cat-origin" title="${esc(
+          t.pathSource === "carried"
+            ? `Endpoint carried from the previous case in ${t.writtenRef || "this section"} — the written case did not name one.`
+            : `Endpoint is this section's default; ${t.writtenRef || "the written case"} did not name one.`,
+        )}">inferred endpoint</div>`
+      : "";
   const why = [
     t.preconditions ? `<div class="cat-pre"><b>Before it runs:</b> ${esc(t.preconditions)}</div>` : "",
     t.steps?.length ? `<ol class="cat-steps">${t.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` : "",
@@ -3475,7 +4719,7 @@ function caseRow(t, feature) {
       <td class="cat-id mono">${esc(t.id)}</td>
       <td class="cat-scn">${esc(feature.label)}</td>
       <td class="cat-desc">${esc(caseTitleInWords(t.title))}${why ? `<details class="cat-more"><summary>steps</summary>${why}</details>` : ""}</td>
-      <td class="cat-data">${data}</td>
+      <td class="cat-data">${data}${origin}</td>
       <td class="cat-exp">${expectedInWords(t.expectedResult)}</td>
       <td><span class="cat-tag p-${esc((t.priority || "").toLowerCase())}">${esc(t.priority)}</span></td>
       <td><span class="cat-tag s-${esc((t.severity || "").toLowerCase())}">${esc(t.severity)}</span></td>

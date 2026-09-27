@@ -1,5 +1,6 @@
 import type { ApiClient } from "../api/client.js";
 import { Endpoints } from "../api/endpoints.js";
+import { step, stepResult } from "../report/steps.js";
 import { Catalog, CONFIG } from "../config.js";
 import {
   buildEventGroupBody,
@@ -11,6 +12,20 @@ import {
 } from "./bodies.js";
 
 export type StageKind = "rfp" | "rfq" | "auction";
+
+/**
+ * What a round is called in the report — the words a buyer uses for it, not
+ * the wire value. `rfx_mode: "auction"` with `auction_config: "rank"` is, to
+ * everyone who is not reading the payload, "a live auction where suppliers
+ * compete on rank".
+ */
+export function stageLabel(spec: StageSpec): string {
+  if (spec.kind === "rfp") return "technical round (RFP)";
+  if (spec.kind === "rfq") return "pricing round (RFQ)";
+  return spec.auctionConfig === "rank"
+    ? "live auction round (rank-based)"
+    : "live auction round (price-based)";
+}
 
 export interface StageSpec {
   kind: StageKind;
@@ -91,19 +106,32 @@ export async function createEvent(
   }
 
   // 1) draft event group
-  const group = await buyerApi.post<EventGroupResponse>(Endpoints.eventGroups(), {
-    body: buildEventGroupBody({
-      productUuid: catalog.productUuid,
-      quantityUnit: testData.quantityUnit,
-      quantityValue: testData.quantityValue,
-      productQualityUuid: catalog.productQualityUuid,
-    }),
-  });
+  //
+  // Each stage below is wrapped in `step()` so the report can show this flow
+  // as the sequence a buyer actually performs — add the event, attach each
+  // round, publish — rather than as one row that says "5 calls" and leaves a
+  // reader to work out which of them broke.
+  const group = await step(
+    "Create the draft event",
+    "The event is saved as a draft and comes back with one line item on it.",
+    async () => {
+      const draft = await buyerApi.post<EventGroupResponse>(Endpoints.eventGroups(), {
+        body: buildEventGroupBody({
+          productUuid: catalog.productUuid,
+          quantityUnit: testData.quantityUnit,
+          quantityValue: testData.quantityValue,
+          productQualityUuid: catalog.productQualityUuid,
+        }),
+      });
+      if (!draft.uuid || !draft.event_group_line_item_ids?.[0]) {
+        throw new Error("event_groups create missing uuid / line item id");
+      }
+      stepResult(`Draft event ${draft.uuid} was created with 1 line item on it.`);
+      return draft;
+    },
+  );
   const eventGroupUuid = group.uuid;
-  const lineItemUuid = group.event_group_line_item_ids?.[0];
-  if (!eventGroupUuid || !lineItemUuid) {
-    throw new Error("event_groups create missing uuid / line item id");
-  }
+  const lineItemUuid = group.event_group_line_item_ids![0];
 
   // 2) one trade per stage
   const stageTrades: StageTrade[] = [];
@@ -138,24 +166,47 @@ export async function createEvent(
         auctionConfig: spec.auctionConfig,
       });
     }
-    const trade = await buyerApi.post<{ uuid: string }>(Endpoints.createTrade(), { body });
+    const label = stageLabel(spec);
+    const trade = await step(
+      `Add the ${label}`,
+      `The ${label} is attached to the draft event as round ${stageNo} of ${stages.length}.`,
+      async () => {
+        const created = await buyerApi.post<{ uuid: string }>(Endpoints.createTrade(), { body });
+        stepResult(`Round ${stageNo} (${label}) was created as ${created.uuid}.`);
+        return created;
+      },
+    );
     stageTrades.push({ kind: spec.kind, auctionConfig: spec.auctionConfig, uuid: trade.uuid });
   }
 
   // 3) publish with all stage trade-uuids
   const draftUuids = stageTrades.map((s) => s.uuid);
-  const published = await buyerApi.patch<{ uuid: string; status: string; stages?: any[] }>(
-    Endpoints.eventGroup(eventGroupUuid),
-    {
-      body: {
-        ...buildPublishBody({
-          title,
-          technicalTradeUuid: draftUuids[0],
-          pricingTradeUuid: draftUuids[1] ?? draftUuids[0],
-          vendorCompanyUuid,
-        }),
-        draft_trade_request_uuids: draftUuids,
-      },
+  const published = await step(
+    "Publish the event",
+    `The event goes live — status "active" — with all ${stages.length} round${
+      stages.length === 1 ? "" : "s"
+    } attached to it.`,
+    async () => {
+      const live = await buyerApi.patch<{ uuid: string; status: string; stages?: any[] }>(
+        Endpoints.eventGroup(eventGroupUuid),
+        {
+          body: {
+            ...buildPublishBody({
+              title,
+              technicalTradeUuid: draftUuids[0],
+              pricingTradeUuid: draftUuids[1] ?? draftUuids[0],
+              vendorCompanyUuid,
+            }),
+            draft_trade_request_uuids: draftUuids,
+          },
+        },
+      );
+      stepResult(
+        `"${title}" came back with status "${live.status}" and ${
+          (live.stages ?? []).length
+        } round(s) attached.`,
+      );
+      return live;
     },
   );
 

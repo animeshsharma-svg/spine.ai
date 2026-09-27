@@ -1,4 +1,4 @@
-# Procol · Autonomous QA — hackathon prototype
+# spine.ai — autonomous QA for Procol
 
 An AI platform that **plans, runs, and reports** software tests for Procol by
 itself. Pick a client, type a request in plain English, and a team of 7 AI

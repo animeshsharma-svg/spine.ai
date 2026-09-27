@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import type {
@@ -51,6 +51,10 @@ export default class ApiReporter implements Reporter {
         : undefined;
 
     this.tests.push({
+      // Stamped as each test ENDS. Under this project's `workers: 1,
+      // fullyParallel: false` that is exactly the order the run executed them,
+      // and it is what the report's step numbering is built on.
+      order: this.tests.length,
       id: test.id,
       title: test.title,
       // filter(Boolean) drops Playwright's empty root title, so this matches
@@ -69,6 +73,22 @@ export default class ApiReporter implements Reporter {
   }
 
   onEnd(result: FullResult): void {
+    const out = join(PROJECT_ROOT, "reports", "api-report.html");
+
+    // `playwright test --list` runs every reporter but executes nothing, and
+    // it skips globalSetup — so the evidence directory still holds whatever
+    // previous runs left there. Writing then would publish a case-less report
+    // built entirely from stale calls, over the top of a real one. A run with
+    // no results has nothing to say, so it says nothing.
+    if (this.tests.length === 0) {
+      process.stdout.write(
+        `\nNo test results in this run — ${
+          existsSync(out) ? "keeping the existing" : "not writing a"
+        } reports/api-report.html.\n\n`,
+      );
+      return;
+    }
+
     const calls = readApiCalls();
 
     const notes: string[] = [];
@@ -98,17 +118,27 @@ export default class ApiReporter implements Reporter {
       notes,
     });
 
-    const out = join(PROJECT_ROOT, "reports", "api-report.html");
     mkdirSync(dirname(out), { recursive: true });
-    writeFileSync(out, renderReport(model), "utf8");
 
-    // Also keep the model as JSON — the dashboard in `prototype/` and any CI
-    // gate can read it without parsing HTML.
+    // The model goes to disk FIRST. It is the evidence; the HTML is a view of
+    // it. Writing it up front means a rendering bug costs a page, not a run's
+    // worth of results — and the dashboard in `prototype/` and any CI gate can
+    // read it without parsing HTML either way.
     writeFileSync(
       join(PROJECT_ROOT, "reports", "api-report.json"),
       JSON.stringify(model, null, 2),
       "utf8",
     );
+
+    try {
+      writeFileSync(out, renderReport(model), "utf8");
+    } catch (error) {
+      process.stderr.write(
+        `\nThe HTML report could not be rendered: ${
+          error instanceof Error ? error.stack ?? error.message : String(error)
+        }\n` + `reports/api-report.json still holds the full run.\n\n`,
+      );
+    }
 
     const t = model.totals;
     process.stdout.write(
@@ -116,6 +146,9 @@ export default class ApiReporter implements Reporter {
         `  ${t.tests} cases (${t.passed} passed, ${t.failed} failed, ${t.skipped} not run)` +
         `  ·  positive ${t.byKind.positive.total} / negative ${t.byKind.negative.total} / edge ${t.byKind.edge.total}\n` +
         `  ${t.calls} API calls, ${t.failedCalls} failed  ·  p50 ${t.p50Ms}ms  p95 ${t.p95Ms}ms  max ${t.maxMs}ms\n` +
+        (t.disagreements
+          ? `  ⚠ ${t.disagreements} case(s) where the HTTP evidence contradicts the recorded verdict\n`
+          : "") +
         `  run status ${result.status}\n\n`,
     );
   }

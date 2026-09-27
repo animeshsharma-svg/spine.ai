@@ -32,9 +32,18 @@ export function activeCompanyId(): number {
  */
 export async function resolveClientContext(
   companyId: number = activeCompanyId(),
+  /**
+   * Send this context's calls somewhere other than the configured host.
+   *
+   * The base URL is otherwise fixed per client at module load, which is right
+   * for a suite run and wrong for a platform where someone picks the target in
+   * the UI. `clientFromSession` already took a baseURL; nothing passed one.
+   * Optional, so every existing caller is unchanged.
+   */
+  baseURL?: string,
 ): Promise<ClientContext> {
   const client = await resolveClient(companyId);
-  const buyerApi = await clientFromSession(client.buyer, { app: "console", companyId });
+  const buyerApi = await clientFromSession(client.buyer, { app: "console", companyId, ...(baseURL ? { baseURL } : {}) });
 
   const [cat, vendor] = await Promise.all([
     resolveCatalog(buyerApi),

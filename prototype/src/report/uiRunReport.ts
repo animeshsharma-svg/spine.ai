@@ -3,6 +3,8 @@ import { findUiResult, loadUiFindings, possibleReasons } from "./uiReport.js";
 import { JOURNEY_PHASES, type JourneyStep } from "../ui/journeySteps.js";
 import { readTrail, type JourneyTrailRecord } from "../ui/trailStore.js";
 import { UI_FLOWS } from "../ui/uiFlowRunner.js";
+import { comparedWithLast, frictionOf, whatItLeft, whereTimeWent } from "./uiRunFacts.js";
+import { redactSecrets } from "../checks/engine.js";
 
 /**
  * ONE JOURNEY, ONE REPORT — opened the moment the browser stops.
@@ -53,6 +55,42 @@ const REPORT_CSS = `
 .kv { width: 100%; border-collapse: collapse; margin: 10px 0 0; font-size: 13px; }
 .kv th { text-align: left; width: 160px; color: var(--ink-soft); font-weight: 600; padding: 5px 0; vertical-align: top; }
 .kv td { padding: 5px 0; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+.fact { border: 1px solid var(--card-line); border-radius: 9px; padding: 9px 11px; background: var(--card); }
+.fact-l { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-soft); margin-bottom: 3px; }
+.fact-v { font-size: 13.5px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.bars { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.bars li { display: grid; grid-template-columns: 1fr 74px; gap: 10px; align-items: center; font-size: 13px; }
+.bars .bar-l { line-height: 1.45; }
+.bars .bar-track { grid-column: 1 / -1; height: 5px; border-radius: 999px; background: var(--idle-soft); overflow: hidden; }
+.bars .bar-fill { display: block; height: 100%; background: var(--accent); }
+.bars .bar-t { text-align: right; font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
+.checked { width: 100%; border-collapse: collapse; margin: 10px 0 0; font-size: 13px; }
+.checked th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-soft); font-weight: 600; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); }
+.checked td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.45; }
+.checked tr.no td { background: var(--bad-soft); }
+.checked .v { white-space: nowrap; font-weight: 700; }
+.checked .v.yes { color: var(--good); }
+.checked .v.no { color: var(--bad); }
+.checked .v.unread { color: var(--ink-soft); font-weight: 600; }
+.checked .src { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
+.logged { width: 100%; border-collapse: collapse; margin: 10px 0 0; font-size: 12.5px; }
+.logged th { text-align: left; font-weight: 600; color: var(--ink-soft); padding: 5px 8px 5px 0;
+  border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.logged td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.logged td.st { font-family: var(--mono); font-weight: 700; }
+.logged td.st.bad5 { color: var(--bad); }
+.logged td.st.bad4 { color: var(--warn); }
+.logged code { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.conerr { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.conerr li { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: var(--bad);
+  background: var(--bad-soft); border-radius: 6px; padding: 6px 9px; overflow-wrap: anywhere; }
+.since { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; }
+.since li { padding-left: 15px; position: relative; line-height: 1.5; }
+.since li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-soft); }
+.streak { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-soft); }
 .raw { margin-top: 18px; }
 .raw summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); }
 .raw pre { background: #0a0f18; color: #c7d2e5; border-radius: 9px; padding: 12px 14px;
@@ -68,7 +106,11 @@ function tookInWords(ms: number): string {
 
 function stepRow(step: JourneyStep, isHere: boolean): string {
   const mark = { ok: "✓", bad: "✗", warn: "!", info: "·" }[step.kind] ?? "·";
-  return `<li class="${step.kind}${isHere ? " here" : ""}" title="${escapeHtml(step.raw)}">
+  // No `title` with the raw line on it. It hovered a tooltip over whichever
+  // row the pointer happened to cross, covering the step above it while
+  // adding nothing a reader wanted — the raw output is one click away at the
+  // bottom of the page, in full and in order.
+  return `<li class="${step.kind}${isHere ? " here" : ""}">
     <span class="mark">${mark}</span>
     <span>${escapeHtml(step.text)}${
       step.repeats ? `<span class="repeats">${step.repeats} attempts</span>` : ""
@@ -94,6 +136,35 @@ function renderTrail(trail: JourneyTrailRecord, broke: boolean): string {
   return `<ul class="trail">${out.join("")}</ul>`.replace(/^<ul class="trail"><\/ul>/, "");
 }
 
+/**
+ * The browser's console errors, made readable.
+ *
+ * Three things are wrong with them raw: the same line repeats (a page that
+ * 404s a resource twice writes it twice), the common shapes are jargon, and
+ * one of Procol's own carries the session token in a URL. Redaction is belt
+ * and braces here — new runs are redacted as they are captured — because
+ * result files written before that still hold it.
+ */
+function readableConsoleErrors(lines: string[]): Array<{ text: string; count: number }> {
+  const seen = new Map<string, number>();
+  for (const raw of lines) {
+    const safe = redactSecrets(raw) ?? "";
+    const resource = safe.match(/^Failed to load resource:.*status of (\d+)/i);
+    const socket = safe.match(/^WebSocket connection to '([^']+)'.*?(?:response code: (\d+))?$/i);
+    let text = safe;
+    if (resource) {
+      text = `A resource the page asked for came back ${resource[1]} — the browser does not say which.`;
+    } else if (socket) {
+      const host = socket[1].replace(/\?.*$/, "");
+      text = `The live-updates connection to ${host} was refused${
+        socket[2] ? ` (handshake got ${socket[2]})` : ""
+      } — anything on the page that updates in real time is not updating.`;
+    }
+    seen.set(text, (seen.get(text) ?? 0) + 1);
+  }
+  return [...seen.entries()].map(([text, count]) => ({ text, count }));
+}
+
 export function renderUiRunReport(runId: string): string {
   const trail = readTrail(runId);
   const result = findUiResult(runId);
@@ -108,6 +179,16 @@ export function renderUiRunReport(runId: string): string {
   const shot = result?.screenshot;
   const took = tookInWords(result?.durationMs ?? trail?.durationMs ?? 0);
   const when = result?.startedAt ?? trail?.startedAt;
+
+  // Four more readings of the same trail — see `uiRunFacts.ts`.
+  const left = whatItLeft(trail, result);
+  const slowest = whereTimeWent(trail);
+  const friction = frictionOf(trail, result?.observations ?? []);
+  const since = comparedWithLast(trail);
+  const failed = result?.failedRequests ?? [];
+  const consoleErrors = readableConsoleErrors(result?.consoleErrors ?? []);
+  const errorToasts = result?.errorToasts ?? [];
+  const verified = result?.verified;
 
   const body =
     !trail && !result
@@ -178,6 +259,65 @@ export function renderUiRunReport(runId: string): string {
     </table>
   </section>
 
+  <!-- Three cards that used to follow here — what the journey verified at the
+       end, what the app logged while it ran, and where the app made it work
+       hard — were removed at the reader's request: they read as alarming noise
+       on a run that passed. The data behind them is still captured and still
+       feeds the bug sheet; only this page stopped printing it. -->
+  ${
+    left.length
+      ? `<section class="card">
+    <h2>What this run left in Procol</h2>
+    <p class="lede">The record it built, and the choices it made building it. Open the project and
+    every one of these is checkable by hand — which is what makes the tick above more than a tick.</p>
+    <div class="facts">${left
+      .map(
+        (f) => `<div class="fact"><span class="fact-l">${escapeHtml(f.label)}</span>
+          <span class="fact-v">${
+            f.href
+              ? `<a href="${escapeHtml(f.href)}" target="_blank" rel="noopener">${escapeHtml(f.value)}</a>`
+              : escapeHtml(f.value)
+          }</span></div>`,
+      )
+      .join("")}</div>
+  </section>`
+      : ""
+  }
+
+
+
+  ${
+    slowest.length
+      ? `<section class="card">
+    <h2>Where the time went</h2>
+    <p class="lede">The gap between two steps is the work done to get from one to the other, so it is
+    counted against the step it ends at. This is the only place the platform times Procol's own
+    screens under a real browser — ${escapeHtml(took)} in total.</p>
+    <ul class="bars">${slowest
+      .map(
+        (t) => `<li><span class="bar-l">${escapeHtml(t.label)}</span>
+          <span class="bar-t">${(t.ms / 1000).toFixed(1)}s · ${t.share}%</span>
+          <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2, t.share)}%"></span></span></li>`,
+      )
+      .join("")}</ul>
+  </section>`
+      : ""
+  }
+
+
+  ${
+    since.lines.length
+      ? `<section class="card">
+    <h2>Compared with the last time this journey ran</h2>
+    <p class="lede">Timings here are the whole run end to end, including Playwright's own start-up,
+    so they read a little longer than the journey time above — but they are measured the same way on
+    both runs, which is what makes the comparison mean something.</p>
+    <ul class="since">${since.lines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>
+    ${since.streak ? `<p class="streak">${escapeHtml(since.streak)}</p>` : ""}
+  </section>`
+      : ""
+  }
+
   ${
     result?.observations?.length
       ? `<section class="card">
@@ -216,7 +356,7 @@ export function renderUiRunReport(runId: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Procol QA — ${escapeHtml(title)}</title>
+<title>spine.ai — ${escapeHtml(title)}</title>
 <style>
 ${PAGE_CSS}
 ${REPORT_CSS}

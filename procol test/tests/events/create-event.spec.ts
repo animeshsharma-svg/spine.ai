@@ -3,6 +3,8 @@ import { test, expect } from "@playwright/test";
 import { asBuyer, asEvaluator } from "../../src/identities.js";
 import { createRfqTechnicalEvent } from "../../src/flows/createEvent.js";
 import { Endpoints } from "../../src/api/endpoints.js";
+import { declareCase } from "../../src/report/caseSpec.js";
+import { startJourney, step, stepResult } from "../../src/report/steps.js";
 
 /**
  * Create-event flow (RFQ + Technical), fully dynamic (mirrors the Postman
@@ -11,6 +13,19 @@ import { Endpoints } from "../../src/api/endpoints.js";
  */
 test.describe("create event — RFQ + Technical", () => {
   test("creates a 2-stage event group and finalizes it", async () => {
+    declareCase({
+      plain:
+        "Build a sourcing event from scratch — a technical round followed by a pricing round — publish it, then reopen it to confirm what was saved.",
+      expected:
+        "The event publishes and goes live, and reading it back shows the same event, still live, with both of its rounds attached.",
+      flow: "events.create_two_stage",
+      flowTitle: "Creating a two-stage event",
+      area: "Building and publishing an event",
+      kind: "positive",
+      expect: "accept",
+      because: "this is the core create path every other event flow builds on",
+    });
+    startJourney();
     const buyer = await asBuyer();
     const evaluator = await asEvaluator();
     try {
@@ -27,12 +42,22 @@ test.describe("create event — RFQ + Technical", () => {
       expect(result.title).toContain("API_Test_");
 
       // Read it back
-      const readBack = await buyer.api.get<{ uuid: string; status: string; stages: unknown[] }>(
-        Endpoints.eventGroup(result.eventGroupUuid),
+      await step(
+        "Reopen the event and check what was saved",
+        "Reading the event back returns the same event, still live, with both of its rounds on it.",
+        async () => {
+          const readBack = await buyer.api.get<{ uuid: string; status: string; stages: unknown[] }>(
+            Endpoints.eventGroup(result.eventGroupUuid),
+          );
+          expect(readBack.uuid).toBe(result.eventGroupUuid);
+          expect(readBack.status).toBe("active");
+          expect(readBack.stages.length).toBe(2);
+          stepResult(
+            `The event came back as ${readBack.uuid}, status "${readBack.status}", with ` +
+              `${readBack.stages.length} rounds on it.`,
+          );
+        },
       );
-      expect(readBack.uuid).toBe(result.eventGroupUuid);
-      expect(readBack.status).toBe("active");
-      expect(readBack.stages.length).toBe(2);
     } finally {
       await buyer.api.dispose();
       await evaluator.api.dispose();

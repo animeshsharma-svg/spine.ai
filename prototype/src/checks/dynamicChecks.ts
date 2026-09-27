@@ -411,7 +411,17 @@ export function gate(
   // still a definite defect, a clean 4xx is not evidence of anything.
   // The genuine happy path IS still covered — by the real registry flow
   // (create → bid → award), which builds a complete payload and DB-verifies it.
-  if (expected === "accept" && !SIMPLE_CREATE.some((r) => r.test(path))) expected = "no-5xx";
+  let weakenedTo5xxOnly: string | undefined;
+  if (expected === "accept" && !SIMPLE_CREATE.some((r) => r.test(path))) {
+    expected = "no-5xx";
+    // Recorded, not hidden. The report shows this next to the case's own
+    // documented expectation so nobody reads "didn't crash" as "works".
+    weakenedTo5xxOnly =
+      `This case documents a specific success, but ${method} ${path.split("?")[0]} needs a payload ` +
+      `this runner cannot build in full (a real template, timing and the ids of a live chain). ` +
+      `It was therefore only checked for "did not crash" — a pass here does NOT mean the documented ` +
+      `behaviour happened.`;
+  }
   const severity = SEVERITIES.has(spec.severity) ? spec.severity : "Medium";
   const category = spec.category || "Data Validation";
   const body = method === "GET" ? undefined : enforceSandboxNaming(sub.value.body ?? {});
@@ -427,6 +437,7 @@ export function gate(
     priority: sevToPri[severity] ?? "P2",
     severity,
     expected,
+    ...(weakenedTo5xxOnly ? { weakenedTo5xxOnly } : {}),
     layer: "api",
     inputSummary:
       `${method} ${path}` + (body && Object.keys(body).length ? ` · ${JSON.stringify(body).slice(0, 160)}` : ""),

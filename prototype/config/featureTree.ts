@@ -5,6 +5,20 @@
  * "Complete Process & Feature Documentation"), so the names here are the names
  * the business uses. Each leaf is a toggle: tick it and its test cases run.
  *
+ * ORDER IS MEANING. The groups below run in the order a buyer actually walks
+ * the product — a requirement becomes an intake, an intake becomes a PR, a PR
+ * becomes an event, the event is bid on, evaluated, negotiated and awarded, the
+ * award becomes a PO, the PO is delivered and finally paid. `step` is that
+ * position, and the UI prints it, so the reader can see the journey rather than
+ * having to know it. The four groups after the journey carry no step: they are
+ * the master data and account setup the journey is built ON, not stages of it.
+ *
+ * Children are ordered the same way, within their stage. Under "Sourcing
+ * events" that means the type decision first, then the four event types, then
+ * the build (validation → configuration → awarding rule → audience), then
+ * publish and everything that can happen to a published event. It does NOT
+ * mean alphabetical, and it does not mean the order the cases were written in.
+ *
  * Coverage is shown honestly. A feature with 0 cases is still listed — that is
  * the point: the tree doubles as a coverage map of the whole product, so you can
  * see what is tested and what is not, instead of only seeing what we happen to
@@ -25,6 +39,31 @@ export interface FeatureNode {
   uiFlow?: string;
   portal?: "buyer" | "vendor" | "both";
   defaultOn?: boolean;
+  /**
+   * One of a set: picking this one rules the others out.
+   *
+   * An event has exactly one type. RFQ-only and Technical+Auction are not two
+   * features you can run together on one event — they are the same decision
+   * made two ways, and a run that ticked both would build two unrelated events
+   * and report them as one selection. Nodes sharing a key here are drawn as a
+   * choice: tick one and the rest grey out until it is unticked.
+   *
+   * It applies only to nodes carrying the key. Everything else in the group —
+   * publishing, validation, inviting vendors — stays selectable alongside
+   * whichever type is picked, because those happen to every event whatever
+   * type it is.
+   */
+  oneOf?: string;
+  /**
+   * Not a choice — a step every event in this group has to go through.
+   *
+   * An event cannot be activated without its schedule and template. Listing
+   * that beside the four event types said it was an alternative to picking a
+   * type, which it is not: it runs WITH whichever type you pick. A
+   * prerequisite is drawn nested under the types, is ticked and locked, and is
+   * added to the run as soon as anything else in its group is selected.
+   */
+  prerequisite?: boolean;
 }
 
 export interface FeatureGroup {
@@ -32,6 +71,16 @@ export interface FeatureGroup {
   label: string;
   icon: string;
   what: string;
+  /**
+   * Position in the procure-to-pay journey, 1-based.
+   *
+   * Absent on the supporting groups (master data, users, vendors, platform
+   * config) — they are set up once, before and beside the journey, so giving
+   * them a step number would claim an order that isn't real.
+   */
+  step?: number;
+  /** One line on WHEN in the journey this group happens. Printed under the step. */
+  when?: string;
   children: FeatureNode[];
 }
 
@@ -40,6 +89,8 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "intake",
     label: "Intake",
     icon: "📝",
+    step: 1,
+    when: "Someone in the business needs something.",
     what: "Capturing the business requirement before it becomes a purchase request.",
     children: [
       { id: "intake.create", label: "Create intake", what: "Requirement, quantity, specs, budget, delivery timeline." },
@@ -52,14 +103,16 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "pr",
     label: "Purchase requests",
     icon: "🧾",
+    step: 2,
+    when: "The requirement is now a formal internal demand.",
     what: "The formal internal demand document. Events can only start from an approved PR.",
     children: [
       { id: "pr.list", uiFlow: "pr.list", label: "PR list & filters", what: "Listing, paging and ageing filters.", defaultOn: true },
       { id: "pr.read", label: "Read one PR", what: "Fetching a single purchase request." },
       { id: "pr.line_items", label: "Line-item management", what: "Each intake line is its own row under one PR number." },
       { id: "pr.partial_selection", label: "Partial selection into an event", what: "Take 5 of 10 items; the rest stay Open." },
-      { id: "pr.status", label: "PR statuses", what: "Open → In Progress → Completed transitions." },
       { id: "pr.to_event", label: "PR → Event", what: "Converting PR lines into a sourcing event.", flowId: "entrypath.pr_to_event" },
+      { id: "pr.status", label: "PR statuses", what: "Open → In Progress → Completed transitions." },
       { id: "pr.partial_closure", uiFlow: "pr.bulk_upload", label: "Partial closure", what: "Closing part of a PR (the 861/823/528 rules).", requiresConfig: "is_pr_partial_closure_enabled" },
     ],
   },
@@ -67,52 +120,100 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "events",
     label: "Sourcing events (RFx)",
     icon: "📋",
+    step: 3,
+    when: "The buyer builds the event and puts it in front of vendors.",
     what: "The five event types and how they're configured. The heart of Procol.",
     children: [
-      { id: "events.rfp_only", uiFlow: "events.rfp_only", label: "Technical / RFP only", what: "Technical evaluation before any pricing.", flowId: "events.rfp_only", defaultOn: true, requiresConfig: "rfx_project_enabled" },
-      { id: "events.rfq_only", uiFlow: "events.rfq_only", label: "RFQ only", what: "Commercial stage — price, taxes, delivery terms.", flowId: "events.rfq_only", requiresConfig: "rfx_project_enabled" },
-      { id: "events.rfp_rfq", uiFlow: "events.rfp_rfq", label: "Technical + RFQ", what: "Two-stage: technical then commercial.", flowId: "events.rfp_rfq", defaultOn: true, requiresConfig: "rfx_project_enabled" },
-      { id: "events.rfp_auction", uiFlow: "events.rfp_auction", label: "Technical + Auction", what: "Technical stage then a live auction.", flowId: "events.rfp_auction", requiresConfig: "rfx_project_enabled" },
+      // The type decision comes first because it constrains everything after
+      // it — and it is a decision, not a list: the four types below share
+      // `oneOf: "event_type"`, so exactly one of them can be picked for a run.
       { id: "events.type_rules", label: "Event-type rules", what: "RFQ and Auction cannot be chosen together as one event." },
-      { id: "events.line_items", uiFlow: "events.multi_product", label: "Line items", what: "Product, quantity and UOM validation on the event.", defaultOn: true },
-      { id: "events.config", label: "Event configuration", what: "Template, specs, evaluator, submission & evaluation windows." },
+      { id: "events.rfp_only", uiFlow: "events.rfp_only", label: "Technical / RFP only", what: "Technical evaluation before any pricing.", flowId: "events.rfp_only", oneOf: "event_type", defaultOn: true, requiresConfig: "rfx_project_enabled" },
+      { id: "events.rfq_only", uiFlow: "events.rfq_only", label: "RFQ only", what: "Commercial stage — price, taxes, delivery terms.", flowId: "events.rfq_only", oneOf: "event_type", requiresConfig: "rfx_project_enabled" },
+      { id: "events.rfp_rfq", uiFlow: "events.rfp_rfq", label: "Technical + RFQ", what: "Two-stage: technical then commercial.", flowId: "events.rfp_rfq", oneOf: "event_type", defaultOn: true, requiresConfig: "rfx_project_enabled" },
+      { id: "events.rfp_auction", uiFlow: "events.rfp_auction", label: "Technical + Auction", what: "Technical stage then a live auction.", flowId: "events.rfp_auction", oneOf: "event_type", requiresConfig: "rfx_project_enabled" },
+      // Then the build. These two are not alternatives to the types above —
+      // every type goes through them, so they are prerequisites, not options.
+      // NOT a feature: how many line items an event carries is a number the
+      // runner types, not something to tick — see the count field above the
+      // tree. What used to sit here as "Line items" was 47 cases of three
+      // unrelated kinds; they now live where they belong (here, in
+      // "Event configuration", and under Platform & config → API hardening).
+      { id: "events.validation", uiFlow: "events.multi_product", label: "Event validation", what: "Product, quantity and UOM rules on create, and adding, editing or deleting line items afterwards.", defaultOn: true },
+      { id: "events.config", label: "Event configuration", what: "Template, specs, evaluator, submission & evaluation windows. Required before a stage can go live.", prerequisite: true },
       { id: "events.awarding_rule", uiFlow: "events.award_lot_wise", label: "Awarding rule", what: "Full lot to one vendor vs split across vendors." },
       { id: "events.invite_vendors", label: "Invite vendors", what: "Suggestions by category/product, plus manual invites." },
+      // Then going live, and everything that can happen to a live event.
       { id: "events.publish", label: "Publish event", what: "Draft goes live to the invited vendors." },
       { id: "events.extend_deadline", label: "Extend submission deadline", what: "Buyer reopens the vendor response window." },
       { id: "events.lifecycle", uiFlow: "event.draft_create", label: "Status lifecycle", what: "Draft → Live → History. Withdrawn drafts are gone for good." },
     ],
   },
   {
+    id: "erfx",
+    label: "ERFX projects",
+    icon: "🗺",
+    step: 4,
+    when: "The same event, built as a multi-stage project instead.",
+    what: "Project-based sourcing with a custom stage builder.",
+    children: [
+      { id: "erfx.create", label: "Create ERFX project", what: "Started from PR lines via Start Purchasing." },
+      { id: "erfx.stages", label: "Stage builder", what: "Add, remove, time and reorder stages." },
+      { id: "erfx.terms", label: "Terms & conditions stage", what: "Payment terms, delivery, quality, penalties, SLA." },
+      { id: "erfx.schedule", label: "Schedule or publish now", what: "RFQ stage can be scheduled; publishing emails vendors." },
+    ],
+  },
+  {
+    id: "eventfeatures",
+    label: "Event add-ons",
+    icon: "🧩",
+    step: 5,
+    when: "Options that can sit on any event, whatever its type.",
+    what: "Features that sit on top of any event.",
+    children: [
+      { id: "events.templates", label: "Templates", what: "Reusable intake/PR/event templates, incl. Excel." },
+      { id: "events.boq", label: "BOQ (bill of quantities)", what: "Excel upload for large multi-line orders (limit from allowed_maximum_line_items.boq).", flowId: "events.boq", requiresConfig: "boq_in_erfx_allowed" },
+      { id: "events.terms", label: "Terms & conditions", what: "Set per stage and/or for the whole event." },
+      { id: "events.versioning", label: "Versioning", what: "1.0 → 1.1 → 1.2 — which bid is authoritative.", flowId: "events.versioning" },
+    ],
+  },
+  {
     id: "auction",
     label: "Auctions",
     icon: "⚡",
+    step: 6,
+    when: "The commercial stage is run live instead of as a sealed quote.",
     what: "Reverse auctions — five strategies, each with different rules about what vendors can see.",
     children: [
+      // How you arrive at an auction at all.
+      { id: "auction.convert", uiFlow: "events.rfq_auction", label: "Convert RFQ → Auction", what: "RFQ quotes carry over as the starting bids.", flowId: "events.convert_to_auction" },
+      // Then which of the five strategies runs.
       { id: "auction.rank", uiFlow: "events.auction_rank", label: "Rank based", what: "Vendor sees only their own rank (Gold/Silver/Bronze).", flowId: "events.auction_rank" },
       { id: "auction.price", uiFlow: "events.auction_price", label: "Price based", what: "Vendor sees the lowest price but not ranks.", flowId: "events.auction_price" },
       { id: "auction.traffic_light", uiFlow: "events.auction_traffic_light", label: "Traffic light", what: "Vendors banded Red/Yellow/Green by buyer-set limits." },
       { id: "auction.knockout", label: "Knockout", what: "Descending price levels; vendors who don't accept are eliminated." },
       { id: "auction.dutch", label: "Dutch", what: "Price RISES over time — inverted vs every other auction here." },
-      { id: "auction.convert", uiFlow: "events.rfq_auction", label: "Convert RFQ → Auction", what: "RFQ quotes carry over as the starting bids.", flowId: "events.convert_to_auction" },
-      { id: "auction.visibility", label: "Rank / price visibility", what: "The fairness contract — no vendor may see another's price." },
+      // Then the rules that govern the run itself.
+      { id: "auction.increments", label: "Minimum bid increments", what: "Smallest allowed price revision." },
       { id: "auction.dynamic_extension", label: "Dynamic extension", what: "Auto-extends near close to stop last-second sniping." },
       { id: "auction.serial_bidding", label: "Serial bidding", what: "Multi-item auctions bid line by line." },
-      { id: "auction.increments", label: "Minimum bid increments", what: "Smallest allowed price revision." },
+      { id: "auction.visibility", label: "Rank / price visibility", what: "The fairness contract — no vendor may see another's price." },
     ],
   },
   {
     id: "bids",
     label: "Bidding",
     icon: "💰",
+    step: 7,
+    when: "Vendors answer. This is the only stage they drive.",
     what: "Vendors quoting, and the buyer quoting on their behalf.",
     children: [
+      { id: "bids.participation", label: "Participate / decline", what: "Vendor accepts or skips an invitation.", portal: "vendor" },
+      { id: "bids.quick_fill", label: "Quick fill", what: "Auto-fills a vendor response from their standard offering.", portal: "vendor" },
       { id: "bids.place", uiFlow: "bid.submit", label: "Place a bid", what: "Submitting a priced bid.", defaultOn: true },
+      { id: "bids.price_cap", label: "Price cap", what: "Per-vendor ceiling; a higher price cannot be entered." },
       { id: "bids.submit", label: "Submit / revise a bid", what: "Finalising or revising a placed bid." },
       { id: "bids.surrogate", label: "Surrogate bid", what: "Buyer bids for a vendor who can't — needs an audit trail." },
-      { id: "bids.price_cap", label: "Price cap", what: "Per-vendor ceiling; a higher price cannot be entered." },
-      { id: "bids.quick_fill", label: "Quick fill", what: "Auto-fills a vendor response from their standard offering.", portal: "vendor" },
-      { id: "bids.participation", label: "Participate / decline", what: "Vendor accepts or skips an invitation.", portal: "vendor" },
       // Five written cases named this feature and nothing in the tree claimed
       // them, so they could not be ticked and never ran. Listed, they can.
       { id: "bids.counter_offer", label: "Counter offers", what: "Buyer counters a bid; the vendor accepts, rejects or revokes." },
@@ -122,11 +223,13 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "evaluation",
     label: "Evaluation & comparison",
     icon: "📊",
+    step: 8,
+    when: "The buyer reads what came back.",
     what: "Scoring technical responses and comparing quotes side by side.",
     children: [
       { id: "evaluation.score", label: "Technical evaluation", what: "Accept / Not Fit, ranks T1-T3, remarks.", defaultOn: true },
-      { id: "evaluation.tna", label: "TNA (technically not acceptable)", what: "Sent to regret — cannot be awarded." },
       { id: "evaluation.granularity", label: "Line-item vs vendor level", what: "Evaluating per line item as well as per vendor." },
+      { id: "evaluation.tna", label: "TNA (technically not acceptable)", what: "Sent to regret — cannot be awarded." },
       { id: "evaluation.qcs", label: "QCS / MQCS", what: "Quote comparison sheet — L1/L2 price ranks vs T1/T2 technical." },
     ],
   },
@@ -134,6 +237,8 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "negotiation",
     label: "Negotiation",
     icon: "🤝",
+    step: 9,
+    when: "Optional. The buyer pushes back on price before awarding.",
     what: "Counter offers between buyer and vendor.",
     children: [
       { id: "negotiation.counter_offer", label: "Counter offer", what: "Buyer proposes a revised price." },
@@ -144,6 +249,8 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "award",
     label: "Awarding",
     icon: "🏆",
+    step: 10,
+    when: "A winner is chosen and the choice is approved.",
     what: "Choosing winners and getting the award approved.",
     children: [
       { id: "award.proposal", label: "Create award proposal", what: "Opening the award.", flowId: "events.surrogate_award", defaultOn: true },
@@ -158,6 +265,8 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "po",
     label: "Purchase orders",
     icon: "📄",
+    step: 11,
+    when: "The award becomes an order the vendor can act on.",
     what: "Turning an award into a live order the vendor accepts.",
     children: [
       { id: "po.generate", label: "Generate PO", what: "From an awarded event, or manually in P2P." },
@@ -170,6 +279,8 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "p2p",
     label: "Delivery & receiving (P2P)",
     icon: "🚚",
+    step: 12,
+    when: "The goods move, and the buyer records what arrived.",
     what: "Everything after the order: shipment, receipt and quality.",
     children: [
       { id: "p2p.proforma", label: "Proforma invoice", what: "Estimated costs before delivery; vendor approves." },
@@ -184,6 +295,8 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "finance",
     label: "Finance",
     icon: "🏦",
+    step: 13,
+    when: "The paperwork agrees and the vendor gets paid.",
     what: "Matching the paperwork and paying the vendor.",
     children: [
       { id: "finance.three_way", uiFlow: "finance.three_way", label: "3-way match", what: "PO vs invoice vs GRN — must match exactly." },
@@ -192,34 +305,15 @@ export const FEATURE_TREE: FeatureGroup[] = [
       { id: "finance.cn_dn", label: "Credit / debit notes", what: "Short or over delivery adjustments." },
     ],
   },
-  {
-    id: "erfx",
-    label: "ERFX projects",
-    icon: "🗺",
-    what: "Project-based sourcing with a custom stage builder.",
-    children: [
-      { id: "erfx.create", label: "Create ERFX project", what: "Started from PR lines via Start Purchasing." },
-      { id: "erfx.stages", label: "Stage builder", what: "Add, remove, time and reorder stages." },
-      { id: "erfx.terms", label: "Terms & conditions stage", what: "Payment terms, delivery, quality, penalties, SLA." },
-      { id: "erfx.schedule", label: "Schedule or publish now", what: "RFQ stage can be scheduled; publishing emails vendors." },
-    ],
-  },
-  {
-    id: "eventfeatures",
-    label: "Event add-ons",
-    icon: "🧩",
-    what: "Features that sit on top of any event.",
-    children: [
-      { id: "events.versioning", label: "Versioning", what: "1.0 → 1.1 → 1.2 — which bid is authoritative.", flowId: "events.versioning" },
-      { id: "events.boq", label: "BOQ (bill of quantities)", what: "Excel upload for large multi-line orders (limit from allowed_maximum_line_items.boq).", flowId: "events.boq", requiresConfig: "boq_in_erfx_allowed" },
-      { id: "events.templates", label: "Templates", what: "Reusable intake/PR/event templates, incl. Excel." },
-      { id: "events.terms", label: "Terms & conditions", what: "Set per stage and/or for the whole event." },
-    ],
-  },
+
+  // ── Set up once, underneath the journey above ──────────────────────────
+  // No step number: these are not stages anybody walks through. They are the
+  // catalog, the people and the switches that every stage above reads from.
   {
     id: "masterdata",
     label: "Master data",
     icon: "🗂",
+    when: "Set up before any of the above, and edited throughout.",
     what: "The catalog everything else is built from.",
     children: [
       { id: "masterdata.category", label: "Categories", what: "Top-level product categories.", flowId: "masterdata.category", defaultOn: true },
@@ -233,12 +327,13 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "users",
     label: "Users, roles & teams",
     icon: "👥",
+    when: "Who may do each step above.",
     what: "Who exists, and what each role may do.",
     children: [
       { id: "users.create", uiFlow: "masterdata.user", label: "Create user", what: "Name, email, phone, role validation.", flowId: "masterdata.user_permissions", defaultOn: true },
+      { id: "users.permissions", label: "Role permissions", what: "Member / Manager / Admin / Super Admin — allowed vs 422." },
       { id: "masterdata.team", uiFlow: "masterdata.team", label: "Teams", what: "Planner, Purchase, Quality Check, Vendor Mgmt, Process Validator.", flowId: "masterdata.team" },
       { id: "users.team_member", label: "Team membership", what: "Adding a user to a team with a role." },
-      { id: "users.permissions", label: "Role permissions", what: "Member / Manager / Admin / Super Admin — allowed vs 422." },
       { id: "users.delegate", label: "Delegate approval", what: "Time-bounded stand-in approvers." },
     ],
   },
@@ -246,6 +341,7 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "vendors",
     label: "Vendors",
     icon: "🏭",
+    when: "The other side of every event above.",
     what: "Supplier records, onboarding and mappings.",
     children: [
       { id: "vendors.discovery", uiFlow: "vendor.management", label: "Vendor discovery", what: "Listing and searching the client's vendors.", flowId: "vendor.discovery", defaultOn: true },
@@ -264,12 +360,16 @@ export const FEATURE_TREE: FeatureGroup[] = [
     id: "platform",
     label: "Platform & config",
     icon: "⚙️",
+    when: "The switches that change what every stage above does.",
     what: "Cross-cutting behaviour that changes per company.",
     children: [
       { id: "platform.configurations", label: "Configurations", what: "Per-company flags that switch features on and off." },
       { id: "platform.approvals", label: "Approval chains", what: "Multi-level approvals on intake, PR, award and PO." },
       { id: "platform.erp", label: "ERP integration", what: "PR pushed in from ERP; PO pushed back out." },
       { id: "platform.audit", label: "Audit trail", what: "Approvals, award logic and documents must stay reviewable." },
+      // Cross-cutting and endpoint-agnostic: these prove how the API behaves
+      // when it is sent rubbish, not what any one feature does.
+      { id: "platform.hardening", label: "API hardening", what: "Invalid JSON, injection-shaped input, oversized and multi-byte text, duplicate and concurrent requests." },
     ],
   },
 ];

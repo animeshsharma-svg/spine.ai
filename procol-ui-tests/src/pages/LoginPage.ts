@@ -81,27 +81,39 @@ export class LoginPage extends BasePage {
     }
     if (lastErr) throw lastErr;
     await this.dismissDistractions();
+    console.log("[login] opened the sign-in page");
   }
 
   /**
    * Full phone-OTP login. Validates each step and surfaces inline/toast errors
    * as thrown errors so failures are legible.
    */
+  /**
+   * Narrated as it goes, one `[login]` line per thing a person would see
+   * happen, so the sign-in shows up in the run's trail and report as steps
+   * ("typed the phone number", "the code field appeared", "signed in") rather
+   * than as a silent gap before the first real screen. Only the last four
+   * digits of the phone are ever printed; the code never is.
+   */
   async login(
     phone = CONFIG.buyerPhone,
     otp = CONFIG.otp,
   ): Promise<void> {
+    const ending = phone.slice(-4);
     await this.fill(this.phoneCandidates(), phone, { label: "phone", timeout: TIMEOUTS.MEDIUM });
     await this.click(this.sendOtpCandidates(), { label: "send-otp" });
+    console.log(`[login] typed the phone number ending ${ending} and asked for a one-time code`);
 
     // The OTP field appearing is proof send-OTP succeeded.
     const otpField = await this.expect(this.otpCandidates(), {
       label: "otp-field",
       timeout: TIMEOUTS.LONG,
     });
+    console.log("[login] the one-time code field appeared");
     await otpField.fill(otp, { timeout: TIMEOUTS.MEDIUM });
 
     await this.click(this.loginCandidates(), { label: "login-submit" });
+    console.log("[login] typed the code and pressed Login");
 
     // Success = we leave /login. Race it against an error toast for a fast, clear failure.
     const left = await this.page
@@ -113,8 +125,10 @@ export class LoginPage extends BasePage {
       const err =
         (await this.errorToastText(1_000)) ||
         (await this.page.locator('p[role="alert"]').first().textContent().catch(() => null));
+      console.log(`[login] the login screen did not let us in${err ? ` — the app said: ${err}` : ""}`);
       throw new Error(`Login did not complete (still on /login). ${err ? `Reason: ${err}` : "No error surfaced."}`);
     }
+    console.log(`[login] signed in — the app opened ${new URL(this.page.url()).pathname}`);
   }
 
   /** True once an access token is present in localStorage. */

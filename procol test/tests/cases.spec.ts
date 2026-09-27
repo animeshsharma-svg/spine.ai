@@ -5,11 +5,14 @@ import { CONFIG, CONST } from "../src/config.js";
 import { buildAccessToken } from "../src/auth/token.js";
 import { Endpoints } from "../src/api/endpoints.js";
 import { CASES, MALFORMED_ACCESS_TOKEN } from "../src/cases/registry.js";
+import { declareCase } from "../src/report/caseSpec.js";
 import {
   ApiCase,
   AuthMode,
   CaseContext,
   describeExpectation,
+  expectedSentence,
+  plainSentence,
   statusSatisfies,
 } from "../src/cases/types.js";
 
@@ -70,15 +73,21 @@ test.describe("negative & edge cases (config-driven)", () => {
 
   for (const apiCase of CASES) {
     test(`[${apiCase.kind}] ${apiCase.title}  [${apiCase.id}]`, async ({ buyerApi }) => {
-      // Read by the reporter to group and label this case. Pushed before any
-      // skip so a parked case still appears in the report under its own kind.
-      test.info().annotations.push(
-        { type: "kind", description: apiCase.kind },
-        { type: "flow", description: apiCase.flowKey },
-        { type: "flowTitle", description: apiCase.flowTitle },
-        { type: "because", description: apiCase.because },
-        { type: "expect", description: apiCase.expects },
-      );
+      // Declared BEFORE the request goes out, so the report's "expected result"
+      // is something this case committed to rather than a description of
+      // whatever came back. Pushed before any skip, so a parked case still
+      // appears in the report under its own heading with its expectation
+      // intact.
+      declareCase({
+        plain: plainSentence(apiCase),
+        expected: expectedSentence(apiCase),
+        kind: apiCase.kind,
+        flow: apiCase.flowKey,
+        flowTitle: apiCase.flowTitle,
+        expect: apiCase.expects,
+        because: apiCase.because,
+        basis: "http-status",
+      });
 
       test.skip(!!apiCase.skip, apiCase.skip ?? "");
       test.skip(
@@ -115,6 +124,18 @@ test.describe("negative & edge cases (config-driven)", () => {
   }
 
   test("the case table itself is coherent", () => {
+    declareCase({
+      plain:
+        "Check the test suite itself rather than the product: that no two cases share an id, and that the suite is not made up only of happy-path cases.",
+      expected:
+        "Every case id is unique, and the table contains at least one case that should be refused and at least one boundary case.",
+      flow: "cases.self_check",
+      flowTitle: "Checks on the test suite itself",
+      kind: "positive",
+      expect: "accept",
+      because: "a suite that only proves the happy path proves very little, and duplicate ids make this report ambiguous",
+      basis: "assertions",
+    });
     const ids = CASES.map((c) => c.id);
     expect(new Set(ids).size, "duplicate case ids would make the report ambiguous").toBe(ids.length);
 

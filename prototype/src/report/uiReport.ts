@@ -81,6 +81,30 @@ export interface UiResult {
   httpFailures?: number;
   toasts?: number;
   /**
+   * What the app did in the background while the journey drove it: the
+   * requests that came back 4xx/5xx, the errors it logged to the console, the
+   * error toasts it showed. Written on every run, passing ones included —
+   * "it worked" and "it logged two 500s doing it" are both true and only one
+   * of them used to be reported.
+   *
+   * Older result files hold only the counts above; both are read, so a run
+   * from before this was captured still renders.
+   */
+  failedRequests?: Array<{ method: string; path: string; status: number; at?: string }>;
+  consoleErrors?: string[];
+  errorToasts?: string[];
+  /**
+   * What the event turned out to be when the journey read it back, through the
+   * API and — where the database is reachable — through the rows themselves.
+   * This is what makes a green tick mean "and it is the event we asked for"
+   * rather than "the script reached the end".
+   */
+  verified?: {
+    via: string;
+    reason?: string;
+    checks: Array<{ what: string; expected: string; actual: string; ok: boolean; unread?: string; via: string }>;
+  };
+  /**
    * Survivable oddities the journey saw: a dropdown that closed itself, a
    * value that vanished and came back, a field that needed three attempts.
    * None of these fail a run, and all of them are worth reading.
@@ -425,7 +449,7 @@ export function renderUiReport(findings: UiFinding[] = loadUiFindings()): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Procol QA — UI automation</title>
+<title>spine.ai — UI automation</title>
 <style>
 ${PAGE_CSS}
 .grow { flex: 1 1 auto; }

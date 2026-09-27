@@ -7,17 +7,6 @@ it (GRN), then bill it and let the 3-way match settle.
 Vendored from `3-way_match/` in the parent repository so the QA platform is one
 folder. The original still exists; this is the copy the platform runs.
 
-## Not to be confused with `../po-to-bill`
-
-Two things in this repo cover the same business flow from opposite ends:
-
-| | `po-to-bill/` | `three-way-match/` (here) |
-|---|---|---|
-| Layer | API — 21 HTTP steps | Browser — real clicks |
-| Proves | the endpoints and their contracts | that a person can actually do it |
-| Signs in as | a static API token | phone + password, through the login screen |
-| Watchable | no | yes, that is the point |
-
 ## The platform runs one of these journeys
 
 `finance.three_way` — "PO → Bill (3-way match)" — is registered in

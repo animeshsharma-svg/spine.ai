@@ -1,4 +1,5 @@
 import { Page, expect } from "@playwright/test";
+import { mismatches, verifyPublishedEvent, type Verification } from "./verifyEvent.js";
 import { EventsPage } from "../../pages/EventsPage.js";
 import { CreateEventPage, ProductInput, StageKey } from "../../pages/CreateEventPage.js";
 import { generateEventTitle } from "../../helpers/data.js";
@@ -30,6 +31,8 @@ export interface ErfxOptions {
 export interface ErfxResult {
   title: string;
   projectId: string | null;
+  /** What the event turned out to be when read back — see `verifyEvent.ts`. */
+  verification?: Verification;
 }
 
 /**
@@ -138,5 +141,25 @@ export async function createAndPublishErfx(page: Page, opts: ErfxOptions): Promi
   const err = await createPage.errorToastText(1_000);
   expect(err, `no error toast expected after publish (got: ${err})`).toBeFalsy();
 
-  return { title, projectId };
+  /**
+   * The journey has driven the screens. Now check the event is the one it set
+   * out to build — read back through the API, and through Postgres where it is
+   * reachable. Landing on a project page proves the button worked; this is
+   * what makes the green tick mean "and the event is what we asked for".
+   */
+  const verification = await verifyPublishedEvent({
+    projectId,
+    title,
+    stages,
+    lineItems: products.length,
+  });
+  const wrong = mismatches(verification);
+  expect(
+    wrong,
+    `the published event is not what the journey built: ${wrong
+      .map((c) => `${c.what} — wanted ${c.expected}, found ${c.actual}`)
+      .join("; ")}`,
+  ).toEqual([]);
+
+  return { title, projectId, verification };
 }

@@ -63,6 +63,67 @@ export function loadContractCases(): ContractCase[] {
   return JSON.parse(text) as ContractCase[];
 }
 
+/**
+ * The stage of an event's life each mined area belongs to, in the words a
+ * buyer uses.
+ *
+ * The mined file's areas are field names ("line_items", "rfq_to_auction"), and
+ * a hundred cases under one "events" heading is a wall nobody reads. Naming
+ * the stages lets the report cut the run into the event lifecycle itself —
+ * create it, decide what is being sourced, choose who sees it, publish it,
+ * take bids, award it — which is the order the cases run in anyway.
+ */
+const AREA_LABELS: Record<string, string> = {
+  creation: "Creating an event",
+  line_items: "The items being sourced",
+  audience: "Who the event goes out to",
+  activation: "Publishing an event",
+  "state-transition": "Moving an event through its states",
+  rfq_to_auction: "Turning a pricing round into an auction",
+  bids: "Bids from suppliers",
+  awarding: "Awarding the event",
+  authorization: "Who is allowed to do what",
+};
+
+/** Plain-English name for a mined area; unknown areas keep their own words. */
+export function areaLabel(area: string): string {
+  return (
+    AREA_LABELS[area] ??
+    area.replace(/[._-]+/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase())
+  );
+}
+
+/**
+ * The mined case as a reader meets it in the report.
+ *
+ * The JSON's titles are already written as statements of behaviour ("Create
+ * fails when status param is missing"), so this only has to frame and
+ * punctuate them.
+ */
+export function plainContractCase(c: ContractCase): string {
+  const title = c.title.trim().replace(/\.$/, "");
+  return `${title.charAt(0).toUpperCase()}${title.slice(1)}.`;
+}
+
+/**
+ * What the backend contract on file says should happen — in plain English,
+ * without the serializer names.
+ *
+ * The documented `shape` is kept out of this sentence on purpose: it is Rails
+ * internals ("EventGroup::ShowSerializer"), which tells a reader nothing and
+ * would make the expected-result column unreadable. It is carried into the
+ * report as the case's `because` instead, where an engineer can still find it.
+ */
+export function expectedContractSentence(c: ContractCase): string {
+  const code = extractExpectedErrorCode(c);
+  const rejected = c.expected.status >= 400;
+  const verb = rejected
+    ? `refuses the request with HTTP ${c.expected.status}`
+    : `accepts the request and answers HTTP ${c.expected.status}`;
+  const withCode = code ? `, carrying application error code ${code}` : "";
+  return `The API ${verb}${withCode}, exactly as the mined backend contract for this case documents.`;
+}
+
 /** Pull a documented `error.code` out of `expected`/`oracle.detail`, if any. */
 export function extractExpectedErrorCode(c: ContractCase): string | undefined {
   const text = `${JSON.stringify(c.expected)} ${c.oracle.detail}`;

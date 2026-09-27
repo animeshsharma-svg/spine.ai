@@ -37,7 +37,7 @@ const gaps = failed.filter((c) => (c.httpStatus ?? 0) < 500);
 
 const bar = "─".repeat(74);
 console.log(bar);
-console.log("PROCOL AUTONOMOUS-QA — LIVE RUN REPORT");
+console.log("SPINE.AI — LIVE RUN REPORT");
 console.log(bar);
 if (plan) console.log(`cases in scope: ${plan.cases}   runnable: ${plan.runnable}   skipped: ${plan.skipped.length}`);
 console.log(

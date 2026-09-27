@@ -37,6 +37,13 @@ export interface CompanyLogin {
   appVersion: string;
   userId?: number | null;
   phone?: string | null;
+  /**
+   * True when the session belongs to a user from ANOTHER company who operates
+   * this one (found through its trade requests), rather than to one of the
+   * company's own users. The on-screen login says so, because "signing in as
+   * PROCOL DEMO's user" would be untrue of an operator from a parent account.
+   */
+  viaOperator?: boolean;
 }
 
 function buildAccessToken(sessionAccessToken: string): string {
@@ -58,6 +65,7 @@ export async function resolveCompanyLogin(companyId: number): Promise<CompanyLog
     [companyId],
   );
   let row = direct.rows[0];
+  let viaOperator = false;
   if (!row) {
     const op = await db().query(
       `select u.id, u.phone, s.access_token, s.app_version
@@ -69,6 +77,7 @@ export async function resolveCompanyLogin(companyId: number): Promise<CompanyLog
       [companyId],
     );
     row = op.rows[0];
+    viaOperator = !!row;
   }
   if (!row) return null;
   const nameRow = await db().query(`select name from companies where id = $1`, [companyId]);
@@ -79,6 +88,7 @@ export async function resolveCompanyLogin(companyId: number): Promise<CompanyLog
     appVersion: row.app_version,
     userId: row.id ?? null,
     phone: row.phone ?? null,
+    viaOperator,
   };
 }
 
