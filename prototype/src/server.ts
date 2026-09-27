@@ -13,7 +13,7 @@
  *   GET /api/run?c=ID&q=TEXT   Server-Sent Events: each agent event, then report
  */
 import { createServer } from "node:http";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow, runSelected } from "./executor.js";
@@ -39,9 +39,13 @@ import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { buildJourneys } from "./checks/journeys.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
 import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
+import { flowToCases, loadRecording } from "./checks/flowToCases.js";
+import { replayCase, disposeReplay } from "./checks/flowReplay.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
+const DATA_DIR = join(here, "..", "data");
+const REC_DIR = join(here, "..", "..", "procol-ui-tests", "recordings");
 const PORT = Number(process.env.PORT ?? 4300);
 
 // Curated demo clients (PROCOL DEMO is the known-fresh default).
@@ -645,6 +649,72 @@ const server = createServer(async (req, res) => {
     if (path === "/api/journeys") {
       const { journeys, orphans } = buildJourneys();
       return json(res, { journeys, orphans });
+    }
+
+    // ── API: recorded flows → human test cases with field validations ───
+    //
+    // A FlowRecorder recording (procol-ui-tests/recordings/<name>.flow.json)
+    // is the real /api/* traffic a browser flow fired. These routes turn it
+    // into Postman-style cases with per-field checks, and can replay the READ
+    // calls live (fresh token) for a genuine passed/failed — mutations are
+    // never fired against live data.
+    if (path === "/api/recorded-flows") {
+      const converted = existsSync(DATA_DIR)
+        ? readdirSync(DATA_DIR)
+            .filter((f) => /^recorded-.*\.cases\.json$/.test(f))
+            .map((f) => f.replace(/^recorded-/, "").replace(/\.cases\.json$/, ""))
+        : [];
+      const recordings = existsSync(REC_DIR)
+        ? readdirSync(REC_DIR).filter((f) => f.endsWith(".flow.json")).map((f) => f.replace(/\.flow\.json$/, ""))
+        : [];
+      return json(res, {
+        converted,
+        recordings,
+        pending: recordings.filter((r) => !converted.includes(r)),
+      });
+    }
+
+    if (path === "/api/recorded-flow") {
+      const name = (url.searchParams.get("name") ?? "").replace(/[^a-z0-9_-]/gi, "");
+      const file = join(DATA_DIR, `recorded-${name}.cases.json`);
+      if (!name || !existsSync(file)) return json(res, { error: `no converted flow "${name}"` });
+      return json(res, JSON.parse(readFileSync(file, "utf-8")));
+    }
+
+    // Convert a recording into cases now (optionally replaying reads live), SSE.
+    if (path === "/api/convert-flow") {
+      const name = (url.searchParams.get("name") ?? "").replace(/[^a-z0-9_-]/gi, "");
+      const replay = url.searchParams.get("replay") === "1";
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const src = join(REC_DIR, `${name}.flow.json`);
+      if (!name || !existsSync(src)) {
+        send("error", { line: `no recording "${name}" in procol-ui-tests/recordings/` });
+        return res.end();
+      }
+      try {
+        const fc = flowToCases(loadRecording(src), src);
+        send("start", { name: fc.name, total: fc.cases.length, context: fc.context, replay });
+        if (replay) {
+          for (const c of fc.cases) {
+            const { case: judged, outcome } = await replayCase(c);
+            Object.assign(c, judged);
+            send("case", {
+              id: c.id, method: c.method, path: c.path, title: c.title,
+              replayed: outcome.replayed, liveStatus: outcome.liveStatus,
+              passed: outcome.passed, failed: outcome.failed, skipped: outcome.skipped,
+              reason: outcome.reason,
+            });
+          }
+          await disposeReplay();
+        }
+        mkdirSync(DATA_DIR, { recursive: true });
+        writeFileSync(join(DATA_DIR, `recorded-${name}.cases.json`), JSON.stringify({ ...fc, replayed: replay }, null, 2));
+        send("done", { ok: true, name: fc.name, cases: fc.cases.length });
+      } catch (err: any) {
+        send("error", { line: String(err?.message ?? err) });
+      }
+      return res.end();
     }
 
     // ── API: compile a whole journey's cases IN PARALLEL (many planner agents,
