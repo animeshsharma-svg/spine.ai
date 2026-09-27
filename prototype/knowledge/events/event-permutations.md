@@ -8,7 +8,7 @@ Written 2026-09-11 from the product's own rules (`isValidStage`, `PROJECT_STAGES
 |---|---|---|---|
 | eRFX Project | `/orders/quick-create?projectCreation=true` | `erfx` (default) | stage tabs; 1–2 stages; templates per stage; technical stages with vendor assessment |
 | Single Stage | `/orders/quick-create?singleStage=true` | `single-stage` | one event, type chosen in a configuration drawer (RFQ / RFP / Auction), auction strategy and awarding rule set there |
-| BOQ based RFX Project | `/orders/quick-create?projectCreation=true&boq=true` | `boq` | eRFX with BOQ line items (gated by `boq_in_erfx_allowed`; 500 line-item ceiling) |
+| BOQ based RFX Project | `/orders/quick-create?projectCreation=true&boq=true` | `boq` | eRFX with BOQ line items (gated by `boq_in_erfx_allowed`; line-item ceiling is the per-company config `allowed_maximum_line_items`, default `{boq:500, non_boq:65}`, enforced client-side — not a hard backend cap. Since PR #15339 (Sep 2026) the create path bulk-inserts, so a raised ceiling of ~1000 is performant. A separate `MAX_LINE_ITEMS_FOR_REPORT_DOWNLOAD`=150 sends large reports by email.) |
 
 ## 2. Stage compositions on the eRFX screen
 
@@ -70,6 +70,6 @@ Draft (`save_draft` — enabled only once a template and a line item exist) · L
 
 ## 8. Valid combination grid (what a request can legitimately ask for)
 
-entry ∈ {eRFX, single-stage, BOQ} × stages ∈ {auction, rfq, rfp, rfp+rfq, rfp+auction} × strategy ∈ {rank, price, traffic light | knockout, dutch via conversion} × line items ∈ {1…n; BOQ up to 500} × vendors ∈ {by name, by count} × bidding ∈ {vendor portal, surrogate, both, two vendors} × awarding ∈ {lot, line item} × outcome ∈ {publish, draft, schedule later, convert to auction, award}.
+entry ∈ {eRFX, single-stage, BOQ} × stages ∈ {auction, rfq, rfp, rfp+rfq, rfp+auction} × strategy ∈ {rank, price, traffic light | knockout, dutch via conversion} × line items ∈ {1…n; BOQ default cap 500 via `allowed_maximum_line_items`, raisable to ~1000 since #15339} × vendors ∈ {by name, by count} × bidding ∈ {vendor portal, surrogate, both, two vendors} × awarding ∈ {lot, line item} × outcome ∈ {publish, draft, schedule later, convert to auction, award}.
 
 Not valid, and to be refused or reshaped by the linter: RFQ + Auction composed on one eRFX screen; a strategy on an RFQ or technical stage; a surrogate bid on a knockout/dutch auction or a technical stage; awarding before any bid; publishing a technical stage without questionnaires and an evaluator; saving a draft with no template or no line item.
