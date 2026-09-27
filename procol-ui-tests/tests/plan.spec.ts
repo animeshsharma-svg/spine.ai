@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { validatePlan } from "../src/plan/steps.js";
 import { runPlan } from "../src/plan/runPlan.js";
 import { EvidenceCollector } from "../src/oracle/evidence.js";
+import { FlowRecorder } from "../src/support/flowRecorder.js";
 import { judge } from "../src/oracle/oracle.js";
 import { recordFinding } from "../src/oracle/findings.js";
 import { Watchdog } from "../src/support/watchdog.js";
@@ -43,6 +44,11 @@ test("planned test case", async ({ page }) => {
   await collector.installToastRecorder();
   collector.start();
 
+  // Record the flow's real /api/* calls when asked (UI_RECORD_FLOW=<name>) —
+  // no headers, so the token never lands on disk. Piggybacks on the run.
+  const recorder = process.env.UI_RECORD_FLOW ? new FlowRecorder(page) : null;
+  recorder?.start();
+
   const base = new (class extends BasePage {})(page);
   const watchdog = new Watchdog(page, {
     stuckAfterMs: Number(process.env.UI_STUCK_MS) || 60_000,
@@ -81,6 +87,10 @@ test("planned test case", async ({ page }) => {
   }
 
   watchdog.stop();
+  if (recorder) {
+    const file = recorder.save(process.env.UI_RECORD_FLOW!);
+    console.log(`[record] captured ${recorder.snapshot().length} API call(s) → ${file}`);
+  }
   const evidence = await collector.stop();
   const verdict = judge(evidence, failure);
   recordFinding(evidence, verdict);
