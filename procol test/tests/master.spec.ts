@@ -4,6 +4,8 @@ import { REGISTRY } from "../src/master/registry.js";
 import { resolveClientContext } from "../src/context.js";
 import { ClientConfig } from "../src/master/config.js";
 import { FlowContext } from "../src/master/types.js";
+import { declareCase } from "../src/report/caseSpec.js";
+import { startJourney } from "../src/report/steps.js";
 
 /**
  * THE MASTER RUNNER — config-driven, client-agnostic.
@@ -43,7 +45,24 @@ test.describe("master (config-driven)", () => {
     test(`${mod.category} › ${mod.title}  [${mod.key}]`, async () => {
       test.setTimeout(120_000);
       const g = mod.enabledFor(ctx.config);
+      // Declared before the gate check, so a flow this client's configuration
+      // turns off still shows in the report as a named step with a stated
+      // expectation and an explicit "not run" — rather than vanishing, which
+      // would quietly read as coverage.
+      declareCase({
+        plain: mod.plain,
+        expected: mod.expected,
+        flow: mod.key,
+        flowTitle: mod.title,
+        kind: "positive",
+        expect: "accept",
+        basis: "assertions",
+      });
       test.skip(!g.enabled, g.reason ?? `not enabled for this client`);
+      // Past the gate, so only a flow that really runs opens a journey: the
+      // flows that report step by step (the events ones do) are rendered as
+      // the numbered sequence they perform.
+      startJourney();
       test.info().annotations.push({
         type: "gate",
         description: g.reason ? `enabled — ${g.reason}` : "enabled",

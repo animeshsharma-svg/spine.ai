@@ -43,7 +43,7 @@ export async function buildMarkdownReport(opts: ReportOptions = {}): Promise<str
 
   out.push("# QA report — Procol");
   out.push("");
-  out.push(`Generated ${when(now)} by the autonomous QA platform.`);
+  out.push(`Generated ${when(now)} by spine.ai.`);
   out.push("");
 
   if (!groups.length) {

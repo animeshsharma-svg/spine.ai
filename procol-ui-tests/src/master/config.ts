@@ -29,16 +29,8 @@ export class ClientConfig {
     }
     let api: APIRequestContext | null = null;
     try {
-      api = await pwRequest.newContext({
-        baseURL: profile.apiUrl.replace(/\/$/, ""),
-        extraHTTPHeaders: {
-          // Already fully-encoded by the console; use verbatim.
-          "access-token": accessTokenHeader,
-          "lightspeed-token": buildLightspeedToken(),
-          "app-version": profile.appVersion,
-          "content-type": "application/json",
-        },
-      });
+      api = await newApiContext(profile, accessTokenHeader);
+      if (!api) return new ClientConfig(false, {}, [], "no access token captured; run auth.setup first");
       const res = await api.get("/v1/dashboard_configuration");
       if (!res.ok()) {
         return new ClientConfig(false, {}, [], `dashboard_configuration -> HTTP ${res.status()}`);
@@ -111,6 +103,36 @@ function eachPermissionModule(raw: Record<string, unknown>): ModulePerm[] {
 
 function extractModules(raw: Record<string, unknown>): string[] {
   return [...new Set(eachPermissionModule(raw).map((m) => m.name))].sort();
+}
+
+/**
+ * An authenticated API context for the company this run is driving.
+ *
+ * The browser is the thing under test; the API is how the suite READS BACK
+ * what the browser did. Same session either way — the token the console
+ * captured at login — so a read-back is the same user looking at the same
+ * record through a different door, not a second identity with its own
+ * permissions.
+ *
+ * Returns null when there is no captured token, because a verification that
+ * cannot run must say so rather than fail a journey that worked.
+ */
+export async function newApiContext(
+  profile: ClientProfile,
+  accessTokenHeaderOverride?: string,
+): Promise<APIRequestContext | null> {
+  const accessTokenHeader = accessTokenHeaderOverride || readAccessTokenHeader();
+  if (!accessTokenHeader) return null;
+  return pwRequest.newContext({
+    baseURL: profile.apiUrl.replace(/\/$/, ""),
+    extraHTTPHeaders: {
+      // Already fully-encoded by the console; use verbatim.
+      "access-token": accessTokenHeader,
+      "lightspeed-token": buildLightspeedToken(),
+      "app-version": profile.appVersion,
+      "content-type": "application/json",
+    },
+  });
 }
 
 // ── auth header builders (mirror the API framework's token model) ────────────

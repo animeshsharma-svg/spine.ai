@@ -244,19 +244,23 @@ export class CreateEventPage extends BasePage {
     const before = await this.lineItemCountBadge();
     const chipsBefore = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
     let picked = false;
-    for (let attempt = 0; attempt < 3 && !picked; attempt++) {
+    // The CLICK is what retries — up to 3 tries at getting a row to actually
+    // register. Confirming it is a SEPARATE, best-effort question asked only
+    // once a click has genuinely landed.
+    let clickedOnce = false;
+    for (let attempt = 0; attempt < 3 && !clickedOnce; attempt++) {
       // Wait for a populated list before reaching for a row.
       const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.SHORT });
       if (!list) {
         await this.page.waitForTimeout(300);
         continue;
       }
-      const clicked = await list
+      clickedOnce = await list
         .first()
         .click({ timeout: 5_000, force: attempt >= 1 })
         .then(() => true)
         .catch(() => false);
-      if (!clicked) {
+      if (!clickedOnce) {
         // Detached or covered; let the list settle and look again.
         await this.page.waitForTimeout(300);
         continue;
@@ -275,16 +279,17 @@ export class CreateEventPage extends BasePage {
       }
     }
 
-    if (!picked) {
-      // Warn, do not fail. Not seeing a confirmation signal is not proof the
-      // pick failed, and turning it into an error invents a failure mode the
-      // old code never had. The honest oracle is `expect_line_items` once the
-      // drawer is saved — that reads the app's own tally and will catch a
-      // genuine miss with a number rather than a guess.
-      console.log(
-        `[create-event] could not confirm the pick for "${searchText}" from inside the drawer — ` +
-          "continuing; the line-item count is verified after saving",
-      );
+    // A click that landed but showed no confirmation signal is NOT reported.
+    //
+    // It used to print "could not confirm the pick for "a"" on every run, and
+    // that line was pure noise: this build simply doesn't render the signal it
+    // was looking for, the pick works anyway, and the real check — the app's
+    // own line-item tally, read by `expect_line_items` after the drawer is
+    // saved — comes a few steps later and would catch a genuine miss with a
+    // number. A warning nobody can act on, on every single run, trains readers
+    // to ignore warnings. Only a click that never landed is worth saying.
+    if (!clickedOnce) {
+      console.log(`[create-event] could not click a line-item option for "${searchText}" after 3 tries`);
     }
     await this.page.waitForTimeout(250);
 
@@ -1304,6 +1309,48 @@ export class CreateEventPage extends BasePage {
       .last();
   }
 
+  /** The chips themselves, so a wait can be about them rather than about time. */
+  private participantChips() {
+    return this.participantsRegion().locator(
+      ".ant-select-selection__choice, .ant-tag, [class*='chip']",
+    );
+  }
+
+  /**
+   * Waits until the event has at least one participant, and says how many.
+   *
+   * This replaced a loop that slept in 500ms steps and re-counted between them:
+   * it could spend three seconds waiting for an audience that had arrived after
+   * 200ms, and spent the full three on clients whose audience never arrives.
+   * Waiting on the chip itself returns the moment one appears — and gives up
+   * as soon as the deadline passes, rather than one step later.
+   */
+  private async waitForParticipants(timeout: number): Promise<number> {
+    await this.participantChips()
+      .first()
+      .waitFor({ state: "visible", timeout })
+      .catch(() => {});
+    return this.participantCount();
+  }
+
+  /**
+   * Waits for a vendor dropdown to have rows after a search.
+   *
+   * The search is a server round trip, so the old code slept two seconds and
+   * hoped. Returns as soon as the first row renders.
+   */
+  private async waitForVendorRows(timeout: number): Promise<boolean> {
+    const rows = this.page.locator(
+      ".ant-select-dropdown:not(.ant-select-dropdown-hidden) li, " +
+        ".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item",
+    );
+    return rows
+      .first()
+      .waitFor({ state: "visible", timeout })
+      .then(() => true)
+      .catch(() => false);
+  }
+
   /**
    * Make sure the event actually has vendors, and prove it.
    *
@@ -1338,16 +1385,12 @@ export class CreateEventPage extends BasePage {
       ],
       { label: "open-participants", timeout: TIMEOUTS.SHORT },
     );
-    await this.pause(500);
     const search = region.locator("input.ant-select-search__field:not([disabled]), input:not([disabled])").first();
+    await search.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
     if (!(await search.count())) return false;
     await search.fill(name).catch(() => {});
     // Vendor search is a server round-trip; wait for rows rather than guessing.
-    await p
-      .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) li, .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item")
-      .first()
-      .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
-      .catch(() => {});
+    await this.waitForVendorRows(TIMEOUTS.MEDIUM);
     // Identify the vendor dropdown by its own "VENDORS" group header. Taking
     // the LAST open dropdown was wrong: filling the sheet leaves a dozen
     // non-hidden antd dropdowns behind, so `.last()` landed on a stale sheet
@@ -1357,7 +1400,9 @@ export class CreateEventPage extends BasePage {
     const vendorPanel = (await byHeader.count()) ? byHeader.last() : open.last();
     const picked = await this.pickFirstNamedOption(`vendor "${name}"`, vendorPanel);
     await p.keyboard.press("Escape").catch(() => {});
-    await this.pause(500);
+    // The chip is the proof the pick landed; waiting for it is both faster and
+    // stricter than sleeping and hoping.
+    if (picked) await this.waitForParticipants(TIMEOUTS.SHORT);
     return picked;
   }
 
@@ -1394,16 +1439,17 @@ export class CreateEventPage extends BasePage {
 
   async inviteVendor(): Promise<void> {
     const p = this.page;
+    // Timed, because "it takes too long to select the vendor" is a claim worth
+    // being able to check rather than argue about.
+    const started = Date.now();
     await this.dismissDistractions();
 
-    // The audience fetch is asynchronous. Poll briskly rather than sleeping in
-    // 500ms slabs — this console never goes network-idle, so every pause()
-    // was running its whole budget, and six of them cost 3s on every run.
-    let count = await this.participantCount();
-    for (let i = 0; i < 12 && count === 0; i++) {
-      await p.waitForTimeout(250);
-      count = await this.participantCount();
-    }
+    // The audience fetch is asynchronous. Wait on the chip itself rather than
+    // sleeping in 500ms slabs — this console never goes network-idle, so every
+    // pause() was running its whole budget — and return the moment one
+    // appears. Capped at 3s: a tenant whose audience never arrives should not
+    // cost the full TIMEOUTS.MEDIUM on every run.
+    let count = await this.waitForParticipants(3_000);
     if (count > 0) {
       console.log(`[create-event] ${count} participant(s) already on the event`);
       return;
@@ -1415,8 +1461,7 @@ export class CreateEventPage extends BasePage {
       { label: "invite-vendor", timeout: TIMEOUTS.SHORT },
     );
     await this.dismissDistractions();
-
-    count = await this.participantCount();
+    count = await this.waitForParticipants(TIMEOUTS.SHORT);
     if (count === 0) {
       // Add one by hand through the participants combobox.
       const region = this.participantsRegion();
@@ -1444,9 +1489,9 @@ export class CreateEventPage extends BasePage {
         const picked = await this.pickFirstNamedOption("vendor");
         if (picked) await p.keyboard.press("Escape").catch(() => {});
       }
-      // The participant chip renders once the add request returns.
-      for (let i = 0; i < 12 && (await this.participantCount()) === 0; i++) await p.waitForTimeout(250);
-      count = await this.participantCount();
+      // The participant chip renders once the add request returns; wait for
+      // it rather than for a fixed number of quarter-seconds.
+      count = await this.waitForParticipants(3_000);
     }
 
     await this.dismissDistractions();
@@ -1456,7 +1501,9 @@ export class CreateEventPage extends BasePage {
           'produced a vendor, and publishing would create an event nobody can bid on ("Vendors invited: 0").',
       );
     }
-    console.log(`[create-event] ${count} participant(s) invited`);
+    console.log(
+      `[create-event] ${count} participant(s) invited in ${((Date.now() - started) / 1000).toFixed(1)}s`,
+    );
   }
 
   /**

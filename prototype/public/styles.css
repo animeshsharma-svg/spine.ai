@@ -1,4 +1,6 @@
 :root {
+  /* The shell subtracts this to size the nav and the scrolling view. */
+  --topbar-h: 64px;
   --paper: #f7f8fb; --panel: #ffffff; --ink: #182233; --ink-soft: #5a6478;
   --line: #e4e8f0; --card-line: #e7ebf3;
   --accent: #2b5fb3; --accent-soft: #eaf1fb;
@@ -22,6 +24,15 @@
   }
 }
 * { box-sizing: border-box; }
+/**
+ * `hidden` must actually hide.
+ *
+ * The attribute is only `display: none` in the UA stylesheet, so ANY class
+ * rule that sets display — `.po-bar { display: flex }` did — silently wins and
+ * the element stays on screen. That is how "Run PO automation" appeared for
+ * every client while the code believed it was hidden.
+ */
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -39,7 +50,9 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .logo { font-size: 26px; }
 .title { font-weight: 700; font-size: 16px; }
 .subtitle { color: var(--ink-soft); font-size: 12.5px; }
-.controls { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+/* max-width/min-width so a long child (the provider chip) shrinks instead of
+   widening the header past the screen. */
+.controls { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; max-width: 100%; min-width: 0; }
 .field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; }
 .field select {
   font-size: 13px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--card-line);
@@ -48,16 +61,23 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .provider {
   font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 999px;
   background: var(--idle-soft); color: var(--idle); white-space: nowrap; align-self: center;
+  /* Slingring names two models, which is twice the text Groq's label carried
+     and enough to push the header wider than a phone screen. The chip is a
+     status badge, not a heading: it may shrink and ellipsise. */
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .provider.live { background: var(--good-soft); color: var(--good); }
 
-/* ── layout ── */
-main {
-  display: grid; grid-template-columns: 320px 1fr 380px; gap: 16px;
-  padding: 16px 22px; align-items: start; max-width: 1500px; margin: 0 auto;
-}
-@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
-.col { background: var(--panel); border: 1px solid var(--card-line); border-radius: 14px; box-shadow: var(--shadow); padding: 16px; }
+/* ── layout ──
+   The three-column grid is gone: the shell at the foot of this file owns the
+   layout now, and `main.views` scrolls one view at a time. `.col` survives
+   only because a few blocks still carry the class; it is no longer a column. */
+.col { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
 .col-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
 .hint { color: var(--ink-soft); font-size: 11.5px; }
 .empty, .loading { color: var(--ink-soft); font-size: 13px; padding: 10px 0; }
@@ -90,8 +110,6 @@ main {
   background: var(--accent, #7aa2f7); color: #0b0f14; }
 .cap-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 /* Both left-column panels stay in view: each scrolls inside its own box. */
-#capability { max-height: 38vh; overflow-y: auto; }
-#suites { max-height: 42vh; overflow-y: auto; }
 .cap-count { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); flex: 1; }
 .cap-runall { font-size: 11.5px; font-weight: 650; color: #fff; background: var(--accent); border: none; border-radius: 7px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
 .cap-group-title { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft); margin: 12px 0 6px; }
@@ -161,7 +179,7 @@ main {
 .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .auto-summary { font-size: 12.5px; color: var(--ink-soft); margin-left: auto; }
 .auto-summary .fx { color: var(--bad); }
-.automation { display: flex; flex-direction: column; gap: 3px; max-height: 460px; overflow-y: auto; }
+.automation { display: flex; flex-direction: column; gap: 3px; max-height: 70vh; overflow-y: auto; }
 .chk { display: grid; grid-template-columns: 16px 66px auto 1fr 42px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 12.5px; cursor: pointer; border: 1px solid transparent; }
 .chk:hover { border-color: var(--card-line); }
 .chk.ok { background: color-mix(in srgb, var(--good-soft) 40%, transparent); }
@@ -176,6 +194,7 @@ main {
 .chk-type.ed { background: var(--warn-soft); color: var(--warn); }
 .chk-type.nf { background: var(--idle-soft); color: var(--idle); }
 .chk-scn { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .chk-http { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); text-align: right; }
 .chk-http.err5 { color: var(--bad); font-weight: 700; }
 .chk-detail { display: none; grid-column: 1 / -1; padding: 8px 4px 4px; font-size: 12px; color: var(--ink-soft); line-height: 1.5; border-top: 1px dashed var(--card-line); margin-top: 4px; }
@@ -196,7 +215,6 @@ main {
 .ui-note { font-size: 12.5px; color: var(--ink-soft); background: var(--accent-soft); border: 1px solid var(--card-line); border-radius: 9px; padding: 10px 12px; }
 .ui-shot { width: 100%; border: 1px solid var(--card-line); border-radius: 10px; display: none; box-shadow: var(--shadow); }
 .ui-shot.show { display: block; }
-.ui-log { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow-y: auto; font-size: 12.5px; }
 .ui-line { padding: 4px 8px; border-radius: 6px; }
 .ui-line.step { color: var(--ink-soft); }
 .ui-line.shot { color: var(--accent); }
@@ -232,7 +250,7 @@ main {
 .headline { font-weight: 700; font-size: 14px; }
 
 /* ── run history ── */
-.history { display: flex; flex-direction: column; gap: 7px; max-height: 210px; overflow-y: auto; }
+.history { display: flex; flex-direction: column; gap: 7px; }
 .run-item {
   border: 1px solid var(--card-line); border-radius: 10px; padding: 9px 11px; cursor: pointer;
   background: var(--panel); transition: border-color .15s, background .15s;
@@ -294,17 +312,13 @@ main {
   border: 1px solid var(--card-line); background: var(--panel); color: var(--ink);
   text-transform: none; letter-spacing: 0; }
 .li-max { font-size: 10.5px; color: var(--ink-soft); text-transform: none; letter-spacing: 0; }
-.ui-flows { display: flex; flex-direction: column; gap: 10px; max-height: 44vh; overflow-y: auto; }
-.uigroup-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
-  color: var(--ink-soft); margin: 4px 0 2px; }
-.uigrid { display: flex; flex-wrap: wrap; gap: 6px; }
-.uibtn { font-size: 12px; padding: 5px 10px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--card-line); background: var(--panel); color: var(--ink); }
-.uibtn:hover { border-color: var(--accent); background: var(--accent-soft); }
-.uibtn.running { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-.uibtn.ok { border-color: var(--good); background: var(--good-soft); color: var(--good); }
-.uibtn.bad { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
-.uibtn .li { font-size: 9.5px; opacity: .65; margin-left: 4px; }
+/* What the chosen count will actually do to this selection — written beside the
+   field rather than left to be discovered once the run is already going. */
+/* Its own line: trailing the input, it reads as a caption at 1400px and turns
+   into a ragged wrap the moment the window is narrower. */
+.li-note { flex-basis: 100%; font-size: 11.5px; color: var(--ink-soft);
+  text-transform: none; letter-spacing: 0; }
+.li-note.capped { color: var(--warn); }
 .ui-console { margin-top: 10px; background: #0a0f18; color: #c7d2e5; border-radius: 9px;
   padding: 10px 12px; font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
   max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
@@ -318,30 +332,38 @@ main {
   background: var(--idle-soft); color: var(--idle); text-transform: uppercase; letter-spacing: .04em; }
 
 /* ── Defects found ─────────────────────────────────────────────────────── */
-.findings { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
-.finding { border: 1px solid #e2e8f0; border-left-width: 3px; border-radius: 6px; padding: 8px 10px; background: #fff; }
-.finding.v-bug { border-left-color: #dc2626; }
-.finding.v-gap { border-left-color: #d97706; }
-.finding.v-harness { border-left-color: #64748b; }
-.finding.v-env { border-left-color: #0284c7; }
-.finding-head { display: flex; align-items: baseline; gap: 6px; }
+/* Themed, not hardcoded: these cards were written in light-mode hex, so in
+   dark mode a critical bug rendered as grey text on a white card — the one
+   place in the app where legibility matters most. */
+/* The view scrolls; a list that also scrolled cropped its last card mid-sentence. */
+.findings { display: flex; flex-direction: column; gap: 8px; }
+.finding { border: 1px solid var(--card-line); border-left-width: 3px; border-radius: 6px;
+  padding: 8px 10px; background: var(--panel); color: var(--ink); }
+.finding.v-bug { border-left-color: var(--bad); }
+.finding.v-gap { border-left-color: var(--warn); }
+.finding.v-harness { border-left-color: var(--idle); }
+.finding.v-env { border-left-color: var(--accent); }
+.finding-head { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .finding-icon { flex: none; }
-.finding-title { font-weight: 600; font-size: 12.5px; line-height: 1.35; flex: 1; }
-.finding-sev { flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 1px 5px; border-radius: 3px; background: #f1f5f9; color: #475569; }
-.finding-sev.sev-critical { background: #fee2e2; color: #991b1b; }
-.finding-sev.sev-high { background: #ffedd5; color: #9a3412; }
-.finding-meta { font-size: 11px; color: #64748b; margin-top: 3px; }
-.finding-why { font-size: 11.5px; color: #334155; margin-top: 5px; line-height: 1.45; }
+.finding-title { font-weight: 650; font-size: 12.5px; line-height: 1.35; flex: 1 1 auto; min-width: 0;
+  color: var(--ink); overflow-wrap: anywhere; }
+.finding-sev { flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 3px; background: var(--idle-soft); color: var(--ink-soft); font-weight: 700; }
+.finding-sev.sev-critical { background: var(--bad-soft); color: var(--bad); }
+.finding-sev.sev-high { background: var(--warn-soft); color: var(--warn); }
+.finding-meta { font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
+.finding-why { font-size: 11.5px; color: var(--ink); margin-top: 5px; line-height: 1.45; }
 .finding-ev { margin-top: 5px; font-size: 10.5px; }
-.finding-ev code { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 3px; padding: 1px 4px; word-break: break-all; }
+.finding-ev code { background: var(--idle-soft); border: 1px solid var(--line); border-radius: 3px;
+  padding: 1px 4px; word-break: break-all; color: var(--ink-soft); }
 .finding-flows { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 3px; }
-.finding-repro { margin-top: 5px; font-size: 11px; color: #475569; }
-.finding-repro summary { cursor: pointer; color: #1375e4; }
-.finding-repro div { padding: 1px 0 1px 10px; font-family: ui-monospace, monospace; font-size: 10.5px; }
-.pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 9px; background: #f1f5f9; color: #475569; }
+.finding-repro { margin-top: 5px; font-size: 11px; color: var(--ink-soft); }
+.finding-repro summary { cursor: pointer; color: var(--accent); }
+.finding-repro div { padding: 1px 0 1px 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); }
+.pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 9px;
+  background: var(--idle-soft); color: var(--ink-soft); }
 
 /* ── QA memory ─────────────────────────────────────────────────────────── */
-.knowledge { max-height: 40vh; overflow-y: auto; font-size: 11.5px; }
 .kb-input { flex: 1; min-width: 0; font: inherit; font-size: 11.5px; padding: 4px 7px; border: 1px solid #dbe3ec; border-radius: 5px; }
 .kb-stats { padding: 6px 0; color: #334155; }
 .kb-mods { display: flex; flex-wrap: wrap; gap: 3px; }
@@ -353,13 +375,1191 @@ main {
 .kb-src { font-size: 10px; color: #64748b; }
 .kb-text { color: #334155; line-height: 1.45; margin-top: 2px; }
 
-/* ── The written test catalog ─────────────────────────────────────────────── */
-.cat-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.cat-tabs { display: flex; gap: 4px; }
-.cat-select {
-  font-size: 11.5px; padding: 4px 7px; border-radius: 7px;
-  border: 1px solid var(--card-line); background: var(--panel); color: var(--ink);
+/* ══════════════════════════════════════════════════════════════════════════
+   Automation drawers
+   One drawer per automation type; inside, a module opens into its sub-modules.
+   Three levels of nesting need three clearly different weights, so the rail
+   uses size and a left guide-line rather than colour alone — colour is already
+   carrying pass/fail everywhere else.
+   ══════════════════════════════════════════════════════════════════════════ */
+.drawer {
+  border: 1px solid var(--card-line); border-radius: 12px;
+  background: var(--panel); margin-bottom: 10px; overflow: hidden;
+  box-shadow: var(--shadow);
 }
+.drawer-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 13px 14px; background: none; border: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-align: left;
+}
+.drawer-head:hover { background: var(--accent-soft); }
+.drawer-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/**
+ * The disclosure chevron, at both levels of the tree.
+ *
+ * Drawn with two borders rather than typed as "▸": a glyph renders at a
+ * different weight in every font and at 10px read as a speck of dust, which
+ * is why the drawers did not look openable. This is crisp at any size,
+ * inherits its colour, and rotates 90° to point down when open.
+ */
+.drawer-caret, .module-caret {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .18s ease;
+  color: var(--ink-soft);
+  margin: 0 4px 1px 1px;
+}
+.drawer-head:hover .drawer-caret,
+.module-head:hover .module-caret { color: var(--accent); }
+.drawer.open > .drawer-head .drawer-caret,
+.module.open > .module-head .module-caret { transform: rotate(45deg); }
+.drawer-ico { font-size: 16px; }
+.drawer-title { font-weight: 650; font-size: 14px; letter-spacing: -.01em; text-align: left; }
+/* One line under each title, so nobody has to guess what "API tests" means. */
+.drawer-what { font-weight: 400; font-size: 11px; color: var(--ink-soft); letter-spacing: 0; }
+.drawer-meta { max-width: 40%; }
+/* The three steps at the top of the column: read once, then ignored. */
+.howto { margin: 0 0 10px; border: 1px solid var(--card-line); border-radius: 8px; background: var(--accent-soft); }
+.howto > summary { cursor: pointer; padding: 7px 10px; font-size: 11.5px; color: var(--ink-soft); list-style: none; }
+.howto > summary::-webkit-details-marker { display: none; }
+.howto > summary::before { content: "▸ "; }
+.howto[open] > summary::before { content: "▾ "; }
+.howto ol { margin: 0; padding: 0 12px 9px 28px; font-size: 11.5px; color: var(--ink-soft); line-height: 1.6; }
+.howto b { color: var(--ink); font-weight: 600; }
+/* A checkbox that explains its own consequences on a second line. */
+.tgl-flow { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--ink); line-height: 1.4; }
+.tgl-flow small { display: block; font-size: 10.5px; color: var(--ink-soft); }
+.tgl-flow input { margin-top: 2px; }
+.drawer-meta { margin-left: auto; font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+/* Collapsed by height rather than display:none, so opening animates and the
+   scroll position inside a drawer survives a close/open. */
+.drawer-body {
+  max-height: 0; overflow: hidden;
+  transition: max-height .22s ease;
+  border-top: 1px solid transparent;
+}
+.drawer.open .drawer-body {
+  max-height: 62vh; overflow-y: auto; border-top-color: var(--line);
+}
+.drawer-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--panel); z-index: 2;
+}
+.drawer-bar.sub { border-bottom: 1px dashed var(--line); position: static; }
+/* A sticky GROUP, so the run bar and the inputs under it travel together.
+   Sticking each bar on its own needs the first one's height as the second's
+   `top`, which is wrong the moment the buttons wrap onto two rows. */
+.drawer-sticky { position: sticky; top: 0; z-index: 3; background: var(--panel); }
+.drawer-sticky .drawer-bar { position: static; }
+.drawer-sec {
+  padding: 10px 12px 6px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+}
+
+/* ── module (level 2) ── */
+.modules { padding: 6px 0 10px; }
+.module { border-bottom: 1px solid var(--line); }
+.module:last-child { border-bottom: 0; }
+.module-head {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 9px 12px; background: none; border: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-align: left;
+}
+.module-head:hover { background: var(--idle-soft); }
+.module-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* ── journey position ──
+   The tree is ordered the way a buyer walks the product. These two rules are
+   what make that order readable instead of merely true. */
+.module-step {
+  flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border-radius: 5px; background: var(--accent-soft); color: var(--accent);
+}
+/* Master data, users, vendors, config: real, but not a stage of the journey. */
+.module-step.nostep { background: var(--idle-soft); color: var(--ink-soft); font-weight: 400; }
+.module-when {
+  padding: 0 12px 8px 42px; font-size: 11px; color: var(--ink-soft);
+  font-style: italic; margin-top: -4px;
+}
+.sub-step {
+  flex: 0 0 auto; min-width: 22px; padding-top: 1px;
+  font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+}
+.module-ico { font-size: 14px; }
+.module-name { font-weight: 600; font-size: 13px; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.module-n {
+  flex: 0 0 auto; max-width: 46%; text-align: right; font-size: 11px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; line-height: 1.35;
+}
+.module-n.some { color: var(--accent); font-weight: 600; }
+.module-what { padding: 0 12px 8px 42px; font-size: 11.5px; color: var(--ink-soft); }
+.module-body { display: none; padding: 0 0 8px; }
+.module.open .module-body { display: block; }
+
+.tree-count { font-size: 11px; color: var(--ink-soft); margin: 0 2px 8px; }
+
+/* ── sub-module (level 3) ── */
+.submodule {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 7px 12px 7px 30px; position: relative; cursor: pointer;
+}
+/* A guide line makes the nesting legible without another indent step. */
+.submodule::before {
+  content: ""; position: absolute; left: 20px; top: 0; bottom: 0;
+  border-left: 1px solid var(--line);
+}
+.submodule:hover { background: var(--idle-soft); }
+.submodule.none { opacity: .45; cursor: not-allowed; }
+.submodule.none input[type="checkbox"] { cursor: not-allowed; }
+.submodule.none:hover { background: transparent; }
+.submodule.picked { background: var(--accent-soft); }
+/* ── ruled out by the choice already made ──
+   Greyed like an unbuilt feature, but for a different reason, so it says so:
+   this one is available, it is just not this run. Kept a shade lighter than
+   `.none` because it comes back the moment the other type is unticked. */
+.submodule.blocked { opacity: .5; cursor: not-allowed; }
+.submodule.blocked input[type="checkbox"] { cursor: not-allowed; }
+.submodule.blocked:hover { background: transparent; }
+/* ── a journey reporting its own run, on the row you ticked ── */
+.submodule.running, .submodule.ok, .submodule.bad { box-shadow: inset 3px 0 0 currentColor; }
+.submodule.running { background: var(--accent-soft); color: var(--accent); }
+.submodule.ok { background: var(--good-soft); color: var(--good); }
+.submodule.bad { background: var(--bad-soft); color: var(--bad); }
+/* The label keeps reading as text; only the row edge carries the verdict. */
+.submodule.running .sub-name, .submodule.ok .sub-name, .submodule.bad .sub-name { color: var(--ink); }
+.submodule.running .module-spin { margin-left: auto; }
+.submodule input { margin-top: 3px; }
+/* ── a prerequisite, not a choice ──
+   Indented past the event types and tied to them by its own guide line: these
+   are steps INSIDE building any event, not alternatives to picking one. The
+   locked checkbox reads as "already decided", which it is. */
+.submodule.prereq { padding-left: 48px; cursor: default; }
+.submodule.prereq::before { left: 38px; border-left-style: dotted; }
+.submodule.prereq:hover { background: transparent; }
+.submodule.prereq input[type="checkbox"] { cursor: default; opacity: .85; }
+.sub-tag.req {
+  background: var(--good-soft, rgba(63,185,80,.12));
+  color: var(--good, #3fb950);
+}
+.sub-name { font-size: 12.5px; font-weight: 550; line-height: 1.4; }
+.sub-what { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; }
+.sub-n {
+  margin-left: auto; font-size: 11px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; padding-left: 8px;
+}
+.sub-tag {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 4px; border-radius: 3px; margin-left: 5px; vertical-align: 1px;
+}
+.sub-tag.e2e { background: var(--accent-soft); color: var(--accent); }
+.sub-tag.on { background: var(--good-soft); color: var(--good); }
+.sub-tag.off { background: var(--bad-soft); color: var(--bad); }
+.sub-tag.unk { background: var(--warn-soft); color: var(--warn); }
+.sub-tag.notbuilt { background: var(--idle-soft); color: var(--idle); }
+.sub-tag.held { background: var(--idle-soft); color: var(--idle); }
+
+/* ── the ask box, given room to be the main input ── */
+.request-card.big { padding: 16px 18px; }
+.request-card.big .rc-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.request-card.big label { font-weight: 650; font-size: 14px; }
+.request-card.big .rc-hint { font-size: 11.5px; color: var(--ink-soft); }
+.request-card.big textarea {
+  width: 100%; min-height: 108px; resize: vertical;
+  font: 14px/1.6 inherit; padding: 12px 13px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--paper); color: var(--ink);
+}
+.request-card.big textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.rc-examples { display: flex; gap: 6px; flex-wrap: wrap; margin: 9px 0 4px; }
+/* One action, so there is no doubt which button this box belongs to. */
+.rc-actions { margin-top: 12px; }
+.run-btn.big-btn { padding: 10px 18px; font-size: 14px; font-weight: 650; border-radius: 10px; }
+.rc-foot { margin: 10px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
+.rc-foot strong { color: var(--ink); font-weight: 600; }
+/* Two run buttons per drawer sit on one line and wrap on a narrow column. */
+.drawer-bar { flex-wrap: wrap; row-gap: 6px; }
+.tgl-flow { font-size: 11.5px; }
+.tgl-flow small { display: inline; margin-left: 4px; }
+.rc-ex {
+  font-size: 11.5px; padding: 4px 9px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft);
+}
+.rc-ex:hover { border-color: var(--accent); color: var(--accent); }
+.run-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── live case rows ── */
+.case-live { animation: caseIn .18s ease-out; }
+@keyframes caseIn { from { opacity: 0; transform: translateY(-3px); } }
+.runbar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 8px 0 2px; }
+.runbar > i { display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--good)));
+  transition: width .4s cubic-bezier(.3, .8, .3, 1); }
+
+/* ── run-complete dialog ── */
+/* `display: grid` beats the UA rule behind the `hidden` attribute, so without
+   this the dialog stays laid out while invisible and its full-viewport overlay
+   swallows every click on the page. */
+.modal[hidden] { display: none; }
+.modal {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  background: rgba(10, 16, 26, .55); backdrop-filter: blur(3px);
+  animation: fade .16s ease-out;
+}
+@keyframes fade { from { opacity: 0; } }
+.modal-card {
+  width: min(460px, calc(100vw - 32px));
+  background: var(--panel); border: 1px solid var(--card-line);
+  border-radius: 16px; padding: 26px 26px 20px; text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,.35);
+  animation: pop .2s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes pop { from { opacity: 0; transform: scale(.94) translateY(8px); } }
+.modal-ico {
+  width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 26px;
+  background: var(--good-soft); color: var(--good);
+}
+.modal.bad .modal-ico { background: var(--bad-soft); color: var(--bad); }
+.modal-card h3 { margin: 0 0 4px; font-size: 18px; letter-spacing: -.01em; }
+.modal-sub { margin: 0 0 16px; color: var(--ink-soft); font-size: 13px; }
+.modal-stats { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.mstat {
+  min-width: 74px; padding: 9px 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--paper);
+}
+.mstat b { display: block; font-size: 19px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.mstat span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.mstat.good b { color: var(--good); }
+.mstat.bad b { color: var(--bad); }
+.modal-note { margin: 0 0 16px; font-size: 11.5px; color: var(--ink-soft); }
+.modal-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.modal-actions .run-btn { text-decoration: none; }
+.run-btn.disabled { opacity: .45; pointer-events: none; }
+
+/* ── Additions: scope notes, the report bar, skips, the PO controls ───────
+   Written as one block at the end, in theme tokens, so both themes follow. */
+
+/* Why a list is shorter than usual — never left to be inferred. */
+.scope-note { margin: 0 10px 8px; padding: 8px 10px; border-left: 3px solid var(--accent);
+  background: var(--accent-soft); border-radius: 6px; font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
+.scope-note b { color: var(--ink); font-weight: 600; }
+
+/* The reports, next to the run they describe. */
+.report-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 12px;
+  padding: 9px 11px; border: 1px solid var(--card-line); border-radius: 9px; background: var(--accent-soft); }
+.report-bar-label { font-size: 11.5px; color: var(--ink-soft); margin-right: 2px; }
+.report-bar .run-btn { text-decoration: none; }
+
+/* "12 skipped" is useless without the reasons; this is where they go. */
+.skips { margin: 0 0 10px; border: 1px solid var(--card-line); border-radius: 8px; background: var(--panel); }
+.skips > summary { cursor: pointer; padding: 8px 11px; font-size: 12px; color: var(--ink); list-style: none; }
+.skips > summary::-webkit-details-marker { display: none; }
+.skips > summary::before { content: "▸ "; color: var(--ink-soft); }
+.skips[open] > summary::before { content: "▾ "; }
+.skip-list { margin: 0; padding: 0 12px 10px; list-style: none; }
+.skip-list li { padding: 7px 0; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.5; }
+.skip-list li b { display: block; color: var(--ink); font-weight: 600; }
+.skip-list li span { color: var(--ink-soft); }
+
+/* The PO flow: one button, and a sentence about what it will create. */
+.po-bar { flex: 1 1 100%; margin: 4px 0 2px; padding: 9px 11px; border: 1px solid var(--card-line);
+  border-radius: 9px; background: var(--accent-soft); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.po-what { flex: 1 1 100%; margin: 2px 0 0; font-size: 11px; line-height: 1.5; color: var(--ink-soft); }
+.po-what code { background: var(--idle-soft); padding: 1px 4px; border-radius: 3px; font-family: var(--mono); font-size: 10px; }
+.po-dead { color: var(--bad); }
+.po-live { color: var(--good); }
+.po-plan { display: block; margin-top: 4px; }
+/* The "there is another button, and here is how it differs" line. */
+.po-sibling { margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--card-line); }
+
+.more-bugs { padding: 9px 2px 2px; font-size: 11.5px; color: var(--ink-soft); }
+.more-bugs a { color: var(--accent); }
+
+/* ── The written test catalog ─────────────────────────────────────────────── */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Motion and density
+   The right-hand column was a wall of static text: every run printed its
+   whole feature list, cards had no hierarchy, and nothing acknowledged a
+   click. These are the smallest changes that make it feel like a product —
+   entrance motion on lists, a lift on hover, and a run that fits one line.
+   All of it respects prefers-reduced-motion.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Staggered, so a list assembles instead of appearing all at once.
+   Check rows are deliberately NOT here: they arrive one at a time over a live
+   run and keep their nodes, so they animate once on insert (.chk.enter) rather
+   than every row replaying the entrance whenever the list changes. */
+.run-item, .finding {
+  animation: riseIn .28s cubic-bezier(.2, .7, .3, 1) both;
+}
+.run-item:nth-child(2), .finding:nth-child(2) { animation-delay: .03s; }
+.run-item:nth-child(3), .finding:nth-child(3) { animation-delay: .06s; }
+.run-item:nth-child(4), .finding:nth-child(4) { animation-delay: .09s; }
+.run-item:nth-child(5), .finding:nth-child(5) { animation-delay: .12s; }
+.run-item:nth-child(n+6), .finding:nth-child(n+6) { animation-delay: .15s; }
+
+/* A card should answer the pointer. */
+.run-item, .finding {
+  transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+.run-item:hover, .finding:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+}
+.run-item:active { transform: none; }
+
+/* One run, one line: what it was, then when and how it went. */
+.run-item { cursor: pointer; }
+.run-req {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 12.5px; font-weight: 600; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.run-kind {
+  flex: none; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px; background: var(--idle-soft); color: var(--ink-soft);
+}
+.run-kind.ai { background: var(--accent-soft); color: var(--accent); }
+.run-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 3px; font-size: 10.5px; color: var(--ink-soft); }
+
+/* The three report links are the column's main action: make them look it. */
+.report-links .chip {
+  transition: transform .14s ease, background .14s ease, color .14s ease, border-color .14s ease;
+}
+.report-links .chip:hover { transform: translateY(-1px); border-color: var(--accent); color: var(--accent); }
+
+/* Drawers and rows open smoothly rather than snapping. */
+.module-head, .drawer-head, .submodule { transition: background .14s ease, opacity .14s ease; }
+.module-caret, .drawer-caret { transition: transform .18s cubic-bezier(.2, .7, .3, 1), color .14s ease; }
+
+/* A live run should feel live. */
+@keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+/* The spinner on the mark says "in flight"; fading the whole row as well
+   made the text hard to read mid-run. */
+#automation .chk.run { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .run-item, .finding, #automation .chk, #automation .chk.run { animation: none; }
+  #automation .chk.enter, #automation .chk.settled,
+  #automation .chk.settled .chk-mark, #automation .chk.run .chk-mark { animation: none; }
+  .runbar > i { transition: none; }
+  .run-item:hover, .finding:hover { transform: none; }
+  .report-links .chip:hover { transform: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE SHELL
+   A nav that stays, a view that changes. The three-column layout is gone: it
+   put unrelated work side by side and made the platform feel like a control
+   panel rather than a place to do a job. Sizing is in one place here so a new
+   view inherits the whole layout by adding one <section class="view">.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.app {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: calc(100vh - var(--topbar-h, 64px));
+}
+
+/* ── nav ─────────────────────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: var(--topbar-h, 64px);
+  height: calc(100vh - var(--topbar-h, 64px));
+  overflow-y: auto;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: background .14s ease, color .14s ease, transform .12s ease;
+}
+.nav-item:hover { background: var(--idle-soft); color: var(--ink); }
+.nav-item:active { transform: translateX(1px); }
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--ink);
+  /* The bar, not just a fill: at a glance you know which section you are in. */
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.nav-ico { width: 18px; text-align: center; font-size: 13px; }
+.nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.nav-item.active .nav-badge { background: var(--accent); }
+/* A run in flight, said on the nav — you can leave the view and still see it. */
+.nav-item.live > span:first-child::after {
+  content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--good); margin-left: -3px; margin-top: -8px;
+  animation: livePulse 1.4s ease-in-out infinite;
+}
+.nav-item.live { position: relative; }
+@keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.nav-spacer { flex: 1 1 auto; }
+.nav-foot { font-size: 10.5px; color: var(--ink-soft); padding: 8px 11px; line-height: 1.5; }
+
+/* ── views ───────────────────────────────────────────────────────────── */
+.views { overflow-y: auto; height: calc(100vh - var(--topbar-h, 64px)); }
+/* A view centres itself once the window is wider than it reads well at, so a
+   wide screen frames the work instead of pinning it to the left edge. */
+.view { display: none; padding: 26px 30px 64px; max-width: 1180px; margin-inline: auto; }
+.view.active { display: block; animation: viewIn .22s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* A narrow view keeps its heading over its own column. */
+.view.narrow { max-width: 920px; }
+.view-head { margin: 0 0 20px; }
+.view-head h1 { margin: 0 0 5px; font-size: 21px; letter-spacing: -.015em; }
+.view-head p { margin: 0; max-width: 68ch; font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+.view-body { display: flex; flex-direction: column; gap: 4px; }
+/* The ask box is the middle of the platform, so it sits in the middle: the
+   left drawers hold the suites, and this column is what you look at. */
+.view-body.narrow { max-width: 860px; margin-inline: auto; }
+.view-body.narrow .view-head, .view.narrow-head .view-head { text-align: left; }
+
+/* Inside a view, a drawer is the content — it does not need its own frame. */
+.view .drawer { border: 1px solid var(--card-line); border-radius: 10px; background: var(--panel); margin: 0 0 14px; }
+.view .drawer-body { padding-bottom: 6px; }
+.view .col-head { margin-top: 22px; }
+.view .col-head:first-child { margin-top: 0; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .nav { position: static; height: auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .nav-item span:not(.nav-ico):not(.nav-badge) { display: none; }
+  .nav-foot, .nav-spacer { display: none; }
+  .view { padding: 18px 16px 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view.active { animation: none; }
+  .nav-item:active { transform: none; }
+}
+
+/* ── a run, streaming ──────────────────────────────────────────────────────
+   Rows are kept and updated rather than rebuilt, so these animations can mean
+   something: `enter` is a case starting, `settled` is its verdict arriving.
+   Both are short — a list of 283 cases must not feel like a slideshow. */
+#automation .chk { transition: background .18s ease, border-color .18s ease; }
+#automation .chk.enter { animation: chkIn .26s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes chkIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+/* The verdict landing: one soft pulse on the row, one pop on the mark. */
+#automation .chk.settled { animation: chkSettle .42s ease-out; }
+#automation .chk.settled .chk-mark { animation: markPop .34s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes chkSettle {
+  0%   { box-shadow: inset 0 0 0 1px currentColor; }
+  100% { box-shadow: inset 0 0 0 1px transparent; }
+}
+@keyframes markPop { 0% { transform: scale(.4); opacity: .4; } 60% { transform: scale(1.18); } 100% { transform: none; } }
+#automation .chk.ok.settled { color: var(--good); }
+#automation .chk.bad.settled { color: var(--bad); }
+#automation .chk.inc.settled { color: var(--warn); }
+/* A check still in flight breathes, so "waiting" never looks like "stuck". */
+#automation .chk.run { background: var(--accent-soft); }
+#automation .chk.run .chk-mark { display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Declared last so it outranks the streaming rules above: the information
+   stays, the movement goes. */
+@media (prefers-reduced-motion: reduce) {
+  #automation .chk.enter, #automation .chk.settled,
+  #automation .chk.settled .chk-mark, #automation .chk.run .chk-mark { animation: none; }
+  #automation .chk { transition: none; }
+  .runbar > i { transition: none; }
+}
+
+/* ── the moment after you press run, before anything has come back ──────── */
+.starting { display: flex; align-items: flex-start; gap: 13px; padding: 17px 16px;
+  border: 1px solid var(--card-line); border-radius: 10px; background: var(--panel);
+  position: relative; overflow: hidden; }
+/* A light sweep across the card while it waits — movement without noise. */
+.starting::before { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 20%,
+    color-mix(in srgb, var(--accent) 9%, transparent) 45%, transparent 70%);
+  animation: cardSweep 2.1s ease-in-out infinite; }
+@keyframes cardSweep { from { transform: translateX(-60%); } to { transform: translateX(60%); } }
+.starting > * { position: relative; }
+.empty.done { border: 1px solid var(--card-line); border-radius: 10px; padding: 14px 15px;
+  background: var(--panel); line-height: 1.55; }
+.starting b { display: block; font-size: 13px; margin-bottom: 3px; }
+.starting span { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+/* The title and the running clock share a row, so a long wait is never just
+   silence — the number is always there, visibly moving. */
+.starting-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.starting-head b { margin-bottom: 0; }
+.run-elapsed { flex: none; font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--accent); background: var(--accent-soft); padding: 2px 9px; border-radius: 999px;
+  white-space: nowrap; }
+/* The journey's own narration, one line, updated live as it goes. */
+.run-current-step { display: block; margin-top: 5px; font-style: italic; }
+.spinner { flex: none; position: relative; width: 20px; height: 20px; border-radius: 50%;
+  /* A conic sweep masked to a ring: the stroke tapers instead of ending in the
+     hard corner a border-based spinner leaves behind. */
+  background: conic-gradient(from 0deg,
+    color-mix(in srgb, var(--accent) 0%, transparent) 0turn,
+    color-mix(in srgb, var(--accent) 35%, transparent) .55turn,
+    var(--accent) 1turn);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  animation: spin .85s cubic-bezier(.55, .15, .45, .85) infinite; }
+/* A slow halo behind it, so the card reads as alive even at a glance. */
+.spinner::after { content: ""; position: absolute; inset: -5px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 68%);
+  animation: haloPulse 1.7s ease-in-out infinite; }
+@keyframes haloPulse { 0%, 100% { opacity: .25; transform: scale(.85); } 50% { opacity: .75; transform: scale(1.08); } }
+/* No plan yet means no denominator: a travelling stripe, not a stuck 0%. */
+.runbar.waiting > i { width: 35%; background: var(--accent);
+  animation: barSlide 1.1s cubic-bezier(.6, 0, .4, 1) infinite; }
+@keyframes barSlide { from { transform: translateX(-110%); } to { transform: translateX(320%); } }
+.run-item .tag.none { background: var(--idle-soft); color: var(--idle); }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner, .spinner::after, .starting::before { animation: none; }
+  .runbar.waiting > i { animation: none; width: 100%; opacity: .4; }
+}
+
+/* ── an account whose own journey is the point (the PO sandbox) ─────────── */
+.po-bar { display: block; margin: 2px 0 10px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--card-line); background: var(--accent-soft); }
+.po-head { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--ink-soft); margin-bottom: 7px; }
+.po-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.po-bar .po-what { margin: 8px 0 0; font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+
+/* A run the API refused: not a failure, not a pass — nothing happened. */
+#automation .refused { margin-bottom: 8px; padding: 10px 12px; border-radius: 9px;
+  border: 1px solid var(--warn); background: var(--warn-soft); color: var(--ink);
+  font-size: 12px; line-height: 1.55; }
+#automation .refused b { color: var(--warn); }
+
+/* ── a browser journey, as steps rather than stdout ─────────────────────── */
+.ui-steps { display: flex; flex-direction: column; gap: 1px; margin-top: 10px; }
+.ui-phase { display: flex; align-items: center; gap: 7px; margin: 12px 0 4px;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft); }
+.ui-phase:first-child { margin-top: 2px; }
+.ui-phase::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.ui-phase-ico { font-size: 12px; }
+.ui-step { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: baseline;
+  padding: 5px 8px; border-radius: 7px; font-size: 12.5px; line-height: 1.5;
+  border-left: 2px solid transparent; animation: chkIn .22s cubic-bezier(.2, .8, .3, 1) both; }
+.ui-step-mark { font-weight: 800; text-align: center; }
+.ui-step.ok .ui-step-mark { color: var(--good); }
+.ui-step.bad { background: var(--bad-soft); border-left-color: var(--bad); }
+.ui-step.bad .ui-step-mark { color: var(--bad); }
+.ui-step.warn { background: var(--warn-soft); border-left-color: var(--warn); }
+.ui-step.warn .ui-step-mark { color: var(--warn); }
+.ui-step.info .ui-step-mark { color: var(--ink-soft); }
+.ui-step-text { color: var(--ink); }
+.ui-step-n { font-size: 10.5px; color: var(--ink-soft); background: var(--idle-soft);
+  padding: 1px 6px; border-radius: 999px; margin-left: 4px; }
+
+/* The terminal output is still there, one click away. */
+.ui-raw { margin-top: 12px; }
+.ui-raw > summary { cursor: pointer; font-size: 11.5px; color: var(--ink-soft);
+  padding: 6px 2px; display: flex; align-items: center; gap: 8px; }
+.ui-raw > summary::-webkit-details-marker { display: none; }
+.ui-raw > summary::before { content: "▸"; font-size: 9px; transition: transform .15s ease; }
+.ui-raw[open] > summary::before { transform: rotate(90deg); }
+.ui-raw-n { font-size: 10.5px; color: var(--ink-soft); opacity: .8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-step { animation: none; }
+  .ui-raw > summary::before { transition: none; }
+}
+
+/* A tree nothing can run is a list, not a form: no tick boxes, no hover that
+   promises a click. See setSingleRunner() in app.js. */
+#tree.readonly input[type="checkbox"] { display: none; }
+#tree.readonly .feature,
+#tree.readonly .module > .module-head { cursor: default; }
+
+/* Shown only when the page is out of date AND a run is in flight, so it must
+   be noticeable without covering the run it is interrupting. */
+.stale-bar {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; z-index: 60;
+  /* Never wider than the screen it floats over: at 400px the pill was pushing
+     the whole page sideways by a dozen pixels. */
+  max-width: calc(100vw - 32px); box-sizing: border-box; flex-wrap: wrap;
+  justify-content: center; text-align: center;
+  padding: 9px 14px; border-radius: 18px;
+  background: var(--card, #151b26); color: var(--ink, #e6edf6);
+  border: 1px solid var(--line, #26303f);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  font-size: 12.5px;
+}
+.stale-bar button {
+  border: 0; border-radius: 999px; cursor: pointer;
+  padding: 5px 12px; font: inherit; font-weight: 600;
+  background: var(--accent, #6b8afd); color: #fff;
+}
+
+/* The remove control on a history row: present but never competing with the
+   row itself, which is the thing people actually click. */
+.run-item { position: relative; }
+.run-del {
+  position: absolute; top: 8px; right: 8px;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--ink-soft, #7c8798); font-size: 13px; line-height: 1;
+  padding: 4px 6px; border-radius: 6px; opacity: 0; transition: opacity .12s ease;
+}
+.run-item:hover .run-del, .run-del:focus-visible { opacity: 1; }
+.run-del:hover { background: var(--bad-soft, #3a1d22); color: var(--bad, #ef6b73); }
+
+/* ── the test catalogue ──
+   Read as a QA sheet: one row per case, the columns a test case is written in.
+   The table is allowed to be wider than the screen inside its own scroller;
+   the page itself never scrolls sideways. */
+.cat-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.cat-search { flex: 1 1 240px; min-width: 0; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--line, #26303f); background: var(--card, #151b26); color: var(--ink, #e6edf6); font: inherit; }
+.cat-select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, #26303f);
+  background: var(--card, #151b26); color: var(--ink, #e6edf6); font: inherit; }
+.cat-note { margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent, #6b8afd);
+  background: var(--card, #151b26); border-radius: 0 8px 8px 0; font-size: 12.5px; color: var(--ink-soft, #9aa6b6); }
+/* The catalogue opens as a contents page: modules folded, each saying what it
+   holds, so 283 rows are reachable without being in the way. */
+.cat-summary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
+  padding: 11px 14px; margin: 0 0 16px; border-radius: 10px;
+  background: var(--card, #151b26); border: 1px solid var(--line, #26303f);
+  font-size: 12.5px; color: var(--ink-soft, #9aa6b6);
+}
+.cat-summary b { color: var(--ink, #e6edf6); font-size: 14px; }
+.cat-expand { margin-left: auto; display: flex; gap: 6px; }
+.cat-expand button {
+  border: 1px solid var(--line, #26303f); background: transparent; cursor: pointer;
+  color: var(--ink-soft, #9aa6b6); font: inherit; font-size: 11.5px;
+  padding: 3px 10px; border-radius: 999px;
+}
+.cat-expand button:hover { color: var(--ink, #e6edf6); border-color: var(--accent, #6b8afd); }
+
+.cat-group { margin-bottom: 10px; border: 1px solid var(--line, #26303f); border-radius: 10px; overflow: hidden; }
+.cat-group[open] { margin-bottom: 22px; }
+.cat-group-head {
+  display: flex; align-items: center; gap: 14px; cursor: pointer; list-style: none;
+  padding: 12px 14px; background: var(--card, #151b26);
+}
+.cat-group-head::-webkit-details-marker { display: none; }
+.cat-group-head::before {
+  content: "▸"; color: var(--ink-soft, #7c8798); font-size: 11px; transition: transform .12s ease;
+}
+.cat-group[open] > .cat-group-head::before { transform: rotate(90deg); }
+.cat-group[open] > .cat-group-head { border-bottom: 1px solid var(--line, #26303f); }
+/* A folded module does NO layout work. Chromium was still laying out all 283
+   rows and merely clipping them behind overflow:hidden — the page looked right
+   and paid for the whole catalogue on every render. */
+.cat-group:not([open]) > *:not(summary) { display: none; }
+.cat-group-head:hover { background: var(--card2, #1b2330); }
+.cat-group-head h2 { margin: 0; font-size: 14.5px; flex: 1 1 auto; }
+.cat-group-nums { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: var(--ink-soft, #9aa6b6); flex-wrap: wrap; }
+.cat-group-nums b { color: var(--ink, #e6edf6); }
+.cat-split { color: var(--ink-soft, #7c8798); }
+.cat-p0 { background: var(--bad-soft, #3a1d22); color: var(--bad, #ef6b73); padding: 1px 8px; border-radius: 999px; font-weight: 600; font-size: 10.5px; }
+.cat-what { margin: 12px 14px 4px; font-size: 12.5px; color: var(--ink-soft, #7c8798); }
+.cat-feature { padding: 0 14px; }
+.cat-group .cat-table-wrap { border: 0; border-radius: 0; }
+
+.cat-table-wrap { overflow-x: auto; border: 1px solid var(--line, #26303f); border-radius: 10px; }
+.cat-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 900px; }
+.cat-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  text-align: left; font-size: 11px; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--ink-soft, #9aa6b6); background: var(--card2, #1b2330);
+  padding: 9px 10px; border-bottom: 1px solid var(--line, #26303f); white-space: nowrap;
+}
+.cat-table td { padding: 9px 10px; border-bottom: 1px solid var(--line, #26303f); vertical-align: top; }
+.cat-table tbody tr:last-child td { border-bottom: 0; }
+.cat-table tbody tr:hover { background: var(--card2, #1b2330); }
+/* A refused-input case is the interesting half of a sheet: mark it down the edge. */
+.cat-row.e-reject td:first-child { box-shadow: inset 3px 0 0 var(--bad, #ef6b73); }
+.cat-row.e-accept td:first-child { box-shadow: inset 3px 0 0 var(--good, #56c77a); }
+.cat-row.e-no-5xx td:first-child { box-shadow: inset 3px 0 0 var(--idle, #6b7787); }
+
+.cat-id { white-space: nowrap; color: var(--ink-soft, #9aa6b6); font-size: 11px; }
+.cat-scn { width: 12%; font-weight: 600; overflow-wrap: anywhere; }
+/* Fixed proportions, and nothing allowed to run into its neighbour: a long
+   unbroken identifier used to overflow the description straight across the
+   Test Data column. */
+.cat-table { table-layout: fixed; }
+.cat-desc { width: 26%; }
+.cat-data { width: 22%; color: var(--ink-soft, #9aa6b6); }
+.cat-exp  { width: 32%; }
+.cat-desc, .cat-data, .cat-exp { overflow-wrap: anywhere; word-break: break-word; }
+.cat-desc { line-height: 1.5; }
+.exp-lead { display: block; color: var(--ink, #e6edf6); }
+.exp-rest { display: block; margin-top: 3px; color: var(--ink-soft, #9aa6b6); }
+.cat-endpoint { font-size: 11px; color: var(--ink, #e6edf6); word-break: break-all; margin-bottom: 3px; }
+/* Quiet on purpose: a caveat the reader needs when a case goes red, not a
+   badge competing with the test data it sits under. */
+.cat-origin {
+  display: inline-block; margin-top: 4px; font-size: 9.5px; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--warn, #d29922);
+  border: 1px dashed currentColor; border-radius: 3px; padding: 0 4px; cursor: help;
+}
+.cat-datum { font-size: 11px; word-break: break-word; }
+.cat-more { margin-top: 5px; }
+.cat-more > summary { cursor: pointer; font-size: 11px; color: var(--accent, #6b8afd); }
+.cat-pre { margin: 5px 0; color: var(--ink-soft, #9aa6b6); }
+.cat-steps { margin: 5px 0; padding-left: 18px; color: var(--ink-soft, #9aa6b6); }
+.cat-steps li { margin: 2px 0; }
+
+.cat-tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 7px;
+  border-radius: 999px; background: var(--idle-soft, #1d2532); color: var(--ink-soft, #9aa6b6); white-space: nowrap; }
+.cat-tag.p-p0, .cat-tag.s-critical { background: var(--bad-soft, #3a1d22); color: var(--bad, #ef6b73); }
+.cat-tag.p-p1, .cat-tag.s-high { background: #3a2a16; color: #e0a34a; }
+.cat-tag.p-p2, .cat-tag.s-medium { background: #1f2c3d; color: #6ea8e0; }
+
+/* The one-line answer to "why are they all failing", above the failures. */
+.why-failing {
+  margin: 0 0 10px; padding: 10px 12px; border-radius: 8px;
+  background: var(--card2, #1b2330); border-left: 3px solid var(--bad, #ef6b73);
+  font-size: 12.5px; color: var(--ink, #e6edf6); line-height: 1.5;
+}
+.why-one { color: var(--ink-soft, #9aa6b6); }
+.why-note { display: block; margin-top: 4px; font-size: 11.5px; color: var(--ink-soft, #7c8798); }
+
+/* A run's own reports, on the run. Quiet until hovered so the list still reads
+   as a list rather than a wall of links. */
+.run-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.run-link {
+  font-size: 11px; padding: 3px 9px; border-radius: 999px; text-decoration: none;
+  border: 1px solid var(--line, #26303f); color: var(--ink-soft, #9aa6b6);
+  background: var(--card2, #1b2330); white-space: nowrap;
+}
+.run-link:hover { color: var(--ink, #e6edf6); border-color: var(--accent, #6b8afd); }
+.run-kind.ui { background: var(--idle-soft, #1d2532); color: #6ea8e0; }
+.run-kind.po { background: #2a2416; color: #e0a34a; }
+
+/* ── the bug queue ──
+   Shape first (what blocks, whose it is), then every finding worst-first under
+   severity headers that stay put while scrolling. */
+.bug-board { margin: 4px 0 14px; }
+.bug-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; }
+.bug-tile {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 12px 14px; border-radius: 10px; cursor: pointer; text-align: left;
+  background: var(--panel); border: 1px solid var(--card-line); color: var(--ink);
+  font: inherit; transition: border-color .12s ease, background .12s ease;
+}
+.bug-tile:hover { border-color: var(--accent); }
+.bug-tile.on { border-color: var(--accent); background: var(--accent-soft); }
+.bug-tile-v { font-size: 24px; font-weight: 700; line-height: 1.1; }
+.bug-tile-l { font-size: 11.5px; color: var(--ink-soft); }
+.bug-tile.crit .bug-tile-v { color: var(--bad); }
+.bug-tile.warn .bug-tile-v { color: var(--warn); }
+.bug-tile.prod .bug-tile-v { color: var(--accent); }
+.bug-tile.ours .bug-tile-v { color: var(--idle); }
+
+.bug-bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; margin: 12px 0 8px; background: var(--idle-soft); }
+.bug-bar .seg { display: block; height: 100%; }
+.seg.s-critical { background: var(--bad); }
+.seg.s-high { background: var(--warn); }
+.seg.s-medium { background: var(--accent); }
+.seg.s-low { background: var(--idle); }
+.bug-legend { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+.bug-legend b { color: var(--ink); }
+
+.bug-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 12px; }
+
+.bug-sev-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 2px; margin: 18px 0 6px;
+  background: var(--paper); font-size: 12px; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.bug-sev-head b { color: var(--ink); letter-spacing: 0; text-transform: none; font-size: 13px; }
+.bug-sev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); }
+.bug-sev-head.s-critical .bug-sev-dot { background: var(--bad); }
+.bug-sev-head.s-high .bug-sev-dot { background: var(--warn); }
+.bug-sev-head.s-medium .bug-sev-dot { background: var(--accent); }
+
+.bug {
+  border: 1px solid var(--card-line); border-left: 3px solid var(--idle);
+  border-radius: 10px; background: var(--panel); margin-bottom: 8px; overflow: hidden;
+}
+.bug.s-critical { border-left-color: var(--bad); }
+.bug.s-high { border-left-color: var(--warn); }
+.bug.s-medium { border-left-color: var(--accent); }
+.bug > summary {
+  display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+  cursor: pointer; list-style: none; font-size: 13px;
+}
+.bug > summary::-webkit-details-marker { display: none; }
+.bug > summary:hover { background: var(--accent-soft); }
+.bug[open] > summary { border-bottom: 1px solid var(--card-line); }
+.bug-kind { font-size: 14px; line-height: 1; }
+.bug-title { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.bug-where { display: flex; gap: 5px; flex-wrap: wrap; }
+.bug-flow {
+  font-size: 10.5px; padding: 2px 7px; border-radius: 999px;
+  background: var(--idle-soft); color: var(--ink-soft); white-space: nowrap;
+}
+.bug-seen { font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.bug-body { padding: 12px 14px 14px; font-size: 12.5px; color: var(--ink-soft); }
+.bug-why { margin: 0 0 10px; line-height: 1.55; }
+.bug-why b { color: var(--ink); }
+.bug-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin: 10px 0 5px; }
+.bug-ev { margin: 0; padding-left: 18px; }
+.bug-ev li { margin: 3px 0; font-size: 11.5px; overflow-wrap: anywhere; }
+.bug-steps { margin: 0; padding-left: 20px; }
+.bug-steps li { margin: 3px 0; }
+.bug-open { display: inline-block; margin-top: 12px; font-size: 12px; color: var(--accent); text-decoration: none; }
+.bug-open:hover { text-decoration: underline; }
+
+/* Add-a-client and the custom base URL: header controls that appear only when
+   asked for, and never widen the bar past the screen. */
+.field.wide { min-width: 0; }
+.field-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.field-row input { min-width: 0; }
+#client-add-id { width: 148px; }
+#client-add-name { width: 150px; }
+#env-custom { width: 260px; max-width: 100%; }
+.field input {
+  padding: 6px 9px; border-radius: 8px; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+}
+.field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.field input[aria-invalid="true"] { border-color: var(--bad); }
+
+/* ══ the Run view, as a page rather than a stack of paragraphs ══════════════
+ *
+ * This view is empty most of the time it is looked at — before a run there is
+ * a box and two headings over three lines of grey text, which is why it read
+ * as unfinished rather than as ready. Three things fix that and none of them
+ * is decoration:
+ *
+ *   1. the numbers the platform already knew, at the top instead of in the
+ *      corner of the nav, each one a link to where it came from;
+ *   2. a composer with a hierarchy — one primary action, one alternative, one
+ *      quiet option — instead of three buttons of three different shapes;
+ *   3. placeholders that are framed and centred, so "nothing has run yet"
+ *      looks like a state the page is in and not like content that failed.
+ */
+
+/* ── what is loaded ── */
+.glance {
+  display: grid;
+  /* Four across on a laptop, two on a phone, without a breakpoint. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+.glance-tile {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--card-line); border-radius: 12px;
+  background: var(--panel); color: inherit; text-decoration: none;
+  transition: border-color .14s ease, transform .12s ease, box-shadow .14s ease;
+}
+a.glance-tile:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
+a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.glance-n {
+  font-size: 21px; font-weight: 700; line-height: 1.15; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* The account name is a name, not a quantity: same slot, different weight. */
+.glance-n.sm {
+  font-size: 13.5px; font-weight: 650; letter-spacing: 0; line-height: 1.5;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.glance-k {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The one tile that reports rather than links: a hairline of accent says the
+   run is pointed somewhere, without pretending to be clickable. */
+.glance-tile.target { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* ── the composer ── */
+.request-card.big .rc-head { flex-wrap: wrap; }
+.rc-kbd { margin-left: auto; font-size: 10.5px; color: var(--ink-soft); white-space: nowrap; }
+.rc-kbd kbd {
+  font-family: var(--mono); font-size: 10px; padding: 1px 5px; margin-right: 2px;
+  border: 1px solid var(--card-line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--panel); color: var(--ink-soft);
+}
+.rc-tryrow { display: flex; align-items: flex-start; gap: 9px; margin: 11px 0 2px; }
+.rc-try {
+  flex: 0 0 auto; padding-top: 5px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft);
+}
+.rc-tryrow .rc-examples { margin: 0; flex: 1 1 auto; min-width: 0; }
+/* Three buttons of three shapes said nothing about which one to press. Filled
+   is the action, outlined is the alternative, the pill is the aside. */
+.rc-actions { margin-top: 14px; gap: 9px; flex-wrap: wrap; row-gap: 9px; }
+.rc-or { font-size: 11.5px; color: var(--ink-soft); }
+.rc-actions .run-btn.ghost { border-color: var(--card-line); color: var(--ink); background: var(--panel); }
+.rc-actions .run-btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+.rc-actions .run-status { margin-left: auto; text-align: right; }
+.rc-foot { max-width: 70ch; }
+
+/* ── section rhythm ── */
+/* A rule and a right-aligned status turn two loose headings into two sections. */
+#view-run .col-head {
+  margin-top: 28px; padding-top: 15px; border-top: 1px solid var(--line);
+}
+#view-run .col-head .hint { margin-left: auto; text-align: right; }
+
+/* ── placeholders ── */
+/*
+ * `.empty.done` is excluded on purpose: that one is a NOTE about a run that
+ * finished and produced nothing, not a placeholder for a run that has not
+ * started, and it carries its own frame already.
+ */
+#automation > .empty:not(.done),
+#timeline > .empty {
+  display: block; max-width: 54ch; margin: 6px auto; padding: 28px 24px;
+  border: 1px dashed var(--card-line); border-radius: 13px;
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  text-align: center; font-size: 12.5px; line-height: 1.65; color: var(--ink-soft);
+}
+#automation > .empty:not(.done)::before,
+#timeline > .empty::before {
+  display: block; font-size: 20px; line-height: 1; margin-bottom: 10px; opacity: .55;
+}
+#automation > .empty:not(.done)::before { content: "▶"; }
+#timeline > .empty::before { content: "🧠"; }
+#automation > .empty:not(.done) b { color: var(--ink); font-weight: 650; }
+
+/* ── the provider chip ── */
+/* It is a badge saying who is answering. Slingring names two models, which is
+   two long identifiers of chrome; they are worth a tooltip, not a header. */
+.provider::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; margin-right: 6px; vertical-align: 1px;
+}
+
+@media (max-width: 900px) {
+  .glance { gap: 8px; margin-bottom: 14px; }
+  .glance-tile { padding: 10px 12px; }
+  .glance-n { font-size: 18px; }
+  .rc-actions .run-status { margin-left: 0; text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  a.glance-tile:hover { transform: none; }
+}
+/* Full text, trimmed by the window rather than by a character count. */
+.rc-ex { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The first line of a placeholder is its verdict — "nothing has run yet" —
+   and the paragraph under it is the instructions. They are not one sentence. */
+#automation > .empty:not(.done) > b:first-child,
+#timeline > .empty > b:first-child {
+  display: block; margin-bottom: 5px;
+  font-size: 13.5px; font-weight: 650; color: var(--ink);
+}
+
+/* ── Journeys ───────────────────────────────────────────────────────────────
+   The catalogue read as a sequence: 17 journeys in order, each cut into the
+   stages it walks, each stage's cases numbered continuously. Numbering is
+   used because the content genuinely is ordered — it is what the view is for. */
+.jy-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.jy-seg { display: inline-flex; border: 1px solid var(--card-line); border-radius: 8px; overflow: hidden; }
+.jy-segb {
+  font: inherit; font-size: 13px; font-weight: 500; padding: 7px 12px; cursor: pointer;
+  border: 0; background: var(--panel); color: var(--ink-soft);
+}
+.jy-segb + .jy-segb { border-left: 1px solid var(--card-line); }
+.jy-segb[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.jy-segb:focus-visible, .jy-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.jy-totals { display: flex; gap: 20px; flex-wrap: wrap; margin: 0 0 20px; }
+.jy-totals div { display: flex; flex-direction: column; }
+.jy-totals b { font-family: var(--mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.jy-totals span { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); }
+
+.jy { margin-bottom: 30px; }
+.jy-head { display: grid; grid-template-columns: auto 1fr; gap: 0 14px; align-items: start; }
+.jy-num {
+  font-family: var(--mono); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--accent); background: var(--accent-soft);
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; margin-top: 2px;
+}
+.jy-h { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+.jy-persona { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.jy-goal { margin: 7px 0 0; color: var(--ink-soft); max-width: 72ch; font-size: 14px; }
+
+/* the journey's own sequence, in words */
+.jy-flow {
+  list-style: none; margin: 12px 0 0; padding: 0;
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+.jy-flow li {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--card-line); border-radius: 999px; padding: 3px 11px 3px 4px;
+}
+.jy-fn {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: var(--accent);
+  background: var(--accent-soft); width: 18px; height: 18px; border-radius: 50%;
+  display: inline-grid; place-items: center;
+}
+.jy-stats { display: flex; gap: 13px; flex-wrap: wrap; margin: 11px 0 0; font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
+.jy-stats b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.jy-cases { margin-top: 14px; border: 1px solid var(--card-line); border-radius: 11px; background: var(--panel); overflow: hidden; }
+.jy-stage + .jy-stage { border-top: 1px solid var(--card-line); }
+.jy-stage-head {
+  display: flex; align-items: baseline; gap: 9px; padding: 9px 14px;
+  background: var(--paper); border-bottom: 1px solid var(--card-line);
+}
+.jy-stage-name { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.jy-stage-n { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); }
+
+.jy-row {
+  display: grid; grid-template-columns: 30px 108px 1fr auto; gap: 11px; align-items: baseline;
+  width: 100%; padding: 10px 14px; cursor: pointer; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left;
+}
+.jy-row:hover { background: var(--paper); }
+.jy-case + .jy-case .jy-row { border-top: 1px solid var(--line); }
+.jy-n { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.jy-id { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
+.jy-title { color: var(--ink); font-size: 14px; }
+.jy-chips { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.jy-chip { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.jy-chip.pri { font-family: var(--mono); letter-spacing: .02em; }
+.pri-P0 { color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 42%, transparent); }
+.pri-P1 { color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 42%, transparent); }
+.pri-P2 { color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent); }
+.pri-P3 { color: var(--ink-soft); border: 1px solid var(--card-line); }
+.v-automate { color: var(--good); background: var(--good-soft); }
+.v-automate-later { color: var(--warn); background: var(--warn-soft); }
+.v-manual { color: var(--ink-soft); background: var(--paper); border: 1px solid var(--card-line); }
+.jy-chip.api { color: var(--accent); background: var(--accent-soft); font-family: var(--mono); letter-spacing: .04em; }
+
+.jy-row[aria-expanded="true"] + .jy-detail { display: block; }
+.jy-detail { display: none; padding: 2px 14px 16px; background: var(--paper); border-top: 1px dashed var(--card-line); }
+.jy-detail dl { margin: 0; display: grid; grid-template-columns: 112px 1fr; gap: 8px 15px; }
+.jy-detail dt { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft); padding-top: 3px; }
+.jy-detail dd { margin: 0; color: var(--ink); max-width: 80ch; font-size: 13.5px; }
+.jy-detail code {
+  font-family: var(--mono); font-size: .86em; padding: 1px 5px; border-radius: 4px;
+  background: var(--panel); border: 1px solid var(--card-line); overflow-wrap: anywhere;
+}
+.jy-prov {
+  grid-column: 1 / -1; margin-top: 3px; padding-top: 8px; border-top: 1px solid var(--card-line);
+  font-family: var(--mono); font-size: 11px; color: var(--ink-soft); display: flex; gap: 13px; flex-wrap: wrap;
+}
+.jy-empty { padding: 22px 14px; text-align: center; color: var(--ink-soft); font-style: italic; margin: 0; }
+
+@media (max-width: 720px) {
+  .jy-head { grid-template-columns: 1fr; gap: 9px; }
+  .jy-row { grid-template-columns: 26px 1fr; gap: 5px 10px; }
+  .jy-id { grid-column: 2; }
+  .jy-title { grid-column: 2; }
+  .jy-chips { grid-column: 2; flex-wrap: wrap; }
+  .jy-detail dl { grid-template-columns: 1fr; gap: 2px; }
+  .jy-detail dt { padding-top: 9px; }
+}
+
+/* ── the API journey, narrated live in the run panel ─────────────────────
+   A numbered list of what the run is doing in the order a buyer would do it:
+   each row is a step's plain-English title, the sentence saying what the app
+   actually did, and the request behind it in small type. The row in flight is
+   tinted like a running check; the ones still to come are dimmed. Same tokens
+   and radii as the check rows, so the two read as one panel. */
+.journey { border: 1px solid var(--card-line); border-radius: 10px; background: var(--panel);
+  padding: 12px 14px 10px; margin-bottom: 6px; flex: none; }
+.journey-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.journey-head b { font-size: 13px; }
+.journey-tally { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.journey-steps { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.jstep { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start;
+  padding: 6px 8px; border-radius: 7px; border-left: 2px solid transparent;
+  font-size: 12.5px; line-height: 1.5; animation: chkIn .22s cubic-bezier(.2, .8, .3, 1) both; }
+.jstep-n { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  text-align: right; padding-top: 2px; }
+.jstep-body { min-width: 0; }
+.jstep-title { color: var(--ink); font-weight: 600; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.jstep-actor { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 6px; border-radius: 999px; background: var(--idle-soft); color: var(--idle); white-space: nowrap; }
+.jstep-actor.buyer { background: var(--accent-soft); color: var(--accent); }
+.jstep-actor.vendor { background: var(--warn-soft); color: var(--warn); }
+.jstep-actor.evaluator { background: var(--good-soft); color: var(--good); }
+.jstep-actual { color: var(--ink); margin-top: 1px; overflow-wrap: anywhere; }
+.jstep-call { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); margin-top: 2px; overflow-wrap: anywhere; }
+.jstep-progress { font-style: italic; color: var(--ink-soft); font-size: 12px; margin-top: 1px; }
+.jstep-verdict { font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  margin-top: 1px; background: var(--idle-soft); color: var(--idle); }
+.jstep.worked .jstep-verdict { background: var(--good-soft); color: var(--good); }
+.jstep.refused .jstep-verdict { background: var(--warn-soft); color: var(--warn); }
+.jstep.broken .jstep-verdict { background: var(--bad-soft); color: var(--bad); }
+.jstep.working .jstep-verdict { background: var(--accent-soft); color: var(--accent); }
+.jstep.refused { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn-soft) 55%, transparent); }
+.jstep.broken { border-left-color: var(--bad); background: var(--bad-soft); }
+.jstep.working { border-left-color: var(--accent); background: var(--accent-soft); }
+.jstep.pending { opacity: .55; }
+.jstep.pending .jstep-title { font-weight: 500; }
+.jstep.not-run .jstep-title { color: var(--ink-soft); }
+.jstep-verdict .spin { display: inline-block; animation: spin .85s linear infinite; }
+/* The one sentence the journey ends on, and the note about the second event. */
+.journey-outcome { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--card-line);
+  font-size: 12.5px; line-height: 1.5; }
+.journey-outcome b { display: block; }
+.journey-outcome.ok b { color: var(--good); }
+.journey-outcome.bad b { color: var(--bad); }
+.journey-took { color: var(--ink-soft); font-size: 12px; }
+.journey-variations { margin-top: 5px; font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+.journey-notes { margin-top: 8px; font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.journey-note.bad { color: var(--bad); }
+/* On a Recent-runs card: the journey's one-line verdict on its own row. */
+.run-journey { flex-basis: 100%; min-width: 0; font-size: 10.5px; color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-journey.ok::before { content: "✓ "; color: var(--good); font-weight: 700; }
+.run-journey.bad::before { content: "✗ "; color: var(--bad); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .jstep, .jstep-verdict .spin { animation: none; }
+}
+
+/* a live row that reproduces a bug QA already logged, or one nobody has */
+.known-bug { display: inline-block; margin-top: 6px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.known-bug.open { background: #fce8e6; color: #a50e0e; }
+.known-bug.fixed { background: #e6f4ea; color: #137333; }
+.known-bug.new { background: #fff4d6; color: #7a5200; }
+
+/* ── the written test catalog (runner panel on the Run view) ────────────── */
+.cat-tabs { display: flex; gap: 4px; }
 .cat-count { font-size: 11px; color: var(--ink-soft); margin-left: auto; font-variant-numeric: tabular-nums; }
 .cat-list { display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto; border-top: 1px solid var(--line); }
 .cat-sec { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft);
@@ -367,17 +1567,17 @@ main {
 .cat-case { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
 .cat-case input { accent-color: var(--accent, #7aa2f7); cursor: pointer; flex: 0 0 auto; margin-top: 3px; }
 .cat-body { flex: 1; min-width: 0; }
-.cat-id { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); margin-right: 6px; }
+.cat-list .cat-id { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); margin-right: 6px; }
 .cat-title { cursor: pointer; }
 .cat-meta { display: flex; gap: 6px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
 .cat-why { font-size: 10.5px; color: var(--ink-soft); margin-top: 3px; display: none; }
 .cat-case.open .cat-why { display: block; }
-.cat-tag { font-size: 9.5px; padding: 0 5px; border-radius: 3px; background: rgba(122,162,247,.16); color: var(--accent, #7aa2f7); white-space: nowrap; }
-.cat-tag.p0 { background: rgba(255,107,107,.18); color: var(--bad, #ff6b6b); }
-.cat-tag.manual, .cat-tag.none { background: rgba(160,160,160,.18); color: var(--ink-soft); }
-.cat-tag.journey { background: rgba(80,200,140,.18); color: var(--good, #3fbf7f); }
-.cat-tag.exact { background: rgba(80,200,140,.18); color: var(--good, #3fbf7f); }
-.cat-tag.area { background: rgba(230,180,80,.18); color: var(--warn, #e0a458); }
+.cat-list .cat-tag { font-size: 9.5px; padding: 0 5px; border-radius: 3px; background: rgba(122,162,247,.16); color: var(--accent, #7aa2f7); white-space: nowrap; }
+.cat-list .cat-tag.p0 { background: rgba(255,107,107,.18); color: var(--bad, #ff6b6b); }
+.cat-list .cat-list .cat-tag.manual, .cat-list .cat-tag.none { background: rgba(160,160,160,.18); color: var(--ink-soft); }
+.cat-list .cat-tag.journey { background: rgba(80,200,140,.18); color: var(--good, #3fbf7f); }
+.cat-list .cat-tag.exact { background: rgba(80,200,140,.18); color: var(--good, #3fbf7f); }
+.cat-list .cat-tag.area { background: rgba(230,180,80,.18); color: var(--warn, #e0a458); }
 .cat-res { font-family: var(--mono); font-size: 10.5px; min-width: 30px; text-align: right; color: var(--ink-soft); }
 .cat-res.ok { color: var(--good); font-weight: 700; }
 .cat-res.bad { color: var(--bad); font-weight: 700; }
@@ -390,7 +1590,6 @@ main {
 .cat-run-out .l.ok { color: var(--good); }
 .cat-run-out .l.bad { color: var(--bad); }
 .cat-run-out .l.hd { color: var(--ink); font-weight: 700; margin-top: 6px; }
-
 
 /* ── now-running strip ───────────────────────────────────────────────────── */
 .run-strip { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-soft);

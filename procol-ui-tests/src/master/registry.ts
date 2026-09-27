@@ -26,6 +26,7 @@ import {
   //  - singleStageRfpFlow      : title-fill edge case; RFP covered by events.rfp_only
   //  - auctionTrafficLightFlow : needs a "specified range" config step before Save
 } from "../flows/singleStage.js";
+import { publishWithoutVendorFlow } from "../flows/validation.js";
 
 /**
  * The master list of UI flows — the orchestra the AI orchestrator conducts.
@@ -67,6 +68,8 @@ export const REGISTRY: UiFlowModule[] = [
   // masterdata — create flows (full-field)
   createLocationFlow,
   createUserFlow,
+  // validation — journeys that prove the console REFUSES something
+  publishWithoutVendorFlow,
 ];
 
 export function registryByCategory(): Record<string, UiFlowModule[]> {

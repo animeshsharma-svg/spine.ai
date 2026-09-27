@@ -28,6 +28,16 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const UI_TESTS_DIR = join(here, "..", "..", "..", "procol-ui-tests");
 const SPEC = "tests/ui-master.spec.ts";
+/**
+ * The purchase-to-bill suite — its own Playwright project.
+ *
+ * A separate directory, config, login and target deployment, so it cannot be
+ * run by pointing the usual runner at a different spec file: it needs its own
+ * working directory too.
+ */
+const THREE_WAY_DIR = join(here, "..", "..", "..", "three-way-match");
+const THREE_WAY_SPEC = "tests/po_to_bill.spec.js";
+const THREE_WAY_TEST = "P2P Flow - 3 Way Match";
 
 /** The browser journeys, grouped the way the dashboard shows them. */
 export interface UiFlowDef {
@@ -38,6 +48,23 @@ export interface UiFlowDef {
   usesLineItems?: boolean;
   /** true when it's a BOQ journey (uses the BOQ line-item limit). */
   boq?: boolean;
+  /**
+   * Which Playwright project this journey lives in.
+   *
+   * Everything here used to be one suite against UAT, so the runner could
+   * assume a directory and a spec file. The 3-way-match journey is a separate
+   * project with its own config, its own login and its own deployment — so a
+   * journey now says which suite it belongs to rather than the runner guessing.
+   */
+  suite?: "ui-master" | "three-way-match";
+  /**
+   * The accounts this journey may be offered to, when it is not universal.
+   *
+   * The 3-way-match suite signs into the sandbox demo deployment specifically,
+   * so offering it under a UAT company would be offering a journey that cannot
+   * log in. Undefined means "every account the UAT journeys work for".
+   */
+  clients?: number[];
 }
 
 export const UI_FLOWS: UiFlowDef[] = [
@@ -81,7 +108,35 @@ export const UI_FLOWS: UiFlowDef[] = [
   { key: "user.erp_id_field", label: "ERP ID field present", group: "Master data" },
   { key: "display.draft_tab", label: "Drafts tab shown", group: "Display" },
   { key: "display.po_configurations", label: "PO configuration shown", group: "Display" },
+  // Negative journeys: these PASS when the console refuses the action.
+  {
+    key: "validation.publish_without_vendor",
+    label: "Publishing without a vendor is refused",
+    group: "Validation (must be refused)",
+    usesLineItems: true,
+  },
+  /**
+   * The purchase-to-bill journey, driven through the browser.
+   *
+   * A different suite, a different deployment, a different login — it signs
+   * into the sandbox demo tenant the whole PO flow was built on and clicks the
+   * document all the way through: raise the PO, invoice it, receive it (GRN),
+   * then bill it and watch the 3-way match settle. That is why it is pinned to
+   * that one account: on a UAT company it could not even log in.
+   */
+  {
+    key: "finance.three_way",
+    label: "PO → Bill (3-way match)",
+    group: "Purchase to bill",
+    suite: "three-way-match",
+    clients: [900001],
+  },
 ];
+
+/** The journeys this account can actually run. */
+export function uiFlowsFor(companyId: number): UiFlowDef[] {
+  return UI_FLOWS.filter((f) => !f.clients || f.clients.includes(companyId));
+}
 
 export interface UiRunOptions {
   flowKey: string;
@@ -103,11 +158,23 @@ export interface UiRunOptions {
   scheduleMinutes?: number;
   /** false → run without opening a visible window. */
   headed?: boolean;
+  /**
+   * Sign in through the login screen instead of dropping a session into the
+   * browser. Someone watching the run sees the sign-in, and the login page —
+   * part of the product too — is actually exercised. The journey narrates
+   * each login step, so they reach the trail and the report.
+   */
+  showLogin?: boolean;
 }
 
 export interface UiRunEvent {
   /** "queued" — another run holds the browser; this one starts when it ends. */
-  type: "start" | "log" | "done" | "error" | "queued";
+  // "run-error", not "error": the SSE wire event name is this literally, and
+  // a browser EventSource treats a server-sent event named "error" as
+  // indistinguishable from its own connection-failure event — the exact
+  // collision that made "run error" appear after every normal, successful run
+  // elsewhere in this codebase. Every consumer forwards e.type verbatim.
+  type: "start" | "log" | "done" | "run-error" | "queued";
   line?: string;
   command?: string;
   exitCode?: number;
@@ -136,6 +203,7 @@ function launch(
   emit: (e: UiRunEvent) => void,
   onStart: () => void,
   stripAnsi = false,
+  cwd: string = UI_TESTS_DIR,
 ): { stop: () => void } {
   let child: ReturnType<typeof spawn> | null = null;
   let stopped = false;
@@ -148,27 +216,28 @@ function launch(
   slot.ready.then((release) => {
     if (stopped) return release();
     onStart();
-    child = spawn("npx", args, { cwd: UI_TESTS_DIR, env, shell: false });
+    child = spawn("npx", args, { cwd, env, shell: false });
     const pump = (buf: Buffer) => {
       for (const raw of buf.toString().split("\n")) {
         const line = stripAnsi ? raw.replace(ANSI, "").trimEnd() : raw;
         if (line.trim()) emit({ type: "log", line });
       }
     };
-    setSlotHeaded(!args.includes("--headed") ? false : true);
+    setSlotHeaded(args.includes("--headed"));
     setSlotProgress("starting the browser");
     child.stdout?.on("data", (buf: Buffer) => {
       // Mirror the run's own narration into the slot so the dashboard strip
       // can say what a HEADLESS run is doing right now.
       for (const raw of buf.toString().split("\n")) {
-        const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow)\] (.{0,80})/);
+        const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow|po-to-bill)\] (.{0,80})/);
         if (m) setSlotProgress(m[3] ? `step ${m[1]}/${m[2]} — ${m[3].replace(/_/g, " ")}${m[4] ?? ""}` : m[2]);
         if (/showing the login/.test(raw)) setSlotProgress("logging in (visible)");
       }
     });
     child.stdout?.on("data", pump);
     child.stderr?.on("data", pump);
-    child.on("error", (e) => emit({ type: "error", line: e.message }));
+    // "run-error", not "error" — see the UiRunEvent type above.
+    child.on("error", (e) => emit({ type: "run-error", line: e.message }));
     child.on("close", (code) => {
       release();
       emit({ type: "done", exitCode: code ?? 1 });
@@ -294,8 +363,47 @@ export function runTeach(
 export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { stop: () => void } {
   const flow = UI_FLOWS.find((f) => f.key === opts.flowKey);
   if (!flow) {
-    emit({ type: "error", line: `unknown UI flow "${opts.flowKey}"` });
+    emit({ type: "run-error", line: `unknown UI flow "${opts.flowKey}"` });
     return { stop: () => {} };
+  }
+
+  /**
+   * The purchase-to-bill suite runs itself, in its own directory.
+   *
+   * It has its own config (its own baseURL, its own login, its own timeout),
+   * so the only things to pass are whether to show the browser and whether to
+   * keep the demo pacing. Its spec file is named explicitly AND grepped by
+   * title, so no sibling spec in that project can be picked up by accident.
+   */
+  if (flow.suite === "three-way-match") {
+    const args = ["playwright", "test", THREE_WAY_SPEC, "-g", THREE_WAY_TEST, "--workers=1"];
+    const headed = opts.headed !== false;
+    if (headed) args.push("--headed");
+    const env: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+      // The vendored config reads both: visible and paced for watching, or
+      // invisible and at full speed when nobody is looking.
+      HEADLESS: headed ? "0" : "1",
+      SLOWMO: headed ? (process.env.SLOWMO ?? "300") : "0",
+      // Watching costs time: the same journey is ~1m40s headless and ~3m10s
+      // headed at 300ms an action. Give a watched run room rather than letting
+      // the pacing itself produce a timeout that reads as a product failure.
+      TEST_TIMEOUT_MS: headed ? "600000" : "300000",
+    };
+    if (opts.runId) env.QA_RUN_ID = opts.runId;
+    // The suite files its record under this key, so the platform can join the
+    // record to the journey the reader actually ticked.
+    env.QA_FLOW_KEY = flow.key;
+    const command = `npx ${args.join(" ")}`;
+    return launch(
+      `journey ${flow.key}`,
+      args,
+      env,
+      emit,
+      () => emit({ type: "start", command, line: `$ ${command}` }),
+      true,
+      THREE_WAY_DIR,
+    );
   }
 
   // `-g` is a REGEX, so an unescaped "." is a wildcard: `-g pr.list` also matched
@@ -320,6 +428,9 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   // AI-drivable without touching the runner or the flow.
   if (opts.template) env.UI_TEMPLATE = opts.template;
   if (opts.scheduleMinutes) env.UI_SCHEDULE_MINUTES = String(opts.scheduleMinutes);
+  // The spec reads this and signs in through the login screen (see
+  // `loginOnScreen` in the UI suite) instead of injecting a session.
+  if (opts.showLogin) env.UI_SHOW_LOGIN = "1";
   // Turn the AI healer on whenever a Gemini key is available. It only engages
   // after the deterministic locators have all failed, so it costs nothing on a
   // healthy run and rescues a run when a selector has drifted.
@@ -333,6 +444,7 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
       UI_AI_HEAL: env.UI_AI_HEAL,
       UI_TEMPLATE: env.UI_TEMPLATE,
       UI_SCHEDULE_MINUTES: env.UI_SCHEDULE_MINUTES,
+      UI_SHOW_LOGIN: env.UI_SHOW_LOGIN,
     })
       .filter(([, v]) => v)
       .map(([k, v]) => `${k}=${v}`)

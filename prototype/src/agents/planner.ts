@@ -117,7 +117,12 @@ Combinations (the permutation map — pick the path that can actually reach what
 Ordering the product enforces (violating any of these makes the run fail):
 - open_create must come first on a CREATE test. Use path "erfx" unless the test explicitly says single-stage or non-eRFX: the eRFX screen is the one with stage tabs.
 - compose_stages, switch_stage and expect_stages EXIST ONLY on the eRFX screen. The single-stage screen has no stage tabs — its event type is chosen in a configuration drawer — so never combine path "single-stage" with those steps.
-- set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event.
+- set_title is MANDATORY on every create test. Publishing without a title is refused, and the title is how a human finds the event afterwards. Include it even when the test case does not mention naming the event — UNLESS the case is about publishing without one (see negative tests below).
+
+NEGATIVE TESTS — when the case says the app SHOULD REFUSE something:
+- End the plan with expect_publish_blocked instead of publish + expect_published.
+- LEAVE OUT the step the case is about. "Publish without a title" means NO set_title; "without a template" means NO select_template; "with no line items" means NO add_line_items; "without a schedule" means NO set_schedule; "with no participants" means NO invite_vendor. The omission IS the test — putting the step back turns the case into an ordinary create and proves nothing.
+- Every rule above about what a publish needs describes a plan meant to SUCCEED. A refusal test is deliberately incomplete in exactly one way, and complete in every other.
 - The default stage is AUCTION. So: a test about an RFQ, a technical/RFP stage, or any two-stage event MUST call compose_stages. Only a plain auction test may omit it.
 - compose_stages before anything stage-specific. The screen starts with ONE Auction stage; asking for RFQ or a technical stage is a real change. RFQ and Auction cannot coexist. At most two stages.
 - select_template BEFORE add_line_items: the Items drawer is inert until a template is chosen.
@@ -334,14 +339,37 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
-  // A negative test about PARTICIPANTS must not invite any. UI-PART-001 —
-  // "publish is blocked with no participants" — compiled with invite_vendor
-  // in it, so the plan disproved its own premise before pressing Publish.
-  // (On this tenant the product audience adds vendors from the line items on
-  // its own, which the step reports; that is the product's answer, not ours.)
-  if (has("expect_publish_blocked") && has("invite_vendor") && /\b(no|without|zero|0)\s+(participants?|vendors?)\b/i.test(testCase)) {
-    steps.splice(indexOf("invite_vendor"), 1);
-    repairs.push("removed invite_vendor — the case is about publishing with no participants, so inviting any would defeat it");
+  /**
+   * A NEGATIVE TEST MUST NOT DO THE THING IT IS ABOUT.
+   *
+   * "Publish with no participants" compiled with invite_vendor in it, so the
+   * plan disproved its own premise before pressing Publish. That was patched
+   * for participants alone; the same thing happens for every other omission —
+   * a title, a template, line items, a schedule.
+   *
+   * Telling the compiler not to do it is not enough. The prompt now carries a
+   * NEGATIVE TESTS section, and the model still emits set_title, because the
+   * rule above it says set_title is MANDATORY on every create test and that is
+   * the stronger instruction. Reading the omission out of the case text and
+   * removing the step is deterministic, which is what this needs to be: the
+   * test is only that test if the step is absent.
+   *
+   * (On this tenant the product audience adds vendors from the line items on
+   * its own, which the step reports; that is the product's answer, not ours.)
+   */
+  if (has("expect_publish_blocked")) {
+    const OMISSIONS: Array<[RegExp, string, string]> = [
+      [/\b(no|without|missing|blank|empty)\s+(a\s+)?title\b/i, "set_title", "a title"],
+      [/\b(no|without|missing)\s+(a\s+)?template\b/i, "select_template", "a template"],
+      [/\b(no|without|missing|zero|0)\s+(line\s*)?items?\b/i, "add_line_items", "line items"],
+      [/\b(no|without|missing)\s+(a\s+)?schedule\b/i, "set_schedule", "a schedule"],
+      [/\b(no|without|zero|0)\s+(participants?|vendors?)\b/i, "invite_vendor", "participants"],
+    ];
+    for (const [pattern, step, what] of OMISSIONS) {
+      if (!pattern.test(testCase) || !has(step)) continue;
+      steps.splice(indexOf(step), 1);
+      repairs.push(`removed ${step} — the case is about publishing with ${what === "participants" ? "no participants" : `no ${what}`}, so including it would defeat the test`);
+    }
   }
 
   // Vendor coherence. UI-AWD-001 invited five vendors by count, surrogate-bid
@@ -603,7 +631,21 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
-  if (has("publish")) {
+  /**
+   * A PLAN THAT EXPECTS PUBLISH TO BE REFUSED IS LEFT ALONE.
+   *
+   * `submits` is already false when the plan asserts `expect_publish_blocked`,
+   * and the per-stage repairs above respect it — this pair did not, so it
+   * completed the very plan whose incompleteness was the test. "Try to publish
+   * without setting a schedule and check it is refused" was compiled, then
+   * repaired into a plan that sets the schedule, then reported as a gap the
+   * compiler could not express: five of the most-asked-for entries on the gap
+   * ledger are this one bug wearing different hats (no title, no template, no
+   * line items, no schedule, no participants).
+   *
+   * The vocabulary could always say it. The linter would not let it through.
+   */
+  if (has("publish") && submits) {
     if (!has("set_schedule")) insertBefore("publish", { step: "set_schedule" }, "added set_schedule — the schedule is displayed but not committed until saved");
     // …unless the plan expects the publish to be REFUSED: a case about
     // publishing with no participants must not be handed participants.

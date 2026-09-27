@@ -147,12 +147,9 @@ export class BasePage {
   }
 
   /**
-   * Close whatever transient popups are currently on screen. Cheap and safe to
-   * call before any important interaction; each dismissal is best-effort.
-   */
-  /**
    * Close whatever transient popups are on screen RIGHT NOW — in a single
-   * pass, without polling.
+   * pass, without polling. Cheap and safe to call before any important
+   * interaction; each dismissal is best-effort.
    *
    * The old version waited up to 1.5s for a distraction that usually was not
    * there, and it is called 64 times across the suite, so a healthy run spent
@@ -183,7 +180,13 @@ export class BasePage {
           "button:not(.ant-drawer-close):not(.ant-modal-close), [role='button']:not(.ant-drawer-close):not(.ant-modal-close)",
         )
         .last(),
+      // The accessibility dump of a stalled create page still showed
+      // `button "Not now"` next to `button "Yes, I'm in"` — a second, modal
+      // opt-in prompt that the strict /^Not now$/ match above misses when the
+      // label carries surrounding whitespace or an icon. Match it loosely and
+      // ALWAYS take the declining half, never "Yes, I'm in".
       p.getByRole("button", { name: /not\s*now/i }),
+      p.locator("button", { hasText: /not\s*now/i }),
     ];
     let dismissed = false;
     for (const c of candidates) {

@@ -1,0 +1,374 @@
+{
+  "_readme": "Client-agnostic PO semantics. Master holds MEANING; config/clients/*.json holds per-client wiring (uuids, presence, mandatory) and is machine-generated. Most fields need no entry here \u2014 typePolicy derives behaviour from data_type. Add a field below only when it is a genuine exception.",
+  "documents": {
+    "purchase_order": {
+      "headerKeyAttributes": [
+        "p2p_purchase_order",
+        "p2p_rent_purchase_order",
+        "p2p_gift_purchase_order",
+        "p2p_candex_purchase_order"
+      ],
+      "lineItemKeyAttributes": [
+        "p2p_po_line_item",
+        "p2p_rent_po_line_item",
+        "p2p_gift_po_line_item",
+        "p2p_candex_po_line_item"
+      ],
+      "lineItemsPerDocument": 2,
+      "lineItems": [
+        {
+          "quantity": 5,
+          "unit_price": 100.0
+        },
+        {
+          "quantity": 3,
+          "unit_price": 250.5
+        },
+        {
+          "quantity": 10,
+          "unit_price": 12.75
+        }
+      ]
+    }
+  },
+  "typePolicy": {
+    "string": {
+      "role": "writable",
+      "strategy": {
+        "kind": "text",
+        "maxLength": 40
+      }
+    },
+    "text": {
+      "role": "writable",
+      "strategy": {
+        "kind": "text",
+        "maxLength": 120
+      }
+    },
+    "number": {
+      "role": "writable",
+      "strategy": {
+        "kind": "number",
+        "min": 1,
+        "max": 100,
+        "decimals": 2
+      }
+    },
+    "date": {
+      "role": "writable",
+      "strategy": {
+        "kind": "date",
+        "offsetDays": 0
+      }
+    },
+    "dropdown_select": {
+      "role": "writable",
+      "strategy": {
+        "kind": "option"
+      }
+    },
+    "attachment": {
+      "role": "writable",
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "boolean": {
+      "role": "writable",
+      "strategy": {
+        "kind": "literal",
+        "value": false
+      }
+    },
+    "relational": {
+      "role": "relation",
+      "strategy": {
+        "kind": "lookup"
+      }
+    },
+    "external_relation": {
+      "role": "relation",
+      "strategy": {
+        "kind": "lookup"
+      }
+    },
+    "reference": {
+      "role": "derived",
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "formula": {
+      "role": "computed",
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "rollup": {
+      "role": "computed",
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "inverse_relation": {
+      "role": "children",
+      "strategy": {
+        "kind": "skip"
+      }
+    }
+  },
+  "fields": {
+    "po_number": {
+      "note": "Must be unique per run or the platform rejects the duplicate.",
+      "strategy": {
+        "kind": "template",
+        "template": "AUTO-PO-{{runId}}"
+      },
+      "unique": true
+    },
+    "credit_note_number": {
+      "strategy": {
+        "kind": "template",
+        "template": "AUTO-CN-{{runId}}"
+      },
+      "unique": true
+    },
+    "serial_number": {
+      "strategy": {
+        "kind": "template",
+        "template": "AUTO-SN-{{runId}}"
+      }
+    },
+    "line_item_id": {
+      "strategy": {
+        "kind": "template",
+        "template": "AUTO-LI-{{runId}}-{{index}}"
+      }
+    },
+    "currency": {
+      "strategy": {
+        "kind": "option",
+        "prefer": [
+          "INR",
+          "USD"
+        ]
+      }
+    },
+    "payment_terms": {
+      "strategy": {
+        "kind": "option",
+        "prefer": [
+          "NET 30",
+          "NET 15"
+        ]
+      }
+    },
+    "status": {
+      "note": "Left to the platform default; setting it skips the real workflow.",
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "approval_status": {
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "billing_status": {
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "po_date": {
+      "strategy": {
+        "kind": "date",
+        "offsetDays": 0
+      }
+    },
+    "expected_date": {
+      "note": "Platform rule greater_than_current_date.",
+      "strategy": {
+        "kind": "date",
+        "offsetDays": 30
+      }
+    },
+    "po_expiry_date": {
+      "strategy": {
+        "kind": "date",
+        "offsetDays": 90
+      }
+    },
+    "expense_period_start_date": {
+      "strategy": {
+        "kind": "date",
+        "offsetDays": 0
+      }
+    },
+    "expense_period_end_date": {
+      "strategy": {
+        "kind": "date",
+        "offsetDays": 30
+      }
+    },
+    "quantity": {
+      "strategy": {
+        "kind": "number",
+        "min": 2,
+        "max": 10,
+        "decimals": 0
+      }
+    },
+    "unit_price": {
+      "strategy": {
+        "kind": "number",
+        "min": 100,
+        "max": 1000,
+        "decimals": 2
+      }
+    },
+    "discount_percentage": {
+      "strategy": {
+        "kind": "number",
+        "min": 0,
+        "max": 10,
+        "decimals": 0
+      }
+    },
+    "tolerance_quantity": {
+      "strategy": {
+        "kind": "number",
+        "min": 0,
+        "max": 5,
+        "decimals": 0
+      }
+    },
+    "cgst": {
+      "strategy": {
+        "kind": "number",
+        "min": 9,
+        "max": 9,
+        "decimals": 0
+      }
+    },
+    "sgst": {
+      "strategy": {
+        "kind": "number",
+        "min": 9,
+        "max": 9,
+        "decimals": 0
+      }
+    },
+    "igst": {
+      "strategy": {
+        "kind": "literal",
+        "value": 0
+      }
+    },
+    "tds_rate": {
+      "strategy": {
+        "kind": "number",
+        "min": 0,
+        "max": 2,
+        "decimals": 0
+      }
+    },
+    "advance_percentage": {
+      "strategy": {
+        "kind": "literal",
+        "value": 0
+      }
+    },
+    "buyer_email": {
+      "strategy": {
+        "kind": "template",
+        "template": "auto+{{runId}}@example.com"
+      }
+    },
+    "requestor_email_id": {
+      "strategy": {
+        "kind": "template",
+        "template": "auto+{{runId}}@example.com"
+      }
+    },
+    "additional_email_id": {
+      "strategy": {
+        "kind": "skip"
+      }
+    },
+    "base_amount": {
+      "assert": {
+        "op": "product",
+        "operands": [
+          "quantity",
+          "unit_price"
+        ]
+      }
+    },
+    "total_price": {
+      "assert": {
+        "op": "presentAndPositive"
+      }
+    },
+    "tax_amount": {
+      "assert": {
+        "op": "presentAndPositive"
+      }
+    },
+    "total_base_amount": {
+      "assert": {
+        "op": "sumOfLineItems",
+        "field": "base_amount"
+      }
+    },
+    "total_amount": {
+      "assert": {
+        "op": "sumOfLineItems",
+        "field": "total_price"
+      }
+    },
+    "total_discount_amount": {
+      "assert": {
+        "op": "sumOfLineItems",
+        "field": "discount"
+      }
+    },
+    "total_quantity": {
+      "assert": {
+        "op": "sumOfLineItems",
+        "field": "quantity"
+      }
+    }
+  },
+  "skipFields": {
+    "_readme": "Names never sent for any client, whatever their type. `status` and `approval_status` are a document's state machine: they are mandatory on some clients, which made the planner generate a value and set a fresh Decathlon PO to 'Released'. The platform owns them \u2014 status is written only as a deliberate transition (see makeSubmittable in src/runtime/approvals.ts), never in a create payload.",
+    "names": [
+      "sequence",
+      "title",
+      "created_by_user_name",
+      "created_on",
+      "erp_id",
+      "status",
+      "approval_status"
+    ]
+  },
+  "fieldAliases": {
+    "_readme": "Same field, different name per client. An override written with the canonical name on the left is renamed to whichever alias the client's schema actually has. Verified: Decathlon's PO line item calls quantity 'qty'; procol_sandbox_demo calls it 'quantity'.",
+    "quantity": [
+      "qty"
+    ],
+    "unit_price": [
+      "price",
+      "rate"
+    ],
+    "item_description": [
+      "description"
+    ]
+  },
+  "relationTargets": {
+    "_readme": "Relation field -> the datasource key it points at. The schema names relation targets by NUMERIC datasource id, but no API endpoint maps a numeric id to a uuid (only `npm run audit`, which needs DB access). Declaring the target here lets a relation resolve without the audit. Only needed for `relational` fields; external_relation resolves by sampling existing records.",
+    "linked_cost_center": "p2p_cost_center",
+    "linked_grn": "p2p_grn",
+    "nature_of_expense": "p2p_nature_of_expense"
+  }
+}

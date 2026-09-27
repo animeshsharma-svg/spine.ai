@@ -8,6 +8,9 @@ export interface SessionAuthOptions {
   app?: "console" | "agribid";
   baseURL?: string;
   appVersion?: string;
+  /** recorded on every call this client makes, for the report */
+  identity?: string;
+  companyId?: number;
 }
 
 /**
@@ -38,5 +41,10 @@ export async function clientFromSession(
   const baseURL = opts.baseURL ?? CONFIG.baseURL;
   const appVersion =
     opts.appVersion ?? (app === "console" ? CONFIG.identities.buyer.appVersion : CONFIG.identities.vendor.appVersion);
-  return ApiClient.create(tokensFromSession(session, { app }), { baseURL, appVersion });
+  return ApiClient.create(tokensFromSession(session, { app }), {
+    baseURL,
+    appVersion,
+    identity: opts.identity ?? (app === "console" ? "buyer" : "vendor"),
+    companyId: opts.companyId,
+  });
 }

@@ -583,6 +583,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       // from the line items on its own, so "no participants" is often untrue.
       const participants = await s.create.participantCount().catch(() => -1);
       const participantsNote = participants >= 0 ? ` — ${participants} participant(s) were on the event (the product audience adds vendors from the line items)` : "";
+      // Two shapes of "blocked" exist on this screen and a test should accept
+      // either: the confirm button rendered but disabled, or the app refusing
+      // outright with a message. Insisting on one makes the test brittle about
+      // something it does not care about.
       const p = s.page;
       const startUrl = p.url();
       await s.create.dismissDistractions();

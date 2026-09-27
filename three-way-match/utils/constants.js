@@ -1,0 +1,11 @@
+export const BASE_URL = 'https://client-procol-sandbox-demo-deploy-i-1780985635.preview.procol.tech';
+export const PHONE = '9958055589';
+export const PASSWORD = '991133';
+export const APPROVER_PHONE = '9810050001';
+export const APPROVER_PASSWORD = '991133';
+export const VENDOR = 'Evergreen Trade Solutions LLP';
+export const DEPT = 'TESTDEPT';
+export const LOB = 'TESTLOB';
+export const CURRENCY = 'INR';
+export const COUNTRY = 'INDIA';
+export const UNIT_PRICE = '100';

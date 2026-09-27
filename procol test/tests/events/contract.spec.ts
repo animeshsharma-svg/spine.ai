@@ -12,7 +12,11 @@ import {
   CONTRACT_CHECKS,
   ANY_REJECTION_OK,
   ContractFixtures,
+  plainContractCase,
+  expectedContractSentence,
+  areaLabel,
 } from "../../src/flows/eventsContract.js";
+import { declareCase, recordActual } from "../../src/report/caseSpec.js";
 import { judgeContractCase } from "../../src/oracle/oracle.js";
 import { recordFinding } from "../../src/oracle/findings.js";
 import { newEvidence, routeShape } from "../../src/oracle/evidence.js";
@@ -92,6 +96,26 @@ test.describe("events API contract (backend-test-cases.json)", () => {
     test(`${c.id} [${c.area}] ${c.title}`, async () => {
       test.setTimeout(60_000);
 
+      // Declared before anything is sent — and before the skip below — so
+      // every mined case appears in the report with the contract's own
+      // expectation attached, whether it ran or not.
+      declareCase({
+        plain: plainContractCase(c),
+        expected: expectedContractSentence(c),
+        // Grouped by the stage of an event's life, not by case id: one module
+        // per stage in the report, rather than a hundred modules of one case.
+        // The case's own id travels as `ref`, so a row is still traceable back
+        // to the mined file it came from.
+        flow: `events.contract.${c.area}`,
+        flowTitle: `Documented backend cases — ${areaLabel(c.area)}`,
+        area: areaLabel(c.area),
+        ref: c.id,
+        kind: c.expected.status >= 400 ? "negative" : "positive",
+        expect: c.expected.status >= 400 ? "reject" : "accept",
+        because: `Mined from ${c.source.join(", ")}. Documented response: ${c.expected.status} — ${c.expected.shape}. Oracle: ${c.oracle.kind} — ${c.oracle.detail}.`,
+        basis: "oracle",
+      });
+
       const runner = CASE_RUNNERS[c.id];
       if (!runner) {
         const reason = SKIP_REASONS[c.id] ?? "not automated in this pass";
@@ -153,6 +177,18 @@ test.describe("events API contract (backend-test-cases.json)", () => {
           at: new Date().toISOString(),
         });
       }
+
+      // The Oracle knows more than the HTTP layer does: not just what came
+      // back, but what the gap between that and the contract MEANS. So it,
+      // rather than the report's own status-code reading, writes this case's
+      // actual result.
+      recordActual(
+        verdict.kind === "pass"
+          ? `Matches the contract. ${attempt.method} ${shapedPath} returned HTTP ${attempt.raw.status}${
+              attempt.raw.errorCode ? ` with error code ${attempt.raw.errorCode}` : ""
+            }${attempt.raw.errorMessage ? `, saying “${attempt.raw.errorMessage}”` : ""}.`
+          : `${verdict.kind.replace(/_/g, " ")} (${verdict.severity}). ${verdict.rationale}`,
+      );
 
       const finding = recordFinding(evidence, verdict);
       if (finding) {

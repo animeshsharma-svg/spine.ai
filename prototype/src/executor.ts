@@ -12,9 +12,11 @@ import { config as loadEnv } from "dotenv";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isTokenClient } from "../config/tokenClients.js";
+import { openTokenClient } from "./tokenClient.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const PROCOL_TEST = join(here, "..", "..", "procol test");
+export const PROCOL_TEST = join(here, "..", "..", "procol test");
 
 // Load OUR env first (e.g. GROQ_API_KEY from prototype/.env), then the sibling
 // framework's env (DATABASE_URL, etc.). dotenv never overwrites an already-set
@@ -54,7 +56,7 @@ export interface RunReport {
 // ── Loading the sibling framework (done lazily, once env is ready) ─────────
 // We import by file:// URL so the space in "procol test" is handled safely.
 type Sibling = {
-  resolveClientContext: (companyId?: number) => Promise<any>;
+  resolveClientContext: (companyId?: number, baseUrl?: string) => Promise<any>;
   ClientConfig: { load: (api: any) => Promise<any> };
   REGISTRY: Array<{
     key: string;
@@ -87,15 +89,19 @@ async function loadSibling(): Promise<Sibling> {
  * back the live context + a disposer. Used by the orchestrator's Executor agent
  * so it can run flows AND the data-validation probe against the same session.
  */
-export async function openClientContext(companyId: number) {
-  return openClient(companyId);
+export async function openClientContext(companyId: number, baseUrl?: string) {
+  // A token client is not a company on UAT: it has its own host and a static
+  // token, so the session lookup does not apply to it.
+  if (isTokenClient(companyId)) return openTokenClient(companyId) as any;
+  return openClient(companyId, baseUrl);
 }
 
 // Resolve one client once (login + catalog + vendor + evaluator + config),
 // and give back a disposer so callers can clean up the DB/HTTP connections.
-async function openClient(companyId: number) {
+async function openClient(companyId: number, baseUrl?: string) {
   const s = await loadSibling();
-  const base = await s.resolveClientContext(companyId);
+  // A base URL chosen in the UI wins over the one configured for this client.
+  const base = await s.resolveClientContext(companyId, baseUrl);
   const config = await s.ClientConfig.load(base.buyerApi);
   const ctx = { ...base, config };
   return {
@@ -142,9 +148,25 @@ export async function runSelected(
   return out;
 }
 
-/** The capability map (flow on/off + reason) from an already-open client. */
+interface RegistryModule {
+  key: string;
+  title: string;
+  category: string;
+  enabledFor: (config: unknown) => { enabled: boolean; reason?: string };
+}
+
+/**
+ * The capability map (flow on/off + reason) from an already-open client.
+ *
+ * A token client carries no flow registry — its journeys live in the UAT
+ * database, which that account has none of — so it reports an empty map
+ * rather than every flow "off", which would read as a problem with the
+ * account rather than an absence of one.
+ */
 export function capabilityFromClient(client: Awaited<ReturnType<typeof openClientContext>>) {
-  return client.s.REGISTRY.map((m) => {
+  const registry = (client as { s?: { REGISTRY?: RegistryModule[] } }).s?.REGISTRY;
+  if (!registry) return [];
+  return registry.map((m: RegistryModule) => {
     const g = m.enabledFor(client.config);
     return {
       id: m.key,
@@ -235,6 +257,19 @@ function cleanError(err: unknown): string {
  * (The UI's "feature map" panel will use this.)
  */
 export async function getCapabilityMap(companyId: number) {
+  if (isTokenClient(companyId)) {
+    // Nothing to report: the sourcing journeys resolve their data from the UAT
+    // database. Say that, rather than showing every flow as "off" — which
+    // would read as a configuration problem on the account.
+    const client = await openTokenClient(companyId);
+    await client.dispose();
+    return {
+      companyId,
+      companyName: client.companyName,
+      flows: [],
+      note: `${client.tokenClient.name}: ${client.tokenClient.covers}`,
+    };
+  }
   const client = await openClient(companyId);
   try {
     return { companyId, companyName: client.companyName, flows: capabilityFromClient(client) };

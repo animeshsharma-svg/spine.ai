@@ -1,4 +1,4 @@
-# Continue Here — Procol Autonomous-QA Prototype (handoff for the next chat)
+# Continue Here — spine.ai (the Procol autonomous-QA platform) — handoff for the next chat
 
 Paste the **Continuation Prompt** below into a new Claude Code chat to resume. Your
 memory (MEMORY.md + the `procol-qa-platform-build` memory file) auto-loads too.

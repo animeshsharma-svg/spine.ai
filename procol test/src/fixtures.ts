@@ -21,7 +21,7 @@ export const test = base.extend<Fixtures>({
     });
   },
   buyerApi: async ({ request, buyerTokens }, use) => {
-    const client = ApiClient.wrap(request, buyerTokens);
+    const client = ApiClient.wrap(request, buyerTokens, { identity: "buyer" });
     await use(client);
   },
 });

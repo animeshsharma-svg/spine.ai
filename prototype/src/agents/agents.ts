@@ -239,7 +239,7 @@ export async function planner(
   if (ids.length === 0) ids.push("events.rfp_rfq"); // sensible default
 
   const plan: PlannedFlow[] = [...new Set(ids)].map((id) => {
-    const cap = capability.find((c) => c.id === id);
+    const cap = capability.find((c: { id: string; title?: string; category?: string }) => c.id === id);
     return {
       flowId: id,
       name: cap?.title ?? id,

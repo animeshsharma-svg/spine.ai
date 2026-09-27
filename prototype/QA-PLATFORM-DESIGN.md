@@ -1,4 +1,4 @@
-# Procol Autonomous-QA Platform — Design Document (index + build plan)
+# spine.ai — Design Document (index + build plan)
 
 > **Full rendered document (read this first):**
 > https://claude.ai/code/artifact/ce708832-412b-443e-9452-fa5601011586

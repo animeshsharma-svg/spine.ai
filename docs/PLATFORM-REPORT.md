@@ -1,4 +1,4 @@
-# Procol Autonomous QA Platform — the complete technical account
+# spine.ai (the Procol autonomous QA platform) — the complete technical account
 
 *State as of 11 September 2026. Every number below was measured on that day against the live sandbox (`cpanel.ag-ri.in`, company PROCOL DEMO), not estimated.*
 

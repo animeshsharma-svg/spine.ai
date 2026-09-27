@@ -4,6 +4,7 @@ import type { OracleVerdict } from "../agents/oracle.js";
  * One "run" carries a State object that each agent enriches in turn.
  */
 import type { Retrieved } from "../rag/knowledgeBase.js";
+import type { KnownBugRef } from "../report/knownBugs.js";
 
 export type TestType = "functional" | "data-validation" | "edge" | "non-functional";
 
@@ -93,12 +94,16 @@ export interface CheckResult {
   inconclusive?: boolean;
   layer: "api" | "ui";
   inputSummary: string;
+  /** the request as fired, placeholders resolved — the report's curl */
+  request?: { method: string; path: string; body?: unknown };
   httpStatus: number | null;
   accepted: boolean;
   message: string | null;
   durationMs: number;
   pass: boolean;
   verdict: string;
+  /** The QA-sheet row this check reproduces, when it is one the team already logged. */
+  knownBug?: KnownBugRef;
 }
 
 export interface Finding {

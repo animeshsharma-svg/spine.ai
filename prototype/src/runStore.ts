@@ -6,10 +6,12 @@
  * final report. This is the platform's "own database" — separate from Procol's
  * — so past runs can be listed and re-opened without re-running anything.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentEvent, Report, CheckResult } from "./ai/types.js";
+import type { TestCaseRecord } from "./checks/caseLibrary.js";
+import type { JourneyRecord } from "./checks/journeyModel.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS_DIR = join(here, "..", "data", "runs");
@@ -27,6 +29,38 @@ export interface RunRecord {
   flowResults: any[];
   validationResults: any[];
   checkResults?: CheckResult[];
+  /**
+   * The calls that BUILT the thing this run tested, before any case ran.
+   *
+   * A reader's first question about an events run is "what did it make?" — the
+   * report opens the section with these, so the cases read as things done to a
+   * specific event rather than as a list of verdicts about nothing in
+   * particular.
+   */
+  setupSteps?: Array<{
+    n: number;
+    did: string;
+    method: string;
+    path: string;
+    status: number;
+    ms: number;
+    ok: boolean;
+  }>;
+  /** what the setup produced, for the report's heading */
+  setupSummary?: { title: string; status: string; eventGroupUuid: string; tradeId?: string; stageCount: number };
+  /**
+   * The journey this run walked before any case ran: sign in, build the
+   * event, respond as the vendor, wait for the window, evaluate, award — one
+   * record per step, narrated. `setupSteps` and `setupSummary` above are
+   * derived from it for readers that predate the journey; this is the source.
+   */
+  journey?: JourneyRecord;
+  /**
+   * Cases that were pasted into the dashboard for this run, in the library's
+   * shape. The test report reads its rows from here instead of the library,
+   * because these cases exist only in this run.
+   */
+  pastedCases?: TestCaseRecord[];
 }
 
 export interface RunSummary {
@@ -37,9 +71,19 @@ export interface RunSummary {
   headline: string;
   passed: number;
   failed: number;
+  /** Checks that proved nothing either way — never counted as passes. */
+  inconclusive: number;
+  /** How many checks the run ran at all, report or no report. */
+  checks: number;
   findings: number;
   mismatches: number;
   provider: string;
+  /**
+   * The journey in one line, for the Recent-runs card: how many steps worked
+   * of how many, and where it stopped if it did. A feature run's verdict is
+   * this sentence far more than its check counts.
+   */
+  journey?: { outcome: string; worked: number; steps: number; stoppedAt?: number };
 }
 
 function ensureDir() {
@@ -63,6 +107,23 @@ export function getRun(id: string): RunRecord | null {
   return JSON.parse(readFileSync(file, "utf8")) as RunRecord;
 }
 
+/**
+ * Throw a run away.
+ *
+ * A run is a record of something that really happened, so nothing deletes one
+ * on its own — but a run made while testing the platform itself, or one that
+ * wrote a purchase order nobody wanted, is noise in the history and in every
+ * report built from it. Returns false when there was nothing there, so the
+ * caller can say "already gone" rather than claiming a deletion it did not do.
+ */
+export function deleteRun(id: string): boolean {
+  const safe = id.replace(/[^0-9a-zA-Z_-]/g, "");
+  const file = join(RUNS_DIR, `${safe}.json`);
+  if (!existsSync(file)) return false;
+  rmSync(file, { force: true });
+  return true;
+}
+
 /** Newest first. */
 export function listRuns(limit = 20): RunSummary[] {
   ensureDir();
@@ -75,17 +136,40 @@ export function listRuns(limit = 20): RunSummary[] {
   for (const f of files) {
     try {
       const r = JSON.parse(readFileSync(join(RUNS_DIR, f), "utf8")) as RunRecord;
+      /**
+       * Counted from the checks when there is no agent report.
+       *
+       * Only the agent pipeline writes `report`; a feature run keeps its
+       * results in `checkResults`. Reading the report alone meant every
+       * feature run in the history showed "0✓ 0✗ · clean" — including runs
+       * that had found real failures.
+       */
+      const checks = r.checkResults ?? [];
+      const checkPassed = checks.filter((c: any) => c.pass).length;
+      const checkInconclusive = checks.filter((c: any) => !c.pass && c.inconclusive).length;
+      const checkFailed = checks.length - checkPassed - checkInconclusive;
+
       out.push({
         id: r.id,
         ts: r.ts,
         request: r.request,
         companyName: r.companyName,
         headline: r.report?.headline ?? "—",
-        passed: r.report?.passed ?? 0,
-        failed: r.report?.failed ?? 0,
+        passed: r.report?.passed ?? checkPassed,
+        failed: r.report?.failed ?? checkFailed,
+        inconclusive: checkInconclusive,
+        checks: checks.length,
         findings: r.report?.findings?.length ?? 0,
         mismatches: (r.validationResults ?? []).filter((v: any) => v.mismatch).length,
         provider: r.provider,
+        journey: r.journey
+          ? {
+              outcome: r.journey.outcome,
+              worked: (r.journey.steps ?? []).filter((s) => s.verdict === "worked").length,
+              steps: (r.journey.steps ?? []).length,
+              ...(r.journey.stoppedAt ? { stoppedAt: r.journey.stoppedAt } : {}),
+            }
+          : undefined,
       });
     } catch {
       /* skip a corrupt file */

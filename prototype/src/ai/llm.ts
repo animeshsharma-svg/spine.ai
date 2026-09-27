@@ -118,6 +118,24 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
   // reasoned through the lot. The reason tier gets room to think; the fast
   // tier answers short questions and needs far less.
   const REASONING_ALLOWANCE = opts.tier === "reason" ? 6_000 : 1_500;
+  /**
+   * HOW LONG THIS TIER IS WORTH WAITING FOR.
+   *
+   * Measured 2026-09-11: the gateway serves every HACK26 model with
+   * azure_ai/Kimi-K2.7-Code, and a one-word answer takes ~11s. Groq answers
+   * the same prompt in ~0.6s. That is fine for the compiler, where a better
+   * plan is worth ten seconds — and it is the whole reason the 7-agent run
+   * looked dead: seven agents at 11-20s each is over two minutes of blank
+   * screen for work that used to take fifteen seconds.
+   *
+   * So the tiers get different patience. `reason` is allowed to think; the
+   * inner loop is not, and hands over to the next provider rather than making
+   * someone watch a spinner. Overridable per environment: a faster day on the
+   * gateway only needs SLINGRING_FAST_TIMEOUT_MS raised.
+   */
+  const deadline = opts.tier === "reason" || opts.tier === "long"
+    ? Number(process.env.SLINGRING_SLOW_TIMEOUT_MS ?? 90_000)
+    : Number(process.env.SLINGRING_FAST_TIMEOUT_MS ?? 4_000);
   const body = JSON.stringify({
     model,
     messages,
@@ -125,11 +143,23 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
     max_tokens: (opts.maxTokens ?? 900) + REASONING_ALLOWANCE,
   });
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetch(`${AI.slingring.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body,
-    });
+    const stop = AbortSignal.timeout(deadline);
+    let res: Response;
+    try {
+      res = await fetch(`${AI.slingring.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body,
+        signal: stop,
+      });
+    } catch (err) {
+      // A deadline is a hand-off, not a crash: the chain tries the next one.
+      throw new Error(
+        (err as Error).name === "TimeoutError"
+          ? `slingring did not answer the ${opts.tier ?? "fast"} tier within ${deadline}ms`
+          : (err as Error).message,
+      );
+    }
     if (res.ok) {
       const j: any = await res.json();
       const served = String(j.model ?? model);
@@ -258,7 +288,7 @@ export async function narrate(role: string, facts: string): Promise<string> {
         {
           role: "system",
           content:
-            `You are the "${role}" agent in an autonomous QA system for Procol, a B2B procurement platform. ` +
+            `You are the "${role}" agent in spine.ai, an autonomous QA system for Procol, a B2B procurement platform. ` +
             `Explain your reasoning to a smart non-technical stakeholder in 2–4 short, confident sentences. ` +
             `Be concrete and ground every claim in the FACTS provided. Never invent details beyond the facts. No preamble.`,
         },

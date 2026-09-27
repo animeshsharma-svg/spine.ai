@@ -1,4 +1,4 @@
-# Procol Autonomous QA Platform
+# spine.ai — the autonomous QA platform for Procol
 
 An AI system that conducts a QA investigation against Procol: it decides what to test, drives the
 real product in a browser, judges the evidence, and remembers what it found.

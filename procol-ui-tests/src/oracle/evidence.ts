@@ -1,4 +1,5 @@
 import { Page, Request, Response } from "@playwright/test";
+import { redactSecrets } from "../support/redact.js";
 import { drainToasts } from "./journal.js";
 
 /**
@@ -35,6 +36,8 @@ export interface Evidence {
   consoleErrors: string[];
   /** Deliberate notes the flow adds, e.g. "stages composed: [rfq]". */
   notes: string[];
+  /** path (relative to findings/) of the screen the journey died on */
+  screenshot?: string;
 }
 
 /**
@@ -142,19 +145,22 @@ export class EvidenceCollector {
       }
       this.evidence.httpFailures.push({
         method: req.method(),
-        url,
+        url: redactSecrets(url),
         // Route shape, not the literal URL: `/api/event_groups/Z3BnY2tY` and the
         // next run's `/api/event_groups/UVFnY2tO` are the SAME defect, and a
         // finding titled with a one-off id can never be recognised as a repeat.
-        path: routeShape(url),
+        path: redactSecrets(routeShape(url)),
         status: res.status(),
-        requestBody: requestBody?.slice(0, 4_000) ?? null,
-        responseBody,
+        requestBody: requestBody ? redactSecrets(requestBody).slice(0, 4_000) : null,
+        responseBody: redactSecrets(responseBody),
         at: new Date().toISOString(),
       });
     };
     const onConsole = (msg: { type(): string; text(): string }) => {
-      if (msg.type() === "error") this.evidence.consoleErrors.push(msg.text().slice(0, 400));
+      // Redacted on the way in: a console error can carry the URL that failed,
+      // and one of Procol's own carries the session token in its query string.
+      if (msg.type() === "error")
+        this.evidence.consoleErrors.push(redactSecrets(msg.text()).slice(0, 400));
     };
     this.page.on("response", onResponse);
     this.page.on("console", onConsole as never);
@@ -169,7 +175,7 @@ export class EvidenceCollector {
     const realLog = console.log.bind(console);
     console.log = (...args: unknown[]) => {
       const line = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-      if (line.length < 500) this.evidence.notes.push(line);
+      if (line.length < 500) this.evidence.notes.push(redactSecrets(line));
       realLog(...args);
     };
     this.detach.push(() => {

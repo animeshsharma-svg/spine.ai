@@ -68,11 +68,22 @@ function invariants(plan: TestPlan): string[] {
   }
 
   if (steps[0] !== "open_create") problems.push("does not start with open_create");
-  if (!has("set_title")) problems.push("never sets a title");
+  /**
+   * A plan that expects publish to be REFUSED is incomplete on purpose.
+   *
+   * These invariants describe a plan meant to succeed. Applied to a negative
+   * case they contradict it: "publish with no title and check it is refused"
+   * was marked as never setting a title, publishing with no schedule and
+   * publishing with no participants — three complaints about the three things
+   * that make it the test it is. The same reasoning is already spelled out for
+   * per-stage configuration a few lines down; it belongs here too.
+   */
+  const refusalExpected = has("expect_publish_blocked");
+  if (!has("set_title") && !refusalExpected) problems.push("never sets a title");
   if (has("add_line_items") && !has("select_template")) problems.push("adds line items with no template");
   if (has("add_line_items") && has("select_template") && at("select_template") > at("add_line_items"))
     problems.push("selects the template after adding line items");
-  if (has("publish")) {
+  if (has("publish") && !refusalExpected) {
     if (!has("set_schedule")) problems.push("publishes without committing the schedule");
     if (!has("invite_vendor")) problems.push("publishes with no participants");
     if (at("set_schedule") > at("publish")) problems.push("saves the schedule after publishing");
