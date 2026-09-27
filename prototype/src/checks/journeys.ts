@@ -410,8 +410,13 @@ export interface Journey extends JourneyDef {
 /** Order cases within a journey: UI before API, then P0→P3, then id. */
 function order(a: CatalogCase, b: CatalogCase): number {
   if (a.layer !== b.layer) return a.layer === "ui" ? -1 : 1;
-  const pa = Number(a.priority.replace(/\D/g, "")) || 9;
-  const pb = Number(b.priority.replace(/\D/g, "")) || 9;
+  // P0 must sort first: `Number("0") || 9` would turn it into 9 (0 is falsy).
+  const rank = (p: string) => {
+    const n = Number.parseInt(p.replace(/\D/g, ""), 10);
+    return Number.isNaN(n) ? 9 : n;
+  };
+  const pa = rank(a.priority);
+  const pb = rank(b.priority);
   if (pa !== pb) return pa - pb;
   return a.id.localeCompare(b.id);
 }

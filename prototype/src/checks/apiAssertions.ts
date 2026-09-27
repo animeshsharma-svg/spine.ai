@@ -32,6 +32,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { JourneyStepRecord, StepKind } from "./journeyModel.js";
+import { humanActual, type ActualFacts, type HumanCase } from "./humanize.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ASSERTIONS_FILE = join(here, "..", "..", "data", "api-assertions.json");
@@ -70,6 +71,8 @@ export interface FieldAssertion {
   severity: Severity;
   /** how many real responses the inference saw for this step */
   samples: number;
+  /** The same check written as a tester would write it (`humanize.ts`). */
+  human?: HumanCase;
 }
 
 export interface AssertionResult {
@@ -82,6 +85,10 @@ export interface AssertionResult {
   /** true passed · false failed · null could not be evaluated (e.g. the array was empty) */
   pass: boolean | null;
   actual?: string;
+  /** plain-English title / expected result / what came back */
+  humanTitle?: string;
+  humanExpected?: string;
+  humanActual?: string;
 }
 
 export interface StepAssertions {
@@ -245,81 +252,100 @@ function getAt(root: unknown, path: string): unknown {
 }
 
 function judge(a: FieldAssertion, ctx: { data: unknown; status: number; ms: number; body: unknown; made: Record<string, string> }): AssertionResult {
-  const base = { id: a.id, path: a.path, op: a.op, title: a.title, expected: a.expected, severity: a.severity };
-  const r = (pass: boolean | null, actual?: string): AssertionResult => ({ ...base, pass, ...(actual !== undefined ? { actual } : {}) });
+  const base = {
+    id: a.id,
+    path: a.path,
+    op: a.op,
+    title: a.title,
+    expected: a.expected,
+    severity: a.severity,
+    ...(a.human ? { humanTitle: a.human.title, humanExpected: a.human.expected } : {}),
+  };
+  /** One result: the engineer's `actual`, and the same facts as a sentence for everyone else. */
+  const r = (pass: boolean | null, actual: string, facts: Omit<ActualFacts, "op" | "pass"> = {}): AssertionResult => ({
+    ...base,
+    pass,
+    actual,
+    humanActual: humanActual({ op: a.op, pass, ...facts }),
+  });
   switch (a.op) {
     case "status_2xx":
-      return r(ctx.status >= 200 && ctx.status < 300, `HTTP ${ctx.status}`);
+      return r(ctx.status >= 200 && ctx.status < 300, `HTTP ${ctx.status}`, { status: ctx.status });
     case "max_ms":
-      return r(ctx.ms <= Number(a.value), `${ctx.ms} ms`);
+      return r(ctx.ms <= Number(a.value), `${ctx.ms} ms`, { ms: ctx.ms });
     case "json_body": {
       const t = jsonType(ctx.data);
-      return r(t === "object" || t === "array", t);
+      return r(t === "object" || t === "array", t, { seen: ctx.data });
     }
   }
   const vals = resolveAll(ctx.data, a.path);
-  if (!vals.length) return r(null, "the array it lives in was empty");
+  if (!vals.length) return r(null, "the array it lives in was empty", { reason: "the list it belongs to came back empty" });
   const present = vals.filter((v) => v !== MISSING);
   switch (a.op) {
     case "exists": {
       const absent = vals.length - present.length;
-      return r(absent === 0, absent ? `absent on ${absent} of ${vals.length}` : `present on ${vals.length}`);
+      return r(absent === 0, absent ? `absent on ${absent} of ${vals.length}` : `present on ${vals.length}`, { total: vals.length, missing: absent });
     }
     case "type_is": {
-      if (!present.length) return r(null, "absent");
+      if (!present.length) return r(null, "absent", { reason: "the field was not in the response" });
       const allowed = a.value as string[];
       const bad = present.find((v) => !allowed.includes(jsonType(v)));
-      return r(bad === undefined, bad === undefined ? jsonType(present[0]) : `${jsonType(bad)} (${show(bad)})`);
+      return r(bad === undefined, bad === undefined ? jsonType(present[0]) : `${jsonType(bad)} (${show(bad)})`, { seen: present[0], bad });
     }
     case "format": {
       const f = FORMATS[String(a.value)];
       const vs = present.filter((v) => v !== null && v !== "");
-      if (!f || !vs.length) return r(null, "no value to check");
+      if (!f || !vs.length) return r(null, "no value to check", { reason: "it was empty, so there was no value to check" });
       const bad = vs.find((v) => !f.test(v));
-      return r(bad === undefined, bad === undefined ? show(vs[0]) : show(bad));
+      return r(bad === undefined, bad === undefined ? show(vs[0]) : show(bad), { seen: vs[0], bad, format: String(a.value) });
     }
     case "one_of": {
       // null means "not set" (an RFQ-only event has no RFP evaluation mode):
       // whether a value may be null is the type check's business, not this one.
       const set = present.filter((v) => v !== null);
-      if (!set.length) return r(null, present.length ? "not set (null)" : "absent");
+      if (!set.length) return r(null, present.length ? "not set (null)" : "absent", { reason: present.length ? "it was not set (empty) for this kind of event" : "the field was not in the response" });
       const allowed = a.value as unknown[];
       const bad = set.find((v) => !allowed.some((x) => JSON.stringify(x) === JSON.stringify(v)));
-      return r(bad === undefined, bad === undefined ? show(set[0]) : show(bad));
+      return r(bad === undefined, bad === undefined ? show(set[0]) : show(bad), { seen: set[0], bad });
     }
     case "non_empty": {
       const arr = present[0];
-      return r(Array.isArray(arr) && arr.length > 0, Array.isArray(arr) ? `${arr.length} element(s)` : jsonType(arr));
+      return r(Array.isArray(arr) && arr.length > 0, Array.isArray(arr) ? `${arr.length} element(s)` : jsonType(arr), { count: Array.isArray(arr) ? arr.length : 0 });
     }
     case "gte": {
       const nums = present
         .filter((v) => v !== null && v !== "")
         .map((v) => (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v));
-      if (!nums.length) return r(null, "no value to check");
+      if (!nums.length) return r(null, "no value to check", { reason: "it was empty, so there was no figure to check" });
       const bad = nums.find((n) => typeof n !== "number" || n < Number(a.value));
-      return r(bad === undefined, bad === undefined ? show(nums[0]) : show(bad));
+      return r(bad === undefined, bad === undefined ? show(nums[0]) : show(bad), { seen: nums[0], bad });
     }
     case "equals_request": {
       const want = getAt(ctx.body, a.ref ?? "");
-      if (want === MISSING || want === undefined || Array.isArray(want)) return r(null, "this run's request did not carry that field");
+      if (want === MISSING || want === undefined || Array.isArray(want))
+        return r(null, "this run's request did not carry that field", { reason: "this run's request did not include that field" });
       const same = (v: unknown) => JSON.stringify(v) === JSON.stringify(want);
       // Across a list the server may reorder items, so "comes back as sent"
       // means the sent value is AMONG the returned ones, not at the same index.
       if (a.path.includes("[*]")) {
         const hit = present.some(same);
-        return r(hit, hit ? `found among ${present.length} (sent ${show(want)})` : `not among ${present.length} returned (sent ${show(want)})`);
+        return r(hit, hit ? `found among ${present.length} (sent ${show(want)})` : `not among ${present.length} returned (sent ${show(want)})`, {
+          sent: want,
+          seen: hit ? want : undefined,
+          bad: hit ? undefined : present[0],
+        });
       }
       const bad = present.find((v) => !same(v));
-      return r(bad === undefined, bad === undefined ? `${show(present[0])} (sent ${show(want)})` : `${show(bad)} (sent ${show(want)})`);
+      return r(bad === undefined, bad === undefined ? `${show(present[0])} (sent ${show(want)})` : `${show(bad)} (sent ${show(want)})`, { sent: want, seen: present[0], bad });
     }
     case "equals_made": {
       const want = ctx.made[a.ref ?? ""];
-      if (!want) return r(null, `no ${a.ref} was produced earlier in this run`);
+      if (!want) return r(null, `no ${a.ref} was produced earlier in this run`, { reason: "the earlier step that makes that record did not run" });
       const bad = present.find((v) => String(v) !== String(want));
-      return r(bad === undefined, bad === undefined ? `${show(present[0])}` : `${show(bad)} (expected ${want})`);
+      return r(bad === undefined, bad === undefined ? `${show(present[0])}` : `${show(bad)} (expected ${want})`, { seen: present[0], bad, expectedMade: want });
     }
   }
-  return r(null, "unknown check");
+  return r(null, "unknown check", { reason: "this kind of check is not known" });
 }
 
 let cached: { mtime: number; catalog: AssertionCatalog | null } | undefined;

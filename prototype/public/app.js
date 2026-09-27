@@ -503,6 +503,7 @@ async function init() {
   loadPoInput();
   loadHistory();
   loadCatalogue();
+  initCaseBook();
   initBugControls();
   initEnvControl();
   setTargetGlance();
@@ -3049,14 +3050,17 @@ function journeyChecksHtml(a) {
     `${a.failed ? "✗" : "✓"} ${a.passed}/${a.total} field checks passed` +
     (a.failed ? ` · ${a.failed} failed` : "") +
     (a.skipped ? ` · ${a.skipped} not checked` : "");
+  const word = (p) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
   return (
     `<details class="jchecks ${a.failed ? "has-fail" : ""}"><summary>${esc(head)}</summary><table class="jchecks-t">` +
+    `<tr class="jc-head"><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr>` +
     rows
       .map(
         (r) =>
-          `<tr class="${cls(r.pass)}"><td class="jc-i">${icon(r.pass)}</td><td class="jc-t">${esc(r.title)}</td>` +
-          `<td class="jc-e">${esc(r.expected || "")}</td><td class="jc-a">${esc(r.actual || "")}</td>` +
-          `<td class="jc-id">${esc(r.id)}</td></tr>`,
+          `<tr class="${cls(r.pass)}"><td class="jc-t"><span class="jc-id">${esc(r.id)}</span>${esc(r.humanTitle || r.title)}</td>` +
+          `<td class="jc-e">${esc(r.humanExpected || r.expected || "")}</td>` +
+          `<td class="jc-a" title="${esc(r.actual || "")}">${esc(r.humanActual || r.actual || "")}</td>` +
+          `<td class="jc-i">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
       )
       .join("") +
     `</table></details>`
@@ -5183,4 +5187,182 @@ async function loadGaps() {
   } catch {
     /* server restarting */
   }
+}
+
+// ── THE TEST CASE BOOK ──────────────────────────────────────────────────────
+//
+// Every written test case, by user journey, read as a QA sheet reads: case,
+// steps, expected result, actual result, result. The actual result is copied
+// from the latest real run of that case (/api/case-book); a case that has not
+// run says so rather than showing a guess.
+
+let caseBook = null;
+const CB_RESULT = {
+  passed: ["✓", "Passed", "ok"],
+  failed: ["✗", "Failed", "bad"],
+  "not-checked": ["–", "Not checked", "skip"],
+  "not-run": ["·", "Not run yet", "none"],
+};
+const cbAttr = (s) => esc(s).replace(/"/g, "&quot;");
+const cbPlain = (s) => String(s ?? "").replace(/`/g, "");
+const cbResultOf = (c) => (c.last ? c.last.result : "not-run");
+function cbWhen(iso) {
+  try {
+    return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso ?? "";
+  }
+}
+function cbSteps(s) {
+  // "1. Do this. 2. Then that." → one line per numbered step
+  return cbPlain(s)
+    .split(/\s(?=\d+\.\s)/)
+    .map((p) => esc(p))
+    .join("<br>");
+}
+
+function initCaseBook() {
+  document.querySelectorAll(".cb-tab").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".cb-tab").forEach((x) => x.classList.toggle("on", x === b));
+      const pane = b.dataset.cbtab;
+      const book = $("#cb-pane-book");
+      const lib = $("#cb-pane-library");
+      if (book) book.hidden = pane !== "book";
+      if (lib) lib.hidden = pane !== "library";
+    }),
+  );
+  let t;
+  for (const id of ["#cb-search", "#cb-journey", "#cb-layer", "#cb-priority", "#cb-result"]) {
+    $(id)?.addEventListener("input", () => {
+      clearTimeout(t);
+      t = setTimeout(renderCaseBook, 150);
+    });
+  }
+  loadCaseBook();
+}
+
+async function loadCaseBook() {
+  const box = $("#casebook");
+  if (!box) return;
+  try {
+    caseBook = await (await fetch("/api/case-book")).json();
+  } catch {
+    box.innerHTML = `<div class="empty">Could not read the test case book.</div>`;
+    return;
+  }
+  const pick = $("#cb-journey");
+  if (pick)
+    pick.innerHTML =
+      '<option value="">Every journey</option>' +
+      caseBook.journeys.map((j) => `<option value="${cbAttr(j.id)}">${j.order}. ${esc(j.title)} (${j.cases.length})</option>`).join("");
+  const n = $("#cb-tab-n");
+  if (n) n.textContent = `(${caseBook.tally.cases})`;
+  renderCaseBook();
+}
+
+function renderCaseBook() {
+  const box = $("#casebook");
+  if (!box || !caseBook) return;
+  const q = ($("#cb-search")?.value ?? "").trim().toLowerCase();
+  const jf = $("#cb-journey")?.value ?? "";
+  const lf = $("#cb-layer")?.value ?? "";
+  const pf = $("#cb-priority")?.value ?? "";
+  const rf = $("#cb-result")?.value ?? "";
+  const filtering = !!(q || jf || lf || pf || rf);
+  const match = (c) => {
+    if (lf === "field" ? !/^API-F/.test(c.id) : lf && c.layer !== lf) return false;
+    if (pf && c.priority !== pf) return false;
+    if (rf && cbResultOf(c) !== rf) return false;
+    if (!q) return true;
+    return `${c.id} ${c.title} ${c.expected} ${c.steps} ${c.section} ${c.last?.actual ?? ""}`.toLowerCase().includes(q);
+  };
+
+  box.innerHTML = "";
+  const t = { passed: 0, failed: 0, "not-checked": 0, "not-run": 0 };
+  let shown = 0;
+  for (const j of caseBook.journeys) {
+    if (jf && j.id !== jf) continue;
+    const cases = j.cases.filter(match);
+    if (!cases.length) continue;
+    const r = { passed: 0, failed: 0, "not-checked": 0, "not-run": 0 };
+    for (const c of cases) r[cbResultOf(c)]++;
+    for (const k of Object.keys(t)) t[k] += r[k];
+    shown += cases.length;
+    const d = el("details", "cb-journey");
+    d.innerHTML =
+      `<summary class="cb-jhead"><span class="cb-jn">${j.order}</span>` +
+      `<div class="cb-jt"><h2>${esc(j.title)}</h2><p>${esc(j.persona)} — ${esc(j.goal)}</p></div>` +
+      `<span class="cb-jnums"><b>${cases.length}</b> case${cases.length === 1 ? "" : "s"}` +
+      `<span class="ok">✓ ${r.passed} passed</span>` +
+      (r.failed ? `<span class="bad">✗ ${r.failed} failed</span>` : "") +
+      `<span class="mute">${r["not-run"]} not run yet</span></span></summary>`;
+    const build = () => {
+      if (d.dataset.built) return;
+      d.dataset.built = "1";
+      d.appendChild(cbTable(cases));
+    };
+    // Filtering opens what matched (the reader already said what they want);
+    // otherwise the book opens as a contents page, one line per journey.
+    if (filtering && (jf || cases.length <= 150)) {
+      d.open = true;
+      build();
+    } else d.addEventListener("toggle", () => d.open && build());
+    box.appendChild(d);
+  }
+  const sum = $("#cb-summary");
+  if (sum)
+    sum.innerHTML =
+      `<span><b>${shown}</b> test case${shown === 1 ? "" : "s"}${filtering ? " matching" : ""}</span>` +
+      `<span class="ok"><b>${t.passed}</b> passed</span>` +
+      `<span class="bad"><b>${t.failed}</b> failed</span>` +
+      `<span><b>${t["not-checked"]}</b> not checked</span>` +
+      `<span class="mute"><b>${t["not-run"]}</b> not run yet</span>` +
+      `<span class="cb-expand"><button type="button" data-cb="open">expand all</button><button type="button" data-cb="close">collapse all</button></span>`;
+  sum?.querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => {
+      box.querySelectorAll(".cb-journey").forEach((d) => {
+        d.open = b.dataset.cb === "open";
+      });
+    }),
+  );
+  if (!shown) box.innerHTML = `<div class="empty">No test case matches that.</div>`;
+}
+
+function cbTable(cases) {
+  const wrap = el("div", "cb-table-wrap");
+  let html =
+    `<table class="cb-table"><thead><tr><th>Case ID</th><th>Test case &amp; steps</th>` +
+    `<th>Expected result</th><th>Actual result</th><th>Result</th><th>Priority</th></tr></thead><tbody>`;
+  let sec = null;
+  for (const c of cases) {
+    if (c.section !== sec) {
+      sec = c.section;
+      html += `<tr class="cb-sec"><td colspan="6">${esc(cbPlain(sec))}</td></tr>`;
+    }
+    const [ic, word, cls] = CB_RESULT[cbResultOf(c)];
+    const actual = c.last
+      ? `${esc(c.last.actual)}<div class="cb-where">${esc(c.last.where)} · ${esc(cbWhen(c.last.at))}` +
+        (c.last.runId ? ` · <a href="/api/test-report?run=${encodeURIComponent(c.last.runId)}" target="_blank" rel="noopener">open report</a>` : "") +
+        `</div>`
+      : `<span class="mute">Not run yet</span>`;
+    html +=
+      `<tr class="cb-row r-${cls}"><td class="cb-id">${esc(c.id)}</td>` +
+      `<td class="cb-title">${esc(cbPlain(c.title))}<div class="cb-steps">${cbSteps(c.steps)}</div></td>` +
+      `<td class="cb-exp">${esc(cbPlain(c.expected))}</td>` +
+      `<td class="cb-act">${actual}</td><td class="cb-res ${cls}">${ic} ${word}</td>` +
+      `<td><span class="cb-pri p-${cbAttr(String(c.priority).toLowerCase())}">${esc(c.priority)}</span></td></tr>` +
+      `<tr class="cb-more" hidden><td colspan="6"><b>Why it matters.</b> ${esc(cbPlain(c.why))}` +
+      (c.setup ? `<br><b>Setup.</b> ${esc(cbPlain(c.setup))}` : "") +
+      `<br><b>How it is checked.</b> ${esc(cbPlain(c.oracle))}</td></tr>`;
+  }
+  wrap.innerHTML = html + `</tbody></table>`;
+  wrap.addEventListener("click", (e) => {
+    const row = e.target.closest("tr.cb-row");
+    if (!row || e.target.closest("a")) return;
+    const more = row.nextElementSibling;
+    if (more?.classList.contains("cb-more")) more.hidden = !more.hidden;
+    row.classList.toggle("open");
+  });
+  return wrap;
 }

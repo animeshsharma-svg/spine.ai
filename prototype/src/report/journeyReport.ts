@@ -433,16 +433,23 @@ function renderChecks(step: JourneyStepRecord): string {
     `${a.passed} of ${a.total} field checks passed` +
     (a.failed ? ` · <b>${a.failed} failed</b>` : "") +
     (a.skipped ? ` · ${a.skipped} not checked` : "");
+  const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
+  // Each check reads as a test case: what is tested, what should happen, what
+  // did happen, and the result — in plain English. The engine's own terms stay
+  // one click away (title attribute) for engineers.
   return `
 <details class="jchecks${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""}>
   <summary><h5>Field checks on the response</h5> <span>${head}</span></summary>
   <table class="jchecks-t">
-    <thead><tr><th></th><th>Check</th><th>Expected</th><th>Actual</th><th>Case</th></tr></thead>
+    <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
     <tbody>${rows
       .map(
         (r) =>
-          `<tr class="${cls(r.pass)}"><td>${icon(r.pass)}</td><td>${safe(r.title)}</td><td class="mono">${safe(r.expected)}</td>` +
-          `<td class="mono">${safe(r.actual ?? "")}</td><td class="mono">${safe(r.id)}</td></tr>`,
+          `<tr class="${cls(r.pass)}">` +
+          `<td title="${safe(`${r.op} ${r.path}`)}"><span class="jc-id">${safe(r.id)}</span> ${safe(r.humanTitle ?? r.title)}</td>` +
+          `<td>${safe(r.humanExpected ?? r.expected)}</td>` +
+          `<td title="${safe(r.actual ?? "")}">${safe(r.humanActual ?? r.actual ?? "")}</td>` +
+          `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
       )
       .join("")}</tbody>
   </table>
@@ -737,7 +744,10 @@ details.jchecks.has-fail > summary { color: var(--bad); }
 .jchecks-t td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .jchecks-t td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--muted); }
 .jchecks-t tr.bad td { color: var(--bad); } .jchecks-t tr.bad td.mono { color: var(--bad); }
-.jchecks-t tr.ok td:first-child { color: var(--good); font-weight: 700; }
+.jchecks-t tr.ok td.jc-res { color: var(--good); font-weight: 700; }
+.jchecks-t tr.bad td.jc-res { font-weight: 700; }
+.jchecks-t td.jc-res { white-space: nowrap; }
+.jchecks-t .jc-id { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--muted); }
 .jchecks-t tr.skip td { color: var(--muted); }
 .unwalked { margin: 18px 0 0; }
 .unwalked h4 { margin: 0 0 4px; font-size: 14px; }

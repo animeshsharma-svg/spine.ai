@@ -31,6 +31,7 @@ import {
   type ResponseSample,
 } from "../src/checks/apiAssertions.js";
 import { JOURNEY_ORDER, STEP_META, type JourneyRecord, type StepKind } from "../src/checks/journeyModel.js";
+import { humanCase } from "../src/checks/humanize.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "data", "runs");
@@ -80,6 +81,13 @@ if (!samples.length) {
 // ── 2. infer + keep ids stable ─────────────────────────────────────────────
 const previous = loadAssertionCatalog();
 const catalog: AssertionCatalog = buildAssertionCatalog(samples, previous, cap);
+// Every check also written as a tester would write it — title, steps, expected
+// result in plain English — so the catalog, the dashboard and the report can
+// all show it that way; the machine check stays attached for engineers.
+for (const [k, e] of Object.entries(catalog.steps)) {
+  const meta = STEP_META[k as StepKind];
+  for (const a of e.assertions) a.human = humanCase(a, meta.title, meta.actor);
+}
 writeFileSync(ASSERTIONS_FILE, JSON.stringify(catalog, null, 2) + "\n");
 
 // ── 3. the field assertions as human cases ─────────────────────────────────
@@ -109,12 +117,13 @@ ordered.forEach((k, idx) => {
   md.push(`Step \`${k}\` (${meta.actor})${meta.postman ? ` · Postman: ${meta.postman}` : ""} · seen in: ${types} · ${e.samples} sample(s).`, "");
   for (const a of e.assertions) {
     total++;
-    md.push(`#### ${a.id} — ${a.title.replace(/`/g, "")}`);
+    const h = a.human!;
+    md.push(`#### ${a.id} — ${h.title.replace(/`/g, "")}`);
     md.push(`- **Why it matters.** ${a.why}`);
-    md.push(`- **Setup.** Runs inside the API journey (${types || "any event type"}) on the reply to "${meta.title}".`);
-    md.push(`- **Steps.** Send \`${e.endpoint}\` as the journey does${a.path ? `; read \`${a.path}\` from the response` : ""}.`);
-    md.push(`- **Expected.** ${a.expected}.`);
-    md.push(`- **Oracle.** ${OP_ORACLE(a)} — evaluated automatically on every journey run; inferred from ${a.samples} real response(s).`);
+    md.push(`- **Setup.** A ${meta.actor} walking the API journey (${types || "any event type"}), at the step "${meta.title}".`);
+    md.push(`- **Steps.** ${h.steps}`);
+    md.push(`- **Expected.** ${h.expected}`);
+    md.push(`- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: ${OP_ORACLE(a)}, learned from ${a.samples} real response(s).`);
     md.push(`- **Trace.** ${P[a.severity]} · automate · \`apiAssertions.ts\` · \`${k}\``, "");
   }
 });

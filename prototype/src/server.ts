@@ -60,6 +60,7 @@ import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { buildJourneys } from "./checks/journeys.js";
+import { buildCaseBook } from "./checks/caseBook.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
 import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 import { flowToCases, loadRecording } from "./checks/flowToCases.js";
@@ -1493,6 +1494,12 @@ const server = createServer(async (req, res) => {
     // 648 cases live in `test-cases/*.md`. This serves them with the route
     // each one would take if run, so the dashboard can show a person what
     // will actually happen rather than an undifferentiated Run button.
+    // ── API: the case book — every written case by journey, with its latest
+    //         real result (expected vs actual) copied from the runs ──────────
+    if (path === "/api/case-book") {
+      return json(res, buildCaseBook());
+    }
+
     if (path === "/api/test-cases") {
       const layer = url.searchParams.get("layer") as "ui" | "api" | null;
       const found = findCases({
