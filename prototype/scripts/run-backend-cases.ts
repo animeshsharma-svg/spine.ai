@@ -183,6 +183,57 @@ async function main() {
     );
   }
 
+  // ── VAL-FLAG-001 · unknown config key rejected by the allow-list ───────
+  {
+    const a = await api.attempt("POST", "/custom_configuration", {
+      body: { config_key: "__api_test_bogus_key__", item_type: "Company", value: true },
+    });
+    const c = errCode(a);
+    recordReject(
+      { case: "VAL-FLAG-001", title: "unknown config key rejected (MasterConfiguration allow-list)", method: "POST", path: "/custom_configuration", expected: "1103 / reject", got: `${a.status} code=${c ?? "-"} ${errMsg(a)}`.trim() },
+      a,
+      !a.ok,
+    );
+  }
+
+  // ── VAL-FLAG-002 · scheduled-events gate (read; 904 off, 200 on) ───────
+  {
+    const a = await api.attempt("GET", "/event_groups/scheduled");
+    const c = errCode(a);
+    if (notDeployed(a)) {
+      results.push({ case: "VAL-FLAG-002", title: "scheduled-events access gate", method: "GET", path: "/event_groups/scheduled", expected: "904 (off) or 200 (on)", got: `${a.status} — endpoint not deployed on sandbox`, state: "N/A" });
+    } else {
+      const gateOff = c === "904" || a.status === 403;
+      results.push({
+        case: "VAL-FLAG-002", title: gateOff ? "scheduled-events gate OFF on this company (correctly denied)" : "scheduled-events gate ON (list returned)",
+        method: "GET", path: "/event_groups/scheduled", expected: "904 (off) or 200 (on)",
+        got: `${a.status} code=${c ?? "-"} ${errMsg(a)}`.trim(), state: gateOff || a.ok ? "PASS" : "FAIL",
+      });
+    }
+  }
+
+  // ── VAL-UNIT-001 · unit symbol format rejected (no mutation) ──────────
+  {
+    const a = await api.attempt("POST", "/units", { body: { name: `${SANDBOX}_U1`, symbol: "kg@#$", conversion_factor: 1 } });
+    const c = errCode(a);
+    recordReject(
+      { case: "VAL-UNIT-001", title: "unit symbol with invalid characters is rejected", method: "POST", path: "/units", expected: "reject (format)", got: `${a.status} code=${c ?? "-"} ${errMsg(a)}`.trim() },
+      a,
+      !a.ok,
+    );
+  }
+
+  // ── VAL-UNIT-002 · conversion_factor must be > 0 (no mutation) ────────
+  {
+    const a = await api.attempt("POST", "/units", { body: { name: `${SANDBOX}_U2`, symbol: "qtl", conversion_factor: 0 } });
+    const c = errCode(a);
+    recordReject(
+      { case: "VAL-UNIT-002", title: "unit conversion_factor 0 is rejected (must be > 0)", method: "POST", path: "/units", expected: "reject (numericality)", got: `${a.status} code=${c ?? "-"} ${errMsg(a)}`.trim() },
+      a,
+      !a.ok,
+    );
+  }
+
   await api.dispose?.();
 
   // ── report ────────────────────────────────────────────────────────────
