@@ -117,11 +117,16 @@ function gatherChunks(): Chunk[] {
   //      lives in `data/`, not `knowledge/`, because it is derived from
   //      `test-cases/*.md` — so it needs its own pass rather than the walk.
   for (const c of allCases()) {
+    // PRD-* cases come from the product workbook (test-cases/product-*.md) and
+    // span the whole procure-to-pay product, not the events module — tagging
+    // them "events" would flood events-scoped recall with vendor/PO/invoice
+    // cases. They share the "product" module with knowledge/product/*.md.
+    const product = c.id.startsWith("PRD-");
     chunks.push({
       id: `catalog:${c.id}`,
-      source: `test-cases/events-${c.layer}.md`,
+      source: product ? `test-cases/product (${c.group})` : `test-cases/events-${c.layer}.md`,
       kind: "test-case",
-      module: "events",
+      module: product ? "product" : "events",
       labels: [c.id, c.group, c.priority, c.verdict, c.layer, ...(c.gate ? [c.gate] : [])],
       text:
         `${c.id} (${c.layer.toUpperCase()}, ${c.section}) — ${c.title}. ` +

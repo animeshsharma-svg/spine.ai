@@ -3036,6 +3036,33 @@ function journeyMs(ms) {
   return elapsedInWords(ms);
 }
 
+/**
+ * Postman-style "Tests" for one journey step: the field-level assertions the
+ * runner evaluated against the live reply. Failed first, then the rest.
+ */
+function journeyChecksHtml(a) {
+  if (!a || !a.total) return "";
+  const icon = (p) => (p === true ? "✓" : p === false ? "✗" : "–");
+  const cls = (p) => (p === true ? "ok" : p === false ? "bad" : "skip");
+  const rows = [...(a.results || [])].sort((x, y) => (x.pass === false ? -1 : 0) - (y.pass === false ? -1 : 0));
+  const head =
+    `${a.failed ? "✗" : "✓"} ${a.passed}/${a.total} field checks passed` +
+    (a.failed ? ` · ${a.failed} failed` : "") +
+    (a.skipped ? ` · ${a.skipped} not checked` : "");
+  return (
+    `<details class="jchecks ${a.failed ? "has-fail" : ""}"><summary>${esc(head)}</summary><table class="jchecks-t">` +
+    rows
+      .map(
+        (r) =>
+          `<tr class="${cls(r.pass)}"><td class="jc-i">${icon(r.pass)}</td><td class="jc-t">${esc(r.title)}</td>` +
+          `<td class="jc-e">${esc(r.expected || "")}</td><td class="jc-a">${esc(r.actual || "")}</td>` +
+          `<td class="jc-id">${esc(r.id)}</td></tr>`,
+      )
+      .join("") +
+    `</table></details>`
+  );
+}
+
 function renderJourney() {
   const node = ensureJourneyNode();
   const planned = journeyLive?.steps ?? [];
@@ -3066,11 +3093,16 @@ function renderJourney() {
 
   let html = "";
   if (planned.length || records.length) {
+    const checks = records.reduce(
+      (t, st) => (st.assertions ? { n: t.n + st.assertions.total, ok: t.ok + st.assertions.passed, bad: t.bad + st.assertions.failed } : t),
+      { n: 0, ok: 0, bad: 0 },
+    );
     const tally = records.length
       ? `${records.length} of ${total} step${total === 1 ? "" : "s"} · ${worked} worked` +
         (refused ? ` · ${refused} refused` : "") +
         (broken ? ` · ${broken} broken` : "") +
-        (notRun ? ` · ${notRun} not run` : "")
+        (notRun ? ` · ${notRun} not run` : "") +
+        (checks.n ? ` · field checks ${checks.ok}/${checks.n}${checks.bad ? ` (${checks.bad} failed)` : ""}` : "")
       : `${total} step${total === 1 ? "" : "s"} planned`;
     html +=
       `<div class="journey-head"><b>The journey this run walks${journeyLive?.label ? ` — ${esc(journeyLive.label)}` : ""}</b>` +
@@ -3104,6 +3136,7 @@ function renderJourney() {
           (rec.actual ? `<div class="jstep-actual">${esc(rec.actual)}</div>` : "") +
           reason +
           (call ? `<div class="jstep-call">${esc(call)}</div>` : "") +
+          (rec.assertions ? journeyChecksHtml(rec.assertions) : "") +
           `</div><span class="jstep-verdict">${esc(JOURNEY_VERDICT_WORD[rec.verdict] ?? rec.verdict)}</span></li>`;
       } else if (i === current) {
         html +=

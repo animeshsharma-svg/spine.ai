@@ -1,11 +1,15 @@
 import { allCases, type CatalogCase } from "./testCatalog.js";
 import { routeFor } from "./caseRouting.js";
+import { STEP_CODE } from "./apiAssertions.js";
+import type { StepKind } from "./journeyModel.js";
 
 /**
  * The written catalog is arranged BY SECTION, which is how a reader navigates
  * it. A USER JOURNEY is a different cut: the ordered path a persona takes to
  * get one job done, which may draw on several sections. This maps the 648
- * cases onto seventeen journeys, computed from the catalog itself — so when a
+ * sourcing cases onto seventeen journeys, and the product-workbook (PRD-*)
+ * cases onto eleven procure-to-pay journeys after them, computed from the
+ * catalog itself — so when a
  * case is added, edited, or re-grouped, its journey follows automatically and
  * nothing here needs touching. That is what "arranged as journeys, and it
  * updates itself" means: the arrangement is derived, never transcribed.
@@ -104,7 +108,7 @@ const JOURNEYS: JourneyDef[] = [
     persona: "Vendor",
     goal: "Sign into the supplier portal and submit a priced quote inside the window.",
     order: 8,
-    uiGroups: ["UI-VBID"],
+    uiGroups: ["UI-VBID", "PRD-KBVDB"],
     apiGroups: ["API-BID"],
     spine: ["place_bid", "expect_bid_submitted"],
   },
@@ -198,7 +202,186 @@ const JOURNEYS: JourneyDef[] = [
     apiGroups: ["API-VAL", "API-DB", "API-NFR"],
     spine: ["expect_error", "expect_no_error"],
   },
+
+  // ── The procure-to-pay lifecycle, from the product workbook ───────────────
+  // The seventeen journeys above cover sourcing events only. These cover the
+  // PRD-* groups that `scripts/import-product-knowledge.ts` generates from the
+  // "Procol Modules and Features" workbook, one journey per lifecycle stage.
+  // Sourcing-module PRD groups get their own journeys rather than joining the
+  // ones above, so those keep exactly the cases (and runs) they had.
+  //
+  // Their spines name the workbook's own steps. They are NOT in the compiler's
+  // step vocabulary (procol-ui-tests/src/plan/steps.ts covers sourcing events
+  // only), so these journeys are for reading and manual runs until it grows.
+  {
+    id: "product-admin",
+    title: "Setting up the tenant: master data, admin and platform settings",
+    persona: "Tenant Admin",
+    goal: "Load the master data (users, materials, services, UOM, tax), set up SSO, roles and data visibility, and configure approval matrices, cost centres and reporting.",
+    order: 18,
+    uiGroups: ["PRD-MDM", "PRD-ADM", "PRD-PLT", "PRD-KBINT"],
+    apiGroups: [],
+    spine: ["bulk_upload_users", "import_material_and_service_master", "configure_sso", "configure_roles_and_visibility", "configure_approval_matrix", "map_cost_centers"],
+  },
+  {
+    id: "product-vendor",
+    title: "Onboarding and managing a vendor",
+    persona: "Buyer, vendor & approvers",
+    goal: "Invite or import a vendor, let them self-register and submit onboarding with verified documents, route it through onboarding approval, activate it and sync it to SAP — then amend, extend or block it over its life.",
+    order: 19,
+    uiGroups: ["PRD-VM", "PRD-KBVON"],
+    apiGroups: [],
+    spine: ["invite_vendor_to_onboard", "vendor_self_register", "submit_onboarding_form", "verify_identity_and_bank", "approve_onboarding", "activate_vendor", "sync_vendor_to_sap"],
+  },
+  {
+    id: "product-demand",
+    title: "Raising demand: intake and purchase requisitions",
+    persona: "Requester & buyer",
+    goal: "Raise demand through intake or ingest released PRs from the ERP, route it for approval with a budget check, and assign, consolidate and move PR lines towards sourcing.",
+    order: 20,
+    uiGroups: ["PRD-INTK", "PRD-PR", "PRD-KBPR", "PRD-KBPTP"],
+    apiGroups: [],
+    spine: ["raise_intake_request", "ingest_erp_pr", "budget_check", "approve_pr", "assign_pr_lines", "consolidate_prs", "add_pr_to_rfx"],
+  },
+  {
+    id: "product-sourcing",
+    title: "Sourcing events as the product defines them",
+    persona: "Buyer, evaluator & vendor",
+    goal: "Run a multi-stage sourcing project — technical evaluation, commercial RFQ with counter offers, comparison on Master QCS, and award.",
+    order: 21,
+    uiGroups: ["PRD-RFX", "PRD-RFP", "PRD-RFQ", "PRD-KBSRC"],
+    apiGroups: [],
+    spine: ["create_rfx_project", "configure_stages", "invite_vendors", "evaluate_technical", "collect_rfq_bids", "counter_offer", "compare_on_mqcs", "award"],
+  },
+  {
+    id: "product-auction",
+    title: "Running a reverse auction",
+    persona: "Buyer & vendor",
+    goal: "Select qualified vendors into a reverse auction, set its strategy, caps and time controls, run it live and negotiate after it closes.",
+    order: 22,
+    uiGroups: ["PRD-RA"],
+    apiGroups: [],
+    spine: ["select_vendors_for_auction", "configure_auction_strategy", "set_price_caps_and_ticks", "run_live_auction", "post_auction_negotiation"],
+  },
+  {
+    id: "product-po",
+    title: "Issuing and managing purchase orders",
+    persona: "Buyer & vendor",
+    goal: "Assemble a PO from the PR, the event and the PO form, get it approved, create it in SAP and send it to the vendor, then manage it after release — amend, hold, short-close, cancel, track consumption.",
+    order: 23,
+    uiGroups: ["PRD-PO"],
+    apiGroups: [],
+    spine: ["assemble_po", "approve_po", "create_po_in_sap", "vendor_acknowledges_po", "amend_or_hold_po", "short_close_or_cancel_po"],
+  },
+  {
+    id: "product-contract",
+    title: "Contracts",
+    persona: "Category manager",
+    goal: "Keep executed contracts in one repository, track expiry, amendments, renewals and consumption, and enforce contract prices on POs.",
+    order: 24,
+    uiGroups: ["PRD-CON"],
+    apiGroups: [],
+    spine: ["store_contract", "track_expiry", "amend_contract", "renew_contract", "enforce_contract_price_on_po"],
+  },
+  {
+    id: "product-receipt",
+    title: "Receiving goods: ASN, GRN and quality check",
+    persona: "Vendor, warehouse & quality",
+    goal: "The vendor announces a shipment (ASN), the warehouse receives it against the PO (GRN), and quality inspects it — pass, fail or partial accept — including MDCC, FAT and PDI.",
+    order: 25,
+    uiGroups: ["PRD-ASN", "PRD-GRN", "PRD-QC"],
+    apiGroups: [],
+    spine: ["create_asn", "link_asn_to_po", "create_grn", "apply_receipt_tolerance", "qc_hold", "inspect_and_decide", "release_or_return"],
+  },
+  {
+    id: "product-invoice",
+    title: "Paying the vendor: invoices, credit/debit notes and disputes",
+    persona: "AP executive & vendor",
+    goal: "Capture a vendor invoice, match it to the PO, GRN and QC (2-, 3- or 4-way), validate tax, and resolve mismatches through credit/debit notes and dispute cases.",
+    order: 26,
+    uiGroups: ["PRD-INV", "PRD-CDN", "PRD-DIS"],
+    apiGroups: [],
+    spine: ["capture_invoice", "match_invoice", "validate_tax", "raise_credit_debit_note", "open_dispute", "resolve_dispute"],
+  },
+  {
+    id: "product-governance",
+    title: "Budgets and approvals",
+    persona: "Finance controller & approvers",
+    goal: "Create budgets on the tenant's hierarchy, track consumption and alerts, and govern every critical action through the approval engine — routing, delegation, escalation.",
+    order: 27,
+    uiGroups: ["PRD-BUD", "PRD-AE"],
+    apiGroups: [],
+    spine: ["create_budget", "track_budget_consumption", "configure_approval_rules", "route_approval", "delegate_or_escalate", "approve_or_send_back"],
+  },
+  {
+    id: "product-insight",
+    title: "Reports, analytics and integrations",
+    persona: "Buyer, category manager & admin",
+    goal: "Generate award documents (NFA/NTD, letter of award), run sourcing and operational reports and analytics, and move award data to SAP through the integration hub.",
+    order: 28,
+    // PRD-XC holds reference-sheet rows whose module has no feature sheet; it
+    // is empty for the current workbook but claimed so it can never orphan.
+    uiGroups: ["PRD-RPT", "PRD-ANL", "PRD-INTG", "PRD-XC"],
+    apiGroups: [],
+    spine: ["generate_nfa_ntd", "run_reports", "view_analytics", "push_mqcs_to_sap"],
+  },
+  {
+    // From the Notion Knowledge Base's "AI Features" section: the AI assistants
+    // cut across intake, PRs, sourcing and awarding, so they read best together.
+    id: "product-ai",
+    title: "AI assistants across the procure-to-pay flow",
+    persona: "Requester, buyer & evaluator",
+    goal: "Raise an intake with AI, let the PR collator group requisitions, generate an RFP's technical questions, discover suppliers with Vendor Finder, and pick winners with Smart Awarding — each producing a result a person then reviews.",
+    order: 29,
+    uiGroups: ["PRD-KBAI"],
+    apiGroups: [],
+    spine: ["ai_intake", "smart_grouping", "rfp_generator", "vendor_finder", "smart_awarding"],
+  },
 ];
+
+/**
+ * The API journey's generated cases — field assertions (`API-F<CODE>`) and
+ * request negatives (`API-N<CODE>`), one group per request step, written by
+ * `scripts/build-api-assertions.ts` — belong to the user journey the step is
+ * part of. The group names are derived from the step kind rather than listed
+ * by hand, so a new step type needs one line here, not a hunt for its codes.
+ */
+const STEP_JOURNEY: Partial<Record<StepKind, string>> = {
+  buyer_login: "arrive",
+  create_draft: "compose",
+  add_stage_rfp: "compose",
+  add_stage_pricing: "compose",
+  publish: "publish",
+  read_back: "publish",
+  vendor_login: "vendor-bid",
+  vendor_open_pricing: "vendor-bid",
+  bid_create: "vendor-bid",
+  bid_products: "vendor-bid",
+  bid_submit: "vendor-bid",
+  vendor_open_technical: "technical",
+  tech_start: "technical",
+  tech_answer: "technical",
+  tech_submit: "technical",
+  evaluator_login: "technical",
+  eval_schema: "technical",
+  eval_score: "technical",
+  eval_submit: "technical",
+  surrogate_tech: "surrogate",
+  surrogate_rfq: "surrogate",
+  counter_offer: "award",
+  award_proposal: "award",
+  award_lines: "award",
+  award_workflow: "award",
+  award_submit: "award",
+  convert_auction: "convert",
+  wait_close: "lifecycle",
+  version: "lifecycle",
+};
+for (const def of JOURNEYS) {
+  for (const [kind, jid] of Object.entries(STEP_JOURNEY) as [StepKind, string][]) {
+    if (jid === def.id) def.apiGroups.push(`API-F${STEP_CODE[kind]}`, `API-N${STEP_CODE[kind]}`);
+  }
+}
 
 export interface JourneyCase {
   id: string;

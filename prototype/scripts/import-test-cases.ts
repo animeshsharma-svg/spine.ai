@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -90,7 +90,7 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
       oracle: (buf.Oracle ?? []).join(" ").replace(/\s+/g, " ").trim(),
       priority,
       verdict,
-      gate: setup.match(/gate:\s*`?([a-z0-9_]+)`?/i)?.[1],
+      gate: setup.match(/gate:\s*`?([a-z0-9_.]+)`?/i)?.[1],
       refs,
       source: trace,
     });
@@ -108,7 +108,9 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
       section = sec[2].trim();
       continue;
     }
-    const head = raw.match(/^#{3,4}\s+((?:UI|API)-[A-Z]+-\d+)\s*[—–-]\s*(.+)$/);
+    // UI-/API- are the hand-written catalog; PRD- are the product-knowledge
+    // cases generated from the Modules & Features workbook.
+    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+-\d+)\s*[—–-]\s*(.+)$/);
     if (head) {
       flush();
       current = {
@@ -136,9 +138,18 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
   return cases;
 }
 
-const ui = parse(join(ROOT, "test-cases", "events-ui.md"), "ui");
-const api = parse(join(ROOT, "test-cases", "events-api.md"), "api");
+// The two hand-written files first, then any generated case files that follow
+// the same format: `api-*.md` (e.g. the per-field API assertions) and
+// `product-*.md` (the product-knowledge cases). Other files in test-cases/
+// (reviews of a PR, backend-change notes) use their own layouts and are left out.
+const CASES_DIR = join(ROOT, "test-cases");
+const extra = (prefix: string) =>
+  readdirSync(CASES_DIR).filter((f) => f.startsWith(prefix) && f.endsWith(".md")).sort().map((f) => join(CASES_DIR, f));
+const ui = [join(CASES_DIR, "events-ui.md"), ...extra("product-")].flatMap((f) => parse(f, "ui"));
+const api = [join(CASES_DIR, "events-api.md"), ...extra("api-")].flatMap((f) => parse(f, "api"));
 const all = [...ui, ...api];
+const dupes = [...all.reduce((m, c) => m.set(c.id, (m.get(c.id) ?? 0) + 1), new Map<string, number>())].filter(([, n]) => n > 1);
+if (dupes.length) console.log(`  ⚠ ${dupes.length} duplicate case id(s): ${dupes.slice(0, 5).map(([id]) => id).join(", ")}`);
 
 const byVerdict = all.reduce<Record<string, number>>((a, c) => ({ ...a, [c.verdict]: (a[c.verdict] ?? 0) + 1 }), {});
 const byPriority = all.reduce<Record<string, number>>((a, c) => ({ ...a, [c.priority]: (a[c.priority] ?? 0) + 1 }), {});

@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { isTokenClient } from "../../config/tokenClients.js";
 import { PROCOL_TEST } from "../executor.js";
 import { redactSecrets } from "./engine.js";
+import { evaluateStepAssertions, keepResponse } from "./apiAssertions.js";
 import {
   STAGE_LABEL,
   STEP_META,
@@ -1445,6 +1446,19 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
     fired = { reply: { status: 0, ok: false, data: null, errorMessage: e instanceof Error ? e.message : String(e), ms: Date.now() - t } };
   }
   finish(rec, fired);
+  // Keep the body for the report and the catalog build, then run the
+  // field-level checks against the FULL live reply (not the trimmed copy),
+  // with the ids the earlier steps produced for the cross-step checks.
+  if (fired.reply && fired.call) {
+    try {
+      rec.response = keepResponse(fired.reply.data, redactBody);
+      const made = Object.assign({}, ...done.map((d) => d.produced ?? {})) as Record<string, string>;
+      const assertions = evaluateStepAssertions(rec, fired.reply.data, made);
+      if (assertions) rec.assertions = assertions;
+    } catch (e) {
+      j.opts.onLine?.(`field checks for step ${n} could not run: ${clean(e instanceof Error ? e.message : String(e))}`);
+    }
+  }
   return rec;
 }
 
