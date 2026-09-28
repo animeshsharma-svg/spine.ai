@@ -13,6 +13,8 @@ export interface LoginResult extends AuthTokens {
   role: Role;
   /** where the one-time code that worked came from, for the report */
   otpSource?: string;
+  /** true when this login recorded a QA test user's Terms-of-Use acceptance */
+  termsAccepted?: boolean;
   appVersion: string;
   baseURL: string;
   raw: unknown;
@@ -27,6 +29,11 @@ interface VerifyResponse {
   };
   [k: string]: unknown;
 }
+
+/** A user the platform created for testing: qa_…@example.com (reserved test domain). */
+export const QA_TEST_EMAIL = /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i;
+const isQaTestUser = (id: IdentityConfig): boolean =>
+  [id.email, id.ownerEmail].some((e) => typeof e === "string" && QA_TEST_EMAIL.test(e));
 
 const deviceInfo = {
   browser: "Chrome",
@@ -119,6 +126,30 @@ export async function authenticate(id: IdentityConfig): Promise<LoginResult> {
       // Only "Invalid OTP" is worth another code; any other refusal is final.
       if (ok || !/invalid otp|"code"\s*:\s*6\b/i.test(text)) break;
     }
+    /**
+     * Code 705: the code was right, but the user has never accepted Procol's
+     * current Terms of Use and Privacy Policy. For a QA TEST user the platform
+     * created itself (qa_…@example.com — a reserved test domain, no real
+     * mailbox) acceptance is recorded with the same flag the web app sends when
+     * the box is ticked. A real person's consent is never given on their behalf:
+     * for them the refusal stands and the report says what to do.
+     */
+    let termsAccepted = false;
+    if (verify.status() === 422 && /"code"\s*:\s*705\b|accept the terms of use/i.test(text) && isQaTestUser(id)) {
+      verify = await ctx.post("/v1/verify_otp", {
+        data: JSON.stringify({
+          ...idBody,
+          otp: used.otp,
+          terms_and_policy_accepted: true,
+          push_token: null,
+          device_info: deviceInfo,
+          device_id: deviceId,
+        }),
+        timeout: CONFIG.timeoutMs,
+      });
+      text = await verify.text();
+      termsAccepted = verify.status() >= 200 && verify.status() <= 204;
+    }
     if (verify.status() < 200 || verify.status() > 204) {
       throw new Error(`verify_otp (${id.role}) failed: HTTP ${verify.status()} — ${text}`);
     }
@@ -141,6 +172,7 @@ export async function authenticate(id: IdentityConfig): Promise<LoginResult> {
       userUuid,
       companyUuid,
       otpSource: used.source,
+      ...(termsAccepted ? { termsAccepted: true } : {}),
       raw,
     };
   } finally {

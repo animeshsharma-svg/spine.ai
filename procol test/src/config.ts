@@ -130,6 +130,12 @@ export interface IdentityConfig {
    * so login tries that code first (auth/uatOtp.ts).
    */
   tenantCompanyId?: number;
+  /**
+   * The email of the person this login is for, when the login itself is by
+   * phone — used only to recognise a QA test user (see login.ts: such a user's
+   * Terms-of-Use acceptance may be recorded automatically; a real person's never).
+   */
+  ownerEmail?: string;
 }
 
 const buyer: IdentityConfig = {

@@ -733,6 +733,7 @@ const vendorLogin: StepSpec = {
       // login is a fact to note, not a fault.
       actual:
         `Signed in as the vendor (${j.vendorName}, ${email}) — the one-time code was accepted${login.otpSource ? ` (${login.otpSource})` : ""}.` +
+        (login.termsAccepted ? " This QA test user had not yet accepted Procol's Terms of Use, so the platform accepted them for it (test users only)." : "") +
         (otherCompany ? ` This user's home company is ${login.companyUuid}; the bid is placed for the invited ${j.vendorCompanyUuid}.` : ""),
       produced,
     };
@@ -1149,7 +1150,7 @@ const evaluatorLogin: StepSpec = {
     const prefix = who.phonePrefix ?? j.s.CONFIG.identities.evaluator.phonePrefix;
     const { login, fired } = await otpLogin(
       j,
-      { ...j.s.CONFIG.identities.evaluator, phone: who.phone, phonePrefix: prefix, tenantCompanyId: j.companyId },
+      { ...j.s.CONFIG.identities.evaluator, phone: who.phone, phonePrefix: prefix, tenantCompanyId: j.companyId, ownerEmail: who.email },
       { phone: who.phone, phone_prefix: prefix },
     );
     if (!login)
@@ -1167,7 +1168,12 @@ const evaluatorLogin: StepSpec = {
       identity: "evaluator",
       companyId: j.companyId,
     });
-    return { ...fired, actual: `Signed in as the evaluator (${who.name}) — the one-time code was accepted${login.otpSource ? ` (${login.otpSource})` : ""}.` };
+    return {
+      ...fired,
+      actual:
+        `Signed in as the evaluator (${who.name}) — the one-time code was accepted${login.otpSource ? ` (${login.otpSource})` : ""}.` +
+        (login.termsAccepted ? " This QA test user had not yet accepted Procol's Terms of Use, so the platform accepted them for it (test users only)." : ""),
+    };
   },
 };
 
