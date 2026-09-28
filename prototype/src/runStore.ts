@@ -83,7 +83,7 @@ export interface RunSummary {
    * of how many, and where it stopped if it did. A feature run's verdict is
    * this sentence far more than its check counts.
    */
-  journey?: { outcome: string; worked: number; steps: number; stoppedAt?: number };
+  journey?: { outcome: string; worked: number; steps: number; stoppedAt?: number; fieldChecks?: { total: number; passed: number; failed: number } };
 }
 
 function ensureDir() {
@@ -168,6 +168,14 @@ export function listRuns(limit = 20): RunSummary[] {
               worked: (r.journey.steps ?? []).filter((s) => s.verdict === "worked").length,
               steps: (r.journey.steps ?? []).length,
               ...(r.journey.stoppedAt ? { stoppedAt: r.journey.stoppedAt } : {}),
+              // Postman-style field checks on every request, when the run made any.
+              ...(() => {
+                const fc = (r.journey.steps ?? []).reduce(
+                  (t, st: any) => (st.assertions ? { total: t.total + st.assertions.total, passed: t.passed + st.assertions.passed, failed: t.failed + st.assertions.failed } : t),
+                  { total: 0, passed: 0, failed: 0 },
+                );
+                return fc.total ? { fieldChecks: fc } : {};
+              })(),
             }
           : undefined,
       });

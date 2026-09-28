@@ -13,6 +13,8 @@ import {
   renderJourneyLede,
   renderJourneyLegend,
   renderJourneySection,
+  renderFieldChecksSection,
+  fieldCheckTotals,
 } from "./journeyReport.js";
 
 /**
@@ -791,6 +793,7 @@ export function renderTestReport({ features, run }: TestReportInput): string {
        then neither a pass nor a failure below would mean anything.</p>`
     : "";
 
+  const fc = fieldCheckTotals(journey);
   const tile = (label: string, value: number | string, cls = "") =>
     `<div class="tile ${cls}"><div class="tile-v">${escapeHtml(value)}</div><div class="tile-l">${escapeHtml(label)}</div></div>`;
 
@@ -1014,6 +1017,18 @@ ${JOURNEY_CSS}
       ${tile("not checked", totals.notrun)}
     </div>`
     }
+    ${
+      fc.total
+        ? `<h5 style="margin-top:16px">API field checks — every field of every request, checked</h5>
+    <div class="tiles">
+      ${tile("field checks", fc.total)}
+      ${tile("passed", fc.passed, "good")}
+      ${tile("failed", fc.failed, fc.failed ? "crit" : "")}
+      ${tile("not checked", fc.skipped)}
+      ${tile("requests checked", fc.steps)}
+    </div>`
+        : ""
+    }
     ${journey && !rows.length ? "" : `<p class="lede" style="margin-top:14px">${scopeLine}</p>`}
     ${howToRead}
     ${
@@ -1048,13 +1063,22 @@ ${JOURNEY_CSS}
     </select>
     <select id="fmodule" aria-label="Filter by module">
       <option value="">Every part of Procol</option>
+      ${fc.total ? `<option value="API field checks">API field checks (${fc.total})</option>` : ""}
       ${allSections.map((s) => `<option value="${escapeHtml(s.label)}">${escapeHtml(s.label)} (${s.rows.length})</option>`).join("")}
     </select>
     <button id="expand" type="button" class="copy">Open everything that broke</button>
     <span class="count" id="showing"></span>
   </div>
 
+  ${renderFieldChecksSection(journey)}
   ${journeySection}
+  ${
+    journey && sections.length
+      ? `<h2 class="other-h">Other checks this run made</h2>
+  <p class="lede">The library cases for the parts of Procol that were ticked but are not part of the event journey above —
+  each one request the platform expects Procol to accept or refuse.</p>`
+      : ""
+  }
   ${
     sections.length
       ? sections
@@ -1134,6 +1158,24 @@ ${JOURNEY_CSS}
       // which already know whether a nested case matched.
       m.classList.toggle("hidden", (isJourney ? false : wrongModule) || live === 0);
     });
+    // The field-check section: a row matches on its own; a request's fold
+    // stays while any of its rows does, and opens when a filter found one.
+    var fcSeen = 0;
+    [].forEach.call(document.querySelectorAll("details.fc-step"), function (g) {
+      var live = 0;
+      [].forEach.call(g.querySelectorAll("tr.fc-row"), function (r) {
+        var ok = (!fv.value || r.getAttribute("data-verdict") === fv.value)
+          && (!fm.value || fm.value === "API field checks")
+          && (!text || (r.getAttribute("data-search") || "").indexOf(text) !== -1);
+        r.classList.toggle("hidden", !ok);
+        if (ok) live++;
+      });
+      g.classList.toggle("hidden", live === 0);
+      if ((text || fv.value) && live) g.open = true;
+      fcSeen += live;
+    });
+    var fcSection = document.querySelector("section.fieldchecks");
+    if (fcSection) fcSection.classList.toggle("hidden", fcSeen === 0);
     var stepText = steps.length
       ? (stepsSeen === steps.length ? steps.length + " steps" : "showing " + stepsSeen + " of " + steps.length + " steps") + " · "
       : "";
@@ -1159,6 +1201,14 @@ ${JOURNEY_CSS}
     }
   }
   apply();
+
+  [].forEach.call(document.querySelectorAll("button[data-fc]"), function (b) {
+    b.addEventListener("click", function () {
+      var mode = b.getAttribute("data-fc");
+      if (mode === "fail") { fv.value = "fail"; apply(); return; }
+      [].forEach.call(document.querySelectorAll("details.fc-step"), function (g) { g.open = mode === "open"; });
+    });
+  });
 
   document.getElementById("expand").addEventListener("click", function () {
     steps.forEach(function (el) { if (el.getAttribute("data-verdict") === "fail") reveal(el); });

@@ -230,6 +230,92 @@ function tallyWords(t: Tally, html = true): string {
  * event it built. No link — the event lives in a UAT tenant the reader may
  * not have; the id is enough to find it.
  */
+/** Every field check the journey evaluated, counted — for the report's tiles. */
+export function fieldCheckTotals(journey: JourneyRecord | undefined): { total: number; passed: number; failed: number; skipped: number; steps: number } {
+  const t = { total: 0, passed: 0, failed: 0, skipped: 0, steps: 0 };
+  for (const st of journey?.steps ?? []) {
+    const a = st.assertions;
+    if (!a?.total) continue;
+    t.steps++;
+    t.total += a.total;
+    t.passed += a.passed;
+    t.failed += a.failed;
+    t.skipped += a.skipped;
+  }
+  return t;
+}
+
+/**
+ * THE FIELD CHECKS, AS THEIR OWN SECTION.
+ *
+ * Folded under each step they were easy to miss, and the report opened with
+ * the library's general checks instead. Here every field check the run made
+ * is a test case in its own right — test case, expected result, actual
+ * result, result — grouped by the request it checked, failures first. Steps
+ * with a failure open by themselves; the rest are one line each until wanted.
+ * Rows carry data-verdict / data-search so the report's filters reach them.
+ */
+export function renderFieldChecksSection(journey: JourneyRecord | undefined): string {
+  const t = fieldCheckTotals(journey);
+  if (!journey || !t.total) return "";
+  const icon = (p: boolean | null) => (p === true ? "✓" : p === false ? "✗" : "–");
+  const cls = (p: boolean | null) => (p === true ? "ok" : p === false ? "bad" : "skip");
+  const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
+  const verdict = (p: boolean | null) => (p === true ? "pass" : p === false ? "fail" : "notrun");
+  const groups = journey.steps
+    .filter((st) => st.assertions?.total)
+    .map((st) => {
+      const a = st.assertions!;
+      const rows = [...a.results].sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
+      const call = callLabel(st.call);
+      return `
+<details class="fc-step${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""} data-verdict="${a.failed ? "fail" : "pass"}">
+  <summary>
+    <span class="fc-n">${st.n}</span>
+    <span class="fc-t">${safe(st.title)}${call ? ` <code>${escapeHtml(call)}</code>` : ""}</span>
+    <span class="fc-c">${a.failed ? `<b class="bad">✗ ${a.failed} failed</b> · ` : ""}<span class="ok">✓ ${a.passed} passed</span>${
+      a.skipped ? ` · ${a.skipped} not checked` : ""
+    } · ${a.total} test cases</span>
+  </summary>
+  <table class="jchecks-t fc-t">
+    <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
+    <tbody>${rows
+      .map((r) => {
+        const title = r.humanTitle ?? r.title;
+        const expected = r.humanExpected ?? r.expected;
+        const actual = r.humanActual ?? r.actual ?? "";
+        const search = `${r.id} ${title} ${expected} ${actual} ${st.title}`.toLowerCase();
+        return (
+          `<tr class="fc-row ${cls(r.pass)}" data-verdict="${verdict(r.pass)}" data-search="${safe(search)}">` +
+          `<td title="${safe(`${r.op} ${r.path}`)}"><span class="jc-id">${safe(r.id)}</span> ${safe(title)}</td>` +
+          `<td>${safe(expected)}</td><td title="${safe(r.actual ?? "")}">${safe(actual)}</td>` +
+          `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`
+        );
+      })
+      .join("")}</tbody>
+  </table>
+</details>`;
+    })
+    .join("");
+  return `
+<section class="module fieldchecks" data-module="API field checks">
+  <div class="module-head">
+    <h3>🔎 API field checks — ${t.total} test cases on ${t.steps} requests</h3>
+    <span class="tally"><span class="ok">✓ ${t.passed} passed</span>${t.failed ? ` · <b class="bad">✗ ${t.failed} failed</b>` : ""}${
+      t.skipped ? ` · ${t.skipped} not checked` : ""
+    }</span>
+  </div>
+  <p class="lede">Postman-style checks on the body of every request the journey made: each field is there, has the right type and
+  format, money and quantities are never negative, what was sent comes back as sent, and each id points to the record an earlier
+  step created. Each row is one test case — what we expected, what actually came back, and the result. Steps with a failure are
+  open; click any other step to see its checks.</p>
+  <p class="fc-tools"><button type="button" class="copy" data-fc="open">open all steps</button>
+  <button type="button" class="copy" data-fc="close">close all</button>
+  <button type="button" class="copy" data-fc="fail">only failed checks</button></p>
+  ${groups}
+</section>`;
+}
+
 export function renderJourneyLede(journey: JourneyRecord): string {
   const made = journey.made ?? {};
   const eventId = made.eventGroupUuid ?? journey.steps.find((s) => s.produced?.eventGroupUuid)?.produced?.eventGroupUuid;
@@ -733,6 +819,21 @@ details.setup.jvar .setup-steps { margin-top: 10px; }
 details.setup.jvar .setup-call, details.setup.jvar .setup-ms { color: var(--muted); }
 details.setup.jvar .setup-status.ok { color: var(--good); }
 details.setup.jvar .setup-status.bad { color: var(--bad); }
+/* the report's own "API field checks" section, one fold per request */
+h2.other-h { margin: 34px 0 6px; font-size: 18px; }
+section.fieldchecks.hidden { display: none; }
+section.fieldchecks .fc-tools { margin: 6px 0 10px; display: flex; gap: 6px; }
+details.fc-step { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 8px; background: var(--card); }
+details.fc-step > summary { cursor: pointer; list-style: none; display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: baseline; padding: 9px 12px; }
+details.fc-step > summary::-webkit-details-marker { display: none; }
+details.fc-step > summary:hover, details.fc-step[open] > summary { background: var(--hover); }
+details.fc-step .fc-n { font-weight: 700; color: var(--muted); }
+details.fc-step .fc-t { font-weight: 600; }
+details.fc-step .fc-t code { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 6px; }
+details.fc-step .fc-c { font-size: 12px; color: var(--muted); white-space: nowrap; }
+details.fc-step .fc-c .ok { color: var(--good); } details.fc-step .fc-c .bad { color: var(--bad); }
+details.fc-step > table { margin: 0 12px 12px; width: calc(100% - 24px); }
+tr.fc-row.hidden, details.fc-step.hidden { display: none; }
 /* Postman-style field checks on a step's response */
 details.jchecks { margin: 12px 0 0; }
 details.jchecks > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; color: var(--good); }

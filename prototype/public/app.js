@@ -2718,6 +2718,11 @@ async function loadHistory() {
               : `<span class="tag clean">passed</span>`
           : r.findings
             ? `<span class="tag find">${r.findings} finding${r.findings > 1 ? "s" : ""}</span>`
+            : !ran && r.journey?.steps
+              // A run that only walked the journey ran plenty — say what it did.
+              ? r.journey.stoppedAt
+                ? `<span class="tag find">stopped at step ${r.journey.stoppedAt}</span>`
+                : `<span class="tag clean">journey passed</span>`
             : !ran
               ? `<span class="tag none">nothing ran</span>`
               : r.failed
@@ -2731,6 +2736,10 @@ async function loadHistory() {
             : ran
               ? `<span>${r.passed}✓ ${r.failed}✗${r.inconclusive ? ` ${r.inconclusive}≈` : ""}</span>`
               : "";
+      const fcs = r.journey?.fieldChecks;
+      const fieldChecks = fcs
+        ? `<span class="${fcs.failed ? "fc-bad" : "fc-ok"}" title="Postman-style field checks on every request">field checks ${fcs.passed}/${fcs.total}${fcs.failed ? ` · ${fcs.failed} failed` : ""}</span>`
+        : "";
       /**
        * Every card carries its OWN reports.
        *
@@ -2764,7 +2773,7 @@ async function loadHistory() {
       item.innerHTML = `
         <div class="run-req" title="${esc(r.request)}">${kindTag}${esc(title)}</div>
         <div class="run-meta">${esc(r.companyName ?? r.id)} · ${esc(when)} ${tag}
-          ${counts}${journeyLine}</div>
+          ${counts}${fieldChecks}${journeyLine}</div>
         ${links ? `<div class="run-links">${links}</div>` : ""}
         <button class="run-del" title="Remove this run from the history and from every report built on it">✕</button>`;
       // A report link opens the report; it must not also replay the run
