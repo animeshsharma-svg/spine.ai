@@ -53,6 +53,56 @@ The catalog is also **indexed into the QA memory, one chunk per case** (944 of t
 
 ---
 
+## 3b. The catalog, arranged as user journeys
+
+The catalog is authored **by section** — how a reader navigates it. A **user
+journey** is the orthogonal cut: the ordered path a persona takes to finish one
+job, which may draw on several sections. `prototype/src/checks/journeys.ts`
+folds the 36 sections into **17 journeys**, each with a persona, a one-line
+goal, the vocabulary steps it exercises (its *spine*), and its cases ordered
+UI-first then by priority.
+
+It is **derived, not transcribed**: journeys are computed from the live catalog
+at request time (`/api/journeys`), so a case that is added, edited, or
+re-grouped follows its journey automatically and nothing here is touched. Every
+one of the 648 cases lands in exactly one journey — 0 orphans — and an unmapped
+section would surface as an orphan rather than disappear. `npm run
+cases:journeys` (and every `cases:import`) also writes `data/journeys.json` for
+sharing, and `public/journeys.html` (linked from the dashboard, 🧭) renders them.
+
+| # | Journey | Persona | Cases |
+|---|---|---|---|
+| 1 | Arriving at the events area | Buyer | 18 |
+| 2 | Composing a sourcing event | Buyer | 122 |
+| 3 | Running a technical evaluation | Buyer & evaluator | 30 |
+| 4 | Configuring an auction | Buyer | 30 |
+| 5 | Scheduling, savings and terms | Buyer | 30 |
+| 6 | Inviting the audience | Buyer | 34 |
+| 7 | Going live — or saving a draft | Buyer | 54 |
+| 8 | The vendor's bid | Vendor | 70 |
+| 9 | Bidding on a vendor's behalf | Buyer | 46 |
+| 10 | Awarding and negotiating | Buyer & vendor | 42 |
+| 11 | Converting an RFQ to an auction | Buyer | 26 |
+| 12 | BOQ events | Buyer | 12 |
+| 13 | From purchase request to event | Buyer | 10 |
+| 14 | Classic single-stage events | Buyer | 14 |
+| 15 | The event's lifecycle | Buyer | 14 |
+| 16 | Permissions and isolation | Every role | 32 |
+| 17 | Validation and robustness | Buyer & system | 64 |
+
+### "Run multiple agents", reconciled with one browser
+
+A whole journey can be **compiled in parallel** — `/api/journey-compile`
+fans its UI cases across several planner agents at once (concurrency 6, no
+browser) and streams each plan with its coverage verdict. That is the safe
+reading of *run multiple agents*: the planning layer parallelises freely
+(Slingring serves 1000+ requests/min), while **browser execution stays single
+and sequential** — the one-window rule the platform enforces with its
+process-wide browser slot. Parallelising the browser would reintroduce exactly
+the multiple-Chromium mess that rule exists to prevent.
+
+Measured: compiling one journey's nine UI cases finished in **≈16 s at concurrency 6** — about **9× faster** than the ~135 s they take one at a time — and the verdicts stayed honest (seven partial, two refused, on the gap ledger).
+
 ## 4. Routing — how a case reaches a runner, honestly
 
 `prototype/src/checks/caseRouting.ts` assigns each case the **most specific runner that genuinely exists**, most specific first:
@@ -79,13 +129,13 @@ Why the distinction matters: a dashboard where all 648 rows show the same green 
 
 ### 5.1 The vocabulary
 
-The executor implements a **fixed set of 43 steps** (36 at the time of the first eval below; 43 by evening — see §5.5 and the appendix) (`procol-ui-tests/src/plan/steps.ts`, published to `plan-catalog.json`). A model can only choose verbs the machine can perform; a step that does not exist is dropped by name. That is what makes it a compiler: the target instruction set is fixed and every instruction is a healed, self-verifying page-object method.
+The executor implements a **fixed set of 47 steps** (36 at the time of the first eval below; 47 by night — see §5.5 and the appendix) (`procol-ui-tests/src/plan/steps.ts`, published to `plan-catalog.json`). A model can only choose verbs the machine can perform; a step that does not exist is dropped by name. That is what makes it a compiler: the target instruction set is fixed and every instruction is a healed, self-verifying page-object method.
 
 Actions: `open_events_list`, `filter_events{tab}`, `open_stage_menu{stage?}`, `open_create{path: erfx|single-stage|boq}`, `compose_stages{stages[]}`, `set_title{title?}`, `switch_stage{stage}`, `select_template{name?}`, `add_line_items{count}`, `fill_sheet`, `fill_questionnaires`, `assign_evaluator`, `set_schedule{minutes?}`, `invite_vendor{names?|count?}`, `publish`, `save_draft`, `place_bid{vendor?}`, `place_surrogate_bid{vendor?}`, `award_event`.
 
 Assertions: `expect_events_list`, `expect_create_options{options[],absent[]}`, `expect_url_contains{text}`, `expect_event_in_list{title?}`, `expect_event_status{status,title?}`, `expect_template_selected{name?}`, `expect_sheet_columns{columns[]?}`, `expect_disabled{control}`, `expect_enabled{control}`, `expect_line_items{count}`, `expect_published`, `expect_no_error`, `expect_error{message?}`, `expect_awarded`, `expect_bid_submitted`, `expect_publish_blocked`, `expect_stages{stages[]}`.
 
-Fifteen of the 43 were built **on 11 September from the gap ledger** (section 5.5): the events-list and menu steps, template/sheet assertions, the status-row reader, the stage-menu opener, the disabled/enabled pair, `open_participants`, `open_master_qcs`, `configure_single_stage`, `convert_to_auction`, `capture_screen`, and `place_counter_offer` / `expect_counter_offer_sent`. The executor dispatches shared step names to the single-stage page object when the plan is on that screen, so the compiler keeps one vocabulary.
+Nineteen of the 47 were built **on 11 September from the gap ledger** (section 5.5): the events-list and menu steps, template/sheet assertions, the status-row reader, the stage-menu opener, the disabled/enabled pair, `open_participants`, `open_master_qcs`, `configure_single_stage`, `convert_to_auction`, `capture_screen`, and `place_counter_offer` / `expect_counter_offer_sent`, `accept_counter_offer` / `expect_counter_offer_accepted`, `open_event`, `close_event`. The executor dispatches shared step names to the single-stage page object when the plan is on that screen, so the compiler keeps one vocabulary.
 
 ### 5.2 The prompt
 
@@ -261,17 +311,34 @@ Dashboard totals at time of writing: 26 finding groups — 6 defects, 15 harness
 - **Catalog cases**: UI-CRE-001, UI-CRE-003, UI-PUB-001 PASS (built journeys); UI-TPL-001 PASS 5/5 (was PARTIAL that morning); UI-CRE-010 PASS 4/4 (*"stage menu open: Edit title, Delete (disabled)"*); UI-PUB-003 9/9 PARTIAL (draft saved, found under Drafts; the row's status label check is the new `expect_event_status`); UI-ENV-002 PARTIAL (menu read live; the tenant-flag-off branch has no step); UI-LI-001 PARTIAL; UI-VAL-001 refused (a blank-title negative test needs a step that does not exist yet); API-EG-001/002/003, API-PUB-001 PASS; API-LI-003 and API-PERM/AUD/LC area runs surfaced the findings in section 14.
 - **Afternoon and evening, 11 September — the permutation batch, one sentence each, headless:** RFP-only **14/14** · RFP+RFQ **18/18** · RFP+Auction **17/17** · BOQ **11/11** · RFQ → Auction conversion **14/14** (`convert_to_auction` opened the converted create screen in a new tab) · vendor-portal bid **12/12** · single-stage **price** auction, lot award **10/10** · single-stage **traffic-light** auction, line-item award **11/11** (GREEN/YELLOW bounds in the drawer and the two required range columns on the sheet, both filled) · rank-based auction via the built journey. Every auction strategy this build exposes on the create screens now runs; knockout and dutch are reachable through conversion.
 - **Counter offer, 16/16:** publish an RFQ → AMD bids from the vendor portal → Master QCS → the stage's *Responses* tab → *Counter Offer* in AMD's column header → drawer *"Counter Offer for AMD LTD"* → price 90 → remark → *Send Counter Offer* → the grid marks the bid → a **Revoke Counter Offer** control is on screen afterwards. Built from the product's source, corrected three times from stuck-report evidence (the control's tab, the page's loading state, the drawer's real anatomy).
+- **The vendor's side of the negotiation, 19/19:** the same chain continued — after the counter offer, `accept_counter_offer` signed into the supplier portal as AMD and pressed Accept (evidence: the Accept control gone), and `expect_counter_offer_accepted` read the accepted mark on the buyer's Responses grid; the header then offered *Counter Offer* again for a new round. The supplier portal's source is not checked out; the verb was built with evidence capture on first contact and passed on its second run (the first had read the buyer page before it hydrated).
+- **`close_event`, built and honest:** the product's force-end (Settings → *End \<status\>*) is gated by `trade_force_close`, which is **off** on PROCOL DEMO — the menu offers *Recreate Order, Shared With, Extend Submission Time, Withdraw, Convert to Auction, Rejected Bids, Order Activity, Edit Evaluation Time, Send Bulk Counter Offer* and no End. So the verb falls back to waiting for the bidding window to lapse, reading *"Ends in Xm : Ys"* off the event's own list row. Its first version declared the window lapsed after 15 s (it had matched the list's filter labels) — caught by the step's own duration, corrected, and **UI-AWD-001's 14/14 from that run is not counted**. The corrected step then refused honestly: *"the bidding window still has 29 min to run"* — exposing that `set_schedule{minutes}` was not shortening the window at all. The fix followed the evidence three steps down: the panel's tree, then its markup (the value is an antd dropdown trigger, not a select), then its options — **the product's smallest duration preset is 30 minutes** (*30 Mins · 1 Hrs · 4 Hrs · 1 Days*), so no 3-minute window exists and a closed event on this tenant costs a real half-hour. The End-time mode select, however, offers **Duration | Fixed time** — and Fixed time takes an explicit end. Driving its picker columns (typing into the antd TimePicker never committed), scrolling *Save Schedule* into a taller 1366×900 viewport and, when the drawer still clipped the pointer, dispatching the click directly, `set_schedule{minutes: 3}` now saves a real short window — the chip reads *"(2 Mins)"* — and a vendor bid fits inside it. One more product fact fell out of the first short-window run: after the window ends, the list row keeps the words *"Ends in"* with **nothing after them** and the status stays *"RFQ in Progress"*, so "closed" is read as a countdown that no longer carries a time. Genuine per-test budget for such plans: 48 minutes (Playwright's default 6 killed the first real wait at 137 s).
 - **Visible login, on record:** `[plan] showing the login in this window before the plan runs` → `logged in as the buyer — token present` → the plan ran in that same window.
-- **Catalog reruns under the new linter:** UI-SUR-001 **PASS 14/14** (participants list: 9 rows offer Add Bid) · UI-AWD-001 **13/13 PARTIAL** — the case wants the event *closed* before Master QCS; no step closes an event yet · UI-PART-001 — the invite correctly removed, the app **allowed a publish with 0 participants shown**; the step now reads the published event's own participant count to decide between a product defect and the audience being applied server-side.
+- **Catalog reruns under the new linter:** UI-SUR-001 **PASS 14/14** (participants list: 9 rows offer Add Bid) · UI-AWD-001 **13/13 PARTIAL** — the case wants the event *closed* before Master QCS; no step closes an event yet · UI-PART-001 — **the block is real**: with no invite step the app refused Publish with exactly *"Please add participants to proceed!"*, the catalog's expected message. An earlier run had read *154 participants* on the published event and concluded the premise was unreachable — wrong: the platform's own invite step, re-inserted by a linter repair, had populated the audience. Two linter fixes followed (no invite when the publish is expected to be refused; the assertion presses Publish itself). A negative test's premise has to be protected from success-oriented repairs — the day's sharpest lesson. Final rerun: **7/7, blocked with exactly that message**; PARTIAL only for two nuances the model itself named as unassertable.
 - **Queueing**: two concurrent case runs → second showed *"waiting for the browser … position 1"*, then ran. One window.
 
 ---
+
+## 15b. Speed
+
+A representative journey — create an RFQ eRFX event with two line items, template, sheet, schedule, invite, publish — was profiled from the per-step milliseconds every run records, and cut from **132 s to 60 s (−54%)**, still passing:
+
+| Step | before | after |
+|---|---|---|
+| add_line_items (2) | 58.4 s | **5.5 s** |
+| set_schedule | 30.6 s | **5.5 s** |
+| invite_vendor | 5.4 s | **1.4 s** |
+| open_create | 26.5 s | 23.8 s |
+| compose_stages | 14.6 s | 9.1 s |
+
+The avoidable idle was structural, not per-locator: a successful line-item pick was firing two more 5-second retries because a confirmation poll missed the chip (~13 s wasted per add — the app's own badge is the real oracle now); `dismissDistractions`, called 64 times, waited up to 1.5 s for a popup that was usually absent (now a single non-polling visibility pass, debounced); `set_schedule` blocked 30 s on a drawer-hidden wait that always timed out; and `pause()` was burning a networkidle wait that never settles on this long-connection console. What is left — open_create's ~22 s, compose_stages' ~9 s, select_template's ~8 s — is genuine React hydration and network round-trip latency, not harness idle.
 
 ## 16. Limits, stated plainly
 
 - Everything routed `ui-compile` (323 cases) depends on the compiler; its quality is bounded by the model the gateway actually serves (Kimi today, ASTRA when routing is fixed) and by the 36-step vocabulary. The ledger says what is missing; the honesty rules keep a missing step from becoming a false pass.
 - `api-section` (208 cases) runs the framework's cases for the *area*, not the written case word for word. The tag says so on every row.
 - 37 cases have no runner at all (vendor technical response, DB persistence, auth/session, non-functional).
+- A *closed* event on this tenant means waiting a real window out (no force-end). With Fixed time the window can be a few minutes; with the Duration presets it is 30 minutes at least. `close_event` reads the event's own list row and says what it saw at every poll.
 - The applied template's *name* is not found by the current selectors after applying on a pricing stage; `expect_template_selected` reports *"(applied — name not displayed)"* rather than inventing a match.
 - The environment is slow and occasionally offline (`ERR_INTERNET_DISCONNECTED` during one run); the Oracle classifies these as `environment`/`automation_defect`, non-actionable, rather than product failures.
 - Groq's free tier was rate-limited most of the day; Slingring serves Kimi, not ASTRA. Both are logged, not hidden.

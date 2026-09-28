@@ -22,6 +22,13 @@ let designedCases = null; // test cases captured from the Test-designer
 let checkRows = []; // live automation check results
 let checkFilter = "all"; // "all" | "fail"
 let currentMap = null; // the loaded capability map (for the control panel)
+// Catalog panel state. Declared here, not beside its own functions: `init()`
+// is invoked at the top of this file and `let` does not hoist, so declaring
+// these lower down threw before the first panel had loaded.
+let catState = { layer: "", section: "", priority: "", verdict: "", q: "" };
+let catCases = []; // the currently filtered page of the catalog
+const catPicked = new Set(); // case ids the user has ticked
+let catRunning = null; // the open EventSource while cases are running
 
 /**
  * THE ROUTER — one view at a time, addressable.
@@ -329,6 +336,10 @@ init();
 async function init() {
   loadFindings();
   loadStuck();
+  loadGaps();
+  initCatalog();
+  pollRunState();
+  setInterval(pollRunState, 2500);
   loadJourneys();
 
   // Journeys: one delegated handler, because every row is rendered up front.
@@ -509,6 +520,7 @@ async function init() {
   loadPoInput();
   loadHistory();
   loadCatalogue();
+  initCaseBook();
   initBugControls();
   initEnvControl();
   setTargetGlance();
@@ -3289,6 +3301,36 @@ function journeyMs(ms) {
   return elapsedInWords(ms);
 }
 
+/**
+ * Postman-style "Tests" for one journey step: the field-level assertions the
+ * runner evaluated against the live reply. Failed first, then the rest.
+ */
+function journeyChecksHtml(a) {
+  if (!a || !a.total) return "";
+  const icon = (p) => (p === true ? "✓" : p === false ? "✗" : "–");
+  const cls = (p) => (p === true ? "ok" : p === false ? "bad" : "skip");
+  const rows = [...(a.results || [])].sort((x, y) => (x.pass === false ? -1 : 0) - (y.pass === false ? -1 : 0));
+  const head =
+    `${a.failed ? "✗" : "✓"} ${a.passed}/${a.total} field checks passed` +
+    (a.failed ? ` · ${a.failed} failed` : "") +
+    (a.skipped ? ` · ${a.skipped} not checked` : "");
+  const word = (p) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
+  return (
+    `<details class="jchecks ${a.failed ? "has-fail" : ""}"><summary>${esc(head)}</summary><table class="jchecks-t">` +
+    `<tr class="jc-head"><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr>` +
+    rows
+      .map(
+        (r) =>
+          `<tr class="${cls(r.pass)}"><td class="jc-t"><span class="jc-id">${esc(r.id)}</span>${esc(r.humanTitle || r.title)}</td>` +
+          `<td class="jc-e">${esc(r.humanExpected || r.expected || "")}</td>` +
+          `<td class="jc-a" title="${esc(r.actual || "")}">${esc(r.humanActual || r.actual || "")}</td>` +
+          `<td class="jc-i">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
+      )
+      .join("") +
+    `</table></details>`
+  );
+}
+
 function renderJourney() {
   const node = ensureJourneyNode();
   const planned = journeyLive?.steps ?? [];
@@ -3319,11 +3361,16 @@ function renderJourney() {
 
   let html = "";
   if (planned.length || records.length) {
+    const checks = records.reduce(
+      (t, st) => (st.assertions ? { n: t.n + st.assertions.total, ok: t.ok + st.assertions.passed, bad: t.bad + st.assertions.failed } : t),
+      { n: 0, ok: 0, bad: 0 },
+    );
     const tally = records.length
       ? `${records.length} of ${total} step${total === 1 ? "" : "s"} · ${worked} worked` +
         (refused ? ` · ${refused} refused` : "") +
         (broken ? ` · ${broken} broken` : "") +
-        (notRun ? ` · ${notRun} not run` : "")
+        (notRun ? ` · ${notRun} not run` : "") +
+        (checks.n ? ` · field checks ${checks.ok}/${checks.n}${checks.bad ? ` (${checks.bad} failed)` : ""}` : "")
       : `${total} step${total === 1 ? "" : "s"} planned`;
     html +=
       `<div class="journey-head"><b>The journey this run walks${journeyLive?.label ? ` — ${esc(journeyLive.label)}` : ""}</b>` +
@@ -3357,6 +3404,7 @@ function renderJourney() {
           (rec.actual ? `<div class="jstep-actual">${esc(rec.actual)}</div>` : "") +
           reason +
           (call ? `<div class="jstep-call">${esc(call)}</div>` : "") +
+          (rec.assertions ? journeyChecksHtml(rec.assertions) : "") +
           `</div><span class="jstep-verdict">${esc(JOURNEY_VERDICT_WORD[rec.verdict] ?? rec.verdict)}</span></li>`;
       } else if (i === current) {
         html +=
@@ -4988,4 +5036,597 @@ function caseRow(t, feature) {
       <td><span class="cat-tag p-${esc((t.priority || "").toLowerCase())}">${esc(t.priority)}</span></td>
       <td><span class="cat-tag s-${esc((t.severity || "").toLowerCase())}">${esc(t.severity)}</span></td>
     </tr>`;
+}
+
+// ── the written test catalog ───────────────────────────────────────────────
+//
+// 648 cases live as prose in `test-cases/*.md`. They are the thing a person
+// reads and edits; this panel is only a way to pick some and press run. Each
+// case shows the route it will actually take, because "Run" meaning four
+// different things — a healed journey, a compiled plan, an exact API case, a
+// whole API area — is the sort of ambiguity that makes a green tick worthless.
+function initCatalog() {
+  $("#cat-run")?.addEventListener("click", runPickedCases);
+  $("#cat-stop")?.addEventListener("click", () => {
+    catRunning?.close();
+    catRunning = null;
+    $("#cat-run").disabled = false;
+    $("#cat-run").textContent = "▶ Run selected cases";
+  });
+  $("#cat-none")?.addEventListener("click", () => {
+    catPicked.clear();
+    renderCatalog();
+  });
+  for (const b of document.querySelectorAll(".cat-tabs .chip")) {
+    b.addEventListener("click", () => {
+      for (const o of document.querySelectorAll(".cat-tabs .chip")) o.classList.remove("active");
+      b.classList.add("active");
+      catState.layer = b.dataset.layer;
+      catState.section = "";
+      loadCatalog();
+    });
+  }
+  for (const [sel, key] of [["#cat-section", "section"], ["#cat-priority", "priority"], ["#cat-verdict", "verdict"]]) {
+    $(sel)?.addEventListener("change", (e) => {
+      catState[key] = e.target.value;
+      loadCatalog();
+    });
+  }
+  let t;
+  $("#cat-q")?.addEventListener("input", (e) => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      catState.q = e.target.value.trim();
+      loadCatalog();
+    }, 250);
+  });
+  loadCatalog();
+}
+
+async function loadCatalog() {
+  const qs = new URLSearchParams();
+  if (catState.layer) qs.set("layer", catState.layer);
+  if (catState.section) qs.set("group", catState.section);
+  if (catState.priority) qs.set("priority", catState.priority);
+  if (catState.verdict) qs.set("verdict", catState.verdict);
+  if (catState.q) qs.set("q", catState.q);
+  try {
+    const data = await (await fetch(`/api/test-cases?${qs}`)).json();
+    catCases = data.cases || [];
+    const sel = $("#cat-section");
+    // Rebuild the section list only when the layer changes it, so a chosen
+    // section is not reset by every keystroke in the search box.
+    const want = (data.sections || []).map((x) => x.group).join(",");
+    if (sel && sel.dataset.built !== want) {
+      sel.dataset.built = want;
+      sel.innerHTML = '<option value="">every section</option>';
+      for (const s of data.sections || []) {
+        const o = el("option");
+        o.value = s.group;
+        o.textContent = `${s.layer.toUpperCase()} ${s.sectionNo}. ${s.section} (${s.total})`;
+        sel.appendChild(o);
+      }
+      sel.value = catState.section;
+    }
+    const c = data.coverage || {};
+    $("#cat-hint").textContent =
+      `${data.stats.total} written cases · ${c.runnable}/${c.total} reach a real runner · showing ${catCases.length}`;
+    renderCatalog();
+  } catch (err) {
+    $("#cat-list").innerHTML = `<div class="empty">could not load the catalog: ${esc(err.message)}</div>`;
+  }
+}
+
+function renderCatalog() {
+  const box = $("#cat-list");
+  box.innerHTML = "";
+  if (!catCases.length) {
+    box.innerHTML = '<div class="empty">Nothing matches those filters.</div>';
+    updateCatCount();
+    return;
+  }
+  let lastSection = null;
+  for (const c of catCases) {
+    if (c.group !== lastSection) {
+      lastSection = c.group;
+      box.appendChild(el("div", "cat-sec", `${esc(c.layer.toUpperCase())} ${c.sectionNo}. ${esc(c.section)}`));
+    }
+    const row = el("div", "cat-case");
+    row.id = `cat-${c.id}`;
+    const cb = el("input");
+    cb.type = "checkbox";
+    cb.checked = catPicked.has(c.id);
+    cb.disabled = !c.route.runnable;
+    cb.title = c.route.runnable ? c.route.because : `cannot run: ${c.route.because}`;
+    cb.addEventListener("change", () => {
+      cb.checked ? catPicked.add(c.id) : catPicked.delete(c.id);
+      updateCatCount();
+    });
+    const body = el("div", "cat-body");
+    const [tagCls, tagText] = ROUTE_TAG[c.route.kind] || ["", c.route.kind];
+    body.appendChild(
+      el("div", "", `<span class="cat-id">${esc(c.id)}</span><span class="cat-title">${esc(c.title)}</span>`),
+    );
+    const meta = el("div", "cat-meta");
+    meta.appendChild(el("span", `cat-tag ${c.priority === "P0" ? "p0" : ""}`, esc(c.priority)));
+    meta.appendChild(el("span", "cat-tag", esc(c.verdict)));
+    const rt = el("span", `cat-tag ${tagCls}`, esc(tagText));
+    rt.title = c.route.because;
+    meta.appendChild(rt);
+    if (c.gate) meta.appendChild(el("span", "cat-tag", `gate: ${esc(c.gate)}`));
+    if (c.recordsCurrentBehaviour) {
+      const t = el("span", "cat-tag area", "records today's behaviour");
+      t.title = "This case documents what the product does now, not what it should do.";
+      meta.appendChild(t);
+    }
+    body.appendChild(meta);
+    body.appendChild(
+      el(
+        "div",
+        "cat-why",
+        `<b>Why.</b> ${esc(c.why)}<br><b>Steps.</b> ${esc(c.steps)}<br><b>Expected.</b> ${esc(c.expected)}` +
+          (c.oracle ? `<br><b>Oracle.</b> ${esc(c.oracle)}` : ""),
+      ),
+    );
+    body.querySelector(".cat-title").addEventListener("click", () => row.classList.toggle("open"));
+    row.appendChild(cb);
+    row.appendChild(body);
+    row.appendChild(el("span", "cat-res", ""));
+    box.appendChild(row);
+  }
+  updateCatCount();
+}
+
+function updateCatCount() {
+  $("#cat-picked").textContent = catPicked.size ? `${catPicked.size} selected` : "nothing selected";
+}
+
+function runPickedCases() {
+  if (!catPicked.size) {
+    $("#cat-picked").textContent = "tick at least one case first";
+    return;
+  }
+  const out = $("#cat-run-out");
+  out.hidden = false;
+  out.innerHTML = "";
+  const write = (text, cls) => {
+    const n = el("div", `l ${cls || ""}`, esc(text));
+    out.appendChild(n);
+    out.scrollTop = out.scrollHeight;
+    return n;
+  };
+  const badge = (id, text, cls) => {
+    const b = document.querySelector(`#cat-${id} .cat-res`);
+    if (b) {
+      b.textContent = text;
+      b.className = `cat-res ${cls || ""}`;
+    }
+  };
+  const showRaw = () => $("#cat-raw")?.checked;
+
+  const btn = $("#cat-run");
+  btn.disabled = true;
+  btn.textContent = "running…";
+  const qs = new URLSearchParams({ ids: [...catPicked].join(","), c: currentClient ?? "" });
+  if (!$("#cat-headed").checked) qs.set("headed", "0");
+  else if ($("#cat-demo")?.checked) {
+    qs.set("login", "1");
+    qs.set("slowmo", "250");
+  }
+  const es = new EventSource(`/api/case-run?${qs}`);
+  catRunning = es;
+
+  // One line per step, updated in place as it goes from "…" to ✓/✗.
+  let stepLines = new Map();
+
+  es.addEventListener("plan", (ev) => {
+    const { cases } = JSON.parse(ev.data);
+    write(`${cases.length} case${cases.length === 1 ? "" : "s"} to test — one at a time, in one browser window.`, "hd");
+  });
+  es.addEventListener("case", (ev) => {
+    const d = JSON.parse(ev.data);
+    if (d.status === "running") {
+      stepLines = new Map();
+      write(`Testing ${d.index} of ${d.total}: ${d.id} — ${d.title}`, "case");
+      write(ROUTE_SENTENCE[d.route.kind]?.(d.route) ?? d.route.because, "route");
+      badge(d.id, "···", "run");
+      return;
+    }
+    if (d.status === "not-run") {
+      write(`Not run — ${d.reason}.`, "verdict part");
+      badge(d.id, "GAP", "part");
+      loadGaps();
+      return;
+    }
+    if (d.status === "partial") {
+      write(`Ran, but this is not the case passing — ${d.summary}.`, "verdict part");
+      badge(d.id, "PARTIAL", "part");
+      loadGaps();
+      return;
+    }
+    const ok = d.status === "passed";
+    const cls = ok ? "ok" : d.status === "failed" ? "bad" : "";
+    write(
+      ok
+        ? `Passed — ${d.summary}.`
+        : d.status === "failed"
+          ? `Failed — ${d.summary}.`
+          : `Skipped${d.summary ? ` — ${d.summary}` : ""}${d.reason ? ` — ${d.reason}` : ""}.`,
+      `verdict ${cls}`,
+    );
+    badge(d.id, ok ? "PASS" : d.status === "failed" ? "FAIL" : "—", cls);
+  });
+  es.addEventListener("queued", (ev) => write(`⏳ ${JSON.parse(ev.data).line}`, "queued"));
+  es.addEventListener("compiled", (ev) => {
+    const d = JSON.parse(ev.data);
+    write(
+      `Read the test case and decided on ${d.steps.length} steps: ${d.steps.map((s) => stepWords(s.step)).join(" → ")}.`,
+      "sub",
+    );
+    for (const w of d.warnings || []) if (!/^resolved |^cannot test|^can only test/.test(w)) write(`Adjusted: ${w}`, "sub");
+    if (d.coverage === "none") {
+      write(`Cannot test this case yet — no step can observe: ${(d.gaps || []).join("; ") || "what it checks"}. Refusing rather than running something else and calling it a pass.`, "gap");
+    } else if (d.coverage === "partial") {
+      write(`Only part of this case can be tested — no step yet for: ${(d.gaps || []).join("; ")}.`, "gap");
+    }
+    // Pre-list every step so the person sees the whole plan, then watch it fill in.
+    d.steps.forEach((s, i) => {
+      stepLines.set(i + 1, write(`Step ${i + 1} of ${d.steps.length} — ${stepWords(s.step, s.args)}`, "step"));
+    });
+  });
+  es.addEventListener("note", (ev) => {
+    const line = JSON.parse(ev.data).line;
+    const step = line.match(/^\[plan\] (\d+)\/(\d+) (\S+) (✓|✗) ?(.*)$/);
+    if (step) {
+      const [, i, n, name, mark, detail] = step;
+      const cls = mark === "✓" ? "ok" : "bad";
+      const text = `Step ${i} of ${n} — ${stepWords(name)}${detail ? `: ${detail}` : ""}`;
+      const existing = stepLines.get(Number(i));
+      if (existing) {
+        existing.textContent = text;
+        existing.className = `l step ${cls}`;
+      } else write(text, `step ${cls}`);
+      return;
+    }
+    if (/^\[plan\] .* — \d+ step/.test(line)) return; // the header, already narrated
+    const sub = line.match(/^\[(create-event|bid|surrogate|award|oracle|healer|learned|teach)\] (.*)$/);
+    if (sub) {
+      write(sub[2], "sub");
+      return;
+    }
+    if (/^(logging in|building the shared|running \d+ API case)/.test(line)) {
+      write(line[0].toUpperCase() + line.slice(1), "sub");
+      return;
+    }
+    // Everything else is Playwright talking to itself.
+    if (showRaw()) write(line, "raw");
+  });
+  es.addEventListener("api-case", (ev) => {
+    const r = JSON.parse(ev.data).result;
+    if (r.status === "skipped") {
+      write(`${r.id} skipped — ${r.reason}`, "step");
+      return;
+    }
+    const cls = r.status === "passed" ? "ok" : "bad";
+    const got = `${r.method} ${r.path} → HTTP ${r.httpStatus}`;
+    const want = r.expectedStatus ? `the contract says ${r.expectedStatus}` : "";
+    write(`${r.id} — ${r.title}. ${got}${want ? `; ${want}` : ""}.`, `step ${cls}`);
+    if (r.message) write(r.message, "sub");
+  });
+  es.addEventListener("check", (ev) => {
+    const k = JSON.parse(ev.data).check;
+    write(`${k.scenario} → HTTP ${k.httpStatus ?? "?"}`, `step ${k.pass ? "ok" : "bad"}`);
+  });
+  const finish = (msg, cls) => {
+    write(msg, cls);
+    btn.disabled = false;
+    btn.textContent = "▶ Run selected cases";
+    es.close();
+    catRunning = null;
+    loadFindings();
+    pollRunState();
+  };
+  es.addEventListener("done", () => finish("All done.", "hd"));
+  es.addEventListener("error", (ev) => {
+    let line = "";
+    try {
+      line = JSON.parse(ev.data).line;
+    } catch {
+      /* stream ended */
+    }
+    if (line) finish(`✗ ${line}`, "bad");
+    else if (catRunning) finish("— connection closed", "");
+  });
+}
+
+// How each route reads to a person, before the run starts.
+const ROUTE_SENTENCE = {
+  "ui-journey": (r) => `A built, self-healing journey covers this exactly ("${r.target}") — running it in the browser.`,
+  "api-case": (r) => `The API framework implements this as ${r.target} — sending the real request.`,
+  "api-section": (r) =>
+    `No exact runner for this case. Running the API framework's ${r.target.split(",").length} cases for the same area instead — real traffic against the right endpoints, but not this case word for word.`,
+  "api-suite": (r) => `Running the "${r.target}" validation suite, which covers this section.`,
+  "ui-compile": () => `No built journey covers this — reading the written case and compiling it into steps the browser can perform.`,
+  manual: () => `The catalog says a person should do this one.`,
+  none: () => `Nothing can run this yet.`,
+};
+
+// The step vocabulary, in the words a person would use.
+const STEP_WORDS = {
+  open_events_list: () => "open the events list",
+  expect_events_list: () => "check the events list rendered",
+  place_counter_offer: (a) => `send a counter offer${a?.price ? ` of ${a.price}` : ""}${a?.vendor ? ` to ${a.vendor}` : ""} from Master QCS`,
+  expect_counter_offer_sent: (a) => `check the grid marks ${a?.vendor ? `${a.vendor}'s` : "the"} bid with a counter offer`,
+  close_event: () => "close the event (force-end where offered, otherwise wait for the bidding window to lapse)",
+  open_event: (a) => `open the event ${a?.id ? a.id : a?.title ? `"${a.title}"` : "this plan created"}`,
+  accept_counter_offer: (a) => `as the vendor${a?.vendor ? ` ${a.vendor}` : ""}, accept the buyer's counter offer in the supplier portal`,
+  expect_counter_offer_accepted: (a) => `check the buyer's grid marks ${a?.vendor ? `${a.vendor}'s` : "the"} counter offer as accepted`,
+  capture_screen: (a) => `capture the screen as "${a?.label ?? "capture"}" (screenshot + accessibility tree)`,
+  open_participants: () => "open the published event's participants list",
+  open_master_qcs: (a) => `open Master QCS and check the comparison grid${Array.isArray(a?.vendors) && a.vendors.length ? ` lists ${a.vendors.join(", ")}` : ""}`,
+  configure_single_stage: (a) => `configure the single-stage event as ${a?.eventType ?? "rfq"}${a?.auctionSubtype ? ` · ${String(a.auctionSubtype).replace("_", " ")} auction` : ""}${a?.awarding ? ` · award ${String(a.awarding).replace("_", " ")}` : ""}`,
+  convert_to_auction: () => "convert the published RFQ to an auction (opens in a new tab)",
+  open_stage_menu: (a) => `open the ${a?.stage ?? "stage"} tab's ⋮ menu`,
+  expect_disabled: (a) => `check "${a?.control ?? "the control"}" is disabled`,
+  expect_enabled: (a) => `check "${a?.control ?? "the control"}" is enabled`,
+  filter_events: (a) => `switch the events list to the ${a?.tab ?? "Live"} tab`,
+  expect_event_in_list: (a) => (a?.title ? `check "${a.title}" appears in the events list` : "check the event appears in the events list"),
+  expect_event_status: (a) => `check the event's row shows "${a?.status ?? "the expected status"}"`,
+  expect_template_selected: (a) => (a?.name ? `check the "${a.name}" template is applied` : "check a template is applied to the stage"),
+  expect_sheet_columns: (a) => (Array.isArray(a?.columns) && a.columns.length ? `check the sheet has columns ${a.columns.join(", ")}` : "check the pricing sheet rendered from the template"),
+  open_create: (a) => `open the ${a?.path === "single-stage" ? "single-stage" : a?.path === "boq" ? "BOQ" : "eRFX"} create screen`,
+  compose_stages: (a) => `set the stages to ${Array.isArray(a?.stages) ? a.stages.join(" + ") : "what the case asks"}`,
+  set_title: () => "give the event a title",
+  switch_stage: (a) => `switch to the ${a?.stage ?? ""} stage tab`,
+  select_template: (a) => (a?.name ? `pick the "${a.name}" template` : "pick a pricing template"),
+  add_line_items: (a) => `add ${a?.count ?? "the"} line item${a?.count === 1 ? "" : "s"}`,
+  fill_sheet: () => "fill the pricing sheet",
+  fill_questionnaires: () => "fill the vendor assessment questionnaires",
+  assign_evaluator: () => "assign an evaluator",
+  set_schedule: () => "save the schedule",
+  invite_vendor: (a) => (a?.names?.length ? `invite ${a.names.join(", ")}` : "invite vendors"),
+  publish: () => "publish the event",
+  save_draft: () => "save as draft",
+  expect_line_items: (a) => `check the toolbar shows ${a?.count ?? "the"} line items`,
+  expect_published: () => "check the event is live on a project page",
+  expect_no_error: () => "check the app showed no error",
+  expect_error: (a) => `check the app refused${a?.message ? ` with "${a.message}"` : ""}`,
+  place_bid: (a) => `place a bid from the vendor portal${a?.vendor ? ` as ${a.vendor}` : ""}`,
+  place_surrogate_bid: (a) => `enter a surrogate bid${a?.vendor ? ` for ${a.vendor}` : ""}`,
+  award_event: () => "award the event",
+  expect_awarded: () => "check the award went through",
+  expect_bid_submitted: () => "check the bid was accepted",
+  expect_publish_blocked: () => "check publish is refused",
+  expect_stages: (a) => `check the stage tabs are ${Array.isArray(a?.stages) ? a.stages.join(" + ") : "as expected"}`,
+};
+function stepWords(name, args) {
+  const f = STEP_WORDS[name];
+  return f ? f(args || {}) : name.replace(/_/g, " ");
+}
+
+// ── the single browser: who has it, who is waiting ──────────────────────────
+async function pollRunState() {
+  try {
+    const [st, ai] = await Promise.all([
+      (await fetch("/api/run-state")).json(),
+      (await fetch("/api/ai-usage")).json(),
+    ]);
+    const dot = $("#rs-dot");
+    if (st.running) {
+      const secs = Math.round((Date.now() - st.running.since) / 1000);
+      const mode = st.running.headed === false ? "headless" : st.running.headed ? "in the visible window" : "";
+      const prog = st.running.progress ? ` — ${st.running.progress}` : "";
+      $("#rs-text").textContent = `Running ${st.running.label}${mode ? ` (${mode})` : ""}${prog} · ${secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`}`;
+      dot.className = "rs-dot busy";
+    } else {
+      $("#rs-text").textContent = "Browser idle — runs go one at a time, in one window";
+      dot.className = "rs-dot idle";
+    }
+    $("#rs-queue").textContent = st.waiting?.length ? `· ${st.waiting.length} waiting: ${st.waiting.join(", ")}` : "";
+    const spend = ai.totalUsd ? ` · $${ai.totalUsd.toFixed(3)} spent` : "";
+    const calls = Object.values(ai.byModel || {}).reduce((n, m) => n + m.calls, 0);
+    $("#rs-ai").textContent = `${ai.provider}${calls ? ` · ${calls} call${calls === 1 ? "" : "s"}` : ""}${spend}`;
+  } catch {
+    /* server restarting */
+  }
+}
+
+
+// ── steps the automation still needs ─────────────────────────────────────────
+async function loadGaps() {
+  try {
+    const { gaps } = await (await fetch("/api/vocabulary-gaps")).json();
+    const box = $("#gaps");
+    if (!gaps.length) return;
+    box.innerHTML = "";
+    $("#gaps-hint").textContent = `${gaps.length} missing capabilit${gaps.length === 1 ? "y" : "ies"} · most-asked-for first`;
+    for (const g of gaps.slice(0, 12)) {
+      const row = el("div", "gap");
+      row.appendChild(el("span", "gap-n", String(g.askedBy.length)));
+      const need = el("span", "gap-need", esc(g.need));
+      need.appendChild(el("span", "gap-by", esc(g.askedBy.slice(0, 6).join(" · ") + (g.askedBy.length > 6 ? ` +${g.askedBy.length - 6}` : ""))));
+      row.appendChild(need);
+      box.appendChild(row);
+    }
+  } catch {
+    /* server restarting */
+  }
+}
+
+// ── THE TEST CASE BOOK ──────────────────────────────────────────────────────
+//
+// Every written test case, by user journey, read as a QA sheet reads: case,
+// steps, expected result, actual result, result. The actual result is copied
+// from the latest real run of that case (/api/case-book); a case that has not
+// run says so rather than showing a guess.
+
+let caseBook = null;
+const CB_RESULT = {
+  passed: ["✓", "Passed", "ok"],
+  failed: ["✗", "Failed", "bad"],
+  "not-checked": ["–", "Not checked", "skip"],
+  "not-run": ["·", "Not run yet", "none"],
+};
+const cbAttr = (s) => esc(s).replace(/"/g, "&quot;");
+const cbPlain = (s) => String(s ?? "").replace(/`/g, "");
+const cbResultOf = (c) => (c.last ? c.last.result : "not-run");
+function cbWhen(iso) {
+  try {
+    return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso ?? "";
+  }
+}
+function cbSteps(s) {
+  // "1. Do this. 2. Then that." → one line per numbered step
+  return cbPlain(s)
+    .split(/\s(?=\d+\.\s)/)
+    .map((p) => esc(p))
+    .join("<br>");
+}
+
+function initCaseBook() {
+  document.querySelectorAll(".cb-tab").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".cb-tab").forEach((x) => x.classList.toggle("on", x === b));
+      const pane = b.dataset.cbtab;
+      const book = $("#cb-pane-book");
+      const lib = $("#cb-pane-library");
+      if (book) book.hidden = pane !== "book";
+      if (lib) lib.hidden = pane !== "library";
+    }),
+  );
+  let t;
+  for (const id of ["#cb-search", "#cb-journey", "#cb-layer", "#cb-priority", "#cb-result"]) {
+    $(id)?.addEventListener("input", () => {
+      clearTimeout(t);
+      t = setTimeout(renderCaseBook, 150);
+    });
+  }
+  loadCaseBook();
+}
+
+async function loadCaseBook() {
+  const box = $("#casebook");
+  if (!box) return;
+  try {
+    caseBook = await (await fetch("/api/case-book")).json();
+  } catch {
+    box.innerHTML = `<div class="empty">Could not read the test case book.</div>`;
+    return;
+  }
+  const pick = $("#cb-journey");
+  if (pick)
+    pick.innerHTML =
+      '<option value="">Every journey</option>' +
+      caseBook.journeys.map((j) => `<option value="${cbAttr(j.id)}">${j.order}. ${esc(j.title)} (${j.cases.length})</option>`).join("");
+  const n = $("#cb-tab-n");
+  if (n) n.textContent = `(${caseBook.tally.cases})`;
+  renderCaseBook();
+}
+
+function renderCaseBook() {
+  const box = $("#casebook");
+  if (!box || !caseBook) return;
+  const q = ($("#cb-search")?.value ?? "").trim().toLowerCase();
+  const jf = $("#cb-journey")?.value ?? "";
+  const lf = $("#cb-layer")?.value ?? "";
+  const pf = $("#cb-priority")?.value ?? "";
+  const rf = $("#cb-result")?.value ?? "";
+  const filtering = !!(q || jf || lf || pf || rf);
+  const match = (c) => {
+    if (lf === "field" ? !/^API-F/.test(c.id) : lf && c.layer !== lf) return false;
+    if (pf && c.priority !== pf) return false;
+    if (rf && cbResultOf(c) !== rf) return false;
+    if (!q) return true;
+    return `${c.id} ${c.title} ${c.expected} ${c.steps} ${c.section} ${c.last?.actual ?? ""}`.toLowerCase().includes(q);
+  };
+
+  box.innerHTML = "";
+  const t = { passed: 0, failed: 0, "not-checked": 0, "not-run": 0 };
+  let shown = 0;
+  for (const j of caseBook.journeys) {
+    if (jf && j.id !== jf) continue;
+    const cases = j.cases.filter(match);
+    if (!cases.length) continue;
+    const r = { passed: 0, failed: 0, "not-checked": 0, "not-run": 0 };
+    for (const c of cases) r[cbResultOf(c)]++;
+    for (const k of Object.keys(t)) t[k] += r[k];
+    shown += cases.length;
+    const d = el("details", "cb-journey");
+    d.innerHTML =
+      `<summary class="cb-jhead"><span class="cb-jn">${j.order}</span>` +
+      `<div class="cb-jt"><h2>${esc(j.title)}</h2><p>${esc(j.persona)} — ${esc(j.goal)}</p></div>` +
+      `<span class="cb-jnums"><b>${cases.length}</b> case${cases.length === 1 ? "" : "s"}` +
+      `<span class="ok">✓ ${r.passed} passed</span>` +
+      (r.failed ? `<span class="bad">✗ ${r.failed} failed</span>` : "") +
+      `<span class="mute">${r["not-run"]} not run yet</span></span></summary>`;
+    const build = () => {
+      if (d.dataset.built) return;
+      d.dataset.built = "1";
+      d.appendChild(cbTable(cases));
+    };
+    // Filtering opens what matched (the reader already said what they want);
+    // otherwise the book opens as a contents page, one line per journey.
+    if (filtering && (jf || cases.length <= 150)) {
+      d.open = true;
+      build();
+    } else d.addEventListener("toggle", () => d.open && build());
+    box.appendChild(d);
+  }
+  const sum = $("#cb-summary");
+  if (sum)
+    sum.innerHTML =
+      `<span><b>${shown}</b> test case${shown === 1 ? "" : "s"}${filtering ? " matching" : ""}</span>` +
+      `<span class="ok"><b>${t.passed}</b> passed</span>` +
+      `<span class="bad"><b>${t.failed}</b> failed</span>` +
+      `<span><b>${t["not-checked"]}</b> not checked</span>` +
+      `<span class="mute"><b>${t["not-run"]}</b> not run yet</span>` +
+      `<span class="cb-expand"><button type="button" data-cb="open">expand all</button><button type="button" data-cb="close">collapse all</button></span>`;
+  sum?.querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => {
+      box.querySelectorAll(".cb-journey").forEach((d) => {
+        d.open = b.dataset.cb === "open";
+      });
+    }),
+  );
+  if (!shown) box.innerHTML = `<div class="empty">No test case matches that.</div>`;
+}
+
+function cbTable(cases) {
+  const wrap = el("div", "cb-table-wrap");
+  let html =
+    `<table class="cb-table"><thead><tr><th>Case ID</th><th>Test case &amp; steps</th>` +
+    `<th>Expected result</th><th>Actual result</th><th>Result</th><th>Priority</th></tr></thead><tbody>`;
+  let sec = null;
+  for (const c of cases) {
+    if (c.section !== sec) {
+      sec = c.section;
+      html += `<tr class="cb-sec"><td colspan="6">${esc(cbPlain(sec))}</td></tr>`;
+    }
+    const [ic, word, cls] = CB_RESULT[cbResultOf(c)];
+    const actual = c.last
+      ? `${esc(c.last.actual)}<div class="cb-where">${esc(c.last.where)} · ${esc(cbWhen(c.last.at))}` +
+        (c.last.runId ? ` · <a href="/api/test-report?run=${encodeURIComponent(c.last.runId)}" target="_blank" rel="noopener">open report</a>` : "") +
+        `</div>`
+      : `<span class="mute">Not run yet</span>`;
+    html +=
+      `<tr class="cb-row r-${cls}"><td class="cb-id">${esc(c.id)}</td>` +
+      `<td class="cb-title">${esc(cbPlain(c.title))}<div class="cb-steps">${cbSteps(c.steps)}</div></td>` +
+      `<td class="cb-exp">${esc(cbPlain(c.expected))}</td>` +
+      `<td class="cb-act">${actual}</td><td class="cb-res ${cls}">${ic} ${word}</td>` +
+      `<td><span class="cb-pri p-${cbAttr(String(c.priority).toLowerCase())}">${esc(c.priority)}</span></td></tr>` +
+      `<tr class="cb-more" hidden><td colspan="6"><b>Why it matters.</b> ${esc(cbPlain(c.why))}` +
+      (c.setup ? `<br><b>Setup.</b> ${esc(cbPlain(c.setup))}` : "") +
+      `<br><b>How it is checked.</b> ${esc(cbPlain(c.oracle))}</td></tr>`;
+  }
+  wrap.innerHTML = html + `</tbody></table>`;
+  wrap.addEventListener("click", (e) => {
+    const row = e.target.closest("tr.cb-row");
+    if (!row || e.target.closest("a")) return;
+    const more = row.nextElementSibling;
+    if (more?.classList.contains("cb-more")) more.hidden = !more.hidden;
+    row.classList.toggle("open");
+  });
+  return wrap;
 }

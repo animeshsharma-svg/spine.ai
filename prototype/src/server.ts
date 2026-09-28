@@ -13,7 +13,7 @@
  *   GET /api/run?c=ID&q=TEXT   Server-Sent Events: each agent event, then report
  */
 import { createServer } from "node:http";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
@@ -61,12 +61,18 @@ import { resolveToken } from "./tokenMint.js";
 import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
+import { buildJourneys } from "./checks/journeys.js";
+import { buildCaseBook } from "./checks/caseBook.js";
 import { runApiCases } from "./checks/apiCaseRunner.js";
 import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
+import { flowToCases, loadRecording } from "./checks/flowToCases.js";
+import { replayCase, disposeReplay } from "./checks/flowReplay.js";
 import { parsePastedCases, runPastedCases } from "./checks/pastedCases.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
+const DATA_DIR = join(here, "..", "data");
+const REC_DIR = join(here, "..", "..", "procol-ui-tests", "recordings");
 
 /**
  * The base URL this request should talk to, when the reader has chosen one.
@@ -201,22 +207,30 @@ const server = createServer(async (req, res) => {
     /**
      * The journey catalogue: the same 648 cases the test-case view lists, but
      * ordered into the 17 journeys a buyer actually walks, each case in the
-     * position its journey exercises it. Served as-is — it is authored, not
-     * derived, so the platform reads it rather than rebuilding it.
+     * position its journey exercises it.
+     *
+     * Derived from the catalog (`buildJourneys`) so it is always in sync with
+     * the written cases; `data/journeys.json` is the dumped copy of that same
+     * derivation (scripts/build-journeys.ts). `?source=file` serves the dumped
+     * file as-is, and the file is also the fallback when the derivation
+     * cannot run in this checkout.
      */
     if (path === "/api/journeys") {
-      const file = join(here, "..", "data", "journeys.json");
-      if (!existsSync(file)) {
-        return json(res, { journeys: [], orphans: [], missing: true });
-      }
+      const file = join(DATA_DIR, "journeys.json");
+      const readFile = () => {
+        if (!existsSync(file)) return { journeys: [], orphans: [], missing: true };
+        try {
+          return JSON.parse(readFileSync(file, "utf8"));
+        } catch (e) {
+          return { journeys: [], orphans: [], error: e instanceof Error ? e.message : String(e) };
+        }
+      };
+      if (url.searchParams.get("source") === "file") return json(res, readFile());
       try {
-        return json(res, JSON.parse(readFileSync(file, "utf8")));
-      } catch (e) {
-        return json(res, {
-          journeys: [],
-          orphans: [],
-          error: e instanceof Error ? e.message : String(e),
-        });
+        const { journeys, orphans } = buildJourneys();
+        return json(res, { journeys, orphans });
+      } catch {
+        return json(res, readFile());
       }
     }
 
@@ -1536,6 +1550,12 @@ const server = createServer(async (req, res) => {
     // 648 cases live in `test-cases/*.md`. This serves them with the route
     // each one would take if run, so the dashboard can show a person what
     // will actually happen rather than an undifferentiated Run button.
+    // ── API: the case book — every written case by journey, with its latest
+    //         real result (expected vs actual) copied from the runs ──────────
+    if (path === "/api/case-book") {
+      return json(res, buildCaseBook());
+    }
+
     if (path === "/api/test-cases") {
       const layer = url.searchParams.get("layer") as "ui" | "api" | null;
       const found = findCases({
@@ -1553,6 +1573,123 @@ const server = createServer(async (req, res) => {
         sections: sections(layer ?? undefined),
         cases: found.slice(0, limit).map((c) => ({ ...c, route: routeFor(c) })),
       });
+    }
+
+
+    // ── API: the catalog arranged as USER JOURNEYS — see /api/journeys above ──
+
+    // ── API: recorded flows → human test cases with field validations ───
+    //
+    // A FlowRecorder recording (procol-ui-tests/recordings/<name>.flow.json)
+    // is the real /api/* traffic a browser flow fired. These routes turn it
+    // into Postman-style cases with per-field checks, and can replay the READ
+    // calls live (fresh token) for a genuine passed/failed — mutations are
+    // never fired against live data.
+    if (path === "/api/recorded-flows") {
+      const converted = existsSync(DATA_DIR)
+        ? readdirSync(DATA_DIR)
+            .filter((f) => /^recorded-.*\.cases\.json$/.test(f))
+            .map((f) => f.replace(/^recorded-/, "").replace(/\.cases\.json$/, ""))
+        : [];
+      const recordings = existsSync(REC_DIR)
+        ? readdirSync(REC_DIR).filter((f) => f.endsWith(".flow.json")).map((f) => f.replace(/\.flow\.json$/, ""))
+        : [];
+      return json(res, {
+        converted,
+        recordings,
+        pending: recordings.filter((r) => !converted.includes(r)),
+      });
+    }
+
+    if (path === "/api/recorded-flow") {
+      const name = (url.searchParams.get("name") ?? "").replace(/[^a-z0-9_-]/gi, "");
+      const file = join(DATA_DIR, `recorded-${name}.cases.json`);
+      if (!name || !existsSync(file)) return json(res, { error: `no converted flow "${name}"` });
+      return json(res, JSON.parse(readFileSync(file, "utf-8")));
+    }
+
+    // Convert a recording into cases now (optionally replaying reads live), SSE.
+    if (path === "/api/convert-flow") {
+      const name = (url.searchParams.get("name") ?? "").replace(/[^a-z0-9_-]/gi, "");
+      const replay = url.searchParams.get("replay") === "1";
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const src = join(REC_DIR, `${name}.flow.json`);
+      if (!name || !existsSync(src)) {
+        send("error", { line: `no recording "${name}" in procol-ui-tests/recordings/` });
+        return res.end();
+      }
+      try {
+        const fc = flowToCases(loadRecording(src), src);
+        send("start", { name: fc.name, total: fc.cases.length, context: fc.context, replay });
+        if (replay) {
+          for (const c of fc.cases) {
+            const { case: judged, outcome } = await replayCase(c);
+            Object.assign(c, judged);
+            send("case", {
+              id: c.id, method: c.method, path: c.path, title: c.title,
+              replayed: outcome.replayed, liveStatus: outcome.liveStatus,
+              passed: outcome.passed, failed: outcome.failed, skipped: outcome.skipped,
+              reason: outcome.reason,
+            });
+          }
+          await disposeReplay();
+        }
+        mkdirSync(DATA_DIR, { recursive: true });
+        writeFileSync(join(DATA_DIR, `recorded-${name}.cases.json`), JSON.stringify({ ...fc, replayed: replay }, null, 2));
+        send("done", { ok: true, name: fc.name, cases: fc.cases.length });
+      } catch (err: any) {
+        send("error", { line: String(err?.message ?? err) });
+      }
+      return res.end();
+    }
+
+    // ── API: compile a whole journey's cases IN PARALLEL (many planner agents,
+    //         no browser) — this is the "run multiple agents" that is safe with
+    //         a single browser: planning fans out, execution stays sequential.
+    if (path === "/api/journey-compile") {
+      const jid = url.searchParams.get("id") ?? "";
+      const conc = Math.max(1, Math.min(Number(url.searchParams.get("concurrency") ?? 6), 12));
+      const { journeys } = buildJourneys();
+      const journey = journeys.find((j) => j.id === jid);
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (!journey) {
+        send("error", { line: `no journey "${jid}"` });
+        return res.end();
+      }
+      // Only the cases the compiler actually plans (a written UI case → a plan).
+      const compilable = journey.cases.filter((c) => c.routeKind === "ui-compile");
+      send("plan", { id: journey.id, title: journey.title, total: compilable.length, concurrency: conc });
+      let cancelled = false;
+      req.on("close", () => (cancelled = true));
+      let i = 0;
+      const worker = async () => {
+        while (!cancelled) {
+          const idx = i++;
+          if (idx >= compilable.length) return;
+          const jc = compilable[idx];
+          const c = caseById(jc.id);
+          if (!c) continue;
+          send("compiling", { id: jc.id });
+          try {
+            const compiled = await compileTestCase(caseAsProse(c));
+            send("compiled", {
+              id: jc.id,
+              title: jc.title,
+              coverage: compiled.coverage,
+              steps: compiled.plan.steps.map((st) => st.step),
+              gaps: compiled.gaps,
+              source: compiled.source,
+            });
+          } catch (err: any) {
+            send("compiled", { id: jc.id, title: jc.title, coverage: "error", steps: [], gaps: [String(err?.message ?? err)], source: "error" });
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: conc }, () => worker()));
+      send("done", { ok: true });
+      return res.end();
     }
 
     // ── API: run the cases a person ticked (SSE) ────────────────────────
@@ -2434,6 +2571,6 @@ server.listen(PORT, () => {
   // Settle which embedder is really available before anything reads the
   // memory, so the dashboard's stale/fresh verdict is about reality.
   ensureEmbedderReady().then((id) => console.log(`   Embedder: ${id}`)).catch(() => {});
-  console.log(`\n🚀 spine.ai  →  http://localhost:${PORT}`);
+  console.log(`\n🚀 spine.ai — Procol QA platform UI  →  http://localhost:${PORT}`);
   console.log(`   AI provider: ${providerLabel()}\n`);
 });

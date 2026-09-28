@@ -1,5 +1,7 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { EventsPage } from "./EventsPage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
 
 /**
@@ -121,6 +123,115 @@ export class EventDetailPage extends BasePage {
    * checkboxes are accepted deliberately — the flow asserts the conversion
    * carries the RFQ's data forward, which is the default behaviour.
    */
+  /**
+   * Force-end the current stage: Settings → "End <Status>" (eventHeader.jsx
+   * builds the label as `End ${status}` — "End Live", "End Rfq In Progress" —
+   * and renders it only when the tenant's trade_config.trade_force_close is
+   * on) → the end-time confirm modal → remarks → OK, which sends
+   * `force_end: true` and toasts "Event time updated successfully".
+   * Returns what happened in words; throws with the menu's own items when
+   * the option is not offered.
+   */
+  async forceEnd(remark = "Closed by the QA platform"): Promise<string> {
+    const p = this.page;
+    await this.dismissDistractions();
+    // The Settings menu belongs to the stage tab, not the project summary.
+    const onStage = await p.locator("[role='tab'][aria-selected='true'], .ant-tabs-tab-active").filter({ hasText: /rfq|auction|technical|rfp/i }).count();
+    if (!onStage) {
+      const tab = p.getByRole("tab", { name: /^(rfq|auction|technical|rfp)\b/i }).first();
+      if (await tab.count()) {
+        await tab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await this.waitForSpinnerHidden();
+      }
+    }
+    await p.getByText(/loading your event details/i).first().waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
+    const settings = p.getByTestId("event-settings-button").or(p.getByRole("button", { name: /settings/i })).first();
+    await settings.waitFor({ state: "visible", timeout: TIMEOUTS.LONG });
+    await this.dismissDistractions();
+    await settings.click({ timeout: TIMEOUTS.MEDIUM });
+    const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();
+    await menu.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+    const items = menu.locator(".ant-dropdown-menu-item, [role='menuitem']");
+    const offered = (await items.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const end = items.filter({ hasText: /^end\b(?!\s*time\s*$)/i }).first();
+    if (!(await end.count())) {
+      await p.keyboard.press("Escape").catch(() => {});
+      // Captured on PROCOL DEMO 2026-09-11: the menu offers Recreate Order,
+      // Shared With, Extend Submission Time, Withdraw, Convert to Auction,
+      // Rejected Bids, Order Activity, Edit Evaluation Time, Send Bulk Counter
+      // Offer — no "End …": trade_force_close is off here. The only road to a
+      // closed event on this tenant is letting the bidding window lapse.
+      return `no force-end on this tenant (Settings offers: ${offered.join(", ")}) — waiting for the window to lapse`;
+    }
+    const label = ((await end.textContent()) ?? "").trim();
+    if ((await end.getAttribute("aria-disabled")) === "true" || /disabled/.test((await end.getAttribute("class")) ?? "")) {
+      await p.keyboard.press("Escape").catch(() => {});
+      throw new Error(`"${label}" is disabled on this event (old version or project on hold)`);
+    }
+    await end.click({ timeout: TIMEOUTS.SHORT });
+    const modal = p.locator(".ant-modal-wrap:not([style*='display: none']) .ant-modal-content, [role='dialog']").last();
+    await modal.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM });
+    const remarks = modal.locator("textarea, input[placeholder*='remark' i]").first();
+    if (await remarks.count()) await remarks.fill(remark).catch(() => {});
+    const ok = modal.getByRole("button", { name: /^(ok|confirm|yes|end|proceed|submit)/i }).first();
+    if (!(await ok.count())) {
+      const buttons = (await modal.getByRole("button").allTextContents()).map((t) => t.trim()).filter(Boolean);
+      throw new Error(`the end-time modal has no confirm control — buttons: ${buttons.join(", ")}`);
+    }
+    await ok.click({ timeout: TIMEOUTS.MEDIUM });
+    const err = await this.errorToastText(3_000);
+    if (err) throw new Error(`ending the event was refused: ${err}`);
+    const okToast = await this.successToastText(6_000);
+    await this.waitForSpinnerHidden();
+    return `${label} → ${okToast ?? "confirmed"}`;
+  }
+
+  /**
+   * Wait for the current event's bidding window to lapse, reading "Ends in
+   * Xm : Ys" from its row in the events list. Bounded: if the window is longer
+   * than `maxWaitMinutes`, say so rather than sit there — the plan should have
+   * published with a short schedule (set_schedule{minutes}).
+   */
+  async waitForWindowToLapse(title: string, maxWaitMinutes = 6): Promise<string> {
+    const p = this.page;
+    const projectId = BasePage.projectIdFromUrl(p.url());
+    const events = new EventsPage(p);
+    await events.goto();
+    const readRemaining = async (): Promise<{ text: string; seconds: number | null; over: boolean }> => {
+      // A fresh load every time: the list caches, and a stale row reads as live.
+      await events.goto();
+      await events.searchByTitle(title);
+      const row = (await events.rowTextFor(title)) ?? "";
+      const m = row.match(/ends in\s*(?:(\d+)\s*h\s*:?\s*)?(\d+)\s*m\s*:?\s*(\d+)\s*s/i);
+      // Once the window ends, the row keeps the words "Ends in" with NOTHING
+      // after them and the status word stays "RFQ in Progress" (captured
+      // 2026-09-11 after a 2-minute window: "Ends in 1/1 RFQ in Progress 1").
+      // So "live" means a countdown with a time in it; an ended state word
+      // anywhere in the row also counts as over.
+      const liveCountdown = !!m;
+      const endedWord = /overdue|evaluat|closed|ended|history|completed|expired/i.test(row);
+      const over = row.length > 0 && (endedWord || (!liveCountdown && /ends in/i.test(row)));
+      const seconds = m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
+      console.log(`[close-event] row: ${row.slice(0, 140)} → ${over ? "window over" : seconds !== null ? `${seconds}s left` : "no countdown read"}`);
+      return { text: row.slice(0, 160), seconds, over };
+    };
+    let state = await readRemaining();
+    if (!state.over && state.seconds !== null && state.seconds > maxWaitMinutes * 60) {
+      throw new Error(
+        `the bidding window still has ${Math.round(state.seconds / 60)} min to run and no force-end is offered on this tenant — publish with set_schedule{minutes: 3} for a closed-event case (row: ${state.text})`,
+      );
+    }
+    const deadline = Date.now() + maxWaitMinutes * 60_000 + 30_000;
+    while (!state.over && Date.now() < deadline) {
+      await p.waitForTimeout(15_000);
+      state = await readRemaining();
+    }
+    if (!state.over) throw new Error(`the bidding window had not lapsed after ${maxWaitMinutes} min (row: ${state.text})`);
+    // Back to the event.
+    if (projectId) await events.openEvent({ id: projectId });
+    return `window lapsed — the list row now reads: ${state.text}`;
+  }
+
   async convertToAuction(): Promise<Page> {
     const p = this.page;
     const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();

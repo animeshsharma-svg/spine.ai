@@ -26,6 +26,8 @@
  * and the one rule that decides which step a library case hangs off.
  */
 
+import type { StepAssertions } from "./apiAssertions.js";
+
 // ── the event types a run can build ────────────────────────────────────────
 
 export type EventType = "rfp_only" | "rfq_only" | "rfp_rfq" | "rfp_auction";
@@ -226,6 +228,14 @@ export interface JourneyStepRecord {
   errorCode?: string;
   /** the ids this step produced, by name: { eventGroupUuid: "RFFEY0RO" } */
   produced?: Record<string, string>;
+  /**
+   * The reply body as the record may keep it — credentials redacted, arrays
+   * trimmed (see `keepResponse`). What the field-assertion catalog is learned
+   * from, and what a reader opens in the report.
+   */
+  response?: unknown;
+  /** Postman-style field checks run against the live reply (`apiAssertions.ts`). */
+  assertions?: StepAssertions;
   startedAt: string;
 }
 

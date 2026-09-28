@@ -101,6 +101,7 @@ const DEFAULT_VENDOR = process.env.UI_DEFAULT_VENDOR ?? "AMD";
 
 const DOMAIN_RULES = `
 First decide WHICH SCREEN the test is about:
+- Is it about an EXISTING event (open it, inspect its participants / bids / status, act on it)? Then start with open_event{title|id} and STOP adding create steps — no open_create, no set_title. open_event lands on the event's project page.
 - Is the SUBJECT of the test the events LIST itself — its rows, filters, tabs, sorting, search, or merely that the Create Event control is reachable? Then use open_events_list + expect_events_list and STOP. Do not add open_create, set_title or anything else: those act on a different screen, and a plan that opens the create screen to test the list passes while proving nothing.
 - Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
 
@@ -109,7 +110,7 @@ Combinations (the permutation map — pick the path that can actually reach what
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion: create and publish an RFQ (eRFX, compose_stages ["rfq"]), expect_published, then convert_to_auction. Never compose_stages ["rfq","auction"] — the screen forbids it.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
-- Counter offer (buyer negotiates a vendor's bid): only after a vendor has bid — publish, place_bid (or place_surrogate_bid), open_master_qcs, then place_counter_offer{vendor, price}, then expect_counter_offer_sent. The vendor's ACCEPTANCE of a counter offer has no step yet — cannotExpress that part.
+- Counter offer (buyer negotiates a vendor's bid): only after a vendor has bid — publish, place_bid (or place_surrogate_bid), open_master_qcs, then place_counter_offer{vendor, price}, then expect_counter_offer_sent. The vendor's ACCEPTANCE: accept_counter_offer{vendor} (vendor side, supplier portal) then expect_counter_offer_accepted (buyer grid).
 - A technical (RFP) stage never carries an auction strategy or a pricing sheet; RFQ and Auction never coexist on one eRFX screen.
 - BOQ events: open_create path "boq"; line items are BOQ rows; still template-first.
 
@@ -215,6 +216,30 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // open_create (for a URL check) must not turn into a create test, or the
   // create repairs move that open to the front and bolt a title onto it.
   const LIST_STEPS = ["open_events_list", "expect_events_list", "expect_create_options", "filter_events", "expect_event_in_list", "expect_event_status"];
+
+  // A plan about an EXISTING event starts by opening it — no create screen,
+  // no title. The create repairs turned "open the event, open its
+  // participants, capture" into open_create → set_title → open_event, which
+  // ran against a fresh create screen. Settle these plans here and return.
+  // The model, told "open_create must come first", tends to prepend
+  // open_create + set_title even to an existing-event plan. Those two (and a
+  // stage step) are not evidence of a create test; anything heavier —
+  // template, line items, publish — is.
+  const HEAVY_CREATE = CREATE_SCREEN_STEPS.filter((x) => !["open_create", "set_title", "compose_stages", "expect_stages"].includes(x));
+  if (has("open_event") && !steps.some((s) => HEAVY_CREATE.includes(s.step))) {
+    for (const drop of ["open_create", "set_title", "compose_stages", "expect_stages"]) {
+      while (has(drop)) {
+        steps.splice(indexOf(drop), 1);
+        repairs.push(`dropped ${drop} — this plan opens an existing event, it does not create one`);
+      }
+    }
+    if (indexOf("open_event") !== 0) {
+      const [open] = steps.splice(indexOf("open_event"), 1);
+      steps.unshift(open);
+      repairs.push("moved open_event to the front — the steps after it act on that event's page");
+    }
+    return { plan: { ...plan, steps }, repairs };
+  }
   const isListTest =
     steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
   if (isListTest) {
@@ -275,6 +300,10 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // configure_single_stage lives in the single-stage configuration drawer, so
   // the plan must open THAT screen, and the eRFX-only stage steps have nothing
   // to act on there. Decide the screen from the step the case really needs.
+  if (has("configure_single_stage") && !/single[- ]?stage|classic|non-?erfx|rank[- ]based|price[- ]based|traffic light|knockout|dutch|award(ing)? (rule|the entire lot|line[- ]item)/i.test(testCase)) {
+    steps.splice(indexOf("configure_single_stage"), 1);
+    repairs.push("dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule");
+  }
   if (has("configure_single_stage")) {
     const open = steps.find((st) => st.step === "open_create");
     if (open && String(open.args?.path ?? "erfx") !== "single-stage") {
@@ -292,6 +321,21 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       const [c] = steps.splice(cfg, 1);
       steps.splice(firstBody, 0, c);
       repairs.push("moved configure_single_stage before the body — the drawer decides the event type the rest is built on");
+    }
+  }
+
+  // expect_publish_blocked presses Publish itself and judges what follows. A
+  // plain publish step before it treats the refusal the case WANTS as a
+  // failure and stops the plan one step early — UI-PART-001 died on
+  // "publish was rejected: Please add participants to proceed!", which was the
+  // pass. Drop the plain publish (and expect_published) when the assertion is
+  // there to do the pressing.
+  if (has("expect_publish_blocked")) {
+    for (const drop of ["publish", "expect_published"]) {
+      while (has(drop)) {
+        steps.splice(indexOf(drop), 1);
+        repairs.push(`dropped ${drop} — expect_publish_blocked presses Publish itself and judges the refusal`);
+      }
     }
   }
 
@@ -355,6 +399,23 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
           repairs.push(`${st.step} now bids as ${first} — the vendor the plan's assertions are about`);
         }
       }
+    }
+  }
+
+  // close_event on this tenant means waiting for the bidding window to lapse
+  // (no force-end is offered). Give such a plan a 3-minute schedule before
+  // publish: long enough to place the bid, short enough to wait out.
+  if (has("close_event")) {
+    const sched = steps.find((st) => st.step === "set_schedule");
+    if (sched) {
+      const m = Number(sched.args?.minutes);
+      if (!Number.isFinite(m) || m > 3) {
+        sched.args = { ...(sched.args ?? {}), minutes: 3 };
+        repairs.push("set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end");
+      }
+    } else if (has("publish")) {
+      steps.splice(indexOf("publish"), 0, { step: "set_schedule", args: { minutes: 3 } });
+      repairs.push("added set_schedule(3 min) before publish — close_event needs a short window to wait out");
     }
   }
 
@@ -586,7 +647,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
    */
   if (has("publish") && submits) {
     if (!has("set_schedule")) insertBefore("publish", { step: "set_schedule" }, "added set_schedule — the schedule is displayed but not committed until saved");
-    if (!has("invite_vendor")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
+    // …unless the plan expects the publish to be REFUSED: a case about
+    // publishing with no participants must not be handed participants.
+    if (!has("invite_vendor") && !has("expect_publish_blocked")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
   }
 
   // Bidding needs something to bid on, and the vendor portal needs to know

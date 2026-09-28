@@ -44,6 +44,8 @@
             <button type="button" id="client-add-cancel" class="chip">cancel</button>
           </span>
         </span>
+        <a href="/journeys.html" class="provider" style="text-decoration:none" title="The 648 cases arranged as user journeys">🧭 journeys</a>
+        <a href="/recorded.html" class="provider" style="text-decoration:none" title="Recorded API flows → test cases with field validations">📼 recorded</a>
         <span id="provider" class="provider" title="AI provider">…</span>
       </div>
     </header>
@@ -107,6 +109,13 @@
             <span class="glance-k" id="glance-env">target</span>
           </div>
         </div>
+        <!-- What holds the single browser right now, and what the AI has cost -->
+        <div id="run-strip" class="run-strip">
+          <span class="rs-dot idle" id="rs-dot"></span>
+          <span id="rs-text">Browser idle — runs go one at a time, in one window</span>
+          <span id="rs-queue" class="rs-queue"></span>
+          <span id="rs-ai" class="rs-ai" title="AI provider · spend reported by the gateway"></span>
+        </div>
         <div class="request-card big">
           <div class="rc-head">
             <label for="request">Ask spine.ai, or paste a test case</label>
@@ -130,6 +139,9 @@
             <span class="rc-or">or</span>
             <button id="plan-btn" class="run-btn small ghost">🧪 Compile this test case &amp; run it</button>
             <button id="plan-dry" class="chip" title="Compile without running, to see the plan first">plan only</button>
+            <label class="tgl-flow" title="Headed only: log in visibly in this window first and slow the run to demo pace">
+              <input type="checkbox" id="plan-demo" /> demo pace + visible login
+            </label>
             <span id="status" class="run-status"></span>
           </div>
           <p class="rc-foot">Whatever you ask for is planned, written as test cases and run as real requests —
@@ -167,6 +179,53 @@
           <summary><span class="ui-raw-label">Raw output</span><span class="ui-raw-n" id="ui-raw-n"></span></summary>
           <div id="ui-console" class="ui-console"></div>
         </details>
+
+        <!-- The written catalog — pick cases by hand and run them -->
+        <div class="col-head" style="margin-top: 18px">
+          <h2>Test catalog</h2>
+          <span class="hint" id="cat-hint">648 written cases · tick the ones you want and run them</span>
+        </div>
+        <div class="cat-bar">
+          <div class="cat-tabs">
+            <button class="chip active" data-layer="">all</button>
+            <button class="chip" data-layer="ui">UI</button>
+            <button class="chip" data-layer="api">API</button>
+          </div>
+          <select id="cat-section" class="cat-select" title="Catalog section"><option value="">every section</option></select>
+          <select id="cat-priority" class="cat-select" title="Priority">
+            <option value="">any priority</option>
+            <option value="P0">P0</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+          </select>
+          <select id="cat-verdict" class="cat-select" title="What the catalog says to do with it">
+            <option value="">any verdict</option>
+            <option value="automate">automate</option>
+            <option value="automate-later">automate-later</option>
+            <option value="manual">manual</option>
+          </select>
+          <input id="cat-q" class="kb-input" placeholder="search the catalog, e.g. savings column" />
+        </div>
+        <div class="cat-bar">
+          <button id="cat-run" class="run-btn small">▶ Run selected cases</button>
+          <button id="cat-stop" class="chip" title="Stop the run">■ stop</button>
+          <button id="cat-none" class="chip">clear</button>
+          <label class="tgl-flow" title="Tick to open the one visible Chromium window and watch the run — leave off for verification runs">
+            <input type="checkbox" id="cat-headed" /> watch it
+          </label>
+          <label class="tgl-flow" title="Headed only: log in visibly in the same window before the run, and slow every action so it can be followed by eye">
+            <input type="checkbox" id="cat-demo" /> demo pace + visible login
+          </label>
+          <label class="tgl-flow" title="Show Playwright's own output as well as the plain-language narration">
+            <input type="checkbox" id="cat-raw" /> raw log
+          </label>
+          <span id="cat-picked" class="cat-count"></span>
+        </div>
+        <div id="cat-list" class="cat-list">
+          <div class="loading">Loading the catalog…</div>
+        </div>
+        <div id="cat-run-out" class="cat-run-out" hidden></div>
 
         <div class="col-head">
           <h2>Agent reasoning</h2>
@@ -349,9 +408,43 @@
         <section class="view" id="view-cases" data-view="cases">
           <header class="view-head">
             <h1>Test cases</h1>
-            <p>Every case the platform has written down, as it is written. This is the catalogue, not a run — read it to see whether something is already covered.</p>
+            <p>Every test case the platform has — written by hand, generated from the product workbook and the Notion knowledge base, and one per API field check — arranged by user journey, each with its expected result and the latest actual result from a real run.</p>
           </header>
           <div class="view-body">
+            <div class="cb-tabs" role="tablist">
+              <button type="button" class="cb-tab on" data-cbtab="book">📖 Test case book <span id="cb-tab-n"></span></button>
+              <button type="button" class="cb-tab" data-cbtab="library">⚡ API case library</button>
+            </div>
+
+            <!-- the case book: every written case by journey, expected vs actual -->
+            <div id="cb-pane-book" class="cb-pane">
+              <div class="cb-bar">
+                <input id="cb-search" class="cat-search" type="search" placeholder="Search test cases — id, title, expected result…" />
+                <select id="cb-journey" class="cat-select"><option value="">Every journey</option></select>
+                <select id="cb-layer" class="cat-select">
+                  <option value="">UI and API</option>
+                  <option value="ui">UI / product flows</option>
+                  <option value="api">API</option>
+                  <option value="field">API field checks only</option>
+                </select>
+                <select id="cb-priority" class="cat-select">
+                  <option value="">Any priority</option>
+                  <option>P0</option><option>P1</option><option>P2</option><option>P3</option>
+                </select>
+                <select id="cb-result" class="cat-select">
+                  <option value="">Any result</option>
+                  <option value="passed">Passed</option>
+                  <option value="failed">Failed</option>
+                  <option value="not-checked">Not checked</option>
+                  <option value="not-run">Not run yet</option>
+                </select>
+              </div>
+              <div id="cb-summary" class="cb-summary"></div>
+              <div id="casebook" class="casebook"><div class="empty">Reading the test case book…</div></div>
+            </div>
+
+            <!-- the API case library (per-feature request variations) -->
+            <div id="cb-pane-library" class="cb-pane" hidden>
             <div class="cat-bar">
               <input id="cat-search" class="cat-search" type="search" placeholder="Search by id, title, endpoint…" />
               <select id="cat-module" class="cat-select"><option value="">Every module</option></select>
@@ -366,6 +459,7 @@
             <p class="cat-note" id="cat-note" hidden></p>
             <div id="catalogue" class="catalogue">
               <div class="empty">Reading the catalogue…</div>
+            </div>
             </div>
           </div>
         </section>
@@ -455,6 +549,14 @@
         </div>
         <div id="stuck" class="findings">
           <div class="empty">Nothing stuck. When a locator fails, it appears here with the screen it failed on.</div>
+        </div>
+
+        <div class="col-head" style="margin-top:16px">
+          <h2>Steps the automation still needs</h2>
+          <span class="hint" id="gaps-hint">what the written cases ask for that no step can do yet</span>
+        </div>
+        <div id="gaps" class="findings">
+          <div class="empty">Nothing yet. When a case asks for something the automation has no step for, it is refused honestly and listed here — most-asked-for first.</div>
         </div>
           </div>
         </section>

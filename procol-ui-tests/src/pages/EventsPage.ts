@@ -251,15 +251,60 @@ export class EventsPage extends BasePage {
    * Returns null when no row carries the title.
    */
   async rowTextFor(title: string): Promise<string | null> {
-    const link = this.page.getByRole("link").filter({ hasText: title }).first();
-    if (!(await link.count())) {
-      const any = this.page.getByText(title, { exact: false }).first();
-      if (!(await any.count())) return null;
-      const block = any.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
-      return ((await ((await block.count()) ? block : any).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
+    // Walk up from the title until the block is a plausible ROW: it contains
+    // the title and is short. The old ancestor guess matched the whole list
+    // container once the tabs and filters were in the same block, and a
+    // lapse test then read "In - Evaluation" off the filter strip.
+    const anchor = this.page.getByText(title, { exact: false }).first();
+    if (!(await anchor.count())) return null;
+    let node = anchor;
+    for (let up = 0; up < 8; up++) {
+      const parent = node.locator("xpath=..");
+      if (!(await parent.count())) break;
+      const text = ((await parent.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+      if (!text.includes(title) || text.length > 420) break;
+      node = parent;
     }
-    const block = link.locator("xpath=ancestor::*[self::li or self::tr or contains(@class,'row') or contains(@class,'card') or contains(@class,'item')][1]");
-    return ((await ((await block.count()) ? block : link).innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim() || null;
+    const text = ((await node.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+    return text || null;
+  }
+
+  /**
+   * Open an existing event: by project id (direct URL) or by title (search the
+   * list, click the row). Lands on the project details page.
+   */
+  async openEvent(opts: { id?: string; title?: string }): Promise<string> {
+    const base = CONFIG.appUrl.replace(/\/$/, "");
+    if (opts.id) {
+      await this.page.goto(`${base}/project/${opts.id}/details`, NAV);
+      await this.dismissDistractions();
+      return `/project/${opts.id}/details`;
+    }
+    if (!opts.title) throw new Error("open_event needs an id or a title");
+    if (!/\/orders\/?(\?|$)/.test(new URL(this.page.url()).pathname)) await this.goto();
+    // An event can sit under Live, Drafts or History. Look in each before
+    // concluding it does not exist — and say where it was found, because
+    // "published, but only in Drafts" is a finding in itself.
+    let target = this.page.getByRole("link").filter({ hasText: opts.title }).first();
+    let foundIn = "";
+    for (const tab of ["Live", "Drafts", "History"]) {
+      await this.openTab(tab).catch(() => {});
+      await this.searchByTitle(opts.title);
+      const link = this.page.getByRole("link").filter({ hasText: opts.title }).first();
+      const any = this.page.getByText(opts.title, { exact: false }).first();
+      target = (await link.count()) ? link : any;
+      if (await target.count()) {
+        foundIn = tab;
+        break;
+      }
+    }
+    if (!foundIn) throw new Error(`no event titled "${opts.title}" under Live, Drafts or History after searching each`);
+    console.log(`[events] "${opts.title}" found under ${foundIn}`);
+    await target.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    await target.click({ timeout: TIMEOUTS.MEDIUM });
+    await this.page.waitForURL((u) => /\/(project|orders)\/[^/]+/.test(u.pathname) && !/quick-create/.test(u.pathname), { timeout: TIMEOUTS.LONG });
+    await this.dismissDistractions();
+    return new URL(this.page.url()).pathname;
   }
 
   async hasEventMatching(pattern: RegExp | string): Promise<boolean> {

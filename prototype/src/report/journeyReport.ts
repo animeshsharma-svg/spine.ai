@@ -412,8 +412,47 @@ function renderStep(step: JourneyStepRecord, rows: CaseRow[], input: JourneySect
         ${renderStepCurls(step, companyId)}
       </div>
     </div>
+    ${renderChecks(step)}
     ${renderVariations(rows, input, "Variations tried at this step")}
   </div>
+</details>`;
+}
+
+/**
+ * Postman's "Test Results" for one step: every field-level assertion the
+ * runner evaluated against the live reply (`apiAssertions.ts`), failures
+ * first. The step's verdict is about the request; this is about the body.
+ */
+function renderChecks(step: JourneyStepRecord): string {
+  const a = step.assertions;
+  if (!a || !a.total) return "";
+  const icon = (p: boolean | null) => (p === true ? "✓" : p === false ? "✗" : "–");
+  const cls = (p: boolean | null) => (p === true ? "ok" : p === false ? "bad" : "skip");
+  const rows = [...a.results].sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
+  const head =
+    `${a.passed} of ${a.total} field checks passed` +
+    (a.failed ? ` · <b>${a.failed} failed</b>` : "") +
+    (a.skipped ? ` · ${a.skipped} not checked` : "");
+  const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
+  // Each check reads as a test case: what is tested, what should happen, what
+  // did happen, and the result — in plain English. The engine's own terms stay
+  // one click away (title attribute) for engineers.
+  return `
+<details class="jchecks${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""}>
+  <summary><h5>Field checks on the response</h5> <span>${head}</span></summary>
+  <table class="jchecks-t">
+    <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
+    <tbody>${rows
+      .map(
+        (r) =>
+          `<tr class="${cls(r.pass)}">` +
+          `<td title="${safe(`${r.op} ${r.path}`)}"><span class="jc-id">${safe(r.id)}</span> ${safe(r.humanTitle ?? r.title)}</td>` +
+          `<td>${safe(r.humanExpected ?? r.expected)}</td>` +
+          `<td title="${safe(r.actual ?? "")}">${safe(r.humanActual ?? r.actual ?? "")}</td>` +
+          `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
+      )
+      .join("")}</tbody>
+  </table>
 </details>`;
 }
 
@@ -694,6 +733,22 @@ details.setup.jvar .setup-steps { margin-top: 10px; }
 details.setup.jvar .setup-call, details.setup.jvar .setup-ms { color: var(--muted); }
 details.setup.jvar .setup-status.ok { color: var(--good); }
 details.setup.jvar .setup-status.bad { color: var(--bad); }
+/* Postman-style field checks on a step's response */
+details.jchecks { margin: 12px 0 0; }
+details.jchecks > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; color: var(--good); }
+details.jchecks > summary::-webkit-details-marker { display: none; }
+details.jchecks > summary h5 { margin: 0; color: var(--ink-2); }
+details.jchecks.has-fail > summary { color: var(--bad); }
+.jchecks-t { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+.jchecks-t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.jchecks-t td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.jchecks-t td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--muted); }
+.jchecks-t tr.bad td { color: var(--bad); } .jchecks-t tr.bad td.mono { color: var(--bad); }
+.jchecks-t tr.ok td.jc-res { color: var(--good); font-weight: 700; }
+.jchecks-t tr.bad td.jc-res { font-weight: 700; }
+.jchecks-t td.jc-res { white-space: nowrap; }
+.jchecks-t .jc-id { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--muted); }
+.jchecks-t tr.skip td { color: var(--muted); }
 .unwalked { margin: 18px 0 0; }
 .unwalked h4 { margin: 0 0 4px; font-size: 14px; }
 .unwalked h4 .count { margin-left: 6px; }

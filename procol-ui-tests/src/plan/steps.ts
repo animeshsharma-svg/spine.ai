@@ -129,6 +129,30 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "close_event",
+    purpose:
+      "On a PUBLISHED event's page, make the event CLOSED: Settings → \"End <status>\" (the product's force-end, where the tenant allows it) — otherwise wait for the bidding window to lapse. Pair it with set_schedule{minutes: 3} before publish so the wait is short. Use before cases that need a closed event (Master QCS on a closed event, awarding after bidding has ended).",
+    args: { remark: "remark for the end-time modal (optional)", maxWaitMinutes: "when the tenant has no force-end, how long to wait for the bidding window to lapse (default 6)" },
+  },
+  {
+    name: "open_event",
+    purpose:
+      "Open an EXISTING event — by project id (direct) or by title (search the events list and click the row) — landing on its project page. Use it for cases about an event that already exists, or to return to the event this plan created (default: this plan's own title).",
+    args: { id: "project id from a URL (optional)", title: "event title to search for (optional; defaults to this plan's own event)" },
+  },
+  {
+    name: "accept_counter_offer",
+    purpose:
+      "VENDOR side: sign into the supplier portal as the vendor, open the event and accept the buyer's pending counter offer. Use after place_counter_offer. The vendor's view is a separate portal; when no Accept is offered, the step reports what that view shows.",
+    args: { vendor: "vendor name (optional; the configured vendor identity is used)" },
+  },
+  {
+    name: "expect_counter_offer_accepted",
+    purpose: "Buyer side, on the stage's Responses grid: assert the vendor's header now marks the counter offer as accepted.",
+    args: { vendor: "vendor name (optional)" },
+    assertion: true,
+  },
+  {
     name: "capture_screen",
     purpose:
       "Record evidence of the current screen — a screenshot and the accessibility tree — under a label, without asserting anything. Use when a case wants to inspect or document a screen, or when the next thing to test has no step yet and a person needs to see the controls that exist.",

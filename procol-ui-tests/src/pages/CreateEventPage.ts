@@ -1,5 +1,6 @@
 import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
 import { InlineSheet, WidgetConfig } from "../helpers/inlineSheet.js";
 import { forEachSequential } from "../helpers/data.js";
@@ -198,7 +199,7 @@ export class CreateEventPage extends BasePage {
         scope.locator("input.ant-select-search__field:not([disabled])"),
         scope.locator("[role='combobox'] input:not([disabled])"),
       ],
-      { label: "line-item-search", timeout: TIMEOUTS.MEDIUM },
+      { label: "line-item-search", timeout: TIMEOUTS.SHORT },
     );
 
     let typed = false;
@@ -249,7 +250,7 @@ export class CreateEventPage extends BasePage {
     let clickedOnce = false;
     for (let attempt = 0; attempt < 3 && !clickedOnce; attempt++) {
       // Wait for a populated list before reaching for a row.
-      const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.MEDIUM });
+      const list = await this.find(optionLists(), { label: "line-item-option", timeout: TIMEOUTS.SHORT });
       if (!list) {
         await this.page.waitForTimeout(300);
         continue;
@@ -261,35 +262,20 @@ export class CreateEventPage extends BasePage {
         .catch(() => false);
       if (!clickedOnce) {
         // Detached or covered; let the list settle and look again.
-        await this.pause(300);
+        await this.page.waitForTimeout(300);
+        continue;
       }
-    }
-
-    if (clickedOnce) {
-      // Confirm from inside the drawer. Two earlier signals were wrong: the
-      // dropdown does NOT close (it is a multi-select, kept open for the next
-      // product), and the toolbar badge does not move until the drawer is
-      // SAVED. What does change immediately is the chosen product appearing as
-      // a chip in the select, and the row marking itself selected.
-      //
-      // This confirmation is diagnostic, not load-bearing — see below — so the
-      // window it gets is short. It used to be 6 seconds PER ATTEMPT, and a
-      // click that had already landed but produced no visible signal (which
-      // happens on this build) still burned the full budget on all 3 attempts:
-      // 18 real seconds spent confirming something that was never going to be
-      // re-verified this way. Worse, a "retry" at that point re-clicked the
-      // SAME already-picked row — on a multi-select that IS click-to-toggle,
-      // so it risked picking, then un-picking, then re-picking the product.
-      // A click that landed is never repeated now.
-      const deadline = Date.now() + 2_000;
-      while (Date.now() < deadline && !picked) {
-        const chips = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count();
-        const marked = await p
-          .locator(".ant-select-dropdown-menu-item-selected, [role='option'][aria-selected='true']")
-          .count();
-        const badge = await this.lineItemCountBadge();
-        if (chips > chipsBefore || marked > 0 || (badge !== null && before !== null && badge > before)) picked = true;
-        else await this.pause(250);
+      // A successful click IS the pick. The confirmation signals below (a chip
+      // in the select, a marked row) usually show at once, but they sometimes
+      // do not surface within a poll on this build — and burning two more 5s
+      // find attempts on a dropdown that has already served us cost ~13s per
+      // successful add. So trust the click, glance once for a signal to log,
+      // and let `expect_line_items` read the app's own badge after saving —
+      // which is the real oracle and catches a genuine miss with a number.
+      picked = true;
+      const chips = await scope.locator(".ant-select-selection__choice, .ant-select-selection-item").count().catch(() => 0);
+      if (chips <= chipsBefore) {
+        await this.page.waitForTimeout(250);
       }
     }
 
@@ -305,10 +291,7 @@ export class CreateEventPage extends BasePage {
     if (!clickedOnce) {
       console.log(`[create-event] could not click a line-item option for "${searchText}" after 3 tries`);
     }
-    // The loop above is an early-exiting settle wait, not just a logger: when
-    // it saw the pick register, the drawer has already caught up and waiting
-    // here is time spent for nothing.
-    if (!picked) await this.pause(250);
+    await this.page.waitForTimeout(250);
 
     // Quantity is optional here: on this build the drawer only picks products
     // and quantity is filled in the pricing sheet afterwards. Best-effort, so a
@@ -1461,9 +1444,12 @@ export class CreateEventPage extends BasePage {
     const started = Date.now();
     await this.dismissDistractions();
 
-    // The audience fetch is asynchronous; wait for a chip rather than for a
-    // fixed number of half-seconds.
-    let count = await this.waitForParticipants(TIMEOUTS.MEDIUM);
+    // The audience fetch is asynchronous. Wait on the chip itself rather than
+    // sleeping in 500ms slabs — this console never goes network-idle, so every
+    // pause() was running its whole budget — and return the moment one
+    // appears. Capped at 3s: a tenant whose audience never arrives should not
+    // cost the full TIMEOUTS.MEDIUM on every run.
+    let count = await this.waitForParticipants(3_000);
     if (count > 0) {
       console.log(`[create-event] ${count} participant(s) already on the event`);
       return;
@@ -1493,12 +1479,19 @@ export class CreateEventPage extends BasePage {
       await search.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
       if (await search.count()) {
         await search.fill("a").catch(() => {});
-        // The search is a round trip: wait for rows, then pick.
-        await this.waitForVendorRows(TIMEOUTS.MEDIUM);
+        // Wait for the search RESULTS, not two seconds: the options appear when
+        // the vendor search returns, which is usually well under a second.
+        await p
+          .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item")
+          .first()
+          .waitFor({ state: "visible", timeout: 4_000 })
+          .catch(() => {});
         const picked = await this.pickFirstNamedOption("vendor");
         if (picked) await p.keyboard.press("Escape").catch(() => {});
       }
-      count = await this.waitForParticipants(TIMEOUTS.SHORT);
+      // The participant chip renders once the add request returns; wait for
+      // it rather than for a fixed number of quarter-seconds.
+      count = await this.waitForParticipants(3_000);
     }
 
     await this.dismissDistractions();
@@ -1615,6 +1608,9 @@ export class CreateEventPage extends BasePage {
    * which is exactly why this was easy to miss: the default is displayed but
    * never persisted until Save Schedule is pressed.
    */
+  /** The duration preset actually chosen (minutes), when the schedule was edited. */
+  scheduleMinutesChosen: number | null = null;
+
   async saveSchedule(): Promise<void> {
     const p = this.page;
     await this.dismissDistractions();
@@ -1647,25 +1643,185 @@ export class CreateEventPage extends BasePage {
     // 2 hours"), so it is driven from UI_SCHEDULE_MINUTES rather than baked in.
     const minutes = scheduleMinutes();
     if (minutes) {
-      const duration = panel.locator("input[type='number'], input").first();
-      if (await duration.count()) {
-        await duration.fill(String(minutes)).catch(() => {});
-        await this.page.keyboard.press("Tab").catch(() => {});
-        await this.pause(400);
-        console.log(`[create-event] schedule duration set to ${minutes} min`);
-      } else {
-        console.log("[create-event] no duration field in the Schedule panel — keeping the default window");
+      // A 3-minute request produced a 30-minute window (UI-AWD-001, 11 Sep):
+      // the first input in the panel is evidently not the duration. Record the
+      // panel's tree before touching it, then fill the field that is LABELLED
+      // as the duration, falling back to the first number input only if no
+      // label matches — and read the chip afterwards to see what was kept.
+      // Captured 2026-09-11: "End time" is a mode combobox ("Duration") followed
+      // by a PRESET select whose display reads "30 Mins"; there is no number
+      // input. Open the first select that shows a duration, list its options,
+      // and pick the smallest that covers the request — the app has no
+      // 3-minute preset, so 3 becomes 15 and the plan is told so.
+      // Captured markup (2026-09-11): the End time block is a
+      // `_timeInputWrapper` holding two `_inputCol`s — a mode select reading
+      // "Duration" and a sibling whose whole text is the value ("30 Mins").
+      // Drive that sibling: click it; if a dropdown opens, pick the smallest
+      // preset covering the request; if it exposes an input, type the minutes.
+      const endBlock = panel.locator("[class*='timeInputWrapper']").filter({ hasText: /end time/i }).first();
+      const scope = (await endBlock.count()) ? endBlock : panel;
+      const valueCol = scope.locator("[class*='inputCol']").filter({ hasText: /^\s*\d+\s*(Mins?|Minutes?|Hours?)\s*$/i }).first();
+      const inner = (await valueCol.evaluate((e) => e.outerHTML.replace(/\s+/g, " ").slice(0, 600)).catch(() => "")) || "";
+      console.log(`[create-event] duration value control: ${inner || "not found"}`);
+      // Evidence for a shorter road: what does the End time MODE select offer
+      // besides "Duration"? (A fixed end time would allow a 3-minute window.)
+      const modeSel = scope.locator("[class*='inputCol'] .ant-select").filter({ hasText: /duration/i }).first();
+      if (await modeSel.count()) {
+        await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const modeOpts = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item");
+        await modeOpts.first().waitFor({ state: "visible", timeout: 3_000 }).catch(() => {});
+        const modes = (await modeOpts.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+        console.log(`[create-event] end-time mode options: ${modes.join(" | ") || "(none read)"}`);
+        await this.page.keyboard.press("Escape").catch(() => {});
       }
+      let chosen: number | null = null;
+      // The mode select offers "Duration | Fixed time" (captured 2026-09-11).
+      // Below the smallest preset (30 min), switch to Fixed time and set an
+      // explicit end a few minutes out; capture the panel in that mode so the
+      // next iteration is built on evidence if the pickers differ.
+      if (minutes < 30 && (await modeSel.count())) {
+        await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const fixed = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /fixed/i }).first();
+        if (await fixed.count()) {
+          await fixed.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          await this.pause(500);
+          const end = new Date(Date.now() + (minutes + 1) * 60_000);
+          const hh = end.getHours() % 12 || 12;
+          const mm = String(end.getMinutes()).padStart(2, "0");
+          const ampm = end.getHours() >= 12 ? "PM" : "AM";
+          const timeText = `${String(hh).padStart(2, "0")}:${mm} ${ampm}`;
+          // Fixed time (captured 2026-09-11): the End block gains textbox
+          // "Select date" and textbox "Select time" (defaulting to start+30).
+          // Typing into the antd v3 TimePicker input did not commit; drive its
+          // panel columns — hour, minute, AM/PM — then verify the textbox.
+          const endTime = scope.getByRole("textbox", { name: /select time/i }).last();
+          if (await endTime.count()) {
+            await endTime.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            await endTime.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            const panelSel = this.page.locator(".ant-time-picker-panel:not(.ant-time-picker-panel-hidden), .ant-time-picker-panel");
+            const opened = await panelSel.first().waitFor({ state: "visible", timeout: 4_000 }).then(() => true).catch(() => false);
+            if (opened) {
+              const cols = panelSel.first().locator(".ant-time-picker-panel-select");
+              const pickIn = async (col: number, text: string) => {
+                const li = cols.nth(col).locator("li").filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) }).first();
+                if (await li.count()) {
+                  await li.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
+                  await li.click({ timeout: 2_000 }).catch(() => {});
+                }
+              };
+              const n = await cols.count();
+              await pickIn(0, String(hh).padStart(2, "0"));
+              await pickIn(1, mm);
+              if (n >= 3) await pickIn(2, ampm);
+              const okBtn = panelSel.first().getByRole("button", { name: /^ok$/i });
+              if (await okBtn.count()) await okBtn.click({ timeout: 2_000 }).catch(() => {});
+              else await this.page.keyboard.press("Escape").catch(() => {});
+            } else {
+              await endTime.fill(timeText).catch(() => {});
+              await this.page.keyboard.press("Enter").catch(() => {});
+            }
+            await this.pause(400);
+            const now = ((await endTime.inputValue().catch(() => "")) || "").trim();
+            if (now === timeText) {
+              chosen = minutes;
+              console.log(`[create-event] schedule fixed end time set to ${timeText} (${minutes} min from now)`);
+            } else {
+              console.log(`[create-event] Fixed time: asked ${timeText}, the picker kept "${now}" — falling back to the duration preset`);
+              await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+              await this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /duration/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            }
+          } else {
+            console.log("[create-event] Fixed time mode chosen but no end 'Select time' textbox found — falling back to the duration preset");
+            await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            await this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /duration/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+          }
+        } else {
+          await this.page.keyboard.press("Escape").catch(() => {});
+        }
+      }
+      if (chosen === null && (await valueCol.count())) {
+        const input = valueCol.locator("input").first();
+        const clickTarget = (await valueCol.locator(".ant-select, .ant-select-selection, [role='combobox']").count())
+          ? valueCol.locator(".ant-select, .ant-select-selection, [role='combobox']").first()
+          : valueCol;
+        await clickTarget.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await clickTarget.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        const options = this.page.locator(
+          ".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item, .ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu-item, [role='listbox'] [role='option']",
+        );
+        const opened = await options.first().waitFor({ state: "visible", timeout: 4_000 }).then(() => true).catch(() => false);
+        const toMinutes = (t: string) => {
+          const m = t.match(/(\d+)\s*(mins?|minutes?|hours?|hrs?|days?)/i);
+          if (!m) return NaN;
+          const n = Number(m[1]);
+          return /hour|hr/i.test(m[2]) ? n * 60 : /day/i.test(m[2]) ? n * 1440 : n;
+        };
+        if (opened) {
+          const texts = (await options.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
+          const ranked = texts.map((t, i) => ({ t, i, m: toMinutes(t) })).filter((o) => Number.isFinite(o.m)).sort((a, b) => a.m - b.m);
+          const pick = ranked.find((o) => o.m >= minutes) ?? ranked[ranked.length - 1];
+          if (pick) {
+            await options.nth(pick.i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+            chosen = pick.m;
+            console.log(`[create-event] schedule duration: asked ${minutes} min, chose preset "${pick.t}" (options: ${ranked.map((o) => o.t).join(", ")})`);
+          } else {
+            await this.page.keyboard.press("Escape").catch(() => {});
+            console.log(`[create-event] the duration dropdown had no readable presets: ${texts.join(", ")}`);
+          }
+        } else if (await input.count()) {
+          await input.fill("").catch(() => {});
+          await input.fill(String(minutes)).catch(() => {});
+          await this.page.keyboard.press("Tab").catch(() => {});
+          chosen = minutes;
+          console.log(`[create-event] schedule duration typed: ${minutes} min`);
+        } else {
+          console.log("[create-event] the duration value control opened nothing and has no input — keeping the default window");
+        }
+      } else {
+        console.log("[create-event] no duration value column in the Schedule panel — keeping the default window");
+      }
+      this.scheduleMinutesChosen = chosen;
     }
 
-    await this.click([panel.getByRole("button", { name: /save schedule/i })], {
-      label: "save-schedule",
-      timeout: TIMEOUTS.MEDIUM,
-    });
+    // Fixed time adds rows and pushes Save below the fold, and a forced click
+    // on an off-screen element fails with "outside of the viewport". So: close
+    // any picker panel still open (it swallows scrolls), scroll Save into view
+    // through the DOM, click normally, and only then retry forced.
+    const openPicker = this.page.locator(".ant-time-picker-panel:not(.ant-time-picker-panel-hidden), .ant-calendar-picker-container:not([style*='display: none'])");
+    if (await openPicker.count()) {
+      await this.page.keyboard.press("Escape").catch(() => {});
+      await panel.getByText(/schedule event/i).first().click({ timeout: 1_500 }).catch(() => {});
+    }
+    const saveBtn = panel.getByRole("button", { name: /save schedule/i }).first();
+    await saveBtn.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest" })).catch(() => {});
+    await this.page.waitForTimeout(300);
+    const box = await saveBtn.boundingBox().catch(() => null);
+    console.log(`[create-event] Save Schedule at ${box ? `y=${Math.round(box.y)} h=${Math.round(box.height)}` : "no box"} (viewport ${this.page.viewportSize()?.height ?? "?"}px)`);
+    let clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false);
+    if (!clicked) {
+      await saveBtn.evaluate((el) => el.scrollIntoView({ block: "end" })).catch(() => {});
+      clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT, force: true }).then(() => true).catch(() => false);
+    }
+    if (!clicked) {
+      // The drawer's scroller clips the click point even when the box is on
+      // screen. A dispatched click reaches the React handler without
+      // hit-testing — the last resort, and logged as such.
+      await saveBtn.dispatchEvent("click").catch(() => {});
+      console.log("[create-event] Save Schedule: pointer clicks were clipped by the drawer — dispatched the click directly");
+    }
     await this.waitForSpinnerHidden();
-    await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).catch(() => {});
+    // The drawer closes fast on a good save; do not block 30s when it lingers.
+    await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.SHORT }).catch(() => {});
     await this.dismissDistractions();
-    console.log("[create-event] schedule saved");
+    // What did the app keep? The chip is labelled by its own value —
+    // "Now - 03:27 pm, 11th Sep (30 Mins)" — so it is the ground truth.
+    const chip = this.page.locator("button:has(.anticon-clock-circle)").first();
+    const chipText = (await chip.textContent().catch(() => null))?.replace(/\s+/g, " ").trim();
+    console.log(`[create-event] schedule saved${chipText ? ` — chip reads: ${chipText}` : ""}`);
+    const expect = this.scheduleMinutesChosen ?? minutes;
+    if (expect && chipText && expect >= 30 && !new RegExp(`\\(\\s*${expect}\\s*Mins?\\)|\\(\\s*${expect / 60}\\s*Hours?\\)`, "i").test(chipText)) {
+      console.log(`[create-event] WARNING: chose ${expect} min but the chip does not show it — the selection did not take`);
+    }
   }
 
   /** Save the event as a draft instead of publishing (allow_draft_project_creation). */

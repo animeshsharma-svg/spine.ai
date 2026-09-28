@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { validatePlan } from "../src/plan/steps.js";
 import { runPlan } from "../src/plan/runPlan.js";
 import { EvidenceCollector } from "../src/oracle/evidence.js";
+import { FlowRecorder } from "../src/support/flowRecorder.js";
 import { judge } from "../src/oracle/oracle.js";
 import { recordFinding } from "../src/oracle/findings.js";
 import { Watchdog } from "../src/support/watchdog.js";
@@ -32,10 +33,21 @@ test("planned test case", async ({ page }) => {
   const check = validatePlan(parsed);
   if (!check.ok) throw new Error(`the plan is not runnable: ${check.reason}`);
   const plan = check.plan;
+  // A closed-event plan waits for a real bidding window to lapse — the
+  // product's smallest preset is 30 minutes and this tenant has no force-end.
+  // The default 6-minute test budget killed the wait at 137s; give such plans
+  // the time the product demands, and only such plans.
+  const waitsForWindow = plan.steps.some((st: { step: string }) => st.step === "close_event");
+  test.setTimeout(waitsForWindow ? 48 * 60_000 : 360_000);
 
   const collector = new EvidenceCollector(page, `plan.${plan.title.replace(/\s+/g, "_").slice(0, 40)}`);
   await collector.installToastRecorder();
   collector.start();
+
+  // Record the flow's real /api/* calls when asked (UI_RECORD_FLOW=<name>) —
+  // no headers, so the token never lands on disk. Piggybacks on the run.
+  const recorder = process.env.UI_RECORD_FLOW ? new FlowRecorder(page) : null;
+  recorder?.start();
 
   const base = new (class extends BasePage {})(page);
   const watchdog = new Watchdog(page, {
@@ -75,6 +87,10 @@ test("planned test case", async ({ page }) => {
   }
 
   watchdog.stop();
+  if (recorder) {
+    const file = recorder.save(process.env.UI_RECORD_FLOW!);
+    console.log(`[record] captured ${recorder.snapshot().length} API call(s) → ${file}`);
+  }
   const evidence = await collector.stop();
   const verdict = judge(evidence, failure);
   recordFinding(evidence, verdict);

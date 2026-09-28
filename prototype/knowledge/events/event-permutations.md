@@ -8,7 +8,7 @@ Written 2026-09-11 from the product's own rules (`isValidStage`, `PROJECT_STAGES
 |---|---|---|---|
 | eRFX Project | `/orders/quick-create?projectCreation=true` | `erfx` (default) | stage tabs; 1–2 stages; templates per stage; technical stages with vendor assessment |
 | Single Stage | `/orders/quick-create?singleStage=true` | `single-stage` | one event, type chosen in a configuration drawer (RFQ / RFP / Auction), auction strategy and awarding rule set there |
-| BOQ based RFX Project | `/orders/quick-create?projectCreation=true&boq=true` | `boq` | eRFX with BOQ line items (gated by `boq_in_erfx_allowed`; 500 line-item ceiling) |
+| BOQ based RFX Project | `/orders/quick-create?projectCreation=true&boq=true` | `boq` | eRFX with BOQ line items (gated by `boq_in_erfx_allowed`; line-item ceiling is the per-company config `allowed_maximum_line_items`, default `{boq:500, non_boq:65}`, enforced client-side — not a hard backend cap. Since PR #15339 (Sep 2026) the create path bulk-inserts, so a raised ceiling of ~1000 is performant. A separate `MAX_LINE_ITEMS_FOR_REPORT_DOWNLOAD`=150 sends large reports by email.) |
 
 ## 2. Stage compositions on the eRFX screen
 
@@ -60,16 +60,16 @@ Awarding itself (`award_event`) happens after bidding: Master QCS → Start Awar
 | The vendor, from the supplier portal | `place_bid{vendor?}` | vendor email/OTP login; `add-bid-button` → sheet → `submit-bid-button`; `expect_bid_submitted` |
 | The buyer on the vendor's behalf (surrogate) | `place_surrogate_bid{vendor?}` | participants list → row by name → Add Bid → sheet; not available for knockout or dutch auctions, nor for technical stages (those use Add Technical Bid) |
 | Two vendors competing | two `place_bid` / `place_surrogate_bid` steps with different `vendor` | the executor picks a different vendor for a second surrogate bid |
-| Counter offer (buyer → vendor negotiation) | after a vendor has bid: `open_master_qcs` → `place_counter_offer{vendor, price, remark}` → `expect_counter_offer_sent` | verified live 2026-09-11 (16/16): on the stage's **Responses** tab each vendor's column header carries a "Counter Offer" button while the bid is live and active; the drawer ("Counter Offer for <vendor>") is a table with an editable Price cell, Bulk Update, remarks and "Send Counter Offer"; afterwards a "Revoke Counter Offer" control appears. The vendor's **acceptance** of a counter offer has no step yet — say so. |
+| Counter offer (buyer → vendor negotiation) | after a vendor has bid: `open_master_qcs` → `place_counter_offer{vendor, price, remark}` → `expect_counter_offer_sent` | verified live 2026-09-11 (16/16): on the stage's **Responses** tab each vendor's column header carries a "Counter Offer" button while the bid is live and active; the drawer ("Counter Offer for <vendor>") is a table with an editable Price cell, Bulk Update, remarks and "Send Counter Offer"; afterwards a "Revoke Counter Offer" control appears. The vendor's **acceptance**: `accept_counter_offer{vendor?}` (a fresh vendor session in the supplier portal → the event → Accept → confirm) then `expect_counter_offer_accepted` on the buyer's grid. Built 2026-09-11 evening; the supplier portal's exact controls are captured on first failure. |
 
 Vendors must be **invited** before publish (`invite_vendor{names}`); suggestions come from the line items' product audience, so invite after line items. Name the vendor when the case cares which one bids (`AMD` is the default surrogate vendor).
 
 ## 7. Lifecycle after publish
 
-Draft (`save_draft` — enabled only once a template and a line item exist) · Live (`publish`) · Scheduled for later (`set_schedule{minutes}` with a future start) · History (closed). Withdrawing a live event needs a remark. Extend submission deadline reopens the vendor window. `filter_events{tab}` + `expect_event_in_list` / `expect_event_status` verify where an event landed.
+Draft (`save_draft` — enabled only once a template and a line item exist) · Live (`publish`) · **Closed now** (`close_event` — Settings → "End <status>" → remarks → OK; the product's force-end, present only when the tenant's `trade_force_close` is on; otherwise a closed event needs its window to lapse) · Scheduled for later (`set_schedule{minutes}` with a future start) · History (closed). Withdrawing a live event needs a remark. Extend submission deadline reopens the vendor window. `filter_events{tab}` + `expect_event_in_list` / `expect_event_status` verify where an event landed.
 
 ## 8. Valid combination grid (what a request can legitimately ask for)
 
-entry ∈ {eRFX, single-stage, BOQ} × stages ∈ {auction, rfq, rfp, rfp+rfq, rfp+auction} × strategy ∈ {rank, price, traffic light | knockout, dutch via conversion} × line items ∈ {1…n; BOQ up to 500} × vendors ∈ {by name, by count} × bidding ∈ {vendor portal, surrogate, both, two vendors} × awarding ∈ {lot, line item} × outcome ∈ {publish, draft, schedule later, convert to auction, award}.
+entry ∈ {eRFX, single-stage, BOQ} × stages ∈ {auction, rfq, rfp, rfp+rfq, rfp+auction} × strategy ∈ {rank, price, traffic light | knockout, dutch via conversion} × line items ∈ {1…n; BOQ default cap 500 via `allowed_maximum_line_items`, raisable to ~1000 since #15339} × vendors ∈ {by name, by count} × bidding ∈ {vendor portal, surrogate, both, two vendors} × awarding ∈ {lot, line item} × outcome ∈ {publish, draft, schedule later, convert to auction, award}.
 
 Not valid, and to be refused or reshaped by the linter: RFQ + Auction composed on one eRFX screen; a strategy on an RFQ or technical stage; a surrogate bid on a knockout/dutch auction or a technical stage; awarding before any bid; publishing a technical stage without questionnaires and an evaluator; saving a draft with no template or no line item.
