@@ -391,12 +391,25 @@ async function init() {
     sel.appendChild(add);
   };
   fillClientList();
-  sel.value = String(defaultClient);
-  currentClient = defaultClient;
-  currentClientName = allClients.find((c) => String(c.id) === String(defaultClient))?.name ?? "";
+  /**
+   * THE ACCOUNT YOU WERE ON SURVIVES A RELOAD.
+   *
+   * Every refresh used to land back on the server's default (PROCOL DEMO), so
+   * someone working on another account had to re-pick it each time. The last
+   * choice is kept per browser; one that no longer exists falls back to the
+   * default rather than to an empty picker.
+   */
+  let startClient = String(defaultClient);
+  try {
+    const kept = localStorage.getItem("qa.client");
+    if (kept && allClients.some((c) => String(c.id) === kept)) startClient = kept;
+  } catch {}
+  sel.value = startClient;
+  currentClient = Number(startClient);
+  currentClientName = allClients.find((c) => String(c.id) === startClient)?.name ?? "";
   setTargetGlance();
 
-  let lastClient = String(defaultClient);
+  let lastClient = startClient;
   const addField = $("#client-add-field");
   const showAdd = (on) => {
     if (addField) addField.hidden = !on;
@@ -435,6 +448,7 @@ async function init() {
     showAdd(false);
     lastClient = sel.value;
     currentClient = Number(sel.value);
+    try { localStorage.setItem("qa.client", sel.value); } catch {}
     currentClientName = allClients.find((c) => String(c.id) === String(currentClient))?.name ?? "";
 
     /**
@@ -465,6 +479,9 @@ async function init() {
   // The note under the field restates the count in words, so it has to move
   // with the field rather than only on the next tree render.
   $("#api-line-items")?.addEventListener("input", syncApiInputs);
+  $("#api-qty")?.addEventListener("input", syncApiInputs);
+  $("#api-vendors")?.addEventListener("input", syncApiInputs);
+  $("#api-sb")?.addEventListener("input", syncApiInputs);
   $("#ui-run-sel").addEventListener("click", runSelectedUiJourneys);
   $("#ui-none").addEventListener("click", () => {
     uiSelected.clear();
@@ -586,6 +603,11 @@ async function runFlowDirect(flowId, badge) {
 // ── feature tree: what to test ────────────────────────────────────────────
 let featureGroups = [];
 let selected = new Set();
+/**
+ * Set when this account's tests are a suite of their own (the RFP suite):
+ * its tree comes from the suite, and "Run" hands the ticked parts to it.
+ */
+let featureSuite = null;
 
 async function loadFeatures() {
   const box = $("#tree");
@@ -602,10 +624,27 @@ async function loadFeatures() {
   try {
     // Pass the client so the tree reflects THAT company's switched-on features —
     // the same source of truth the real Procol console uses.
-    const { groups, defaults, totalCases, company, scope } = await (
+    const { groups, defaults, totalCases, company, scope, suite } = await (
       await fetch("/api/features?c=" + currentClient + baseParam())
     ).json();
     featureGroups = groups;
+    const wasSuite = featureSuite?.id;
+    featureSuite = suite || null;
+    // A suite account runs from the tree itself — never the read-only mode a
+    // PO-only account puts it in, whatever the previous account left behind.
+    if (featureSuite) setSingleRunner(false);
+    // Arriving on a suite account, start from its own defaults rather than
+    // whatever the previous account left in the boxes.
+    if (featureSuite && wasSuite !== featureSuite.id) {
+      // What you last typed for this suite, else its defaults.
+      const d = featureSuite.defaults || {};
+      let kept = {};
+      try { kept = JSON.parse(localStorage.getItem(`qa.suiteInputs.${featureSuite.id}`) || "{}"); } catch {}
+      if ($("#api-line-items")) $("#api-line-items").value = String(kept.lineItems ?? d.lineItems ?? 2);
+      if ($("#api-qty")) $("#api-qty").value = String(kept.quantities ?? d.quantities ?? "5");
+      if ($("#api-vendors")) $("#api-vendors").value = String(kept.vendors ?? d.vendors ?? 3);
+      if ($("#api-sb")) $("#api-sb").value = String(kept.surrogateBids ?? d.surrogateBids ?? 1);
+    }
     setNavCount("api", totalCases);
     /**
      * Start with nothing selected.
@@ -937,9 +976,47 @@ function apiLineItemCases() {
 function syncApiInputs() {
   const wrap = $("#api-inputs");
   if (!wrap) return;
+  if (featureSuite) {
+    try {
+      localStorage.setItem(
+        `qa.suiteInputs.${featureSuite.id}`,
+        JSON.stringify({
+          lineItems: $("#api-line-items")?.value,
+          quantities: $("#api-qty")?.value,
+          vendors: $("#api-vendors")?.value,
+          surrogateBids: $("#api-sb")?.value,
+        }),
+      );
+    } catch {}
+  }
   const cases = apiLineItemCases();
   wrap.hidden = cases === 0;
   const note = $("#api-li-note");
+  const qtyField = $("#api-qty-field");
+  const vendorsField = $("#api-vendors-field");
+  if (qtyField) qtyField.hidden = !featureSuite;
+  if (vendorsField) vendorsField.hidden = !featureSuite;
+  // Only when the surrogate bid is ticked: otherwise the run stops at the publish.
+  const sbField = $("#api-sb-field");
+  const surrogateOn = !!featureSuite && selected.has("bids.surrogate");
+  if (sbField) sbField.hidden = !surrogateOn;
+  if (featureSuite) {
+    if (!note) return;
+    const n = Math.max(1, Number($("#api-line-items")?.value) || 1);
+    const qty = String($("#api-qty")?.value ?? "").trim();
+    const v = Math.max(1, Number($("#api-vendors")?.value) || 1);
+    const sbN = Math.max(1, Number($("#api-sb")?.value) || 1);
+    const problem = rfpInputProblem(n, qty, v) || (surrogateOn && sbN > v ? `${sbN} surrogate bids but only ${v} vendor${v === 1 ? "" : "s"} invited — invite at least as many vendors as bids.` : null);
+    note.classList.toggle("bad", !!problem);
+    note.textContent = problem
+      ? problem
+      : `Publishes a real RFP event: ${n} line item${n === 1 ? "" : "s"}, ` +
+        (qty.includes(",") ? `quantities ${qty.split(",").map((x) => x.trim()).join(", ")}` : `quantity ${qty || "5"} each`) +
+        `, sent to ${v} vendor${v === 1 ? "" : "s"}` +
+        (surrogateOn ? `, then places a surrogate bid for ${sbN} of them` : ". Stops at the publish — tick Bidding → Surrogate bid to bid on it too") +
+        ". Products, template, evaluators and vendors are picked live on the account.";
+    return;
+  }
   if (!note) return;
   if (!cases) {
     note.textContent = "";
@@ -1193,8 +1270,23 @@ function bugHrefForSelection() {
   return "/api/bug-report" + (module ? "#module=" + encodeURIComponent(module) : "");
 }
 
+/** The RFP suite's own rules for its inputs, said before a run is started. Null when fine. */
+function rfpInputProblem(n, qty, vendors) {
+  if (!(Number.isInteger(n) && n >= 1 && n <= 50)) return "Line items must be a whole number from 1 to 50.";
+  if (!(Number.isInteger(vendors) && vendors >= 1 && vendors <= 50)) return "Vendors must be a whole number from 1 to 50.";
+  if (qty) {
+    const list = qty.split(",").map((x) => x.trim());
+    if (list.some((x) => !(Number(x) > 0))) return `Every quantity must be a number above 0 — “${qty}” is not.`;
+    if (list.length > 1 && list.length !== n) {
+      return `${list.length} quantities for ${n} line item${n === 1 ? "" : "s"} — give one quantity for all, or exactly ${n}.`;
+    }
+  }
+  return null;
+}
+
 function runSelectedFeatures() {
   const ids = [...selected];
+  if (featureSuite && ids.length) return runRfpSuite(ids);
   if (!ids.length) {
     // Said where the reader is standing — navigating first would hide it.
     const meta = $("#api-meta");
@@ -1219,6 +1311,178 @@ function runSelectedFeatures() {
   const write = (text, cls) => noteJourney(text, cls);
   const es = new EventSource(`/api/features-run?${qs}`);
   wireRunStream(es, write);
+  document.querySelector("#automation")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/**
+ * Run the RFP suite for the ticked parts.
+ *
+ * The suite publishes a real event, then (if ticked) reads it back and throws
+ * the negative cases at it. Each case arrives as it finishes and becomes a row;
+ * the end of the run links this run's own report and bug sheet.
+ */
+function runRfpSuite(ids) {
+  const n = Math.max(1, Number($("#api-line-items")?.value) || 1);
+  const qty = String($("#api-qty")?.value ?? "").trim();
+  const vendors = Math.max(1, Number($("#api-vendors")?.value) || 1);
+  const problem = rfpInputProblem(n, qty, vendors);
+  if (problem) {
+    const meta = $("#api-meta");
+    if (meta) meta.textContent = problem;
+    $("#auto-summary").textContent = problem;
+    return;
+  }
+  const parts = featureGroups.flatMap((g) => g.children).filter((f) => selected.has(f.id));
+  const planned = parts.reduce((sum, f) => sum + (f.cases || 0), 0) +
+    // The publish flow (Technical / RFP only) runs whether or not it was ticked.
+    (parts.some((f) => f.id === "events.rfp_only") ? 0 : featureGroups.flatMap((g) => g.children).find((f) => f.id === "events.rfp_only")?.cases || 0);
+  goToRun(`RFP event publish · ${parts.map((f) => f.label).join(" + ")}`, "publishing a real RFP event on the account, then running each case in turn");
+  checkRows = [];
+  runPlanned = planned;
+  renderAutomation();
+  showRunLog();
+  const con = $("#ui-console");
+  if (con) con.innerHTML = "";
+  const write = (text, cls) => {
+    if (!con) return;
+    con.appendChild(el("div", cls || "", esc(text)));
+    con.scrollTop = con.scrollHeight;
+  };
+
+  // The journey panel: the publish flow's steps (and the read-backs when
+  // "Publish event" is ticked) listed up front as "to do", each filled in with
+  // what the app did as the suite reports it. Negative cases stay as rows below.
+  const rfxMode = ids.includes("events.rfq_only") ? "rfq" : "rfp";
+  const journeySteps = (featureSuite?.journey ?? []).filter(
+    (st) => (!st.feature || ids.includes(st.feature)) && (!st.mode || st.mode === rfxMode),
+  );
+  const journeyIndex = new Map(journeySteps.map((st, i) => [st.id, i]));
+  if (journeySteps.length) {
+    journeyLive = {
+      label: rfxMode === "rfq" ? "RFQ only" : "Technical / RFP only",
+      steps: journeySteps.map((st, i) => ({ n: i + 1, kind: st.id, title: st.title, actor: st.actor })),
+    };
+    journeyStepsLive = [];
+    journeyPlanned = journeySteps.length;
+    journeyRecord = null;
+    journeyProgress = "";
+    runPendingHint = `Walking the RFP journey — ${journeySteps.length} steps, from signing in to ${ids.includes("bids.surrogate") ? "placing a surrogate bid" : ids.includes("events.publish") ? "reading the published event back" : "publishing"}.`;
+    renderJourney();
+  }
+  const runStarted = Date.now();
+
+  const qs = new URLSearchParams({ c: String(currentClient), features: ids.join(","), lineItems: String(n), vendors: String(vendors) });
+  if (qty) qs.set("qty", qty);
+  if (ids.includes("bids.surrogate")) qs.set("sbBids", String(Math.max(1, Number($("#api-sb")?.value) || 1)));
+  $("#auto-summary").textContent = `publishing an RFP event with ${n} line item${n === 1 ? "" : "s"}…`;
+  const es = new EventSource(`/api/rfp-run?${qs}`);
+  watchStreamEnd(es);
+  let runId = null;
+  let stopped = null;
+
+  es.addEventListener("start", (ev) => {
+    const d = JSON.parse(ev.data);
+    runId = d.runId || runId;
+    write(d.line, "cmd");
+  });
+  es.addEventListener("log", (ev) => write(JSON.parse(ev.data).line));
+  es.addEventListener("run-error", (ev) => {
+    const line = JSON.parse(ev.data).line || "run error";
+    write("✗ " + line, "bad");
+    runEmptyNote = line;
+  });
+  es.addEventListener("case", (ev) => {
+    const { case: c } = JSON.parse(ev.data);
+    if (c.part === "publish" && c.verdict === "fail" && !stopped) stopped = c;
+    if (journeyIndex.has(c.id)) {
+      const i = journeyIndex.get(c.id);
+      const plan = journeyLive.steps[i];
+      journeyStepsLive[i] = {
+        n: i + 1,
+        kind: c.id,
+        actor: plan.actor,
+        title: plan.title,
+        verdict:
+          c.verdict === "pass" ? "worked" : c.verdict === "not-run" ? "not-run" : c.status >= 400 && c.status < 500 ? "refused" : "broken",
+        actual: c.verdict === "fail" && c.failed?.length ? `${c.actual} Failed: ${c.failed.join("; ")}.` : c.actual,
+        reason: c.reason,
+        call: c.method ? { method: c.method, path: c.path } : undefined,
+        status: c.status ?? 0,
+        ms: c.ms,
+      };
+      const next = journeyLive.steps[i + 1];
+      runCurrentStep = next ? `${next.n}. ${next.title}` : "";
+      renderJourney();
+      // A journey step is shown there, not again as a row.
+      write(`${c.verdict === "pass" ? "✓" : c.verdict === "fail" ? "✗" : "–"} ${c.id} ${c.title}`, c.verdict === "fail" ? "bad" : c.verdict === "pass" ? "ok" : "");
+      return;
+    }
+    const partLabel = { publish: "RFP publish", verify: "RFP verify", negative: "RFP negative" }[c.part] || "RFP";
+    checkRows.push({
+      id: c.id,
+      category: c.kind === "step" ? partLabel : c.kind,
+      type: c.kind === "step" ? "functional" : c.kind === "security" ? "non-functional" : "edge",
+      module: `RFP event · step ${c.anchor}`,
+      scenario: c.plain,
+      expected: c.expected.replace(/\.$/, ""),
+      pass: c.verdict === "pass",
+      inconclusive: c.verdict === "not-run",
+      httpStatus: c.status ?? null,
+      rightLabel: c.verdict === "not-run" ? "not run" : c.status ? `${c.status} · ${c.ms}ms` : "—",
+      verdict:
+        c.verdict === "fail" && c.failed?.length
+          ? `${c.actual} Failed: ${c.failed.join("; ")}.`
+          : c.actual,
+      noRerun: true,
+    });
+    renderAutomation();
+    setRunBar(checkRows.length, Math.max(checkRows.length, runPlanned));
+    const mark = c.verdict === "pass" ? "✓" : c.verdict === "fail" ? "✗" : "–";
+    write(`${mark} ${c.id} ${c.title}`, c.verdict === "fail" ? "bad" : c.verdict === "pass" ? "ok" : "");
+  });
+  es.addEventListener("done", (ev) => {
+    const d = JSON.parse(ev.data);
+    runId = d.runId || runId;
+    es.close();
+    runFinished();
+    const s = d.summary;
+    const e = d.event || {};
+    const verdict = !s
+      ? `RFP run stopped (exit ${d.exitCode ?? "?"}).`
+      : e.published
+        ? `Published “${e.title}” (${e.eventGroupUuid}) — ${s.passed} of ${s.total} cases passed` +
+          (s.failed ? `, ${s.failed} failed` : "") + (s.notRun ? `, ${s.notRun} not run` : "") + "."
+        : stopped
+          ? `The event was not published — the flow stopped at ${stopped.id} (${stopped.title}). Everything after it was not run.`
+          : `The event was not published — ${s.failed} case(s) failed.`;
+    $("#auto-summary").textContent = verdict;
+    if (journeyLive) {
+      journeyRecord = {
+        outcome: e.published ? `Published “${e.title}” (${e.eventGroupUuid})` : stopped ? `Stopped at step ${stopped.id} — ${stopped.title}` : "The event was not published",
+        stoppedAt: e.published ? undefined : stopped ? journeyIndex.get(stopped.id) + 1 : 1,
+        durationMs: Date.now() - runStarted,
+      };
+      renderJourney();
+    }
+    write(d.exitCode === 0 ? "— finished —" : `— finished, exit ${d.exitCode} —`, d.exitCode === 0 ? "ok" : "bad");
+    if (runId && s) {
+      const scope = `?run=${encodeURIComponent(runId)}`;
+      showReportsFor({
+        label: "This RFP run:",
+        testLabel: "📊 RFP test report",
+        testHref: `/api/rfp-report${scope}`,
+        bugHref: `/api/bug-report${scope}`,
+      });
+      showRunComplete({
+        total: s.total,
+        passed: s.passed,
+        failed: s.failed,
+        skipped: s.notRun,
+        subtitle: verdict,
+        reportNote: "The report walks the collection step by step, with every negative case under the step it attacks, and a curl for each call.",
+      });
+    }
+  });
   document.querySelector("#automation")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 

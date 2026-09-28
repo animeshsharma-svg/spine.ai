@@ -1,4 +1,8 @@
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
 import type { TokenClient } from "../config/tokenClients.js";
+import { PROCOL_TEST } from "./executor.js";
 import { readToken, readEnvVar } from "./tokenClient.js";
 
 /**
@@ -154,7 +158,9 @@ export async function tokenWorks(client: TokenClient, token: string): Promise<bo
 export interface ResolvedToken {
   token: string;
   /** where it came from, for a message that explains itself */
-  source: "minted" | "env" | "cache";
+  source: "minted" | "env" | "cache" | "db";
+  /** the lightspeed-token that goes with it, when the source provides one */
+  lightspeed?: string;
 }
 
 /**
@@ -166,10 +172,35 @@ export interface ResolvedToken {
  * login. Nothing here writes to .env — a minted token lives in memory, so the
  * file stays whatever the reader put there.
  */
+/**
+ * A token from the freshest live console session of the company, read out of
+ * Procol's database — exactly how the UAT clients sign in (procol test's
+ * resolveClient + tokensFromSession). Throws when there is no live session.
+ */
+async function tokenFromDb(companyId: number): Promise<{ token: string; lightspeed: string }> {
+  const imp = (rel: string) => import(pathToFileURL(join(PROCOL_TEST, "src", rel)).href);
+  const [{ resolveClient }, { tokensFromSession }] = await Promise.all([imp("db/clients.ts"), imp("auth/sessionAuth.ts")]);
+  const c = await resolveClient(companyId);
+  const t = tokensFromSession(c.buyer);
+  return { token: t.accessToken, lightspeed: t.lightspeedToken };
+}
+
 export async function resolveToken(client: TokenClient): Promise<ResolvedToken> {
   const cached = minted.get(client.id);
   if (cached && (await tokenWorks(client, cached.token))) {
     return { token: cached.token, source: "cache" };
+  }
+
+  // Accounts that sign in like the UAT clients: a fresh session every run.
+  let dbProblem: string | undefined;
+  if (client.dbSessionCompany) {
+    try {
+      const fromDb = await tokenFromDb(client.dbSessionCompany);
+      if (await tokenWorks(client, fromDb.token)) return { token: fromDb.token, lightspeed: fromDb.lightspeed, source: "db" };
+      dbProblem = "the database session for this company was refused by the API";
+    } catch (e) {
+      dbProblem = (e as Error).message;
+    }
   }
 
   let stored: string | undefined;
@@ -188,6 +219,12 @@ export async function resolveToken(client: TokenClient): Promise<ResolvedToken> 
    * about — and substituting one silently is how a working account started
    * failing every call without anything in the platform saying why.
    */
+  if (dbProblem && !loginFor(client)) {
+    throw new Error(
+      `could not sign in from the database (${dbProblem}). Sign in to the console once as someone who ` +
+        `operates this company, so a fresh session exists — or paste a fresh token into ${client.tokenVar}.`,
+    );
+  }
   const fresh = await mintToken(client);
   if (!(await tokenWorks(client, fresh))) {
     throw new Error(

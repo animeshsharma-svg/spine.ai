@@ -108,6 +108,22 @@ export interface TokenClient {
    * name it; only the menu stops showing it.
    */
   hidden?: boolean;
+  /**
+   * A Playwright suite of its own that runs this account's API tests.
+   *
+   * Set, the account's feature tree is that suite's: its parts are the only
+   * features with tests, everything else in its scope is shown greyed out as
+   * "no tests yet", and "Run" hands the ticked parts to the suite instead of
+   * the case library.
+   */
+  suite?: "aanya-rfp";
+  /**
+   * Sign in the way the UAT clients do: from a live console session in
+   * Procol's database, for this company. No token to paste, so nothing
+   * expires — as long as someone who operates the company has signed in to the
+   * console recently. The pasted token in `tokenVar` stays as a fallback.
+   */
+  dbSessionCompany?: number;
   /** false when browser journeys cannot run for this account */
   browserJourneys: boolean;
   /** said in place of the journey list when they cannot run */
@@ -234,6 +250,43 @@ export const TOKEN_CLIENTS: TokenClient[] = [
     browserNote:
       "The browser journeys sign in through the UAT database, which this deployment is not part of — " +
       "so they cannot run for this account. Its API flow can.",
+  },
+  {
+    /**
+     * THE RFP EVENT-PUBLISH ACCOUNT.
+     *
+     * Runs aanya_events/rfp — the "RFP/RFQ Event Publish" Postman collection
+     * as a Playwright suite: the publish flow, the post-publish verification
+     * and the negative and edge cases. Its token is a console session pasted
+     * into that suite's own .env; there is no login behind it, so when it
+     * expires the run says so and asks for a fresh one.
+     */
+    id: 900003,
+    name: "test",
+    note: "RFP / RFQ event publish · API · signs in from the database",
+    apiBaseUrl: "https://sec-api.ag-ri.in/api",
+    headerName: "access-token",
+    tokenFiles: ["../aanya_events/rfp/.env"],
+    tokenVar: "AANYA_EVENTS_ACCESS_TOKEN",
+    appVersion: "9.4.377",
+    appKey: "console_app_key",
+    appSecret: "",
+    /** The first read of the publish flow: proof the token can create events here. */
+    dataProbe: "/v1/trade/new_request_config?additional_fields=terms_and_conditions",
+    suite: "aanya-rfp",
+    // Demo Account 2 on UAT — the same user the pasted token belonged to, read
+    // fresh from the database on every run.
+    dbSessionCompany: 32461,
+    covers:
+      "Publishing an RFP event end to end — products, template, evaluators and vendors looked up " +
+      "live, the draft, the technical stage and the publish — then every read-back of it, and " +
+      "the negative and edge cases thrown at each step.",
+    // The whole tree, like every other account: features the suite does not
+    // test yet are shown greyed out rather than hidden.
+    featureScope: [],
+    scopeNote: "",
+    browserJourneys: false,
+    browserNote: "This account runs its RFP flow through the API only — no browser journeys yet.",
   },
 ];
 
