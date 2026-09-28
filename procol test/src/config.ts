@@ -124,6 +124,12 @@ export interface IdentityConfig {
   email?: string;
   phonePrefix: string;
   otp: string;
+  /**
+   * The company this login acts for (the tenant a run is testing). On UAT its
+   * own login code is accepted for its users and for the vendors it invites,
+   * so login tries that code first (auth/uatOtp.ts).
+   */
+  tenantCompanyId?: number;
 }
 
 const buyer: IdentityConfig = {

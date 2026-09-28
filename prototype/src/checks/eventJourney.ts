@@ -463,6 +463,15 @@ async function ensureEvaluator(j: Journey): Promise<void> {
 
 // ── OTP sign-in, recorded as two calls ─────────────────────────────────────
 
+/**
+ * Code 705: the one-time code was RIGHT, but this user has never accepted
+ * Procol's current Terms of Use and Privacy Policy, and the app will not sign
+ * them in until they do. That is a one-time human step for the account, not a
+ * defect — and accepting terms on someone's behalf is not the platform's call.
+ */
+const TNC_HINT = (who: string) =>
+  `The one-time code was accepted, but ${who} has not yet accepted Procol's current Terms of Use and Privacy Policy. Sign in once as this user on the web app and tick "I accept"; then run this again.`;
+
 const DEVICE_INFO = { browser: "Chrome", os: "OS X 10.15.7 64-bit", browser_version: "149.0.0.0", resolution: "1440x900" };
 
 /**
@@ -703,7 +712,9 @@ const vendorLogin: StepSpec = {
   expected: (j) => `A one-time code is sent to ${j.client.ctx.vendor?.email} and, once verified, signs the vendor into the supplier app.`,
   run: async (j) => {
     const email = j.client.ctx.vendor!.email!;
-    const { login, fired } = await otpLogin(j, { ...j.s.CONFIG.identities.vendor, email }, { email });
+    const { login, fired } = await otpLogin(j, { ...j.s.CONFIG.identities.vendor, email, tenantCompanyId: j.companyId }, { email });
+    if (!login && fired.reply?.errorCode === "705")
+      return { ...fired, hint: TNC_HINT(`the vendor (${email})`) };
     if (!login) return fired;
     j.actors.vendorApi = await j.s.ApiClient.create(login, {
       baseURL: j.baseURL,
@@ -721,7 +732,7 @@ const vendorLogin: StepSpec = {
       // for the one the buyer invited, so a different home company on the
       // login is a fact to note, not a fault.
       actual:
-        `Signed in as the vendor (${j.vendorName}, ${email}) — the one-time code was accepted.` +
+        `Signed in as the vendor (${j.vendorName}, ${email}) — the one-time code was accepted${login.otpSource ? ` (${login.otpSource})` : ""}.` +
         (otherCompany ? ` This user's home company is ${login.companyUuid}; the bid is placed for the invited ${j.vendorCompanyUuid}.` : ""),
       produced,
     };
@@ -1138,17 +1149,25 @@ const evaluatorLogin: StepSpec = {
     const prefix = who.phonePrefix ?? j.s.CONFIG.identities.evaluator.phonePrefix;
     const { login, fired } = await otpLogin(
       j,
-      { ...j.s.CONFIG.identities.evaluator, phone: who.phone, phonePrefix: prefix },
+      { ...j.s.CONFIG.identities.evaluator, phone: who.phone, phonePrefix: prefix, tenantCompanyId: j.companyId },
       { phone: who.phone, phone_prefix: prefix },
     );
-    if (!login) return { ...fired, hint: fix };
+    if (!login)
+      return {
+        ...fired,
+        hint: fired.reply?.errorCode === "705"
+          ? TNC_HINT(`the evaluator (${who.name})`)
+          : /invalid otp/i.test(fired.reply?.errorMessage ?? "")
+          ? `None of the codes the backend accepts for this user worked (its company's UAT login code, then the configured one) — check the company's uat_login_otp setting.`
+          : fix,
+      };
     j.actors.evaluatorApi = await j.s.ApiClient.create(login, {
       baseURL: j.baseURL,
       appVersion: login.appVersion,
       identity: "evaluator",
       companyId: j.companyId,
     });
-    return { ...fired, actual: `Signed in as the evaluator (${who.name}) — the one-time code was accepted.` };
+    return { ...fired, actual: `Signed in as the evaluator (${who.name}) — the one-time code was accepted${login.otpSource ? ` (${login.otpSource})` : ""}.` };
   },
 };
 

@@ -7,9 +7,12 @@ import {
   buildBootstrapToken,
   buildLightspeedToken,
 } from "./token.js";
+import { loginOtpCandidates, type UatOtp } from "./uatOtp.js";
 
 export interface LoginResult extends AuthTokens {
   role: Role;
+  /** where the one-time code that worked came from, for the report */
+  otpSource?: string;
   appVersion: string;
   baseURL: string;
   raw: unknown;
@@ -51,7 +54,21 @@ export async function authenticate(id: IdentityConfig): Promise<LoginResult> {
   if (!identifier) {
     throw new Error(`No login identifier for role "${id.role}" on client "${CONFIG.name}".`);
   }
-  if (!id.otp) throw new Error(`No OTP for role "${id.role}" on client "${CONFIG.name}".`);
+  /**
+   * Which codes to try. On UAT every tenant (and, for a vendor, every buyer it
+   * deals with) has its own login code, so the configured one is only right
+   * for one account. The codes the backend would accept for THIS login come
+   * first, read from the database the way the backend reads them; the
+   * configured code is the fallback. Capped at four so a wrong guess never
+   * turns into hammering the login.
+   */
+  const uat = await loginOtpCandidates(isEmail ? { email: identifier } : { phone: identifier }, id.tenantCompanyId);
+  const candidates: UatOtp[] = [];
+  for (const c of [...uat, ...(id.otp ? [{ otp: id.otp, source: "the configured code" }] : [])]) {
+    if (!candidates.some((x) => x.otp === c.otp)) candidates.push(c);
+  }
+  if (!candidates.length) throw new Error(`No OTP for role "${id.role}" on client "${CONFIG.name}".`);
+  const tries = candidates.slice(0, 4);
 
   const bootstrap = buildBootstrapToken(id.appKey, id.appSecret);
   const lightspeedToken = buildLightspeedToken();
@@ -80,17 +97,28 @@ export async function authenticate(id: IdentityConfig): Promise<LoginResult> {
       throw new Error(`generate_otp (${id.role}) failed: HTTP ${gen.status()} — ${await gen.text()}`);
     }
 
-    const verify = await ctx.post("/v1/verify_otp", {
-      data: JSON.stringify({
-        ...idBody,
-        otp: id.otp,
-        push_token: null,
-        device_info: deviceInfo,
-        device_id: deviceId,
-      }),
-      timeout: CONFIG.timeoutMs,
-    });
-    const text = await verify.text();
+    // One code sent, then each candidate tried in turn: the UAT codes are
+    // accepted alongside the sent one, so no second generate is needed.
+    let verify!: Awaited<ReturnType<typeof ctx.post>>;
+    let text = "";
+    let used: UatOtp = tries[0];
+    for (const c of tries) {
+      used = c;
+      verify = await ctx.post("/v1/verify_otp", {
+        data: JSON.stringify({
+          ...idBody,
+          otp: c.otp,
+          push_token: null,
+          device_info: deviceInfo,
+          device_id: deviceId,
+        }),
+        timeout: CONFIG.timeoutMs,
+      });
+      text = await verify.text();
+      const ok = verify.status() >= 200 && verify.status() <= 204;
+      // Only "Invalid OTP" is worth another code; any other refusal is final.
+      if (ok || !/invalid otp|"code"\s*:\s*6\b/i.test(text)) break;
+    }
     if (verify.status() < 200 || verify.status() > 204) {
       throw new Error(`verify_otp (${id.role}) failed: HTTP ${verify.status()} — ${text}`);
     }
@@ -112,6 +140,7 @@ export async function authenticate(id: IdentityConfig): Promise<LoginResult> {
       lightspeedToken,
       userUuid,
       companyUuid,
+      otpSource: used.source,
       raw,
     };
   } finally {
