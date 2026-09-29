@@ -836,7 +836,11 @@ function renderTree() {
     if (g.when) body.appendChild(el("div", "module-when", esc(g.when)));
 
     for (const [fi, f] of g.children.entries()) {
-      const runnable = f.cases > 0;
+      // Not on for this client (licence, setting or predicate the backend
+      // checks — config/featureGates.json): shown, greyed, never tickable.
+      const offHere = f.config?.state === "off";
+      if (offHere) selected.delete(f.id);
+      const runnable = f.cases > 0 && !offHere;
       const isPre = !!f.prerequisite && runnable;
       // Another event type is already picked. This one is not unavailable in
       // the product — it is simply not this run, and it comes back the moment
@@ -844,7 +848,7 @@ function renderTree() {
       const heldBy = exclusiveHolder(f, selected, byFeatureId);
       const row = el(
         "div",
-        "submodule" + (runnable ? "" : " none") + (isPre ? " prereq" : "") +
+        "submodule" + (runnable ? "" : " none") + (offHere ? " off-here" : "") + (isPre ? " prereq" : "") +
           (heldBy ? " blocked" : "") + (selected.has(f.id) ? " picked" : ""),
       );
       const cb = el("input");
@@ -854,7 +858,10 @@ function renderTree() {
       // line items.
       cb.disabled = !runnable || isPre || !!heldBy;
       cb.checked = isPre ? true : runnable && selected.has(f.id);
-      cb.title = heldBy
+      const offWhy = (f.config?.reasons && f.config.reasons[0]) || (f.config?.flag ? `${f.config.flag} is OFF for this company` : "switched off for this company");
+      cb.title = offHere
+        ? `Not on for this client — ${offWhy}`
+        : heldBy
         ? `One event type per run — untick “${heldBy.label}” to pick this instead`
         : isPre
           ? "Always runs — every event type goes through this step"
@@ -882,13 +889,14 @@ function renderTree() {
       if (f.flowId) tags += ' <span class="sub-tag e2e" title="has a real end-to-end journey">e2e</span>';
       const st = f.config?.state;
       if (st === "on") tags += ` <span class="sub-tag on" title="${esc(f.requiresConfig || "")} is ON for this company">on</span>`;
-      else if (st === "off") tags += ` <span class="sub-tag off" title="${esc(f.requiresConfig || "")} is OFF here — its tests are skipped, not failed">off</span>`;
+      else if (st === "off")
+        tags += ` <span class="sub-tag off" title="${esc(`${offWhy}. Its tests are skipped here, not failed.${f.config?.source ? ` (from ${f.config.source})` : ""}`)}">not on for this client</span>`;
       // No "config?" badge. It fired whenever a per-company flag could not be
       // read, which is a fact about OUR read, not about the feature — and it
       // sat on the four event types permanently, shouting a question nobody
       // could answer. "off" still shows, because that one changes what runs.
 
-      if (!runnable) {
+      if (!runnable && !offHere) {
         tags += ' <span class="sub-tag notbuilt" title="no test cases written for this feature yet">no tests yet</span>';
       }
       if (isPre) {
@@ -901,7 +909,8 @@ function renderTree() {
       }
 
       const name = el("span", "sub-name");
-      name.innerHTML = `${esc(f.label)}${tags}<span class="sub-what">${esc(f.what)}</span>`;
+      name.innerHTML = `${esc(f.label)}${tags}<span class="sub-what">${esc(f.what)}</span>` +
+        (offHere ? `<span class="sub-off-why">${esc(offWhy)}</span>` : "");
       row.appendChild(name);
       row.appendChild(el("span", "sub-n", f.cases ? String(f.cases) : "—"));
       if (runnable && !isPre && !heldBy) {

@@ -39,6 +39,7 @@ import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
 import { runCheck } from "./checks/engine.js";
 import type { Check } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
+import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
@@ -540,6 +541,9 @@ const server = createServer(async (req, res) => {
       // the sandbox demo is a purchase-order tenant, so offering it sourcing
       // events would invite someone to tick a journey that cannot exist there.
       const scoped = cid && isTokenClient(Number(cid)) ? tokenClient(Number(cid)) : undefined;
+      // What the backend itself would allow this client (licences, settings,
+      // predicates — config/featureGates.json). Null without a database.
+      const gates = cid && !scoped ? await featureGatesFor(Number(cid)) : null;
       /**
        * Scope to what this tenant actually has — down to the single feature.
        *
@@ -573,14 +577,19 @@ const server = createServer(async (req, res) => {
           // How many of them send line items — decides whether the count field
           // applies to a selection at all.
           lineItemCases: lineItemCounts[f.id] ?? 0,
-          config: cfg ? featureConfigState(cfg, f.requiresConfig) : { state: f.requiresConfig ? "unknown" : "n/a" },
+          config: mergeConfigState(
+            cfg ? featureConfigState(cfg, f.requiresConfig) : { state: f.requiresConfig ? "unknown" : "n/a" },
+            gates?.[f.id],
+          ),
         })),
       }));
 
       // Defaults have to live inside the scope too, or the run would start with
       // features ticked that the tree does not even show.
       const inScope = new Set(groups.flatMap((g) => g.children.map((f) => f.id)));
-      const defaults = defaultSelection().filter((id: string) => inScope.has(id));
+      // …and never tick by default what this client does not have switched on.
+      const offHere = new Set(groups.flatMap((g) => g.children.filter((f) => f.config?.state === "off").map((f) => f.id)));
+      const defaults = defaultSelection().filter((id: string) => inScope.has(id) && !offHere.has(id));
 
       const payload = {
         groups,
@@ -1182,16 +1191,17 @@ const server = createServer(async (req, res) => {
         // bug — which is exactly how two unprovable BOQ "failures" were
         // reported before. (`companyCfg` was read above, for the line-item cap.)
         const byId = new Map(cases.map((cs) => [cs.id, cs]));
+        const runGates = isTokenClient(c) ? null : await featureGatesFor(c);
         const runnable: typeof checks = [];
         for (const chk of checks) {
           // (a) the whole FEATURE may be switched off for this company
           const feat = findFeature(chk.flowId);
-          const st = featureConfigState(companyCfg, feat?.requiresConfig);
+          const st = mergeConfigState(featureConfigState(companyCfg, feat?.requiresConfig), feat ? runGates?.[feat.id] : undefined);
           if (st.state === "off") {
             skipped.push({
               id: chk.id,
               title: chk.scenario,
-              reason: `"${st.flag}" is OFF for ${companyCfg.companyName ?? "this company"} — the feature isn't enabled here, so a result would prove nothing`,
+              reason: `${offReason(st, companyCfg.companyName ?? "this company")} — the feature isn't enabled here, so a result would prove nothing`,
             });
             continue;
           }

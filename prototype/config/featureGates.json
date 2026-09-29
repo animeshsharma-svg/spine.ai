@@ -1,0 +1,1850 @@
+{
+  "generatedAt": "2026-09-29T11:47:54.103Z",
+  "backendRef": "procol-backend@origin/main ae36e86894",
+  "resolution": {
+    "company_config": "CustomConfiguration.cached_all_configs (app/models/custom_configuration.rb:164-173): custom_configurations override (item_type='Company', item_id=company_id=<company>, status=1) → master_configurations default for this company → global master default (item_type=1, company_id NULL). SQL returns {value, source}.",
+    "module": "companies.allowed_modules (int[]) must contain the id of an active procol_modules row with that name. Default modules (module_type=1) are given to every new client (app/models/company.rb:776-781). Note: is_allowed_to_perform_action? returns true for super admins and Procol employees without looking at modules (app/models/user.rb:896-901), so a super-admin API call can still succeed on an off module; menus/permissions are still filtered (app/helpers/api/team_permissions_helper.rb:97-127).",
+    "on_when": {
+      "truthy": "Ruby truthiness: anything except null/false (the `|| false` pattern)",
+      "present": "Rails present?: not null/false/''/[]/{} (the `.present?` pattern)",
+      "equals_true": "value === true (the `== true` pattern)",
+      "falsy": "inverse of truthy — for hide_/lock_ flags where ON removes the feature",
+      "enabled_key_true": "value is an object and value.enabled === true",
+      "equals": "value === gate.expected (null is replaced by gate.null_means first)",
+      "true": "computed boolean from SQL"
+    },
+    "blocking": "Gates without `blocking: false` decide on/off. `blocking: false` gates (all per_event gates, and some client flags that only narrow a feature) are reported as reasons but never turn a feature off."
+  },
+  "features": {
+    "intake.create": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "intake",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('intake'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/intake_request_policy.rb:11 (create? → module 'intake' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Intake (module 'intake') must be licensed to this client"
+        }
+      ],
+      "note": "Intake exists only for clients with the 'intake' module."
+    },
+    "intake.attachments": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "intake",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('intake'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/intake_request_policy.rb:11 (create? → module 'intake' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Intake (module 'intake') must be licensed to this client"
+        }
+      ],
+      "note": "No switch of its own; comes with the intake module."
+    },
+    "intake.approval": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "intake",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('intake'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/intake_request_policy.rb:11 (create? → module 'intake' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Intake (module 'intake') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "approval_flows",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('approval_flows'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/approval_workflow/approval_flow_policy.rb:4 (module 'approval_flows' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Approval workflows (module 'approval_flows') must be licensed to this client"
+        }
+      ],
+      "note": "The intake_request approval type is only offered when the intake module is on (app/helpers/approval_workflow/approval_flow_helper.rb:208-209). Number of levels comes from the approval flow, not a switch."
+    },
+    "intake.to_pr": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "intake",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('intake'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/intake_request_policy.rb:11 (create? → module 'intake' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Intake (module 'intake') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "intake_to_pr_allowed",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'intake_to_pr_allowed' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'intake_to_pr_allowed' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/intake_request.rb:739-741 (is_pr_creation_allowed?); app/helpers/approval_workflow/approval_flow_helper.rb:210",
+          "why": "An approved intake only turns into a PR when intake_to_pr_allowed is on"
+        }
+      ],
+      "note": "Also needs the 'pr' module (approval_flow_helper.rb:210)."
+    },
+    "pr.list": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        }
+      ],
+      "note": "Ageing filters additionally depend on PurchaseRequest.ageing_enabled_for? (app/models/purchase_request.rb:110) — not a gate on listing itself."
+    },
+    "pr.read": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "pr.line_items": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "pr.partial_selection": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "Picking some PR lines into an event needs both PR and sourcing modules; no dedicated switch found."
+    },
+    "pr.to_event": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "No dedicated backend switch found. `disable_create_event_button_in_pr` exists in master_configurations but is not read anywhere in backend or client-dashboard."
+    },
+    "pr.status": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "pr.partial_closure": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "pr",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('pr'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/purchase_request_policy.rb:10 (index? → module 'pr' read_record), :30 (create?); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase requests (module 'pr') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "is_pr_partial_closure_enabled",
+          "on_when": "enabled_key_true",
+          "default": {
+            "enabled": false
+          },
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'is_pr_partial_closure_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'is_pr_partial_closure_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/services/purchase_requests/partial_closure_service.rb:58-68 (load_config / feature_enabled? → config['enabled'] == true); app/controllers/concerns/purchase_requests_controller_helper.rb:1522-1527",
+          "why": "The value is an object {enabled, closure_label}; the feature is on only when .enabled == true"
+        }
+      ],
+      "note": "WARNING: the current isFlagOn() treats any non-empty object as ON, so this flag is always reported ON by the old gating even when enabled=false."
+    },
+    "events.type_rules": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "A validation rule inside event create, not a switch."
+    },
+    "events.rfp_only": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        }
+      ],
+      "note": "The event-type combination is chosen per event when stages are built. `allowed_erfx_stages` / `erfx_rfp_stage_enabled` exist in master_configurations but are not read by backend or client-dashboard, so they are not treated as gates."
+    },
+    "events.rfq_only": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        }
+      ],
+      "note": "The event-type combination is chosen per event when stages are built. `allowed_erfx_stages` / `erfx_rfp_stage_enabled` exist in master_configurations but are not read by backend or client-dashboard, so they are not treated as gates."
+    },
+    "events.rfp_rfq": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        }
+      ],
+      "note": "The event-type combination is chosen per event when stages are built. `allowed_erfx_stages` / `erfx_rfp_stage_enabled` exist in master_configurations but are not read by backend or client-dashboard, so they are not treated as gates."
+    },
+    "events.rfp_auction": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        }
+      ],
+      "note": "The event-type combination is chosen per event when stages are built. `allowed_erfx_stages` / `erfx_rfp_stage_enabled` exist in master_configurations but are not read by backend or client-dashboard, so they are not treated as gates."
+    },
+    "events.validation": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "Product/qty/UOM validation is always applied; nothing switches it off per client."
+    },
+    "events.config": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "Template, schedule and evaluator are set per event."
+    },
+    "events.awarding_rule": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "closing_mode",
+          "on_when": "trade_request closing mode (lot_based vs line item)",
+          "default": null,
+          "sql": null,
+          "source": "app/controllers/api/trade_controller.rb:1613-1620 (default_closing_mode / default_rfp_evaluation_mode are only pre-fills)",
+          "why": "Lot vs split awarding is chosen per event; the company value is only the default",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "events.invite_vendors": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "lock_vendors_addition_in_event_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'lock_vendors_addition_in_event_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'lock_vendors_addition_in_event_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/controllers/api/v1/users_controller.rb:568,696",
+          "why": "When ON, vendors cannot be added while the event is being created (UI flag)",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "events.publish": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "events.extend_deadline": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "extend_time",
+          "on_when": "event is live",
+          "default": null,
+          "sql": null,
+          "source": "app/controllers/api/trade_controller.rb:516-528",
+          "why": "Extending is an edit on a live event; no client switch",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "events.lifecycle": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "erfx.create": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        }
+      ],
+      "note": ""
+    },
+    "erfx.stages": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        },
+        {
+          "kind": "company_config",
+          "key": "is_add_new_stage_allowed",
+          "on_when": "equals_true",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'is_add_new_stage_allowed' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'is_add_new_stage_allowed' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/services/add_new_stage/validate_service.rb:22; app/models/event_group.rb:530",
+          "why": "Adding a NEW stage to an already-published project needs is_add_new_stage_allowed == true",
+          "blocking": false
+        }
+      ],
+      "note": "Building stages during create is not switched; only adding one after publish is."
+    },
+    "erfx.terms": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        }
+      ],
+      "note": "T&C are per stage/event."
+    },
+    "erfx.schedule": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "eRFX projects (event groups: stage builder, RFP/RFQ/auction stages) are only on when rfx_project_enabled is set"
+        },
+        {
+          "kind": "company_config",
+          "key": "scheduled_events_enabled",
+          "on_when": "present",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'scheduled_events_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'scheduled_events_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:246-248; app/controllers/api/scheduled_jobs_controller.rb:75-76 (error 904); app/controllers/api/event_groups_controller.rb:374-375",
+          "why": "Recurring scheduled events (ScheduledJob) need scheduled_events_enabled; a stage start time can always be set",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "events.templates": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "template",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('template'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/template_policy.rb:19 (create? → module 'template' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Templates (module 'template') must be licensed"
+        }
+      ],
+      "note": "hide_default_templates (app/helpers/templates_helper.rb:5-17) only hides Procol's stock templates."
+    },
+    "events.boq": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "boq_in_erfx_allowed",
+          "on_when": "present",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'boq_in_erfx_allowed' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'boq_in_erfx_allowed' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:1096-1103 (boq_in_erfx_allowed?)",
+          "why": "BOQ needs the boq_in_erfx_allowed switch"
+        },
+        {
+          "kind": "company_predicate",
+          "key": "boq_template_exists",
+          "on_when": "true",
+          "default": false,
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM templates WHERE company_id = $1 AND status = 1 AND type_identifier && ARRAY['t-boq']::varchar[])) AS value, 'templates' AS source",
+          "source": "app/models/company.rb:1099-1101 (Template.active.where(company_id).for_type_identifier('t-boq')); app/models/template.rb:53,195",
+          "why": "boq_in_erfx_allowed? is only true when the company also has an active BOQ template"
+        }
+      ],
+      "note": "Line-item cap comes from allowed_maximum_line_items.boq (limit, not a switch)."
+    },
+    "events.terms": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "Per stage / per event."
+    },
+    "events.versioning": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "is_event_versioning_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'is_event_versioning_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'is_event_versioning_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/event_group.rb:1091-1094 (can_create_new_version?)",
+          "why": "New versions of an event need is_event_versioning_enabled"
+        },
+        {
+          "kind": "company_config",
+          "key": "allow_versioning_post_auction",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'allow_versioning_post_auction' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'allow_versioning_post_auction' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/event_group.rb:1093,1100",
+          "why": "Versioning after an auction stage additionally needs allow_versioning_post_auction",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "auction.convert": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "Converting RFQ to auction is an action on an event."
+    },
+    "auction.rank": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "auction_config",
+          "on_when": "auction_config = rank",
+          "default": null,
+          "sql": null,
+          "source": "app/models/trade_request.rb:166 (enum auction_config: rank, price, rank_and_price, traffic_light, knockout, dutch, book_building)",
+          "why": "Auction strategy is picked per event; no client switch enables/disables a strategy",
+          "blocking": false
+        }
+      ],
+      "note": "Company default is default_auction_config (app/models/company.rb:1155-1158), only a pre-fill."
+    },
+    "auction.price": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "auction_config",
+          "on_when": "auction_config = price",
+          "default": null,
+          "sql": null,
+          "source": "app/models/trade_request.rb:166 (enum auction_config: rank, price, rank_and_price, traffic_light, knockout, dutch, book_building)",
+          "why": "Auction strategy is picked per event; no client switch enables/disables a strategy",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "auction.traffic_light": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "auction_config",
+          "on_when": "auction_config = traffic_light",
+          "default": null,
+          "sql": null,
+          "source": "app/models/trade_request.rb:166 (enum auction_config: rank, price, rank_and_price, traffic_light, knockout, dutch, book_building)",
+          "why": "Auction strategy is picked per event; no client switch enables/disables a strategy",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "auction.knockout": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "auction_config",
+          "on_when": "auction_config = knockout",
+          "default": null,
+          "sql": null,
+          "source": "app/models/trade_request.rb:166 (enum auction_config: rank, price, rank_and_price, traffic_light, knockout, dutch, book_building)",
+          "why": "Auction strategy is picked per event; no client switch enables/disables a strategy",
+          "blocking": false
+        }
+      ],
+      "note": "On the mobile app knockout/dutch are hidden for rfx_project clients (app/controllers/concerns/trade_controller_helper.rb:2376) — web unaffected."
+    },
+    "auction.dutch": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "auction_config",
+          "on_when": "auction_config = dutch",
+          "default": null,
+          "sql": null,
+          "source": "app/models/trade_request.rb:166 (enum auction_config: rank, price, rank_and_price, traffic_light, knockout, dutch, book_building)",
+          "why": "Auction strategy is picked per event; no client switch enables/disables a strategy",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "auction.increments": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "tick_size",
+          "on_when": "trade product validations tick_size / tick_size_percentage",
+          "default": null,
+          "sql": null,
+          "source": "lib/modules/trade_validation.rb:6-16",
+          "why": "Minimum decrement is set per line item",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "auction.dynamic_extension": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "rank_limit_for_time_extension",
+          "on_when": "trade_request.config['rank_limit_for_time_extension']",
+          "default": null,
+          "sql": null,
+          "source": "app/models/bid.rb:374-375",
+          "why": "Dynamic extension is configured per event",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "auction.serial_bidding": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "staggered",
+          "on_when": "trade_request.is_staggered?",
+          "default": null,
+          "sql": null,
+          "source": "app/controllers/concerns/trade_controller_helper.rb:2275",
+          "why": "Serial (staggered) bidding is an event setting",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "auction.visibility": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "auction_config",
+          "on_when": "rank/price visibility follows the event's auction_config",
+          "default": null,
+          "sql": null,
+          "source": "app/models/trade_request.rb:166",
+          "why": "What vendors see is set by the event's strategy",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "bids.participation": {
+      "gates": [],
+      "note": "Vendor-portal action; nothing switches it off per client."
+    },
+    "bids.quick_fill": {
+      "gates": [],
+      "note": "No backend gate found. (`autofill_in_sheet_enabled`, app/controllers/api/v1/users_controller.rb:644, is a sheet-autofill UI flag and was not confirmed to be this feature.)"
+    },
+    "bids.place": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "bids.price_cap": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "can_add_ceil_price",
+          "on_when": "equals_true",
+          "default": true,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'can_add_ceil_price' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'can_add_ceil_price' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "lib/modules/trade_validation.rb:46-49 (error 10 unless config['can_add_ceil_price'] == true); company value seeded into event config by app/models/custom_configuration.rb:98-105",
+          "why": "A ceiling price can only be set when can_add_ceil_price is true (default true)"
+        }
+      ],
+      "note": "Checked against the event config, which is seeded from Template+Company configs; a template override can differ."
+    },
+    "bids.submit": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "bids.surrogate": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+          "on_when": "trade_request.config[...] present",
+          "default": null,
+          "sql": null,
+          "source": "app/models/model_helpers/trade_request_model_helper.rb:1375-1377; app/controllers/api/bids_controller.rb:50",
+          "why": "Surrogate after expiry is per event",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "allowed_surrogate_bid_even_after_bid",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'allowed_surrogate_bid_even_after_bid' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'allowed_surrogate_bid_even_after_bid' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/controllers/concerns/bids_controller_helper.rb:2761",
+          "why": "Surrogate bid after the vendor already bid needs this",
+          "blocking": false
+        }
+      ],
+      "note": "Surrogate bidding itself has no client switch."
+    },
+    "bids.counter_offer": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "hide_counter_offer_rfq",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'hide_counter_offer_rfq' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'hide_counter_offer_rfq' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/controllers/api/v1/users_controller.rb:786 → procol-client-dashboard src/components/dataGrid/formatters/comparisonHeaderFormatter.jsx:714",
+          "why": "When ON, the counter-offer action is hidden on RFQ-mode comparison sheets (auctions unaffected)",
+          "blocking": false
+        },
+        {
+          "kind": "per_event",
+          "key": "counter_offer_modification_enabled",
+          "on_when": "trade_request.config['counter_offer_modification_enabled'] == true",
+          "default": null,
+          "sql": null,
+          "source": "app/models/model_helpers/trade_request_model_helper.rb:1108-1110",
+          "why": "Counter-offer modification is decided per event (seeded from the company default)",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "evaluation.score": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "Technical evaluation lives in eRFX projects; technical_evaluation approvals are only offered when rfx_project_enabled (app/helpers/approval_workflow/approval_flow_helper.rb:196)"
+        },
+        {
+          "kind": "per_event",
+          "key": "technical_stage",
+          "on_when": "event has an RFP/technical stage",
+          "default": null,
+          "sql": null,
+          "source": "app/models/event_group.rb",
+          "why": "Only events with a technical stage have evaluation",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "evaluation.granularity": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "Technical evaluation lives in eRFX projects; technical_evaluation approvals are only offered when rfx_project_enabled (app/helpers/approval_workflow/approval_flow_helper.rb:196)"
+        },
+        {
+          "kind": "company_config",
+          "key": "show_line_lot_evaluation",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'show_line_lot_evaluation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'show_line_lot_evaluation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:304-306; exposed at app/controllers/api/v1/users_controller.rb:649,774",
+          "why": "Line/lot-level evaluation is only shown when show_line_lot_evaluation is on"
+        }
+      ],
+      "note": ""
+    },
+    "evaluation.tna": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "rfx_project_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'rfx_project_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'rfx_project_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:222-224 (rfx_project_enabled? → cached_all_configs || false)",
+          "why": "Technical evaluation lives in eRFX projects; technical_evaluation approvals are only offered when rfx_project_enabled (app/helpers/approval_workflow/approval_flow_helper.rb:196)"
+        },
+        {
+          "kind": "company_config",
+          "key": "restrict_awarding_for_tna_vendors",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'restrict_awarding_for_tna_vendors' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'restrict_awarding_for_tna_vendors' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/helpers/api/proposal_helper.rb:1249-1250",
+          "why": "When ON, TNA vendors are blocked from awarding (behaviour, not availability)",
+          "blocking": false
+        }
+      ],
+      "note": "TNA band label comes from evaluation_score_label_mapping (app/models/company.rb:1040)."
+    },
+    "evaluation.qcs": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": "Always available: app/services/reporting_engine/master_qcs_report_selector.rb:31-46 falls back to MasterQcsReport; mqcs_report_v1..v4_enabled only pick the version."
+    },
+    "negotiation.counter_offer": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "hide_counter_offer_rfq",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'hide_counter_offer_rfq' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'hide_counter_offer_rfq' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/controllers/api/v1/users_controller.rb:786 → procol-client-dashboard src/components/dataGrid/formatters/comparisonHeaderFormatter.jsx:714",
+          "why": "When ON, the counter-offer action is hidden on RFQ-mode comparison sheets (auctions unaffected)",
+          "blocking": false
+        },
+        {
+          "kind": "per_event",
+          "key": "counter_offer_modification_enabled",
+          "on_when": "trade_request.config['counter_offer_modification_enabled'] == true",
+          "default": null,
+          "sql": null,
+          "source": "app/models/model_helpers/trade_request_model_helper.rb:1108-1110",
+          "why": "Counter-offer modification is decided per event (seeded from the company default)",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "negotiation.vendor_response": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "per_event",
+          "key": "counter_offer_modification_enabled",
+          "on_when": "trade_request.config['counter_offer_modification_enabled'] == true",
+          "default": null,
+          "sql": null,
+          "source": "app/models/model_helpers/trade_request_model_helper.rb:1108-1110",
+          "why": "Counter-offer modification is decided per event (seeded from the company default)",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "award.proposal": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "award.add_response": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "award.partial": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "is_partial_awarding_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'is_partial_awarding_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'is_partial_awarding_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/helpers/api/proposal_helper.rb:811-837 (validate_awarding_quantity, error 561); app/models/order.rb:370-372",
+          "why": "Splitting a line's quantity across vendors needs is_partial_awarding_enabled"
+        }
+      ],
+      "note": "is_over_awarding_allowed (same file) additionally allows awarding above quantity; disallow_partial_line_item_awarding (proposal_helper.rb:220) forces all lines to be awarded."
+    },
+    "award.submit": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "approval_flows",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('approval_flows'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/approval_workflow/approval_flow_policy.rb:4 (module 'approval_flows' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Approval workflows (module 'approval_flows') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "award.approval": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "approval_flows",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('approval_flows'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/approval_workflow/approval_flow_policy.rb:4 (module 'approval_flows' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Approval workflows (module 'approval_flows') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "award.re_evaluation": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "trade",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('trade'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/event_group_policy.rb:22 (create? → module 'trade' create_record); app/policies/trade_request_policy.rb:14; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sourcing events (module 'trade') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "approval_flows",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('approval_flows'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/approval_workflow/approval_flow_policy.rb:4 (module 'approval_flows' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Approval workflows (module 'approval_flows') must be licensed to this client"
+        }
+      ],
+      "note": "No dedicated switch found."
+    },
+    "po.generate": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "po",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('po'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/order_policy.rb:22 (index? → module 'po' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase orders (module 'po') must be licensed to this client"
+        },
+        {
+          "kind": "module",
+          "key": "p2p_purchase_order",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_purchase_order'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Manual POs in P2P need the p2p_purchase_order module",
+          "blocking": false
+        }
+      ],
+      "note": "Event→PO uses the 'po' module (orders). P2P manual POs use p2p_purchase_order (advisory here)."
+    },
+    "po.contents": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "po",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('po'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/order_policy.rb:22 (index? → module 'po' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase orders (module 'po') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "po.release": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "po",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('po'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/order_policy.rb:22 (index? → module 'po' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase orders (module 'po') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "po.vendor_accept": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "po",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('po'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/order_policy.rb:22 (index? → module 'po' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase orders (module 'po') must be licensed to this client"
+        }
+      ],
+      "note": "Vendor side; still requires the buyer to have POs."
+    },
+    "p2p.proforma": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_proforma_invoice",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_proforma_invoice'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Proforma invoices need the p2p_proforma_invoice module"
+        }
+      ],
+      "note": ""
+    },
+    "p2p.asn": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_advance_shipment_note",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_advance_shipment_note'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "ASNs need the p2p_advance_shipment_note module"
+        }
+      ],
+      "note": ""
+    },
+    "p2p.delivery": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "po",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('po'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/order_policy.rb:22 (index? → module 'po' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Purchase orders (module 'po') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "is_dispatch_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'is_dispatch_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'is_dispatch_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "lib/modules/push_notification.rb:2138-2139",
+          "why": "Dispatch notifications only fire when is_dispatch_enabled",
+          "blocking": false
+        }
+      ],
+      "note": "No module named for delivery tracking; gated on POs existing."
+    },
+    "p2p.invoice": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_invoice",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_invoice'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Invoices need the p2p_invoice module"
+        }
+      ],
+      "note": ""
+    },
+    "p2p.grn": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_grn",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_grn'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "GRN/SRN need the p2p_grn module"
+        }
+      ],
+      "note": ""
+    },
+    "p2p.qan": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_qan",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_qan'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "QAN needs the p2p_qan module"
+        }
+      ],
+      "note": ""
+    },
+    "finance.three_way": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "po|p2p_purchase_order",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('po', 'p2p_purchase_order'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/order_policy.rb:22 (index? → module 'po' read_record); app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "A PO (classic 'po' or P2P p2p_purchase_order) must exist"
+        },
+        {
+          "kind": "module",
+          "key": "p2p_invoice",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_invoice'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "3-way match needs invoices (p2p_invoice)"
+        },
+        {
+          "kind": "module",
+          "key": "p2p_grn",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_grn'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "3-way match needs GRNs (p2p_grn)"
+        }
+      ],
+      "note": ""
+    },
+    "finance.bill": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_bill",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_bill'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Bills need the p2p_bill module"
+        }
+      ],
+      "note": ""
+    },
+    "finance.payment": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_payment",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_payment'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Payments need the p2p_payment module"
+        }
+      ],
+      "note": ""
+    },
+    "finance.cn_dn": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "p2p_credit_note|p2p_debit_note",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('p2p_credit_note', 'p2p_debit_note'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/services/flexi_module/fx_view_service.rb:94-97 (buyer sees only P2P views whose p2p_* module is in companies.allowed_modules); app/models/fx_datasource.rb:39; module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Credit/debit notes need p2p_credit_note or p2p_debit_note"
+        }
+      ],
+      "note": ""
+    },
+    "masterdata.category": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "product_category",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('product_category'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/product_category_policy.rb:19 (create? → module 'product_category' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Categories need the product_category module"
+        }
+      ],
+      "note": ""
+    },
+    "masterdata.subcategory": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "product_category",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('product_category'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/product_category_policy.rb:19 (create? → module 'product_category' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Sub-categories are product categories"
+        }
+      ],
+      "note": ""
+    },
+    "masterdata.product": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "product",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('product'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/product_policy.rb:18 (create? → module 'product' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Products need the product module"
+        }
+      ],
+      "note": ""
+    },
+    "masterdata.location": {
+      "gates": [],
+      "note": "No backend gate found — delivery/warehouse locations are company addresses, always available."
+    },
+    "masterdata.bulk_upload": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "product",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('product'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/product_policy.rb:18 (create? → module 'product' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Product bulk upload rides on the product module"
+        }
+      ],
+      "note": "No single switch for bulk upload. PR bulk upload is enable_pr_bulk_upload (app/models/company.rb:482); restrict_product_bulk_download / restrict_vendor_bulk_download only restrict downloads."
+    },
+    "users.create": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "user",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('user'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/user_policy.rb:63 (create? → module 'user' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Users need the user module"
+        }
+      ],
+      "note": ""
+    },
+    "users.permissions": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "permission",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('permission'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/team_permission_policy.rb:11 (module 'permission' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Role permissions need the permission module"
+        }
+      ],
+      "note": ""
+    },
+    "masterdata.team": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "team",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('team'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/team_policy.rb:11 (create? → module 'team' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Teams need the team module"
+        }
+      ],
+      "note": ""
+    },
+    "users.team_member": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "team",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('team'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/team_policy.rb:11 (create? → module 'team' create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Team membership needs the team module"
+        }
+      ],
+      "note": ""
+    },
+    "users.delegate": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "approval_flows",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('approval_flows'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/approval_workflow/approval_flow_policy.rb:4 (module 'approval_flows' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Approval workflows (module 'approval_flows') must be licensed to this client"
+        },
+        {
+          "kind": "company_config",
+          "key": "approval_flow_version",
+          "on_when": "equals",
+          "default": "v2",
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'approval_flow_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'approval_flow_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/policies/delegation_policy.rb:14-16 (create? → get_approval_flow_version == 'v2'); app/models/company.rb:870-872 (falls back to 'v1' when unset)",
+          "why": "Delegation only exists on approval flow v2",
+          "expected": "v2",
+          "null_means": "v1"
+        }
+      ],
+      "note": ""
+    },
+    "vendors.discovery": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/company_policy.rb:10 (module 'company' read_record); app/policies/invitations_policy.rb:11 (create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Vendor records need the company module"
+        }
+      ],
+      "note": "is_self_serve_enabled widens which vendors a non-admin sees (app/models/company.rb:945) — visibility, not availability."
+    },
+    "vendors.invite": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/company_policy.rb:10 (module 'company' read_record); app/policies/invitations_policy.rb:11 (create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Inviting vendors needs the company module (create_record)"
+        }
+      ],
+      "note": ""
+    },
+    "vendors.onboarding": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/company_policy.rb:10 (module 'company' read_record); app/policies/invitations_policy.rb:11 (create_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Vendor records need the company module"
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "present",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/buyer_seller_company_mapping.rb:99-116 (no version → default statuses only, no Prospects/In-progress/Rejected tabs); app/models/company.rb:899-901",
+          "why": "The onboarding lifecycle tabs only exist when vendor_onboarding_version is set (v1/v2/v3)"
+        }
+      ],
+      "note": ""
+    },
+    "vendors.pq": {
+      "gates": [],
+      "note": "No backend gate found for PQ vs non-PQ."
+    },
+    "vendors.entity_mapping": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "is_vendor_entity_mapping_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'is_vendor_entity_mapping_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'is_vendor_entity_mapping_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/policies/vendor_entity_mapping_policy.rb:4-14 (index?/create? → cached_all_configs)",
+          "why": "Vendor ↔ entity mapping APIs are only allowed when is_vendor_entity_mapping_enabled"
+        }
+      ],
+      "note": ""
+    },
+    "platform.configurations": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "app_configuration",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('app_configuration'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/custom_configuration_policy.rb:13 (module 'app_configuration' update_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Editing configurations needs the app_configuration module"
+        }
+      ],
+      "note": ""
+    },
+    "platform.approvals": {
+      "gates": [
+        {
+          "kind": "module",
+          "key": "approval_flows",
+          "on_when": "true",
+          "default": "optional module (must be switched on per client)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('approval_flows'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "app/policies/approval_workflow/approval_flow_policy.rb:4 (module 'approval_flows' read_record); module list filtered by companies.allowed_modules in app/helpers/api/team_permissions_helper.rb:97-118",
+          "why": "Approval workflows (module 'approval_flows') must be licensed to this client"
+        }
+      ],
+      "note": ""
+    },
+    "platform.erp": {
+      "gates": [
+        {
+          "kind": "company_predicate",
+          "key": "is_po_integration_enabled?",
+          "on_when": "true",
+          "default": false,
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM customers WHERE company_id = $1 AND status = 1)) AS value, 'customers' AS source",
+          "source": "app/models/company.rb:376-378 (is_po_integration_enabled? → Customer.active.exists?(company_id)); app/models/customer.rb:52",
+          "why": "ERP integration exists only when the company has an active customers (integration) row"
+        },
+        {
+          "kind": "company_config",
+          "key": "pr_sync_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'pr_sync_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'pr_sync_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/policies/purchase_request_policy.rb:41-43",
+          "why": "Pulling PRs from ERP needs pr_sync_enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "po_sync_enabled",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'po_sync_enabled' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'po_sync_enabled' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/policies/order_policy.rb:37-39",
+          "why": "Pushing POs to ERP needs po_sync_enabled",
+          "blocking": false
+        }
+      ],
+      "note": ""
+    },
+    "platform.audit": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "is_pr_audit_trail_available",
+          "on_when": "truthy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'is_pr_audit_trail_available' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'is_pr_audit_trail_available' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "app/models/company.rb:1293-1295",
+          "why": "The PR audit-trail view needs is_pr_audit_trail_available",
+          "blocking": false
+        }
+      ],
+      "note": "General audit (paper_trail versions, approvals history) is always on."
+    },
+    "platform.hardening": {
+      "gates": [],
+      "note": "Cross-cutting API behaviour; nothing to switch."
+    }
+  }
+}
