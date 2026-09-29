@@ -53,6 +53,7 @@ data from row 4, as the backend reads it.
 | `VBU-074.xlsx` | VBU-074 | PAN No. that contradicts the GSTIN is accepted (no cross-check — known gap) | safe |
 | `VBU-075.xlsx` | VBU-075 | A city that is not in the master (no tax number) does not become a random city | creates |
 | `VBU-076.xlsx` | VBU-076 | A one-letter city ('a') is not fuzzy-matched to some real city | creates |
+| `VBU-154.xlsx` | VBU-154 | A second vendor with the tax number of a 'no city' vendor does not crash the upload | creates |
 | `VBU-080.xlsx` | VBU-080 | An email with no @ is refused | safe |
 | `VBU-081.xlsx` | VBU-081 | An email with no top-level domain is refused | safe |
 | `VBU-082.xlsx` | VBU-082 | An email with a space inside is refused | safe |
@@ -121,3 +122,4 @@ data from row 4, as the backend reads it.
 | `VBU-182.xlsx` | VBU-182 | A required extra field left blank is refused | safe |
 | `VBU-183.xlsx` | VBU-183 | Contactless OFF: the invalid-city rule still fires | safe |
 | `VBU-DUP-BASE.xlsx` | dedup baseline | the vendor every duplicate case compares against | creates |
+| `VBU-CITYZERO-BASE.xlsx` | VBU-154 baseline | a vendor stored with city_id 0 (unknown city) and a tax number | creates |

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T15:52:54.882Z",
+  "generatedAt": "2026-09-29T16:24:01.243Z",
   "cases": [
     {
       "id": "UI-ENV-001",
@@ -84095,7 +84095,7 @@
       "why": "The web app strips 'data:…;base64,' before sending; any other client that forgets gets junk bytes in front of the zip.",
       "setup": "Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-009.xlsx`.",
       "steps": "1. Take a valid tripwired sheet 2. Prefix its base64 with data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64, 3. POST",
-      "expected": "HTTP 422 'Invalid file format' (or the prefix is tolerated and the row fails 'Invalid Status'); never a 500.",
+      "expected": "A clean 4xx — 422 'Invalid file format', or the sandbox firewall's bare 403 (seen 2026-09-29); never a 500.",
       "recordsCurrentBehaviour": false,
       "oracle": "4xx; no 5xx.",
       "priority": "P2",
@@ -85173,16 +85173,16 @@
       "why": "Old code: 'Invalid City Name'. QA doc A5: 'Success. Record created with no city'. The company builder defaults a missing city to id 38 ('-'). Status=rejected keeps the row mail-free if it is created.",
       "setup": "Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-075.xlsx`.",
       "steps": "1. Status rejected, City 'QA Nowhere {{stamp}}', no Tax No. 2. POST 3. Read the row and the vendor",
-      "expected": "Per the PR's QA doc: success, vendor stored with no real city (city '-', id 38). Old code: failed 'Invalid City Name'.",
+      "expected": "Per the PR's QA doc: success, vendor stored with NO city (city_id null, or the '-' placeholder 38). Never a city id that does not exist.",
       "recordsCurrentBehaviour": false,
       "oracle": "Row status + companies.city_id.",
       "priority": "P1",
       "verdict": "automate",
       "refs": [
         "VBU-075",
-        "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (city_id || 38)"
+        "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); app/controllers/concerns/utils.rb:877-884 ('City' → key city_id holds the NAME); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (params city_id present, so no fallback)"
       ],
-      "source": "P1 · automate · `VBU-075` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (city_id || 38)`"
+      "source": "P1 · automate · `VBU-075` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); app/controllers/concerns/utils.rb:877-884 ('City' → key city_id holds the NAME); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (params city_id present, so no fallback)`"
     },
     {
       "id": "API-XVBU-076",
@@ -85204,6 +85204,28 @@
         "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:122-131; app/models/city.rb:30 (ILIKE %x%)"
       ],
       "source": "P1 · automate · `VBU-076` · `app/services/validations/vendor_bulk_upload_validation_service_v2.rb:122-131; app/models/city.rb:30 (ILIKE %x%)`"
+    },
+    {
+      "id": "API-XVBU-154",
+      "layer": "api",
+      "group": "API-XVBU",
+      "section": "Row rules — every column",
+      "sectionNo": 3,
+      "title": "A second vendor with the tax number of a 'no city' vendor does not crash the upload",
+      "why": "A contactless row with an unknown city is stored with city_id 0 (VBU-075). When a later row carries the same tax number but no City/Address, the invite looks the tax number up and reads existing_company.city.name — on a city that does not exist.",
+      "setup": "gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Baseline (uploaded first): UK VAT {{vatF}}, City 'QA Nowhere {{stamp}}', address set, onboarding No — stored with city_id 0. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-154.xlsx`.",
+      "steps": "1. Upload the baseline 2. Upload a second row: same tax number {{vatF}}, a different name, City and Address blank, onboarding No 3. Read the second row",
+      "expected": "The row is handled cleanly — refused 'Vendor with this GST and address already exists' (the back-filled address matches) — not a worker error.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "Job row error; a worker 'Internal error …' is the async 500.",
+      "priority": "P0",
+      "verdict": "automate",
+      "gate": "allow_contactless_vendor_upload",
+      "refs": [
+        "VBU-154",
+        "app/helpers/api/companies_helper.rb:731-745 (existing_company.city.name); app/services/invitation/send_service.rb:41-54"
+      ],
+      "source": "P0 · automate · `VBU-154` · `app/helpers/api/companies_helper.rb:731-745 (existing_company.city.name); app/services/invitation/send_service.rb:41-54`"
     },
     {
       "id": "API-XVBU-080",
@@ -86673,10 +86695,10 @@
       "section": "Settings on other workspaces (regression)",
       "sectionNo": 7,
       "title": "A required extra field left blank is refused",
-      "why": "extra_fields_for_vendor_invite with is_required=true joins the mandatory list (PROCOL DEMO: Contact Number, Feedback Score …).",
+      "why": "extra_fields_for_vendor_invite with is_required=true is drawn under Mandatory Details in the template (PROCOL DEMO: Contact Number, Feedback Score, Feedback Report, Non-PQ Remark). The validator, though, builds its column list WITHOUT the extra fields, so the requirement is never checked on upload.",
       "setup": "gate: extra_fields_for_vendor_invite has at least one is_required field. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-182.xlsx`.",
       "steps": "1. Tripwired row with the required extra fields blank",
-      "expected": "Row failed 'Mandatory Item cannot be left empty'.",
+      "expected": "Row failed 'Mandatory Item cannot be left empty'. Found 2026-09-29: passes validation ('Invalid Status' tripwire) — the rule is not enforced.",
       "recordsCurrentBehaviour": false,
       "oracle": "Job row error.",
       "priority": "P1",
@@ -86684,9 +86706,9 @@
       "gate": "extra_fields_for_vendor_invite",
       "refs": [
         "VBU-182",
-        "app/controllers/concerns/utils.rb:803-806"
+        "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:14-16 (get_vendor_bulk_upload_params_v2 called with no extra_fields:) vs app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:9-13 (template passes them); app/controllers/concerns/utils.rb:803-806"
       ],
-      "source": "P1 · automate · `VBU-182` · `app/controllers/concerns/utils.rb:803-806`"
+      "source": "P1 · automate · `VBU-182` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:14-16 (get_vendor_bulk_upload_params_v2 called with no extra_fields:) vs app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:9-13 (template passes them); app/controllers/concerns/utils.rb:803-806`"
     },
     {
       "id": "API-XVBU-183",

@@ -22,7 +22,20 @@ import { fileURLToPath } from "node:url";
 
 import type { ApiClient } from "../api/client.js";
 import { Endpoints } from "../api/endpoints.js";
-import { query } from "../db/pool.js";
+import { query as rawQuery } from "../db/pool.js";
+
+/** SELECT with two retries — the sandbox database drops the odd connection (ETIMEDOUT). */
+async function query<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await rawQuery<T>(sql, params);
+    } catch (e) {
+      const code = (e as { code?: string }).code ?? "";
+      if (attempt >= 3 || !/ETIMEDOUT|ECONNRESET|EPIPE|57P01/.test(code + String((e as Error).message))) throw e;
+      await new Promise((r) => setTimeout(r, 1500 * attempt));
+    }
+  }
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const VBU_FIXTURE_DIR = join(here, "..", "..", "fixtures", "vendor-bulk-upload");
@@ -301,6 +314,9 @@ export function runVars(stamp: string, template?: TemplateInfo): Record<string, 
     vatC: `GB9${d4}0002`,
     vatD: `GB9${d4}0003`,
     vatE: `GB9${d4}0004`,
+    vatF: `GB9${d4}0005`,
+    /** exactly 100 / 101 characters once filled */
+    vcode100: `QA${stamp}`.padEnd(100, "V"),
     profile,
     profileUpper: profile.toUpperCase(),
     profile2: profiles[1] ?? profiles[0] ?? "brokerage",

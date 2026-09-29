@@ -79,7 +79,7 @@ fake GSTINs whose PAN part carries entity letter Z (no real PAN has it), fake UK
 | `can_skip_vendor_onboarding` | on | on | adds the Vendor Onboarding Required column; "No" → Active + `skip_vendor_onboarding` on the invitation |
 | `vendor_duplicate_check_fields` | gst_no, address, pincode, account_group | — | duplicate only when every field matches; address blank = no match; pincode/extra blank = match (PR16267 duplicate_check_fields.rb) |
 | `allow_same_gst_multiple_addresses_vendor_invite` | on | — | fallback when no field list: same GST + same address blocked (1111), else any repeated GST blocked (134) |
-| `extra_fields_for_vendor_invite` | 4 optional | 9, four required | extra columns; required ones join the mandatory list |
+| `extra_fields_for_vendor_invite` | 4 optional | 9, four required | extra columns; required ones are drawn as mandatory in the template but NOT enforced on upload (VBU-182) |
 | `vendor_category_type_mapping` | 4 keys | 5 keys | the valid Vendor Profile values |
 | `vendor_invitation_v2` | off | off | profile + city/address optional, PAN derived from GST |
 | `disable_manual_vendor_creation` | off | off | 745 on upload and template for non-Procol users |
@@ -115,8 +115,10 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 3. **"An old sheet puts values in the wrong columns."** The parser maps cells by header name, so column order never
    matters (VBU-016). What IS misaligned is the template's own sample row (VBU-031) and its Vendor Profile dropdown
    (VBU-032) — both still use the flag-off positions after PR 16267.
-4. **"Record created with no city" (A5).** The company builder stores `city_id 38` ('-'), a placeholder city, not null;
-   and a partial name like "a" is fuzzy-matched to a real city (VBU-075, VBU-076).
+4. **"Record created with no city" (A5).** The unresolved city NAME travels as `city_id` and is cast to **0** — the
+   vendor points at a city that does not exist, and a later upload with the same tax number and no city crashes the
+   worker ('Internal error in sending invitation', VBU-154). A partial name like "a" is fuzzy-matched to a real city
+   (VBU-075, VBU-076).
 5. **Manual Invite form "Unchanged" (D7).** `contactless_vendor_record?` is workspace-wide, so on GMMCO the manual form
    also accepts a blank POC name and email (VBU-133).
 6. **Contactless + email but no name.** Not covered by the doc; the PR skips error 691 for it, so the invite goes out
@@ -134,6 +136,8 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
     status only to completed / in_progress, so its Error and Duplicate tags are never shown.
 11. **Error sheet with no failed rows** answers error 487, whose text is "You are not allowed to change the phone
     number." (VBU-038).
-12. **Sandbox master data.** 36 countries are named "India"; `Country.find_by(name:)` has no order or status filter,
+12. **Required extra fields.** The template shows them under Mandatory Details, but the validator is built without
+    `extra_fields`, so a blank required extra field passes (VBU-182, PR16267 validation:14-16).
+13. **Sandbox master data.** 36 countries are named "India"; `Country.find_by(name:)` has no order or status filter,
     so GST rows intermittently fail 'Tax Type not configured for the selected Business Location' (VBU-059). The
     duplicate suite therefore uses UK VAT numbers — the duplicate key reads `companies.gst_no` whatever the tax type.

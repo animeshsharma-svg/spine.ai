@@ -121,8 +121,8 @@ export interface VbuCase {
   rows?: RowExpect[];
   /** rows may come back in any order (parallel workers) */
   anyOrder?: boolean;
-  /** the shared duplicate baseline must exist first */
-  baseline?: "dedup";
+  /** a baseline sheet that must have been uploaded (and succeeded) first, once per run */
+  baseline?: "dedup" | "cityZero";
   /** kind template: which assertion */
   templateCheck?: "headers" | "sampleAligned" | "dropdowns" | "dimension" | "dataSheet" | "groups";
   /** kind errorSheet: which variant */
@@ -354,8 +354,8 @@ export const CASES: VbuCase[] = [
     type: "Edge", priority: "P2", severity: "Low",
     why: "The web app strips 'data:…;base64,' before sending; any other client that forgets gets junk bytes in front of the zip.",
     steps: ["Take a valid tripwired sheet", "Prefix its base64 with data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,", "POST"],
-    sheet: one(trip("VBU-009", {})), wrap: "dataUrl", refuse: { message: MSG.BAD_FILE },
-    expected: "HTTP 422 'Invalid file format' (or the prefix is tolerated and the row fails 'Invalid Status'); never a 500.",
+    sheet: one(trip("VBU-009", {})), wrap: "dataUrl", refuse: {},
+    expected: "A clean 4xx — 422 'Invalid file format', or the sandbox firewall's bare 403 (seen 2026-09-29); never a 500.",
     oracle: "4xx; no 5xx.", rule: `${R.sheet}:17-23; client strips at uploadExcelModal.jsx:57`,
   },
   {
@@ -814,19 +814,31 @@ export const CASES: VbuCase[] = [
     why: "Old code: 'Invalid City Name'. QA doc A5: 'Success. Record created with no city'. The company builder defaults a missing city to id 38 ('-'). Status=rejected keeps the row mail-free if it is created.",
     steps: ["Status rejected, City 'QA Nowhere {{stamp}}', no Tax No.", "POST", "Read the row and the vendor"],
     sheet: one({ ...baseRow("VBU-075"), Status: "rejected", City: `QA Nowhere ${S}` }),
-    rows: [{ status: "success", verify: { bscm: "rejected", fields: { city: "-" } } }],
-    expected: "Per the PR's QA doc: success, vendor stored with no real city (city '-', id 38). Old code: failed 'Invalid City Name'.",
-    oracle: "Row status + companies.city_id.", rule: `${R.prVal}:77 (city error skipped under contactless); ${R.prMixin}:27 (city_id || 38)`,
-    disagree: "QA doc says 'Record created with no city'; the code stores city_id 38 ('-'), a placeholder city, not null.",
+    rows: [{ status: "success", verify: { bscm: "rejected", fields: { city_id: null } } }],
+    expected: "Per the PR's QA doc: success, vendor stored with NO city (city_id null, or the '-' placeholder 38). Never a city id that does not exist.",
+    oracle: "Row status + companies.city_id.", rule: `${R.prVal}:77 (city error skipped under contactless); ${R.utils}:877-884 ('City' → key city_id holds the NAME); ${R.prMixin}:27 (params city_id present, so no fallback)`,
+    disagree: "Found 2026-09-29: the unresolved city NAME is passed as city_id and cast to 0, so the vendor points at a city that does not exist (see VBU-154 for the crash it causes).",
   },
   {
     id: "VBU-076", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "creates",
     title: "A one-letter city ('a') is not fuzzy-matched to some real city", type: "Validation", priority: "P1", severity: "Medium",
     why: "City lookup falls back to name ILIKE '%a%' and takes the first alphabetically — any typo becomes a real, wrong city.",
     steps: ["Status rejected, City 'a', no Tax No."], sheet: one({ ...baseRow("VBU-076"), Status: "rejected", City: "a" }),
-    rows: [{ status: "success", verify: { bscm: "rejected", fields: { city: "-" } } }],
+    rows: [{ status: "success", verify: { bscm: "rejected", fields: { city_id: null } } }],
     expected: "Either refused 'Invalid City Name' or stored with no city — never a city the buyer didn't name. Today: the first city containing 'a'.",
     oracle: "companies.city_id → cities.name.", rule: `${R.val}:122-131; ${R.city}:30 (ILIKE %x%)`,
+  },
+  {
+    id: "VBU-154", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "creates", baseline: "cityZero", requires: { contactless: true, canSkip: true },
+    title: "A second vendor with the tax number of a 'no city' vendor does not crash the upload", type: "Edge", priority: "P0", severity: "High",
+    why: "A contactless row with an unknown city is stored with city_id 0 (VBU-075). When a later row carries the same tax number but no City/Address, the invite looks the tax number up and reads existing_company.city.name — on a city that does not exist.",
+    setup: "Baseline (uploaded first): UK VAT {{vatF}}, City 'QA Nowhere {{stamp}}', address set, onboarding No — stored with city_id 0.",
+    steps: ["Upload the baseline", "Upload a second row: same tax number {{vatF}}, a different name, City and Address blank, onboarding No", "Read the second row"],
+    sheet: one({ "Company Name": vName("VBU-154"), "POC - Full Name": "QA Platform Tester", "POC - Email Address": vEmail("VBU-154"), "Tax Type": "VAT", "Tax No.": "{{vatF}}", "Business Location": "United Kingdom", "Vendor Onboarding Required": "No" }),
+    rows: [{ status: "failed", errorIncludes: MSG.DUP_ADDR }],
+    expected: "The row is handled cleanly — refused 'Vendor with this GST and address already exists' (the back-filled address matches) — not a worker error.",
+    oracle: "Job row error; a worker 'Internal error …' is the async 500.",
+    rule: `${R.helper}:731-745 (existing_company.city.name); ${R.send}:41-54`,
   },
   // email
   ...([
@@ -963,7 +975,7 @@ export const CASES: VbuCase[] = [
     id: "VBU-111", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "creates",
     title: "A 100-character Vendor Code is accepted", type: "Boundary", priority: "P2", severity: "Low",
     why: "The boundary itself.", steps: ["Valid row (onboarding No), Vendor Code = 100 chars"],
-    sheet: one({ ...baseRow("VBU-111"), "Vendor Code": `QA${S}`.padEnd(100, "V") }),
+    sheet: one({ ...baseRow("VBU-111"), "Vendor Code": "{{vcode100}}" }),
     rows: [{ status: "success", verify: { bscm: "active" } }],
     expected: "Row success; vendor Active with that code.", oracle: "Job row + BSCM vendor_code.", rule: `${R.wrk}:108`,
   },
@@ -1217,9 +1229,11 @@ export const CASES: VbuCase[] = [
   {
     id: "VBU-182", section: 7, feature: "vendorbulk.settings", kind: "bulk", tier: "safe", requires: { requiredExtraFields: true },
     title: "A required extra field left blank is refused", type: "Negative", priority: "P1", severity: "Medium",
-    why: "extra_fields_for_vendor_invite with is_required=true joins the mandatory list (PROCOL DEMO: Contact Number, Feedback Score …).",
+    why: "extra_fields_for_vendor_invite with is_required=true is drawn under Mandatory Details in the template (PROCOL DEMO: Contact Number, Feedback Score, Feedback Report, Non-PQ Remark). The validator, though, builds its column list WITHOUT the extra fields, so the requirement is never checked on upload.",
     steps: ["Tripwired row with the required extra fields blank"], sheet: one(trip("VBU-182", {})), rows: fails(MSG.MAND),
-    expected: "Row failed 'Mandatory Item cannot be left empty'.", oracle: "Job row error.", rule: `${R.utils}:803-806`,
+    expected: "Row failed 'Mandatory Item cannot be left empty'. Found 2026-09-29: passes validation ('Invalid Status' tripwire) — the rule is not enforced.",
+    oracle: "Job row error.", rule: `${R.prVal}:14-16 (get_vendor_bulk_upload_params_v2 called with no extra_fields:) vs ${R.tpl}:9-13 (template passes them); ${R.utils}:803-806`,
+    disagree: "The template tells the buyer these columns are mandatory; the upload does not require them.",
   },
   {
     id: "VBU-183", section: 7, feature: "vendorbulk.settings", kind: "bulk", tier: "safe", requires: { contactless: false },
@@ -1245,6 +1259,21 @@ export function dedupBaselineRow(): Record<string, Cell> {
     Pincode: "560001",
     "Account Group": "ZCOV",
     "Vendor Code": `QAVC${S}`,
+  };
+}
+
+/** VBU-154's baseline: a contactless vendor with a tax number and an unknown city (stored as city_id 0). */
+export function cityZeroBaselineRow(): Record<string, Cell> {
+  return {
+    "Company Name": vName("CITYZERO"),
+    "POC - Full Name": "QA Platform Tester",
+    "POC - Email Address": `qa_vbu_${S}_cityzero@example.com`,
+    "Tax Type": "VAT",
+    "Tax No.": "{{vatF}}",
+    "Business Location": "United Kingdom",
+    City: `QA Nowhere ${S}`,
+    Address: "QA City Zero Road 1",
+    "Vendor Onboarding Required": "No",
   };
 }
 

@@ -79,7 +79,7 @@ fake GSTINs whose PAN part carries entity letter Z (no real PAN has it), fake UK
 | `can_skip_vendor_onboarding` | on | on | adds the Vendor Onboarding Required column; "No" → Active + `skip_vendor_onboarding` on the invitation |
 | `vendor_duplicate_check_fields` | gst_no, address, pincode, account_group | — | duplicate only when every field matches; address blank = no match; pincode/extra blank = match (PR16267 duplicate_check_fields.rb) |
 | `allow_same_gst_multiple_addresses_vendor_invite` | on | — | fallback when no field list: same GST + same address blocked (1111), else any repeated GST blocked (134) |
-| `extra_fields_for_vendor_invite` | 4 optional | 9, four required | extra columns; required ones join the mandatory list |
+| `extra_fields_for_vendor_invite` | 4 optional | 9, four required | extra columns; required ones are drawn as mandatory in the template but NOT enforced on upload (VBU-182) |
 | `vendor_category_type_mapping` | 4 keys | 5 keys | the valid Vendor Profile values |
 | `vendor_invitation_v2` | off | off | profile + city/address optional, PAN derived from GST |
 | `disable_manual_vendor_creation` | off | off | 745 on upload and template for non-Procol users |
@@ -115,8 +115,10 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 3. **"An old sheet puts values in the wrong columns."** The parser maps cells by header name, so column order never
    matters (VBU-016). What IS misaligned is the template's own sample row (VBU-031) and its Vendor Profile dropdown
    (VBU-032) — both still use the flag-off positions after PR 16267.
-4. **"Record created with no city" (A5).** The company builder stores `city_id 38` ('-'), a placeholder city, not null;
-   and a partial name like "a" is fuzzy-matched to a real city (VBU-075, VBU-076).
+4. **"Record created with no city" (A5).** The unresolved city NAME travels as `city_id` and is cast to **0** — the
+   vendor points at a city that does not exist, and a later upload with the same tax number and no city crashes the
+   worker ('Internal error in sending invitation', VBU-154). A partial name like "a" is fuzzy-matched to a real city
+   (VBU-075, VBU-076).
 5. **Manual Invite form "Unchanged" (D7).** `contactless_vendor_record?` is workspace-wide, so on GMMCO the manual form
    also accepts a blank POC name and email (VBU-133).
 6. **Contactless + email but no name.** Not covered by the doc; the PR skips error 691 for it, so the invite goes out
@@ -134,7 +136,9 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
     status only to completed / in_progress, so its Error and Duplicate tags are never shown.
 11. **Error sheet with no failed rows** answers error 487, whose text is "You are not allowed to change the phone
     number." (VBU-038).
-12. **Sandbox master data.** 36 countries are named "India"; `Country.find_by(name:)` has no order or status filter,
+12. **Required extra fields.** The template shows them under Mandatory Details, but the validator is built without
+    `extra_fields`, so a blank required extra field passes (VBU-182, PR16267 validation:14-16).
+13. **Sandbox master data.** 36 countries are named "India"; `Country.find_by(name:)` has no order or status filter,
     so GST rows intermittently fail 'Tax Type not configured for the selected Business Location' (VBU-059). The
     duplicate suite therefore uses UK VAT numbers — the duplicate key reads `companies.gst_no` whatever the tax type.
 
@@ -209,7 +213,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** The web app strips 'data:…;base64,' before sending; any other client that forgets gets junk bytes in front of the zip.
 - **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-009.xlsx`.
 - **Steps.** 1. Take a valid tripwired sheet 2. Prefix its base64 with data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64, 3. POST
-- **Expected.** HTTP 422 'Invalid file format' (or the prefix is tolerated and the row fails 'Invalid Status'); never a 500.
+- **Expected.** A clean 4xx — 422 'Invalid file format', or the sandbox firewall's bare 403 (seen 2026-09-29); never a 500.
 - **Oracle.** 4xx; no 5xx.
 - **Trace.** P2 · automate · `VBU-009` · `lib/excel_sheet_utils.rb:17-23; client strips at uploadExcelModal.jsx:57`
 
@@ -624,10 +628,10 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** Old code: 'Invalid City Name'. QA doc A5: 'Success. Record created with no city'. The company builder defaults a missing city to id 38 ('-'). Status=rejected keeps the row mail-free if it is created.
 - **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-075.xlsx`.
 - **Steps.** 1. Status rejected, City 'QA Nowhere {{stamp}}', no Tax No. 2. POST 3. Read the row and the vendor
-- **Expected.** Per the PR's QA doc: success, vendor stored with no real city (city '-', id 38). Old code: failed 'Invalid City Name'.
+- **Expected.** Per the PR's QA doc: success, vendor stored with NO city (city_id null, or the '-' placeholder 38). Never a city id that does not exist.
 - **Oracle.** Row status + companies.city_id.
-- **Spec vs code.** QA doc says 'Record created with no city'; the code stores city_id 38 ('-'), a placeholder city, not null.
-- **Trace.** P1 · automate · `VBU-075` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (city_id || 38)`
+- **Spec vs code.** Found 2026-09-29: the unresolved city NAME is passed as city_id and cast to 0, so the vendor points at a city that does not exist (see VBU-154 for the crash it causes).
+- **Trace.** P1 · automate · `VBU-075` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); app/controllers/concerns/utils.rb:877-884 ('City' → key city_id holds the NAME); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (params city_id present, so no fallback)`
 
 #### API-XVBU-076 — A one-letter city ('a') is not fuzzy-matched to some real city
 - **Why it matters.** City lookup falls back to name ILIKE '%a%' and takes the first alphabetically — any typo becomes a real, wrong city.
@@ -636,6 +640,14 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Expected.** Either refused 'Invalid City Name' or stored with no city — never a city the buyer didn't name. Today: the first city containing 'a'.
 - **Oracle.** companies.city_id → cities.name.
 - **Trace.** P1 · automate · `VBU-076` · `app/services/validations/vendor_bulk_upload_validation_service_v2.rb:122-131; app/models/city.rb:30 (ILIKE %x%)`
+
+#### API-XVBU-154 — A second vendor with the tax number of a 'no city' vendor does not crash the upload
+- **Why it matters.** A contactless row with an unknown city is stored with city_id 0 (VBU-075). When a later row carries the same tax number but no City/Address, the invite looks the tax number up and reads existing_company.city.name — on a city that does not exist.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Baseline (uploaded first): UK VAT {{vatF}}, City 'QA Nowhere {{stamp}}', address set, onboarding No — stored with city_id 0. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-154.xlsx`.
+- **Steps.** 1. Upload the baseline 2. Upload a second row: same tax number {{vatF}}, a different name, City and Address blank, onboarding No 3. Read the second row
+- **Expected.** The row is handled cleanly — refused 'Vendor with this GST and address already exists' (the back-filled address matches) — not a worker error.
+- **Oracle.** Job row error; a worker 'Internal error …' is the async 500.
+- **Trace.** P0 · automate · `VBU-154` · `app/helpers/api/companies_helper.rb:731-745 (existing_company.city.name); app/services/invitation/send_service.rb:41-54`
 
 #### API-XVBU-080 — An email with no @ is refused
 - **Why it matters.** The basic case.
@@ -1195,12 +1207,13 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Trace.** P0 · automate · `VBU-181` · `app/services/validations/vendor_bulk_upload_validation_service_v2.rb:24-30,46-48`
 
 #### API-XVBU-182 — A required extra field left blank is refused
-- **Why it matters.** extra_fields_for_vendor_invite with is_required=true joins the mandatory list (PROCOL DEMO: Contact Number, Feedback Score …).
+- **Why it matters.** extra_fields_for_vendor_invite with is_required=true is drawn under Mandatory Details in the template (PROCOL DEMO: Contact Number, Feedback Score, Feedback Report, Non-PQ Remark). The validator, though, builds its column list WITHOUT the extra fields, so the requirement is never checked on upload.
 - **Setup.** gate: extra_fields_for_vendor_invite has at least one is_required field. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-182.xlsx`.
 - **Steps.** 1. Tripwired row with the required extra fields blank
-- **Expected.** Row failed 'Mandatory Item cannot be left empty'.
+- **Expected.** Row failed 'Mandatory Item cannot be left empty'. Found 2026-09-29: passes validation ('Invalid Status' tripwire) — the rule is not enforced.
 - **Oracle.** Job row error.
-- **Trace.** P1 · automate · `VBU-182` · `app/controllers/concerns/utils.rb:803-806`
+- **Spec vs code.** The template tells the buyer these columns are mandatory; the upload does not require them.
+- **Trace.** P1 · automate · `VBU-182` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:14-16 (get_vendor_bulk_upload_params_v2 called with no extra_fields:) vs app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:9-13 (template passes them); app/controllers/concerns/utils.rb:803-806`
 
 #### API-XVBU-183 — Contactless OFF: the invalid-city rule still fires
 - **Why it matters.** Old behaviour, which the PR's A5 change must not leak to other workspaces. The tripwire is not needed: the city check is last, and a valid Status=rejected row stays mail-free if it passes.

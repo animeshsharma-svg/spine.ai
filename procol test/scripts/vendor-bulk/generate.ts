@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildWorkbook, VBU_FIXTURE_DIR } from "../../src/flows/vendorBulkUpload.js";
-import { CASES, SECTIONS, dedupBaselineRow, type VbuCase } from "./spec.js";
+import { CASES, SECTIONS, cityZeroBaselineRow, dedupBaselineRow, type VbuCase } from "./spec.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..", "..");
@@ -25,6 +25,7 @@ export const fixtureName = (c: VbuCase): string | null => {
   return null;
 };
 export const BASELINE_FIXTURE = "VBU-DUP-BASE.xlsx";
+export const CITYZERO_FIXTURE = "VBU-CITYZERO-BASE.xlsx";
 
 function requiresText(c: VbuCase): string {
   const r = c.requires ?? {};
@@ -103,7 +104,7 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
       refuse: c.refuse,
       rows: c.rows,
       anyOrder: c.anyOrder,
-      baseline: c.baseline,
+      baseline: c.baseline === "dedup" ? BASELINE_FIXTURE : c.baseline === "cityZero" ? CITYZERO_FIXTURE : undefined,
       templateCheck: c.templateCheck,
       errorSheetCheck: c.errorSheetCheck,
       everyRow: c.id === "VBU-023",
@@ -164,6 +165,8 @@ function main() {
   }
   writeFileSync(join(VBU_FIXTURE_DIR, BASELINE_FIXTURE), buildWorkbook({ rows: [dedupBaselineRow()] }));
   manifest.push(`| \`${BASELINE_FIXTURE}\` | dedup baseline | the vendor every duplicate case compares against | creates |`);
+  writeFileSync(join(VBU_FIXTURE_DIR, CITYZERO_FIXTURE), buildWorkbook({ rows: [cityZeroBaselineRow()] }));
+  manifest.push(`| \`${CITYZERO_FIXTURE}\` | VBU-154 baseline | a vendor stored with city_id 0 (unknown city) and a tax number | creates |`);
   writeFileSync(join(VBU_FIXTURE_DIR, "README.md"), manifest.join("\n") + "\n");
 
   // runnable cases
