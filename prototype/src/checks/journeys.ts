@@ -337,6 +337,18 @@ const JOURNEYS: JourneyDef[] = [
     apiGroups: [],
     spine: ["ai_intake", "smart_grouping", "rfp_generator", "vendor_finder", "smart_awarding"],
   },
+  {
+    // test-cases/api-vendor-bulk.md — generated with the runnable VBU-* cases
+    // and their fixtures from procol test/scripts/vendor-bulk/spec.ts.
+    id: "vendor-bulk-upload",
+    title: "Loading vendors in bulk",
+    persona: "Buyer / vendor-management admin",
+    goal: "Download the workspace's template, fill it, upload it, and see each row land as a Prospect, a Vendor or a clean per-row error — with duplicates caught against existing vendors and inside the sheet.",
+    order: 30,
+    uiGroups: [],
+    apiGroups: ["API-XVBU"],
+    spine: ["download_vendor_template", "fill_vendor_sheet", "upload_vendor_sheet", "wait_for_vendor_job", "read_row_results", "download_error_sheet", "check_prospects_and_vendors"],
+  },
 ];
 
 /**
