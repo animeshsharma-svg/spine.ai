@@ -215,7 +215,8 @@ interface Journey {
   bidTotal?: number;
   bidPlaced: boolean;
   techResponded: boolean;
-  evalForm?: { uuid: string; closeTime?: number };
+  /** scores = the event's allowed score scale (evaluation_score_label_mapping), when the schema gave one */
+  evalForm?: { uuid: string; closeTime?: number; scores?: { score: number; label: string }[] };
   evalScored: boolean;
   /** null once looked up and found none — a valid configuration, not a missing id */
   approvalFlowUuid?: string | null;
@@ -454,8 +455,14 @@ async function ensureEvaluator(j: Journey): Promise<void> {
   const uuid = j.client.ctx.evaluatorUuid;
   if (uuid) {
     const u = users.find((x) => x?.uuid === uuid);
-    const phone = u?.phone ? digits(u.phone) : undefined;
-    j.evaluator = { uuid, name: u?.name || u?.email || "the evaluator", email: u?.email, phone: phone || undefined };
+    // The phone exactly as stored (the picker read it and checked the backend
+    // accepts it). Trimming a listed phone to its last 10 digits once turned a
+    // malformed 11-digit seed number into one that belongs to nobody → 391.
+    // The backend rewrites the phone to prefix + "/" + phone before matching
+    // users.phone, so send the stored value's two halves separately.
+    const stored: string | undefined = (j.client.ctx as any).evaluatorPhone;
+    const [phonePrefix, phone] = stored?.includes("/") ? stored.split("/") : [undefined, undefined];
+    j.evaluator = { uuid, name: u?.name || u?.email || "the evaluator", email: u?.email, phone, phonePrefix };
     return;
   }
   j.evaluatorProblem = `no one at ${j.company} could be named as the evaluator — the company's user list gave nobody to assign the technical round to`;
@@ -1144,15 +1151,20 @@ const evaluatorLogin: StepSpec = {
     }
     if (!who.phone) {
       return {
-        notRun: `${who.name} has no live web-console session and no phone number to send a one-time code to — someone from ${j.company} must sign into the web console as a second user`,
+        notRun: `${who.name} has no live web-console session and no phone the backend accepts for a one-time code (a console user cannot get one by email — generate_otp answers “Not authorized”) — give a ${j.company} user a valid phone, or sign one into the web console as a second user`,
       };
     }
     const prefix = who.phonePrefix ?? j.s.CONFIG.identities.evaluator.phonePrefix;
-    const { login, fired } = await otpLogin(
+    // By phone only, as the stored value's halves: the backend joins
+    // phone_prefix + "/" + phone and matches users.phone exactly (params_auth.rb
+    // check_phone_and_prefix), and never sends a console user a code by email
+    // (users_controller_helper.rb check_otp_on_email_allowed → 5).
+    const attempt = await otpLogin(
       j,
-      { ...j.s.CONFIG.identities.evaluator, phone: who.phone, phonePrefix: prefix, tenantCompanyId: j.companyId, ownerEmail: who.email },
+      { ...j.s.CONFIG.identities.evaluator, email: undefined, phone: who.phone, phonePrefix: prefix, tenantCompanyId: j.companyId, ownerEmail: who.email },
       { phone: who.phone, phone_prefix: prefix },
     );
+    const { login, fired } = attempt;
     if (!login)
       return {
         ...fired,
@@ -1189,7 +1201,7 @@ const evalSchema: StepSpec = {
     const mine = forms.find((f) => (f?.evaluators || []).some((e: any) => e?.shared_with_uuid === who.uuid));
     if (!mine?.uuid) return { call, reply, shortfall: `none of the ${count(forms.length, "form")} is assigned to ${who.name} to score` };
     const closeTime = Number(reply.data?.extra_closing_time || reply.data?.ending_at || 0) || undefined;
-    j.evalForm = { uuid: String(mine.uuid), closeTime };
+    j.evalForm = { uuid: String(mine.uuid), closeTime, scores: scoreScale(reply.data) };
     const clock = closeTime ? (nowSec() < closeTime ? ` Bidding is still open until ${hhmmss(closeTime)}.` : ` Bidding closed at ${hhmmss(closeTime)}.`) : "";
     return {
       call,
@@ -1200,6 +1212,30 @@ const evalSchema: StepSpec = {
   },
 };
 
+/**
+ * The scores this event accepts. Not a fixed 1–10: the backend only takes a
+ * score that is a key of the event's evaluation_score_label_mapping (the RFP's,
+ * else the company's) — Demo Account 2 scores 0–5 as TNA…P1 — and answers
+ * 422 "Insufficient parameters" for anything else (procol-backend
+ * evaluations/validate_service.rb valid_form?). Hidden labels are left out.
+ */
+function scoreScale(data: any): { score: number; label: string }[] | undefined {
+  let found: any[] | undefined;
+  const walk = (o: any, depth: number) => {
+    if (found || !o || typeof o !== "object" || depth > 6) return;
+    if (Array.isArray(o.evaluation_score_label_mapping)) {
+      found = o.evaluation_score_label_mapping;
+      return;
+    }
+    for (const v of Object.values(o)) walk(v, depth + 1);
+  };
+  walk(data, 0);
+  const list = (found ?? [])
+    .filter((m) => Number.isInteger(m?.score) && !m?.is_hidden)
+    .map((m) => ({ score: Number(m.score), label: String(m.label ?? m.score) }));
+  return list.length ? list : undefined;
+}
+
 const evalScore: StepSpec = {
   kind: "eval_score",
   needs: (j, _ev, done) =>
@@ -1208,9 +1244,12 @@ const evalScore: StepSpec = {
       need(j, done, "no form assigned to the evaluator was found", j.evalForm, "eval_schema"),
       need(j, done, "no technical response was submitted to score", j.techResponded, techProducer(j)),
     ),
-  expected: (j) => `A score out of 10 is recorded on ${j.evaluator?.name ?? "the evaluator"}'s form for ${j.vendorName}'s response and the app answers success: true.`,
+  expected: (j) => `A score from the event's own scale is recorded on ${j.evaluator?.name ?? "the evaluator"}'s form for ${j.vendorName}'s response and the app answers success: true.`,
   run: async (j, ev) => {
-    const score = randInt(1, 10);
+    // A score the event accepts, above zero (zero is "not accepted" and needs a remark).
+    const scale = j.evalForm!.scores?.filter((x) => x.score > 0);
+    const pick = scale?.length ? scale[randInt(0, scale.length - 1)] : undefined;
+    const score = pick ? pick.score : randInt(1, 10);
     const body = j.s.bodies.buildCreateEvaluation({
       technicalTradeUuid: tradeOf(ev, "rfp"),
       vendorCompanyUuid: j.vendorCompanyUuid,
@@ -1221,7 +1260,8 @@ const evalScore: StepSpec = {
     if (!reply.ok) return { call, reply };
     if (reply.data?.success === false) return { call, reply, shortfall: "the app answered success: false" };
     j.evalScored = true;
-    return { call, reply, actual: `Scored ${score}/10 on the form assigned to ${j.evaluator!.name}.` };
+    const top = j.evalForm!.scores ? Math.max(...j.evalForm!.scores.map((x) => x.score)) : 10;
+    return { call, reply, actual: `Scored ${score}/${top}${pick ? ` (“${pick.label}”)` : ""} on the form assigned to ${j.evaluator!.name}.` };
   },
 };
 

@@ -15,6 +15,8 @@ export interface ClientContext {
   catalog: Catalog;
   /** a company user uuid to assign as the technical evaluator */
   evaluatorUuid: string;
+  /** that user's phone exactly as stored (what generate_otp matches), when it is one the backend accepts */
+  evaluatorPhone?: string;
   /** invited vendor (uuid + login email) */
   vendor: { uuid: string; email?: string; name?: string };
   dispose: () => Promise<void>;
@@ -49,7 +51,7 @@ export async function resolveClientContext(
     resolveCatalog(buyerApi),
     pickInvitableVendor(buyerApi),
   ]);
-  const evaluator = await resolveEvaluatorUuid(buyerApi, client.buyer.email ?? undefined);
+  const evaluator = await resolveEvaluatorUuid(buyerApi, client.buyer.email ?? undefined, companyId);
 
   const catalog: Catalog = {
     productUuid: cat.productUuid,
@@ -67,6 +69,7 @@ export async function resolveClientContext(
     buyerApi,
     catalog,
     evaluatorUuid: evaluator.uuid,
+    evaluatorPhone: evaluator.phone,
     vendor: { uuid: vendor.uuid, email: vendor.email, name: vendor.name },
     dispose: async () => {
       await buyerApi.dispose();

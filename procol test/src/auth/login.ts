@@ -56,6 +56,8 @@ const randDeviceId = (): string => {
  * The bootstrap (2-segment, that identity's key:secret) is used on both calls.
  */
 export async function authenticate(id: IdentityConfig): Promise<LoginResult> {
+  // Vendors sign in by email; console users by phone only — the backend never
+  // sends a buyer-side user a code by email (check_otp_on_email_allowed → 5).
   const isEmail = id.role === "vendor";
   const identifier = isEmail ? id.email : id.phone;
   if (!identifier) {
@@ -69,7 +71,9 @@ export async function authenticate(id: IdentityConfig): Promise<LoginResult> {
    * configured code is the fallback. Capped at four so a wrong guess never
    * turns into hammering the login.
    */
-  const uat = await loginOtpCandidates(isEmail ? { email: identifier } : { phone: identifier }, id.tenantCompanyId);
+  // The backend looks the user up by phone_prefix + "/" + phone (params_auth.rb).
+  const lookupPhone = identifier && !identifier.includes("/") ? `${id.phonePrefix}/${identifier}` : identifier;
+  const uat = await loginOtpCandidates(isEmail ? { email: identifier } : { phone: lookupPhone }, id.tenantCompanyId);
   const candidates: UatOtp[] = [];
   for (const c of [...uat, ...(id.otp ? [{ otp: id.otp, source: "the configured code" }] : [])]) {
     if (!candidates.some((x) => x.otp === c.otp)) candidates.push(c);
