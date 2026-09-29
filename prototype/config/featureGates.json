@@ -1845,6 +1845,174 @@
     "platform.hardening": {
       "gates": [],
       "note": "Cross-cutting API behaviour; nothing to switch."
+    },
+    "vendorbulk.file": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "disable_manual_vendor_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'disable_manual_vendor_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'disable_manual_vendor_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend app/controllers/api/v1/companies_controller.rb:205-208 (upload), 219-222 (template) → error 745 for non-Procol users",
+          "why": "With disable_manual_vendor_creation on, a client user cannot upload or download the template (745)"
+        },
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "procol-backend app/policies/company_policy.rb:123-134 (bulk_create_vendor? → module 'company' create_record)",
+          "why": "Upload, status and error sheet need company create_record",
+          "blocking": false
+        }
+      ],
+      "note": "Row rules run later in Sidekiq; the HTTP reply only covers parsing (companies_controller.rb:199-215)."
+    },
+    "vendorbulk.access": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "disable_manual_vendor_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'disable_manual_vendor_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'disable_manual_vendor_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend app/controllers/api/v1/companies_controller.rb:205-208 (upload), 219-222 (template) → error 745 for non-Procol users",
+          "why": "With disable_manual_vendor_creation on, a client user cannot upload or download the template (745)"
+        },
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "procol-backend app/policies/company_policy.rb:123-134 (bulk_create_vendor? → module 'company' create_record)",
+          "why": "Upload, status and error sheet need company create_record",
+          "blocking": false
+        }
+      ],
+      "note": "The template endpoint has no authorize call (companies_controller.rb:218-229)."
+    },
+    "vendorbulk.rows": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "disable_manual_vendor_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'disable_manual_vendor_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'disable_manual_vendor_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend app/controllers/api/v1/companies_controller.rb:205-208 (upload), 219-222 (template) → error 745 for non-Procol users",
+          "why": "With disable_manual_vendor_creation on, a client user cannot upload or download the template (745)"
+        },
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "procol-backend app/policies/company_policy.rb:123-134 (bulk_create_vendor? → module 'company' create_record)",
+          "why": "Upload, status and error sheet need company create_record",
+          "blocking": false
+        }
+      ],
+      "note": "Which columns are mandatory depends on allow_contactless_vendor_upload, vendor_invitation_v2 and required extra fields; cases gate themselves per case."
+    },
+    "vendorbulk.onboarding": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "disable_manual_vendor_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'disable_manual_vendor_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'disable_manual_vendor_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend app/controllers/api/v1/companies_controller.rb:205-208 (upload), 219-222 (template) → error 745 for non-Procol users",
+          "why": "With disable_manual_vendor_creation on, a client user cannot upload or download the template (745)"
+        },
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "procol-backend app/policies/company_policy.rb:123-134 (bulk_create_vendor? → module 'company' create_record)",
+          "why": "Upload, status and error sheet need company create_record",
+          "blocking": false
+        }
+      ],
+      "note": "Onboarding routing needs vendor_onboarding_version v2 + can_skip_vendor_onboarding; Prospect cases that email the vendor-management team run only with realMail=1."
+    },
+    "vendorbulk.dedup": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "disable_manual_vendor_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'disable_manual_vendor_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'disable_manual_vendor_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend app/controllers/api/v1/companies_controller.rb:205-208 (upload), 219-222 (template) → error 745 for non-Procol users",
+          "why": "With disable_manual_vendor_creation on, a client user cannot upload or download the template (745)"
+        },
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "procol-backend app/policies/company_policy.rb:123-134 (bulk_create_vendor? → module 'company' create_record)",
+          "why": "Upload, status and error sheet need company create_record",
+          "blocking": false
+        }
+      ],
+      "note": "vendor_duplicate_check_fields (PR 16267) decides the key; absent → allow_same_gst_multiple_addresses_vendor_invite / 134."
+    },
+    "vendorbulk.data": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "disable_manual_vendor_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'disable_manual_vendor_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'disable_manual_vendor_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend app/controllers/api/v1/companies_controller.rb:205-208 (upload), 219-222 (template) → error 745 for non-Procol users",
+          "why": "With disable_manual_vendor_creation on, a client user cannot upload or download the template (745)"
+        },
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "procol-backend app/policies/company_policy.rb:123-134 (bulk_create_vendor? → module 'company' create_record)",
+          "why": "Upload, status and error sheet need company create_record",
+          "blocking": false
+        }
+      ],
+      "note": "Parser transforms every cell (strip_trailing_zero + Nokogiri text)."
+    },
+    "vendorbulk.settings": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "disable_manual_vendor_creation",
+          "on_when": "falsy",
+          "default": false,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'disable_manual_vendor_creation' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'disable_manual_vendor_creation' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend app/controllers/api/v1/companies_controller.rb:205-208 (upload), 219-222 (template) → error 745 for non-Procol users",
+          "why": "With disable_manual_vendor_creation on, a client user cannot upload or download the template (745)"
+        },
+        {
+          "kind": "module",
+          "key": "company",
+          "on_when": "true",
+          "default": "default module (every new client gets it)",
+          "sql": "SELECT to_jsonb(EXISTS (SELECT 1 FROM companies c JOIN procol_modules pm ON pm.id = ANY (c.allowed_modules) WHERE c.id = $1 AND pm.status = 1 AND pm.name IN ('company'))) AS value, 'companies.allowed_modules' AS source",
+          "source": "procol-backend app/policies/company_policy.rb:123-134 (bulk_create_vendor? → module 'company' create_record)",
+          "why": "Upload, status and error sheet need company create_record",
+          "blocking": false
+        }
+      ],
+      "note": "Regression cases for workspaces where the GMMCO flags are OFF (e.g. PROCOL DEMO)."
     }
   }
 }

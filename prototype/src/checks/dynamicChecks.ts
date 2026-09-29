@@ -112,6 +112,16 @@ const ALLOW_CURATED: AllowRule[] = [
   { method: "GET", re: /^\/delivery\/all(\?|$)/, what: "delivery tracking read" },
   { method: "POST", re: /^\/delivery\/add_dispatch_details$/, what: "dispatch details (negatives only)" },
   { method: "POST", re: /^\/vendor_payments\/submit_proof$/, what: "payment proof (negatives only)" },
+
+  // ── Vendor bulk upload ────────────────────────────────────────────────
+  // Every fixture names its vendors QA_Platform_VBU_<stamp>_… with
+  // qa_…@example.com contacts; row-rule fixtures carry a "tripwire" value that
+  // stops the row in validation, so a rule that fails to fire still creates
+  // nothing. Cases that would email the client's vendor-management team are
+  // skipped unless a run opts in (realMail=1) — see vendorBulk.ts.
+  { method: "POST", re: /^\/v1\/bulk_create_vendor$/, what: "vendor bulk upload (QA fixtures)" },
+  { method: "GET", re: /^\/v1\/bulk_create_vendor_(template|status)$/, what: "vendor bulk template / job status" },
+  { method: "GET", re: /^\/v1\/bulk_create_vendor_error_sheet(\?|$)/, what: "vendor bulk error sheet" },
 ];
 
 /** The endpoint menu the LLM is shown — kept in sync with ALLOW above. */
@@ -171,6 +181,14 @@ export interface DynamicContext {
   invoiceUuid?: string;
   grnUuid?: string;
   billUuid?: string;
+  /** a marker for the bulk-upload fixture; the real base64 is loaded when the case runs */
+  vbuSheet?: string;
+  /** this workspace's vendor bulk upload settings (vendorBulk.ts), read once per run */
+  vbu?: import("./vendorBulk.js").VbuWorkspace | null;
+  /** run bulk cases that create a Prospect (and so email the vendor-management team) */
+  vbuRealMail?: boolean;
+  /** false = skip bulk cases that create test vendors */
+  vbuCreate?: boolean;
 }
 
 export interface DynamicSpec {
@@ -359,6 +377,9 @@ const SIMPLE_CREATE: RegExp[] = [
   /^\/teams$/,
   /^\/buyer_hubs\/create$/,
   /^\/users\/create_user$/,
+  // One request stages the whole sheet; the bulk runner then reads each row's
+  // outcome, so a documented success is fully checkable here.
+  /^\/v1\/bulk_create_vendor$/,
 ];
 
 const VALID_EXPECTED = new Set(["accept", "reject", "no-5xx"]);

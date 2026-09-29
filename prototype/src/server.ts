@@ -121,6 +121,7 @@ const CLIENTS = [
   { id: 198678, name: "PROCOL DEMO", note: "best all-round · fresh session" },
   { id: 32461, name: "Demo Account 2", note: "BOQ on" },
   { id: 39490, name: "M/s Moon Beverages", note: "workspace client · BOQ off" },
+  { id: 47053, name: "GMMCO LIMITED", note: "vendor onboarding v2 · contactless bulk upload · dedup on GST+address+pincode+account group" },
 ];
 
 // Cache capability maps so re-selecting a client is instant.
@@ -1075,6 +1076,10 @@ const server = createServer(async (req, res) => {
       const stale: Array<{ dispose?: () => Promise<unknown> }> = [];
       try {
         let cases = casesForFeatures(ids);
+        // Optional: only these case ids (comma list) — e.g. re-running the
+        // vendor bulk cases that failed, without the whole feature.
+        const onlyCases = (url.searchParams.get("cases") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+        if (onlyCases.length) cases = cases.filter((cs) => onlyCases.includes(cs.id));
         // Read real ids (a PR, a vendor, a category, a city…) out of the live
         // client so cases referencing them can actually run.
         // Off by default: writing to real proposals/bids/trades is opt-in only.
@@ -1185,6 +1190,10 @@ const server = createServer(async (req, res) => {
         // Read once, here: the ceiling is needed before the checks are built,
         // and the feature gating below needs the same configuration.
         const caseCtx = await caseCtxP;
+        // Vendor bulk upload: Prospect-creating cases email the workspace's
+        // vendor-management team, so they run only when asked for by name.
+        caseCtx.vbuRealMail = url.searchParams.get("realMail") === "1";
+        caseCtx.vbuCreate = url.searchParams.get("vbuCreate") !== "0";
         const actor = await actorP;
         const companyCfg = await companyCfgP;
         const askedLineItems = Number(url.searchParams.get("lineItems") ?? "") || undefined;

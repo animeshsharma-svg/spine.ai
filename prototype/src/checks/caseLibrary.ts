@@ -46,6 +46,8 @@ const KNOWN_PLACEHOLDERS = new Set([
   // Filled from the journey: the technical (RFP) stage — {{tradeId}} is the
   // pricing stage when there is one — and the form assigned to the evaluator.
   "rfpTradeId", "evalFormUuid", "locationUuid",
+  // Vendor bulk upload: the fixture's base64, loaded by the bulk runner.
+  "vbuSheet",
 ]);
 
 function readExtraCases(): TestCaseRecord[] {
@@ -69,6 +71,7 @@ function readExtraCases(): TestCaseRecord[] {
 }
 
 import { planLineItems, type HeldCase } from "./lineItems.js";
+import { makeBulkExec, resolveVbuWorkspace, vbuSkipReason } from "./vendorBulk.js";
 
 export interface TestCaseRecord {
   id: string;
@@ -104,6 +107,11 @@ export interface TestCaseRecord {
    * "the product accepted it" would be a false one about the product.
    */
   notRunnable?: string;
+  /**
+   * Vendor bulk upload cases (data/api-cases-extra/vbu.json): the fixture to
+   * send and what each staged row must become. Run by vendorBulk.ts.
+   */
+  bulk?: import("./vendorBulk.js").BulkSpec;
 }
 
 /**
@@ -499,6 +507,11 @@ export async function resolveCaseContext(
   const uList = users?.users ?? users?.data ?? (Array.isArray(users) ? users : []);
   if (Array.isArray(uList) && uList[0]) ctx.userUuid = firstId(uList[0]);
 
+  // Vendor bulk upload settings, straight from the configuration tables — most
+  // of them (allow_contactless_vendor_upload, vendor_duplicate_check_fields)
+  // are not in the dashboard configuration the other gates read.
+  if (typeof client.ctx.companyId === "number") ctx.vbu = await resolveVbuWorkspace(client.ctx.companyId);
+
   // ── DELIBERATELY GATED ──────────────────────────────────────────────────
   // tradeId / proposalUuid / bidUuid identify REAL, LIVE business records — an
   // actual award proposal, an actual bid. Bidding and awarding cases POST and
@@ -614,6 +627,22 @@ export function buildChecksFromCases(
       }
     }
 
+    // Vendor bulk upload: gated on the workspace's own settings and on what the
+    // case would create, then run by the bulk runner (see vendorBulk.ts).
+    if (c.bulk) {
+      const why = vbuSkipReason(c.bulk, fullCtx.vbu, {
+        realMail: fullCtx.vbuRealMail,
+        creates: fullCtx.vbuCreate,
+        hasUser: typeof (client.ctx as any).buyerUserId === "number",
+      });
+      if (why) {
+        skipped.push({ id: c.id, title: c.title, reason: why });
+        continue;
+      }
+    }
+    const caseCtx: DynamicContext =
+      c.bulk?.fixture ? { ...fullCtx, vbuSheet: `<base64 of procol test/fixtures/vendor-bulk-upload/${c.bulk.fixture}, filled per run>` } : fullCtx;
+
     const spec: DynamicSpec = {
       scenario: c.title,
       method: c.method,
@@ -627,7 +656,12 @@ export function buildChecksFromCases(
     };
     // curated=true — these cases were reviewed against the source, so they may
     // use the wider ALLOW_CURATED endpoint list that AI-generated checks cannot.
-    const { check, reason } = gate(spec, fullCtx, client, c.feature, c.id, c.feature, true);
+    const { check, reason } = gate(spec, caseCtx, client, c.feature, c.id, c.feature, true);
+    if (check && c.bulk && c.bulk.kind !== "http") {
+      check.exec = makeBulkExec(c.bulk, String(fullCtx.stamp), c.id);
+      delete check.weakenedTo5xxOnly;
+      (check as any).bulkTier = c.bulk.tier;
+    }
     if (check) {
       // Only meaningful for reject cases — that's where "right reason" matters.
       if (c.expected === "reject") check.expectMessage = expectedMessageOf(c.expectedResult);

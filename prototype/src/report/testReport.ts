@@ -497,9 +497,21 @@ function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean)
    * it is "the app accepted something it should have refused" — the technical
    * wording is still there when the row is opened.
    */
+  // Vendor bulk upload cases are judged on what each staged ROW became, not
+  // on the HTTP reply (which is 200 for every sheet the parser can read), so
+  // the accept/refuse wording below would describe the wrong thing.
+  const bulk = row.test.bulk && row.test.bulk.kind !== "http";
   const outcome =
     row.verdict === "notrun"
       ? skipInWords(row.skipReason)
+      : bulk && row.verdict !== "inconclusive"
+        ? row.verdict === "pass"
+          ? "Came out as documented"
+          : (result as { asyncServerError?: boolean } | undefined)?.asyncServerError
+            ? "A row crashed the background job"
+            : (result?.httpStatus ?? 0) >= 500
+              ? "The server broke on it"
+              : "Came out differently from the documented result"
       : row.verdict === "pass"
         ? row.test.expected === "reject"
           ? "Refused it, as it should"
@@ -541,13 +553,13 @@ function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean)
     <div class="panes">
       <div>
         <h5>What should happen</h5>
-        <p class="expect">The app should <strong>${
+        <p class="expect">${bulk ? "The sheet's rows should come out <strong>as documented</strong>" : `The app should <strong>${
           row.test.expected === "reject"
             ? "refuse this"
             : row.test.expected === "no-5xx"
               ? "cope with this without breaking"
               : "accept this"
-        }</strong>. ${escapeHtml(row.test.expectedResult)}</p>
+        }</strong>`}. ${escapeHtml(row.test.expectedResult)}</p>
         ${
           // Why this row's verdict is weaker than the outcome it documents, in
           // priority order: the case's own reason (written when the library was
