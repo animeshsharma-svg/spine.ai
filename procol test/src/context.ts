@@ -11,6 +11,8 @@ export interface ClientContext {
   companyName: string | null;
   /** authenticated buyer (DB session → token, no OTP) */
   buyerApi: ApiClient;
+  /** users.id behind buyerApi — rows this user stages (e.g. vendor bulk upload jobs) are keyed by it */
+  buyerUserId: number;
   /** full catalog: resolved product/templates/location + invited vendor + flags */
   catalog: Catalog;
   /** a company user uuid to assign as the technical evaluator */
@@ -67,6 +69,7 @@ export async function resolveClientContext(
     companyId,
     companyName: client.companyName,
     buyerApi,
+    buyerUserId: client.buyer.userId,
     catalog,
     evaluatorUuid: evaluator.uuid,
     evaluatorPhone: evaluator.phone,

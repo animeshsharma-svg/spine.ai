@@ -115,4 +115,15 @@ export const Endpoints = {
     `/companies/all_vendors?search=${encodeURIComponent(
       JSON.stringify({ category: "name", value: "" }),
     )}&page=${page}&tab=unverified`,
+
+  // ── vendor bulk upload (config/routes.rb:924-927 → companies_controller.rb:199-262) ──
+  bulkCreateVendor: () => "/v1/bulk_create_vendor",
+  bulkCreateVendorTemplate: () => "/v1/bulk_create_vendor_template",
+  bulkCreateVendorStatus: () => "/v1/bulk_create_vendor_status",
+  bulkCreateVendorErrorSheet: (jobUuid: string) =>
+    `/v1/bulk_create_vendor_error_sheet?job_uuid=${encodeURIComponent(jobUuid)}`,
+  vendorsTab: (tab: "unverified" | "onboarding_in_progress" | "verified" | "rejected", name: string) =>
+    `/companies/all_vendors?search=${encodeURIComponent(
+      JSON.stringify({ category: "name", value: name }),
+    )}&page=1&tab=${tab}`,
 } as const;
