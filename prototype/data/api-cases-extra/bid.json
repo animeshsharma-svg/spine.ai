@@ -1,0 +1,4580 @@
+[
+  {
+    "id": "EDGE-BID-001",
+    "feature": "bids.participation",
+    "title": "Declaring intent without the event id is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Sandbox stage {{tradeId}} is live and the vendor is invited.",
+    "steps": [
+      "1. POST /user_intents with the working body minus item_uuid."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error.code 2 'Insufficient parameters' from Api::UserIntentsController#create app/controllers/api/user_intents_controller.rb:14-15 (item_id blank); no user_intents row.",
+    "rationale": "item_id links the answer to the event; item_id is NOT NULL, so without the guard this would be a DB error instead of a typed refusal.",
+    "body": {
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-002",
+    "feature": "bids.participation",
+    "title": "Declaring intent without item_type is refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage.",
+    "steps": [
+      "1. POST /user_intents with item_type removed."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' from app/controllers/api/user_intents_controller.rb:14-15.",
+    "rationale": "item_type drives the polymorphic association; blank must never reach the model.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-003",
+    "feature": "bids.participation",
+    "title": "Declining to participate without any reason is refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage.",
+    "steps": [
+      "1. POST /user_intents with intent_type trade_reject and neither reason nor remarks."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' from app/controllers/api/user_intents_controller.rb:11-12 — a non-accept intent must carry reason or remarks.",
+    "rationale": "Regret reasons feed the buyer's participation report; a reasonless decline loses the signal the feature exists for.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject"
+    }
+  },
+  {
+    "id": "EDGE-BID-004",
+    "feature": "bids.participation",
+    "title": "An intent with no intent_type is treated as a decline and still needs a reason",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage.",
+    "steps": [
+      "1. POST /user_intents with intent_type, reason and remarks all removed."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' from app/controllers/api/user_intents_controller.rb:11 (nil is not 'trade_accept'); the default :trade_reject at :19 is never reached.",
+    "rationale": "Pins the default: an omitted intent_type is a decline, never a silent accept.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest"
+    }
+  },
+  {
+    "id": "EDGE-BID-005",
+    "feature": "bids.participation",
+    "title": "An unknown intent_type does not crash the server",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage.",
+    "steps": [
+      "1. POST /user_intents with intent_type 'maybe' and a reason."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "Should be a typed 422. intent_type is a Rails enum (app/models/user_intent.rb:33); assigning 'maybe' at app/controllers/api/user_intents_controller.rb:19 raises ArgumentError and nothing rescues it — an untyped 500 is the suspected defect.",
+    "rationale": "Rails enums raise on unknown values and the controller assigns the raw param.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "maybe",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-006",
+    "feature": "bids.participation",
+    "title": "An intent against a made-up item_type does not crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage.",
+    "steps": [
+      "1. POST /user_intents with item_type 'QA_Platform_NotAModel_{{stamp}}'."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422. belongs_to :item, polymorphic: true (app/models/user_intent.rb:29) constantizes item_type during validation; an unknown class raises NameError — 500 suspected. app/controllers/api/user_intents_controller.rb:18",
+    "rationale": "The controller only checks presence of item_type; any string reaches constantize.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "QA_Platform_NotAModel_{{stamp}}",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-007",
+    "feature": "bids.participation",
+    "title": "An intent can only be recorded against an event, not another record type",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{userUuid}} is any user in the workspace.",
+    "steps": [
+      "1. POST /user_intents with item_type 'User' and item_uuid {{userUuid}}."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused — only TradeRequest/EventGroup are meaningful targets. app/controllers/api/user_intents_controller.rb:18-23 has no allowlist of item types, so today a 200 is likely.",
+    "rationale": "No allowlist on item_type; intents can be attached to arbitrary records.",
+    "body": {
+      "item_uuid": "{{userUuid}}",
+      "item_type": "User",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-008",
+    "feature": "bids.participation",
+    "title": "An intent on a non-existent event is refused, not silently dropped",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. POST /user_intents with item_uuid 'WrongUuid1='."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "Should be a typed 422. If save fails (belongs_to item required) app/controllers/api/user_intents_controller.rb:23 has no else branch, so Rails answers 204 No Content — which every client reads as success.",
+    "rationale": "`render_success_json if save` with no failure branch turns validation errors into a silent 204.",
+    "body": {
+      "item_uuid": "WrongUuid1=",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-009",
+    "feature": "bids.participation",
+    "title": "Accepting to participate needs no reason",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage, vendor invited.",
+    "steps": [
+      "1. POST /user_intents with intent_type 'trade_accept' and no reason/remarks."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "accept",
+    "expectedResult": "HTTP 200 success — app/controllers/api/user_intents_controller.rb:11 exempts trade_accept from the reason rule; saved at :23.",
+    "rationale": "The one explicit exemption; a tightening refactor would break the one-click participate button.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_accept"
+    }
+  },
+  {
+    "id": "EDGE-BID-010",
+    "feature": "bids.participation",
+    "title": "Script, SQL-ish and unicode text in regret remarks is stored safely",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage.",
+    "steps": [
+      "1. POST /user_intents with remarks containing a script tag, a quote/semicolon SQL fragment, emoji, Devanagari and 5,000 characters."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "200 or typed 4xx, never 5xx. ParamsAuth#sanitize_input_params (app/controllers/concerns/params_auth.rb:18-20) strips HTML tags; remarks is an unbounded varchar (app/controllers/api/user_intents_controller.rb:21).",
+    "rationale": "Regret remarks are shown to the buyer in the participants table — a stored-XSS and length sink.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_{{stamp}} <script>alert(1)</script> ' OR 1=1;-- 🙂 नमस्ते xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "id": "EDGE-BID-011",
+    "feature": "bids.participation",
+    "title": "A numeric reason instead of a list does not crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live sandbox stage.",
+    "steps": [
+      "1. POST /user_intents with reason: 12345."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "200 or typed 4xx. reason is jsonb; display_intent calls to_s (app/models/user_intent.rb). app/controllers/api/user_intents_controller.rb:20",
+    "rationale": "Type confusion on a jsonb column the buyer's report later renders.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": 12345,
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-012",
+    "feature": "bids.participation",
+    "title": "Declining after accepting leaves one effective answer",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). The vendor already POSTed a trade_accept intent on {{tradeId}}.",
+    "steps": [
+      "1. POST /user_intents trade_accept.",
+      "2. POST /user_intents trade_reject with a reason."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "Expected one effective answer. app/controllers/api/user_intents_controller.rb:18 always inserts a new active row and never deactivates the previous one, so both stay active; the buyer's table (latest) and the trade page (exists?) can disagree.",
+    "rationale": "No supersede logic — two contradictory active intents are possible.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-013",
+    "feature": "bids.participation",
+    "title": "A vendor cannot record intent on an event they are not invited to",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: a vendor NOT on the audience of {{tradeId}}.",
+    "steps": [
+      "1. POST /user_intents for {{tradeId}} as the uninvited vendor."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (101). app/controllers/api/user_intents_controller.rb:4-23 performs no audience or ownership check before writing.",
+    "rationale": "A write path with no authorization check beyond login.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-014",
+    "feature": "bids.participation",
+    "title": "Changing the participation answer after the event closed",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} has passed its bid_end_time.",
+    "steps": [
+      "1. POST /user_intents trade_reject with reason."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "expected": "no-5xx",
+    "expectedResult": "No window check exists in app/controllers/api/user_intents_controller.rb; today 200. Recorded so product decides whether post-close answers may rewrite the participation report.",
+    "rationale": "No is_running guard — participation history can be rewritten after the event is decided.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "API_Test_reason_{{stamp}}"
+      ],
+      "remarks": "API_Test_not_participating_{{stamp}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-015",
+    "feature": "bids.participation",
+    "title": "A vendor who never answered participate can still open a bid",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live RFQ stage {{tradeId}}, vendor invited, no user_intents row for this vendor, no technical stage.",
+    "steps": [
+      "1. Skip the participate step.",
+      "2. POST /v1/bids with the working body."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "Today 200 with bid_uuid: Api::V1::BidsController#create (app/controllers/api/v1/bids_controller.rb:11-39) and is_allowed_to_create_bid (app/helpers/api/v1/bids_controller_helper.rb:7-78) never read UserIntent. The UI gates on user_intent_answered; the API does not.",
+    "rationale": "The user asked for 'bid without participating'. The only gate is client-side.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-016",
+    "feature": "bids.participation",
+    "title": "A vendor who declined to participate can still open a bid",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). The vendor recorded a trade_reject intent on {{tradeId}}; stage is live.",
+    "steps": [
+      "1. POST /user_intents trade_reject.",
+      "2. POST /v1/bids with the working body."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused. Nothing in app/controllers/api/v1/bids_controller.rb:11-39 or app/helpers/api/v1/bids_controller_helper.rb:7-78 reads the trade_reject intent, so 200 is expected today; only the legacy surrogate path touches intents (app/controllers/api/bids_controller.rb:521-528, marks them converted).",
+    "rationale": "The buyer's report would show the vendor as both declined and bidding.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-017",
+    "feature": "bids.participation",
+    "title": "A vendor who declined can still submit a priced bid",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). trade_reject intent recorded; a priced draft bid {{bidUuid}} exists.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} with the working submit body."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused. update (app/controllers/api/v1/bids_controller.rb:41-66) → update_bid_helper (app/helpers/api/v1/bids_controller_helper.rb:367-487) has no intent check; success:true expected today and the declined vendor ranks.",
+    "rationale": "The version that changes ranks and savings: a declined vendor can end up L1.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-018",
+    "feature": "bids.participation",
+    "title": "Opening a non-existent event does not crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. GET /trade/WrongUuid1="
+    ],
+    "method": "GET",
+    "path": "/trade/WrongUuid1=",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 4 'Request not found'. Api::TradeController#show replaces a nil trade with `TradeRequest.joins(:bids)...` (app/controllers/api/trade_controller.rb:1067-1068), a Relation that is never nil, so validate_event's `trade.void?` (trade_controller_helper.rb:2216) runs on a Relation — NoMethodError/500 suspected.",
+    "rationale": "The nil guard is defeated by a fallback query that returns a Relation."
+  },
+  {
+    "id": "EDGE-BID-019",
+    "feature": "bids.participation",
+    "title": "The schema of a non-existent event is refused cleanly",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. GET /v1/trade/WrongUuid1=/schema"
+    ],
+    "method": "GET",
+    "path": "/v1/trade/WrongUuid1=/schema",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 4 'Request not found' from validate_event (app/controllers/concerns/trade_controller_helper.rb:2215), called by Api::V1::TradeController#event_schema (app/controllers/api/v1/trade_controller.rb:265-277).",
+    "rationale": "Contrast case for the /trade/:id crash — same helper, no Relation fallback, correct result."
+  },
+  {
+    "id": "EDGE-BID-020",
+    "feature": "bids.participation",
+    "title": "An uninvited vendor cannot read a restricted event",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: a vendor that deals with the buyer but is NOT on the restricted audience of {{tradeId}}.",
+    "steps": [
+      "1. GET /trade/{{tradeId}} as that vendor."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 536 'You are not allowed to view this event.' from validate_event (app/controllers/concerns/trade_controller_helper.rb:2219-2221); is_allowed_to_view? is false for a restricted audience (app/models/model_helpers/trade_request_model_helper.rb:366-369).",
+    "rationale": "Specs, quantities and sometimes target prices are competitor-sensitive."
+  },
+  {
+    "id": "EDGE-BID-021",
+    "feature": "bids.participation",
+    "title": "A vendor cannot read an unpublished (draft) stage",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: a vendor already added to the audience of a DRAFT stage {{tradeId}}.",
+    "steps": [
+      "1. GET /trade/{{tradeId}} as the vendor."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 536 'You are not allowed to view this event.' — is_allowed_to_view? denies drafts vendor-side (app/models/model_helpers/trade_request_model_helper.rb:352-353).",
+    "rationale": "Buyers add audiences while drafting; unfinished prices and quantities must stay invisible until publish."
+  },
+  {
+    "id": "EDGE-BID-022",
+    "feature": "bids.participation",
+    "title": "A vendor cannot read the schema of a draft stage",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: vendor on the audience of a DRAFT stage {{tradeId}}.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/schema as the vendor."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/schema",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 536 'You are not allowed to view this event.' via event_schema → validate_event (app/controllers/concerns/trade_controller_helper.rb:2219-2221).",
+    "rationale": "The schema carries widget configuration incl. required fields and price validations."
+  },
+  {
+    "id": "EDGE-BID-023",
+    "feature": "bids.participation",
+    "title": "A cancelled stage reads as not found",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} was cancelled or voided by the buyer.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/schema"
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/schema",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 4 'Request not found' from validate_event (app/controllers/concerns/trade_controller_helper.rb:2216-2217).",
+    "rationale": "Vendors keep links in email; a cancelled event must read as gone."
+  },
+  {
+    "id": "EDGE-BID-024",
+    "feature": "bids.participation",
+    "title": "Hostile layer_ids on the schema read do not crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live stage.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/schema with layer_ids containing a script tag and a quote fragment."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/schema?layer_ids=%3Cscript%3E1%3C%2Fscript%3E%2C%27%20OR%201%3D1",
+    "expected": "no-5xx",
+    "expectedResult": "200 or typed 4xx. layer_ids is read raw in event_schema (app/controllers/api/v1/trade_controller.rb:264).",
+    "rationale": "Query-string ids feed layer filtering unvalidated."
+  },
+  {
+    "id": "EDGE-BID-025",
+    "feature": "bids.participation",
+    "title": "Two teammates of the same vendor see the same participation answer",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: a SECOND user of vendor company {{vendorUuid}}, after the first user answered trade_accept.",
+    "steps": [
+      "1. GET /trade/{{tradeId}} and read user_intent_answered.",
+      "2. GET /v1/trade/{{tradeId}}/schema and read user_intent_answered."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/schema",
+    "expected": "no-5xx",
+    "expectedResult": "Both reads should agree. /trade/:id uses Current.workspace.user_intents (app/controllers/api/trade_controller.rb:1095); /v1/trade/:id/schema uses Current.user.user_intents (app/controllers/api/v1/trade_controller.rb:287) — the teammate gets true from one and false from the other.",
+    "rationale": "Company-level vs user-level lookup of the same flag; the second teammate is asked to participate again."
+  },
+  {
+    "id": "EDGE-BID-026",
+    "feature": "bids.participation",
+    "title": "Starting a technical response without the stage id is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live technical stage {{rfpTradeId}}.",
+    "steps": [
+      "1. POST /template_responses without item_uuid."
+    ],
+    "method": "POST",
+    "path": "/template_responses",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' from TemplateResponsesController#create app/controllers/api/template_responses_controller.rb:16-17.",
+    "rationale": "The start call returns the id the answer and submit calls hang off; a missing stage must be refused.",
+    "body": {
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-027",
+    "feature": "bids.participation",
+    "title": "Starting a response on an unsupported item type is refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live technical stage.",
+    "steps": [
+      "1. POST /template_responses with item_type 'Bid'."
+    ],
+    "method": "POST",
+    "path": "/template_responses",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101 'You are not allowed to perform this action' from the else branch app/controllers/api/template_responses_controller.rb:50-51.",
+    "rationale": "Only TradeRequest and Proposal are supported; anything else must fall to 101.",
+    "body": {
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "Bid",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-028",
+    "feature": "bids.participation",
+    "title": "A technical response cannot be started on an RFQ (commercial) stage",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} here is the sandbox RFQ/pricing stage (rfx_mode rfq).",
+    "steps": [
+      "1. POST /template_responses with item_uuid of the RFQ stage."
+    ],
+    "method": "POST",
+    "path": "/template_responses",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 33 'Order not active' — create restricts the lookup to rfi/rfp (app/controllers/api/template_responses_controller.rb:23), so the set is empty and validate_params_for_trade_request returns 33 (app/controllers/concerns/template_responses_controller_helper.rb:132-133).",
+    "rationale": "A technical answer on a pricing stage would never be evaluated; the misleading 'Order not active' message is worth pinning.",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-029",
+    "feature": "bids.participation",
+    "title": "A technical response cannot be started before the stage opens",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{rfpTradeId}} is an Upcoming (published, not yet started) technical stage.",
+    "steps": [
+      "1. POST /template_responses."
+    ],
+    "method": "POST",
+    "path": "/template_responses",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 33 'Order not active' — currently_running_in_bidding_time (app/models/trade_request.rb:222-226) excludes it; app/controllers/concerns/template_responses_controller_helper.rb:132-133.",
+    "rationale": "Same fairness rule as bidding: no head start on the technical stage.",
+    "body": {
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-030",
+    "feature": "bids.participation",
+    "title": "A technical response cannot be started after the stage closed",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{rfpTradeId}} technical stage bid_end_time has passed.",
+    "steps": [
+      "1. POST /template_responses."
+    ],
+    "method": "POST",
+    "path": "/template_responses",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 33 'Order not active' from app/controllers/concerns/template_responses_controller_helper.rb:132-133.",
+    "rationale": "Late technical responses change who qualifies for the commercial stage after evaluation began.",
+    "body": {
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-031",
+    "feature": "bids.participation",
+    "title": "The buyer cannot answer their own technical stage as a participant",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). Live technical stage; company_uuid set to the buyer's own company.",
+    "steps": [
+      "1. POST /template_responses with company_uuid = the event's own company."
+    ],
+    "method": "POST",
+    "path": "/template_responses",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 101 'You are not allowed to perform this action' from app/controllers/concerns/template_responses_controller_helper.rb:135 (company_id == trade company). Uses the buyer's own company id.",
+    "rationale": "A buyer-company response on its own event pollutes evaluation and could be awarded.",
+    "body": {
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorCompanyId}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-032",
+    "feature": "bids.participation",
+    "title": "A vendor cannot start a technical response in another vendor's name",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: vendor A. {{vendorUuid}} is a DIFFERENT invited vendor B.",
+    "steps": [
+      "1. As vendor A, POST /template_responses with company_uuid of vendor B."
+    ],
+    "method": "POST",
+    "path": "/template_responses",
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused. validate_params_for_trade_request (app/controllers/concerns/template_responses_controller_helper.rb:108-140) never checks company_id belongs to the caller (unlike bids, which call can_place_bid_for_company). Today a draft owned by A for company B is the suspected outcome.",
+    "rationale": "Cross-vendor write: A can seed B's technical response and, since the reason strings are shown to the buyer, tamper with B's qualification.",
+    "body": {
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-033",
+    "feature": "bids.participation",
+    "title": "Saving answers with no form id is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A technical response {{templateResponseUuid}} has been started.",
+    "steps": [
+      "1. PUT /template_responses/{{templateResponseUuid}}/create_page_responses with form_uuid removed."
+    ],
+    "method": "PUT",
+    "path": "/template_responses/{{templateResponseUuid}}/create_page_responses",
+    "expected": "no-5xx",
+    "expectedResult": "Should be a typed 4xx. create_form_page_responses (app/controllers/api/template_responses_controller.rb:69-95) reads params['page_ids'] and page_responses; a blank/absent form leaves nothing to persist. Must not 5xx.",
+    "rationale": "The answer call is keyed by form and page uuids; a missing form must not become a crash.",
+    "body": {
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "mgCKG",
+            "value": "API_Test_spec_{{stamp}}"
+          }
+        ]
+      },
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}"
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-034",
+    "feature": "bids.participation",
+    "title": "An answer with a key_attribute that is not on the form is ignored, not crashing",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Technical response {{templateResponseUuid}} started; {{techPageUuid}} is its line-item page.",
+    "steps": [
+      "1. PUT create_page_responses with page_responses whose key_attribute is 'NOT_A_WIDGET_{{stamp}}'."
+    ],
+    "method": "PUT",
+    "path": "/template_responses/{{templateResponseUuid}}/create_page_responses",
+    "expected": "no-5xx",
+    "expectedResult": "200 or typed 4xx. create_draft_form_response iterates form_key_attributes and only stores keys present in the header set (app/helpers/api/forms_helper.rb:343-368); an unknown key falls through get_key_attribute_vs_response_data (app/helpers/api/forms_helper.rb:452-457) and is dropped.",
+    "rationale": "A wrong key_attribute is the single most common malformed-answer case; it must be dropped, not saved or crashed.",
+    "body": {
+      "form_uuid": "{{techFormUuid}}",
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "NOT_A_WIDGET_{{stamp}}",
+            "value": "x"
+          }
+        ]
+      },
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}"
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-035",
+    "feature": "bids.participation",
+    "title": "An attachment answer sent as an object instead of a list does not crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Technical response {{templateResponseUuid}} started.",
+    "steps": [
+      "1. PUT create_page_responses with an attachment widget value set to {url:...} (an object, not a list)."
+    ],
+    "method": "PUT",
+    "path": "/template_responses/{{templateResponseUuid}}/create_page_responses",
+    "expected": "no-5xx",
+    "expectedResult": "validate_form_pages_responses_data (app/helpers/api/forms_helper.rb:299-312) raises StandardError 'Invalid Attachments Data' for a non-array, non-string attachment value; that surfaces as a handled error, not a 500 (this widget may be a string field, so no-5xx is the honest assertion).",
+    "rationale": "Attachment shape confusion is a known raise site inside a transaction; it must stay a typed error.",
+    "body": {
+      "form_uuid": "{{techFormUuid}}",
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "mgCKG",
+            "value": {
+              "url": "x"
+            }
+          }
+        ]
+      },
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}"
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-036",
+    "feature": "bids.participation",
+    "title": "Submitting a technical response with a required answer blank is refused",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A technical response {{templateResponseUuid}} with a required widget left blank.",
+    "steps": [
+      "1. Save the page with the required field empty.",
+      "2. PATCH /template_responses/{{templateResponseUuid}} to submit."
+    ],
+    "method": "PATCH",
+    "path": "/template_responses/{{templateResponseUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 error.code 572 \"Please fill '<field>'\" from ValidateService#validate_header (app/services/template_responses/validate_service.rb:158-162), reached via revise_for_item_type → revise_template_response_helper (app/controllers/concerns/template_responses_controller_helper.rb:23). The generic submit body cannot force a specific field blank in one run, so no-5xx is the runnable assertion.",
+    "rationale": "Required technical answers gate qualification; a blank required field must block submission.",
+    "body": {
+      "status": "active",
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-037",
+    "feature": "bids.participation",
+    "title": "A different user cannot submit another user's draft response without edit access",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: a vendor user who did NOT create response {{templateResponseUuid}} and has no editor access-list entry.",
+    "steps": [
+      "1. PATCH /template_responses/{{templateResponseUuid}} to submit."
+    ],
+    "method": "PATCH",
+    "path": "/template_responses/{{templateResponseUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 2 (draft not found for company) or 101 (not an editor). update (app/controllers/api/template_responses_controller.rb:55-67) scopes to company_id, and unauthorized_template_response_editor? (app/controllers/api/template_responses_controller.rb:402-410) denies non-owners without editor access.",
+    "rationale": "The technical response is competitor-sensitive; only its owner or a shared editor may submit it.",
+    "body": {
+      "status": "active",
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-038",
+    "feature": "bids.participation",
+    "title": "Answers cannot be saved on a stage that is not running",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A response {{templateResponseUuid}} exists on a technical stage that has since closed.",
+    "steps": [
+      "1. PUT /template_responses/{{templateResponseUuid}}/create_page_responses."
+    ],
+    "method": "PUT",
+    "path": "/template_responses/{{templateResponseUuid}}/create_page_responses",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 33 'Order not active' — for a vendor (not the buyer's company) create_form_page_responses checks item.is_running (app/controllers/api/template_responses_controller.rb:78-82). Requires a closed stage; no-5xx if the sandbox stage is still live.",
+    "rationale": "A late technical answer edits a response after the window; the window guard must fire.",
+    "body": {
+      "form_uuid": "{{techFormUuid}}",
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "mgCKG",
+            "value": "API_Test_spec_{{stamp}}"
+          }
+        ]
+      },
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}"
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-039",
+    "feature": "bids.participation",
+    "title": "Submitting the same technical response twice does not create a second active response",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Response {{templateResponseUuid}} already submitted (active).",
+    "steps": [
+      "1. PATCH /template_responses/{{templateResponseUuid}} to submit again."
+    ],
+    "method": "PATCH",
+    "path": "/template_responses/{{templateResponseUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 2: update (app/controllers/api/template_responses_controller.rb:59) fetches TemplateResponse.draft, which is empty once the response is active, so a re-submit refuses cleanly. No second active row either way.",
+    "rationale": "Vendors retry submit on flaky networks; a second active response would double-count in evaluation.",
+    "body": {
+      "status": "active",
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-040",
+    "feature": "bids.participation",
+    "title": "Saving answers against a non-existent response is refused cleanly",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. PUT /template_responses/WrongUuid1=/create_page_responses."
+    ],
+    "method": "PUT",
+    "path": "/template_responses/WrongUuid1=/create_page_responses",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 888 'Invalid Parameters' from fetch_template_response (app/controllers/concerns/template_responses_controller_helper.rb:61-62). Must not 5xx.",
+    "rationale": "A stale or guessed response id must produce a typed error, not a crash.",
+    "body": {
+      "form_uuid": "WrongUuid1=",
+      "page_uuids": [
+        "WrongUuid1="
+      ],
+      "page_responses": {},
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-041",
+    "feature": "bids.participation",
+    "title": "Submitting a non-existent response is refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. PATCH /template_responses/WrongUuid1=."
+    ],
+    "method": "PATCH",
+    "path": "/template_responses/WrongUuid1=",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' — update (app/controllers/api/template_responses_controller.rb:59-60) finds no draft response for that id/company.",
+    "rationale": "Guessed response ids must not submit anything.",
+    "body": {
+      "status": "active",
+      "item_uuid": "{{rfpTradeId}}",
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}"
+    }
+  },
+  {
+    "id": "EDGE-BID-042",
+    "feature": "bids.place",
+    "title": "Opening a bid without a company is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live RFQ stage {{tradeId}}, vendor invited.",
+    "steps": [
+      "1. POST /v1/bids with company_uuid removed."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' from app/controllers/api/v1/bids_controller.rb:15-16 (company_id blank).",
+    "rationale": "company_id names who the bid is for; blank must be refused before any row.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-043",
+    "feature": "bids.place",
+    "title": "Opening a bid without a trade id is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Vendor invited.",
+    "steps": [
+      "1. POST /v1/bids with trade_request_uuid removed."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' — trade_request is nil at app/controllers/api/v1/bids_controller.rb:14-16.",
+    "rationale": "No stage means no event to bid on; the presence guard must fire.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-044",
+    "feature": "bids.place",
+    "title": "Opening a bid on a non-existent event is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. POST /v1/bids with trade_request_uuid 'WrongUuid1='."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' — find_by_id returns nil, blank check at app/controllers/api/v1/bids_controller.rb:14-16.",
+    "rationale": "A guessed stage id must not open a bid.",
+    "body": {
+      "trade_request_uuid": "WrongUuid1=",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-045",
+    "feature": "bids.place",
+    "title": "An uninvited vendor cannot open a bid",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: a vendor NOT on the audience of {{tradeId}}.",
+    "steps": [
+      "1. POST /v1/bids as the uninvited vendor."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 782 'Bid could not be placed. Please refresh and try again.' from app/controllers/api/v1/bids_controller.rb:20 (allowed_to_bid? false — company not in audience_ids, app/controllers/concerns/bids_controller_helper.rb:17-31).",
+    "rationale": "The core fairness rule: only invited vendors may bid.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-046",
+    "feature": "bids.place",
+    "title": "The buyer cannot open an ordinary bid on their own event",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). Live RFQ stage; company_uuid set to the buyer's own company.",
+    "steps": [
+      "1. POST /v1/bids with company_uuid = the event's own company."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused. is_surrogate_bidding_and_is_allowed? treats the owner as a surrogate bidder (app/controllers/concerns/bids_controller_helper.rb:2130-2141); a plain self-bid should not create a vendor bid. Uses the buyer's own company id.",
+    "rationale": "A buyer self-bid would seed a competing quote on their own event.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorCompanyId}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-047",
+    "feature": "bids.place",
+    "title": "A bid on a superseded event version is refused",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} belongs to an event group that has been amended (a newer version exists).",
+    "steps": [
+      "1. POST /v1/bids on the old version's stage."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 101 'You are not allowed to perform this action' from app/controllers/api/v1/bids_controller.rb:18 (event_group.latest? false). Requires an amended event; on a fresh sandbox this stays a clean 4xx.",
+    "rationale": "Bidding on a stale version writes to an event nobody is running.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-048",
+    "feature": "bids.place",
+    "title": "A bid cannot be opened before the window opens",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} is an Upcoming (published, not started) RFQ stage.",
+    "steps": [
+      "1. POST /v1/bids."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 33 'Order not active' from is_allowed_to_create_bid (app/helpers/api/v1/bids_controller_helper.rb:71-73, !is_running).",
+    "rationale": "Bidding early breaks fairness — the single most important window rule.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-049",
+    "feature": "bids.place",
+    "title": "A bid cannot be opened after the window closes",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} RFQ stage bid_end_time has passed.",
+    "steps": [
+      "1. POST /v1/bids."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 33 'Order not active' from app/helpers/api/v1/bids_controller_helper.rb:71-73 (is_running false once bid_end_time passed; is_running at app/models/trade_request.rb:1191-1194).",
+    "rationale": "A late bid changes the result after the event closed.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-050",
+    "feature": "bids.place",
+    "title": "A bid cannot be opened on an unpublished (draft) stage",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A DRAFT RFQ stage {{tradeId}} with the vendor pre-added to the audience.",
+    "steps": [
+      "1. POST /v1/bids on the draft stage."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 33 'Order not active' — a draft has no running schedule, so is_running is false (app/helpers/api/v1/bids_controller_helper.rb:71-73). A draft is also unviewable to the vendor (is_allowed_to_view? app/models/model_helpers/trade_request_model_helper.rb:352).",
+    "rationale": "Bidding on an unpublished stage writes into an event the buyer is still editing.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-051",
+    "feature": "bids.place",
+    "title": "Two concurrent create calls do not both succeed",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live RFQ stage; two create calls fire within 3 seconds for the same (trade, company).",
+    "steps": [
+      "1. POST /v1/bids.",
+      "2. Immediately POST /v1/bids again."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "The second call should get 422 code 516 'Transaction in Progress' from lock_transaction (app/controllers/api/v1/bids_controller.rb:168-174; Rails.cache 3s lock keyed t<id>_c<company>).",
+    "rationale": "The submit/create pair is the most retried write; the cache lock prevents a double bid.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-052",
+    "feature": "bids.place",
+    "title": "A second bid after one is already active is refused",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). The vendor already has an active bid on {{tradeId}} and lock_quote_after_submission is ON.",
+    "steps": [
+      "1. POST /v1/bids again for the same company."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 875 'Revise bid is locked. You cannot edit your quote after submission.' from is_allowed_to_create_bid (app/helpers/api/v1/bids_controller_helper.rb:74-76) when lock_quote_after_submission? is set. gate: lock_quote_after_submission",
+    "rationale": "Config-dependent: with the lock on, one submitted quote is final.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-053",
+    "feature": "bids.place",
+    "title": "A vendor who revoked cannot open a new bid",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). The vendor's previous bid on {{tradeId}} is in revoke status.",
+    "steps": [
+      "1. POST /v1/bids."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 370 'You cannot place a bid after revoking the previous one' from app/helpers/api/v1/bids_controller_helper.rb:54-56.",
+    "rationale": "Revocation is meant to be final for that vendor.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-054",
+    "feature": "bids.place",
+    "title": "An unsupported currency code is refused on a multi-currency event",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} has a currency_configuration; the vendor sends an out-of-list code.",
+    "steps": [
+      "1. POST /v1/bids with currency_preference.code 'XYZ'."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 15 'Operation failed' 'Please choose a valid currency' from validate_currency_preference (app/controllers/api/v1/bids_controller.rb:28, app/controllers/api/v1/bids_controller.rb:191-192). gate: currency_configuration — no-5xx if the sandbox is single-currency.",
+    "rationale": "Currency drives every price comparison; an invalid code must be rejected.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "code": "XYZ"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-055",
+    "feature": "bids.place",
+    "title": "A vendor who skipped the technical stage cannot open the commercial bid",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). The event has a live/closed RFP technical stage the vendor never responded to; {{tradeId}} is the commercial stage.",
+    "steps": [
+      "1. POST /v1/bids without any technical response."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 737 'You cannot quote for this item because you didn't participate in the technical stage' — is_allowed_to_create_bid checks template responses (app/helpers/api/v1/bids_controller_helper.rb:30-37) → check_participation_in_technical_and_commercial_stage (app/helpers/api/v1/bids_controller_helper.rb:313-320). gate: a technical (RFP) stage exists.",
+    "rationale": "Two-stage events require technical qualification before commercial bidding.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-056",
+    "feature": "bids.place",
+    "title": "A negative price is refused",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} on the live RFQ stage.",
+    "steps": [
+      "1. POST /v1/bids/{{bidUuid}}/create_bid_products with a trade_products entry priced -5."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 106 'Please enter a valid price' from filter_invalid_params (app/controllers/api/bids_controller.rb:539-546) — note this guard lives on the legacy Api::BidsController path; the v1 create_bid_trade_products path stores price as a float and relies on floor/ceil, so a negative here may instead pass to validate_bid_product_details.",
+    "rationale": "Negative prices are the canonical bad input; whichever path runs, they must not become a valid quote.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "trade_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "trade_product_id": 1,
+          "price": -5,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-057",
+    "feature": "bids.place",
+    "title": "A zero price is not added as a quote",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} on the live RFQ stage.",
+    "steps": [
+      "1. POST create_bid_products with price 0 in the inline sheet."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "allowed_to_add (app/controllers/concerns/trade_template_helper.rb:5839-5851) only adds a row when price > 0, so a zero-priced row is dropped and create_bid_trade_product_helper sees blank products → 732 'Invalid Input' (app/helpers/api/v1/bids_controller_helper.rb:151-156).",
+    "rationale": "A zero price is a common 'no quote' signal; it must not create a zero-value bid.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 0,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-058",
+    "feature": "bids.place",
+    "title": "A non-numeric price does not crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}.",
+    "steps": [
+      "1. POST create_bid_products with price value 'abc'."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "200 or typed 4xx. get_line_item_object coerces with &.to_f (app/controllers/concerns/trade_template_helper.rb:5639) so 'abc' becomes 0.0 and is dropped by allowed_to_add (app/controllers/concerns/trade_template_helper.rb:5841); must not 5xx.",
+    "rationale": "String-where-number is a classic fuzz input on the money field.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": "abc",
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-059",
+    "feature": "bids.place",
+    "title": "An enormous price is handled without overflow",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} on an event with no ceiling price.",
+    "steps": [
+      "1. POST create_bid_products with price 1e18."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "200 or a ceiling refusal (38). price is a float column (db/schema.rb bid_trade_products); with no ceil_price the value is stored (app/controllers/concerns/bids_controller_helper.rb:1145). Must not 5xx or overflow.",
+    "rationale": "Unbounded price with no ceiling is an integrity risk in the savings/total math.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 1000000000000000000,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-060",
+    "feature": "bids.price_cap",
+    "title": "A price above the configured ceiling is refused",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} on a stage whose line item has a ceiling (max) price.",
+    "steps": [
+      "1. POST create_bid_products priced far above the ceiling."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 38 'Price cannot be more than the allowed price' from validate_bid_product_details (app/controllers/concerns/bids_controller_helper.rb:1840-1846), comparing estimated_price to ceil_price_for_user. gate: ceiling price set — no-5xx otherwise.",
+    "rationale": "The price cap is a hard business rule; over-ceiling quotes must be blocked.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 999999999,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-061",
+    "feature": "bids.price_cap",
+    "title": "A price below the configured floor is refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} on a stage whose line item has a floor (min) price.",
+    "steps": [
+      "1. POST create_bid_products priced below the floor."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 41 'Price cannot be less than the allowed price' from the floor branch of validate_bid_product_details (app/controllers/concerns/bids_controller_helper.rb:1848-1855). gate: floor price set.",
+    "rationale": "Floor caps stop unrealistically low quotes on forward/sell events.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 0.01,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-062",
+    "feature": "bids.place",
+    "title": "A quantity above the line quantity is refused when over-quantity is off",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}; is_over_quantity_allowed is OFF; line quantity is 10. gate: `is_over_quantity_allowed` must be off for this case's outcome to hold.",
+    "steps": [
+      "1. POST create_bid_products with participant_quantity 100."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 138 'Quantity cannot be greater than the mentioned quantity.' from validate_bid_product_details (app/controllers/concerns/bids_controller_helper.rb:1902-1904). gate: is_over_quantity_allowed=false (default is true, so this is config-dependent).",
+    "rationale": "Over-quantity bids distort awarding when the buyer disallows them.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "100",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-063",
+    "feature": "bids.place",
+    "title": "A quantity below the line quantity is refused when under-quantity is off",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}; is_under_quantity_allowed is OFF; line quantity is 10. gate: `is_under_quantity_allowed` must be off for this case's outcome to hold.",
+    "steps": [
+      "1. POST create_bid_products with participant_quantity 1."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 139 'Quantity cannot be less than the mentioned quantity.' from validate_bid_product_details (app/controllers/concerns/bids_controller_helper.rb:1906-1908). gate: is_under_quantity_allowed=false.",
+    "rationale": "Under-quantity bids are disallowed when the buyer needs the full lot.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "1",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-064",
+    "feature": "bids.place",
+    "title": "A quantity not equal to the auction quantity is refused when fixed-quantity bidding is on",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}; allow_fixed_quantity_for_bidding is ON; line quantity is 10. gate: `allow_fixed_quantity_for_bidding` must be on for this case's outcome to hold.",
+    "steps": [
+      "1. POST create_bid_products with participant_quantity 9."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 207 'Bid Quantity should be equal to the Auction Quantity' from validate_bid_product_details (app/controllers/concerns/bids_controller_helper.rb:1898-1900). gate: allow_fixed_quantity_for_bidding=true.",
+    "rationale": "Fixed-quantity events require an exact-match quantity.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "9",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-065",
+    "feature": "bids.place",
+    "title": "A negative quantity is refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}.",
+    "steps": [
+      "1. POST create_bid_products (legacy trade_products form) with quantity -3."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 35 'Quantity must be greater than zero' from filter_invalid_params (app/controllers/api/bids_controller.rb:547-549) on the legacy path.",
+    "rationale": "Negative quantity is another canonical bad input.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "trade_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "trade_product_id": 1,
+          "price": 10,
+          "quantity": -3,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-066",
+    "feature": "bids.place",
+    "title": "A negative GST is refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}.",
+    "steps": [
+      "1. POST create_bid_products (trade_products form) with gst -5."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 107 'Please enter valid GST' from filter_invalid_params (app/controllers/api/bids_controller.rb:550-552).",
+    "rationale": "GST feeds the landed cost; negative GST would understate the total.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "trade_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "trade_product_id": 1,
+          "price": 10,
+          "quantity": 10,
+          "gst": -5
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-067",
+    "feature": "bids.place",
+    "title": "Pricing with no products is refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}.",
+    "steps": [
+      "1. POST create_bid_products with an empty inline data map."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 732 'Invalid Input' — create_bid_trade_product_helper (app/helpers/api/v1/bids_controller_helper.rb:151-156) refuses a blank product list unless it is a valid delete.",
+    "rationale": "A bid with no products is a participation with no offer.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": []
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-068",
+    "feature": "bids.place",
+    "title": "Pricing a non-existent bid is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. POST /v1/bids/WrongUuid1=/create_bid_products with a valid row."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/WrongUuid1=/create_bid_products",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 32 'Bid not found' — Bid.draft.for_company(...).where(id: bid_id).last is nil (app/controllers/api/v1/bids_controller.rb:120-121).",
+    "rationale": "A guessed bid id must not receive prices.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-069",
+    "feature": "bids.place",
+    "title": "A vendor cannot price a bid belonging to another company",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: vendor A. {{bidUuid}} is a draft bid owned by vendor B.",
+    "steps": [
+      "1. As A, POST /v1/bids/{{bidUuid}}/create_bid_products."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 32 'Bid not found' — the bid lookup is scoped to Current.allowed_companies (app/controllers/api/v1/bids_controller.rb:119-121), so B's bid is invisible to A. Requires a bid owned by another company.",
+    "rationale": "Cross-company write into a competitor's bid.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-070",
+    "feature": "bids.place",
+    "title": "Pricing a bid after the window closes is refused",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} whose stage bid_end_time has passed.",
+    "steps": [
+      "1. POST /v1/bids/{{bidUuid}}/create_bid_products."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "When not running, create_bid_trade_products routes to is_allowed_to_modify_counter_offer (app/controllers/api/v1/bids_controller.rb:125-127) which returns 33 'Order not active' unless a counter-offer modification is applicable (app/controllers/concerns/bids_controller_helper.rb:792-793). Requires a closed stage.",
+    "rationale": "Late pricing edits a bid after the window.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-071",
+    "feature": "bids.place",
+    "title": "A sister company cannot pile a second bid onto the same subsidiary network",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}; another company in the same subsidiary network already bid on {{tradeId}}.",
+    "steps": [
+      "1. POST /v1/bids/{{bidUuid}}/create_bid_products."
+    ],
+    "method": "POST",
+    "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 96 'A bid has already been placed by your team' from app/controllers/api/v1/bids_controller.rb:134-135 (is_part_of_subsidiary_network?). gate: subsidiary network configured.",
+    "rationale": "Subsidiary collusion is blocked so one network cannot occupy two ranks.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-072",
+    "feature": "bids.submit",
+    "title": "Submitting with no status does not crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A priced draft bid {{bidUuid}}.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} with status removed."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "200 or typed 4xx. With no status the bid stays draft (update_bid_helper draft branch app/helpers/api/v1/bids_controller_helper.rb:453) and no technical-participation gate fires; must not 5xx.",
+    "rationale": "A missing status must not silently activate the bid or crash.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-073",
+    "feature": "bids.submit",
+    "title": "Submitting a bid with no products is refused",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} created but never priced (no bid_products).",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} to active with the working submit body."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 8 'Model error' 'Please bid on at least one product' from Bid#validate_bid_products (app/models/bid.rb:217-223), which fires for a non-fast, non-buyer-added bid activated from draft. surfaces via error_code 15 in the helper.",
+    "rationale": "A submitted bid with no products is a participation with no offer — the model's own guard.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-074",
+    "feature": "bids.submit",
+    "title": "Submitting the same bid twice does not create a second active bid",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A bid {{bidUuid}} already submitted (active).",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} to active again."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 34 'A bid has already been placed from your team' — update refuses when bid.active? and status in [active,draft] (app/controllers/api/v1/bids_controller.rb:45-47).",
+    "rationale": "Vendors retry submit; a second active bid would double-rank the same company.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-075",
+    "feature": "bids.submit",
+    "title": "A bid cannot be submitted after the window closes",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A priced draft bid {{bidUuid}} whose stage bid_end_time has passed.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} to active."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 33 'Order not active' — update_bid_action_helper_v1 returns 33 when !is_running and not a counter-offer/justification (app/helpers/api/v1/bids_controller_helper.rb:562-571). Requires a closed stage.",
+    "rationale": "A late submit changes the result after the event closed.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-076",
+    "feature": "bids.submit",
+    "title": "A locked event refuses a second submitted quote",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). lock_quote_after_submission is ON; the vendor already has an active bid; {{bidUuid}} is a new draft. gate: `lock_quote_after_submission` must be on for this case's outcome to hold.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} to active."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 875 'Revise bid is locked. You cannot edit your quote after submission.' from update_bid_helper (app/helpers/api/v1/bids_controller_helper.rb:385-387). gate: lock_quote_after_submission=true.",
+    "rationale": "With the lock on, the first submitted quote is final.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-077",
+    "feature": "bids.submit",
+    "title": "Submitting a commercial bid that skips technically-qualified lines is refused",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Two-stage event; the vendor participated technically but priced only some non-regretted lines; {{bidUuid}} is the commercial draft.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} to active."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 748 'Please enter bid for all line items that are not regretted in technical stage.' — valid_bid_wrt_technical_stage? (app/helpers/api/v1/bids_controller_helper.rb:389, 985-1014) requires every non-regretted, non-TNA technical line to be priced. gate: a technical (RFP) stage exists.",
+    "rationale": "A partial commercial bid must not leave qualified lines unpriced.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-078",
+    "feature": "bids.place",
+    "title": "A regretted line item cannot then receive a commercial price",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). The vendor marked a line item as regretted; {{bidUuid}} carries a price on that same line.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} to active."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 800 'You have regretted this line item. Reset your draft bid to continue.' from check_for_regretted_items (app/helpers/api/v1/bids_controller_helper.rb:747, 885-894), or 736 during product creation (app/helpers/api/v1/bids_controller_helper.rb:300-301). gate: line marked regretted first.",
+    "rationale": "Regretting a line then bidding on it commercially is contradictory; the guard exists for exactly this.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-079",
+    "feature": "bids.submit",
+    "title": "A vendor cannot submit another company's bid",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Session: vendor A. {{bidUuid}} is a draft bid owned by vendor B.",
+    "steps": [
+      "1. As A, PATCH /v1/bids/{{bidUuid}} to active."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 32 'Bid not found' — Bid.not_in_active.for_company(Current.allowed_companies) excludes B's bid (app/controllers/api/v1/bids_controller.rb:42-44). Requires a bid owned by another company.",
+    "rationale": "Cross-company submit would let A finalize B's quote.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-080",
+    "feature": "bids.submit",
+    "title": "Submitting a non-existent bid is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. PATCH /v1/bids/WrongUuid1=."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/WrongUuid1=",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 32 'Bid not found' from app/controllers/api/v1/bids_controller.rb:43-44.",
+    "rationale": "A guessed bid id must not be submittable.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-081",
+    "feature": "bids.submit",
+    "title": "A non-numeric gross_total does not crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A priced draft bid {{bidUuid}}.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} with global gross_total value '<script>'."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "200 or typed 4xx. gross_total flows into other_details (app/helpers/api/v1/bids_controller_helper.rb:420); it is display data, not the ranking price. Must not 5xx.",
+    "rationale": "gross_total is echoed in the orders sheet view — a stored-XSS/type sink.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "<script>alert(1)</script>"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-082",
+    "feature": "bids.counter_offer",
+    "title": "Increasing the price is refused when price increase is not allowed",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A submitted bid {{bidUuid}} on an event with is_price_increase_allowed=false. gate: `is_price_increase_allowed` must be off for this case's outcome to hold.",
+    "steps": [
+      "1. PATCH /api/bids/revise_bid/{{bidUuid}} with a higher price."
+    ],
+    "method": "PATCH",
+    "path": "/bids/revise_bid/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 300 'You cannot increase the price' — get_approval_type (app/controllers/concerns/bids_controller_helper.rb:2385-2386) and revise_bid_helper (app/helpers/api/bids_helper.rb:6-7) return 300 when the revised value exceeds the current and increase is disallowed. gate: is_price_increase_allowed=false.",
+    "rationale": "In a reverse auction prices should only fall; the direction rule enforces it.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "price": 100000,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-083",
+    "feature": "bids.counter_offer",
+    "title": "Decreasing the price is refused when price decrease is not allowed",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A submitted bid {{bidUuid}} on a forward/sell event with is_price_decrease_allowed=false. gate: `is_price_decrease_allowed` must be off for this case's outcome to hold.",
+    "steps": [
+      "1. PATCH /api/bids/revise_bid/{{bidUuid}} with a lower price."
+    ],
+    "method": "PATCH",
+    "path": "/bids/revise_bid/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 301 'You cannot decrease the price' — get_approval_type (app/controllers/concerns/bids_controller_helper.rb:2380-2381) / revise_bid_helper (app/helpers/api/bids_helper.rb:9-10). gate: is_price_decrease_allowed=false (forward/sell event).",
+    "rationale": "In a forward auction prices should only rise; the mirror of the increase rule.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "price": 1,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-084",
+    "feature": "bids.price_cap",
+    "title": "A revision smaller than the tick size is refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A submitted bid {{bidUuid}} on a line item with a tick size; the new price is within one tick.",
+    "steps": [
+      "1. PATCH /api/bids/revise_bid/{{bidUuid}} changing the price by less than the tick size."
+    ],
+    "method": "PATCH",
+    "path": "/bids/revise_bid/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 214 'Quoted price difference must be greater than the tick size' from validate_bid_product_details (app/controllers/concerns/bids_controller_helper.rb:1869-1891), which fires only when the non-zero difference is below the tick. gate: tick size configured.",
+    "rationale": "Tick size stops micro-undercutting in auctions.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "price": 99.99,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-085",
+    "feature": "bids.counter_offer",
+    "title": "A bid cannot be revised after the window closes",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A submitted bid {{bidUuid}} on a stage whose bid_end_time has passed (no counter-offer open).",
+    "steps": [
+      "1. PATCH /api/bids/revise_bid/{{bidUuid}} with a new price."
+    ],
+    "method": "PATCH",
+    "path": "/bids/revise_bid/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 33 'Order not active' — update_bid_action_helper (app/controllers/concerns/bids_controller_helper.rb:67-77) returns 33 when !is_running and no counter-offer modification/justification applies. Requires a closed stage.",
+    "rationale": "Late revision changes the result after close.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "price": 95,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-086",
+    "feature": "bids.submit",
+    "title": "A locked event refuses any revision after submission",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). lock_quote_after_submission is ON; {{bidUuid}} is an active submitted bid. gate: `lock_quote_after_submission` must be on for this case's outcome to hold.",
+    "steps": [
+      "1. PATCH /api/bids/revise_bid/{{bidUuid}}."
+    ],
+    "method": "PATCH",
+    "path": "/bids/revise_bid/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 875 'Revise bid is locked. You cannot edit your quote after submission.' from update_bid_action_helper (app/controllers/concerns/bids_controller_helper.rb:48-50). gate: lock_quote_after_submission=true.",
+    "rationale": "With the lock on, a submitted quote cannot be revised at all.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "price": 95,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-087",
+    "feature": "bids.counter_offer",
+    "title": "Revising a non-existent bid is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. PATCH /api/bids/revise_bid/WrongUuid1=."
+    ],
+    "method": "PATCH",
+    "path": "/bids/revise_bid/WrongUuid1=",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 32 'Bid not found' — update_bid finds no bid outside revised/rejected/selected/revoke/in_active/draft (app/controllers/api/bids_controller.rb:110-111).",
+    "rationale": "A guessed bid id must not be revisable.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "price": 95,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-088",
+    "feature": "bids.counter_offer",
+    "title": "A bid already selected for award cannot be revised",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{bidUuid}} is a bid the buyer has selected.",
+    "steps": [
+      "1. PATCH /api/bids/revise_bid/{{bidUuid}}."
+    ],
+    "method": "PATCH",
+    "path": "/bids/revise_bid/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 32 'Bid not found' — update_bid excludes selected bids from the lookup (app/controllers/api/bids_controller.rb:110-111). Requires a selected bid.",
+    "rationale": "A selected bid is committed; revising it would rewrite the award basis.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "bid_products": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "price": 95,
+          "quantity": 10,
+          "gst": 18
+        }
+      ]
+    }
+  },
+  {
+    "id": "EDGE-BID-089",
+    "feature": "bids.surrogate",
+    "title": "A surrogate technical response with no stage id is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). Live technical stage; surrogate answer for vendor {{vendorUuid}}.",
+    "steps": [
+      "1. POST /template_responses/create_surrogate_response with item_uuid removed."
+    ],
+    "method": "POST",
+    "path": "/template_responses/create_surrogate_response",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 error.code 2 'Insufficient parameters' from create_surrogate_response app/controllers/api/template_responses_controller.rb:226-227.",
+    "rationale": "Presence guard on the surrogate entry point.",
+    "body": {
+      "item_type": "TradeRequest",
+      "company_uuid": "{{vendorUuid}}",
+      "page_responses": {},
+      "page_uuids": [],
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-090",
+    "feature": "bids.surrogate",
+    "title": "Surrogate bidding disabled by the company is refused",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). is_buyer_not_allowed_to_add_surrogate_bid is set on {{tradeId}}. gate: `is_buyer_not_allowed_to_add_surrogate_bid` must be on for this case's outcome to hold.",
+    "steps": [
+      "1. POST /template_responses/create_surrogate_response for vendor {{vendorUuid}}."
+    ],
+    "method": "POST",
+    "path": "/template_responses/create_surrogate_response",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 10 'You are not allowed to use this functionality' — is_surrogate_bidding_and_is_allowed? (app/controllers/concerns/bids_controller_helper.rb:2134-2135) via create_surrogate_trade_request_response (app/controllers/concerns/template_responses_controller_helper.rb:266-267). gate: is_buyer_not_allowed_to_add_surrogate_bid=true.",
+    "rationale": "Some companies forbid buyers entering bids for vendors; the config must be honoured.",
+    "body": {
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "mgCKG",
+            "value": "x"
+          }
+        ]
+      },
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-091",
+    "feature": "bids.surrogate",
+    "title": "A user without surrogate rights cannot enter a vendor's technical response",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: a member who is not the event owner, not a valid team member and not a super_admin, on {{tradeId}}.",
+    "steps": [
+      "1. POST /template_responses/create_surrogate_response for vendor {{vendorUuid}}."
+    ],
+    "method": "POST",
+    "path": "/template_responses/create_surrogate_response",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 165 'Cannot place bid on trade by your own company' — is_valid_surrogate_bidder requires super_admin or valid team or owner (app/controllers/concerns/bids_controller_helper.rb:2136-2138).",
+    "rationale": "Surrogate entry is a powerful buyer action; only authorised users may do it.",
+    "body": {
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "mgCKG",
+            "value": "x"
+          }
+        ]
+      },
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-092",
+    "feature": "bids.surrogate",
+    "title": "A surrogate technical response is refused after the window unless post-expiry surrogates are on",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). {{tradeId}} technical stage has closed and is_allowed_to_add_surrogate_bid_post_expiry is off. gate: `is_allowed_to_add_surrogate_bid_post_expiry` must be off for this case's outcome to hold.",
+    "steps": [
+      "1. POST /template_responses/create_surrogate_response."
+    ],
+    "method": "POST",
+    "path": "/template_responses/create_surrogate_response",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 33 'Order not active' — create_surrogate_trade_request_response (app/controllers/concerns/template_responses_controller_helper.rb:265) requires is_upcoming_or_running or the post-expiry flag. gate: is_allowed_to_add_surrogate_bid_post_expiry=false + closed stage.",
+    "rationale": "Post-close surrogate entry is only allowed when the buyer explicitly enabled it.",
+    "body": {
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "mgCKG",
+            "value": "x"
+          }
+        ]
+      },
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-093",
+    "feature": "bids.surrogate",
+    "title": "A surrogate response after the vendor already responded is refused unless allowed-after-bid is on",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). Vendor {{vendorUuid}} already has an active technical response on {{tradeId}}; allowed_surrogate_bid_even_after_bid is off. gate: `allowed_surrogate_bid_even_after_bid` must be off for this case's outcome to hold.",
+    "steps": [
+      "1. POST /template_responses/create_surrogate_response for that vendor."
+    ],
+    "method": "POST",
+    "path": "/template_responses/create_surrogate_response",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 30 'Bid already placed for this order' — create_surrogate_trade_request_response (app/controllers/concerns/template_responses_controller_helper.rb:268-272) blocks a second response unless allowed_surrogate_bid_even_after_bid. gate: allowed_surrogate_bid_even_after_bid=false.",
+    "rationale": "The buyer must not overwrite a vendor's own submitted response by default.",
+    "body": {
+      "item_type": "TradeRequest",
+      "item_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "page_responses": {
+        "{{techPageUuid}}": [
+          {
+            "key_attribute": "mgCKG",
+            "value": "x"
+          }
+        ]
+      },
+      "page_uuids": [
+        "{{techPageUuid}}"
+      ],
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    },
+    "notRunnable": "needs the vendor's technical form/page uuids, which the case runner reads from the technical-stage payload and does not thread through placeholders; documented as a workflow negative and reported not-run."
+  },
+  {
+    "id": "EDGE-BID-094",
+    "feature": "bids.surrogate",
+    "title": "A surrogate RFQ bid disabled by the company is refused",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). is_buyer_not_allowed_to_add_surrogate_bid is set on the RFQ stage {{tradeId}}. gate: `is_buyer_not_allowed_to_add_surrogate_bid` must be on for this case's outcome to hold.",
+    "steps": [
+      "1. POST /bids/template_input for vendor {{vendorUuid}}."
+    ],
+    "method": "POST",
+    "path": "/bids/template_input",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 10 'You are not allowed to use this functionality' — create_bid → allowed_surrogate_bid_placement (app/controllers/api/bids_controller.rb:47) → is_surrogate_bidding_and_is_allowed? (app/controllers/concerns/bids_controller_helper.rb:2134-2135). gate: is_buyer_not_allowed_to_add_surrogate_bid=true.",
+    "rationale": "The config that forbids surrogate bidding must apply to the commercial path too.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": null,
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {}
+          }
+        },
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "trade_request_uuid": "{{tradeId}}",
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-095",
+    "feature": "bids.surrogate",
+    "title": "A surrogate bid after the vendor already bid is refused unless allowed-after-bid is on",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). Vendor {{vendorUuid}} already has an active bid on {{tradeId}}; allowed_surrogate_bid_even_after_bid is off. gate: `allowed_surrogate_bid_even_after_bid` must be off for this case's outcome to hold.",
+    "steps": [
+      "1. POST /bids/template_input for that vendor."
+    ],
+    "method": "POST",
+    "path": "/bids/template_input",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 99 'A bid is already placed on behalf of this company.' — validate_existing_bids_if_present (app/controllers/concerns/bids_controller_helper.rb:2760-2764). gate: allowed_surrogate_bid_even_after_bid=false.",
+    "rationale": "The buyer must not clobber a vendor's own bid; the flag governs re-entry.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": null,
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {}
+          }
+        },
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "trade_request_uuid": "{{tradeId}}",
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-096",
+    "feature": "bids.surrogate",
+    "title": "A surrogate RFQ bid before the window is refused unless surrogate is allowed",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). {{tradeId}} is an Upcoming RFQ stage.",
+    "steps": [
+      "1. POST /bids/template_input for vendor {{vendorUuid}}."
+    ],
+    "method": "POST",
+    "path": "/bids/template_input",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 33 'Order not active' — create_bid requires is_running, or (surrogate AND upcoming_or_running/post-expiry) (app/controllers/api/bids_controller.rb:50). An upcoming surrogate is allowed only via is_upcoming_or_running, so a not-yet-published stage refuses.",
+    "rationale": "Timing rules apply to surrogate bids too.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": null,
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {}
+          }
+        },
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "trade_request_uuid": "{{tradeId}}",
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-097",
+    "feature": "bids.surrogate",
+    "title": "A non-surrogate call on a staggered event is refused",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} is a staggered (serial) auction and the caller is not surrogate.",
+    "steps": [
+      "1. POST /v1/bids on the staggered stage as the vendor."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 508 'Not allowed to bid on this product' — allowed_surrogate_bid_placement (app/controllers/api/bids_controller.rb:426-427) blocks non-surrogate bids on staggered events via this API. gate: staggered/serial auction.",
+    "rationale": "Serial bidding has its own path; ordinary create must be refused.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  },
+  {
+    "id": "EDGE-BID-098",
+    "feature": "bids.surrogate",
+    "title": "A surrogate RFQ bid with no company is refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the BUYER who owns the sandbox event (this is how the platform runner authenticates). Live RFQ stage.",
+    "steps": [
+      "1. POST /bids/template_input with company_uuid removed."
+    ],
+    "method": "POST",
+    "path": "/bids/template_input",
+    "expected": "no-5xx",
+    "expectedResult": "Should be a typed 4xx. create_bid reads company_id (app/controllers/api/bids_controller.rb:35); a blank company means can_place_bid_for_company fails (101) or the transform finds no data. Must not 5xx.",
+    "rationale": "The surrogate call still needs to name the vendor it bids for.",
+    "body": {
+      "currency_preference": null,
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {}
+          }
+        },
+        "inline_components": {
+          "data": {
+            "{{vendorUuid}}": [
+              {
+                "action": {
+                  "value": null,
+                  "configuration": {
+                    "mode_type": "hidden"
+                  },
+                  "key": "action"
+                },
+                "status": {
+                  "value": null,
+                  "label": null,
+                  "key": "status"
+                },
+                "serial_number": {
+                  "value": 1,
+                  "key": "serial_number"
+                },
+                "creator_quantity": {
+                  "value": "10",
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "creator_quantity",
+                  "postfix": "Nos"
+                },
+                "participant_quantity": {
+                  "value": "10",
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "suffix": "Nos"
+                  },
+                  "key": "participant_quantity",
+                  "postfix": "Nos"
+                },
+                "price": {
+                  "validations": [],
+                  "configuration": {
+                    "unit_type": "Nos",
+                    "prefix": "₹",
+                    "suffix": "/Nos"
+                  },
+                  "key": "price",
+                  "postfix": "/Nos",
+                  "prefix": "₹",
+                  "value": 100,
+                  "precision": 2
+                },
+                "gst": {
+                  "validations": [],
+                  "configuration": {
+                    "suffix": "%"
+                  },
+                  "key": "gst",
+                  "postfix": "%",
+                  "value": 18
+                },
+                "total_amount": {
+                  "configuration": {
+                    "prefix": "₹"
+                  },
+                  "key": "total_amount",
+                  "prefix": "₹",
+                  "value": 1000,
+                  "precision": 2
+                },
+                "product": {
+                  "value": "product",
+                  "uuid": "{{productUuid}}",
+                  "unit_type": "Nos",
+                  "event_group_line_item_uuid": "{{lineItemUuid}}",
+                  "is_rate_only": false,
+                  "event_group_line_item_status": "active",
+                  "qualities": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "key": "product"
+                },
+                "variant": {
+                  "uuid": "{{productQualityUuid}}",
+                  "value": "Variant 1",
+                  "quality_params": [
+                    {
+                      "name": "Specs",
+                      "value": "As per company"
+                    }
+                  ],
+                  "status": "active",
+                  "attachments": null,
+                  "key": "variant"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "trade_request_uuid": "{{tradeId}}",
+      "surrogate_remarks": {
+        "remarks": "",
+        "attachments": []
+      }
+    }
+  },
+  {
+    "id": "EDGE-BID-099",
+    "feature": "bids.place",
+    "title": "An unknown regret action type is refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}} and line item {{lineItemUuid}} on {{tradeId}}.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status with action_type 'delete'."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 805 'Invalid action type' from LineItemRegretService#validate (app/services/bids/line_item_regret_service.rb:96, ACTION_TYPES = regret/undo_regret). This route is not on the platform allowlist, so it is reported not-run.",
+    "rationale": "Only regret/undo_regret are valid; anything else must be refused.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "delete"
+    }
+  },
+  {
+    "id": "EDGE-BID-100",
+    "feature": "bids.place",
+    "title": "Regretting a line on a non-existent bid is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). None.",
+    "steps": [
+      "1. PATCH /v1/bids/WrongUuid1=/line_items/{{lineItemUuid}}/regret_status."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/WrongUuid1=/line_items/{{lineItemUuid}}/regret_status",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 806 'Bid not found' from LineItemRegretService#validate (app/services/bids/line_item_regret_service.rb:97). Not on the platform allowlist — reported not-run.",
+    "rationale": "A guessed bid id must not accept a regret.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    }
+  },
+  {
+    "id": "EDGE-BID-101",
+    "feature": "bids.place",
+    "title": "Regretting with a trade id that is not this bid's trade is refused",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A draft bid {{bidUuid}}; the trade id passed belongs to a different stage.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status with a mismatched trade_request_uuid."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 95 'Trade Request not found' — validate returns 95 when trade_request nil or trade_request.id != bid.trade_request_id (app/services/bids/line_item_regret_service.rb:100, 102). Not on the platform allowlist — reported not-run.",
+    "rationale": "A regret must apply to the bid's own stage, not an arbitrary one.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "WrongUuid1=",
+      "action_type": "regret"
+    }
+  },
+  {
+    "id": "EDGE-BID-102",
+    "feature": "bids.place",
+    "title": "A vendor cannot regret every line item in a lot-split event",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). A lot-split event where regretting {{lineItemUuid}} would leave no active lines for the vendor.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status action_type regret."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 844 'You cannot regret all line items in a lot split event' — restrict_lot_event_full_egli_prunning (app/services/bids/line_item_regret_service.rb:115-128). gate: lot-split event. Not on the platform allowlist — reported not-run.",
+    "rationale": "Regretting the whole lot would leave the vendor participating in nothing.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    }
+  },
+  {
+    "id": "EDGE-BID-103",
+    "feature": "bids.submit",
+    "title": "During cost-breakdown time, global price updates are ignored",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} is in cost-breakdown (CBD) review time; {{bidUuid}} is the vendor's bid.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} with a changed gross_total while CBD is running."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "During CBD, parse_components_for_bid drops all but price/serial_number and clears global updates (app/controllers/concerns/trade_controller_helper.rb:6658-6661). The global gross_total change should not alter the ranking price. gate: in_cost_break_down_time.",
+    "rationale": "CBD is a cost-justification phase, not a re-quote; global changes must not move the rank.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-104",
+    "feature": "bids.submit",
+    "title": "With mandatory T&C on, every clause is treated as required",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{tradeId}} has is_tnc_mandatory=true; the vendor submits without accepting a clause. gate: `is_tnc_mandatory` must be on for this case's outcome to hold.",
+    "steps": [
+      "1. PATCH /v1/bids/{{bidUuid}} to active without accepting the mandatory terms."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "With is_tnc_mandatory=true, effective_tnc_mode returns 'required' for every clause and attachment (trade_request.rb:998-1003; trade_request_model_helper). A submit that ignores them should be refused. gate: is_tnc_mandatory=true. Documented as no-5xx since the acceptance state cannot be forced in one run.",
+    "rationale": "Mandatory T&C is a compliance gate; ignoring it must not yield a valid bid.",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "bill_to_broker": false,
+      "trade_request_uuid": "{{tradeId}}",
+      "currency_preference": {
+        "code": "INR"
+      },
+      "sheets": {
+        "global_price_components": {
+          "global_data": {
+            "{{vendorUuid}}": {
+              "gross_total": {
+                "value": "1000"
+              }
+            }
+          }
+        }
+      },
+      "status": "active",
+      "fast_bid_enabled": false
+    }
+  },
+  {
+    "id": "EDGE-BID-105",
+    "feature": "bids.place",
+    "title": "The valid create-bid request stays typed under repeated calls",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). Live RFQ stage; a clean create then a duplicate.",
+    "steps": [
+      "1. POST /v1/bids.",
+      "2. POST /v1/bids again immediately."
+    ],
+    "method": "POST",
+    "path": "/v1/bids",
+    "expected": "no-5xx",
+    "expectedResult": "The happy path returns 200 with a bid_uuid (app/controllers/api/v1/bids_controller.rb:37); a same-window duplicate returns a typed 4xx (516 lock or 96 duplicate). Neither is a 5xx.",
+    "rationale": "A control case: the base request never 5xxes even when repeated.",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "currency_preference": {
+        "name": "Indian Rupees (INR)",
+        "code": "INR",
+        "symbol": "₹",
+        "rateInBase": 1,
+        "adjustedPrecision": 2,
+        "defaultPrecision": 2,
+        "numberSystem": "INDIAN",
+        "currencyLabel": "₹"
+      },
+      "broker_company_uuid": false
+    }
+  }
+]

@@ -1233,6 +1233,7 @@ function runSelectedFeatures() {
   // would travel with runs it cannot affect and read as if it had.
   if (apiLineItemCases()) {
     qs.set("lineItems", String(Math.max(1, Number($("#api-line-items")?.value) || 1)));
+    if ($("#api-edges") && !$("#api-edges").checked) qs.set("edges", "0");
   }
   $("#auto-summary").textContent = `starting ${ids.length} feature(s)…`;
   // One-line notes about the run (line-item caps, skips, wait progress) go

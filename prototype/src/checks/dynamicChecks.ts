@@ -309,7 +309,9 @@ export function substitute(value: any, ctx: DynamicContext): { value: any; missi
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") {
       const o: any = {};
-      for (const [k, val] of Object.entries(v)) o[k] = walk(val);
+      // Keys too: award bodies are keyed by vendor / line-item uuid, and a
+      // literal "{{vendorUuid}}" key went out on the wire before.
+      for (const [k, val] of Object.entries(v)) o[walk(k)] = walk(val);
       return o;
     }
     return v;

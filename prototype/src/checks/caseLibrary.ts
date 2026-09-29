@@ -13,7 +13,7 @@
  * executable (method + path + body + expected outcome). The runtime AI layer
  * still exists for novel requests — this library is the dependable backbone.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Check, Client } from "./engine.js";
@@ -31,6 +31,42 @@ const here = dirname(fileURLToPath(import.meta.url));
  * to run and said so in no way at all.
  */
 const LIB_PATH = join(here, "..", "..", "data", "api-cases.json");
+/**
+ * Edge and negative cases written per area from the backend code (one file per
+ * area: crt, stg, pub, bid, awd …), each citing the guard it exercises. Kept
+ * out of api-cases.json so regenerating that file never drops them.
+ */
+const EXTRA_DIR = join(here, "..", "..", "data", "api-cases-extra");
+
+/** Placeholders a case may use — anything else could never be filled in. */
+const KNOWN_PLACEHOLDERS = new Set([
+  "eventGroupUuid", "tradeId", "lineItemUuid", "bidUuid", "proposalUuid", "vendorUuid", "vendorCompanyId",
+  "productUuid", "productQualityUuid", "stamp", "prId", "prItemId", "userUuid", "teamUuid", "categoryUuid",
+  "cityUuid", "familyUuid", "orderUuid", "intakeId",
+  // Filled from the journey: the technical (RFP) stage — {{tradeId}} is the
+  // pricing stage when there is one — and the form assigned to the evaluator.
+  "rfpTradeId", "evalFormUuid", "locationUuid",
+]);
+
+function readExtraCases(): TestCaseRecord[] {
+  if (!existsSync(EXTRA_DIR)) return [];
+  const out: TestCaseRecord[] = [];
+  for (const f of readdirSync(EXTRA_DIR).filter((n) => n.endsWith(".json")).sort()) {
+    try {
+      const parsed = JSON.parse(readFileSync(join(EXTRA_DIR, f), "utf8"));
+      const list: TestCaseRecord[] = Array.isArray(parsed) ? parsed : (parsed.cases ?? []);
+      for (const c of list) {
+        const unknown = [...JSON.stringify({ p: c?.path, b: c?.body }).matchAll(/\{\{(\w+)\}\}/g)]
+          .map((m) => m[1])
+          .filter((n) => !KNOWN_PLACEHOLDERS.has(n));
+        out.push(unknown.length ? { ...c, notRunnable: c.notRunnable ?? `uses ${unknown.map((n) => `{{${n}}}`).join(", ")}, which no run can fill in` } : c);
+      }
+    } catch (e) {
+      console.log(`[caseLibrary] skipped ${f}: ${(e as Error).message}`);
+    }
+  }
+  return out;
+}
 
 import { planLineItems, type HeldCase } from "./lineItems.js";
 
@@ -129,7 +165,10 @@ export function loadCases(): TestCaseRecord[] {
   }
   try {
     const parsed = JSON.parse(readFileSync(LIB_PATH, "utf8"));
-    const list: TestCaseRecord[] = Array.isArray(parsed) ? parsed : (parsed.cases ?? []);
+    const base: TestCaseRecord[] = Array.isArray(parsed) ? parsed : (parsed.cases ?? []);
+    // The main library wins on an id clash; extra files only add.
+    const seen = new Set(base.map((c) => c?.id));
+    const list = [...base, ...readExtraCases().filter((c) => c?.id && !seen.has(c.id) && (seen.add(c.id), true))];
     const shaped = list.filter((c) => c && c.id && c.feature && c.path && c.method);
     HELD = shaped.filter(bodyIsAParaphrase);
     CACHE = shaped.filter((c) => !bodyIsAParaphrase(c));

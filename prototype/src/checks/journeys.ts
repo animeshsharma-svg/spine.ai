@@ -49,7 +49,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Create an event: choose the stages, pick a template, and add the line items that will be sourced.",
     order: 2,
     uiGroups: ["UI-CRE", "UI-TPL", "UI-LI"],
-    apiGroups: ["API-EG", "API-STG", "API-LI"],
+    apiGroups: ["API-EG", "API-STG", "API-LI", "API-XCRT", "API-XSTG"],
     spine: ["open_create", "compose_stages", "set_title", "select_template", "add_line_items", "fill_sheet", "expect_line_items", "expect_sheet_columns"],
   },
   {
@@ -99,7 +99,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Publish the event to its audience, or keep it as a draft; and refuse to publish when something is missing.",
     order: 7,
     uiGroups: ["UI-PUB"],
-    apiGroups: ["API-PUB"],
+    apiGroups: ["API-PUB", "API-XPUB"],
     spine: ["publish", "save_draft", "expect_published", "expect_publish_blocked", "expect_event_status"],
   },
   {
@@ -109,7 +109,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Sign into the supplier portal and submit a priced quote inside the window.",
     order: 8,
     uiGroups: ["UI-VBID", "PRD-KBVDB"],
-    apiGroups: ["API-BID"],
+    apiGroups: ["API-BID", "API-XBID"],
     spine: ["place_bid", "expect_bid_submitted"],
   },
   {
@@ -129,7 +129,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Compare bids on Master QCS, counter-offer, and award the event to a vendor.",
     order: 10,
     uiGroups: ["UI-AWD"],
-    apiGroups: ["API-AWD"],
+    apiGroups: ["API-AWD", "API-XAWD"],
     spine: ["open_master_qcs", "place_counter_offer", "expect_counter_offer_sent", "accept_counter_offer", "award_event", "expect_awarded"],
   },
   {

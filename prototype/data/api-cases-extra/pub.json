@@ -1,0 +1,4709 @@
+[
+  {
+    "id": "EDGE-PUB-001",
+    "feature": "events.publish",
+    "title": "QA_Platform_republish_active_event_is_a_noop",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is already active with stage {{tradeId}} live and vendor {{vendorUuid}} invited.",
+    "steps": [
+      "1. Read GET /event_groups/{{eventGroupUuid}}/get_audience and note the participant count.",
+      "2. PATCH /event_groups/{{eventGroupUuid}} with the exact publish body the journey sent.",
+      "3. Read the audience and stages again."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. The event is not a draft, so update_event_group_data takes the 'publish a new stage' branch (event_group_controller_helper.rb:29-31); every listed stage is already non-draft and is skipped by `next unless tr.draft?` (update_service.rb:267). Audience count, stage count and stage statuses are unchanged.",
+    "rationale": "A client that retries a publish after a timeout sends exactly this. Publish must be idempotent: no duplicate audience rows, no re-sent invites, no re-stamped window."
+  },
+  {
+    "id": "EDGE-PUB-002",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_without_status_is_silently_ignored",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A draft copy of the sandbox event with its stage attached (not yet published).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the publish body minus `status`.",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No branch of update_event_group_data matches (status is nil, line_items empty, config absent — event_group_controller_helper.rb:29-36), so nothing is written and the controller renders 200 with the unchanged event. Correct behaviour would be a 422 code 2 (Insufficient parameters); today the client is told 'OK' for a publish that did not happen — even the new title is dropped.",
+    "rationale": "A 200 that did nothing is the worst possible answer to a publish: the UI shows success while vendors are never invited."
+  },
+  {
+    "id": "EDGE-PUB-003",
+    "feature": "events.publish",
+    "title": "QA_Platform_unknown_status_with_config_raises_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}} (any state).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with status \"banana\" and config {show_under_open_events: true}.",
+      "2. Check the response shape."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "banana",
+      "config": {
+        "show_under_open_events": true
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 422 {code, message}. Today `config.present?` routes into UpdateService#execute (event_group_controller_helper.rb:33-34), which does `@event_group.status = @status` (update_service.rb:79); assigning 'banana' to the EventGroup enum (in_active/active/draft/withdrawn) raises ArgumentError, which no rescue_from catches, so the answer is an untyped 500.",
+    "rationale": "Unvalidated enum assignment is the classic Rails 500. Any typo'd status from a client takes the endpoint down for that request."
+  },
+  {
+    "id": "EDGE-PUB-004",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_status_in_active_bypasses_withdraw_flow",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A dedicated active sandbox copy (this case is destructive — run it last or on its own copy).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with status \"in_active\" and config {show_under_open_events: true}.",
+      "2. Read the event and its stages back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "in_active",
+      "config": {
+        "show_under_open_events": true
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (only 'withdrawn' is a legal way down, with remarks). Today execute() sets status 'in_active' directly (update_service.rb:79) — no withdraw remark, stages left active, PR quantities not released, no vendor notification.",
+    "rationale": "It is a second, unguarded exit from a live event that skips everything the withdraw path does (remarks, stage closure, PR release, notifications)."
+  },
+  {
+    "id": "EDGE-PUB-005",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_status_draft_reverts_live_event",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A dedicated active sandbox copy with vendor {{vendorUuid}} invited (destructive).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with {status: \"draft\"}.",
+      "2. Read the event back as the buyer and as the vendor."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "draft"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused — amendment of a live event goes through /item_versions. Today ['withdrawn','draft'].include?(status) routes into execute (event_group_controller_helper.rb:33), which has no 'is the event a draft?' check and sets status draft (update_service.rb:62-79); get_valid_stages_for_user then hides the event from everyone but the owner (event_group.rb:512-514).",
+    "rationale": "A live event silently vanishing from invited vendors mid-bidding is a business-critical failure, reachable with a one-field PATCH."
+  },
+  {
+    "id": "EDGE-PUB-006",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_publish_withdrawn_event_is_a_noop",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A withdrawn sandbox copy.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the publish body.",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "The event is not a draft, so only the new-stage branch runs; its stages are not drafts (`next unless tr.draft?`, update_service.rb:267), so nothing changes and it stays withdrawn. Ideally a 422 saying a withdrawn event cannot be published; today a silent 200.",
+    "rationale": "Resurrecting a withdrawn event would re-open bidding vendors were told had ended."
+  },
+  {
+    "id": "EDGE-PUB-007",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_status_draft_resurrects_withdrawn_event",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A withdrawn sandbox copy.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with {status: \"draft\"}.",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "draft"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused. Today execute() has no source-state guard and writes status draft over withdrawn (update_service.rb:62-79), making a closed event editable and re-publishable.",
+    "rationale": "Withdrawn is meant to be terminal (it is what the clone rules treat as a closed event)."
+  },
+  {
+    "id": "EDGE-PUB-008",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_with_empty_stage_list_publishes_all",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A draft copy of the sandbox event with two stages attached.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with draft_trade_request_uuids: [].",
+      "2. Read every stage's status."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200, event active. An empty list is `.present? == false`, so process_trade_requests_for_publish does not exclude anything and publishes every stage (update_service.rb:528-533).",
+    "rationale": "Documents that [] means 'all', not 'none' — the opposite of what a reader expects, and the reason the next cases are dangerous."
+  },
+  {
+    "id": "EDGE-PUB-009",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_with_undecodable_stage_uuid_voids_all_stages",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with draft_trade_request_uuids: [\"WrongUuid1=\"].",
+      "2. Read the event and its stages back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "WrongUuid1="
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 (unknown stage). Today ParamsAuth decodes the junk to nil (params_auth.rb:72-73) giving [nil]; that list is present, so every real stage `exclude?`s and is set to void (update_service.rb:528-530), yet the event itself is saved as active (update_service.rb:251-253). Result: an 'active' event with no live stage.",
+    "rationale": "One bad id in a client's list silently destroys the event's stages — and the reply is 200."
+  },
+  {
+    "id": "EDGE-PUB-010",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_with_foreign_record_uuid_voids_own_stages",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A draft copy of the sandbox event with its stage attached; {{lineItemUuid}} is a line item (not a stage).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with draft_trade_request_uuids: [\"{{lineItemUuid}}\"].",
+      "2. Read stages back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{lineItemUuid}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422. uuids are untyped (EncryptDecrypt just encodes an integer), so the line-item uuid decodes to an integer that is not one of this event's stage ids; every real stage is voided (update_service.rb:528-530) and the event still goes active (update_service.rb:251-253).",
+    "rationale": "Same failure as the junk-uuid case but with a well-formed id — the kind a buggy client really sends (wrong variable)."
+  },
+  {
+    "id": "EDGE-PUB-011",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_with_null_stage_list_raises_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with draft_trade_request_uuids: null.",
+      "2. Check the response shape."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": null,
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 422. Today the global before_action check_for_uuid runs `value.map` on every key containing 'uuids' (params_auth.rb:72-73); nil.map raises NoMethodError → untyped 500. This affects every endpoint, not only publish.",
+    "rationale": "JSON null for an optional list is a normal client output; a before_action crash on it is a platform-wide 500."
+  },
+  {
+    "id": "EDGE-PUB-012",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_draft_with_no_stages_goes_live_empty",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A fresh draft event group (POST /event_groups) with a line item but no stage attached.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the publish body and draft_trade_request_uuids: [].",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 (nothing to publish). Today process_trade_requests_for_publish loops over zero stages (update_service.rb:525-537) and the event is saved active (update_service.rb:251-253) — an active event nobody can bid on.",
+    "rationale": "'Publish without a schedule/without a stage' is the most basic publish precondition and nothing enforces it."
+  },
+  {
+    "id": "EDGE-PUB-013",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_rfp_ending_after_rfq_rejected_712",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A draft event with an RFP stage (technical) and an RFQ stage, where the RFP bid_end_time is later than the RFQ bid_end_time. {{tradeId}} is one of them.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with both stage uuids in draft_trade_request_uuids.",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 712 'RFP duration exceeds RFQ end time. Please adjust.' from UpdateService#validate_rfp_rfq_bid_end_time (update_service.rb:303-312), checked before any stage is touched. Event stays draft.",
+    "rationale": "The technical stage must finish before commercial bids close; publishing the wrong order makes evaluation impossible."
+  },
+  {
+    "id": "EDGE-PUB-014",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_stage_with_past_window_is_slid_to_now",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft event whose stage was created with bid_start_time in the past (e.g. 10 minutes ago) and a 30-minute window.",
+    "steps": [
+      "1. Note the stage's bid_start_time and bid_end_time.",
+      "2. Publish with the working body.",
+      "3. Read the stage schedule back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. publish_auction calls TradeSchedule.change_auction_time (trade_controller_helper.rb:4542), which — when start_time <= now — moves start to now and end to now + original duration (trade_schedule.rb:138-147). The stage is live for its full duration.",
+    "rationale": "Documents that 'publish with a stage in the past' is accepted by design and pins the duration-preserving shift."
+  },
+  {
+    "id": "EDGE-PUB-015",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_under_create_trade_approval_leaves_stage_requested",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Config-dependent: a workspace whose approval flow requires approval for create_trade. Draft event with an RFQ stage.",
+    "steps": [
+      "1. Publish with the working body.",
+      "2. Read the event and the stage status."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. publish_auction sets the non-RFP stage to 'requested' when approval is needed (trade_controller_helper.rb:4536) while the event group is saved 'active'. Vendors must not see the stage until approved.",
+    "rationale": "Two statuses that disagree is exactly where visibility leaks: a vendor must not be able to bid on a 'requested' stage."
+  },
+  {
+    "id": "EDGE-PUB-016",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_by_vendor_refused_455",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Signed in as the invited vendor of the sandbox event.",
+    "steps": [
+      "1. As the vendor, PATCH /event_groups/{{eventGroupUuid}} with the publish body."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 'You are not authorized to perform this action' — EventGroupPolicy#update? requires the event's company in Current.allowed_companies and create_record permission (event_group_policy.rb:37-40), raised at event_groups_controller.rb:73 and mapped by pundit_user_not_authorized.",
+    "rationale": "Wrong actor on the most powerful write in the module."
+  },
+  {
+    "id": "EDGE-PUB-017",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_unknown_event_uuid_533",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. PATCH /event_groups/WrongUuid1= with the publish body."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/WrongUuid1=",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 'Project does not exist.' — check_for_uuid decodes the id to nil and find_and_validate_event_group_and_pr returns 533 (event_group_controller_helper.rb:2580-2581).",
+    "rationale": "A stale link or truncated uuid must give a clean not-found, not a type error."
+  },
+  {
+    "id": "EDGE-PUB-018",
+    "feature": "events.publish",
+    "title": "QA_Platform_publish_with_foreign_purchase_request_id_101",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the publish body plus purchase_request_id: 1 (a raw id that is not an active BOQ PR of this workspace)."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      },
+      "purchase_request_id": 1
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' — the PR lookup is scoped to PurchaseRequest.active.boq for Current.workspace (event_group_controller_helper.rb:2583-2587). Note: a junk purchase_request_uuid decodes to nil and is silently ignored instead.",
+    "rationale": "Linking another tenant's PR to your event would leak or consume their quantities."
+  },
+  {
+    "id": "EDGE-PUB-019",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_title_as_number_raises_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with title: 12345."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": 12345,
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. UpdateService#initialize is Sorbet-typed `title: T.nilable(String)` (update_service.rb:16); an Integer violates the sig and sorbet-runtime raises TypeError (no T::Configuration override exists), which is unrescued → 500.",
+    "rationale": "Wrong-type scalars are the commonest client bug; every one of them is a 500 on this endpoint today."
+  },
+  {
+    "id": "EDGE-PUB-020",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_show_under_open_events_as_string_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with show_under_open_events: \"yes\"."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": "yes",
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. The sig is `show_under_open_events: T.nilable(T::Boolean)` (update_service.rb:19); a String raises TypeError → 500.",
+    "rationale": "Form-encoded clients send booleans as strings; this field is in the working publish body."
+  },
+  {
+    "id": "EDGE-PUB-021",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_tnc_unknown_key_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with terms_and_conditions: {clauses: [], attachments: [], QA_Platform_extra: 1}."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": [],
+        "QA_Platform_extra": 1
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. publish builds `TermsAndConditions.new(**@terms_and_conditions.symbolize_keys)` (update_service.rb:242); an unknown keyword raises ArgumentError (terms_and_conditions.rb:34) → 500.",
+    "rationale": "Extra keys from a newer client version must not take the endpoint down."
+  },
+  {
+    "id": "EDGE-PUB-022",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_tnc_clauses_as_string_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with terms_and_conditions: {clauses: \"QA_Platform_tnc_{{stamp}}\", attachments: []}."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": "QA_Platform_tnc_{{stamp}}",
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. TermsAndConditions#initialize is typed `clauses: T::Array[String]` (terms_and_conditions.rb:33) → TypeError → 500.",
+    "rationale": "A single clause sent as a string instead of a one-element array is an obvious client slip."
+  },
+  {
+    "id": "EDGE-PUB-023",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_attachments_as_string_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with attachments: \"QA_Platform_file_{{stamp}}.pdf\"."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": "QA_Platform_file_{{stamp}}.pdf",
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. extract_urls_from_attachments calls `attachments.each` (event_groups_controller.rb:1749) — String has no #each → NoMethodError → 500, before the 101 URL check.",
+    "rationale": "The attachment guard added for tenant isolation itself crashes on the simplest malformed input."
+  },
+  {
+    "id": "EDGE-PUB-024",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_attachment_from_other_company_bucket_101",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with attachments: [{url: \"https://procol.s3.amazonaws.com/trade_files/docs/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf\"}]."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [
+        {
+          "url": "https://procol.s3.amazonaws.com/trade_files/docs/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf"
+        }
+      ],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' — validate_company_urls extracts company id 999999999 from /trade_files/<x>/<name>_<id>/ and it is not in Current.allowed_companies (s3_url_validator.rb:25-33; event_groups_controller.rb:78).",
+    "rationale": "Attaching another tenant's file path to your event (and so getting a signed URL for it) is a cross-tenant read."
+  },
+  {
+    "id": "EDGE-PUB-025",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_attachment_external_url_is_accepted",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with attachments: [{url: \"javascript:alert('QA_Platform_{{stamp}}')\"}].",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [
+        {
+          "url": "javascript:alert('QA_Platform_{{stamp}}')"
+        }
+      ],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused. url_belongs_to_allowed_companies? returns true for any URL that does not contain 'amazonaws.com/trade_files/' (s3_url_validator.rb:26), so the value is stored and later rendered to vendors as a link.",
+    "rationale": "A stored javascript:/phishing link shown to every invited vendor is a stored-XSS / phishing vector."
+  },
+  {
+    "id": "EDGE-PUB-026",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_config_as_string_raises_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the publish body plus config: \"QA_Platform_{{stamp}}\"."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      },
+      "config": "QA_Platform_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. publish does `@config.respond_to?(:to_unsafe_h) ? … : @config.to_h` (update_service.rb:246); String#to_h does not exist → NoMethodError → 500 — after the stages were already processed, inside the transaction.",
+    "rationale": "Config is T.untyped in the sig, so nothing screens it before it is used."
+  },
+  {
+    "id": "EDGE-PUB-027",
+    "feature": "events.validation",
+    "title": "QA_Platform_publish_title_with_script_is_stripped",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH with title \"<script>alert(1)</script>QA_Platform_{{stamp}}\".",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "<script>alert(1)</script>QA_Platform_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 (or 422), never 500. The global sanitize_input_params strips HTML tags from every string param (params_auth.rb:18-31), so the stored title must contain no <script>.",
+    "rationale": "Titles are shown in vendor emails and dashboards; this pins the global sanitiser for this endpoint."
+  },
+  {
+    "id": "EDGE-PUB-028",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_with_empty_audience_invites_nobody",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with audience_company_uuids: [].",
+      "2. GET /event_groups/{{eventGroupUuid}}/get_audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 (no participants). Today the key is present, so the stage is marked customised_audience 'restricted' (trade_controller_helper.rb:704-706) with no audience rows — a restricted stage nobody can see. HTTP 200.",
+    "rationale": "'Publish without participants' — an event no vendor can see, reported as live."
+  },
+  {
+    "id": "EDGE-PUB-029",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_with_null_audience_raises_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with audience_company_uuids: null."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": null,
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. check_for_uuid runs nil.map for the 'uuids' key (params_auth.rb:73) → NoMethodError → 500.",
+    "rationale": "The field the invite screen sends most; null when the user clears the picker."
+  },
+  {
+    "id": "EDGE-PUB-030",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_with_undecodable_audience_uuid",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH with audience_company_uuids: [\"WrongUuid1=\"].",
+      "2. GET get_audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "WrongUuid1="
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. The uuid decodes to nil; get_valid_audience_ids keeps only ids with a BuyerSellerCompanyMapping in an allowed status (common_controller_helper.rb:110-115), so nil is dropped and no row is written. Should arguably be a 422 naming the bad id.",
+    "rationale": "Silent drops mean the buyer believes a vendor was invited when it was not."
+  },
+  {
+    "id": "EDGE-PUB-031",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_501_audience_entries_rejected_511",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH with audience_company_uuids containing 501 entries (here, 501 copies of \"WrongUuid1=\").",
+      "2. Read the event back."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1="
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 511 'Participants limit exceeded. Maximum 500 participants are allowed.' — set_customized_audiences counts the NEW audience ids before any validity filter and refuses > 500 (trade_controller_helper.rb:728-729). The whole publish is refused.",
+    "rationale": "The 500 cap is the only size guard on invitations; the count is taken on the raw list, which is what this case exploits cheaply."
+  },
+  {
+    "id": "EDGE-PUB-032",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_exactly_500_audience_entries_accepted",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH with 500 copies of \"{{vendorUuid}}\" in audience_company_uuids.",
+      "2. GET get_audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}",
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. 500 is not > 500 (trade_controller_helper.rb:728); create_audience de-duplicates with .uniq (common_controller_helper.rb:97), so exactly one audience row is written for the vendor.",
+    "rationale": "Exact-limit boundary for the 511 guard, plus proof that duplicates collapse to one row."
+  },
+  {
+    "id": "EDGE-PUB-033",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_duplicate_vendor_single_row",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH with audience_company_uuids: [\"{{vendorUuid}}\", \"{{vendorUuid}}\"].",
+      "2. GET get_audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}",
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; exactly one active audience row per stage — create_audience calls .uniq (common_controller_helper.rb:97). This matters because the Audience uniqueness validation is dead code (see the participate-twice case).",
+    "rationale": "Duplicate invites double-count a vendor in participation and awarding."
+  },
+  {
+    "id": "EDGE-PUB-034",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_with_blacklisted_vendor_drops_silently",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A vendor ALREADY blacklisted in this workspace (do not blacklist one for the test); put its uuid in place of {{vendorUuid}}. Draft copy of the sandbox event.",
+    "steps": [
+      "1. PATCH with audience_company_uuids: [<blacklisted vendor uuid>].",
+      "2. GET get_audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 and the vendor is NOT invited: set_customized_audiences subtracts blacklisted vendors (trade_controller_helper.rb:695). Correct outcome for the vendor; the gap is that the buyer gets no error or warning.",
+    "rationale": "Inviting a blacklisted vendor must never succeed, and silently not inviting them surprises the buyer."
+  },
+  {
+    "id": "EDGE-PUB-035",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_with_user_uuid_as_vendor",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A draft copy of the sandbox event; {{userUuid}} is a user, not a company.",
+    "steps": [
+      "1. PATCH with audience_company_uuids: [\"{{userUuid}}\"].",
+      "2. GET get_audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{userUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused as 'not a vendor'. uuids are untyped encodings of integers (params_auth.rb:72-73), so the user's integer id is treated as a company id; it is invited only if it happens to equal a mapped vendor company id (common_controller_helper.rb:113). Usually dropped silently — occasionally invites an unrelated vendor.",
+    "rationale": "Untyped ids mean a wrong-kind id can collide with a real vendor, inviting a company nobody chose."
+  },
+  {
+    "id": "EDGE-PUB-036",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_publish_ignores_audience_except_list",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A draft copy of the sandbox event with its stage attached.",
+    "steps": [
+      "1. PATCH with the publish body plus audience_except_company_uuids: [\"{{vendorUuid}}\"] and audience_company_uuids: [\"{{vendorUuid}}\"].",
+      "2. GET get_audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      },
+      "audience_except_company_uuids": [
+        "{{vendorUuid}}"
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 and the vendor IS invited: publish builds options with only audience_company_ids and stage_numbers (update_service.rb:229-238), so the except list never reaches set_customized_audiences. A client relying on 'everyone except' at publish gets the wrong audience.",
+    "rationale": "A documented field that is silently ignored on one path is an invitation leak."
+  },
+  {
+    "id": "EDGE-PUB-037",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_add_already_invited_vendor_is_noop",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Stage {{tradeId}} is live with {{vendorUuid}} already invited.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{tradeId}} with audience_to_add_uuids: [\"{{vendorUuid}}\"].",
+      "2. Count audience rows."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 'Selected vendors successfully added'. bucket_audience_by_visibility removes ids that already have an active row (common_controller_helper.rb:24-29), so no row, email or activity log is created.",
+    "rationale": "Idempotency of the invite action — a double click must not re-send invites."
+  },
+  {
+    "id": "EDGE-PUB-038",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_add_empty_list_rejected_2",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Stage {{tradeId}} is live.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{tradeId}} with audience_to_add_uuids: []."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' (v1/trade_controller.rb:40).",
+    "rationale": "Empty-array boundary for the only required field."
+  },
+  {
+    "id": "EDGE-PUB-039",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_add_raw_string_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} is live.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{tradeId}} with audience_to_add: \"QA_Platform_{{stamp}}\" (the non-uuid key, as a string)."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add": "QA_Platform_{{stamp}}",
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. The raw key is not uuid-decoded, so set_trade_request_audience runs `audience_to_add -= blacklisted_audience` on a String (common_controller_helper.rb:10) → NoMethodError → 500.",
+    "rationale": "The endpoint accepts two spellings of the field and only one is type-normalised."
+  },
+  {
+    "id": "EDGE-PUB-040",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_add_to_closed_stage_95",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} has closed (window over) or been withdrawn.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{tradeId}} with a vendor."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 95 — the lookup is TradeRequest.active_or_draft (v1/trade_controller.rb:30), so a closed/withdrawn stage is 'not found'.",
+    "rationale": "Inviting a vendor to a round that has ended would send them a dead invite."
+  },
+  {
+    "id": "EDGE-PUB-041",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_add_by_invited_vendor_is_not_blocked",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Signed in as the invited vendor of stage {{tradeId}}; the stage's config has no is_user_allowed_to_modify_audience key (the default).",
+    "steps": [
+      "1. As the vendor, PATCH /v1/trade/add_audience?id={{tradeId}} with audience_to_add_uuids: [\"{{vendorUuid}}\"].",
+      "2. Check the response."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be refused (422 code 455). Today the policy is add_audience_live_auction? → allowed_to_view_event? = show? (read_record) && is_allowed_to_view? (trade_request_policy.rb:125-127, 222-224) — both true for an invited vendor — and is_audience_modification_allowed? returns true when the config key is absent (trade_request_model_helper.rb:936-941). A vendor can add (or, via remove_audience, remove) participants.",
+    "rationale": "A bidder able to change who else is bidding is a direct procurement-integrity breach."
+  },
+  {
+    "id": "EDGE-PUB-042",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_remove_by_invited_vendor_is_not_blocked",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Signed in as the invited vendor; another invited vendor (uuid in place of {{vendorUuid}}) has not bid.",
+    "steps": [
+      "1. As the vendor, PATCH /v1/trade/remove_audience?id={{tradeId}} with audience_to_remove_uuids: [<competitor uuid>]."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/remove_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_remove_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_remove_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be refused (455). remove_audience_live_auction authorises with the same add_audience_live_auction? policy (v1/trade_controller.rb:52) and only blocks removal of vendors who already bid (512). The competitor is hidden.",
+    "rationale": "Same hole as add — used offensively it removes rivals before they quote."
+  },
+  {
+    "id": "EDGE-PUB-043",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_add_when_modification_disallowed_685",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Config-dependent: stage {{tradeId}} has config is_user_allowed_to_modify_audience: false; caller is not a super admin.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{tradeId}} with a vendor."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 685 'You are not allowed to update the audience' (v1/trade_controller.rb:37; trade_request_model_helper.rb:936-941). Super admins bypass it.",
+    "rationale": "Stage-level lock on the audience; the one switch that closes the vendor hole above."
+  },
+  {
+    "id": "EDGE-PUB-044",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_add_501_has_no_cap",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} is live.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{tradeId}} with 501 entries in audience_to_add_uuids."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1=",
+        "WrongUuid1="
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "For parity with publish it should be 422 code 511. set_trade_request_audience → process_audience_addition has no size check (common_controller_helper.rb:7-45); here the junk ids are then filtered, but 501 real vendors would all be invited.",
+    "rationale": "The cap enforced at publish is trivially bypassed by publishing small and adding later."
+  },
+  {
+    "id": "EDGE-PUB-045",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_remove_vendor_with_bid_rejected_512",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} (RFQ) has an active bid from {{vendorUuid}}.",
+    "steps": [
+      "1. PATCH /v1/trade/remove_audience?id={{tradeId}} with audience_to_remove_uuids: [\"{{vendorUuid}}\"]."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/remove_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_remove_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_remove_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 512 'You cannot remove a vendor who has already participated.' (v1/trade_controller.rb:63-66).",
+    "rationale": "Removing a bidder would orphan a live bid."
+  },
+  {
+    "id": "EDGE-PUB-046",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_remove_vendor_with_rfp_response_rejected_512",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "An RFP stage (its uuid in place of {{tradeId}}) with a latest template response from {{vendorUuid}}.",
+    "steps": [
+      "1. PATCH /v1/trade/remove_audience?id=<rfp stage> with that vendor."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/remove_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_remove_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_remove_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 512 (v1/trade_controller.rb:59-61).",
+    "rationale": "Technical-stage variant of the same guard."
+  },
+  {
+    "id": "EDGE-PUB-047",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_live_remove_then_readd_restores_visibility",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Stage {{tradeId}} is live; {{vendorUuid}} invited with no bid.",
+    "steps": [
+      "1. PATCH remove_audience with the vendor.",
+      "2. PATCH /v1/trade/add_audience?id={{tradeId}} with the vendor.",
+      "3. Count audience rows."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. The not-visible row is flipped back to visible by set_audience_visible (common_controller_helper.rb:37, 76-83); no second row.",
+    "rationale": "The re-invite path must reuse the row, not duplicate it."
+  },
+  {
+    "id": "EDGE-PUB-048",
+    "feature": "bids.participation",
+    "title": "QA_Platform_participate_on_draft_event_533",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "gate: `open_tenders`. A draft event; caller is a vendor.",
+    "steps": [
+      "1. As a vendor, POST /event_groups/{{eventGroupUuid}}/participants."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/participants",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 'Project does not exist.' — the lookup is EventGroup.active (event_groups_controller.rb:277-278).",
+    "rationale": "A vendor must never join an event that has not been published."
+  },
+  {
+    "id": "EDGE-PUB-049",
+    "feature": "bids.participation",
+    "title": "QA_Platform_participate_without_open_tenders_455",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Config-dependent: the buyer company does NOT have open_tenders. Event active; caller is an invited vendor.",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/participants as the vendor."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/participants",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — EventGroupPolicy#participate? = show? && record.company.open_tenders? (event_group_policy.rb:25-27).",
+    "rationale": "The only uninvited-join path must be gated on the feature."
+  },
+  {
+    "id": "EDGE-PUB-050",
+    "feature": "bids.participation",
+    "title": "QA_Platform_participate_after_stage_closed_33",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "gate: `open_tenders`. Event active but one open-tender stage's window is over.",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/participants as a vendor."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/participants",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 33 'Order not active' — ParticipateService raises unless every open-tender stage is upcoming or running (participate_service.rb:27-29).",
+    "rationale": "Joining a closed round would let a vendor into a window that has ended."
+  },
+  {
+    "id": "EDGE-PUB-051",
+    "feature": "bids.participation",
+    "title": "QA_Platform_participate_twice_creates_duplicate_rows",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "gate: `open_tenders`. Active open-tender event; caller is a mapped vendor.",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/participants as the vendor.",
+      "2. POST it again.",
+      "3. Count the vendor's active audience rows per stage."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/participants",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Second call should be a no-op or 422. Today Audience.create! runs again (participate_service.rb:38) and the model's uniqueness validation never fires because its condition compares the enum string to a symbol — `if: -> { self.status == :active }` is always false (audience.rb:36). Two active rows per stage.",
+    "rationale": "Dead uniqueness validation: any path that forgets to de-dupe produces double participants."
+  },
+  {
+    "id": "EDGE-PUB-052",
+    "feature": "bids.participation",
+    "title": "QA_Platform_participate_by_unmapped_company_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "gate: `open_tenders`. Active open-tender event; caller is a company that can see open tenders but has no BuyerSellerCompanyMapping with the buyer (e.g. the buyer itself).",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/participants."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/participants",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. BuyerSellerCompanyMapping.find_by(...) returns nil and `.dealing_with_company_id` is called on it (participate_service.rb:30-34) → NoMethodError, which is not a CustomException or RecordInvalid, so the controller's rescues miss it → 500.",
+    "rationale": "Unmapped/pending vendors browsing open tenders are exactly who clicks 'participate'."
+  },
+  {
+    "id": "EDGE-PUB-053",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_reject_participant_without_remarks_752",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Active sandbox event; {{vendorUuid}} has participated.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}}/reject_participant with company_uuid only."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reject_participant",
+    "body": {
+      "company_uuid": "{{vendorUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 752 'Please enter remarks to reject the participant.' (event_groups_controller.rb:983).",
+    "rationale": "Rejection emails the vendor; it must carry a reason."
+  },
+  {
+    "id": "EDGE-PUB-054",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_reject_non_participant_751",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Active sandbox event; {{vendorUuid}} invited but has no bid and no technical response.",
+    "steps": [
+      "1. PATCH reject_participant with the vendor and remarks."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reject_participant",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "remarks": "QA_Platform_reject_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 751 'You cannot reject a vendor that has not participated in any event.' (event_group_controller_helper.rb:2575).",
+    "rationale": "Reject is for responses; a non-participant should be removed from the audience instead."
+  },
+  {
+    "id": "EDGE-PUB-055",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_reject_awarded_vendor_750",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Active event with a proposal (active/selected/requested) that includes {{vendorUuid}}, or a commercial stage with a selected bid.",
+    "steps": [
+      "1. PATCH reject_participant with the vendor and remarks."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reject_participant",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "remarks": "QA_Platform_reject_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 750 'You cannot reject a vendor that is already evaluated or awarded' (event_group_controller_helper.rb:2566-2573).",
+    "rationale": "Rejecting an awarded vendor would invalidate an award in flight."
+  },
+  {
+    "id": "EDGE-PUB-056",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_reject_by_vendor_refused",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Signed in as an invited vendor.",
+    "steps": [
+      "1. As the vendor, PATCH reject_participant with another company and remarks."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reject_participant",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "remarks": "QA_Platform_reject_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' — after show? passes, the caller must be a purchaser or auction-team member (event_groups_controller.rb:987).",
+    "rationale": "Wrong actor; show? alone would let any viewer reject."
+  },
+  {
+    "id": "EDGE-PUB-057",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_reject_twice_is_not_idempotent",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Active event; {{vendorUuid}} participated and is not awarded.",
+    "steps": [
+      "1. PATCH reject_participant with the vendor and remarks.",
+      "2. Repeat.",
+      "3. Read precomputed rejected_company_ids (via get_audience)."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reject_participant",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "remarks": "QA_Platform_reject_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Second call should be a no-op. Today there is no 'already rejected' check: the id is appended again and RejectParticipantWorker is enqueued again (event_groups_controller.rb:998-1000), so the vendor gets a second rejection email.",
+    "rationale": "Double-submits of a punitive action should not double-notify."
+  },
+  {
+    "id": "EDGE-PUB-058",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_to_far_future_is_unbounded",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Stage {{tradeId}} is live (RFQ, no proposal yet).",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time: 4102444800 (2100-01-01) and remarks.",
+      "2. Read the stage schedule."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 today — get_auction_trade_schedule assigns the new end time with no upper bound (trade_controller_helper.rb:5833). A sane maximum would refuse it; at minimum it must not 5xx.",
+    "rationale": "An accidental extra digit leaves an event open for decades, blocking awarding."
+  },
+  {
+    "id": "EDGE-PUB-059",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_to_past_time_ends_stage_early",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Stage {{tradeId}} is live and its window has not ended; trade_force_close may be OFF.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time: 946684800 (2000-01-01).",
+      "2. Read the stage."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 946684800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 195 'Invalid time.' Today the only time check is the reopen rule, which applies only when the current end has ALREADY passed (trade_controller_helper.rb:5830-5831); a running stage's end is simply overwritten (5833). The stage closes now — a force-close that bypasses the trade_force_close config and its mandatory remarks.",
+    "rationale": "'Extend to a past time' is a back door to force-ending an event."
+  },
+  {
+    "id": "EDGE-PUB-060",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_with_string_time_becomes_1970",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} is live.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time: \"QA_Platform_{{stamp}}\"."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": "QA_Platform_{{stamp}}",
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 195/507. The controller does `Time.at(increase_auction_time.to_i)` (trade_controller.rb:645); a non-numeric string .to_i's to 0, so the end becomes 1970-01-01 and the stage ends.",
+    "rationale": "Unvalidated numeric coercion on a time field turns garbage into an early close."
+  },
+  {
+    "id": "EDGE-PUB-061",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_expired_stage_without_reopen_right_496",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} (RFQ/auction) whose window has ended but is not yet closed; reopen configs off; caller is a normal buyer (not Procol employee, not super admin).",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time in the future."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 496 'You are not allowed to reopen an expired event' (trade_controller_helper.rb:5830-5831). RFP stages are always reopenable (trade_controller_helper.rb:2027-2028).",
+    "rationale": "'Extend after close' — reopening must be a privileged act."
+  },
+  {
+    "id": "EDGE-PUB-062",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_closed_rfq_rejected_4",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Stage {{tradeId}} is an RFQ with status closed.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 4 'Request not found' — only active/draft/requested (plus closed for BOQ/RFP) are editable (trade_controller.rb:590-594).",
+    "rationale": "Closed commercial stages must stay closed."
+  },
+  {
+    "id": "EDGE-PUB-063",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_after_proposal_rejected_801",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The event has a proposal in requested/active/selected status (for this stage's lot, if lots are used).",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 801 'You cannot edit the time as proposals are already submitted.' (trade_controller.rb:438-439; time_extension_blocked? trade_controller_helper.rb:6794-6804).",
+    "rationale": "Re-opening bidding under an award would let vendors re-price after seeing the outcome."
+  },
+  {
+    "id": "EDGE-PUB-064",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_rfp_past_rfq_rejected_712",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Live event with an RFP stage (its uuid in place of {{tradeId}}) and an RFQ stage.",
+    "steps": [
+      "1. PATCH /trade/<rfp stage> with increase_auction_time later than the RFQ's bid end (no extend_rfq_time)."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 712 'RFP duration exceeds RFQ end time. Please adjust.' — update_trade_schedule → validate_rfp_rfq_bid_end_time (trade_controller_helper.rb:2025, 668-669).",
+    "rationale": "Same ordering rule as publish, on the extend path."
+  },
+  {
+    "id": "EDGE-PUB-065",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_rfp_with_extend_rfq_time_moves_both",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Live event with RFP + RFQ; {{tradeId}} replaced by the RFP stage uuid.",
+    "steps": [
+      "1. PATCH /trade/<rfp stage> with increase_auction_time past the RFQ end and extend_rfq_time: true.",
+      "2. Read both schedules."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}",
+      "extend_rfq_time": true
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. update_rfq_time_with_rfp runs before the RFP schedule is updated (trade_controller.rb:659-662), so the 712 check then passes.",
+    "rationale": "The escape hatch for the 712 rule must keep the RFP ≤ RFQ invariant."
+  },
+  {
+    "id": "EDGE-PUB-066",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_draft_stage_before_publish",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Stage {{tradeId}} is a draft (event not published).",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Drafts are diverted to edit_draft before any schedule logic (trade_controller.rb:603), so the extension field is either ignored or applied as a schedule edit. It must not 5xx and must not mark the draft live.",
+    "rationale": "'Extend before publish' is a wrong-order action the UI never sends."
+  },
+  {
+    "id": "EDGE-PUB-067",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_by_vendor_455",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Signed in as the invited vendor of {{tradeId}}.",
+    "steps": [
+      "1. As the vendor, PATCH /trade/{{tradeId}} with increase_auction_time."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — TradeRequestPolicy#update? requires the stage's company in the user's allowed companies and create_record (trade_request_policy.rb:74-79; trade_controller.rb:404).",
+    "rationale": "A bidder extending their own deadline is a fairness breach."
+  },
+  {
+    "id": "EDGE-PUB-068",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_extend_evaluation_to_past_195",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Stage {{tradeId}} is in its evaluation (extra closing) window, which has not yet ended.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with extra_closing_time: 946684800."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "extra_closing_time": 946684800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 195 'Invalid time.' — get_extra_closing_trade_schedule refuses a time before now or before the window start (trade_controller_helper.rb:5889-5890). Note the bidding-window path has no such check (see the past-time extension case).",
+    "rationale": "The evaluation path has the guard the bidding path lacks — this pins the good one."
+  },
+  {
+    "id": "EDGE-PUB-069",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_force_end_without_remarks_783",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "gate: `trade_force_close`. Stage {{tradeId}} is inside its submission window.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with force_end: true and no remarks."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "force_end": true
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 783 'Missing Remarks' — get_trade_force_close_data (trade_controller_helper.rb:5905), reached only when allow_force_end? is true (trade_controller.rb:423-425).",
+    "rationale": "Force-ending must be justified and audited."
+  },
+  {
+    "id": "EDGE-PUB-070",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_force_end_with_config_off_silently_ignored",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Config-dependent: trade_force_close is OFF for the company. Stage {{tradeId}} is running.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with force_end: true and remarks.",
+      "2. Read the stage."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "force_end": true,
+      "remarks": "QA_Platform_force_end_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 (not allowed). allow_force_end? is false (trade_request_model_helper.rb:1621-1624; trade_controller_helper.rb:5928-5930), so the flag is ignored and, with no other field, the request falls through to a 200 success with the stage still open.",
+    "rationale": "The buyer is told the event ended when it did not."
+  },
+  {
+    "id": "EDGE-PUB-071",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_force_end_string_false_still_force_ends",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "gate: `trade_force_close`. Stage {{tradeId}} is running (use a copy — destructive).",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with force_end: \"false\" and remarks.",
+      "2. Read the stage."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "force_end": "false",
+      "remarks": "QA_Platform_force_end_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should NOT end the stage. The gate is `params[\"force_end\"].present?` (trade_controller_helper.rb:5929); the string 'false' is present, so the stage is force-closed.",
+    "rationale": "Truthiness bug on a destructive flag; form clients send 'false'."
+  },
+  {
+    "id": "EDGE-PUB-072",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_status_closed_bypasses_force_close_gate",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Stage {{tradeId}} is running; trade_force_close OFF (use a copy — destructive).",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with status: \"closed\".",
+      "2. Read the stage."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "status": "closed"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused. Any present status goes to set_trade_request_in_active (trade_controller.rb:638-641), which assigns it verbatim (trade_controller_helper.rb:201). 'closed' is not a cancel status, so no remarks and no schedule handling — the stage is just closed, bypassing the trade_force_close config and the mandatory remarks (783).",
+    "rationale": "The force-close feature flag is meaningless if a plain status write does the same thing."
+  },
+  {
+    "id": "EDGE-PUB-073",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_stage_status_unknown_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} is live.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with status: \"banana\"."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "status": "banana"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. `trade_request.status = 'banana'` on the TradeRequest enum raises ArgumentError (trade_controller_helper.rb:201) → 500.",
+    "rationale": "Unvalidated enum assignment on the stage endpoint."
+  },
+  {
+    "id": "EDGE-PUB-074",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_cancel_live_stage_rejected_101",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Stage {{tradeId}} is live.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with status: \"cancelled\"."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "status": "cancelled",
+      "withdraw_remark": "QA_Platform_cancel_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 — allowed_to_cancel? is false for any non-draft stage (trade_request_model_helper.rb:1495-1496; trade_controller_helper.rb:187-188). Live stages are withdrawn (in_active), not cancelled.",
+    "rationale": "Cancel is the draft-only removal; on a live stage it would skip vendor notification."
+  },
+  {
+    "id": "EDGE-PUB-075",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_stage_under_selected_proposal_841",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The event has a selected or requested proposal.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with status: \"in_active\" and withdraw_remark."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "status": "in_active",
+      "withdraw_remark": "QA_Platform_withdraw_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 841 'Cannot withdraw the event as proposals are already submitted.' (trade_controller_helper.rb:193-198).",
+    "rationale": "Withdrawing under an award in approval would orphan the approval."
+  },
+  {
+    "id": "EDGE-PUB-076",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_event_with_remarks",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A dedicated active sandbox copy with no submitted proposals (destructive — run last).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with status withdrawn and withdraw_remark {remarks, attachments: []}.",
+      "2. Read the event and stages."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "withdrawn",
+      "withdraw_remark": {
+        "remarks": "QA_Platform_withdraw_{{stamp}}",
+        "attachments": []
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. withdraw_event_group sets closed_at/closed_by, writes a withdraw_project_remark, marks each live stage in_active (drafts cancelled) and withdraws open proposals (update_service.rb:316-346).",
+    "rationale": "The legal way down, and the baseline for the refusals below."
+  },
+  {
+    "id": "EDGE-PUB-077",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_event_without_remark_raises_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "An active sandbox copy with at least one live stage.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with {status: \"withdrawn\"} only."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "withdrawn"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 (remarks required). add_withdraw_remarks returns early for a blank remark, but the stage loop then reads `@withdraw_remark['remarks']` on nil (update_service.rb:327) → NoMethodError → 500 (the transaction rolls back).",
+    "rationale": "A missing optional-looking field crashes the most consequential lifecycle action."
+  },
+  {
+    "id": "EDGE-PUB-078",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_remark_as_string_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. PATCH with status withdrawn and withdraw_remark: \"QA_Platform_withdraw_{{stamp}}\"."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "withdrawn",
+      "withdraw_remark": "QA_Platform_withdraw_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. The UpdateService sig is `withdraw_remark: T.nilable(T.any(Hash, ActionController::Parameters))` (update_service.rb:20); a String raises TypeError → 500. (The stage endpoint takes a string here, so clients confuse the two.)",
+    "rationale": "The event and stage endpoints disagree on this field's type."
+  },
+  {
+    "id": "EDGE-PUB-079",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_event_under_selected_proposal_841",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The event has a selected or requested proposal.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the withdraw body."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "withdrawn",
+      "withdraw_remark": {
+        "remarks": "QA_Platform_withdraw_{{stamp}}",
+        "attachments": []
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 841 — each stage's set_trade_request_in_active refuses (trade_controller_helper.rb:193-198) and the error is returned from withdraw_event_group (update_service.rb:329-330). Transaction rolls back.",
+    "rationale": "Withdraw must never pull the rug from under an award in approval."
+  },
+  {
+    "id": "EDGE-PUB-080",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_by_non_owner_buyer_is_allowed",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Signed in as a second buyer of the same company with create_record permission, who is not the event's owner and not a super admin. Dedicated sandbox copy.",
+    "steps": [
+      "1. As that buyer, PATCH /event_groups/{{eventGroupUuid}} with the withdraw body."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "withdrawn",
+      "withdraw_remark": {
+        "remarks": "QA_Platform_withdraw_{{stamp}}",
+        "attachments": []
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 101 — is_allowed_to_withdraw? (owner or super admin only, event_group_controller_helper.rb:2604-2611) is used only to build the UI config (…:552). The API only checks EventGroupPolicy#update? (company + create_record), so any buyer can withdraw anyone's event.",
+    "rationale": "The UI hides the button; the API does not enforce the same rule."
+  },
+  {
+    "id": "EDGE-PUB-081",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_twice_duplicates_remark",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A withdrawn sandbox copy.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the withdraw body again.",
+      "2. Read closed_at and withdraw remarks."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "withdrawn",
+      "withdraw_remark": {
+        "remarks": "QA_Platform_withdraw_{{stamp}}",
+        "attachments": []
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be a no-op or 422. There is no 'already withdrawn' guard: closed_at/closed_by are overwritten and a second withdraw_project_remark is written (update_service.rb:318-322); stage loop finds nothing.",
+    "rationale": "Double submit on a terminal action should not rewrite who closed it and when."
+  },
+  {
+    "id": "EDGE-PUB-082",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdraw_remark_attachments_not_url_checked",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A dedicated active sandbox copy.",
+    "steps": [
+      "1. PATCH with the withdraw body whose withdraw_remark.attachments holds another company's trade_files S3 URL."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "withdrawn",
+      "withdraw_remark": {
+        "remarks": "QA_Platform_withdraw_{{stamp}}",
+        "attachments": [
+          "https://procol.s3.amazonaws.com/trade_files/docs/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf"
+        ]
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 101 like top-level attachments. validate_company_urls runs only on params[:attachments] (event_groups_controller.rb:77-78); withdraw_remark.attachments goes straight into the Remark (update_service.rb:348-353) and is later signed for readers (event_group_controller_helper.rb:2620).",
+    "rationale": "Same cross-tenant file leak the top-level guard exists to stop, via a side door."
+  },
+  {
+    "id": "EDGE-PUB-083",
+    "feature": "events.publish",
+    "title": "QA_Platform_read_event_as_uninvited_vendor_455",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Signed in as a vendor mapped to the buyer but NOT on any stage's audience.",
+    "steps": [
+      "1. As that vendor, GET /event_groups/{{eventGroupUuid}}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — EventGroupPolicy#show? requires get_valid_stages_for_user to be non-empty (event_group_policy.rb:52-54), so the controller's own 682 check (event_groups_controller.rb:135) is never reached.",
+    "rationale": "The core confidentiality rule of a restricted event."
+  },
+  {
+    "id": "EDGE-PUB-084",
+    "feature": "events.publish",
+    "title": "QA_Platform_read_other_buyers_draft_455",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A draft owned by buyer A; signed in as buyer B of the same company (not super admin).",
+    "steps": [
+      "1. As buyer B, GET /event_groups/{{eventGroupUuid}}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — get_valid_stages_for_user returns [] for a draft whose owner is someone else (event_group.rb:512-514), so show? fails.",
+    "rationale": "Drafts are private to their creator until published."
+  },
+  {
+    "id": "EDGE-PUB-085",
+    "feature": "events.config",
+    "title": "QA_Platform_read_with_restrict_visibility_to_owner_101",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Config-dependent: restrict_event_visibility_to_owner ON. Signed in as a buyer who is not the owner, not an approver, has no assigned chat and no share, and is not in a planning designation.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}} as that buyer."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' — is_valid_owner is false (event_groups_controller.rb:140-143; trade_controller_helper.rb:5932-5946). With the config OFF the same user reads the event (200).",
+    "rationale": "The owner-only visibility switch is a customer-requested confidentiality control."
+  },
+  {
+    "id": "EDGE-PUB-086",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_get_audience_as_vendor_is_confined",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Signed in as the invited vendor.",
+    "steps": [
+      "1. As the vendor, GET /event_groups/{{eventGroupUuid}}/get_audience.",
+      "2. Inspect the companies returned."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_audience",
+    "expected": "no-5xx",
+    "expectedResult": "Refused, or a response listing only the vendor's own company. The action only authorises show? (event_groups_controller.rb:553), which an invited vendor passes; nothing in get_audience itself checks the caller is the buyer, so the participant list must be confirmed not to leak.",
+    "rationale": "A competitor list is the single most sensitive thing a vendor could read."
+  },
+  {
+    "id": "EDGE-PUB-087",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_get_audience_with_malformed_filters",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Active sandbox event.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_audience?filters={bad."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_audience?filters=%7Bbad",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 or 422, never 500. CommonFunctions.parse_filters rescues the JSON error and returns nil (lib/common_functions.rb parse_filters), and that nil is then handed to apply_audience_filters/apply_stage_participation_filters (event_groups_controller.rb:569-580), which must tolerate it.",
+    "rationale": "A rescue that returns nil just moves the crash one call later."
+  },
+  {
+    "id": "EDGE-PUB-088",
+    "feature": "events.publish",
+    "title": "QA_Platform_read_raw_integer_id_does_not_leak",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer using the current web client version.",
+    "steps": [
+      "1. GET /event_groups/1."
+    ],
+    "method": "GET",
+    "path": "/event_groups/1",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 or 455 — for uuid-enabled clients check_for_uuid decodes even an integer id (params_auth.rb:57-61), which yields nil (533); on an old client the raw id is used but EventGroupPolicy#show? blocks another company's event (455).",
+    "rationale": "Enumerable integer ids are the classic IDOR."
+  },
+  {
+    "id": "EDGE-PUB-089",
+    "feature": "events.config",
+    "title": "QA_Platform_masked_event_read_during_bidding",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Config-dependent: stage {{tradeId}} has show_bidding_stats (or closed-envelope bidding) enabled and is running; signed in as a buyer of the company who is not the owner/super admin and not on the auction team.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}} and the stage details.",
+      "2. Inspect bid amounts/ranks."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with bidders/bids masked — event_masking_enabled? is true for a running stage viewed by a non-owner (trade_request_model_helper.rb:258-270); auction-team users are never masked.",
+    "rationale": "Sealed-bid confidentiality inside the buyer's own organisation."
+  },
+  {
+    "id": "EDGE-PUB-090",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_missing_new_owner_2",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the event's owner.",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/change_ownership with {}."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 — validate_new_owner returns 2 for a blank owner (trade_controller_helper.rb:5950-5952).",
+    "rationale": "Missing-field baseline."
+  },
+  {
+    "id": "EDGE-PUB-091",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_outside_team_960",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the owner (active); target user shares no active team with the owner (put their uuid in place of {{userUuid}}).",
+    "steps": [
+      "1. POST change_ownership with that user."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "{{userUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 960 'New Owner must be in same team as that of current owner' (trade_controller_helper.rb:5955-5957).",
+    "rationale": "Ownership moves within a team only."
+  },
+  {
+    "id": "EDGE-PUB-092",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_by_vendor_455",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Signed in as the invited vendor.",
+    "steps": [
+      "1. POST change_ownership as the vendor."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "{{userUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 or 455 — the lookup is scoped to Current.workspace (event_groups_controller.rb:1090-1091) and change_ownership? needs show? plus owner/super admin/Procol employee (event_group_policy.rb:88-90).",
+    "rationale": "Wrong actor."
+  },
+  {
+    "id": "EDGE-PUB-093",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_by_non_owner_buyer_455",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as another buyer of the company (not owner, not super admin).",
+    "steps": [
+      "1. POST change_ownership."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "{{userUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 (event_group_policy.rb:88-90).",
+    "rationale": "Taking over a colleague's event must need admin rights."
+  },
+  {
+    "id": "EDGE-PUB-094",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_on_draft_bypasses_ui_gate",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft event (no active commercial stage) owned by the caller; a valid same-team user in place of {{userUuid}}.",
+    "steps": [
+      "1. GET the event and note config.is_allowed_to_change_ownership (false).",
+      "2. POST change_ownership."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "{{userUuid}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused to match the UI. is_allowed_to_change_ownership? requires an active commercial stage and restrict_event_visibility_to_owner ON (event_group_controller_helper.rb:604-614) but is only used for the UI config (…:563); the change_ownership action never calls it (event_groups_controller.rb:1089-1103), so the transfer succeeds.",
+    "rationale": "UI-only rules are not rules."
+  },
+  {
+    "id": "EDGE-PUB-095",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_inactive_owner_any_user",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "An event whose owner's UserCompanyMapping is no longer active; caller is a super admin; target is an active user of ANOTHER company (put their uuid in place of {{userUuid}}).",
+    "steps": [
+      "1. POST change_ownership with the foreign user."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "{{userUuid}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be refused. validate_new_owner returns nil (valid) as soon as the current owner is inactive (trade_controller_helper.rb:5953-5954), and the target is looked up with User.active.find_by(id:) — not scoped to the workspace (event_groups_controller.rb:1093). A user from another tenant can be made owner.",
+    "rationale": "Handing a tenant's event to an outsider is a cross-tenant data leak."
+  },
+  {
+    "id": "EDGE-PUB-096",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_active_event",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A dedicated active sandbox copy (after this, the original is no longer 'latest').",
+    "steps": [
+      "1. POST /item_versions with {item_uuid: \"{{eventGroupUuid}}\", item_type: \"EventGroup\"}.",
+      "2. Read the returned uuid and new_item_data."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup"
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 {uuid, new_item_data} — item is active and latest, create_version? passes, create_version builds a replica (item_versions_controller.rb:5-27; versioning/methods.rb:3-18).",
+    "rationale": "Baseline for every amendment case."
+  },
+  {
+    "id": "EDGE-PUB-097",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_twice_888",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event was just versioned once.",
+    "steps": [
+      "1. POST /item_versions again with the same body."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 888 'Invalid Parameters' — the original is no longer latest? once a non-inactive ItemVersion exists (versioning/methods.rb:72-74; item_versions_controller.rb:13-16). The find_or_initialize idempotency in create_version (methods.rb:8) is therefore unreachable.",
+    "rationale": "Two amendments of one event would fork it."
+  },
+  {
+    "id": "EDGE-PUB-098",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_missing_item_type_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Active sandbox event.",
+    "steps": [
+      "1. POST /item_versions with item_uuid only."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 (item_versions_controller.rb:9-11).",
+    "rationale": "Missing-field baseline."
+  },
+  {
+    "id": "EDGE-PUB-099",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_disallowed_item_type_2",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Active sandbox event.",
+    "steps": [
+      "1. POST /item_versions with item_uuid {{tradeId}}, item_type \"TradeRequest\"."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 — ALLOWED_ITEM_TYPES is %w(EventGroup) (item_versions_controller.rb:3, 9).",
+    "rationale": "Stages must be amended through their event, not directly."
+  },
+  {
+    "id": "EDGE-PUB-100",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_item_type_constantize_injection_2",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. POST /item_versions with item_uuid {{userUuid}} and item_type \"User\"."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{userUuid}}",
+      "item_type": "User"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 — the allow-list check runs before `item_type.constantize` (item_versions_controller.rb:9-13), so no arbitrary class is instantiated.",
+    "rationale": "constantize on user input is a known Rails RCE/IDOR shape; the allow-list is the only thing in the way."
+  },
+  {
+    "id": "EDGE-PUB-101",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_draft_event_888",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft event (its uuid in place of {{eventGroupUuid}}).",
+    "steps": [
+      "1. POST /item_versions with the draft's uuid."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 888 — `!item.active?` (item_versions_controller.rb:14). Drafts are edited in place.",
+    "rationale": "'Versioning a draft' is a wrong-state action."
+  },
+  {
+    "id": "EDGE-PUB-102",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_other_tenant_raw_id_refused",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. POST /item_versions with item_id: 1 (raw, not a uuid) and item_type EventGroup."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_id": 1,
+      "item_type": "EventGroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 888 (if id 1 is not active/latest) or 455 — the raw item_id is looked up unscoped (item_versions_controller.rb:13), then create_version? → update? requires the event's company in the caller's allowed companies (event_group_policy.rb:37-44).",
+    "rationale": "The lookup is unscoped, so the policy is the only barrier to amending another tenant's event."
+  },
+  {
+    "id": "EDGE-PUB-103",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_by_vendor_455",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Signed in as the invited vendor.",
+    "steps": [
+      "1. POST /item_versions as the vendor."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — create_version? = update? && create_record (event_group_policy.rb:42-44; item_versions_controller.rb:18).",
+    "rationale": "Wrong actor."
+  },
+  {
+    "id": "EDGE-PUB-104",
+    "feature": "events.versioning",
+    "title": "QA_Platform_publish_original_after_versioning_101",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event has been versioned (an amendment draft exists).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} (the ORIGINAL) with the publish body."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 — `event_group.latest?` is false (event_groups_controller.rb:79).",
+    "rationale": "Edits must go to the amendment, or the two versions diverge."
+  },
+  {
+    "id": "EDGE-PUB-105",
+    "feature": "events.versioning",
+    "title": "QA_Platform_add_audience_on_original_after_versioning_101",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event has been versioned.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{tradeId}} (a stage of the original)."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{tradeId}}",
+    "body": {
+      "audience_to_add_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 (v1/trade_controller.rb:36).",
+    "rationale": "Same latest-version rule on the audience path."
+  },
+  {
+    "id": "EDGE-PUB-106",
+    "feature": "events.versioning",
+    "title": "QA_Platform_extend_original_after_versioning_101",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event has been versioned.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with increase_auction_time."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "increase_auction_time": 4102444800,
+      "remarks": "QA_Platform_extend_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 (trade_controller.rb:403).",
+    "rationale": "Same rule on the extend path."
+  },
+  {
+    "id": "EDGE-PUB-107",
+    "feature": "events.versioning",
+    "title": "QA_Platform_publish_amendment_without_remarks_raises_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{eventGroupUuid}} is an AMENDMENT draft (the new_item returned by /item_versions), with its stages.",
+    "steps": [
+      "1. PATCH /event_groups/<amendment draft> with the publish body minus amendment_remarks."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": []
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 (remarks required). publish calls add_amendment_remarks!(nil) for amendment drafts (update_service.rb:234), which raises StandardError 'Remarks for amendment not found' (versioning/methods.rb:103); nothing rescues it → 500.",
+    "rationale": "The amendment remark is mandatory by design, but the refusal is a crash instead of a validation error."
+  },
+  {
+    "id": "EDGE-PUB-108",
+    "feature": "events.versioning",
+    "title": "QA_Platform_publish_amendment_with_blank_remarks_accepted",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} is an amendment draft.",
+    "steps": [
+      "1. PATCH with the working body (amendment_remarks: {remarks: \"\"})."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422. `remarks.blank?` checks the HASH, which is non-empty (versioning/methods.rb:103), so a remark with an empty message is stored and event_revise_notification is sent with remark '' (event_group_controller_helper.rb:2632-2637).",
+    "rationale": "Vendors get a 'the event was revised' email that does not say what changed."
+  },
+  {
+    "id": "EDGE-PUB-109",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_live_event",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Active sandbox event not created from a PR.",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/create_clone with {}.",
+      "2. GET the returned event_group_uuid."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/create_clone",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 {event_group_uuid}. CloneService copies the event and line items and ONLY the technical/RFQ stages (clone_service.rb:13-27); meta_data.source_event_group_id points at the source.",
+    "rationale": "'Clone of a live event' baseline."
+  },
+  {
+    "id": "EDGE-PUB-110",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_draft_455_not_1122",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A draft event.",
+    "steps": [
+      "1. POST create_clone on the draft."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/create_clone",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — create_clone? already requires !record.draft? (event_group_policy.rb:49), so the controller's friendlier 1122 'Only active or withdrawn events can be cloned.' (event_groups_controller.rb:111-113) is unreachable for drafts.",
+    "rationale": "Pins which code a client actually gets; the helpful message is dead code for this case."
+  },
+  {
+    "id": "EDGE-PUB-111",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_pr_created_event_455_not_1123",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "An active event created from a purchase request.",
+    "steps": [
+      "1. POST create_clone."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/create_clone",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — create_clone? requires !record.created_from_pr? (event_group_policy.rb:49), so 1123 'Events with purchase requests cannot be cloned.' (event_groups_controller.rb:115-117) is never returned.",
+    "rationale": "Cloning a PR event would double-consume PR quantities; the user just gets a generic 'not authorized'."
+  },
+  {
+    "id": "EDGE-PUB-112",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_in_active_event_1122",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "An event in status in_active.",
+    "steps": [
+      "1. POST create_clone."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/create_clone",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 1122 'Only active or withdrawn events can be cloned.' — the policy passes (not draft), the state check refuses (event_groups_controller.rb:111-113).",
+    "rationale": "The one state where 1122 is actually reachable."
+  },
+  {
+    "id": "EDGE-PUB-113",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_by_vendor_455",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Signed in as the invited vendor.",
+    "steps": [
+      "1. POST create_clone as the vendor."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/create_clone",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 — create_clone? requires the event's company in Current.allowed_companies and create_record (event_group_policy.rb:46-50).",
+    "rationale": "A vendor cloning the buyer's event would copy its line items and specs into a new event."
+  },
+  {
+    "id": "EDGE-PUB-114",
+    "feature": "events.config",
+    "title": "QA_Platform_scheduled_list_when_disabled_904",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Config-dependent: scheduled_events_enabled is OFF for the workspace.",
+    "steps": [
+      "1. GET /event_groups/scheduled."
+    ],
+    "method": "GET",
+    "path": "/event_groups/scheduled",
+    "expected": "reject",
+    "expectedResult": "HTTP 403, code 904 'Scheduled events feature is not enabled for your workspace' (event_groups_controller.rb:375). With the config ON it answers 200 with the templates.",
+    "rationale": "Feature gate; also the only 403 (not 422) in this area."
+  },
+  {
+    "id": "EDGE-PUB-115",
+    "feature": "events.config",
+    "title": "QA_Platform_publish_as_scheduled_template_when_disabled_ignored",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Config-dependent: scheduled_events_enabled OFF. A draft copy with its stage.",
+    "steps": [
+      "1. PATCH with the publish body plus config {is_scheduled_template: true, schedule: {schedule_type: \"daily\", time_of_day: \"09:00\"}}.",
+      "2. Read the event."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      },
+      "config": {
+        "is_scheduled_template": true,
+        "schedule": {
+          "schedule_type": "daily",
+          "time_of_day": "09:00"
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; the event is published as a normal event — is_scheduled_template is only set when scheduled_events_enabled? (update_service.rb:250), and the schedule keys are stripped from the persisted config (…:247).",
+    "rationale": "No error tells the buyer their recurrence was dropped."
+  },
+  {
+    "id": "EDGE-PUB-116",
+    "feature": "events.config",
+    "title": "QA_Platform_scheduled_unknown_schedule_type_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "gate: `scheduled_events_enabled`. A draft copy with its stage.",
+    "steps": [
+      "1. PATCH with the publish body plus config {is_scheduled_template: true, schedule: {schedule_type: \"hourly\", time_of_day: \"09:00\"}}."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      },
+      "config": {
+        "is_scheduled_template": true,
+        "schedule": {
+          "schedule_type": "hourly",
+          "time_of_day": "09:00"
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. handle_recurring_template → ScheduleBuilder.build raises ArgumentError 'Unknown schedule_type: hourly' (schedule_builder.rb:52; update_service.rb:567), unrescued → 500 after the stages were processed (the transaction rolls back).",
+    "rationale": "User-supplied recurrence validated by raising is a guaranteed 500."
+  },
+  {
+    "id": "EDGE-PUB-117",
+    "feature": "events.config",
+    "title": "QA_Platform_scheduled_bad_time_of_day_raises_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "gate: `scheduled_events_enabled`. A draft copy with its stage.",
+    "steps": [
+      "1. PATCH with schedule {schedule_type: \"daily\", time_of_day: \"9am\"}."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      },
+      "config": {
+        "is_scheduled_template": true,
+        "schedule": {
+          "schedule_type": "daily",
+          "time_of_day": "9am"
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. validate_time! raises ArgumentError 'time_of_day must be HH:MM format' (schedule_builder.rb:224) → 500. Note '25:99' passes the regex and fails later.",
+    "rationale": "Format validation by exception."
+  },
+  {
+    "id": "EDGE-PUB-118",
+    "feature": "events.config",
+    "title": "QA_Platform_scheduled_template_line_item_edit_reverts_to_draft",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "gate: `scheduled_events_enabled`. {{eventGroupUuid}} is an ACTIVE scheduled template with an active ScheduledJob.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with status draft and a line_items list.",
+      "2. Read the event and its job."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "status": "draft",
+      "line_items": [
+        {
+          "id": "{{lineItemUuid}}",
+          "product_uuid": "{{productUuid}}",
+          "quantity": {
+            "unitSymbol": "KG",
+            "value": 5
+          }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; transition_scheduled_template_to_draft flips the event and its active stages to draft and pauses the job (event_group_controller_helper.rb:17-19; trade_controller_helper.rb transition_scheduled_template_to_draft). Republishing resumes it (update_service.rb:541-554).",
+    "rationale": "A silent pause of a recurring event is easy to miss; this pins the documented behaviour."
+  },
+  {
+    "id": "EDGE-PUB-119",
+    "feature": "events.publish",
+    "title": "QA_Platform_concurrent_publish_double_render_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A draft copy with its stage attached.",
+    "steps": [
+      "1. Fire two identical publish PATCHes to /event_groups/{{eventGroupUuid}} within the same second.",
+      "2. Compare both responses and read the event and audience."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "attachments": [],
+      "title": "QA_Platform_Publish_{{stamp}}",
+      "status": "active",
+      "draft_trade_request_uuids": [
+        "{{tradeId}}"
+      ],
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "line_items": [],
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": []
+      },
+      "show_under_open_events": true,
+      "delete_draft_stage_uuids": [],
+      "amendment_remarks": {
+        "remarks": ""
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected: one 200 and one 422 code 516 'Transaction in Progress' with no second write. Today lock_transaction renders 516 but only `return`s from itself (event_groups_controller.rb:1513-1518), so update carries on, performs the publish/update a second time and then renders again → AbstractController::DoubleRenderError → 500. The after_action also deletes the lock the other request holds (…:1522-1526).",
+    "rationale": "The lock meant to stop double-publish both fails to stop it and turns it into a 500."
+  }
+]

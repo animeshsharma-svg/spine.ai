@@ -1119,13 +1119,31 @@ const server = createServer(async (req, res) => {
            * individual cases. The library is untouched; it is simply not
            * replayed after the thing it describes has already been done.
            */
-          cases = cases.filter((cs) => !journeyWalksFeature(cs.feature, plan));
+          // Edge and negative cases (EDGE-…, data/api-cases-extra) are not the
+          // journey tried again — each changes ONE thing a working request sends
+          // and expects a refusal — so they stay unless the reader turned them off.
+          const withEdges = url.searchParams.get("edges") !== "0";
+          const isEdge = (cs: { id: string }) => /^EDGE-/.test(cs.id);
+          cases = cases.filter((cs) => (withEdges && isEdge(cs)) || !journeyWalksFeature(cs.feature, plan));
+          // Cases that end the shared copy's life (withdraw, close, revert to
+          // draft, force-end…) go last, or every case after them would be
+          // testing a dead event and report its refusal as a result.
+          const destructive = (cs: { id: string; path: string; body?: unknown; preconditions?: string; title?: string }) =>
+            isEdge(cs) &&
+            (/destructive|own copy|run it last/i.test(`${cs.preconditions ?? ""} ${cs.title ?? ""}`) ||
+              /withdraw|cancel|force_?(end|close)|close_trade|revert/i.test(cs.path) ||
+              /"status":"(withdrawn|closed|cancelled|draft|in_active|deleted)"|"force_end":|"withdraw_remark"/.test(JSON.stringify(cs.body ?? {})));
+          cases = [...cases.filter((cs) => !destructive(cs)), ...cases.filter(destructive)];
+          const edgeCount = cases.filter(isEdge).length;
+          if (edgeCount) send("line", { line: `${edgeCount} edge / negative case(s) will run after the journey, on a second copy of the event.` });
           // The plan itself was sent before the client opened, so the list was
           // on screen while the session was being made.
           const walked = await runEventJourney(client, plan, {
             baseURL: baseOverride(url),
             stageSeconds: Number(url.searchParams.get("stageSeconds")) || 45,
-            buildVariationsEvent: false,
+            // A second event only when edge cases will act on one, so the
+            // journey's own event runs to its close undisturbed.
+            buildVariationsEvent: edgeCount > 0,
             onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step, planned }),
             onLine: (line: string) => send("line", { line }),
           });
@@ -1139,6 +1157,14 @@ const server = createServer(async (req, res) => {
           // own event — by then closed, which a case about a live event will
           // say, honestly, as "couldn't tell".
           const made = journey.made ?? {};
+          // Ids only the journey makes (a bid, a proposal) are filled from it
+          // either way; the second copy has no bids of its own.
+          if (made.technicalTradeUuid) Object.assign(caseCtx, { rfpTradeId: made.technicalTradeUuid });
+          if (made.evalFormUuid) Object.assign(caseCtx, { evalFormUuid: made.evalFormUuid });
+          if (walked.forCases) {
+            if (made.bidUuid && !caseCtx.bidUuid) Object.assign(caseCtx, { bidUuid: made.bidUuid });
+            if (made.proposalUuid && !caseCtx.proposalUuid) Object.assign(caseCtx, { proposalUuid: made.proposalUuid });
+          }
           if (!walked.forCases && made.eventGroupUuid) {
             Object.assign(caseCtx, {
               eventGroupUuid: made.eventGroupUuid,
