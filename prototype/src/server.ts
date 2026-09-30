@@ -68,6 +68,7 @@ import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 import { flowToCases, loadRecording } from "./checks/flowToCases.js";
 import { replayCase, disposeReplay } from "./checks/flowReplay.js";
 import { parsePastedCases, runPastedCases } from "./checks/pastedCases.js";
+import { dispatch as dispatchRoute } from "./routes/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROCOL_TEST_DIR = join(here, "..", "..", "procol test");
@@ -159,6 +160,9 @@ const server = createServer(async (req, res) => {
   const path = url.pathname;
 
   try {
+    // Route modules in src/routes/ (one file per platform area) answer first.
+    if (path.startsWith("/api/") && (await dispatchRoute(req, res, url))) return;
+
     // ── API: client list ──
     if (path === "/api/clients") {
       // UAT companies first, then the accounts that live on their own
