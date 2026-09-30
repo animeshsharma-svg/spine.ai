@@ -1205,7 +1205,11 @@ const server = createServer(async (req, res) => {
         const caseCtx = await caseCtxP;
         // Vendor bulk upload: Prospect-creating cases email the workspace's
         // vendor-management team, so they run only when asked for by name.
-        caseCtx.vbuRealMail = url.searchParams.get("realMail") === "1";
+        // Only from this machine and from the dashboard's own page: a link on
+        // another site (or a LAN neighbour) must never be able to send mail.
+        const fetchSite = String(req.headers["sec-fetch-site"] ?? "same-origin");
+        const loopback = /^(::1|127\.|::ffff:127\.)/.test(req.socket.remoteAddress ?? "");
+        caseCtx.vbuRealMail = url.searchParams.get("realMail") === "1" && loopback && (fetchSite === "same-origin" || fetchSite === "none");
         caseCtx.vbuCreate = url.searchParams.get("vbuCreate") !== "0";
         const actor = await actorP;
         const companyCfg = await companyCfgP;
@@ -2255,16 +2259,22 @@ const server = createServer(async (req, res) => {
       const ev = readEvidence(url.searchParams.get("e") ?? "");
       const which = url.searchParams.get("which") ?? "main";
       const file = which === "second" ? ev?.fixture?.file2 : ev?.fixture?.file;
-      if (!ev || !file) {
+      if (!ev || !file || !/^VBU-[\w-]+\.(xlsx|xls|csv|pdf|png|docx)$/.test(file)) {
         res.writeHead(404, { "content-type": "text/plain" });
         return res.end("no such evidence record");
       }
       try {
         const mod = await import(pathToFileURL(join(PROCOL_TEST_DIR, "src", "flows", "vendorBulkUpload.ts")).href);
         const { base64 } = mod.loadFixture(file, ev.fixture!.vars);
-        const name = `${ev.caseId}${which === "second" ? "-b" : ""}-uploaded.${file.endsWith(".xls") ? "xls" : "xlsx"}`;
+        const ext = file.split(".").pop()!;
+        const name = `${ev.caseId}${which === "second" ? "-b" : ""}-uploaded.${ext}`;
+        const TYPES: Record<string, string> = {
+          xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls: "application/vnd.ms-excel",
+          csv: "text/csv", pdf: "application/pdf", png: "image/png",
+          docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        };
         res.writeHead(200, {
-          "content-type": file.endsWith(".xls") ? "application/vnd.ms-excel" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-type": TYPES[ext],
           "content-disposition": `attachment; filename="${name}"`,
           "cache-control": "no-store",
         });

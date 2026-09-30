@@ -36,7 +36,8 @@ export interface ActorApi {
   dispose: () => Promise<void>;
 }
 
-const actorCache = new Map<string, Promise<ActorApi | { unavailable: string }>>();
+const actorCache = new Map<string, { at: number; p: Promise<ActorApi | { unavailable: string }> }>();
+const ACTOR_TTL_MS = 20 * 60_000;
 
 /**
  * The client to send a case's requests as.
@@ -45,19 +46,24 @@ const actorCache = new Map<string, Promise<ActorApi | { unavailable: string }>>(
  *                              (qa_vbu_…@example.com, e.g. for a Status=rejected
  *                              row), signed in through the vendor app with the
  *                              sandbox OTP rule. Never a real supplier.
- *  member-no-company-create  — a live console session of a workspace user whose
+ *  member-no-company-create  — a live console session of one of OUR QA users
+ *                              (qa_…@example.com) in the workspace whose
  *                              dashboard configuration shows no
- *                              company:create_record. Used only for requests the
- *                              product must refuse; sheets it sends are tripwired.
+ *                              company:create_record. Never a real employee's
+ *                              session. Used only for requests the product must
+ *                              refuse; sheets it sends are tripwired.
  */
 export async function actorApi(client: Client, kind: string): Promise<ActorApi | { unavailable: string }> {
   const key = `${client.ctx.companyId}:${kind}`;
-  let p = actorCache.get(key);
-  if (!p) {
-    p = (kind === "seller-qa" ? qaSeller(client) : memberWithoutCreate(client)).catch((e) => ({ unavailable: (e as Error).message }));
-    actorCache.set(key, p);
-  }
-  return p;
+  // A signed-in actor is reused for a while (sessions expire, so not forever);
+  // "unavailable" is never remembered — the next case asks again.
+  const hit = actorCache.get(key);
+  if (hit && Date.now() - hit.at < ACTOR_TTL_MS) return hit.p;
+  const p = (kind === "seller-qa" ? qaSeller(client) : memberWithoutCreate(client)).catch((e) => ({ unavailable: (e as Error).message }));
+  actorCache.set(key, { at: Date.now(), p });
+  const got = await p;
+  if ("unavailable" in got) actorCache.delete(key);
+  return got;
 }
 
 async function qaSeller(client: Client): Promise<ActorApi | { unavailable: string }> {
@@ -93,11 +99,12 @@ async function memberWithoutCreate(client: Client): Promise<ActorApi | { unavail
   const { query } = await imp("db/pool.ts");
   const { clientFromSession } = await imp("auth/sessionAuth.ts");
   const rows = await query(
-    `select distinct on (u.id) u.id, u.first_name, u.phone, u.email, u.role, s.access_token, s.app_version, s.created_at
+    `select distinct on (u.id) u.id, u.first_name, u.email, u.role, s.access_token, s.app_version, s.created_at
        from sessions s
        join users u on u.id = s.user_id and u.status = 1
        join user_company_mappings ucm on ucm.user_id = u.id and ucm.company_id = $1 and ucm.status = 1
       where s.status = 1 and s.access_token is not null and s.app_version like '9.4%' and u.role in (0, 1, 2)
+        and u.email like 'qa\\_%@example.com'
       order by u.id, s.created_at desc limit 6`,
     [client.ctx.companyId],
   );
@@ -115,7 +122,7 @@ async function memberWithoutCreate(client: Client): Promise<ActorApi | { unavail
       return { api, userId: Number(r.id), label: `workspace member without company:create_record (user ${r.id})`, dispose: () => api.dispose() };
     await api.dispose();
   }
-  return { unavailable: "no live session of a workspace user WITHOUT company:create_record was found" };
+  return { unavailable: "no live session of a QA test user (qa_…@example.com) WITHOUT company:create_record in this workspace — add one to run this case" };
 }
 
 // ── the onboarding payload ───────────────────────────────────────────────

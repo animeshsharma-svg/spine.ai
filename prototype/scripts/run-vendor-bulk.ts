@@ -50,13 +50,16 @@ async function main() {
 
     const results = [];
     // One case may never hang the run: a stuck socket (seen on the sandbox) is
-    // recorded as "couldn't tell" after 8 minutes and the run moves on.
-    const LIMIT_MS = 8 * 60_000;
+    // recorded as "couldn't tell" after 15 minutes and the run moves on. The
+    // limit sits above the slowest honest case (a baseline upload, then a
+    // 10-minute wait for every row).
+    const LIMIT_MS = 15 * 60_000;
     for (const chk of checks) {
+      let timer: NodeJS.Timeout | undefined;
       const r: any = await Promise.race([
         runCheck(client, chk),
         new Promise((resolve) =>
-          setTimeout(
+          (timer = setTimeout(
             () =>
               resolve({
                 ...(({ exec, ...meta }) => meta)(chk as any),
@@ -65,9 +68,10 @@ async function main() {
                 verdict: `no answer within ${LIMIT_MS / 60_000} minutes (the sandbox or the network hung) — nothing proved`,
               }),
             LIMIT_MS,
-          ),
+          )),
         ),
       ]);
+      clearTimeout(timer);
       results.push(r);
       const mark = r.pass ? "PASS" : r.inconclusive ? "????" : "FAIL";
       console.log(`${mark} ${r.id} ${r.scenario}\n     ${r.verdict}`);
