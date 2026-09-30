@@ -259,6 +259,11 @@ export function loadFixture(file: string, vars: Record<string, string>): { base6
   const path = join(VBU_FIXTURE_DIR, file);
   if (!existsSync(path)) throw new Error(`fixture ${file} not found in ${VBU_FIXTURE_DIR}`);
   const raw = readFileSync(path);
+  if (/\.csv$/i.test(file)) {
+    // A text sheet gets the run's values too, so it carries no raw {{placeholders}}.
+    const text = fillVars(raw.toString("utf8"), vars);
+    return { base64: Buffer.from(text, "utf8").toString("base64"), bytes: Buffer.byteLength(text), cellsFilled: 0 };
+  }
   if (!/\.(xlsx|xls)$/i.test(file)) return { base64: raw.toString("base64"), bytes: raw.length, cellsFilled: 0 };
   const wb = XLSX.read(raw, { type: "buffer", cellFormula: true, cellNF: false });
   let filled = 0;

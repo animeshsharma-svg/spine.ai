@@ -96,7 +96,7 @@ export function renderEvidence(result: CheckResult | undefined, test: TestCaseRe
     if (ev.sheet.rows.length > 12) parts.push(`<p class="pre">…and ${ev.sheet.rows.length - 12} more row(s) in the file.</p>`);
   }
   if (ev.fixture) {
-    parts.push(`<div>${dl("main", `Download the exact sheet (${ev.fixture.file.replace(/\.xlsx?$/, "")}-uploaded.xlsx)`)}${ev.fixture.file2 ? dl("second", "Download the second sheet") : ""}</div>`);
+    parts.push(`<div>${dl("main", `Download the exact file sent (${ev.fixture.file.replace(/\.(\w+)$/, "-uploaded.$1")})`)}${ev.fixture.file2 ? dl("second", "Download the second sheet") : ""}</div>`);
   }
   if (ev.request?.body && !ev.fixture) {
     parts.push(`<div class="ev-h">The request that was sent</div><pre class="ev-mono">${e(JSON.stringify(ev.request.body, null, 2))}</pre>`);

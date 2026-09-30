@@ -6,7 +6,7 @@ const el = (tag, cls, html) => {
   if (html != null) n.innerHTML = html;
   return n;
 };
-const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const AGENT_ICON = {
   System: "⚙️", Analyst: "🔍", Planner: "🗺️", "Test-designer": "✍️",
@@ -3774,7 +3774,7 @@ function bugCard(g) {
                 // A vendor bulk upload bug carries links: the exact sheet, the full evidence.
                 const m = String(r).match(/^(.*?: )(\/api\/\S+)$/);
                 return m
-                  ? `<li>${esc(m[1])}<a href="${esc(m[2])}" target="_blank" rel="noopener">${m[2].startsWith("/api/vbu/sheet") ? "download the .xlsx" : "open the evidence"}</a></li>`
+                  ? `<li>${esc(m[1])}<a href="${esc(m[2])}" target="_blank" rel="noopener">${m[2].startsWith("/api/vbu/sheet") ? "download the file sent" : "open the evidence"}</a></li>`
                   : `<li>${esc(r)}</li>`;
               })
               .join("")}</ol>`
