@@ -367,6 +367,19 @@
    "where": "app/controllers/api/invitations_controller.rb send_invite (permit list); PR16267 duplicate_check_fields.rb:27",
    "cause": "pincode is not a permitted parameter, so the incoming pincode is blank and a blank pincode counts as a match.",
    "fix": "Permit pincode (and send it from the form)."
+  },
+  {
+   "id": "BUG-28",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-10-01",
+   "cases": [
+    "VBU-062"
+   ],
+   "title": "A correct GSTIN with a trailing space is rejected as \"Invalid Tax No.\"",
+   "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92",
+   "cause": "verify_tax_no matches the raw cell (line_item[\"Tax No.\"].match?(regex)) against an anchored regex without trimming it, while the same service trims Status and the other fields (.to_s.strip). A space picked up when pasting into Excel makes a valid GSTIN fail.",
+   "fix": "Strip (and upcase) Tax No. before the regex check and store the trimmed value in tax_no."
   }
  ]
 }
