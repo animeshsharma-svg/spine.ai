@@ -15,7 +15,8 @@
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readEvidence } from "./checks/vendorBulkExtras.js";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
 import { needsEventFixture } from "./checks/eventsFixture.js";
 import { journeyPlan, journeyWalksFeature, STEP_META } from "./checks/journeyModel.js";
@@ -69,6 +70,7 @@ import { replayCase, disposeReplay } from "./checks/flowReplay.js";
 import { parsePastedCases, runPastedCases } from "./checks/pastedCases.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const PROCOL_TEST_DIR = join(here, "..", "..", "procol test");
 const PUBLIC = join(here, "..", "public");
 const DATA_DIR = join(here, "..", "data");
 const REC_DIR = join(here, "..", "..", "procol-ui-tests", "recordings");
@@ -1242,7 +1244,10 @@ const server = createServer(async (req, res) => {
           }
           // (b) this individual CASE may depend on a setting that's off, which
           //     would make its expected outcome wrong rather than the product buggy
-          const rule = companyCfg.loaded
+          // Vendor bulk upload cases gate themselves on the workspace's own
+          // settings (vbuSkipReason); reading their preconditions here as well
+          // judged vendor_onboarding_version = "v2" as OFF and skipped VBU-122.
+          const rule = companyCfg.loaded && !byId.get(chk.id)?.bulk
             ? configRequirementOf(byId.get(chk.id)?.preconditions, companyCfg.flags)
             : null;
           if (rule) {
@@ -2233,6 +2238,32 @@ const server = createServer(async (req, res) => {
     // ── API: one failure screenshot ─────────────────────────────────────
     // Path-guarded: the report only ever asks for files under the UI suite's
     // findings directory, and anything that resolves outside it is refused.
+    // The exact vendor bulk upload sheet a case sent, rebuilt from its evidence
+    // record (fixture + that run's values). Path-guarded by readEvidence.
+    if (path === "/api/vbu/sheet") {
+      const ev = readEvidence(url.searchParams.get("e") ?? "");
+      const which = url.searchParams.get("which") ?? "main";
+      const file = which === "second" ? ev?.fixture?.file2 : ev?.fixture?.file;
+      if (!ev || !file) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("no such evidence record");
+      }
+      try {
+        const mod = await import(pathToFileURL(join(PROCOL_TEST_DIR, "src", "flows", "vendorBulkUpload.ts")).href);
+        const { base64 } = mod.loadFixture(file, ev.fixture!.vars);
+        const name = `${ev.caseId}${which === "second" ? "-b" : ""}-uploaded.${file.endsWith(".xls") ? "xls" : "xlsx"}`;
+        res.writeHead(200, {
+          "content-type": file.endsWith(".xls") ? "application/vnd.ms-excel" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-disposition": `attachment; filename="${name}"`,
+          "cache-control": "no-store",
+        });
+        return res.end(Buffer.from(base64, "base64"));
+      } catch (err) {
+        res.writeHead(500, { "content-type": "text/plain" });
+        return res.end(`could not rebuild the sheet: ${(err as Error).message}`);
+      }
+    }
+
     if (path === "/api/ui-shot") {
       const rel = url.searchParams.get("f") ?? "";
       const file = uiShotPath(rel);

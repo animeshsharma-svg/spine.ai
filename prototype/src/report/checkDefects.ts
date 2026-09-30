@@ -121,10 +121,20 @@ function collect(
       firstSeen: ts,
       lastSeen: ts,
       evidence: [evidence],
-      // The curl IS the reproduction — one command, no prose.
-      reproduction: check.request
-        ? toCurl(check.request, run?.companyId).split("\n")
-        : [check.inputSummary],
+      // The curl IS the reproduction — one command, no prose. A vendor bulk
+      // upload case is reproduced with its sheet instead: the curl would only
+      // carry a placeholder where the file goes.
+      reproduction: (check as { evidenceRef?: string }).evidenceRef
+        ? [
+            `Download the exact sheet: /api/vbu/sheet?e=${encodeURIComponent((check as { evidenceRef?: string }).evidenceRef!)}&which=main`,
+            "Upload it on Vendors → Bulk Upload in the same workspace (or POST /api/v1/bulk_create_vendor with its base64 as excel_data).",
+            `Expected: ${String((check as { expectedResult?: string }).expectedResult ?? check.expected).replace(/ Rule: .*$/, "")}`,
+            `Actual: ${check.verdict}`,
+            `Full evidence (rows, records, code line): /api/test-report?run=${runId}#case-${check.id}`,
+          ]
+        : check.request
+          ? toCurl(check.request, run?.companyId).split("\n")
+          : [check.inputSummary],
       actionable: true,
     });
   }

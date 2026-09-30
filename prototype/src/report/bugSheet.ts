@@ -264,7 +264,13 @@ function row(group: DefectGroup, index: number, triage: TriageStore): string {
                   ? `<p><strong>Reproduce:</strong></p><pre>${escapeHtml(group.reproduction.join("\n"))}</pre>`
                   : `<p><strong>Reproduce:</strong></p><ol>${group.reproduction
                       .slice(0, 8)
-                      .map((r) => `<li>${escapeHtml(r)}</li>`)
+                      .map((r) => {
+                        // Links the vendor bulk upload reproduction carries (the sheet, the evidence).
+                        const m = r.match(/^(.*?: )(\/api\/\S+)$/);
+                        return m
+                          ? `<li>${escapeHtml(m[1])}<a href="${escapeHtml(m[2])}">${escapeHtml(m[2].startsWith("/api/vbu/sheet") ? "download the .xlsx" : "open")}</a></li>`
+                          : `<li>${escapeHtml(r)}</li>`;
+                      })
                       .join("")}</ol>`
                 : ""
             }

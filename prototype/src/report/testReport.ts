@@ -6,6 +6,7 @@ import { getRun, listRuns, type RunRecord } from "../runStore.js";
 import type { CheckResult } from "../ai/types.js";
 import { isTemplate, toCurl, TOKEN_VAR } from "./curl.js";
 import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
+import { VBU_CSS, renderBugsSection, renderEvidence, renderQaDocSection } from "./vbuReport.js";
 import {
   JOURNEY_CSS,
   nestCasesUnderSteps,
@@ -532,7 +533,7 @@ function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean)
   const moduleLabel = groupOfFeature(row.test.feature)?.label ?? row.test.feature.split(".")[0];
 
   return `
-<details class="case v-${row.verdict}" data-verdict="${row.verdict}" data-feature="${escapeHtml(row.test.feature)}"
+<details class="case v-${row.verdict}" id="case-${escapeHtml(row.test.id)}" data-verdict="${row.verdict}" data-feature="${escapeHtml(row.test.feature)}"
          data-module="${escapeHtml(moduleLabel)}"
          data-search="${escapeHtml(`${row.test.id} ${row.test.title} ${row.test.feature} ${request.path}`.toLowerCase())}">
   <summary>
@@ -633,6 +634,7 @@ function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean)
         </details>
       </div>
     </div>
+    ${renderEvidence(result, row.test)}
   </div>
 </details>`;
 }
@@ -997,6 +999,7 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
 /* ── what wasn't checked: a worklist, ordered by how much it unblocks ── */
 .filters { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 10px 0; margin-bottom: 4px; }
 ${JOURNEY_CSS}
+${VBU_CSS}
 </style>
 </head>
 <body>
@@ -1082,6 +1085,8 @@ ${JOURNEY_CSS}
     <span class="count" id="showing"></span>
   </div>
 
+  ${renderQaDocSection(rows)}
+  ${renderBugsSection(rows)}
   ${renderFieldChecksSection(journey)}
   ${journeySection}
   ${

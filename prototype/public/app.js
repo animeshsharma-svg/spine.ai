@@ -3770,7 +3770,13 @@ function bugCard(g) {
       ${
         (g.reproduction ?? []).length
           ? `<div class="bug-sub">How to reproduce</div><ol class="bug-steps">${g.reproduction
-              .map((r) => `<li>${esc(r)}</li>`)
+              .map((r) => {
+                // A vendor bulk upload bug carries links: the exact sheet, the full evidence.
+                const m = String(r).match(/^(.*?: )(\/api\/\S+)$/);
+                return m
+                  ? `<li>${esc(m[1])}<a href="${esc(m[2])}" target="_blank" rel="noopener">${m[2].startsWith("/api/vbu/sheet") ? "download the .xlsx" : "open the evidence"}</a></li>`
+                  : `<li>${esc(r)}</li>`;
+              })
               .join("")}</ol>`
           : ""
       }
