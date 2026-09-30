@@ -60,8 +60,14 @@ function table(headers: string[], rows: string[][], rowCls: string[] = []): stri
 }
 const td = (v: unknown, cls = "") => `<td class="${cls}">${e(v)}</td>`;
 
+/** The bug a failing case reproduces — the live registry first, so a bug filed after the run still shows. */
+function caseBug(ev: VbuEvidence) {
+  if (ev.verdict.pass || ev.verdict.inconclusive) return undefined;
+  return bugForCase(ev.caseId) ?? ev.bug;
+}
+
 function bugBox(ev: VbuEvidence): string {
-  const b = ev.bug ? bugForCase(ev.caseId) ?? ev.bug : undefined;
+  const b = caseBug(ev);
   if (!b) return "";
   return `<div class="ev-bug ${b.status === "SUSPECTED" ? "sus" : ""}">
     <p><b>${e(b.id)} · ${e(b.severity)}${b.status === "SUSPECTED" ? " · suspected from the code" : ""}</b> — ${e(b.title)}</p>
@@ -150,7 +156,7 @@ export function renderEvidence(result: CheckResult | undefined, test: TestCaseRe
   if (ev.rule) parts.push(`<p class="pre"><b>Rule in the code:</b> <span class="ev-mono">${e(ev.rule)}</span></p>`);
   if (test.disagree) parts.push(`<p class="pre"><b>Spec vs code:</b> ${e(test.disagree)}</p>`);
 
-  return `<details class="evidence"${ev.verdict.pass ? "" : " open"}><summary>Evidence — sheet, rows, records${ev.bug ? `, ${e(ev.bug.id)}` : ""}</summary>${parts.join("\n")}</details>`;
+  return `<details class="evidence"${ev.verdict.pass ? "" : " open"}><summary>Evidence — sheet, rows, records${caseBug(ev) ? `, ${e(caseBug(ev)!.id)}` : ""}</summary>${parts.join("\n")}</details>`;
 }
 
 // ── page-level sections ──────────────────────────────────────────────────
