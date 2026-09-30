@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import type { AgentEvent, Report, CheckResult } from "./ai/types.js";
 import type { TestCaseRecord } from "./checks/caseLibrary.js";
 import type { JourneyRecord } from "./checks/journeyModel.js";
+import { recordRun, removeRun } from "./db/runHistory.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS_DIR = join(here, "..", "data", "runs");
@@ -98,6 +99,9 @@ export function newRunId(): string {
 export function saveRun(rec: RunRecord): void {
   ensureDir();
   writeFileSync(join(RUNS_DIR, `${rec.id}.json`), JSON.stringify(rec, null, 0));
+  // A copy in spine.ai's database, for track records across runs. Best-effort
+  // and in the background: the file above is what the run depends on.
+  void recordRun(rec);
 }
 
 export function getRun(id: string): RunRecord | null {
@@ -121,6 +125,7 @@ export function deleteRun(id: string): boolean {
   const file = join(RUNS_DIR, `${safe}.json`);
   if (!existsSync(file)) return false;
   rmSync(file, { force: true });
+  void removeRun(safe);
   return true;
 }
 

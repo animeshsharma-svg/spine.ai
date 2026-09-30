@@ -454,8 +454,15 @@ const server = createServer(async (req, res) => {
         send("fatal", { message: "No test cases found in what was pasted — number them, one per line." });
         return res.end();
       }
-      if (process.env.SPINE_SCRIPTED_CASES === "0") {
-        send("fatal", { message: "The pasted-case runner is switched off on this server (SPINE_SCRIPTED_CASES=0)." });
+      // The pasted-list runner replays SCRIPTED demo outcomes (config/demoCases.ts)
+      // — nothing in it reaches Procol. It is off unless a demo explicitly turns
+      // it on, so a pasted list can never be mistaken for a real run.
+      if (process.env.SPINE_SCRIPTED_CASES !== "1") {
+        send("fatal", {
+          message:
+            "A pasted list of test cases is not run as a batch yet. Paste one test case and press “Compile this test case & run it”, " +
+            "or pick the cases you want under Test cases → Run.",
+        });
         return res.end();
       }
       const startedAt = Date.now();
@@ -1007,14 +1014,14 @@ const server = createServer(async (req, res) => {
 
     // ── API: what the platform knows (the two-tier QA memory) ───────────
     if (path === "/api/knowledge") {
-      if (!isBuilt()) {
+      if (!(await isBuilt())) {
         json(res, { built: false, note: "run `npm run rag:build` to index the knowledge base" });
         return;
       }
       const q = url.searchParams.get("q");
       const mod = url.searchParams.get("module") ?? undefined;
       if (!q) {
-        json(res, { built: true, ...ragStats() });
+        json(res, { built: true, ...(await ragStats()) });
         return;
       }
       const { expectations, experience } = await recall(q, mod, 6);

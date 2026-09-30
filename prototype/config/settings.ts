@@ -101,6 +101,10 @@ export const AI = {
       long: process.env.SLINGRING_LONG_MODEL ?? "HACK26_GPT_5_6_SOL",
       embed: process.env.SLINGRING_EMBED_MODEL ?? "HACK26_TEXT_EMBED_3_LARGE",
     },
+    // The model's native 3072 is shortened by the API itself (OpenAI-style
+    // `dimensions`) to what pgvector's HNSW index accepts (at most 2000), and
+    // what the spine database's `embedding vector(1536)` column holds.
+    embedDims: Number(process.env.SLINGRING_EMBED_DIMS ?? 1536),
     // Published price per 1M tokens, so the dashboard can show spend.
     usdPerMillion: { HACK26_GPT_6_ASTRA: 50 } as Record<string, number>,
   },

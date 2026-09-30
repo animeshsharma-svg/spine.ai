@@ -5,7 +5,8 @@
  *
  * Two implementations, chosen by what is available:
  *
- *   slingring  HACK26_TEXT_EMBED_3_LARGE via Procol's gateway — 3072 dims, and
+ *   slingring  HACK26_TEXT_EMBED_3_LARGE via Procol's gateway — asked for 1536
+ *              dims (the API shortens its native 3072; see settings), and
  *              markedly better at the domain language ("savings column",
  *              "surrogate bid") than a small local model. Used when
  *              SLINGRING_API_KEY is set, unless EMBEDDINGS_PROVIDER=local.
@@ -58,7 +59,7 @@ export async function ensureEmbedderReady(): Promise<string> {
 /** A stable name for the embedder in use — stored alongside the vectors. */
 export function embedderId(): string {
   return embedProvider() === "slingring"
-    ? `slingring:${AI.slingring.models.embed}`
+    ? `slingring:${AI.slingring.models.embed}@${AI.slingring.embedDims}`
     : `local:${AI.embeddings.model}`;
 }
 
@@ -85,22 +86,53 @@ async function localEmbedOne(text: string): Promise<number[]> {
  * OpenAI-shaped embeddings endpoint. The gateway accepts a batch, so the whole
  * corpus goes over in a few dozen requests instead of 1,200.
  */
-async function slingringEmbed(texts: string[]): Promise<number[][]> {
+async function slingringEmbedOnce(texts: string[]): Promise<Array<number[] | undefined>> {
   const key = process.env[AI.slingring.apiKeyEnvVar]!;
   const res = await fetch(`${AI.slingring.baseUrl}/embeddings`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: AI.slingring.models.embed, input: texts }),
+    body: JSON.stringify({ model: AI.slingring.models.embed, input: texts, dimensions: AI.slingring.embedDims }),
   });
-  if (!res.ok) throw new Error(`Slingring embeddings ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) {
+    const err = new Error(`Slingring embeddings ${res.status}: ${(await res.text()).slice(0, 300)}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
   const j: any = await res.json();
   if (j.error) throw new Error(`Slingring embeddings: ${String(j.error.message ?? j.error).slice(0, 200)}`);
   const rows: Array<{ index: number; embedding: number[] }> = j.data ?? [];
-  if (!rows.length) throw new Error("Slingring embeddings returned no vectors");
-  // The API may return rows out of order; put them back by index.
-  const out: number[][] = new Array(texts.length);
-  for (const r of rows) out[r.index] = normalise(r.embedding);
+  // The API may return rows out of order; put them back by index. A batch can
+  // also come back SHORT (seen 2026-10-01: one of 64 missing) — those slots
+  // stay undefined and are retried by the caller.
+  const out: Array<number[] | undefined> = new Array(texts.length);
+  for (const r of rows) if (Array.isArray(r?.embedding) && r.embedding.length) out[r.index] = normalise(r.embedding);
   return out;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** One batch, with backoff on 429/5xx and the missing items retried one by one. */
+async function slingringEmbed(texts: string[]): Promise<number[][]> {
+  let out: Array<number[] | undefined> | undefined;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      out = await slingringEmbedOnce(texts);
+      break;
+    } catch (e) {
+      const status = (e as { status?: number }).status ?? 0;
+      if (attempt >= 4 || !(status === 429 || status >= 500)) throw e;
+      await sleep(1000 * 2 ** (attempt - 1));
+    }
+  }
+  for (let i = 0; i < texts.length; i++) {
+    for (let attempt = 1; !out[i] && attempt <= 3; attempt++) {
+      out[i] = (await slingringEmbedOnce([texts[i]]).catch(() => [undefined]))[0];
+      if (!out[i]) await sleep(500 * attempt);
+    }
+    if (!out[i]) throw new Error(`Slingring embeddings returned no vector for input ${i} after retries: "${texts[i].slice(0, 80)}…"`);
+  }
+  if (!out.length && texts.length) throw new Error("Slingring embeddings returned no vectors");
+  return out as number[][];
 }
 
 function normalise(v: number[]): number[] {
