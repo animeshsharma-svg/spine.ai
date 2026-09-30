@@ -204,7 +204,14 @@ export function readEvidence(ref: string): VbuEvidence | null {
 /** A filled workbook as the evidence grid: the named columns that hold a value, row by row. */
 export function sheetGrid(base64: string): { headers: string[]; rows: string[][] } | undefined {
   try {
-    const wb = XLSX.read(Buffer.from(base64, "base64"), { type: "buffer" });
+    const buf = Buffer.from(base64, "base64");
+    // Only open real workbooks: SheetJS spins forever on some zips that are not
+    // one (a Word .docx hung the whole run at 100% CPU).
+    const isXlsx = buf.subarray(0, 2).toString("latin1") === "PK" && buf.includes("xl/workbook");
+    const isXls = buf.subarray(0, 4).toString("hex") === "d0cf11e0";
+    const isText = buf.length > 0 && !buf.subarray(0, 512).includes(0) && !/^(PK|%PDF)/.test(buf.subarray(0, 4).toString("latin1"));
+    if (!isXlsx && !isXls && !isText) return undefined;
+    const wb = XLSX.read(buf, { type: "buffer", sheetRows: 30 });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const g: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", blankrows: true, raw: false });
     const hdr: string[] = (g[2] ?? []).map((h) => String(h));
