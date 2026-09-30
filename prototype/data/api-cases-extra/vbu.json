@@ -12,6 +12,9 @@
     ],
     "expectedResult": "HTTP 422, error code 2 'Insufficient parameters'. No job rows are staged. Message 'Insufficient parameters'. Rule: app/controllers/api/v1/companies_controller.rb:209.",
     "rationale": "The only required parameter. An API client that forgets it must get a clean 422, never a 500 from decoding nil.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:209",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {},
@@ -35,6 +38,9 @@
     ],
     "expectedResult": "HTTP 422, error code 2 'Insufficient parameters'. Message 'Insufficient parameters'. Rule: app/controllers/api/v1/companies_controller.rb:209.",
     "rationale": "JSON null reaches Rails as nil — same guard as a missing key; proves the guard is `nil?` and not `key?`.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:209",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -60,6 +66,9 @@
     ],
     "expectedResult": "HTTP 422 'Invalid file format' (error 15 carrying messages.invalid_file_format). Never a 500. Message 'Invalid file format'. Rule: app/controllers/api/v1/companies_controller.rb:209-211, lib/excel_sheet_utils.rb:2-13.",
     "rationale": "The guard only catches nil. An empty string goes on to Base64-decode into a 0-byte temp file; Roo then has to fail on it without a 500.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:209-211, lib/excel_sheet_utils.rb:2-13",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -85,6 +94,9 @@
     ],
     "expectedResult": "HTTP 422 'Invalid file format'. Message 'Invalid file format'. Rule: lib/excel_sheet_utils.rb:4-11.",
     "rationale": "Ruby's Base64.decode64 silently skips characters outside the alphabet, so garbage decodes to a few junk bytes instead of raising — the Roo fallback chain must still end in a clean refusal.",
+    "qaDoc": [],
+    "rule": "lib/excel_sheet_utils.rb:4-11",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -111,6 +123,9 @@
     ],
     "expectedResult": "HTTP 422 'Invalid file format'. No job staged. Rule: lib/excel_sheet_utils.rb:4-11.",
     "rationale": "File type is decided only by trying Excelx then Excel; a PDF must fall through both to the 'Invalid file format' branch.",
+    "qaDoc": [],
+    "rule": "lib/excel_sheet_utils.rb:4-11",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -142,6 +157,9 @@
     ],
     "expectedResult": "HTTP 422 'Invalid file format'. Rule: lib/excel_sheet_utils.rb:4-11.",
     "rationale": "Binary non-zip, non-OLE input — the second Roo fallback must raise Ole::Storage::FormatError, which is the only error the helper rescues there.",
+    "qaDoc": [],
+    "rule": "lib/excel_sheet_utils.rb:4-11",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -173,6 +191,10 @@
     ],
     "expectedResult": "HTTP 422 'Invalid file format' — and the UI should not offer CSV in the first place. Rule: lib/excel_sheet_utils.rb:4-11; procol-client-dashboard/src/views/vendorBulkUpload/uploadExcelModal.jsx:124-128 (accept=\".csv, …\").",
     "rationale": "The upload dialog's file picker accepts .csv, but the backend only opens xlsx/xls. A buyer can pick a CSV and get an error they cannot act on.",
+    "qaDoc": [],
+    "rule": "lib/excel_sheet_utils.rb:4-11; procol-client-dashboard/src/views/vendorBulkUpload/uploadExcelModal.jsx:124-128 (accept=\".csv, …\")",
+    "disagree": "Client accepts .csv; backend cannot parse CSV.",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -204,6 +226,9 @@
     ],
     "expectedResult": "HTTP 422 'Invalid file format'. Any 5xx is a defect. Rule: lib/excel_sheet_utils.rb:4-11.",
     "rationale": "A .docx is a valid zip, so Roo::Excelx gets further than with a PDF and can raise errors the helper does not rescue (only Zip::Error/ArgumentError are).",
+    "qaDoc": [],
+    "rule": "lib/excel_sheet_utils.rb:4-11",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -236,6 +261,9 @@
     ],
     "expectedResult": "A clean 4xx — 422 'Invalid file format', or the sandbox firewall's bare 403 (seen 2026-09-29); never a 500. Rule: lib/excel_sheet_utils.rb:17-23; client strips at uploadExcelModal.jsx:57.",
     "rationale": "The web app strips 'data:…;base64,' before sending; any other client that forgets gets junk bytes in front of the zip.",
+    "qaDoc": [],
+    "rule": "lib/excel_sheet_utils.rb:17-23; client strips at uploadExcelModal.jsx:57",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -266,6 +294,9 @@
     ],
     "expectedResult": "HTTP 422 'Format is updated for bulk upload, please download the format to continue.' No job staged. Rule: app/services/conversions/excel_to_json_conversion_service.rb:164-167; config/locales/en-IN.yml:506.",
     "rationale": "Buyers still hold the pre-V2 template. The parser must refuse it outright instead of staging rows that all fail.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:164-167; config/locales/en-IN.yml:506",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -297,6 +328,9 @@
     ],
     "expectedResult": "HTTP 422 'Format is updated for bulk upload, please download the format to continue.' Rule: app/services/conversions/excel_to_json_conversion_service.rb:164.",
     "rationale": "The old-format test is 'any one of three headers', so one leftover column rejects an otherwise current sheet — worth knowing when a buyer adds a column by hand.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:164",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -328,6 +362,9 @@
     ],
     "expectedResult": "HTTP 422 with a clear message (e.g. 'no data rows'); never a 500. Rule: app/services/conversions/excel_to_json_conversion_service.rb:168-171.",
     "rationale": "sheet.last_row is nil for an empty sheet and the loop compares 4 <= nil — an ArgumentError outside any rescue.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:168-171",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -358,6 +395,9 @@
     ],
     "expectedResult": "HTTP 422 'no vendor rows found' (or similar). Today: HTTP 200 and nothing staged. Rule: app/services/conversions/excel_to_json_conversion_service.rb:168-181; app/helpers/api/companies_helper.rb:680-714 (no empty check).",
     "rationale": "There is no empty-sheet rule: the upload answers success, the UI toasts 'Vendors Sheet Uploaded', and no job ever appears. The buyer cannot tell anything happened.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:168-181; app/helpers/api/companies_helper.rb:680-714 (no empty check)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -387,6 +427,9 @@
     ],
     "expectedResult": "HTTP 422 telling the buyer to use the template. Today: 200 and nothing staged. Rule: app/services/conversions/excel_to_json_conversion_service.rb:168-170.",
     "rationale": "The parser always reads headers from row 3. A buyer who builds their own sheet with headers on row 1 gets row 3 (a data row) read as headers — silently.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:168-170",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -417,6 +460,9 @@
     ],
     "expectedResult": "HTTP 200; one row, failed 'Invalid Status' (every rule before Status passed). Rule: lib/excel_sheet_utils.rb:6-8.",
     "rationale": "The Roo::Excel fallback is the only path for .xls; it must hand the same row to the validator.",
+    "qaDoc": [],
+    "rule": "lib/excel_sheet_utils.rb:6-8",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -451,6 +497,10 @@
     ],
     "expectedResult": "HTTP 200; row failed 'Invalid Status' (every value found under its own name). Rule: app/services/conversions/excel_to_json_conversion_service.rb:172-178.",
     "rationale": "The QA doc warns that an old template 'puts values in the wrong columns'. The parser keys every cell by its header name, so order should not matter at all.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:172-178",
+    "disagree": "QA doc says a sheet downloaded before the flag change 'will put values in the wrong columns'; the parser maps by header name, so only a changed header NAME matters, not order.",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -486,6 +536,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' (header trimmed on both sides). Today likely 'Mandatory Item cannot be left empty'. Rule: app/services/conversions/excel_to_json_conversion_service.rb:177 (key.to_s.rstrip).",
     "rationale": "The parser rstrips headers (trailing spaces) but not leading ones, so a stray space in front silently empties the column.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:177 (key.to_s.rstrip)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -521,6 +574,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/services/conversions/excel_to_json_conversion_service.rb:177.",
     "rationale": "Pins the rstrip that exists today.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:177",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -555,6 +611,9 @@
     ],
     "expectedResult": "Row failed 'Mandatory Item cannot be left empty'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:215-220.",
     "rationale": "Documents the strictness: a lower-cased header is an unknown column, so Company Name is empty.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:215-220",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -589,6 +648,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/controllers/concerns/utils.rb:877-884 (unknown keys copied as-is).",
     "rationale": "Buyers add notes columns. Unknown columns are passed straight through into the invite parameters, so they must at least not break validation.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:877-884 (unknown keys copied as-is)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -623,6 +685,9 @@
     ],
     "expectedResult": "Exactly 2 staged rows, both failed 'Invalid Status'. Today a 3rd (blank) row is staged and failed. Rule: app/services/conversions/excel_to_json_conversion_service.rb:171-181 (no blank-row skip).",
     "rationale": "Every row up to last_row is staged, including empty ones, so the error sheet fills with 'failed' rows the buyer never wrote.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:171-181 (no blank-row skip)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -661,6 +726,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email' (the second, invalid value was used). Behaviour to document, not a defect. Rule: app/services/conversions/excel_to_json_conversion_service.rb:175-178.",
     "rationale": "Two 'POC - Email Address' columns (a valid then an invalid one) collapse into one hash key; which one survives decides the error.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:175-178",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -696,6 +764,9 @@
     ],
     "expectedResult": "HTTP 200 in well under 60 s; all 1,000 rows end failed 'Invalid Status'; none left in_progress. Rule: app/controllers/api/v1/companies_controller.rb:210-213; app/helpers/api/companies_helper.rb:680-714.",
     "rationale": "Parsing and the staging insert happen inside the web request (the PR doc warns about an 11,000-row load). 1,000 tripwired rows measure it without creating anything.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:210-213; app/helpers/api/companies_helper.rb:680-714",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -717,6 +788,48 @@
     }
   },
   {
+    "id": "VBU-024",
+    "feature": "vendorbulk.file",
+    "title": "Two uploads by the same user at the same moment get separate jobs",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Data: creates nothing (every row stops in validation).",
+    "steps": [
+      "POST two different tripwired sheets at the same moment",
+      "Read the job id of every staged row"
+    ],
+    "expectedResult": "Two jobs with one row each. Today the two rows can land in one job id. Rule: app/helpers/api/companies_helper.rb:684.",
+    "rationale": "The job id is 'this user's job count + 1', read before the insert, so two uploads at the same time can share an id — their rows, status and error sheet then mix.",
+    "qaDoc": [],
+    "rule": "app/helpers/api/companies_helper.rb:684",
+    "tier": "safe",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "concurrent",
+      "tier": "safe",
+      "requires": {},
+      "fixture": "VBU-024.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "error": "Invalid Status"
+        },
+        {
+          "status": "failed",
+          "error": "Invalid Status"
+        }
+      ],
+      "fixture2": "VBU-024-b.xlsx",
+      "everyRow": false
+    }
+  },
+  {
     "id": "VBU-030",
     "feature": "vendorbulk.access",
     "title": "The template carries every column this workspace needs",
@@ -731,6 +844,11 @@
     ],
     "expectedResult": "HTTP 200; row 3 lists Company Name, Tax Type, Tax No., Business Location, City, Address, Vendor Profile, POC name/email, Vendor Code, VRP Code, PAN No., Pincode, POC 2 name/email, Deals In, Status, every extra field, and 'Vendor Onboarding Required' when onboarding can be skipped. Rule: app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:101-113; PR16267 app/controllers/concerns/utils.rb:792-848 (PAN No./Pincode at 813-814 for every workspace).",
     "rationale": "The template is generated per workspace from its settings (extra fields, can-skip, contactless). A missing column means a rule a buyer can never satisfy.",
+    "qaDoc": [
+      "D1"
+    ],
+    "rule": "app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:101-113; PR16267 app/controllers/concerns/utils.rb:792-848 (PAN No./Pincode at 813-814 for every workspace)",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_template",
     "expected": "accept",
@@ -757,6 +875,9 @@
     ],
     "expectedResult": "Row 4: Company Name=Procol, POC - Full Name=Procol Contact, POC - Email Address=example@procol.in, City=Gurgaon, Address=Platina Tower. Rule: PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:295-336 (sample written by position in the flag-OFF order; PR did not touch it).",
     "rationale": "The sample row is written by position from a fixed list in the flag-OFF order. When contactless moves columns, 'Procol Contact' lands under Tax Type and the email under Tax No. A buyer who edits the sample row uploads garbage.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:295-336 (sample written by position in the flag-OFF order; PR did not touch it)",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_template",
     "expected": "accept",
@@ -783,6 +904,9 @@
     ],
     "expectedResult": "Vendor Profile list on the Vendor Profile column; Tax Type, Business Location, Status, Vendor Onboarding Required each on their own column; no column with two lists. Rule: PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:97 (D4:D100 unless vendor_invitation_v2 — not updated for contactless), 263-282.",
     "rationale": "The Vendor Profile dropdown range is hard-coded to D4:D100 unless vendor_invitation_v2 is on; with the contactless layout D is Business Location, so D gets two conflicting lists and Vendor Profile gets none.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:97 (D4:D100 unless vendor_invitation_v2 — not updated for contactless), 263-282",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_template",
     "expected": "accept",
@@ -809,6 +933,9 @@
     ],
     "expectedResult": "Declared range = the real range. Rule: app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:21-85 (axlsx dimension).",
     "rationale": "The <dimension> of the generated sheet can end before the last columns; readers that trust it (SheetJS, some ERPs' importers) drop Bank IFSC Code and Vendor Onboarding Required.",
+    "qaDoc": [],
+    "rule": "app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:21-85 (axlsx dimension)",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_template",
     "expected": "accept",
@@ -835,6 +962,10 @@
     ],
     "expectedResult": "Vendor Profiles = the keys of vendor_category_type_mapping; Vendor Onboarding Required = Yes, No (when onboarding can be skipped); Status = rejected, active. Rule: app/controllers/concerns/utils.rb:847-857; app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:121-142.",
     "rationale": "Vendor Profile values come from vendor_category_type_mapping (GMMCO: manufacturer_trader …) — not 'manufacturer/brokerage' as the QA doc says.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:847-857; app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:121-142",
+    "disagree": "QA doc: 'Valid values: Vendor Profile manufacturer or brokerage'. For GMMCO the valid values are manufacturer_trader, service_provider_contractor, transporter_Logistics_provider, liscening_supplier.",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_template",
     "expected": "accept",
@@ -861,6 +992,9 @@
     ],
     "expectedResult": "Mandatory Details: Company Name (+ the With Tax No. trio). POC - Full Name, POC - Email Address, Vendor Profile, City, Address under Optional Details. Rule: PR16267 app/controllers/concerns/utils.rb:800-848.",
     "rationale": "The flag moves POC Name, POC Email and Vendor Profile out of the mandatory group; the template must show that, or buyers keep filling fields they don't need.",
+    "qaDoc": [],
+    "rule": "PR16267 app/controllers/concerns/utils.rb:800-848",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_template",
     "expected": "accept",
@@ -888,6 +1022,9 @@
     ],
     "expectedResult": "HTTP 200 with jobs[] {job_uuid, success, failed, in_progress, already_mapped, total, created_at}. Rule: app/controllers/api/v1/companies_controller.rb:247-270.",
     "rationale": "The page polls this every 30 s while a job runs; it must answer with the job counters.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:247-270",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_status",
     "expected": "accept",
@@ -910,6 +1047,9 @@
     ],
     "expectedResult": "HTTP 422 'Insufficient parameters'. Rule: app/controllers/api/v1/companies_controller.rb:235.",
     "rationale": "job_id is required; the guard must answer 422, not 500.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:235",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_error_sheet",
     "expected": "accept",
@@ -935,6 +1075,9 @@
     ],
     "expectedResult": "HTTP 422 with a message like 'This job has no failed rows'. Today: 'You are not allowed to change the phone number.' Rule: app/controllers/api/v1/companies_controller.rb:238; config/locales/en-IN.yml api_errors.487.",
     "rationale": "The 'no failed rows' branch renders error 487, whose text is about phone numbers — a buyer clicking 'Download Excel' sees a message that makes no sense.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:238; config/locales/en-IN.yml api_errors.487",
+    "tier": "safe",
     "method": "GET",
     "path": "/v1/bulk_create_vendor_error_sheet",
     "expected": "accept",
@@ -962,6 +1105,9 @@
     ],
     "expectedResult": "HTTP 200 excel_url; the file's first column is 'Error' = 'Invalid Status', followed by the row's values. Rule: app/controllers/api/v1/companies_controller.rb:232-245; app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:336-359.",
     "rationale": "The error sheet is how a buyer fixes a big upload; it must hold every failed row and an Error column.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:232-245; app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:336-359",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -986,68 +1132,270 @@
   {
     "id": "VBU-040",
     "feature": "vendorbulk.access",
-    "title": "disable_manual_vendor_creation blocks upload and template for non-Procol users",
+    "title": "disable_manual_vendor_creation blocks the upload for client users",
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
     "preconditions": "disable_manual_vendor_creation is on Data: creates nothing (every row stops in validation).",
     "steps": [
-      "On a workspace with the setting on, as a client user: GET template, POST a sheet",
-      "Repeat as a Procol employee"
+      "On a workspace with the setting on, as a client (non-Procol) user: POST a tripwired sheet"
     ],
-    "expectedResult": "Client user: HTTP 422 error 745 'Manual vendor creation is disabled' on both. Procol employee: allowed. Rule: app/controllers/api/v1/companies_controller.rb:205-208, 219-222.",
-    "rationale": "The setting exists to force vendors in through integration only; both endpoints check it.",
+    "expectedResult": "HTTP 422 error 745 'Manual vendor creation is disabled'; nothing staged. (A Procol employee is allowed.) Rule: app/controllers/api/v1/companies_controller.rb:205-208.",
+    "rationale": "The setting exists to force vendors in through integration only. It runs before the file is even read.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:205-208",
+    "disagree": "The Vendors page in onboarding mode still shows the Bulk Upload link with no check (vendorOnboardingFlow.jsx:249-258); the legacy lists hide it — see VBU-047.",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
-      "manual_case": "VBU-040"
+      "excel_data": "{{vbuSheet}}"
     },
-    "expected": "no-5xx",
-    "notRunnable": "Manual case — Needs a workspace with disable_manual_vendor_creation ON and a live session; none on UAT today (checked 2026-09-29)."
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "safe",
+      "requires": {
+        "disableManual": true
+      },
+      "fixture": "VBU-040.xlsx",
+      "refuse": {
+        "message": "Manual vendor creation is disabled"
+      },
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-043",
+    "feature": "vendorbulk.access",
+    "title": "disable_manual_vendor_creation also blocks the template download",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "disable_manual_vendor_creation is on Data: creates nothing (every row stops in validation).",
+    "steps": [
+      "GET /v1/bulk_create_vendor_template on a workspace with the setting on"
+    ],
+    "expectedResult": "HTTP 422 error 745 'Manual vendor creation is disabled'. Message 'Manual vendor creation is disabled'. Rule: app/controllers/api/v1/companies_controller.rb:219-222.",
+    "rationale": "Same gate on the template endpoint, so the buyer is told before filling a sheet.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:219-222",
+    "tier": "safe",
+    "method": "GET",
+    "path": "/v1/bulk_create_vendor_template",
+    "expected": "reject",
+    "bulk": {
+      "kind": "http",
+      "tier": "safe",
+      "requires": {
+        "disableManual": true
+      }
+    }
   },
   {
     "id": "VBU-041",
     "feature": "vendorbulk.access",
-    "title": "Only users with company:create_record may upload; sellers never",
+    "title": "A vendor (seller) user cannot bulk upload vendors",
     "type": "Security",
     "priority": "P0",
     "severity": "High",
     "preconditions": "Data: creates nothing (every row stops in validation).",
     "steps": [
-      "As a member without company create permission: POST a sheet",
-      "As a vendor user: POST a sheet",
-      "As both: GET status and error sheet"
+      "Sign in as a QA test vendor of this workspace (vendor app, OTP rule of the sandbox)",
+      "POST a tripwired sheet"
     ],
-    "expectedResult": "HTTP 403/401 'not authorized' for both; no job staged. Rule: app/policies/company_policy.rb:123-134.",
-    "rationale": "Upload creates companies, users and invitations; the policy is the only gate.",
+    "expectedResult": "Refused and nothing staged — HTTP 401 'This app is not authorized to use this API' (the vendor app may not call it at all) or 403/422 from the policy. Rule: app/policies/company_policy.rb:123-126; config/app_auth_config.yml (bulk_create_vendor only in the console apps).",
+    "rationale": "The upload creates companies, users and invitations; CompanyPolicy#bulk_create_vendor? refuses sellers first. Run as one of our own QA test vendors (qa_…@example.com), never a real supplier.",
+    "qaDoc": [],
+    "rule": "app/policies/company_policy.rb:123-126; config/app_auth_config.yml (bulk_create_vendor only in the console apps)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
-      "manual_case": "VBU-041"
+      "excel_data": "{{vbuSheet}}"
     },
-    "expected": "no-5xx",
-    "notRunnable": "Manual case — Needs a buyer session without company:create_record and a vendor (seller) session for the same workspace."
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "safe",
+      "requires": {},
+      "fixture": "VBU-041.xlsx",
+      "refuse": {},
+      "actor": "seller-qa",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-044",
+    "feature": "vendorbulk.access",
+    "title": "A buyer without company:create_record cannot bulk upload vendors",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Data: creates nothing (every row stops in validation).",
+    "steps": [
+      "Use a workspace user whose permissions lack company:create_record",
+      "POST a tripwired sheet"
+    ],
+    "expectedResult": "HTTP 422 'You are not authorized to perform this action' (or 401/403); nothing staged. Rule: app/policies/company_policy.rb:123-126.",
+    "rationale": "The policy's second condition. The runner only uses a member session after the dashboard configuration confirms it lacks company:create_record.",
+    "qaDoc": [],
+    "rule": "app/policies/company_policy.rb:123-126",
+    "tier": "safe",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "safe",
+      "requires": {},
+      "fixture": "VBU-044.xlsx",
+      "refuse": {},
+      "actor": "member-no-company-create",
+      "everyRow": false
+    }
   },
   {
     "id": "VBU-042",
     "feature": "vendorbulk.access",
-    "title": "The template endpoint has no permission check",
+    "title": "The template endpoint refuses a user who may not upload",
     "type": "Security",
     "priority": "P2",
     "severity": "Low",
     "preconditions": "Data: creates nothing (every row stops in validation).",
     "steps": [
-      "As a member without company create permission: GET the template"
+      "As a user without company:create_record: GET /v1/bulk_create_vendor_template"
     ],
-    "expectedResult": "Refused like the upload itself. Today: served. Rule: app/controllers/api/v1/companies_controller.rb:218-229 (no authorize).",
-    "rationale": "bulk_create_vendor_template never calls authorize, so anyone signed in to the console app gets the workspace's category list (Deals In codes) and profile types.",
+    "expectedResult": "Refused like the upload itself (401/403/422 not authorised). Today: served. Rule: app/controllers/api/v1/companies_controller.rb:218-229 (no authorize).",
+    "rationale": "bulk_create_vendor_template never calls authorize, so anyone signed in to the console app gets the workspace's category codes and profile types.",
+    "qaDoc": [],
+    "rule": "app/controllers/api/v1/companies_controller.rb:218-229 (no authorize)",
+    "tier": "safe",
+    "method": "GET",
+    "path": "/v1/bulk_create_vendor_template?as=member-without-company-create",
+    "expected": "reject",
+    "bulk": {
+      "kind": "http",
+      "tier": "safe",
+      "requires": {},
+      "actor": "member-no-company-create"
+    }
+  },
+  {
+    "id": "VBU-045",
+    "feature": "vendorbulk.access",
+    "title": "Uploading the error sheet back re-checks the rows (its Error column is ignored)",
+    "type": "Functional",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Data: creates nothing (every row stops in validation).",
+    "steps": [
+      "Upload a tripwired sheet",
+      "Download that job's error sheet",
+      "Upload the error sheet as it is",
+      "Compare the rows"
+    ],
+    "expectedResult": "The re-uploaded job has the same rows with the same error ('Invalid Status'). Rule: app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:336-359; app/services/conversions/excel_to_json_conversion_service.rb:168-181.",
+    "rationale": "The normal way to fix a big upload is: download the error sheet, correct it, upload it again. The error sheet has an extra 'Error' column first; it must not break the re-upload.",
+    "qaDoc": [],
+    "rule": "app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:336-359; app/services/conversions/excel_to_json_conversion_service.rb:168-181",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
-      "manual_case": "VBU-042"
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "errorSheetReupload",
+      "tier": "safe",
+      "requires": {},
+      "fixture": "VBU-045.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "error": "Invalid Status"
+        }
+      ],
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-046",
+    "feature": "vendorbulk.access",
+    "title": "The upload screen's file picker offers only files the API can read",
+    "type": "Functional",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Data: creates nothing (every row stops in validation).",
+    "steps": [
+      "Vendors → Bulk Upload → New Upload",
+      "Open the file picker and check the allowed types"
+    ],
+    "expectedResult": "Only .xlsx / .xls. Today .csv is offered too. Rule: procol-client-dashboard/src/views/vendorBulkUpload/uploadExcelModal.jsx:124-128.",
+    "rationale": "The picker accepts .csv, which the API always refuses with 'Invalid file format' (VBU-007).",
+    "qaDoc": [],
+    "rule": "procol-client-dashboard/src/views/vendorBulkUpload/uploadExcelModal.jsx:124-128",
+    "tier": "safe",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "manual_case": "VBU-046"
     },
     "expected": "no-5xx",
-    "notRunnable": "Manual case — Needs a low-permission session."
+    "notRunnable": "Manual case — A screen check in the web app (UI automation)."
+  },
+  {
+    "id": "VBU-047",
+    "feature": "vendorbulk.access",
+    "title": "In onboarding mode the Bulk Upload link is hidden when manual creation is disabled",
+    "type": "Functional",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "disable_manual_vendor_creation is on Data: creates nothing (every row stops in validation).",
+    "steps": [
+      "On an onboarding (v2/v3) workspace with disable_manual_vendor_creation on, as a client user, open Vendors"
+    ],
+    "expectedResult": "No Bulk Upload link (as on the legacy lists). Rule: procol-client-dashboard/src/views/vendors/vendorOnboardingFlow/vendorOnboardingFlow.jsx:249-258.",
+    "rationale": "The legacy vendor lists hide the link; the onboarding-mode page shows it with no check, and the API then answers 745.",
+    "qaDoc": [],
+    "rule": "procol-client-dashboard/src/views/vendors/vendorOnboardingFlow/vendorOnboardingFlow.jsx:249-258",
+    "tier": "safe",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "manual_case": "VBU-047"
+    },
+    "expected": "no-5xx",
+    "notRunnable": "Manual case — A screen check; needs a workspace with disable_manual_vendor_creation on."
+  },
+  {
+    "id": "VBU-048",
+    "feature": "vendorbulk.access",
+    "title": "The job list tags a job with failed or duplicate rows",
+    "type": "Functional",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Data: creates nothing (every row stops in validation).",
+    "steps": [
+      "Upload a sheet with a failed row",
+      "Open Vendors → Bulk Upload"
+    ],
+    "expectedResult": "The job shows an Error tag (or its failed count stands out). Today: 'Completed'. Rule: procol-client-dashboard/src/redux/vendors/index.js:4-9, 53-64.",
+    "rationale": "The page defines Error and Duplicate tags but the data mapping only ever assigns Completed / In Progress.",
+    "qaDoc": [],
+    "rule": "procol-client-dashboard/src/redux/vendors/index.js:4-9, 53-64",
+    "tier": "safe",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "manual_case": "VBU-048"
+    },
+    "expected": "no-5xx",
+    "notRunnable": "Manual case — A screen check in the web app."
   },
   {
     "id": "VBU-050",
@@ -1064,6 +1412,11 @@
     ],
     "expectedResult": "Row failed 'Mandatory Item cannot be left empty'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:215-220.",
     "rationale": "The one field that is mandatory in every configuration.",
+    "qaDoc": [
+      "A4"
+    ],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:215-220",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1097,6 +1450,9 @@
     ],
     "expectedResult": "Row failed 'Mandatory Item cannot be left empty'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:217 (.blank?).",
     "rationale": "'   ' is present to Excel but blank to Rails; it must not create a nameless vendor.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:217 (.blank?)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1130,6 +1486,9 @@
     ],
     "expectedResult": "Row passes every rule before Status → failed 'Invalid Status'. Rule: PR16267 app/controllers/concerns/utils.rb:802,820.",
     "rationale": "Suite A of the PR: the contact fields become optional.",
+    "qaDoc": [],
+    "rule": "PR16267 app/controllers/concerns/utils.rb:802,820",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1165,6 +1524,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' (email not required, not format-checked when blank). Rule: PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:39.",
     "rationale": "On the old code a blank email fails verify_email ('Invalid Email') even when it is not mandatory; the PR must skip the format check for a blank value.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:39",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1200,6 +1562,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:186-192.",
     "rationale": "The live template lists Vendor Profile under Optional; a blank value must default to manufacturer, not fail.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:186-192",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1235,6 +1600,11 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:37,58-60.",
     "rationale": "Optional must not mean unvalidated (QA doc A3).",
+    "qaDoc": [
+      "A3"
+    ],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:37,58-60",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1270,6 +1640,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: PR16267 app/controllers/concerns/utils.rb:828,842 (no Without-Tax group under contactless); app/services/validations/vendor_bulk_upload_validation_service_v2.rb:24-30.",
     "rationale": "QA doc A1: Company Name alone is a valid row. On the old code this was 'Either Tax No. or Without Tax No. fields are needed'.",
+    "qaDoc": [],
+    "rule": "PR16267 app/controllers/concerns/utils.rb:828,842 (no Without-Tax group under contactless); app/services/validations/vendor_bulk_upload_validation_service_v2.rb:24-30",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1305,6 +1678,9 @@
     ],
     "expectedResult": "Row passes the tax check → failed 'Invalid Status'. Failing with 'Tax Type not configured for the selected Business Location' means the duplicate-country trap fired. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86-91 (find_by without order/active); countries table on the sandbox.",
     "rationale": "verify_tax_no does Country.find_by(name: 'India') with no order or status filter, then looks for an ACTIVE mapping for that one country row. The sandbox has 36 countries named 'India' (35 added 15-16 Jan 2026, all with inactive GST mappings), so which one Postgres returns first decides whether ANY GST row can be uploaded. 55 real rows failed this way in the last 60 days.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86-91 (find_by without order/active); countries table on the sandbox",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1338,6 +1714,11 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:82-100.",
     "rationale": "The tax path looks up Country and TaxType by exact name and matches the mapping's regex.",
+    "qaDoc": [
+      "A2"
+    ],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:82-100",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1371,6 +1752,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Tax No.'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92.",
     "rationale": "The India GST regex is upper-case only and the value is not upcased first.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1404,6 +1788,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' (the space ignored). Today likely 'Invalid Tax No.'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92 (no strip).",
     "rationale": "Values pasted into Excel often carry a trailing space; the regex is anchored and the value is never stripped, so a correct GSTIN fails.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92 (no strip)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1437,6 +1824,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Tax No.'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92.",
     "rationale": "Length boundary below the 15-character GSTIN.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1470,6 +1860,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Tax No.'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92.",
     "rationale": "Length boundary above.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1503,6 +1896,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Tax No.'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:83-85.",
     "rationale": "Business Location and Tax Type are both needed to pick the regex.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:83-85",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1536,6 +1932,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Tax No.'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:83-85.",
     "rationale": "Same guard, other field.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:83-85",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1569,6 +1968,9 @@
     ],
     "expectedResult": "Row failed 'Tax Type not configured for the selected Business Location'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86-91; app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:284-286 (GST, VAT hard-coded).",
     "rationale": "The Tax Type dropdown offers GST and VAT for every country; VAT+India has no TaxTypeCountryMapping.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86-91; app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:284-286 (GST, VAT hard-coded)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1602,6 +2004,9 @@
     ],
     "expectedResult": "Row failed 'Tax Type not configured for the selected Business Location' (documents the case sensitivity). Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86.",
     "rationale": "Country.find_by(name:) is an exact, case-sensitive match; a typed value (not from the dropdown) fails with a misleading message.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1635,6 +2040,9 @@
     ],
     "expectedResult": "Row failed 'Tax Type not configured for the selected Business Location'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:87.",
     "rationale": "TaxType.find_by(name:) is exact too.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:87",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1668,6 +2076,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Tax No.'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:46-54.",
     "rationale": "Pins the error order: the tax check runs first, so a row broken twice reports tax.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:46-54",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1701,6 +2112,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:82-100.",
     "rationale": "International vendors: VAT + a non-India country uses a different regex.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:82-100",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1734,6 +2148,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Tax No.'; no worker crash. Rule: app/services/conversions/excel_to_json_conversion_service.rb:176; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92.",
     "rationale": "A numeric cell reaches the parser as a Float; it is stringified before .match?, so it must fail the regex, not raise.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:176; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1767,6 +2184,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' (PAN not validated). Rule: PR16267 app/controllers/concerns/utils.rb:905 (strip+upcase only, no format check); QA doc 'Out of scope'.",
     "rationale": "The PR adds the column; its QA doc lists PAN format validation as out of scope. Pinned so a later change is noticed.",
+    "qaDoc": [],
+    "rule": "PR16267 app/controllers/concerns/utils.rb:905 (strip+upcase only, no format check); QA doc 'Out of scope'",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1800,6 +2220,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' today. Recommended: refuse 'PAN does not match GST'. Rule: PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:106-118 (PAN derived from GST under contactless); PR16267 app/controllers/concerns/utils.rb:905 (the PAN No. column then overwrites it).",
     "rationale": "Characters 3-12 of a GSTIN are the PAN. A different PAN in the PAN column is stored side by side with it.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:106-118 (PAN derived from GST under contactless); PR16267 app/controllers/concerns/utils.rb:905 (the PAN No. column then overwrites it)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1835,6 +2258,12 @@
     ],
     "expectedResult": "Per the PR's QA doc: success, vendor stored with NO city (city_id null, or the '-' placeholder 38). Never a city id that does not exist. Rule: PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); app/controllers/concerns/utils.rb:877-884 ('City' → key city_id holds the NAME); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (params city_id present, so no fallback).",
     "rationale": "Old code: 'Invalid City Name'. QA doc A5: 'Success. Record created with no city'. The company builder defaults a missing city to id 38 ('-'). Status=rejected keeps the row mail-free if it is created.",
+    "qaDoc": [
+      "A5"
+    ],
+    "rule": "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:77 (city error skipped under contactless); app/controllers/concerns/utils.rb:877-884 ('City' → key city_id holds the NAME); PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27 (params city_id present, so no fallback)",
+    "disagree": "Found 2026-09-29: the unresolved city NAME is passed as city_id and cast to 0, so the vendor points at a city that does not exist (see VBU-154 for the crash it causes).",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1873,6 +2302,9 @@
     ],
     "expectedResult": "Either refused 'Invalid City Name' or stored with no city — never a city the buyer didn't name. Today: the first city containing 'a'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:122-131; app/models/city.rb:30 (ILIKE %x%).",
     "rationale": "City lookup falls back to name ILIKE '%a%' and takes the first alphabetically — any typo becomes a real, wrong city.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:122-131; app/models/city.rb:30 (ILIKE %x%)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1913,6 +2345,11 @@
     ],
     "expectedResult": "The row is handled cleanly — refused 'Vendor with this GST and address already exists' (the back-filled address matches) — not a worker error. Rule: app/helpers/api/companies_helper.rb:731-745 (existing_company.city.name); app/services/invitation/send_service.rb:41-54.",
     "rationale": "A contactless row with an unknown city is stored with city_id 0 (VBU-075). When a later row carries the same tax number but no City/Address, the invite looks the tax number up and reads existing_company.city.name — on a city that does not exist.",
+    "qaDoc": [
+      "A5"
+    ],
+    "rule": "app/helpers/api/companies_helper.rb:731-745 (existing_company.city.name); app/services/invitation/send_service.rb:41-54",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1950,6 +2387,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151.",
     "rationale": "The basic case.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -1983,6 +2423,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151.",
     "rationale": "VALID_EMAIL_REGEX needs a dot-TLD.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2016,6 +2459,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151.",
     "rationale": "Excel users paste 'first last@…'.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2049,6 +2495,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151.",
     "rationale": "The regex allows [\\w+\\-.&]+ in the local part, so 'a..b' passes although no mail server accepts it.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2082,6 +2531,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151.",
     "rationale": "RFC 5321 caps the local part at 64; the regex has no length limit.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2115,6 +2567,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151.",
     "rationale": "A common Excel habit; must not be sent a single invite to a comma list.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2148,6 +2603,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email'. Rule: app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151.",
     "rationale": "The regex is ASCII-only.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13 (VALID_EMAIL_REGEX), 506-509; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:147-151",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2181,6 +2639,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' (email accepted). Rule: app/controllers/concerns/utils.rb:13; app/helpers/api/companies_helper.rb:687-690.",
     "rationale": "The regex is case-insensitive; the invite matches users with lower(email).",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13; app/helpers/api/companies_helper.rb:687-690",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2214,6 +2675,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' (email accepted). Rule: app/controllers/concerns/utils.rb:13; app/helpers/api/companies_helper.rb:687-690.",
     "rationale": "The upload helper strips POC emails before staging.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13; app/helpers/api/companies_helper.rb:687-690",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2247,6 +2711,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status' (email accepted). Rule: app/controllers/concerns/utils.rb:13; app/helpers/api/companies_helper.rb:687-690.",
     "rationale": "Plus-addressing is legal and common.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:13; app/helpers/api/companies_helper.rb:687-690",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2280,6 +2747,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Email 2'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:38-40,61-63.",
     "rationale": "The second contact gets its own invite; its email is checked separately.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:38-40,61-63",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2313,6 +2783,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Deals In : QA_NOT_A_CATEGORY'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:161-179.",
     "rationale": "Deals In ties the vendor to category teams; an unknown code must be named in the error.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:161-179",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2346,6 +2819,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:165-169.",
     "rationale": "The template's Data Sheet lists the codes; one must be accepted.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:165-169",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2379,6 +2855,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Deals In : QA_NOT_A_CATEGORY'. Today likely 'Invalid Status' (the bad code slipped through). Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:165-170 (return on first valid id).",
     "rationale": "verify_deals_in RETURNS 'valid' on the first good code, so every code after it is never checked — the garbage one is silently dropped (or decoded to nil).",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:165-170 (return on first valid id)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2412,6 +2891,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Deals In : QA_NOT_A_CATEGORY'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:171-175.",
     "rationale": "The mirror of VBU-093 — shows the result depends only on order.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:171-175",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2445,6 +2927,10 @@
     ],
     "expectedResult": "Row failed 'Invalid Vendor Profile'. Rule: app/controllers/concerns/utils.rb:847-857; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189-192.",
     "rationale": "With vendor_category_type_mapping set, only its keys are valid — the QA doc's 'manufacturer or brokerage' is wrong for GMMCO.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:847-857; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189-192",
+    "disagree": "QA doc lists manufacturer/brokerage as the valid profiles.",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2480,6 +2966,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Vendor Profile'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189.",
     "rationale": "Buyers see 'Manufacturer/Trader' in the product; the sheet needs 'manufacturer_trader'.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2513,6 +3002,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189.",
     "rationale": "The match is case-insensitive.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2546,6 +3038,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Today likely 'Invalid Vendor Profile'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189 (no strip) vs 199 (strip).",
     "rationale": "Status and onboarding values are stripped before comparing; the profile is not — inconsistent, and a common copy-paste result.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189 (no strip) vs 199 (strip)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2579,6 +3074,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:196-202.",
     "rationale": "Only blank, active and rejected are allowed.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:196-202",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2612,6 +3110,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Status'. Rule: app/controllers/concerns/utils.rb:836 (vendor_status_types).",
     "rationale": "A real BSCM status, but not one the sheet may set.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:836 (vendor_status_types)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2645,6 +3146,9 @@
     ],
     "expectedResult": "Row passes Status and stops at the onboarding tripwire: 'Invalid Vendor Onboarding Required. Choose Yes or No from the dropdown'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:199-200.",
     "rationale": "Pins the strip/downcase the validator does.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:199-200",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2680,6 +3184,11 @@
     ],
     "expectedResult": "Row failed 'Invalid Vendor Onboarding Required. Choose Yes or No from the dropdown'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213.",
     "rationale": "Anything but Yes/No must fail loudly: a silently-ignored value decides whether the vendor is onboarded. Status=rejected keeps the row mail-free even if the rule is broken.",
+    "qaDoc": [
+      "D6"
+    ],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2715,6 +3224,11 @@
     ],
     "expectedResult": "Row failed 'Invalid Vendor Onboarding Required. Choose Yes or No from the dropdown'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213.",
     "rationale": "Anything but Yes/No must fail loudly: a silently-ignored value decides whether the vendor is onboarded. Status=rejected keeps the row mail-free even if the rule is broken.",
+    "qaDoc": [
+      "D6"
+    ],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2750,6 +3264,11 @@
     ],
     "expectedResult": "Row failed 'Invalid Vendor Onboarding Required. Choose Yes or No from the dropdown'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213.",
     "rationale": "Anything but Yes/No must fail loudly: a silently-ignored value decides whether the vendor is onboarded. Status=rejected keeps the row mail-free even if the rule is broken.",
+    "qaDoc": [
+      "D6"
+    ],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2785,6 +3304,11 @@
     ],
     "expectedResult": "Row failed 'Invalid Vendor Onboarding Required. Choose Yes or No from the dropdown'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213.",
     "rationale": "Anything but Yes/No must fail loudly: a silently-ignored value decides whether the vendor is onboarded. Status=rejected keeps the row mail-free even if the rule is broken.",
+    "qaDoc": [
+      "D6"
+    ],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:204-213",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2820,6 +3344,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Value for Vendor Code.'; no vendor created. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:106-113.",
     "rationale": "The worker checks size > 100 and marks the row failed before the invite runs.",
+    "qaDoc": [],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:106-113",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2856,6 +3383,9 @@
     ],
     "expectedResult": "Row success; vendor Active with that code. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:108.",
     "rationale": "The boundary itself.",
+    "qaDoc": [],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:108",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2891,6 +3421,12 @@
     ],
     "expectedResult": "Row failed with an Account Group error. Today likely 'Invalid Status' (value accepted). Rule: app/services/vpc_network/concerns/vpc_params_mixin.rb:41-60 (stores any value); custom config extra_fields_for_vendor_invite type=dropdown.",
     "rationale": "GMMCO configures Account Group as a DROPDOWN (ZCOV, ZDGS, …) that feeds SAP. The single-vendor form enforces the list; the bulk path stores any text.",
+    "qaDoc": [
+      "A7"
+    ],
+    "rule": "app/services/vpc_network/concerns/vpc_params_mixin.rb:41-60 (stores any value); custom config extra_fields_for_vendor_invite type=dropdown",
+    "disagree": "QA doc models Account Group as free text and uses 'ZDOM', which is not one of GMMCO's options.",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2928,6 +3464,13 @@
     ],
     "expectedResult": "Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2) with skip_vendor_onboarding=true; tax number, PAN, address, city, pincode (digits only) and the extra fields stored; no 'new prospect' mail. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:92-99,141-158; app/services/invitation/send_service.rb:386-393,407-434; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47; PR16267 app/controllers/concerns/utils.rb:904-905.",
     "rationale": "The same non-PQ path as VBU-120 with a tax number the sandbox can resolve — so the creation, routing and storage can be verified even while GST rows are blocked (VBU-059).",
+    "qaDoc": [
+      "A6",
+      "A7",
+      "D2"
+    ],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:92-99,141-158; app/services/invitation/send_service.rb:386-393,407-434; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47; PR16267 app/controllers/concerns/utils.rb:904-905",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -2982,6 +3525,11 @@
     ],
     "expectedResult": "Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2) with skip_vendor_onboarding=true; GST, PAN, address, city and the extra fields stored; no 'new prospect' mail (skip flag). Rule: app/workers/vendor_bulk_upload_worker_v2.rb:92-99,141-158; app/services/invitation/send_service.rb:386-393,407-434; app/models/invitations.rb:125-140; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47 (pincode → misc.pincode).",
     "rationale": "The non-PQ path: skip onboarding, land straight on the Vendors tab, carry every column into the vendor record.",
+    "qaDoc": [
+      "A2"
+    ],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:92-99,141-158; app/services/invitation/send_service.rb:386-393,407-434; app/models/invitations.rb:125-140; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47 (pincode → misc.pincode)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3035,6 +3583,13 @@
     ],
     "expectedResult": "Row success; vendor Active; 0 invitations; therefore no mail. Rule: PR16267 app/services/invitation/send_service.rb:332-337 (no Invitations row when the email is blank).",
     "rationale": "QA doc: 'a contactless load sends ZERO invite emails' and leaves no invitations row.",
+    "qaDoc": [
+      "A1",
+      "A-no-mail",
+      "D6"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:332-337 (no Invitations row when the email is blank)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3076,6 +3631,12 @@
     ],
     "expectedResult": "Row success; vendor in Prospects (status invited); 0 invitations. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:66-71,93; app/services/vpc_network/create_service.rb:240-249; PR16267 app/services/invitation/send_service.rb:332-337 (no invitation → no after_commit mail).",
     "rationale": "Blank means 'onboarding required' → the vendor must sit in Prospects. With no contact there is no invitation, so no mail — including the vendor-management notice.",
+    "qaDoc": [
+      "A1",
+      "A-no-mail"
+    ],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:66-71,93; app/services/vpc_network/create_service.rb:240-249; PR16267 app/services/invitation/send_service.rb:332-337 (no invitation → no after_commit mail)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3117,6 +3678,9 @@
     ],
     "expectedResult": "Row success; vendor in Prospects (invited); invitation active without the skip flag; 'new prospect added' mail queued to the vendor-management team. Rule: app/services/vpc_network/create_service.rb:240-243; app/models/invitations.rb:125-140.",
     "rationale": "The PQ path: the vendor waits in Prospects until onboarding. The invite mails the POC AND tells the vendor-management team a prospect was added.",
+    "qaDoc": [],
+    "rule": "app/services/vpc_network/create_service.rb:240-243; app/models/invitations.rb:125-140",
+    "tier": "real-mail",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3157,6 +3721,9 @@
     ],
     "expectedResult": "Row success; vendor in Prospects. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:66-71.",
     "rationale": "The default must be the safe one: onboarding required.",
+    "qaDoc": [],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:66-71",
+    "tier": "real-mail",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3195,6 +3762,9 @@
     ],
     "expectedResult": "Row success; mapping rejected; invitation rejected (no mail); one user mapped to the vendor. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:28-35,159-171; app/services/invitation/send_service.rb:379-393.",
     "rationale": "Rejected vendors are imported for history; the worker also creates a user for the POC so the record is complete, and no mail is sent.",
+    "qaDoc": [],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:28-35,159-171; app/services/invitation/send_service.rb:379-393",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3233,6 +3803,9 @@
     ],
     "expectedResult": "Row success; mapping rejected; invitation rejected. Rule: app/services/vpc_network/create_service.rb:241 (status != rejected).",
     "rationale": "Two routing columns disagree; rejected must win and nothing must be mailed.",
+    "qaDoc": [],
+    "rule": "app/services/vpc_network/create_service.rb:241 (status != rejected)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3271,6 +3844,11 @@
     ],
     "expectedResult": "Row success; vendor Active. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:66-71; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:208-212.",
     "rationale": "The worker trims and compares case-insensitively; a typed value must behave like the dropdown's.",
+    "qaDoc": [
+      "D6"
+    ],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:66-71; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:208-212",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3311,6 +3889,9 @@
     ],
     "expectedResult": "Row failed 'Invalid Values for POC 2.' and NO vendor created. Today: failed, but the vendor was created and invited. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:141-158 (invite) then 175-179 (POC 2 check).",
     "rationale": "The POC 2 pair is only checked after the invite has run: the vendor and its invitation already exist when the row is marked failed. Re-uploading the corrected row then hits 'already exists'.",
+    "qaDoc": [],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:141-158 (invite) then 175-179 (POC 2 check)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3347,6 +3928,9 @@
     ],
     "expectedResult": "Row success with ONE invitation to the POC email and an empty POC name (the PR skips error 691 'POC name is not present' for every contactless-workspace invite). Worth a product decision: the invite mail greets nobody. Rule: PR16267 app/services/invitation/send_service.rb:309 (name check skipped when contactless).",
     "rationale": "One half of a contact is the likeliest real-world legacy row. The PR skips the 'POC name is not present' check for the whole workspace, so the invite goes out with no name.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/invitation/send_service.rb:309 (name check skipped when contactless)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3388,6 +3972,10 @@
     ],
     "expectedResult": "One row success, the other failed 'This email is already invited.'. Two successes = race defect. Rule: app/helpers/api/companies_helper.rb:686-703 (duplicates kept on purpose); app/services/invitation/send_service.rb:233-253.",
     "rationale": "Duplicate emails are deliberately allowed into staging (subsidiary flow). With no tax number or code the second row must be refused 688. Rows run in parallel workers, so both may pass the check — a race.",
+    "qaDoc": [],
+    "rule": "app/helpers/api/companies_helper.rb:686-703 (duplicates kept on purpose); app/services/invitation/send_service.rb:233-253",
+    "disagree": "Lead said duplicate emails 'appear to be accepted' — confirmed intentional at staging (comment at companies_helper.rb:703); refused per row at invite time.",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3417,70 +4005,182 @@
   {
     "id": "VBU-131",
     "feature": "vendorbulk.onboarding",
-    "title": "Same POC email with a tax number becomes a subsidiary — and ignores 'No'",
+    "title": "Same POC email with a tax number becomes a subsidiary — and keeps 'No'",
     "type": "Edge",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1.",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2) Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1. Baseline (uploaded first): contact qa_vbu_{{stamp}}_sub@example.com, UK VAT {{vatG}}, onboarding No.",
     "steps": [
-      "Row 1: POC email X, GST A, onboarding No",
-      "Row 2: POC email X, GST B, onboarding No",
-      "Check row 2's invitation.other_details and the mails queued"
+      "Upload the baseline",
+      "Upload a second row: same contact email, a different UK VAT, onboarding No",
+      "Read the new vendor's mapping and invitation"
     ],
-    "expectedResult": "Row 2 success as a subsidiary; mapping Active; invitation carries skip_vendor_onboarding=true; no prospect mail. Code today omits the flag. Rule: app/services/invitation/send_service.rb:84-87; app/services/vpc_network/subsidiary_service.rb:199-235; app/models/invitations.rb:135-138.",
-    "rationale": "Error 689 routes to SubsidiaryService, whose invitation other_details has no skip_vendor_onboarding, so a non-PQ subsidiary still triggers the 'new prospect' mail and — without an onboarding version — lands wherever the subsidiary rule puts it.",
+    "expectedResult": "Row success as a subsidiary; mapping Active; its invitation carries skip_vendor_onboarding=true, so no prospect mail. Code today omits the flag. Rule: app/services/invitation/send_service.rb:84-87; app/services/vpc_network/subsidiary_service.rb:199-235; app/models/invitations.rb:135-138.",
+    "rationale": "Error 689 routes to SubsidiaryService, whose invitation other_details has no skip_vendor_onboarding, so a non-PQ subsidiary still triggers the 'new prospect' mail. Real-mail tier because of exactly that mail.",
+    "qaDoc": [],
+    "rule": "app/services/invitation/send_service.rb:84-87; app/services/vpc_network/subsidiary_service.rb:199-235; app/models/invitations.rb:135-138",
+    "tier": "real-mail",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
-      "manual_case": "VBU-131"
+      "excel_data": "{{vbuSheet}}"
     },
-    "expected": "no-5xx",
-    "notRunnable": "Manual case — Creates a subsidiary whose invitation lacks the skip flag, which emails the vendor-management team — run only with approval."
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "real-mail",
+      "requires": {
+        "canSkip": true
+      },
+      "fixture": "VBU-131.xlsx",
+      "rows": [
+        {
+          "status": "success",
+          "verify": {
+            "bscm": "active",
+            "subsidiary": true,
+            "skipOnboarding": true
+          }
+        }
+      ],
+      "baseline": "VBU-SUB-BASE.xlsx",
+      "everyRow": false
+    }
   },
   {
     "id": "VBU-132",
     "feature": "vendorbulk.onboarding",
-    "title": "An onboarding payload with the upload starts one onboarding event per row",
+    "title": "An upload carrying an onboarding payload is accepted and still checks every row",
     "type": "Functional",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1.",
+    "preconditions": "vendor_onboarding_version is v2 Data: creates nothing (every row stops in validation).",
     "steps": [
-      "POST excel_data + configurations + forms",
-      "As a user without onboarding-initiate permission, repeat"
+      "Resolve a vendor_onboarding template and its forms",
+      "POST excel_data + configurations + forms with one tripwired row"
     ],
-    "expectedResult": "With permission: each 'Yes' row gets an onboarding event; 'No' rows none. Without: HTTP 403. Rule: app/helpers/api/companies_helper.rb:716-729; app/controllers/api/v1/companies_controller.rb:201-204; app/workers/vendor_bulk_upload_worker_v2.rb:195-197.",
-    "rationale": "The API accepts configurations{order_type: vendor_onboarding} + forms beside excel_data and then needs create_vendor_onboarding_events permission; the UI never sends it, so this path is API-only.",
+    "expectedResult": "HTTP 200; the row failed 'Invalid Status'; no onboarding event for it. Rule: app/helpers/api/companies_helper.rb:716-729; app/controllers/api/v1/companies_controller.rb:201-204; app/workers/vendor_bulk_upload_worker_v2.rb:195-197.",
+    "rationale": "The API accepts configurations{order_type: vendor_onboarding} + forms beside excel_data (the web app never sends it). The payload adds a permission check; a tripwired row proves the rows are still validated and no event is created for a failed row.",
+    "qaDoc": [],
+    "rule": "app/helpers/api/companies_helper.rb:716-729; app/controllers/api/v1/companies_controller.rb:201-204; app/workers/vendor_bulk_upload_worker_v2.rb:195-197",
+    "disagree": "Client never sends configurations/forms with the bulk upload (uploadExcelModal.jsx sends only excel_data).",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
-      "manual_case": "VBU-132"
+      "excel_data": "{{vbuSheet}}"
     },
-    "expected": "no-5xx",
-    "notRunnable": "Manual case — Creates onboarding events that mail the vendor and evaluators; the web app never sends this payload."
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "safe",
+      "requires": {
+        "onboardingV2": true
+      },
+      "fixture": "VBU-132.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "error": "Invalid Status"
+        }
+      ],
+      "payload": "onboarding",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-134",
+    "feature": "vendorbulk.onboarding",
+    "title": "An onboarding payload starts onboarding for a 'Yes' row",
+    "type": "Functional",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_onboarding_version is v2 Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1.",
+    "steps": [
+      "POST excel_data + configurations + forms with one row, onboarding Yes",
+      "Read the vendor"
+    ],
+    "expectedResult": "Row success; vendor in Prospects with an onboarding event started (Onboarding In Progress once the vendor opens it). Rule: app/workers/vendor_bulk_upload_worker_v2.rb:195-197; app/workers/vendor_onboarding_event_worker.rb:10-41.",
+    "rationale": "With the payload, each row that needs onboarding gets an onboarding event straight away — the vendor and evaluators are mailed, hence the real-mail tier.",
+    "qaDoc": [],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:195-197; app/workers/vendor_onboarding_event_worker.rb:10-41",
+    "tier": "real-mail",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "real-mail",
+      "requires": {
+        "onboardingV2": true,
+        "canSkip": true
+      },
+      "fixture": "VBU-134.xlsx",
+      "rows": [
+        {
+          "status": "success",
+          "verify": {
+            "bscm": "invited",
+            "invitations": 1
+          }
+        }
+      ],
+      "payload": "onboarding",
+      "everyRow": false
+    }
   },
   {
     "id": "VBU-133",
     "feature": "vendorbulk.onboarding",
-    "title": "Contactless also relaxes the manual Invite Vendor form",
+    "title": "The manual Invite Vendor form still requires a contact on a contactless workspace",
     "type": "Edge",
     "priority": "P1",
     "severity": "Medium",
-    "preconditions": "Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com.",
+    "preconditions": "allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2) Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com.",
     "steps": [
-      "On GMMCO, open Vendors → Invite Vendor",
-      "Fill company details, leave POC name and email blank",
-      "Submit"
+      "POST /invitations/send_invite with a company name, city and address, no POC name, no email, skip_vendor_onboarding=true"
     ],
-    "expectedResult": "Decide and pin: either the form still requires a contact (recommended — the flag is for legacy bulk loads), or it creates a Prospect with no invitation. Today: the latter. Rule: PR16267 app/services/invitation/send_service.rb:351-354 (workspace-wide), 309, 332, 457.",
-    "rationale": "contactless_vendor_record? looks only at the workspace flag, and SendService serves every invite path. On a contactless workspace the ordinary Invite Vendor form now accepts a blank POC name and email and creates a vendor with no invitation — the QA doc says the form is 'Unchanged' (D7).",
+    "expectedResult": "HTTP 422 'Email Not Present' (the form is for vendors with a contact). Today: the vendor is created with no invitation. Rule: PR16267 app/services/invitation/send_service.rb:351-354 (workspace-wide), 309, 332, 457; app/controllers/api/invitations_controller.rb send_invite.",
+    "rationale": "contactless_vendor_record? looks only at the workspace flag, and SendService serves every invite path. The ordinary Invite Vendor form now accepts a blank POC name and email. Skip onboarding + no email keeps the test mail-free.",
+    "qaDoc": [
+      "D7"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:351-354 (workspace-wide), 309, 332, 457; app/controllers/api/invitations_controller.rb send_invite",
+    "disagree": "QA doc D7: 'Manual Invite Vendor form, normal vendor → Unchanged'. The PR changes it for contactless workspaces.",
+    "tier": "creates",
     "method": "POST",
-    "path": "/v1/bulk_create_vendor",
+    "path": "/invitations/send_invite",
     "body": {
-      "manual_case": "VBU-133"
+      "manual_invite": "VBU-133"
     },
-    "expected": "no-5xx",
-    "notRunnable": "Manual case — Uses the single-vendor Invite Vendor form, not the bulk endpoint."
+    "expected": "accept",
+    "bulk": {
+      "kind": "manualInvite",
+      "tier": "creates",
+      "requires": {
+        "contactless": true,
+        "canSkip": true
+      },
+      "fixture": null,
+      "inviteBody": {
+        "invite_type": "vendor_invite",
+        "firm_name": "QA_Platform_VBU_{{stamp}}_133",
+        "name": "",
+        "email": "",
+        "category": "manufacturer",
+        "address": "QA Test Street 1",
+        "city_id": 8,
+        "skip_vendor_onboarding": true
+      },
+      "inviteExpect": {
+        "http": "reject",
+        "message": "Email Not Present"
+      },
+      "everyRow": false
+    }
   },
   {
     "id": "VBU-140",
@@ -3496,6 +4196,12 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "The exact duplicate — QA doc B1/C1.",
+    "qaDoc": [
+      "B1",
+      "C1"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3542,6 +4248,11 @@
     ],
     "expectedResult": "Row success; a second, separate vendor is created (Active). Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc B2 — the case GMMCO reported as wrongly blocked.",
+    "qaDoc": [
+      "B2"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3586,6 +4297,11 @@
     ],
     "expectedResult": "Row success; a second, separate vendor is created (Active). Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc B3; also the allow_same_gst_multiple_addresses rule.",
+    "qaDoc": [
+      "B3"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3630,6 +4346,11 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc B4: a missing pincode must never rescue a duplicate.",
+    "qaDoc": [
+      "B4"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3675,6 +4396,11 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc B5: normalised to digits before comparing.",
+    "qaDoc": [
+      "B5"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3720,6 +4446,11 @@
     ],
     "expectedResult": "Row success; a second, separate vendor is created (Active). Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc B6: the rule only applies once GST matches.",
+    "qaDoc": [
+      "B6"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3764,6 +4495,11 @@
     ],
     "expectedResult": "Row failed 'Vendor Code or GST Number is already taken'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc B7: vendor codes are unique per workspace.",
+    "qaDoc": [
+      "B7"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3809,6 +4545,11 @@
     ],
     "expectedResult": "Row success; a second, separate vendor is created (Active). Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc C2: account_group is part of GMMCO's key.",
+    "qaDoc": [
+      "C2"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3854,6 +4595,11 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc C3.",
+    "qaDoc": [
+      "C3"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3900,6 +4646,11 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "QA doc C4: compared case-insensitively.",
+    "qaDoc": [
+      "C4"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3946,6 +4697,9 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
     "rationale": "same_address? downcases and squishes; a re-typed address must not slip through.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -3992,6 +4746,9 @@
     ],
     "expectedResult": "One row success, one failed 'Vendor with this GST and address already exists'. Two successes = race defect. Rule: app/services/invitation/send_service.rb:258-290; app/workers/vendor_bulk_upload_worker_v2.rb (one job per row, parallel).",
     "rationale": "Each row runs in its own Sidekiq worker; the duplicate check reads committed rows only, so two identical rows processed together can both pass. The QA doc expects most of an 11,000-row load to be duplicates.",
+    "qaDoc": [],
+    "rule": "app/services/invitation/send_service.rb:258-290; app/workers/vendor_bulk_upload_worker_v2.rb (one job per row, parallel)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4037,6 +4794,11 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: app/services/invitation/send_service.rb:41-54 (GST lookup only when city/address missing); app/helpers/api/companies_helper.rb:731-745 (existing company's name/address/city merged).",
     "rationale": "QA doc: 'If City is blank, the invite flow copies the address from the existing vendor with that GST'. It also copies the existing vendor's NAME over the one in the sheet.",
+    "qaDoc": [
+      "B-city"
+    ],
+    "rule": "app/services/invitation/send_service.rb:41-54 (GST lookup only when city/address missing); app/helpers/api/companies_helper.rb:731-745 (existing company's name/address/city merged)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4082,6 +4844,11 @@
     ],
     "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: app/services/invitation/send_service.rb:41-54; PR16267 app/services/vendors/duplicate_check_fields.rb:26 (address: blank = no match — only safe because of the back-fill).",
     "rationale": "An address blank on the sheet makes the invite look the GSTIN up and copy the existing vendor's address in (the PR spec calls this 'back-filled'), so a blank address can never sneak a duplicate through.",
+    "qaDoc": [
+      "B-city"
+    ],
+    "rule": "app/services/invitation/send_service.rb:41-54; PR16267 app/services/vendors/duplicate_check_fields.rb:26 (address: blank = no match — only safe because of the back-fill)",
+    "tier": "creates",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4114,6 +4881,409 @@
     }
   },
   {
+    "id": "VBU-155",
+    "feature": "vendorbulk.dedup",
+    "title": "A contactless Prospect is seen by the duplicate check",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Baseline (uploaded first): a contactless Prospect — UK VAT {{vatI}}, 'QA Prospect Road 3', pincode 560003, account group ZCOV, no contact.",
+    "steps": [
+      "Upload the variation row (onboarding No)",
+      "Read the row and look for the vendor"
+    ],
+    "expectedResult": "Row failed 'Vendor with this GST and address already exists'; no second vendor. Rule: PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match).",
+    "rationale": "QA doc 'Prospect visibility': before the PR a Prospect was invisible to the check and a second vendor code was minted. The baseline is a contactless Prospect (no email → no invitation → no mail).",
+    "qaDoc": [
+      "B-prospect"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsInclude": [
+          "gst_no",
+          "address",
+          "pincode",
+          "account_group"
+        ],
+        "canSkip": true,
+        "contactless": true
+      },
+      "fixture": "VBU-155.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "errorIncludes": "Vendor with this GST and address already exists",
+          "verify": {
+            "absent": true
+          }
+        }
+      ],
+      "baseline": "VBU-PROSPECT-BASE.xlsx",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-156",
+    "feature": "vendorbulk.dedup",
+    "title": "Old rule, same-GST-multiple-addresses ON: same tax number + same address is blocked",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); allow_same_gst_multiple_addresses_vendor_invite is on Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Baseline: UK VAT {{vatJ}}, 'QA Fallback Road 4'. Runs only on a workspace with allow_same_gst_multiple_addresses_vendor_invite on and no duplicate field list.",
+    "steps": [
+      "Upload the baseline",
+      "Upload a row with the same tax number and address"
+    ],
+    "expectedResult": "Row failed 'Vendor with this GST and address already exists'. Rule: PR16267 app/services/invitation/send_service.rb:288-298 (fallback branch).",
+    "rationale": "Workspaces without vendor_duplicate_check_fields keep the old rule (QA doc D5): same GST at the same address → 1111.",
+    "qaDoc": [
+      "D5",
+      "C7"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:288-298 (fallback branch)",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsEmpty": true,
+        "sameGstMulti": true,
+        "canSkip": true
+      },
+      "fixture": "VBU-156.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "errorIncludes": "Vendor with this GST and address already exists",
+          "verify": {
+            "absent": true
+          }
+        }
+      ],
+      "baseline": "VBU-FALLBACK-BASE.xlsx",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-157",
+    "feature": "vendorbulk.dedup",
+    "title": "Old rule, same-GST-multiple-addresses ON: same tax number at another address is allowed",
+    "type": "Functional",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); allow_same_gst_multiple_addresses_vendor_invite is on Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. As VBU-156.",
+    "steps": [
+      "Upload a row with the same tax number and a different address"
+    ],
+    "expectedResult": "Row success; a second vendor. Rule: PR16267 app/services/invitation/send_service.rb:288-298.",
+    "rationale": "The other half of D5.",
+    "qaDoc": [
+      "D5",
+      "C7"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:288-298",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsEmpty": true,
+        "sameGstMulti": true,
+        "canSkip": true
+      },
+      "fixture": "VBU-157.xlsx",
+      "rows": [
+        {
+          "status": "success",
+          "verify": {
+            "bscm": "active"
+          }
+        }
+      ],
+      "baseline": "VBU-FALLBACK-BASE.xlsx",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-158",
+    "feature": "vendorbulk.dedup",
+    "title": "Old rule, same-GST-multiple-addresses OFF: any repeated tax number is blocked",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); allow_same_gst_multiple_addresses_vendor_invite is off Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. As VBU-156, on a workspace with allow_same_gst_multiple_addresses_vendor_invite off.",
+    "steps": [
+      "Upload a row with the same tax number and a different address"
+    ],
+    "expectedResult": "Row failed 'Tax no. already registered with another company' (error 134). Rule: PR16267 app/services/invitation/send_service.rb:295-296; config/locales/en-IN.yml api_errors.134.",
+    "rationale": "QA doc D4 — the behaviour every other client has today. Runs on PROCOL DEMO with a UK VAT number because GST rows are blocked by the sandbox's 'India' data (VBU-059).",
+    "qaDoc": [
+      "D4",
+      "C7"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:295-296; config/locales/en-IN.yml api_errors.134",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsEmpty": true,
+        "sameGstMulti": false,
+        "canSkip": true
+      },
+      "fixture": "VBU-158.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "errorIncludes": "Tax no. already registered with another company",
+          "verify": {
+            "absent": true
+          }
+        }
+      ],
+      "baseline": "VBU-FALLBACK-BASE.xlsx",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-159",
+    "feature": "vendorbulk.dedup",
+    "title": "A duplicate-field list without gst_no is ignored (old rule applies)",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2) Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com.",
+    "steps": [
+      "Upload the exact duplicate of the baseline"
+    ],
+    "expectedResult": "Row blocked (1111 or 134, per allow_same_gst_multiple_addresses_vendor_invite); config rejection logged. Rule: PR16267 app/services/vendors/duplicate_check_fields.rb:58-82.",
+    "rationale": "QA doc C5: an unusable config must fall back to the old behaviour, never let everything through. Runs only where such a config exists.",
+    "qaDoc": [
+      "C5"
+    ],
+    "rule": "PR16267 app/services/vendors/duplicate_check_fields.rb:58-82",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsState": "no-anchor",
+        "canSkip": true
+      },
+      "fixture": "VBU-159.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "verify": {
+            "absent": true
+          }
+        }
+      ],
+      "baseline": "VBU-DUP-BASE.xlsx",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-138",
+    "feature": "vendorbulk.dedup",
+    "title": "A duplicate-field list naming an unknown field is ignored (old rule applies)",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2) Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com.",
+    "steps": [
+      "Upload the exact duplicate of the baseline"
+    ],
+    "expectedResult": "Row blocked by the old rule. Rule: PR16267 app/services/vendors/duplicate_check_fields.rb:71-82.",
+    "rationale": "QA doc C6: the unknown field must not be silently skipped. Runs only where such a config exists.",
+    "qaDoc": [
+      "C6"
+    ],
+    "rule": "PR16267 app/services/vendors/duplicate_check_fields.rb:71-82",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsState": "unknown-field",
+        "canSkip": true
+      },
+      "fixture": "VBU-138.xlsx",
+      "rows": [
+        {
+          "status": "failed",
+          "verify": {
+            "absent": true
+          }
+        }
+      ],
+      "baseline": "VBU-DUP-BASE.xlsx",
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-135",
+    "feature": "vendorbulk.dedup",
+    "title": "Manual Invite form: exact duplicate of an existing vendor is blocked",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared duplicate baseline exists (UK VAT {{vatB}}, 'QA Dedup Road 12', pincode 560001, ZCOV).",
+    "steps": [
+      "POST /invitations/send_invite with the baseline's tax number, address and account group, a new name and email, skip onboarding"
+    ],
+    "expectedResult": "HTTP 422 'Vendor with this GST and address already exists' — the same answer as bulk (VBU-140). Rule: PR16267 app/services/invitation/send_service.rb:274-298.",
+    "rationale": "QA doc: 'Run B1, B2 and B3 twice — once through bulk upload, once through the manual Invite Vendor form. A difference between them is a bug.'",
+    "qaDoc": [
+      "B1-form",
+      "B-form"
+    ],
+    "rule": "PR16267 app/services/invitation/send_service.rb:274-298",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/invitations/send_invite",
+    "body": {
+      "manual_invite": "VBU-135"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "manualInvite",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsInclude": [
+          "gst_no",
+          "address",
+          "pincode"
+        ],
+        "canSkip": true
+      },
+      "fixture": null,
+      "baseline": "VBU-DUP-BASE.xlsx",
+      "inviteBody": {
+        "invite_type": "vendor_invite",
+        "firm_name": "QA_Platform_VBU_{{stamp}}_135",
+        "name": "QA Platform Tester",
+        "email": "qa_vbu_{{stamp}}_135_1@example.com",
+        "category": "manufacturer",
+        "tax_no": "{{vatB}}",
+        "tax_type_country_mapping_id": 1,
+        "address": "QA Dedup Road 12",
+        "city_id": 8,
+        "account_group": "ZCOV",
+        "skip_vendor_onboarding": true
+      },
+      "inviteExpect": {
+        "http": "reject",
+        "message": "Vendor with this GST and address already exists",
+        "verify": {
+          "absent": true
+        }
+      },
+      "everyRow": false
+    }
+  },
+  {
+    "id": "VBU-136",
+    "feature": "vendorbulk.dedup",
+    "title": "Manual Invite form: same tax number + address, different pincode is allowed",
+    "type": "Functional",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. As VBU-135.",
+    "steps": [
+      "POST /invitations/send_invite with the baseline's tax number and address, pincode 110001, a new name and email, skip onboarding"
+    ],
+    "expectedResult": "HTTP 200; a second vendor (another branch) — the same answer as bulk (VBU-141). Rule: app/controllers/api/invitations_controller.rb send_invite (permit list has no :pincode); PR16267 app/services/vendors/duplicate_check_fields.rb:27 (blank pincode = match).",
+    "rationale": "QA doc B2 through the form. The form's allowed parameters do not include pincode, so it may not be able to tell two branches apart.",
+    "qaDoc": [
+      "B2-form",
+      "B-form"
+    ],
+    "rule": "app/controllers/api/invitations_controller.rb send_invite (permit list has no :pincode); PR16267 app/services/vendors/duplicate_check_fields.rb:27 (blank pincode = match)",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/invitations/send_invite",
+    "body": {
+      "manual_invite": "VBU-136"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "manualInvite",
+      "tier": "creates",
+      "requires": {
+        "dupFieldsInclude": [
+          "gst_no",
+          "address",
+          "pincode"
+        ],
+        "canSkip": true
+      },
+      "fixture": null,
+      "baseline": "VBU-DUP-BASE.xlsx",
+      "inviteBody": {
+        "invite_type": "vendor_invite",
+        "firm_name": "QA_Platform_VBU_{{stamp}}_136",
+        "name": "QA Platform Tester",
+        "email": "qa_vbu_{{stamp}}_136_1@example.com",
+        "category": "manufacturer",
+        "tax_no": "{{vatB}}",
+        "tax_type_country_mapping_id": 1,
+        "address": "QA Dedup Road 12",
+        "city_id": 8,
+        "pincode": "110001",
+        "account_group": "ZCOV",
+        "skip_vendor_onboarding": true
+      },
+      "inviteExpect": {
+        "http": "accept",
+        "verify": {
+          "bscm": "active"
+        }
+      },
+      "everyRow": false
+    }
+  },
+  {
     "id": "VBU-160",
     "feature": "vendorbulk.data",
     "title": "An address ending in zeros keeps them ('Plot No. 100')",
@@ -4127,6 +5297,9 @@
     ],
     "expectedResult": "Staged Address = 'Plot No. 100'. Today: 'Plot No. 1'. Rule: app/services/conversions/excel_to_json_conversion_service.rb:176; app/controllers/concerns/utils.rb:641-647.",
     "rationale": "Every cell goes through strip_trailing_zero, meant for '84149090.0'. Any value that contains a dot and ends in zeros loses them: 'Plot No. 100' becomes 'Plot No. 1'.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:176; app/controllers/concerns/utils.rb:641-647",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4163,6 +5336,9 @@
     ],
     "expectedResult": "Staged Company Name unchanged. Today: '… Pvt. Ltd 2'. Rule: app/controllers/concerns/utils.rb:641-647.",
     "rationale": "Same stripper, on the vendor's legal name.",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:641-647",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4199,6 +5375,9 @@
     ],
     "expectedResult": "Staged name unchanged. Today: truncated at '<'. Rule: app/services/conversions/excel_to_json_conversion_service.rb:177.",
     "rationale": "Every cell is passed through Nokogiri::HTML(...).text, which treats '<B Traders' as a tag and drops the rest.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:177",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4235,6 +5414,9 @@
     ],
     "expectedResult": "Staged name has no '<script'. Rule: app/services/conversions/excel_to_json_conversion_service.rb:177.",
     "rationale": "Vendor names are rendered in lists, mails and PDFs. The HTML pass should leave no tag behind.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:177",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4271,8 +5453,11 @@
       "Download the job's error sheet",
       "Inspect the name cell"
     ],
-    "expectedResult": "The cell is a plain string (or escaped with a leading '). Today likely a formula cell. Rule: app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:336-359 (sheet.add_row row — axlsx type detection).",
+    "expectedResult": "The cell is a plain string (or escaped with a leading '). Rule: app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:336-359 (sheet.add_row row — axlsx type detection).",
     "rationale": "CSV/formula injection: the error sheet is written with axlsx, which turns a string starting with '=' into a formula. A buyer opening it runs whatever the uploader wrote.",
+    "qaDoc": [],
+    "rule": "app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:336-359 (sheet.add_row row — axlsx type detection)",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4304,8 +5489,11 @@
     "steps": [
       "Bank Account Number = 12345678901234500 as a NUMBER cell"
     ],
-    "expectedResult": "Staged value '12345678901234500' (or the row refused as not text). Today: '1.23456789012345e+16'. Rule: app/services/conversions/excel_to_json_conversion_service.rb:176.",
+    "expectedResult": "Staged value '12345678901234500' (or the row refused as not text). Rule: app/services/conversions/excel_to_json_conversion_service.rb:176.",
     "rationale": "Indian bank accounts run to 17 digits. Typed into Excel as a number, the cell reaches Roo as a Float, and Ruby prints a Float of 17+ digits as '1.23456789012345e+16' — that string is what gets stored. (Excel itself keeps only 15 significant digits, so the cell should be text; the product should refuse or warn rather than store scientific notation.)",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:176",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4342,6 +5530,9 @@
     ],
     "expectedResult": "Staged Pincode '560001'. Rule: app/controllers/concerns/utils.rb:641-647.",
     "rationale": "The common case the trailing-zero fix was written for ('560001.0').",
+    "qaDoc": [],
+    "rule": "app/controllers/concerns/utils.rb:641-647",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4378,6 +5569,9 @@
     ],
     "expectedResult": "Staged name unchanged. Rule: app/services/conversions/excel_to_json_conversion_service.rb:177.",
     "rationale": "Pins that the HTML pass leaves a plain '&' alone.",
+    "qaDoc": [],
+    "rule": "app/services/conversions/excel_to_json_conversion_service.rb:177",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4414,6 +5608,13 @@
     ],
     "expectedResult": "Row failed 'Mandatory Item cannot be left empty'. Rule: app/controllers/concerns/utils.rb:795-802.",
     "rationale": "Suite D: every other client must behave exactly as before the PR.",
+    "qaDoc": [
+      "A-flag-off",
+      "D1",
+      "D3"
+    ],
+    "rule": "app/controllers/concerns/utils.rb:795-802",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4449,6 +5650,9 @@
     ],
     "expectedResult": "Row failed 'Either Tax No. or Without Tax No. fields are needed'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:24-30,46-48.",
     "rationale": "The 'With Tax No. OR Without Tax No.' rule must still hold.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:24-30,46-48",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4485,6 +5689,10 @@
     ],
     "expectedResult": "Row failed 'Mandatory Item cannot be left empty'. Found 2026-09-29: passes validation ('Invalid Status' tripwire) — the rule is not enforced. Rule: PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:14-16 (get_vendor_bulk_upload_params_v2 called with no extra_fields:) vs app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:9-13 (template passes them); app/controllers/concerns/utils.rb:803-806.",
     "rationale": "extra_fields_for_vendor_invite with is_required=true is drawn under Mandatory Details in the template (PROCOL DEMO: Contact Number, Feedback Score, Feedback Report, Non-PQ Remark). The validator, though, builds its column list WITHOUT the extra fields, so the requirement is never checked on upload.",
+    "qaDoc": [],
+    "rule": "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:14-16 (get_vendor_bulk_upload_params_v2 called with no extra_fields:) vs app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:9-13 (template passes them); app/controllers/concerns/utils.rb:803-806",
+    "disagree": "The template tells the buyer these columns are mandatory; the upload does not require them.",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {
@@ -4508,6 +5716,56 @@
     }
   },
   {
+    "id": "VBU-184",
+    "feature": "vendorbulk.settings",
+    "title": "Contactless OFF: a normal vendor with full details is created and invited",
+    "type": "Functional",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2) Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com.",
+    "steps": [
+      "Row with every mandatory column, UK VAT, PAN, pincode, the workspace's required extra fields, onboarding No"
+    ],
+    "expectedResult": "Row success; vendor Active; one invitation (skip onboarding); PAN and pincode stored. Rule: app/workers/vendor_bulk_upload_worker_v2.rb:92-158; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47.",
+    "rationale": "QA doc D2 on a client without GMMCO's switch: the everyday path must be unchanged, including the new PAN No. and Pincode columns.",
+    "qaDoc": [
+      "D2"
+    ],
+    "rule": "app/workers/vendor_bulk_upload_worker_v2.rb:92-158; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47",
+    "tier": "creates",
+    "method": "POST",
+    "path": "/v1/bulk_create_vendor",
+    "body": {
+      "excel_data": "{{vbuSheet}}"
+    },
+    "expected": "accept",
+    "bulk": {
+      "kind": "bulk",
+      "tier": "creates",
+      "requires": {
+        "contactless": false,
+        "canSkip": true
+      },
+      "fixture": "VBU-184.xlsx",
+      "rows": [
+        {
+          "status": "success",
+          "verify": {
+            "bscm": "active",
+            "invitations": 1,
+            "invitationStatus": "active",
+            "skipOnboarding": true,
+            "fields": {
+              "pan_no": "{{pan}}",
+              "misc.pincode": "400004"
+            }
+          }
+        }
+      ],
+      "everyRow": false
+    }
+  },
+  {
     "id": "VBU-183",
     "feature": "vendorbulk.settings",
     "title": "Contactless OFF: the invalid-city rule still fires",
@@ -4520,6 +5778,9 @@
     ],
     "expectedResult": "Row failed 'Invalid City Name'. Rule: app/services/validations/vendor_bulk_upload_validation_service_v2.rb:73-75.",
     "rationale": "Old behaviour, which the PR's A5 change must not leak to other workspaces. The tripwire is not needed: the city check is last, and a valid Status=rejected row stays mail-free if it passes.",
+    "qaDoc": [],
+    "rule": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:73-75",
+    "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
     "body": {

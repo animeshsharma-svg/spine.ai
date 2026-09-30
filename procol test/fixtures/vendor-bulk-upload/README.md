@@ -27,7 +27,12 @@ data from row 4, as the backend reads it.
 | `VBU-021.xlsx` | VBU-021 | A blank row between two vendors is skipped, not reported as a failed vendor | safe |
 | `VBU-022.xlsx` | VBU-022 | The same column twice — the last copy wins | safe |
 | `VBU-023.xlsx` | VBU-023 | 1,000 rows upload within the request and every row is processed | safe |
+| `VBU-024.xlsx` | VBU-024 | Two uploads by the same user at the same moment get separate jobs | safe |
 | `VBU-039.xlsx` | VBU-039 | Error sheet of a failed job lists the failed rows with their error | safe |
+| `VBU-040.xlsx` | VBU-040 | disable_manual_vendor_creation blocks the upload for client users | safe |
+| `VBU-041.xlsx` | VBU-041 | A vendor (seller) user cannot bulk upload vendors | safe |
+| `VBU-044.xlsx` | VBU-044 | A buyer without company:create_record cannot bulk upload vendors | safe |
+| `VBU-045.xlsx` | VBU-045 | Uploading the error sheet back re-checks the rows (its Error column is ignored) | safe |
 | `VBU-050.xlsx` | VBU-050 | Company Name blank is refused | safe |
 | `VBU-051.xlsx` | VBU-051 | Company Name of only spaces is refused | safe |
 | `VBU-052.xlsx` | VBU-052 | With contactless on, POC Full Name may be blank | safe |
@@ -95,6 +100,9 @@ data from row 4, as the backend reads it.
 | `VBU-128.xlsx` | VBU-128 | POC 2 name without an email is refused BEFORE the vendor is created | creates |
 | `VBU-129.xlsx` | VBU-129 | Contactless with an email but no POC name is invited with a blank name | creates |
 | `VBU-130.xlsx` | VBU-130 | The same POC email on two rows (no tax number) — second row says 'already invited' | creates |
+| `VBU-131.xlsx` | VBU-131 | Same POC email with a tax number becomes a subsidiary — and keeps 'No' | real-mail |
+| `VBU-132.xlsx` | VBU-132 | An upload carrying an onboarding payload is accepted and still checks every row | safe |
+| `VBU-134.xlsx` | VBU-134 | An onboarding payload starts onboarding for a 'Yes' row | real-mail |
 | `VBU-140.xlsx` | VBU-140 | Same GST + address + pincode + account group is blocked | creates |
 | `VBU-141.xlsx` | VBU-141 | Same GST + address, different pincode is allowed (another branch) | creates |
 | `VBU-142.xlsx` | VBU-142 | Same GST, different address is allowed | creates |
@@ -109,6 +117,12 @@ data from row 4, as the backend reads it.
 | `VBU-151.xlsx` | VBU-151 | Two identical new vendors in ONE sheet — only one is created | creates |
 | `VBU-152.xlsx` | VBU-152 | Same GST with City blank copies the existing vendor's address — and is blocked | creates |
 | `VBU-153.xlsx` | VBU-153 | Same GST with the address left blank is back-filled from the existing vendor — and blocked | creates |
+| `VBU-155.xlsx` | VBU-155 | A contactless Prospect is seen by the duplicate check | creates |
+| `VBU-156.xlsx` | VBU-156 | Old rule, same-GST-multiple-addresses ON: same tax number + same address is blocked | creates |
+| `VBU-157.xlsx` | VBU-157 | Old rule, same-GST-multiple-addresses ON: same tax number at another address is allowed | creates |
+| `VBU-158.xlsx` | VBU-158 | Old rule, same-GST-multiple-addresses OFF: any repeated tax number is blocked | creates |
+| `VBU-159.xlsx` | VBU-159 | A duplicate-field list without gst_no is ignored (old rule applies) | creates |
+| `VBU-138.xlsx` | VBU-138 | A duplicate-field list naming an unknown field is ignored (old rule applies) | creates |
 | `VBU-160.xlsx` | VBU-160 | An address ending in zeros keeps them ('Plot No. 100') | safe |
 | `VBU-161.xlsx` | VBU-161 | A company name ending in zeros keeps them ('… Pvt. Ltd 2000') | safe |
 | `VBU-162.xlsx` | VBU-162 | A '<' in a company name does not cut the name short | safe |
@@ -120,6 +134,10 @@ data from row 4, as the backend reads it.
 | `VBU-180.xlsx` | VBU-180 | Contactless OFF: a blank POC email is still mandatory | safe |
 | `VBU-181.xlsx` | VBU-181 | Contactless OFF: no tax number and no city/address is refused | safe |
 | `VBU-182.xlsx` | VBU-182 | A required extra field left blank is refused | safe |
+| `VBU-184.xlsx` | VBU-184 | Contactless OFF: a normal vendor with full details is created and invited | creates |
 | `VBU-183.xlsx` | VBU-183 | Contactless OFF: the invalid-city rule still fires | safe |
 | `VBU-DUP-BASE.xlsx` | dedup baseline | the vendor every duplicate case compares against | creates |
-| `VBU-CITYZERO-BASE.xlsx` | VBU-154 baseline | a vendor stored with city_id 0 (unknown city) and a tax number | creates |
+| `VBU-CITYZERO-BASE.xlsx` | cityZero baseline | a vendor stored with city_id 0 (unknown city) and a tax number | creates |
+| `VBU-SUB-BASE.xlsx` | subsidiary baseline | the vendor whose contact email VBU-131 reuses | creates |
+| `VBU-PROSPECT-BASE.xlsx` | prospect baseline | a contactless Prospect (no email, no invitation) | creates |
+| `VBU-FALLBACK-BASE.xlsx` | fallback baseline | the vendor the old-rule duplicate cases compare against | creates |

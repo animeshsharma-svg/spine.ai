@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildWorkbook, VBU_FIXTURE_DIR } from "../../src/flows/vendorBulkUpload.js";
-import { CASES, SECTIONS, cityZeroBaselineRow, dedupBaselineRow, type VbuCase } from "./spec.js";
+import { CASES, QA_DOC, SECTIONS, cityZeroBaselineRow, dedupBaselineRow, fallbackBaselineRow, prospectBaselineRow, subsidiaryBaselineRow, type VbuCase } from "./spec.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..", "..");
@@ -26,6 +26,15 @@ export const fixtureName = (c: VbuCase): string | null => {
 };
 export const BASELINE_FIXTURE = "VBU-DUP-BASE.xlsx";
 export const CITYZERO_FIXTURE = "VBU-CITYZERO-BASE.xlsx";
+const BASELINES: Record<string, { file: string; row: () => Record<string, unknown>; what: string }> = {
+  dedup: { file: "VBU-DUP-BASE.xlsx", row: dedupBaselineRow, what: "the vendor every duplicate case compares against" },
+  cityZero: { file: "VBU-CITYZERO-BASE.xlsx", row: cityZeroBaselineRow, what: "a vendor stored with city_id 0 (unknown city) and a tax number" },
+  subsidiary: { file: "VBU-SUB-BASE.xlsx", row: subsidiaryBaselineRow, what: "the vendor whose contact email VBU-131 reuses" },
+  prospect: { file: "VBU-PROSPECT-BASE.xlsx", row: prospectBaselineRow, what: "a contactless Prospect (no email, no invitation)" },
+  fallback: { file: "VBU-FALLBACK-BASE.xlsx", row: fallbackBaselineRow, what: "the vendor the old-rule duplicate cases compare against" },
+};
+/** QA-doc refs per case, from the QA_DOC map (plus any set on the case itself). */
+const qaDocOf = (c: VbuCase): string[] => [...new Set([...(c.qaDoc ?? []), ...Object.entries(QA_DOC).filter(([, v]) => v.cases.includes(c.id)).map(([k]) => k)])];
 
 function requiresText(c: VbuCase): string {
   const r = c.requires ?? {};
@@ -63,6 +72,10 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
     steps: c.steps,
     expectedResult: `${c.expected} Rule: ${c.rule}.`,
     rationale: c.why,
+    qaDoc: qaDocOf(c),
+    rule: c.rule,
+    ...(c.disagree ? { disagree: c.disagree } : {}),
+    tier: c.tier,
   };
   if (c.kind === "manual" || c.verdict === "manual") {
     // A body of its own, so the library never mistakes it for another case's request.
@@ -79,10 +92,11 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
         c.httpExpected === "reject" && c.httpMessage
           ? `${c.expected} Message '${c.httpMessage}'. Rule: ${c.rule}.`
           : common.expectedResult,
-      bulk: { kind: "http", tier: c.tier, requires: c.requires ?? {} },
+      bulk: { kind: "http", tier: c.tier, requires: c.requires ?? {}, actor: c.actor },
     };
   }
   const path =
+    c.kind === "manualInvite" ? "/invitations/send_invite" :
     c.kind === "template" ? "/v1/bulk_create_vendor_template" :
     c.kind === "errorSheet" && c.errorSheetCheck !== "realJob" ? "/v1/bulk_create_vendor_error_sheet" :
     "/v1/bulk_create_vendor";
@@ -91,7 +105,7 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
     ...common,
     method,
     path,
-    ...(method === "POST" ? { body: { excel_data: "{{vbuSheet}}", ...(c.extraBody ?? {}) } } : {}),
+    ...(method === "POST" ? { body: c.kind === "manualInvite" ? { manual_invite: c.id } : { excel_data: "{{vbuSheet}}", ...(c.extraBody ?? {}) } } : {}),
     // The bulk runner decides the verdict itself; this is only what the generic
     // gate needs to let the request through untouched.
     expected: "accept",
@@ -104,7 +118,12 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
       refuse: c.refuse,
       rows: c.rows,
       anyOrder: c.anyOrder,
-      baseline: c.baseline === "dedup" ? BASELINE_FIXTURE : c.baseline === "cityZero" ? CITYZERO_FIXTURE : undefined,
+      baseline: c.baseline ? BASELINES[c.baseline].file : undefined,
+      actor: c.actor,
+      payload: c.payload,
+      fixture2: c.sheet2 ? `${c.id}-b.xlsx` : undefined,
+      inviteBody: c.inviteBody,
+      inviteExpect: c.inviteExpect,
       templateCheck: c.templateCheck,
       errorSheetCheck: c.errorSheetCheck,
       everyRow: c.id === "VBU-023",
@@ -132,6 +151,8 @@ function humanCase(c: VbuCase): string {
     `- **Oracle.** ${c.oracle}`,
   ];
   if (c.disagree) lines.push(`- **Spec vs code.** ${c.disagree}`);
+  const qa = qaDocOf(c);
+  if (qa.length) lines.push(`- **QA doc.** Covers ${qa.join(", ")} of the PR's QA document.`);
   lines.push(`- **Trace.** ${c.priority} · ${verdict} · \`${c.id}\` · \`${c.rule}\``);
   return lines.join("\n");
 }
@@ -161,17 +182,22 @@ function main() {
     const bytes = c.rawFixture ? c.rawFixture.bytes() : buildWorkbook(c.sheet!);
     writeFileSync(join(VBU_FIXTURE_DIR, name), bytes);
     written++;
+    if (c.sheet2) { writeFileSync(join(VBU_FIXTURE_DIR, `${c.id}-b.xlsx`), buildWorkbook(c.sheet2)); written++; }
     manifest.push(`| \`${name}\` | ${c.id} | ${c.title.replace(/\|/g, "/")} | ${c.tier} |`);
   }
-  writeFileSync(join(VBU_FIXTURE_DIR, BASELINE_FIXTURE), buildWorkbook({ rows: [dedupBaselineRow()] }));
-  manifest.push(`| \`${BASELINE_FIXTURE}\` | dedup baseline | the vendor every duplicate case compares against | creates |`);
-  writeFileSync(join(VBU_FIXTURE_DIR, CITYZERO_FIXTURE), buildWorkbook({ rows: [cityZeroBaselineRow()] }));
-  manifest.push(`| \`${CITYZERO_FIXTURE}\` | VBU-154 baseline | a vendor stored with city_id 0 (unknown city) and a tax number | creates |`);
+  for (const [k, b] of Object.entries(BASELINES)) {
+    writeFileSync(join(VBU_FIXTURE_DIR, b.file), buildWorkbook({ rows: [b.row() as any] }));
+    manifest.push(`| \`${b.file}\` | ${k} baseline | ${b.what} | creates |`);
+    written++;
+  }
   writeFileSync(join(VBU_FIXTURE_DIR, "README.md"), manifest.join("\n") + "\n");
 
   // runnable cases
   mkdirSync(dirname(CASES_JSON), { recursive: true });
   writeFileSync(CASES_JSON, JSON.stringify(CASES.map(toRunnable), null, 2) + "\n");
+
+  // the QA-doc map, for the report's "Against the QA document" table
+  writeFileSync(join(ROOT, "prototype", "config", "vbuQaDoc.json"), JSON.stringify(QA_DOC, null, 1) + "\n");
 
   // human cases
   const intro = existsSync(INTRO_MD) ? readFileSync(INTRO_MD, "utf8").trimEnd() + "\n\n" : "";
@@ -186,7 +212,7 @@ function main() {
 
   const byTier = CASES.reduce<Record<string, number>>((a, c) => ((a[c.tier] = (a[c.tier] ?? 0) + 1), a), {});
   const manual = CASES.filter((c) => c.kind === "manual" || c.verdict === "manual").length;
-  console.log(`${CASES.length} cases (${manual} manual) · ${written + 1} fixtures · tiers ${JSON.stringify(byTier)}`);
+  console.log(`${CASES.length} cases (${manual} manual) · ${written} fixtures · tiers ${JSON.stringify(byTier)}`);
   console.log(`→ ${CASES_JSON}\n→ ${HUMAN_MD}\n→ ${VBU_FIXTURE_DIR}`);
 }
 

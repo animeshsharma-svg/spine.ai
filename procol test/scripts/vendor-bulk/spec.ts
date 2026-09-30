@@ -47,6 +47,9 @@ export interface Requires {
   sameGstMulti?: boolean; // allow_same_gst_multiple_addresses_vendor_invite
   extraField?: string; // extra_fields_for_vendor_invite must have this column name
   requiredExtraFields?: boolean; // some extra field is is_required
+  dupFieldsEmpty?: boolean; // vendor_duplicate_check_fields absent or []
+  /** vendor_duplicate_check_fields is set but unusable in this way */
+  dupFieldsState?: "no-anchor" | "unknown-field";
 }
 
 export interface Verify {
@@ -58,6 +61,8 @@ export interface Verify {
   skipOnboarding?: boolean;
   /** column → exact stored value (vars filled): gst_no, pan_no, address, city, misc.<key>, vendor_code, name */
   fields?: Record<string, string | null>;
+  /** at least one invitation must be a subsidiary invitation */
+  subsidiary?: boolean;
   /** at least this many user_company_mappings on the vendor */
   minUsers?: number;
   /** the vendor must NOT exist afterwards */
@@ -101,7 +106,25 @@ export interface VbuCase {
   verdict?: "automate" | "manual";
   manualReason?: string;
 
-  kind: "http" | "bulk" | "template" | "errorSheet" | "formulaSheet" | "manual";
+  kind:
+    | "http" | "bulk" | "template" | "errorSheet" | "formulaSheet" | "manual"
+    /** two sheets uploaded at the same moment by the same user */
+    | "concurrent"
+    /** upload, download the job's error sheet, upload that back */
+    | "errorSheetReupload"
+    /** the single-vendor Invite Vendor call (POST /invitations/send_invite) */
+    | "manualInvite";
+  /** which QA-doc case(s) this covers (the PR's "Vendor bulk upload + dedup — QA test cases") */
+  qaDoc?: string[];
+  /** who makes the request: the workspace admin (default), a QA test vendor, or a member without company:create_record */
+  actor?: "seller-qa" | "member-no-company-create";
+  /** body extras resolved when the case runs */
+  payload?: "onboarding";
+  /** kind concurrent: the second sheet */
+  sheet2?: SheetSpec;
+  /** kind manualInvite: the request body ({{vars}} filled) and what must happen */
+  inviteBody?: Record<string, unknown>;
+  inviteExpect?: { http: "accept" | "reject"; message?: string; verify?: Verify };
   // http: a plain request with no fixture
   method?: "GET" | "POST";
   path?: string;
@@ -122,7 +145,7 @@ export interface VbuCase {
   /** rows may come back in any order (parallel workers) */
   anyOrder?: boolean;
   /** a baseline sheet that must have been uploaded (and succeeded) first, once per run */
-  baseline?: "dedup" | "cityZero";
+  baseline?: "dedup" | "cityZero" | "subsidiary" | "prospect" | "fallback";
   /** kind template: which assertion */
   templateCheck?: "headers" | "sampleAligned" | "dropdowns" | "dimension" | "dataSheet" | "groups";
   /** kind errorSheet: which variant */
@@ -516,6 +539,17 @@ export const CASES: VbuCase[] = [
     oracle: "HTTP time, staged count 1000, every error 'Invalid Status'.", rule: `${R.ctrl}:210-213; ${R.helper}:680-714`,
   },
 
+  {
+    id: "VBU-024", section: 1, feature: "vendorbulk.file", kind: "concurrent", tier: "safe",
+    title: "Two uploads by the same user at the same moment get separate jobs", type: "Edge", priority: "P1", severity: "Medium",
+    why: "The job id is 'this user's job count + 1', read before the insert, so two uploads at the same time can share an id — their rows, status and error sheet then mix.",
+    steps: ["POST two different tripwired sheets at the same moment", "Read the job id of every staged row"],
+    sheet: one(trip("VBU-024", {})), sheet2: one(trip("VBU-024", {}, 2)),
+    rows: [{ status: "failed", error: MSG.STATUS }, { status: "failed", error: MSG.STATUS }],
+    expected: "Two jobs with one row each. Today the two rows can land in one job id.", oracle: "vendor_bulk_upload_jobs.job_id of both rows.",
+    rule: `${R.helper}:684`,
+  },
+
   // ════════════ 2. access + template / status / error sheet ════════════
   {
     id: "VBU-030", section: 2, feature: "vendorbulk.access", kind: "template", tier: "safe", templateCheck: "headers",
@@ -609,33 +643,81 @@ export const CASES: VbuCase[] = [
     oracle: "Parsed error sheet.", rule: `${R.ctrl}:232-245; ${R.tpl}:336-359`,
   },
   {
-    id: "VBU-040", section: 2, feature: "vendorbulk.access", kind: "manual", tier: "safe", verdict: "manual", requires: { disableManual: true },
-    manualReason: "Needs a workspace with disable_manual_vendor_creation ON and a live session; none on UAT today (checked 2026-09-29).",
-    title: "disable_manual_vendor_creation blocks upload and template for non-Procol users",
-    type: "Negative", priority: "P1", severity: "High",
-    why: "The setting exists to force vendors in through integration only; both endpoints check it.",
-    steps: ["On a workspace with the setting on, as a client user: GET template, POST a sheet", "Repeat as a Procol employee"],
-    expected: "Client user: HTTP 422 error 745 'Manual vendor creation is disabled' on both. Procol employee: allowed.",
-    oracle: "422 + code 745.", rule: `${R.ctrl}:205-208, 219-222`,
-    disagree: "The Vendors page in onboarding mode still shows the Bulk Upload link with no check (vendorOnboardingFlow.jsx:249-258); the legacy lists hide it.",
+    id: "VBU-040", section: 2, feature: "vendorbulk.access", kind: "bulk", tier: "safe", requires: { disableManual: true },
+    title: "disable_manual_vendor_creation blocks the upload for client users", type: "Negative", priority: "P1", severity: "High",
+    why: "The setting exists to force vendors in through integration only. It runs before the file is even read.",
+    steps: ["On a workspace with the setting on, as a client (non-Procol) user: POST a tripwired sheet"],
+    sheet: one(trip("VBU-040", {})), refuse: { message: MSG.MANUAL_OFF }, qaDoc: [],
+    expected: "HTTP 422 error 745 'Manual vendor creation is disabled'; nothing staged. (A Procol employee is allowed.)",
+    oracle: "422 + 745; no job rows.", rule: `${R.ctrl}:205-208`,
+    disagree: "The Vendors page in onboarding mode still shows the Bulk Upload link with no check (vendorOnboardingFlow.jsx:249-258); the legacy lists hide it — see VBU-047.",
   },
   {
-    id: "VBU-041", section: 2, feature: "vendorbulk.access", kind: "manual", tier: "safe", verdict: "manual",
-    manualReason: "Needs a buyer session without company:create_record and a vendor (seller) session for the same workspace.",
-    title: "Only users with company:create_record may upload; sellers never",
-    type: "Security", priority: "P0", severity: "High",
-    why: "Upload creates companies, users and invitations; the policy is the only gate.",
-    steps: ["As a member without company create permission: POST a sheet", "As a vendor user: POST a sheet", "As both: GET status and error sheet"],
-    expected: "HTTP 403/401 'not authorized' for both; no job staged.", oracle: "Refusal + no job rows.", rule: `${R.pol}:123-134`,
+    id: "VBU-043", section: 2, feature: "vendorbulk.access", kind: "http", tier: "safe", requires: { disableManual: true },
+    title: "disable_manual_vendor_creation also blocks the template download", type: "Negative", priority: "P2", severity: "Medium",
+    why: "Same gate on the template endpoint, so the buyer is told before filling a sheet.",
+    steps: ["GET /v1/bulk_create_vendor_template on a workspace with the setting on"],
+    method: "GET", path: "/v1/bulk_create_vendor_template", httpExpected: "reject", httpMessage: MSG.MANUAL_OFF,
+    expected: "HTTP 422 error 745 'Manual vendor creation is disabled'.", oracle: "422 + 745.", rule: `${R.ctrl}:219-222`,
   },
   {
-    id: "VBU-042", section: 2, feature: "vendorbulk.access", kind: "manual", tier: "safe", verdict: "manual",
-    manualReason: "Needs a low-permission session.",
-    title: "The template endpoint has no permission check",
-    type: "Security", priority: "P2", severity: "Low",
-    why: "bulk_create_vendor_template never calls authorize, so anyone signed in to the console app gets the workspace's category list (Deals In codes) and profile types.",
-    steps: ["As a member without company create permission: GET the template"],
-    expected: "Refused like the upload itself. Today: served.", oracle: "Status.", rule: `${R.ctrl}:218-229 (no authorize)`,
+    id: "VBU-041", section: 2, feature: "vendorbulk.access", kind: "bulk", tier: "safe", actor: "seller-qa",
+    title: "A vendor (seller) user cannot bulk upload vendors", type: "Security", priority: "P0", severity: "High",
+    why: "The upload creates companies, users and invitations; CompanyPolicy#bulk_create_vendor? refuses sellers first. Run as one of our own QA test vendors (qa_…@example.com), never a real supplier.",
+    steps: ["Sign in as a QA test vendor of this workspace (vendor app, OTP rule of the sandbox)", "POST a tripwired sheet"],
+    sheet: one(trip("VBU-041", {})), refuse: {},
+    expected: "Refused and nothing staged — HTTP 401 'This app is not authorized to use this API' (the vendor app may not call it at all) or 403/422 from the policy.", oracle: "Refusal + no job rows for that user.", rule: `${R.pol}:123-126; config/app_auth_config.yml (bulk_create_vendor only in the console apps)`,
+  },
+  {
+    id: "VBU-044", section: 2, feature: "vendorbulk.access", kind: "bulk", tier: "safe", actor: "member-no-company-create",
+    title: "A buyer without company:create_record cannot bulk upload vendors", type: "Security", priority: "P0", severity: "High",
+    why: "The policy's second condition. The runner only uses a member session after the dashboard configuration confirms it lacks company:create_record.",
+    steps: ["Use a workspace user whose permissions lack company:create_record", "POST a tripwired sheet"],
+    sheet: one(trip("VBU-044", {})), refuse: {},
+    expected: "HTTP 422 'You are not authorized to perform this action' (or 401/403); nothing staged.", oracle: "Refusal + no job rows for that user.", rule: `${R.pol}:123-126`,
+  },
+  {
+    id: "VBU-042", section: 2, feature: "vendorbulk.access", kind: "http", tier: "safe", actor: "member-no-company-create",
+    title: "The template endpoint refuses a user who may not upload", type: "Security", priority: "P2", severity: "Low",
+    why: "bulk_create_vendor_template never calls authorize, so anyone signed in to the console app gets the workspace's category codes and profile types.",
+    steps: ["As a user without company:create_record: GET /v1/bulk_create_vendor_template"],
+    method: "GET", path: "/v1/bulk_create_vendor_template?as=member-without-company-create", httpExpected: "reject",
+    expected: "Refused like the upload itself (401/403/422 not authorised). Today: served.", oracle: "Status.", rule: `${R.ctrl}:218-229 (no authorize)`,
+  },
+  {
+    id: "VBU-045", section: 2, feature: "vendorbulk.access", kind: "errorSheetReupload", tier: "safe",
+    title: "Uploading the error sheet back re-checks the rows (its Error column is ignored)", type: "Functional", priority: "P1", severity: "Medium",
+    why: "The normal way to fix a big upload is: download the error sheet, correct it, upload it again. The error sheet has an extra 'Error' column first; it must not break the re-upload.",
+    steps: ["Upload a tripwired sheet", "Download that job's error sheet", "Upload the error sheet as it is", "Compare the rows"],
+    sheet: one(trip("VBU-045", {})), rows: tripped(),
+    expected: "The re-uploaded job has the same rows with the same error ('Invalid Status').", oracle: "Rows of both jobs.", rule: `${R.tpl}:336-359; ${R.parse}:168-181`,
+  },
+  {
+    id: "VBU-046", section: 2, feature: "vendorbulk.access", kind: "manual", tier: "safe", verdict: "manual",
+    manualReason: "A screen check in the web app (UI automation).",
+    title: "The upload screen's file picker offers only files the API can read", type: "Functional", priority: "P2", severity: "Low",
+    why: "The picker accepts .csv, which the API always refuses with 'Invalid file format' (VBU-007).",
+    steps: ["Vendors → Bulk Upload → New Upload", "Open the file picker and check the allowed types"],
+    expected: "Only .xlsx / .xls. Today .csv is offered too.", oracle: "The input's accept attribute.",
+    rule: "procol-client-dashboard/src/views/vendorBulkUpload/uploadExcelModal.jsx:124-128",
+  },
+  {
+    id: "VBU-047", section: 2, feature: "vendorbulk.access", kind: "manual", tier: "safe", verdict: "manual", requires: { disableManual: true },
+    manualReason: "A screen check; needs a workspace with disable_manual_vendor_creation on.",
+    title: "In onboarding mode the Bulk Upload link is hidden when manual creation is disabled", type: "Functional", priority: "P2", severity: "Low",
+    why: "The legacy vendor lists hide the link; the onboarding-mode page shows it with no check, and the API then answers 745.",
+    steps: ["On an onboarding (v2/v3) workspace with disable_manual_vendor_creation on, as a client user, open Vendors"],
+    expected: "No Bulk Upload link (as on the legacy lists).", oracle: "Link visibility.",
+    rule: "procol-client-dashboard/src/views/vendors/vendorOnboardingFlow/vendorOnboardingFlow.jsx:249-258",
+  },
+  {
+    id: "VBU-048", section: 2, feature: "vendorbulk.access", kind: "manual", tier: "safe", verdict: "manual",
+    manualReason: "A screen check in the web app.",
+    title: "The job list tags a job with failed or duplicate rows", type: "Functional", priority: "P3", severity: "Low",
+    why: "The page defines Error and Duplicate tags but the data mapping only ever assigns Completed / In Progress.",
+    steps: ["Upload a sheet with a failed row", "Open Vendors → Bulk Upload"],
+    expected: "The job shows an Error tag (or its failed count stands out). Today: 'Completed'.", oracle: "Tag on the job row.",
+    rule: "procol-client-dashboard/src/redux/vendors/index.js:4-9, 53-64",
   },
 
   // ════════════ 3. row rules ════════════
@@ -1111,33 +1193,45 @@ export const CASES: VbuCase[] = [
     disagree: "Lead said duplicate emails 'appear to be accepted' — confirmed intentional at staging (comment at companies_helper.rb:703); refused per row at invite time.",
   },
   {
-    id: "VBU-131", section: 4, feature: "vendorbulk.onboarding", kind: "manual", tier: "real-mail", verdict: "manual",
-    manualReason: "Creates a subsidiary whose invitation lacks the skip flag, which emails the vendor-management team — run only with approval.",
-    title: "Same POC email with a tax number becomes a subsidiary — and ignores 'No'", type: "Edge", priority: "P1", severity: "High",
-    why: "Error 689 routes to SubsidiaryService, whose invitation other_details has no skip_vendor_onboarding, so a non-PQ subsidiary still triggers the 'new prospect' mail and — without an onboarding version — lands wherever the subsidiary rule puts it.",
-    steps: ["Row 1: POC email X, GST A, onboarding No", "Row 2: POC email X, GST B, onboarding No", "Check row 2's invitation.other_details and the mails queued"],
-    expected: "Row 2 success as a subsidiary; mapping Active; invitation carries skip_vendor_onboarding=true; no prospect mail. Code today omits the flag.",
-    oracle: "invitations.other_details for the subsidiary.", rule: `${R.send}:84-87; ${R.sub}:199-235; ${R.inv}:135-138`,
+    id: "VBU-131", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "real-mail", baseline: "subsidiary", requires: { canSkip: true },
+    title: "Same POC email with a tax number becomes a subsidiary — and keeps 'No'", type: "Edge", priority: "P1", severity: "High",
+    why: "Error 689 routes to SubsidiaryService, whose invitation other_details has no skip_vendor_onboarding, so a non-PQ subsidiary still triggers the 'new prospect' mail. Real-mail tier because of exactly that mail.",
+    setup: "Baseline (uploaded first): contact qa_vbu_{{stamp}}_sub@example.com, UK VAT {{vatG}}, onboarding No.",
+    steps: ["Upload the baseline", "Upload a second row: same contact email, a different UK VAT, onboarding No", "Read the new vendor's mapping and invitation"],
+    sheet: one({ ...baseRow("VBU-131"), "POC - Email Address": `qa_vbu_${S}_sub@example.com`, "Tax Type": "VAT", "Tax No.": "{{vatH}}", "Business Location": "United Kingdom" }),
+    rows: [{ status: "success", verify: { bscm: "active", subsidiary: true, skipOnboarding: true } }],
+    expected: "Row success as a subsidiary; mapping Active; its invitation carries skip_vendor_onboarding=true, so no prospect mail. Code today omits the flag.",
+    oracle: "invitations.other_details of the subsidiary.", rule: `${R.send}:84-87; ${R.sub}:199-235; ${R.inv}:135-138`,
   },
   {
-    id: "VBU-132", section: 4, feature: "vendorbulk.onboarding", kind: "manual", tier: "real-mail", verdict: "manual",
-    manualReason: "Creates onboarding events that mail the vendor and evaluators; the web app never sends this payload.",
-    title: "An onboarding payload with the upload starts one onboarding event per row", type: "Functional", priority: "P2", severity: "Medium",
-    why: "The API accepts configurations{order_type: vendor_onboarding} + forms beside excel_data and then needs create_vendor_onboarding_events permission; the UI never sends it, so this path is API-only.",
-    steps: ["POST excel_data + configurations + forms", "As a user without onboarding-initiate permission, repeat"],
-    expected: "With permission: each 'Yes' row gets an onboarding event; 'No' rows none. Without: HTTP 403.", oracle: "event_groups for the vendors.",
+    id: "VBU-132", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "safe", payload: "onboarding", requires: { onboardingV2: true },
+    title: "An upload carrying an onboarding payload is accepted and still checks every row", type: "Functional", priority: "P2", severity: "Medium",
+    why: "The API accepts configurations{order_type: vendor_onboarding} + forms beside excel_data (the web app never sends it). The payload adds a permission check; a tripwired row proves the rows are still validated and no event is created for a failed row.",
+    steps: ["Resolve a vendor_onboarding template and its forms", "POST excel_data + configurations + forms with one tripwired row"],
+    sheet: one(trip("VBU-132", {})), rows: tripped(),
+    expected: "HTTP 200; the row failed 'Invalid Status'; no onboarding event for it.", oracle: "Job row.",
     rule: `${R.helper}:716-729; ${R.ctrl}:201-204; ${R.wrk}:195-197`,
     disagree: "Client never sends configurations/forms with the bulk upload (uploadExcelModal.jsx sends only excel_data).",
   },
-
   {
-    id: "VBU-133", section: 4, feature: "vendorbulk.onboarding", kind: "manual", tier: "creates", verdict: "manual",
-    manualReason: "Uses the single-vendor Invite Vendor form, not the bulk endpoint.",
-    title: "Contactless also relaxes the manual Invite Vendor form", type: "Edge", priority: "P1", severity: "Medium",
-    why: "contactless_vendor_record? looks only at the workspace flag, and SendService serves every invite path. On a contactless workspace the ordinary Invite Vendor form now accepts a blank POC name and email and creates a vendor with no invitation — the QA doc says the form is 'Unchanged' (D7).",
-    steps: ["On GMMCO, open Vendors → Invite Vendor", "Fill company details, leave POC name and email blank", "Submit"],
-    expected: "Decide and pin: either the form still requires a contact (recommended — the flag is for legacy bulk loads), or it creates a Prospect with no invitation. Today: the latter.",
-    oracle: "invitations for the new company; its mapping status.", rule: `${R.prSend}:351-354 (workspace-wide), 309, 332, 457`,
+    id: "VBU-134", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "real-mail", payload: "onboarding", requires: { onboardingV2: true, canSkip: true },
+    title: "An onboarding payload starts onboarding for a 'Yes' row", type: "Functional", priority: "P2", severity: "Medium",
+    why: "With the payload, each row that needs onboarding gets an onboarding event straight away — the vendor and evaluators are mailed, hence the real-mail tier.",
+    steps: ["POST excel_data + configurations + forms with one row, onboarding Yes", "Read the vendor"],
+    sheet: one({ ...baseRow("VBU-134"), "Vendor Onboarding Required": "Yes" }),
+    rows: [{ status: "success", verify: { bscm: "invited", invitations: 1 } }],
+    expected: "Row success; vendor in Prospects with an onboarding event started (Onboarding In Progress once the vendor opens it).",
+    oracle: "Row + mapping; event visible under Start Onboarding.", rule: `${R.wrk}:195-197; app/workers/vendor_onboarding_event_worker.rb:10-41`,
+  },
+  {
+    id: "VBU-133", section: 4, feature: "vendorbulk.onboarding", kind: "manualInvite", tier: "creates", requires: { contactless: true, canSkip: true }, qaDoc: ["D7"],
+    title: "The manual Invite Vendor form still requires a contact on a contactless workspace", type: "Edge", priority: "P1", severity: "Medium",
+    why: "contactless_vendor_record? looks only at the workspace flag, and SendService serves every invite path. The ordinary Invite Vendor form now accepts a blank POC name and email. Skip onboarding + no email keeps the test mail-free.",
+    steps: ["POST /invitations/send_invite with a company name, city and address, no POC name, no email, skip_vendor_onboarding=true"],
+    inviteBody: { invite_type: "vendor_invite", firm_name: vName("VBU-133"), name: "", email: "", category: "manufacturer", address: "QA Test Street 1", city_id: 8, skip_vendor_onboarding: true },
+    inviteExpect: { http: "reject", message: "Email Not Present" },
+    expected: "HTTP 422 'Email Not Present' (the form is for vendors with a contact). Today: the vendor is created with no invitation.",
+    oracle: "HTTP status + companies lookup.", rule: `${R.prSend}:351-354 (workspace-wide), 309, 332, 457; app/controllers/api/invitations_controller.rb send_invite`,
     disagree: "QA doc D7: 'Manual Invite Vendor form, normal vendor → Unchanged'. The PR changes it for contactless workspaces.",
   },
 
@@ -1184,7 +1278,7 @@ export const CASES: VbuCase[] = [
     steps: ["Tripwired row, Company Name '=HYPERLINK(\"https://example.com\",\"QA\")'", "Download the job's error sheet", "Inspect the name cell"],
     sheet: one(trip("VBU-164", { "Company Name": '=HYPERLINK("https://example.com","QA_Platform_VBU")' })),
     rows: tripped(),
-    expected: "The cell is a plain string (or escaped with a leading '). Today likely a formula cell.", oracle: "Cell type in the downloaded error sheet.",
+    expected: "The cell is a plain string (or escaped with a leading ').", oracle: "Cell type in the downloaded error sheet.",
     rule: `${R.tpl}:336-359 (sheet.add_row row — axlsx type detection)`,
   },
   {
@@ -1193,7 +1287,7 @@ export const CASES: VbuCase[] = [
     why: "Indian bank accounts run to 17 digits. Typed into Excel as a number, the cell reaches Roo as a Float, and Ruby prints a Float of 17+ digits as '1.23456789012345e+16' — that string is what gets stored. (Excel itself keeps only 15 significant digits, so the cell should be text; the product should refuse or warn rather than store scientific notation.)",
     steps: ["Bank Account Number = 12345678901234500 as a NUMBER cell"], sheet: one(trip("VBU-165", { "Bank Account Number": 12345678901234500 })),
     rows: [{ status: "failed", error: MSG.STATUS, dataEquals: { "Bank Account Number": "12345678901234500" } }],
-    expected: "Staged value '12345678901234500' (or the row refused as not text). Today: '1.23456789012345e+16'.", oracle: "Job data.", rule: `${R.parse}:176`,
+    expected: "Staged value '12345678901234500' (or the row refused as not text).", oracle: "Job data.", rule: `${R.parse}:176`,
   },
   {
     id: "VBU-166", section: 6, feature: "vendorbulk.data", kind: "bulk", tier: "safe",
@@ -1236,6 +1330,16 @@ export const CASES: VbuCase[] = [
     disagree: "The template tells the buyer these columns are mandatory; the upload does not require them.",
   },
   {
+    id: "VBU-184", section: 7, feature: "vendorbulk.settings", kind: "bulk", tier: "creates", requires: { contactless: false, canSkip: true }, qaDoc: ["D2"],
+    title: "Contactless OFF: a normal vendor with full details is created and invited", type: "Functional", priority: "P0", severity: "High",
+    why: "QA doc D2 on a client without GMMCO's switch: the everyday path must be unchanged, including the new PAN No. and Pincode columns.",
+    steps: ["Row with every mandatory column, UK VAT, PAN, pincode, the workspace's required extra fields, onboarding No"],
+    sheet: one({ ...baseRow("VBU-184"), ...PD_REQUIRED, "Tax Type": "VAT", "Tax No.": "{{vatA}}", "Business Location": "United Kingdom", Pincode: "400004", "PAN No.": "{{pan}}" }),
+    rows: [{ status: "success", verify: { bscm: "active", invitations: 1, invitationStatus: "active", skipOnboarding: true, fields: { pan_no: "{{pan}}", "misc.pincode": "400004" } } }],
+    expected: "Row success; vendor Active; one invitation (skip onboarding); PAN and pincode stored.", oracle: "Vendor, mapping, invitation.",
+    rule: `${R.wrk}:92-158; ${R.prMixin}:42-47`,
+  },
+  {
     id: "VBU-183", section: 7, feature: "vendorbulk.settings", kind: "bulk", tier: "safe", requires: { contactless: false },
     title: "Contactless OFF: the invalid-city rule still fires", type: "Negative", priority: "P1", severity: "Medium",
     why: "Old behaviour, which the PR's A5 change must not leak to other workspaces. The tripwire is not needed: the city check is last, and a valid Status=rejected row stays mail-free if it passes.",
@@ -1243,6 +1347,44 @@ export const CASES: VbuCase[] = [
     rows: fails(MSG.CITY), expected: "Row failed 'Invalid City Name'.", oracle: "Job row error.", rule: `${R.val}:73-75`,
   },
 ];
+
+// ── which QA-doc case each case covers (for the report's comparison table) ──
+/** The PR's QA document "Vendor bulk upload + dedup — QA test cases", case by case. */
+export const QA_DOC: Record<string, { what: string; cases: string[] }> = {
+  A1: { what: "Company Name only", cases: ["VBU-121", "VBU-122"] },
+  A2: { what: "GST + city + address + pincode, no contact; PAN derived", cases: ["VBU-060", "VBU-120"] },
+  A3: { what: "Contact email 'not-an-email'", cases: ["VBU-055"] },
+  A4: { what: "Company Name blank", cases: ["VBU-050"] },
+  A5: { what: "City not in the city list", cases: ["VBU-075", "VBU-154"] },
+  A6: { what: "Contact name + email gets an invite", cases: ["VBU-119"] },
+  A7: { what: "Account Group + MSME + bank stored", cases: ["VBU-119", "VBU-112"] },
+  "A-no-mail": { what: "No email for contactless rows", cases: ["VBU-121", "VBU-122"] },
+  "A-flag-off": { what: "Flag off → a Company-Name-only row fails", cases: ["VBU-180"] },
+  B1: { what: "Same tax no. + address + pincode → blocked", cases: ["VBU-140"] },
+  B2: { what: "Different pincode → allowed", cases: ["VBU-141"] },
+  B3: { what: "Different address → allowed", cases: ["VBU-142"] },
+  B4: { what: "Pincode blank → blocked", cases: ["VBU-143"] },
+  B5: { what: "Pincode '560 001' → blocked", cases: ["VBU-144"] },
+  B6: { what: "Different tax no. → allowed", cases: ["VBU-145"] },
+  B7: { what: "Same vendor code → blocked", cases: ["VBU-146"] },
+  "B-form": { what: "B1–B3 through the manual Invite form give the same answer", cases: ["VBU-135", "VBU-136"] },
+  "B-city": { what: "City blank copies the old address", cases: ["VBU-152", "VBU-153"] },
+  "B-prospect": { what: "A Prospect is visible to the duplicate check", cases: ["VBU-155"] },
+  C1: { what: "All four fields match → blocked", cases: ["VBU-140"] },
+  C2: { what: "Account Group different → allowed", cases: ["VBU-147"] },
+  C3: { what: "Account Group blank → blocked", cases: ["VBU-148"] },
+  C4: { what: "Account Group lower case → blocked", cases: ["VBU-149"] },
+  C5: { what: "Config without gst_no → old rule", cases: ["VBU-159"] },
+  C6: { what: "Config with an unknown field → old rule", cases: ["VBU-138"] },
+  C7: { what: "Config absent → old rule", cases: ["VBU-156", "VBU-157", "VBU-158"] },
+  D1: { what: "Template for a normal client", cases: ["VBU-030", "VBU-180"] },
+  D2: { what: "Normal vendor with full details", cases: ["VBU-184", "VBU-119"] },
+  D3: { what: "Contact email blank on a normal client", cases: ["VBU-180"] },
+  D4: { what: "Tax number already registered", cases: ["VBU-158"] },
+  D5: { what: "Same-GST-multiple-addresses client", cases: ["VBU-156", "VBU-157"] },
+  D6: { what: "Vendor Onboarding Required column", cases: ["VBU-105", "VBU-106", "VBU-107", "VBU-108", "VBU-121", "VBU-127"] },
+  D7: { what: "Manual Invite Vendor form", cases: ["VBU-133"] },
+};
 
 // ── duplicates: one shared baseline, then one variation per case ─────────
 
@@ -1275,6 +1417,22 @@ export function cityZeroBaselineRow(): Record<string, Cell> {
     Address: "QA City Zero Road 1",
     "Vendor Onboarding Required": "No",
   };
+}
+
+/** VBU-131's baseline: a vendor whose contact email the subsidiary row will reuse. */
+export function subsidiaryBaselineRow(): Record<string, Cell> {
+  return { ...baseRow("VBU-SUB-BASE"), "Company Name": vName("SUBBASE"), "POC - Email Address": `qa_vbu_${S}_sub@example.com`,
+    "Tax Type": "VAT", "Tax No.": "{{vatG}}", "Business Location": "United Kingdom" };
+}
+/** VBU-155's baseline: a contactless Prospect — no email, so no invitation and no mail. */
+export function prospectBaselineRow(): Record<string, Cell> {
+  return { "Company Name": vName("PROSPECTBASE"), "Tax Type": "VAT", "Tax No.": "{{vatI}}", "Business Location": "United Kingdom",
+    City: "Mumbai", Address: "QA Prospect Road 3", Pincode: "560003", "Account Group": "ZCOV" };
+}
+/** VBU-156/157/158's baseline, for workspaces WITHOUT vendor_duplicate_check_fields (the old rules). */
+export function fallbackBaselineRow(): Record<string, Cell> {
+  return { ...baseRow("VBU-FB-BASE"), ...PD_REQUIRED, "Company Name": vName("FALLBACKBASE"), "POC - Email Address": `qa_vbu_${S}_fallback@example.com`,
+    "Tax Type": "VAT", "Tax No.": "{{vatJ}}", "Business Location": "United Kingdom", Address: "QA Fallback Road 4" };
 }
 
 function dedupCases(): VbuCase[] {
@@ -1340,6 +1498,81 @@ function dedupCases(): VbuCase[] {
       ...mk("VBU-153", "Same GST with the address left blank is back-filled from the existing vendor — and blocked", { Address: "" }, true,
         "An address blank on the sheet makes the invite look the GSTIN up and copy the existing vendor's address in (the PR spec calls this 'back-filled'), so a blank address can never sneak a duplicate through.", "P1"),
       rule: `${R.send}:41-54; ${R.prDup}:26 (address: blank = no match — only safe because of the back-fill)`,
+    },
+    {
+      ...mk("VBU-155", "A contactless Prospect is seen by the duplicate check", { "Tax No.": "{{vatI}}", Address: "QA Prospect Road 3", Pincode: "560003", "Account Group": "ZCOV" }, true,
+        "QA doc 'Prospect visibility': before the PR a Prospect was invisible to the check and a second vendor code was minted. The baseline is a contactless Prospect (no email → no invitation → no mail).", "P0", withAg),
+      baseline: "prospect", requires: { ...withAg, contactless: true },
+      setup: "Baseline (uploaded first): a contactless Prospect — UK VAT {{vatI}}, 'QA Prospect Road 3', pincode 560003, account group ZCOV, no contact.",
+      qaDoc: ["B-prospect"],
+    },
+    {
+      id: "VBU-156", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "fallback", requires: { dupFieldsEmpty: true, sameGstMulti: true, canSkip: true }, qaDoc: ["D5"],
+      title: "Old rule, same-GST-multiple-addresses ON: same tax number + same address is blocked", type: "Negative", priority: "P1", severity: "High",
+      why: "Workspaces without vendor_duplicate_check_fields keep the old rule (QA doc D5): same GST at the same address → 1111.",
+      setup: "Baseline: UK VAT {{vatJ}}, 'QA Fallback Road 4'. Runs only on a workspace with allow_same_gst_multiple_addresses_vendor_invite on and no duplicate field list.",
+      steps: ["Upload the baseline", "Upload a row with the same tax number and address"],
+      sheet: one({ ...fallbackBaselineRow(), "Company Name": vName("VBU-156"), "POC - Email Address": vEmail("VBU-156") }),
+      rows: [{ status: "failed", errorIncludes: MSG.DUP_ADDR, verify: { absent: true } }],
+      expected: "Row failed 'Vendor with this GST and address already exists'.", oracle: "Job row.", rule: `${R.prSend}:288-298 (fallback branch)`,
+    },
+    {
+      id: "VBU-157", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "fallback", requires: { dupFieldsEmpty: true, sameGstMulti: true, canSkip: true }, qaDoc: ["D5"],
+      title: "Old rule, same-GST-multiple-addresses ON: same tax number at another address is allowed", type: "Functional", priority: "P1", severity: "High",
+      why: "The other half of D5.", setup: "As VBU-156.",
+      steps: ["Upload a row with the same tax number and a different address"],
+      sheet: one({ ...fallbackBaselineRow(), "Company Name": vName("VBU-157"), "POC - Email Address": vEmail("VBU-157"), Address: "QA Other Fallback Road 9" }),
+      rows: [{ status: "success", verify: { bscm: "active" } }],
+      expected: "Row success; a second vendor.", oracle: "Job row + vendor.", rule: `${R.prSend}:288-298`,
+    },
+    {
+      id: "VBU-158", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "fallback", requires: { dupFieldsEmpty: true, sameGstMulti: false, canSkip: true }, qaDoc: ["D4"],
+      title: "Old rule, same-GST-multiple-addresses OFF: any repeated tax number is blocked", type: "Negative", priority: "P0", severity: "High",
+      why: "QA doc D4 — the behaviour every other client has today. Runs on PROCOL DEMO with a UK VAT number because GST rows are blocked by the sandbox's 'India' data (VBU-059).",
+      setup: "As VBU-156, on a workspace with allow_same_gst_multiple_addresses_vendor_invite off.",
+      steps: ["Upload a row with the same tax number and a different address"],
+      sheet: one({ ...fallbackBaselineRow(), "Company Name": vName("VBU-158"), "POC - Email Address": vEmail("VBU-158"), Address: "QA Other Fallback Road 9" }),
+      rows: [{ status: "failed", errorIncludes: "Tax no. already registered with another company", verify: { absent: true } }],
+      expected: "Row failed 'Tax no. already registered with another company' (error 134).", oracle: "Job row.", rule: `${R.prSend}:295-296; ${R.loc} api_errors.134`,
+    },
+    {
+      id: "VBU-159", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "dedup", requires: { dupFieldsState: "no-anchor", canSkip: true }, qaDoc: ["C5"],
+      title: "A duplicate-field list without gst_no is ignored (old rule applies)", type: "Negative", priority: "P1", severity: "High",
+      why: "QA doc C5: an unusable config must fall back to the old behaviour, never let everything through. Runs only where such a config exists.",
+      steps: ["Upload the exact duplicate of the baseline"],
+      sheet: one({ ...dedupBaselineRow(), "Company Name": vName("VBU-159"), "POC - Email Address": vEmail("VBU-159"), "Vendor Code": "" }),
+      rows: [{ status: "failed", verify: { absent: true } }],
+      expected: "Row blocked (1111 or 134, per allow_same_gst_multiple_addresses_vendor_invite); config rejection logged.", oracle: "Job row.", rule: `${R.prDup}:58-82`,
+    },
+    {
+      id: "VBU-138", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "dedup", requires: { dupFieldsState: "unknown-field", canSkip: true }, qaDoc: ["C6"],
+      title: "A duplicate-field list naming an unknown field is ignored (old rule applies)", type: "Negative", priority: "P1", severity: "High",
+      why: "QA doc C6: the unknown field must not be silently skipped. Runs only where such a config exists.",
+      steps: ["Upload the exact duplicate of the baseline"],
+      sheet: one({ ...dedupBaselineRow(), "Company Name": vName("VBU-138"), "POC - Email Address": vEmail("VBU-138"), "Vendor Code": "" }),
+      rows: [{ status: "failed", verify: { absent: true } }],
+      expected: "Row blocked by the old rule.", oracle: "Job row.", rule: `${R.prDup}:71-82`,
+    },
+    {
+      id: "VBU-135", section: 5, feature: "vendorbulk.dedup", kind: "manualInvite", tier: "creates", baseline: "dedup", requires: req, qaDoc: ["B1-form"],
+      title: "Manual Invite form: exact duplicate of an existing vendor is blocked", type: "Negative", priority: "P0", severity: "High",
+      why: "QA doc: 'Run B1, B2 and B3 twice — once through bulk upload, once through the manual Invite Vendor form. A difference between them is a bug.'",
+      setup: "The shared duplicate baseline exists (UK VAT {{vatB}}, 'QA Dedup Road 12', pincode 560001, ZCOV).",
+      steps: ["POST /invitations/send_invite with the baseline's tax number, address and account group, a new name and email, skip onboarding"],
+      inviteBody: { invite_type: "vendor_invite", firm_name: vName("VBU-135"), name: "QA Platform Tester", email: vEmail("VBU-135"), category: "manufacturer", tax_no: "{{vatB}}", tax_type_country_mapping_id: 1, address: "QA Dedup Road 12", city_id: 8, account_group: "ZCOV", skip_vendor_onboarding: true },
+      inviteExpect: { http: "reject", message: MSG.DUP_ADDR, verify: { absent: true } },
+      expected: "HTTP 422 'Vendor with this GST and address already exists' — the same answer as bulk (VBU-140).", oracle: "HTTP + companies lookup.", rule: `${R.prSend}:274-298`,
+    },
+    {
+      id: "VBU-136", section: 5, feature: "vendorbulk.dedup", kind: "manualInvite", tier: "creates", baseline: "dedup", requires: req, qaDoc: ["B2-form"],
+      title: "Manual Invite form: same tax number + address, different pincode is allowed", type: "Functional", priority: "P0", severity: "High",
+      why: "QA doc B2 through the form. The form's allowed parameters do not include pincode, so it may not be able to tell two branches apart.",
+      setup: "As VBU-135.",
+      steps: ["POST /invitations/send_invite with the baseline's tax number and address, pincode 110001, a new name and email, skip onboarding"],
+      inviteBody: { invite_type: "vendor_invite", firm_name: vName("VBU-136"), name: "QA Platform Tester", email: vEmail("VBU-136"), category: "manufacturer", tax_no: "{{vatB}}", tax_type_country_mapping_id: 1, address: "QA Dedup Road 12", city_id: 8, pincode: "110001", account_group: "ZCOV", skip_vendor_onboarding: true },
+      inviteExpect: { http: "accept", verify: { bscm: "active" } },
+      expected: "HTTP 200; a second vendor (another branch) — the same answer as bulk (VBU-141).", oracle: "HTTP + vendor.",
+      rule: `app/controllers/api/invitations_controller.rb send_invite (permit list has no :pincode); ${R.prDup}:27 (blank pincode = match)`,
     },
   ];
 }
