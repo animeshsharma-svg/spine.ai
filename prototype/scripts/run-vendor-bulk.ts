@@ -49,8 +49,25 @@ async function main() {
     if (ctx.vbu) console.log("settings:", JSON.stringify(ctx.vbu.effective));
 
     const results = [];
+    // One case may never hang the run: a stuck socket (seen on the sandbox) is
+    // recorded as "couldn't tell" after 8 minutes and the run moves on.
+    const LIMIT_MS = 8 * 60_000;
     for (const chk of checks) {
-      const r: any = await runCheck(client, chk);
+      const r: any = await Promise.race([
+        runCheck(client, chk),
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                ...(({ exec, ...meta }) => meta)(chk as any),
+                httpStatus: null, accepted: false, message: "timed out", durationMs: LIMIT_MS,
+                pass: false, inconclusive: true,
+                verdict: `no answer within ${LIMIT_MS / 60_000} minutes (the sandbox or the network hung) — nothing proved`,
+              }),
+            LIMIT_MS,
+          ),
+        ),
+      ]);
       results.push(r);
       const mark = r.pass ? "PASS" : r.inconclusive ? "????" : "FAIL";
       console.log(`${mark} ${r.id} ${r.scenario}\n     ${r.verdict}`);

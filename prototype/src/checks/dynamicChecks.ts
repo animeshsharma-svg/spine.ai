@@ -122,6 +122,10 @@ const ALLOW_CURATED: AllowRule[] = [
   { method: "POST", re: /^\/v1\/bulk_create_vendor$/, what: "vendor bulk upload (QA fixtures)" },
   { method: "GET", re: /^\/v1\/bulk_create_vendor_(template|status)$/, what: "vendor bulk template / job status" },
   { method: "GET", re: /^\/v1\/bulk_create_vendor_error_sheet(\?|$)/, what: "vendor bulk error sheet" },
+  { method: "GET", re: /^\/v1\/bulk_create_vendor_template\?as=/, what: "vendor bulk template as another user" },
+  // The manual Invite Vendor call, for the cases that compare it with bulk
+  // upload: QA_Platform_ names, qa_…@example.com or no contact, skip onboarding.
+  { method: "POST", re: /^\/invitations\/send_invite$/, what: "single-vendor invite (QA test vendors)" },
 ];
 
 /** The endpoint menu the LLM is shown — kept in sync with ALLOW above. */

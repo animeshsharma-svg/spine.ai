@@ -23,6 +23,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import * as XLSX from "xlsx";
 
 import type { Client, CheckOutcome } from "./engine.js";
+import { actorApi, bugForCase, onboardingPayload, sheetGrid, writeEvidence, type VbuEvidence } from "./vendorBulkExtras.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROCOL_TEST = join(here, "..", "..", "..", "procol test");
@@ -35,7 +36,12 @@ async function vbu(): Promise<Vbu> {
 }
 
 export interface BulkSpec {
-  kind: "http" | "bulk" | "template" | "errorSheet" | "formulaSheet";
+  kind: "http" | "bulk" | "template" | "errorSheet" | "formulaSheet" | "concurrent" | "errorSheetReupload" | "manualInvite";
+  actor?: "seller-qa" | "member-no-company-create";
+  payload?: "onboarding";
+  fixture2?: string;
+  inviteBody?: Record<string, unknown>;
+  inviteExpect?: { http: "accept" | "reject"; message?: string; verify?: RowExpect["verify"] };
   tier: "safe" | "creates" | "real-mail";
   requires?: Record<string, unknown>;
   fixture?: string | null;
@@ -63,6 +69,7 @@ interface RowExpect {
     fields?: Record<string, string | null>;
     minUsers?: number;
     absent?: boolean;
+    subsidiary?: boolean;
   };
 }
 
@@ -80,6 +87,8 @@ export interface VbuWorkspace {
     extraFieldNames: string[];
     requiredExtraFields: boolean;
     customProfiles: string[];
+    /** ok = a usable duplicate-field list; empty = none; no-anchor / unknown-field = set but rejected by the backend */
+    dupFieldsState: "ok" | "empty" | "no-anchor" | "unknown-field";
   };
 }
 
@@ -105,12 +114,22 @@ export async function resolveVbuWorkspace(companyId: number): Promise<VbuWorkspa
         extraFieldNames: extra.map((f) => f?.name).filter(Boolean),
         requiredExtraFields: extra.some((f) => f?.configuration?.is_required === true),
         customProfiles: [...new Set(profiles)] as string[],
+        dupFieldsState: dupState(flags.vendor_duplicate_check_fields, extra.map((f) => f?.key).filter(Boolean)),
       },
     };
   } catch (e) {
     console.log(`[vendorBulk] settings could not be read: ${(e as Error).message}`);
     return null;
   }
+}
+
+/** The backend's own reading of vendor_duplicate_check_fields (PR16267 duplicate_check_fields.rb:58-82). */
+function dupState(v: unknown, extraKeys: string[]): "ok" | "empty" | "no-anchor" | "unknown-field" {
+  if (!Array.isArray(v) || !v.length) return "empty";
+  const names = v.map((x) => String(x).trim()).filter(Boolean);
+  if (!names.includes("gst_no")) return "no-anchor";
+  const base = ["gst_no", "pan_no", "address", "pincode"];
+  return names.every((n) => base.includes(n) || extraKeys.includes(n)) ? "ok" : "unknown-field";
 }
 
 /** Why this case must not run here, or null. Synchronous: the workspace was read beforehand. */
@@ -142,6 +161,10 @@ export function vbuSkipReason(
     r.sameGstMulti !== undefined ? want("allow_same_gst_multiple_addresses_vendor_invite", !!r.sameGstMulti, e.sameGstMulti) : null,
     r.requiredExtraFields !== undefined ? want("a required extra field", !!r.requiredExtraFields, e.requiredExtraFields) : null,
   ];
+  if (r.dupFieldsEmpty !== undefined && (e.dupFieldsState === "empty") !== !!r.dupFieldsEmpty)
+    checks.push(`this case needs vendor_duplicate_check_fields ${r.dupFieldsEmpty ? "NOT set" : "set"}; here it is [${e.dupFields.join(", ")}]`);
+  if (typeof r.dupFieldsState === "string" && e.dupFieldsState !== r.dupFieldsState)
+    checks.push(`this case needs a vendor_duplicate_check_fields list that is "${r.dupFieldsState}"; here it is "${e.dupFieldsState}" ([${e.dupFields.join(", ")}])`);
   if (Array.isArray(r.dupFieldsInclude)) {
     const missing = (r.dupFieldsInclude as string[]).filter((f) => !e.dupFields.includes(f));
     if (missing.length) checks.push(`this case needs vendor_duplicate_check_fields to list ${missing.join(", ")}; here it is [${e.dupFields.join(", ")}]`);
@@ -240,6 +263,10 @@ async function verifyRow(
     problems.push(`invitation status ${own[0]?.status ?? "none"} (expected ${exp.invitationStatus})`);
   if (exp.skipOnboarding !== undefined && own[0] && !!own[0].skipVendorOnboarding !== exp.skipOnboarding)
     problems.push(`invitation skip_vendor_onboarding=${String(own[0].skipVendorOnboarding)} (expected ${exp.skipOnboarding})`);
+  if (exp.subsidiary && !v.invitations.some((i) => i.isSubsidiary)) problems.push("no subsidiary invitation");
+  const sub = v.invitations.find((i) => i.isSubsidiary);
+  if (exp.subsidiary && sub && exp.skipOnboarding !== undefined && !!sub.skipVendorOnboarding !== exp.skipOnboarding)
+    problems.push(`subsidiary invitation skip_vendor_onboarding=${String(sub.skipVendorOnboarding)} (expected ${exp.skipOnboarding})`);
   if (exp.minUsers !== undefined && v.users < exp.minUsers) problems.push(`${v.users} user(s) mapped (expected ≥ ${exp.minUsers})`);
   for (const [k, want] of Object.entries(exp.fields ?? {})) {
     const got =
@@ -293,103 +320,213 @@ function describeRows(rows: { status: string; error: string | null }[]): string 
 
 // ── the exec functions ───────────────────────────────────────────────────
 
-export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string) {
+/** What the case library knows about the case, carried into its evidence record. */
+export interface BulkCaseMeta {
+  method: string;
+  path: string;
+  expectedResult?: string;
+  rule?: string;
+  qaDoc?: string[];
+  steps?: string[];
+}
+
+const sevToPri: Record<string, string> = { Critical: "P0", High: "P1", Medium: "P2", Low: "P3" };
+
+export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta: BulkCaseMeta = { method: "POST", path: "/v1/bulk_create_vendor" }) {
   return async (client: Client): Promise<CheckOutcome> => {
     const t0 = Date.now();
     const m = await vbu();
-    const api = client.ctx.buyerApi;
-    const userId: number | undefined = (client.ctx as any).buyerUserId;
     const companyId: number = client.ctx.companyId;
     const st = await runState(client, stamp);
     const vars = st.vars;
-    const done = (v: Verdict, extra: Record<string, unknown> = {}) => outcome(v, { durationMs: Date.now() - t0, ...extra });
+    let api = client.ctx.buyerApi;
+    let userId: number | undefined = (client.ctx as any).buyerUserId;
+    let actorLabel = "workspace admin (the run's session)";
+
+    const ev: VbuEvidence = {
+      schema: "vbu.evidence.v1",
+      id: `${stamp}/${caseId}`,
+      caseId,
+      runStamp: stamp,
+      recordedAt: new Date().toISOString(),
+      companyId,
+      actor: actorLabel,
+      tier: bulk.tier,
+      request: { method: meta.method, path: meta.path },
+      expected: { text: meta.expectedResult, rows: bulk.rows ?? bulk.inviteExpect ?? bulk.refuse },
+      verdict: { pass: false, text: "" },
+      rule: meta.rule,
+      qaDoc: meta.qaDoc,
+      steps: meta.steps,
+    };
+
+    /** Every exit goes through here: it writes the evidence record and names the bug. */
+    const finish = (v: Verdict, extra: Record<string, unknown> = {}): CheckOutcome => {
+      ev.actor = actorLabel;
+      ev.verdict = { pass: v.pass, inconclusive: v.inconclusive, text: v.verdict };
+      const bug = !v.pass && !v.inconclusive ? bugForCase(caseId) : undefined;
+      if (bug) ev.bug = bug;
+      let evidenceRef: string | undefined;
+      try {
+        evidenceRef = writeEvidence(ev);
+      } catch {
+        /* evidence is best effort; the verdict stands */
+      }
+      // A failing row case answers HTTP 200, so the message is what tells a
+      // bug sheet reader what went wrong.
+      const line = v.pass ? null : v.verdict.replace(/\s*\[\d+ row\(s\) in \d+ s\]$/, "").slice(0, 300);
+      return outcome(v, {
+        durationMs: Date.now() - t0,
+        ...extra,
+        message: (extra.message as string | null | undefined) ?? line,
+        ...(evidenceRef ? { evidenceRef } : {}),
+        ...(bug
+          ? { knownBug: { id: bug.id, sheet: "Vendor bulk upload — QA platform (config/vbuBugs.json)", title: bug.title, status: bug.status, reported: bug.found, priority: sevToPri[bug.severity] ?? "P2", blocker: bug.severity === "Critical" } }
+          : {}),
+      });
+    };
 
     try {
-      if (bulk.kind === "template") return done(await templateVerdict(bulk.templateCheck ?? "headers", st, client));
-      if (bulk.kind === "errorSheet" && bulk.errorSheetCheck !== "realJob") return done(await errorSheetVerdict(bulk, api));
-      if (!userId) return done({ pass: false, inconclusive: true, verdict: "no users.id for this session — staged rows cannot be read" });
+      if (bulk.actor) {
+        const a = await actorApi(client, bulk.actor);
+        if ("unavailable" in a) return finish({ pass: false, inconclusive: true, verdict: `could not act as ${bulk.actor}: ${a.unavailable}` });
+        api = a.api;
+        userId = a.userId;
+        actorLabel = a.label;
+      }
+
+      // ── a plain request made as another actor ──
+      if (bulk.kind === "http") {
+        const r = await api.raw(meta.method, meta.path, meta.method === "GET" ? {} : { body: {} });
+        ev.http = { status: r.status, message: r.message ?? null };
+        const refused = !r.ok;
+        if (r.status >= 500) return finish({ pass: false, verdict: `server error ${r.status}` }, { httpStatus: r.status, accepted: false });
+        if (refused) return finish({ pass: true, verdict: `correctly refused (HTTP ${r.status}${r.message ? `: ${r.message}` : ""})` }, { httpStatus: r.status, accepted: false, message: r.message ?? null });
+        return finish({ pass: false, verdict: `SERVED a request this user may not make (HTTP 200) — as ${actorLabel}` }, { httpStatus: 200, accepted: true });
+      }
+
+      if (bulk.kind === "template") return finish(await templateVerdict(bulk.templateCheck ?? "headers", st, client));
+      if (bulk.kind === "errorSheet" && bulk.errorSheetCheck !== "realJob") return finish(await errorSheetVerdict(bulk, api));
+      if (!userId) return finish({ pass: false, inconclusive: true, verdict: "no users.id for this session — staged rows cannot be read" });
       // Fixtures name this workspace's own profile and category values, which
       // come from its template. Guessing them would make every row fail for
       // the wrong reason, so without the template nothing is sent.
       if (!st.template)
-        return done({ pass: false, inconclusive: true, verdict: `the workspace template could not be downloaded (${st.templateError}), so the per-workspace values the sheet needs are unknown — nothing was uploaded` });
+        return finish({ pass: false, inconclusive: true, verdict: `the workspace template could not be downloaded (${st.templateError}), so the per-workspace values the sheet needs are unknown — nothing was uploaded` });
 
       if (bulk.baseline) {
-        const b = await ensureBaseline(client, stamp, userId, bulk.baseline);
+        const b = await ensureBaseline(client, stamp, (client.ctx as any).buyerUserId, bulk.baseline);
         if (!b.ok)
-          return done({
+          return finish({
             pass: false,
             inconclusive: true,
             verdict:
-              `the duplicate baseline vendor could not be created (${b.why}) — nothing to compare against` +
+              `the baseline vendor (${bulk.baseline}) could not be created (${b.why}) — nothing to compare against` +
               (b.why?.includes(TAX_TRAP) ? "; blocked by the sandbox's duplicate 'India' countries (see VBU-059)" : ""),
           });
       }
 
+      // ── the single-vendor Invite Vendor call ──
+      if (bulk.kind === "manualInvite") {
+        const body = JSON.parse(fill(JSON.stringify(bulk.inviteBody ?? {}), vars));
+        ev.request = { method: "POST", path: "/invitations/send_invite", body };
+        const r = await api.raw("POST", "/invitations/send_invite", { body });
+        ev.http = { status: r.status, message: r.message ?? null };
+        const found = await m.findVendorsByName(companyId, String(body.firm_name ?? ""));
+        ev.records = found.map(recordOf);
+        const exp = bulk.inviteExpect ?? { http: "accept" };
+        const detail = { httpStatus: r.ok ? 200 : r.status, accepted: r.ok, message: r.ok ? null : r.message ?? null };
+        if (r.status >= 500) return finish({ pass: false, verdict: `server error ${r.status} on send_invite` }, detail);
+        if (exp.http === "reject") {
+          if (r.ok)
+            return finish({ pass: false, verdict: `ACCEPTED an invite that should be refused${found[0] ? ` — vendor ${found[0].companyId} created (mapping ${found[0].bscmStatus}, ${found[0].invitations.length} invitation(s))` : ""}` }, detail);
+          if (exp.message && !(r.message ?? "").toLowerCase().includes(exp.message.toLowerCase().replace(/\.$/, "")))
+            return finish({ pass: false, verdict: `refused (HTTP ${r.status}) but with "${r.message}" — expected "${exp.message}"` }, detail);
+          if (exp.verify?.absent && found.length) return finish({ pass: false, verdict: `refused, but vendor ${found[0].companyId} exists` }, detail);
+          return finish({ pass: true, verdict: `correctly refused (HTTP ${r.status}: ${r.message})` }, detail);
+        }
+        if (!r.ok) return finish({ pass: false, verdict: `REFUSED an invite that should be accepted (HTTP ${r.status}: ${r.message})` }, detail);
+        const probs = exp.verify ? await verifyRow(companyId, { data: { "Company Name": body.firm_name } }, exp.verify, vars) : [];
+        return probs.length ? finish({ pass: false, verdict: probs.join(" · ") }, detail) : finish({ pass: true, verdict: "accepted and the vendor matches" }, detail);
+      }
+
       const fx = m.loadFixture(bulk.fixture!, vars);
+      ev.fixture = { file: bulk.fixture!, bytes: fx.bytes, vars, ...(bulk.fixture2 ? { file2: bulk.fixture2 } : {}) };
+      ev.sheet = sheetGrid(fx.base64);
       const excel = bulk.wrap === "dataUrl" ? `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${fx.base64}` : fx.base64;
-      const out = await m.uploadAndWait(api, userId, { excel_data: excel }, { timeoutMs: bulk.everyRow ? 600_000 : 240_000 });
+      let extraBody: Record<string, unknown> = {};
+      if (bulk.payload === "onboarding") {
+        const pl = await onboardingPayload(api, stamp);
+        if ("unavailable" in pl) return finish({ pass: false, inconclusive: true, verdict: `the onboarding payload could not be built: ${pl.unavailable}` });
+        extraBody = pl;
+      }
+      ev.request = { method: "POST", path: "/v1/bulk_create_vendor", body: { excel_data: `<base64 of ${bulk.fixture}, ${fx.bytes} bytes>`, ...(Object.keys(extraBody).length ? { configurations: (extraBody as any).configurations, forms: "<the template's forms>" } : {}) } };
+
+      // ── two uploads at the same moment ──
+      if (bulk.kind === "concurrent") {
+        const fx2 = m.loadFixture(bulk.fixture2!, vars);
+        const before = await m.lastJobId(userId);
+        const [h1, h2] = await Promise.all([
+          api.raw("POST", "/v1/bulk_create_vendor", { body: { excel_data: fx.base64 }, timeoutMs: 180_000 }),
+          api.raw("POST", "/v1/bulk_create_vendor", { body: { excel_data: fx2.base64 }, timeoutMs: 180_000 }),
+        ]);
+        ev.http = { status: h1.ok && h2.ok ? 200 : (h1.ok ? h2.status : h1.status), message: h1.message ?? h2.message ?? null };
+        if (!h1.ok || !h2.ok) return finish({ pass: false, verdict: `an upload was refused (HTTP ${h1.status}/${h2.status})` }, { httpStatus: ev.http.status, accepted: false });
+        let rows: any[] = [];
+        for (let i = 0; i < 60; i++) {
+          rows = await m.readJobRows(userId, before);
+          if (rows.length >= 2 && !rows.some((r) => r.status === "in_progress")) break;
+          await new Promise((r) => setTimeout(r, 2500));
+        }
+        const jobIds = [...new Set(rows.map((r) => r.jobId))];
+        ev.job = { jobIds, staged: rows.length, waitedMs: Date.now() - t0 };
+        ev.rows = rows.map((r, i) => ({ rowNo: i + 4, jobId: r.jobId, status: r.status, error: r.error, parsed: pick(r.data, ev.sheet?.headers) }));
+        if (jobIds.length === 1 && rows.length >= 2)
+          return finish({ pass: false, verdict: `both uploads were staged under ONE job id (${jobIds[0]}) — their rows, status line and error sheet are mixed` });
+        return finish({ pass: true, verdict: `two separate jobs (${jobIds.join(", ")})` });
+      }
+
+      const out = await m.uploadAndWait(api, userId, { excel_data: excel, ...extraBody }, { timeoutMs: bulk.everyRow ? 600_000 : 240_000 });
       const http = out.http;
+      ev.http = { status: http.ok ? 200 : http.status, message: http.ok ? null : http.message ?? null, ms: out.waitedMs };
+      ev.job = { jobIds: [...new Set(out.rows.map((r) => r.jobId))], staged: out.rows.length, waitedMs: out.waitedMs, statusApi: out.statusApi };
+      ev.rows = out.rows.slice(0, bulk.everyRow ? 5 : 20).map((r, i) => ({ rowNo: i + 4, jobId: r.jobId, status: r.status, error: r.error, parsed: pick(r.data, ev.sheet?.headers) }));
       const detail = {
         httpStatus: http.ok ? 200 : http.status || null,
         accepted: http.ok,
         message: http.ok ? null : http.message ?? null,
-        bulk: {
-          fixture: bulk.fixture,
-          bytes: fx.bytes,
-          jobId: out.jobId,
-          staged: out.rows.length,
-          waitedMs: out.waitedMs,
-          rows: out.rows.slice(0, 20).map((r) => ({ status: r.status, error: r.error })),
-          statusApi: out.statusApi,
-        },
+        bulk: { fixture: bulk.fixture, bytes: fx.bytes, jobId: out.jobId, staged: out.rows.length, waitedMs: out.waitedMs, rows: out.rows.slice(0, 20).map((r) => ({ status: r.status, error: r.error })), statusApi: out.statusApi },
       };
 
       if (!http.ok && http.status === 0)
-        return done({ pass: false, inconclusive: true, verdict: `the upload request never completed (${(http.message ?? "").split("\n")[0]}) — network, not a product answer` }, detail);
-      if (!http.ok && http.status >= 500) return done({ pass: false, verdict: `server error ${http.status} on upload — a 5xx is always a defect (${http.message ?? ""})` }, detail);
+        return finish({ pass: false, inconclusive: true, verdict: `the upload request never completed (${(http.message ?? "").split("\n")[0]}) — network, not a product answer` }, detail);
+      if (!http.ok && http.status >= 500) return finish({ pass: false, verdict: `server error ${http.status} on upload — a 5xx is always a defect (${http.message ?? ""})` }, detail);
       if (bulk.refuse) {
         if (!http.ok) {
           const want = bulk.refuse.message;
           if (want && !(http.message ?? "").toLowerCase().includes(want.toLowerCase().replace(/\.$/, "")))
-            return done({ pass: false, verdict: `refused (HTTP ${http.status}) but with "${http.message}" — expected "${want}"` }, detail);
-          return done({ pass: true, verdict: `correctly refused (HTTP ${http.status}: ${http.message})` }, detail);
+            return finish({ pass: false, verdict: `refused (HTTP ${http.status}) but with "${http.message}" — expected "${want}"` }, detail);
+          return finish({ pass: true, verdict: `correctly refused (HTTP ${http.status}: ${http.message})` }, detail);
         }
-        return done(
-          {
-            pass: false,
-            verdict:
-              `ACCEPTED a file that should be refused (HTTP 200, ${out.rows.length} row(s) staged${out.rows.length ? `: ${describeRows(out.rows)}` : " — the buyer is told 'Vendors Sheet Uploaded' and nothing appears"})`,
-          },
-          detail,
-        );
+        return finish({ pass: false, verdict: `ACCEPTED a file that should be refused (HTTP 200, ${out.rows.length} row(s) staged${out.rows.length ? `: ${describeRows(out.rows)}` : " — the buyer is told 'Vendors Sheet Uploaded' and nothing appears"})${bulk.actor ? ` — as ${actorLabel}` : ""}` }, detail);
       }
-      if (!http.ok) return done({ pass: false, verdict: `the upload itself was refused (HTTP ${http.status}: ${http.message}) — the rows were never processed` }, detail);
+      if (!http.ok) return finish({ pass: false, verdict: `the upload itself was refused (HTTP ${http.status}: ${http.message}) — the rows were never processed` }, detail);
       if (out.timedOut)
-        return done({ pass: false, inconclusive: true, verdict: `${out.rows.filter((r) => r.status === "in_progress").length} row(s) still in_progress after ${Math.round(out.waitedMs / 1000)} s — the sandbox's bulk_upload queue did not drain; nothing proved` }, detail);
+        return finish({ pass: false, inconclusive: true, verdict: `${out.rows.filter((r) => r.status === "in_progress").length} row(s) still in_progress after ${Math.round(out.waitedMs / 1000)} s — the sandbox's bulk_upload queue did not drain; nothing proved` }, detail);
 
       // The sandbox's duplicate "India" countries (see VBU-059) make the tax
       // lookup fail before the rule under test is reached. That proves nothing
       // about the case, so it is reported as blocked, not as a product verdict.
       const taxTrap = out.rows.some((r) => r.error === TAX_TRAP) && !(bulk.rows ?? []).some((e) => e.error === TAX_TRAP) && caseId !== "VBU-059";
       if (taxTrap)
-        return done(
-          {
-            pass: false,
-            inconclusive: true,
-            verdict:
-              `blocked by sandbox master data: the row stopped at "${TAX_TRAP}" before reaching the rule under test — ` +
-              `Country.find_by(name: 'India') picks one of 36 'India' rows whose GST mapping is inactive (see VBU-059)`,
-          },
-          detail,
-        );
+        return finish({ pass: false, inconclusive: true, verdict: `blocked by sandbox master data: the row stopped at "${TAX_TRAP}" before reaching the rule under test — Country.find_by(name: 'India') picks one of 36 'India' rows whose GST mapping is inactive (see VBU-059)` }, detail);
+
       const crashed = out.rows.filter((r) => r.error && WORKER_CRASH.test(r.error));
       const expected = bulk.rows ?? [];
       const problems: string[] = [];
       if (bulk.everyRow) {
         const bad = out.rows.filter((r) => r.status !== expected[0]?.status || (expected[0]?.error && r.error !== expected[0].error));
         if (bad.length) problems.push(`${bad.length} of ${out.rows.length} rows differ: ${describeRows(bad)}`);
-        problems.push(...[]);
       } else if (bulk.anyOrder) {
         const pool = [...out.rows];
         if (pool.length !== expected.length) problems.push(`${pool.length} row(s) staged (expected ${expected.length})`);
@@ -407,19 +544,63 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string) {
         }
       }
 
-      if (bulk.kind === "errorSheet" || bulk.kind === "formulaSheet") {
-        problems.push(...(await errorSheetOfJob(bulk, api, out.rows.length)));
+      if (bulk.kind === "errorSheet" || bulk.kind === "formulaSheet") problems.push(...(await errorSheetOfJob(bulk, api, out.rows.length)));
+      if (bulk.kind === "errorSheetReupload") problems.push(...(await reuploadErrorSheet(api, userId, out.rows, ev)));
+
+      // What the rows created, for the report: every vendor a row named.
+      const names = [...new Set(out.rows.slice(0, 10).map((r) => String(r.data["Company Name"] ?? "")).filter(Boolean))];
+      if (!bulk.everyRow && names.length) {
+        const recs: VbuEvidence["records"] = [];
+        for (const n of names.slice(0, 6)) for (const v of await m.findVendorsByName(companyId, n)) recs.push(recordOf(v));
+        ev.records = recs;
       }
 
       const timing = `${out.rows.length} row(s) in ${Math.round(out.waitedMs / 1000)} s`;
       if (crashed.length)
-        return done({ pass: false, verdict: `worker error (the async 500): ${describeRows(crashed)}${problems.length ? ` · also: ${problems.join(" · ")}` : ""}` }, { ...detail, asyncServerError: true });
-      if (problems.length) return done({ pass: false, verdict: `${problems.join(" · ")} [${timing}]` }, detail);
-      return done({ pass: true, verdict: `every row came out as documented: ${describeRows(out.rows)} [${timing}]` }, detail);
+        return finish({ pass: false, verdict: `worker error (the async 500): ${describeRows(crashed)}${problems.length ? ` · also: ${problems.join(" · ")}` : ""}` }, { ...detail, asyncServerError: true });
+      if (problems.length) return finish({ pass: false, verdict: `${problems.join(" · ")} [${timing}]` }, detail);
+      return finish({ pass: true, verdict: `every row came out as documented: ${describeRows(out.rows)} [${timing}]` }, detail);
     } catch (e) {
-      return done({ pass: false, inconclusive: true, verdict: `the runner could not complete ${caseId}: ${(e as Error).message}` }, { accepted: false });
+      return finish({ pass: false, inconclusive: true, verdict: `the runner could not complete ${caseId}: ${(e as Error).message}` }, { accepted: false });
     }
   };
+}
+
+/** The parsed values of a staged row, limited to the columns the sheet used. */
+function pick(data: Record<string, unknown>, headers?: string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const h of headers ?? Object.keys(data)) if (h in data) out[h] = data[h];
+  for (const k of ["city_id", "tax_no", "pan_no"]) if (k in data) out[k] = data[k];
+  return out;
+}
+
+function recordOf(v: any): NonNullable<VbuEvidence["records"]>[number] {
+  const misc = v.misc && typeof v.misc === "object" ? Object.fromEntries(Object.entries(v.misc).filter(([k]) => k !== "category_data" || true)) : null;
+  return {
+    companyId: v.companyId, name: v.name, bscm: v.bscmStatus, city: v.cityName, cityId: v.cityId, gstNo: v.gstNo, panNo: v.panNo,
+    address: v.address, vendorCode: v.vendorCode, misc, invitations: v.invitations,
+  };
+}
+
+/** Download the job's error sheet and upload it back; the rows must fail the same way again. */
+async function reuploadErrorSheet(api: any, userId: number, firstRows: { error: string | null }[], ev: VbuEvidence): Promise<string[]> {
+  const m = await vbu();
+  const st = await api.raw("GET", "/v1/bulk_create_vendor_status");
+  const job = ((st.data as any)?.jobs ?? [])[0];
+  if (!job?.job_uuid) return ["no job to download an error sheet for"];
+  const r = await api.raw("GET", `/v1/bulk_create_vendor_error_sheet?job_uuid=${encodeURIComponent(job.job_uuid)}`);
+  if (!r.ok) return [`error sheet refused (HTTP ${r.status}: ${r.message})`];
+  const buf = Buffer.from(await (await fetch((r.data as any).excel_url)).arrayBuffer());
+  const again = await m.uploadAndWait(api, userId, { excel_data: buf.toString("base64") });
+  (ev as any).reupload = {
+    http: again.http.ok ? 200 : again.http.status,
+    message: again.http.message ?? null,
+    rows: again.rows.map((x) => ({ jobId: x.jobId, status: x.status, error: x.error })),
+  };
+  if (!again.http.ok) return [`re-uploading the error sheet was refused (HTTP ${again.http.status}: ${again.http.message})`];
+  const want = firstRows.map((x) => x.error).join(" | ");
+  const got = again.rows.map((x) => x.error).join(" | ");
+  return want === got ? [] : [`re-uploaded rows came out "${got}" (first upload: "${want}")`];
 }
 
 async function ensureBaseline(client: Client, stamp: string, userId: number, fixture: string): Promise<{ ok: boolean; why?: string }> {

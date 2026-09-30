@@ -1,0 +1,372 @@
+{
+ "about": "Vendor bulk upload bugs found by the QA platform on the UAT sandbox (GMMCO 47053 / PROCOL DEMO 198678), 29 Sep 2026. A failing VBU case whose id is listed under a bug is reported as that bug, with its cause and fix. Backend refs: procol-backend origin/main ae36e86894 + PR 16267 @ 65728150bc.",
+ "bugs": [
+  {
+   "id": "BUG-01",
+   "severity": "Critical",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-151"
+   ],
+   "title": "Two identical new vendors in one sheet are both created",
+   "where": "app/workers/vendor_bulk_upload_master_worker_v2.rb:11-14; PR16267 app/services/invitation/send_service.rb:274-298",
+   "cause": "Each row runs in its own background job at the same time and the duplicate check only sees vendors already saved, so rows of one sheet never see each other.",
+   "fix": "Drop or fail in-sheet duplicates by the configured key before queueing, or lock per workspace + tax number around the check and the insert."
+  },
+  {
+   "id": "BUG-02",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-059"
+   ],
+   "title": "GST rows fail 'Tax Type not configured for the selected Business Location' at random",
+   "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86-88; countries table (36 rows named India)",
+   "cause": "Country.find_by(name: 'India') has no order or status filter; the sandbox has 36 'India' countries and only ids 108 and 270 have an active GST setting.",
+   "fix": "Look the mapping up through the active TaxTypeCountryMapping joined on country and tax type names; clean the duplicate countries; check production."
+  },
+  {
+   "id": "BUG-03",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-003"
+   ],
+   "title": "HTTP 500 when excel_data is an empty string",
+   "where": "app/controllers/api/v1/companies_controller.rb:209; lib/excel_sheet_utils.rb:2-13",
+   "cause": "Only nil is checked; an empty string becomes a 0-byte file and the Roo error is not rescued.",
+   "fix": "Treat blank excel_data like missing; rescue every read error as 'Invalid file format'."
+  },
+  {
+   "id": "BUG-04",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-008"
+   ],
+   "title": "HTTP 500 when a Word .docx is uploaded",
+   "where": "lib/excel_sheet_utils.rb:2-13",
+   "cause": "A .docx is a valid zip, so Roo's xlsx reader raises an error the helper does not rescue.",
+   "fix": "Rescue every read error as 'Invalid file format'."
+  },
+  {
+   "id": "BUG-05",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-012"
+   ],
+   "title": "HTTP 500 on an empty workbook",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:168-171",
+   "cause": "last_row is nil for an empty sheet and the loop compares 4 <= nil.",
+   "fix": "Return a clear error when the sheet has fewer than 4 rows."
+  },
+  {
+   "id": "BUG-06",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-154"
+   ],
+   "title": "Background job crashes on a tax number whose vendor has city_id 0",
+   "where": "app/helpers/api/companies_helper.rb:731-745; app/services/invitation/send_service.rb:41-54",
+   "cause": "With City/Address blank the invite looks the tax number up and reads existing_company.city.name; city is nil for city_id 0 (BUG-10).",
+   "fix": "Fix BUG-10 and guard existing_company.city&.name."
+  },
+  {
+   "id": "BUG-07",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-128"
+   ],
+   "title": "POC 2 name without email: row 'failed' but the vendor was created and invited",
+   "where": "app/workers/vendor_bulk_upload_worker_v2.rb:141-158 then :175-179",
+   "cause": "The worker sends the invite first and checks the POC 2 pair afterwards.",
+   "fix": "Check the POC 2 name/email pair in the row check, before anything is created."
+  },
+  {
+   "id": "BUG-08",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-182"
+   ],
+   "title": "Required extra fields are not enforced on upload",
+   "where": "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:14-16",
+   "cause": "The row check builds its column list without extra_fields, while the template passes them.",
+   "fix": "Pass the workspace's extra_fields_for_vendor_invite to the row check."
+  },
+  {
+   "id": "BUG-09",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-160",
+    "VBU-161"
+   ],
+   "title": "Trailing zeros removed from any text containing a dot ('Plot No. 100' → 'Plot No. 1')",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:176; app/controllers/concerns/utils.rb:641-647",
+   "cause": "Every cell goes through strip_trailing_zero, which removes /\\.?0+$/ from any value containing a dot.",
+   "fix": "Apply it only to numeric cells, or only when the whole value matches /\\A\\d+\\.0+\\z/."
+  },
+  {
+   "id": "BUG-10",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-075"
+   ],
+   "title": "Unknown city stored as city_id 0 (a city that does not exist)",
+   "where": "app/controllers/concerns/utils.rb get_vendor_bulk_upload_params_hash_v2; vpc_params_mixin.rb:27",
+   "cause": "The City column is mapped to city_id and carries the city NAME; when it does not resolve, the text reaches the company and is cast to 0.",
+   "fix": "Drop the unresolved city name so the fallback applies (or store null)."
+  },
+  {
+   "id": "BUG-11",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-162"
+   ],
+   "title": "Text after a '<' is dropped ('A<B Traders' → 'A')",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:177",
+   "cause": "Every cell goes through Nokogiri::HTML(val).text, which reads '<B …' as a tag.",
+   "fix": "Do not parse cells as HTML; escape on output instead."
+  },
+  {
+   "id": "BUG-12",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-031"
+   ],
+   "title": "Template sample row is shifted against its headers",
+   "where": "PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:295-336",
+   "cause": "Sample values are written by position in the flag-OFF column order.",
+   "fix": "Build the sample row from the header list by name."
+  },
+  {
+   "id": "BUG-13",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-032"
+   ],
+   "title": "Vendor Profile dropdown sits on the Business Location column",
+   "where": "PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:97",
+   "cause": "vendor_profile_dropdown_range returns a fixed D4:D100 unless vendor_invitation_v2 is on.",
+   "fix": "Compute the column from the header list, as Status already is."
+  },
+  {
+   "id": "BUG-14",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-093"
+   ],
+   "title": "Deals In: only the first valid category is checked",
+   "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:165-170",
+   "cause": "verify_deals_in returns 'valid' on the first good code and never checks the rest.",
+   "fix": "Check every code; fail on the first bad one."
+  },
+  {
+   "id": "BUG-15",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-112"
+   ],
+   "title": "Account Group accepts values that are not in its dropdown",
+   "where": "app/services/vpc_network/concerns/vpc_params_mixin.rb:41-60",
+   "cause": "Extra fields are copied into companies.misc with no check of dropdown_options.",
+   "fix": "For type dropdown fields, refuse values that are not an option value."
+  },
+  {
+   "id": "BUG-16",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-076"
+   ],
+   "title": "City 'a' is matched to '24 PARAGANAS NORTH'",
+   "where": "app/models/city.rb:30; vendor_bulk_upload_validation_service_v2.rb:122-131",
+   "cause": "With no exact match the lookup takes the first city whose name contains the text.",
+   "fix": "Exact (case-insensitive) match only, or refuse ambiguous partial matches."
+  },
+  {
+   "id": "BUG-17",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-013",
+    "VBU-014"
+   ],
+   "title": "A sheet with no vendor rows answers success and creates nothing",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:168-181; app/helpers/api/companies_helper.rb:680-714",
+   "cause": "Column names are always read from row 3 and vendors from row 4, with no check that any were found.",
+   "fix": "Refuse when no data rows are found, and when row 3 does not hold the expected column names."
+  },
+  {
+   "id": "BUG-18",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-033"
+   ],
+   "title": "Template declares a range that hides its last two columns",
+   "where": "app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:21-85",
+   "cause": "The generated sheet's dimension does not include the columns added last.",
+   "fix": "Write the header row with the full column count so the dimension covers it."
+  },
+  {
+   "id": "BUG-19",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-021"
+   ],
+   "title": "Blank rows are staged as failed vendors",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:171-181",
+   "cause": "Every row up to the last used row is staged.",
+   "fix": "Skip rows whose cells are all empty."
+  },
+  {
+   "id": "BUG-20",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-017"
+   ],
+   "title": "A header with a leading space is not recognised",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:177",
+   "cause": "Column names are trimmed on the right only (rstrip).",
+   "fix": "strip instead of rstrip."
+  },
+  {
+   "id": "BUG-21",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-038"
+   ],
+   "title": "Error sheet with no failed rows says 'You are not allowed to change the phone number.'",
+   "where": "app/controllers/api/v1/companies_controller.rb:238; config/locales/en-IN.yml api_errors.487",
+   "cause": "Error 487 is reused for 'no failed rows'.",
+   "fix": "Add a dedicated error code and message."
+  },
+  {
+   "id": "BUG-22",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-098"
+   ],
+   "title": "Vendor Profile with a trailing space is refused",
+   "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:189",
+   "cause": "The profile is compared without trimming (Status is trimmed at :199).",
+   "fix": "Strip the value before comparing."
+  },
+  {
+   "id": "BUG-23",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-083",
+    "VBU-084"
+   ],
+   "title": "Invalid emails accepted (consecutive dots, over-long name part)",
+   "where": "app/controllers/concerns/utils.rb:13",
+   "cause": "VALID_EMAIL_REGEX allows [\\w+\\-.&]+ with no rule against '..' and no length limit.",
+   "fix": "No leading, trailing or double dots; name part at most 64 characters."
+  },
+  {
+   "id": "BUG-26",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-10-01",
+   "cases": [
+    "VBU-133"
+   ],
+   "title": "Contactless also relaxes the manual Invite Vendor form",
+   "where": "PR16267 app/services/invitation/send_service.rb:351-354, 309, 332, 457",
+   "cause": "contactless_vendor_record? checks only the workspace flag, and every invite path uses SendService.",
+   "fix": "Limit the relaxation to the bulk worker (caller_type :worker)."
+  },
+  {
+   "id": "CODE-2",
+   "severity": "High",
+   "status": "SUSPECTED",
+   "found": "2026-09-29",
+   "cases": [
+    "VBU-131"
+   ],
+   "title": "A subsidiary created from a 'No' row still triggers the new-prospect mail",
+   "where": "app/services/vpc_network/subsidiary_service.rb:215-235; app/models/invitations.rb:135-138",
+   "cause": "The subsidiary invitation's other_details lacks skip_vendor_onboarding.",
+   "fix": "Carry skip_vendor_onboarding into the subsidiary invitation."
+  },
+  {
+   "id": "BUG-25",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-10-01",
+   "cases": [
+    "VBU-042"
+   ],
+   "title": "The template endpoint serves users who may not upload",
+   "where": "app/controllers/api/v1/companies_controller.rb:218-229",
+   "cause": "bulk_create_vendor_template never calls authorize.",
+   "fix": "authorize Company as the upload does."
+  },
+  {
+   "id": "BUG-24",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-10-01",
+   "cases": [
+    "VBU-024"
+   ],
+   "title": "Two uploads by the same user at the same time share one job id",
+   "where": "app/helpers/api/companies_helper.rb:684",
+   "cause": "job_id = the user's distinct job count + 1, read before the insert.",
+   "fix": "Use a sequence or a UUID for the job id."
+  },
+  {
+   "id": "BUG-27",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-10-01",
+   "cases": [
+    "VBU-136"
+   ],
+   "title": "The manual Invite form cannot tell two branches apart by pincode",
+   "where": "app/controllers/api/invitations_controller.rb send_invite (permit list); PR16267 duplicate_check_fields.rb:27",
+   "cause": "pincode is not a permitted parameter, so the incoming pincode is blank and a blank pincode counts as a match.",
+   "fix": "Permit pincode (and send it from the form)."
+  }
+ ]
+}

@@ -112,6 +112,13 @@ export interface TestCaseRecord {
    * send and what each staged row must become. Run by vendorBulk.ts.
    */
   bulk?: import("./vendorBulk.js").BulkSpec;
+  /** QA-document case ids this case covers (vendor bulk upload: the PR's QA doc, A1…D7) */
+  qaDoc?: string[];
+  /** file:line of the rule the case exercises */
+  rule?: string;
+  /** where a written spec and the code disagree */
+  disagree?: string;
+  tier?: string;
 }
 
 /**
@@ -657,8 +664,15 @@ export function buildChecksFromCases(
     // curated=true — these cases were reviewed against the source, so they may
     // use the wider ALLOW_CURATED endpoint list that AI-generated checks cannot.
     const { check, reason } = gate(spec, caseCtx, client, c.feature, c.id, c.feature, true);
-    if (check && c.bulk && c.bulk.kind !== "http") {
-      check.exec = makeBulkExec(c.bulk, String(fullCtx.stamp), c.id);
+    if (check && c.bulk && (c.bulk.kind !== "http" || c.bulk.actor)) {
+      check.exec = makeBulkExec(c.bulk, String(fullCtx.stamp), c.id, {
+        method: c.method,
+        path: c.path,
+        expectedResult: c.expectedResult,
+        rule: c.rule,
+        qaDoc: c.qaDoc,
+        steps: c.steps,
+      });
       delete check.weakenedTo5xxOnly;
       (check as any).bulkTier = c.bulk.tier;
     }
