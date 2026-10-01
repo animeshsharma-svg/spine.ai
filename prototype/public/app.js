@@ -45,7 +45,8 @@ let catRunning = null; // the open EventSource while cases are running
  */
 // Purchase-to-bill is off the nav for now: its runner and endpoints stay,
 // so restoring it is a nav entry and a view block, nothing more.
-const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs"];
+// crosscheck = UI vs API (public/crosscheck.js), product = Product knowledge (public/model.js)
+const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product"];
 const DEFAULT_VIEW = "run";
 
 function currentView() {
@@ -3234,6 +3235,75 @@ function journeyChecksHtml(a, known = {}) {
   );
 }
 
+/**
+ * What the journey got past, after it finished: every failed try is a failed
+ * case (marked "got past it" when a later try of the step worked), and every
+ * time the runner went back with different data, in one line each.
+ */
+const RES_CHOICE_WORD = { unit: "unit", product: "product", location: "delivery location", pricingTemplate: "pricing template", technicalTemplate: "technical template", vendor: "vendor", timing: "bidding window", limit: "account limit" };
+function journeyForcedBanner(res) {
+  const forced = res?.forced;
+  if (!forced || !Object.keys(forced).length) return "";
+  const what = Object.entries(forced).map(([k, v]) => `${RES_CHOICE_WORD[k] ?? k} “${v}”`).join(", ");
+  return `<div class="sx-banner warn"><b>Test mode:</b> this run was told to start with ${esc(what)} on purpose, to prove the journey can recover. The failure that follows was provoked, not found.</div>`;
+}
+function journeyResilienceHtml(res) {
+  if (!res) return "";
+  const findings = res.findings ?? [];
+  const backs = res.backtracks ?? [];
+  if (!findings.length && !backs.length && !res.budgetExhausted && !res.watchdogTrips) return "";
+  let h = '<div class="sx-resil">';
+  if (findings.length) {
+    h += `<h4>Failed along the way (${findings.length})</h4>`;
+    h += findings
+      .map((f) =>
+        CaseView.card(
+          {
+            title: `Step ${f.n}: ${f.title} — try ${f.attempt}`,
+            ref: f.id,
+            verdict: "Failed",
+            reason: f.resolved ? "Failed, then got past it — a later try of this step worked." : "Failed, and no later try of this step worked.",
+            actual: CaseView.scrub(f.reason ?? ""),
+            details: [
+              { label: "HTTP status", value: f.status != null ? String(f.status) : "", kind: "code" },
+              { label: "Error code", value: f.errorCode ?? "", kind: "code" },
+              { label: "The app said", value: f.message ?? "" },
+              { label: "Kind of failure", value: f.failureClass ?? "" },
+              { label: "Data it blamed", value: f.choice ? `${RES_CHOICE_WORD[f.choice] ?? f.choice}${f.choiceValue ? ` “${f.choiceValue}”` : ""}` : "" },
+            ],
+          },
+          { compact: true, noTrack: true, extraTop: f.resolved ? '<span class="sx-badge good" style="float:right">got past it</span>' : "" },
+        ),
+      )
+      .join("");
+  }
+  if (backs.length) {
+    h += `<h4>Went back and tried different data (${backs.length})</h4><ul class="sx-list">`;
+    h += backs
+      .map(
+        (b) =>
+          `<li>${b.fromStep === b.toStep ? `Step ${esc(b.fromStep)}, tried again` : `Step ${esc(b.fromStep)} → step ${esc(b.toStep)}`}: ` +
+          `${esc(RES_CHOICE_WORD[b.choice] ?? b.choice)} “${esc(b.from)}” → “${esc(b.to)}”` +
+          (b.why ? ` <span class="hint">— ${esc(CaseView.scrub(b.why))}</span>` : "") +
+          (b.abandonedEvent ? CaseView.detailsHtml([{ label: "Draft event left behind", value: b.abandonedEvent, kind: "code" }]) : "") +
+          `</li>`,
+      )
+      .join("");
+    h += "</ul>";
+  }
+  const notes = [];
+  if (res.sameRequestRetries) notes.push(`${res.sameRequestRetries} request(s) were sent again after the environment failed to answer.`);
+  if (res.watchdogTrips) notes.push(`${res.watchdogTrips} step(s) took too long and were stopped.`);
+  if (res.budgetExhausted) notes.push("The journey ran out of its time budget; the steps after that were not run.");
+  if (notes.length) h += `<p class="hint">${esc(notes.join(" "))}</p>`;
+  h += CaseView.detailsHtml([
+    { label: "Limits", value: res.bounds ? JSON.stringify(res.bounds) : "", kind: "code" },
+    { label: "Alternatives available", value: res.alternatives ? JSON.stringify(res.alternatives, null, 2) : "", kind: "block" },
+    { label: "Could not read", value: (res.alternativeProblems ?? []).join("\n"), kind: "block" },
+  ]);
+  return h + "</div>";
+}
+
 function renderJourney() {
   const node = ensureJourneyNode();
   const planned = journeyLive?.steps ?? [];
@@ -3262,7 +3332,7 @@ function renderJourney() {
     }
   }
 
-  let html = "";
+  let html = journeyForcedBanner(journeyRecord?.resilience);
   if (planned.length || records.length) {
     const checks = records.reduce(
       (t, st) => (st.assertions ? { n: t.n + st.assertions.total, ok: t.ok + st.assertions.passed, bad: t.bad + st.assertions.failed } : t),
@@ -3298,9 +3368,18 @@ function renderJourney() {
           rec.verdict === "not-run" && rec.reason && !String(rec.actual ?? "").includes(rec.reason)
             ? `<div class="jstep-progress">${esc(CaseView.scrub(rec.reason, known))}</div>`
             : "";
+        // Retry history: the step was tried more than once — say so, and keep every failed try readable.
+        const tries = rec.attempts?.length ? (rec.attempt ?? rec.attempts.length + 1) : 0;
+        const triesChip = tries ? `<span class="sx-tries">after ${tries} tries</span>` : "";
+        const triesList = tries
+          ? `<details class="sx-attempts"><summary>${rec.attempts.length} failed tr${rec.attempts.length === 1 ? "y" : "ies"} before this</summary><ol>` +
+            rec.attempts.map((a) => `<li><b>Try ${esc(a.attempt)}:</b> ${esc(CaseView.scrub(a.reason || a.actual || "", known))}</li>`).join("") +
+            `</ol></details>`
+          : "";
         html +=
           `<li class="jstep ${esc(rec.verdict)}"><span class="jstep-n">${n}</span><div class="jstep-body">` +
-          `<div class="jstep-title">${esc(title)}${actorChip}</div>` +
+          `<div class="jstep-title">${esc(title)}${actorChip}${triesChip}</div>` +
+          triesList +
           (rec.expected ? `<div class="jstep-expected"><span class="cv-k">Expected</span>${esc(CaseView.scrub(rec.expected, known))}</div>` : "") +
           (rec.actual ? `<div class="jstep-actual"><span class="cv-k">What happened</span>${esc(CaseView.scrub(rec.actual, known))}</div>` : "") +
           reason +
@@ -3331,6 +3410,7 @@ function renderJourney() {
       `<div class="journey-outcome ${stopped ? "bad" : "ok"}"><b>${stopped ? "✗" : "✓"} ${esc(journeyRecord.outcome ?? "")}</b>` +
       (took ? `<span class="journey-took">Took ${esc(took)}${waited ? `, ${esc(waited)} of it waiting for the bidding window` : ""}.</span>` : "") +
       "</div>";
+    html += journeyResilienceHtml(journeyRecord.resilience);
     const ve = journeyRecord.variationsEvent;
     if (ve) {
       html +=

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>spine.ai</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/spine-extra.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
   </head>
   <body>
@@ -67,6 +68,8 @@
         <a class="nav-item" href="#/journeys" data-view="journeys"><span class="nav-ico">🧭</span><span>Journeys</span></a>
         <a class="nav-item" href="#/cases" data-view="cases"><span class="nav-ico">📚</span><span>Test cases</span></a>
         <a class="nav-item" href="#/reports" data-view="reports"><span class="nav-ico">📊</span><span>Reports</span></a>
+        <a class="nav-item" href="#/crosscheck" data-view="crosscheck"><span class="nav-ico">⇄</span><span>UI vs API</span></a>
+        <a class="nav-item" href="#/product" data-view="product"><span class="nav-ico">📖</span><span>Product knowledge</span></a>
         <a class="nav-item" href="#/bugs" data-view="bugs"><span class="nav-ico">🐞</span><span>Bugs</span></a>
         <div class="nav-spacer"></div>
         <div class="nav-foot" id="nav-foot"></div>
@@ -135,8 +138,10 @@
             <!-- One primary action for the box, and the test-case compiler
                  beside it — it reads the same box, so it belongs here. The
                  run buttons for the ready-made suites live in the drawers. -->
-            <button id="ai-btn" class="run-btn primary big-btn">🤖 Run my instruction</button>
+            <button id="as-btn" class="run-btn primary big-btn" title="Match what you typed against the written test cases, run the ones that match, or build a draft automation when nothing does">🔎 Find &amp; run this test case</button>
+            <button id="as-match" class="chip" title="Only look for matching test cases — nothing runs">match only</button>
             <span class="rc-or">or</span>
+            <button id="ai-btn" class="run-btn small ghost">🤖 Run my instruction</button>
             <button id="plan-btn" class="run-btn small ghost">🧪 Compile this test case &amp; run it</button>
             <button id="plan-dry" class="chip" title="Compile without running, to see the plan first">plan only</button>
             <label class="tgl-flow" title="Headed only: log in visibly in this window first and slow the run to demo pace">
@@ -147,6 +152,12 @@
           <p class="rc-foot">Whatever you ask for is planned, written as test cases and run as real requests —
           it appears under <strong>Automation run</strong> below as it happens.</p>
         </div>
+        <!-- The assistant's answer: progress, matches, results, a new draft (public/assistant.js) -->
+        <div id="as-out" class="sx-assist" hidden></div>
+        <details id="as-drafts" class="sx-drafts">
+          <summary><b>Drafts the assistant wrote</b> <span class="hint" id="as-drafts-n"></span></summary>
+          <div id="as-drafts-list" class="sx-drafts-list"><div class="empty">Loading…</div></div>
+        </details>
         <div class="col-head">
           <h2>Automation run</h2>
           <span class="hint" id="auto-counts">real requests against UAT — each check is live</span>
@@ -553,6 +564,23 @@
         </div>
           </div>
         </section>
+        <!-- ── UI vs API (public/crosscheck.js) ───────────────────────── -->
+        <section class="view" id="view-crosscheck" data-view="crosscheck">
+          <header class="view-head">
+            <h1>UI vs API</h1>
+            <p>Opens an event's screens in a browser and checks that what each screen shows matches what the backend sent it. A difference is a finding.</p>
+          </header>
+          <div class="view-body" id="xc-root"><div class="loading">Loading…</div></div>
+        </section>
+
+        <!-- ── Product knowledge (public/model.js) ─────────────────────── -->
+        <section class="view" id="view-product" data-view="product">
+          <header class="view-head">
+            <h1>Product knowledge</h1>
+            <p>What spine.ai knows about how sourcing events work, and what this client really has — templates and their fields, units, vendors, settings.</p>
+          </header>
+          <div class="view-body" id="pm-root"><div class="loading">Loading…</div></div>
+        </section>
       </main>
     </div>
 
@@ -574,5 +602,8 @@
 
     <script src="/caseView.js"></script>
     <script src="/app.js"></script>
+    <script src="/assistant.js"></script>
+    <script src="/crosscheck.js"></script>
+    <script src="/model.js"></script>
   </body>
 </html>
