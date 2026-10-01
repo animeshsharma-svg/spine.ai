@@ -9,7 +9,7 @@
  * submission time is over, does extending the time let bids in again, and is
  * evaluation allowed only in evaluation time.
  *
- * Each combination (M1…M14, docs/phase3-bidding-matrix.md §6) builds its own
+ * Each combination (M1…M15, docs/phase3-bidding-matrix.md §6) builds its own
  * event on a short clock with the QA vendors (matrixVendors.ts), then walks
  * steps whose expectation is written BEFORE the request fires:
  *
@@ -141,6 +141,47 @@ const hhmmss = (sec: number) => new Date(sec * 1000).toLocaleTimeString("en-GB",
 const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
+/**
+ * A Procol uuid back to its database id (lib/encrypt_decrypt.rb decode_data):
+ * base64 → each character's place in the key → digits rotated right by 3 →
+ * (n − 1022) / 3. Used only to read our own QA records back with SELECT.
+ */
+export function decodeProcolId(uuid: string): number | undefined {
+  const key = "gZckDpNXdQ";
+  const digits = [...Buffer.from(uuid, "base64").toString("latin1")].map((ch) => key.indexOf(ch));
+  if (!digits.length || digits.some((d) => d < 0)) return undefined;
+  const n = Number([...digits.slice(-3), ...digits.slice(0, -3)].join(""));
+  const id = (n - 1022) / 3;
+  return Number.isInteger(id) && id > 0 ? id : undefined;
+}
+
+/** The reverse of decodeProcolId (encode_data): id·3 + 1022 → digits rotated left by 3 → key characters → base64. */
+export function encodeProcolId(id: number): string {
+  const key = "gZckDpNXdQ";
+  const d = String(id * 3 + 1022).split("");
+  return Buffer.from([...d.slice(3), ...d.slice(0, 3)].map((x) => key[Number(x)]).join(""), "latin1").toString("base64");
+}
+
+/** The first value of `key` anywhere in a reply (bounded depth). */
+function findKey(o: any, key: string, depth = 0): any {
+  if (!o || typeof o !== "object" || depth > 6) return undefined;
+  if (key in o) return o[key];
+  for (const v of Object.values(o)) {
+    const x = findKey(v, key, depth + 1);
+    if (x !== undefined) return x;
+  }
+  return undefined;
+}
+
+/** The scores this event accepts: keys of its evaluation_score_label_mapping (hidden ones left out). */
+function scoreScale(data: any): { score: number; label: string }[] {
+  const m = findKey(data, "evaluation_score_label_mapping");
+  return (Array.isArray(m) ? m : [])
+    .filter((x: any) => Number.isInteger(x?.score) && !x?.is_hidden)
+    .map((x: any) => ({ score: Number(x.score), label: String(x.label ?? x.score) }))
+    .sort((x: { score: number }, y: { score: number }) => x.score - y.score);
+}
+
 interface Timing {
   bst: number;
   bet: number;
@@ -234,6 +275,8 @@ interface Ctx {
   companyId: number;
   company: string;
   evaluatorUuid?: string;
+  /** the evaluator's phone as stored ("prefix/number"), for the one-time-code sign-in */
+  evaluatorPhone?: string;
   cat: { productUuid: string; productQualityUuid: string; technicalTemplateUuid: string; pricingTemplateUuid: string; locationUuid: string; useRfqQuotes: boolean };
   unit: string;
   qty: number;
@@ -381,7 +424,7 @@ class Bench {
    * `publishExpect` lets a combination expect the publish to be refused (712).
    */
   async build(
-    stages: Array<{ kind: "rfp" | "rfq" | "auction"; timing: Timing; audience: QaVendor[]; auctionConfig?: "rank" | "price" }>,
+    stages: Array<{ kind: "rfp" | "rfq" | "auction"; timing: Timing; audience: QaVendor[]; auctionConfig?: "rank" | "price"; /** adjust this QA round's own body (e.g. mark a field buyer-editable) */ tweak?: (body: any) => void }>,
     o: { title: string; publishExpect?: Expect; publishExpected?: string } ,
   ): Promise<Built | undefined> {
     const { c } = this;
@@ -414,6 +457,7 @@ class Bench {
               quantityValue: c.qty, quantityUnit: c.unit, timing: st.timing, stageNo: no,
               rfxMode: st.kind === "auction" ? "auction" : "rfq", ...(st.auctionConfig ? { auctionConfig: st.auctionConfig } : {}),
             });
+      st.tweak?.(base);
       const label = { rfp: "technical round (RFP)", rfq: "pricing round (RFQ)", auction: "auction round" }[st.kind];
       const r = await this.step({
         title: `Add the ${label} for ${audience.length} vendor${audience.length === 1 ? "" : "s"}`,
@@ -484,6 +528,81 @@ class Bench {
   async dispose() {
     for (const api of this.apis.values()) await Promise.resolve(api?.dispose?.()).catch(() => {});
     this.apis.clear();
+    if (this.evalApi) await Promise.resolve(this.evalApi.dispose?.()).catch(() => {});
+    this.evalApi = undefined;
+  }
+
+  private evalApi?: any;
+
+  /**
+   * The technical round's evaluator (the user named on the round), signed into
+   * the web console by phone one-time code — as eventJourney.ts does: console
+   * users get codes by phone only, sent as the stored value's two halves.
+   */
+  async evaluator(): Promise<any | undefined> {
+    if (this.evalApi) return this.evalApi;
+    const { c } = this;
+    const t = Date.now();
+    const stored = c.evaluatorPhone;
+    const [prefix, phone] = stored?.includes("/") ? stored.split("/") : [undefined, stored];
+    let api: any;
+    let err: string | undefined;
+    if (!phone) err = "no phone is known for the evaluator, and a console user cannot get a code by email";
+    else {
+      try {
+        const [{ authenticate }, { CONFIG }, { ApiClient }] = await Promise.all([imp("auth/login.ts"), imp("config.ts"), imp("api/client.ts")]);
+        const base = c.baseURL ?? CONFIG.baseURL;
+        const login = await authenticate({ ...CONFIG.identities.evaluator, email: undefined, phone, phonePrefix: prefix ?? CONFIG.identities.evaluator.phonePrefix, tenantCompanyId: c.companyId, baseURL: base });
+        api = await ApiClient.create(login, { baseURL: base, appVersion: login.appVersion, identity: "evaluator", companyId: c.companyId });
+      } catch (e) {
+        err = (redactSecrets(e instanceof Error ? e.message : String(e)) ?? "sign-in failed").replace(/"otp"\s*:\s*"?\d+"?/gi, '"otp":"<redacted>"').slice(0, 300);
+      }
+    }
+    this.push({
+      title: "Sign in as the evaluator", actor: "evaluator",
+      expected: "The evaluator named on the technical round signs into the web console with a one-time code sent to their phone.",
+      actual: api ? "Signed in as the evaluator." : `Could not sign in: ${err}.`, verdict: api ? "pass" : "fail",
+      call: { method: "POST", path: "/v1/verify_otp", body: { phone: "<masked>", otp: "<redacted>" } }, ms: Date.now() - t,
+    });
+    this.evalApi = api;
+    return api;
+  }
+
+  /** The vendor's current bid on a round (as last opened, or as replaced by a buyer edit). */
+  bidOf(v: QaVendor, trade: string): string | undefined {
+    return this.bids.get(`${v.n}:${trade}`);
+  }
+  setBid(v: QaVendor, trade: string, uuid: string) {
+    this.bids.set(`${v.n}:${trade}`, uuid);
+  }
+
+  /** One of our own QA bids read back from Procol's database (SELECT only). */
+  async bidRow(uuid: string): Promise<{ end_epoch: number | null; status: number | null; price: number | null } | undefined> {
+    const id = decodeProcolId(uuid);
+    if (!id) return undefined;
+    try {
+      const { query } = await imp("db/pool.ts");
+      const rows = await query("SELECT extract(epoch FROM end_time)::bigint AS end_epoch, status, price FROM bids WHERE id = $1", [id]);
+      return rows[0];
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** The vendor's ACTIVE bid on one of our QA rounds, read with SELECT (a buyer edit replaces the bid). */
+  async activeBid(v: QaVendor, trade: string): Promise<string | undefined> {
+    const tid = decodeProcolId(trade);
+    if (!tid) return undefined;
+    try {
+      const { query } = await imp("db/pool.ts");
+      const rows = await query(
+        "SELECT b.id FROM bids b JOIN bid_trades bt ON bt.bid_id = b.id WHERE bt.trade_request_id = $1 AND b.company_id = $2 AND b.status = 1 ORDER BY b.id DESC LIMIT 1",
+        [tid, v.vendorCompanyId],
+      );
+      return rows[0]?.id ? encodeProcolId(Number(rows[0].id)) : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /** The round's product ids (read once per round and reader). */
@@ -813,6 +932,86 @@ export const COMBOS: Combo[] = [
     },
   },
   {
+    id: "M3",
+    title: "Technical evaluation with two responding vendors: every response must be scored before the evaluation is submitted",
+    why: "Scoring opens only once the technical round's bid end has passed (33). Submitting an evaluation that scores only one of two responding vendors must be refused (571); a vendor who never responded cannot be scored (101); once both responses are scored the submit is accepted.",
+    clients: [198678, 32461],
+    vendors: 3,
+    needsTech: true,
+    run: async (b, vs) => {
+      const [A, B2, C] = vs;
+      const tp = b.timing(0, 75, 10);
+      const tq = { bst: tp.bst, bet: tp.bet + 60, ect: tp.ect + 60 };
+      const ev = await b.build([{ kind: "rfp", timing: tp, audience: vs }, { kind: "rfq", timing: tq, audience: vs }], { title: TITLE("M3") });
+      if (!ev) return;
+      const rfp = ev.trades.rfp!;
+      const aOk = await b.tech(A, rfp);
+      const bOk = await b.tech(B2, rfp);
+      if (C) b.note(`${b.name(C)} is invited to the technical round and does not respond.`);
+      if (!aOk || !bOk) return void b.skip("Score and submit the evaluation", "evaluator", "Both responses are scored and submitted.", "the two vendors' technical responses were not both submitted");
+      const ea = await b.evaluator();
+      if (!ea) return;
+      // The evaluator's own view: the forms assigned to them, and the event's score scale.
+      const sch = await send(ea, "GET", b.E.tradeSchema(rfp));
+      const forms: any[] = Array.isArray(sch.data?.sheets?.forms) ? sch.data.sheets.forms : [];
+      const mine = forms.filter((f) => (f?.evaluators || []).some((e: any) => e?.shared_with_uuid === b.c.evaluatorUuid));
+      const scale = scoreScale(sch.data).filter((x) => x.score > 0);
+      b.push({
+        title: "The evaluator sees the form assigned to them and the event's score scale", actor: "evaluator",
+        expected: "At least one form of the technical round is assigned to the evaluator, and the event lists the scores it accepts.",
+        actual: !sch.ok ? said(sch) : `${mine.length} of ${forms.length} form${forms.length === 1 ? "" : "s"} assigned to the evaluator; scores accepted: ${scale.length ? scale.map((x) => `${x.score} (${x.label})`).join(", ") : "none listed"}.`,
+        verdict: !sch.ok ? "inconclusive" : mine.length ? "pass" : "fail", ms: sch.ms,
+      });
+      if (!mine.length) return;
+      const top = scale.length ? scale[scale.length - 1] : undefined;
+      const low = scale.length ? scale[0] : undefined;
+      const scoreBody = (v: QaVendor, form: any, s?: { score: number }) =>
+        b.B.buildCreateEvaluation({ technicalTradeUuid: rfp, vendorCompanyUuid: v.vendorCompanyUuid, formUuid: String(form.uuid), score: s?.score ?? 1 });
+      const words = (s?: { score: number; label: string }) => (s ? `${s.score} (“${s.label}”)` : "1");
+      const formNo = (i: number) => (mine.length > 1 ? ` on form ${i + 1}` : "");
+      // Before the technical round's bid end: no scoring yet.
+      if (nowSec() < tp.bet - 4)
+        await b.step({
+          title: `While the technical round is still open: score ${b.name(A)}'s response`, actor: "evaluator",
+          expected: "Refused: evaluation starts only after the technical round's bid end (33).", expect: { refuse: ["33"] },
+          api: ea, method: "POST", path: b.E.evaluations(), body: scoreBody(A, mine[0], top),
+        });
+      else b.note("The technical round had already ended before the early-scoring check could run; it was left out.");
+      await b.until(tp.bet + 4, "the technical round's bid end to pass before scoring");
+      for (let i = 0; i < mine.length; i++)
+        await b.step({
+          title: `Score ${b.name(A)}'s response ${words(top)}${formNo(i)}`, actor: "evaluator",
+          expected: "The score is recorded (it is one of the event's own scores).", expect: { accept: true },
+          api: ea, method: "POST", path: b.E.evaluations(), body: scoreBody(A, mine[i], top),
+          ok: (d) => (d?.success === false ? { short: "the app answered success: false" } : undefined),
+        });
+      await b.step({
+        title: `Submit the evaluation with only ${b.name(A)} scored`, actor: "evaluator",
+        expected: `Refused: ${b.name(B2)} also responded and has no score yet (571 “Please, evaluate on all fields”).`, expect: { refuse: ["571"] },
+        api: ea, method: "PATCH", path: b.E.submitEvaluation(), body: { trade_request_uuid: rfp },
+      });
+      if (C)
+        await b.step({
+          title: `Score ${b.name(C)}, who was invited but never responded`, actor: "evaluator",
+          expected: "Refused: there is no response from this vendor to score (101).", expect: { refuse: ["101"] },
+          api: ea, method: "POST", path: b.E.evaluations(), body: scoreBody(C, mine[0], top),
+        });
+      for (let i = 0; i < mine.length; i++)
+        await b.step({
+          title: `Score ${b.name(B2)}'s response ${words(low)}${formNo(i)}`, actor: "evaluator",
+          expected: "The score is recorded.", expect: { accept: true },
+          api: ea, method: "POST", path: b.E.evaluations(), body: scoreBody(B2, mine[i], low),
+          ok: (d) => (d?.success === false ? { short: "the app answered success: false" } : undefined),
+        });
+      await b.step({
+        title: "Submit the evaluation with both responses scored", actor: "evaluator",
+        expected: "Accepted: every vendor with a response is scored. The result comes back as a proposal — “draft” if an approval applies, “selected” otherwise.",
+        expect: { accept: true }, api: ea, method: "PATCH", path: b.E.submitEvaluation(), body: { trade_request_uuid: rfp },
+        ok: (d) => ({ actual: `The evaluation was submitted; the result came back${d?.status ? ` as “${d.status}”` : ""}.` }),
+      });
+    },
+  },
+  {
     id: "M4",
     title: "Technical + pricing rounds: surrogate price without a technical response, surrogate technical after the vendor's own",
     why: "A vendor may not price an RFQ without answering the RFP (737), but the surrogate path has no such check (suspected). A surrogate technical response over the vendor's own must be refused (30).",
@@ -922,6 +1121,20 @@ export const COMBOS: Combo[] = [
         actual: clk ? `Bid end ${hhmmss(clk.bet)}, extra closing time ${hhmmss(clk.ect)}.` : "The round's times could not be read back.",
         verdict: !clk ? "inconclusive" : Math.abs(clk.bet - newBet) <= 60 && clk.ect >= clk.bet ? "pass" : "fail", ms: 0,
       });
+      // Open question (design §4): does a MANUAL extension refresh the end time stored on bids already placed?
+      // Code: the extension sets send_buyer_increase_time_notification and the round's after-save hook
+      // runs bids.update_all(end_time: bid_end_time) (trade_request.rb send_auction_time_increase_notification).
+      const aBid = (await b.activeBid(A, trade)) ?? b.bidOf(A, trade);
+      const row = aBid ? await b.bidRow(aBid) : undefined;
+      // Rails stores UTC in a zone-less column; extract(epoch) reads it as UTC.
+      const stored = row?.end_epoch != null ? Number(row.end_epoch) : undefined;
+      const target = clk?.bet ?? newBet;
+      b.push({
+        title: `${b.name(A)}'s existing bid takes the new end time`, actor: "buyer",
+        expected: `The end time stored on ${b.name(A)}'s bid (placed before the close) moves to the new bid end ${hhmmss(target)}.`,
+        actual: !row ? "The bid could not be read back." : stored === undefined ? "The bid carries no stored end time at all (empty)." : `The bid's stored end time is ${hhmmss(stored)} (the round's old bid end was ${hhmmss(t.bet)}).`,
+        verdict: !row ? "inconclusive" : stored !== undefined && Math.abs(stored - target) <= 5 ? "pass" : "fail", ms: 0,
+      });
       await b.bid(B2, ev, trade, 105, { label: `After the extension: ${b.name(B2)} bids` });
       await b.bid(A, ev, trade, 98, { label: `After the extension: ${b.name(A)} revises` });
       // While bidding is open again: put A's bid on a proposal, let A revise, then submit.
@@ -1024,6 +1237,104 @@ export const COMBOS: Combo[] = [
       }
       await b.until(t.ect + 8, "the auction to close before awarding");
       await b.award(ev, [{ v: vs[1], qty: b.c.qty }]);
+    },
+  },
+  {
+    id: "M10",
+    title: "The buyer edits a vendor's submitted bid — no change, a field the buyer may not edit, a field the buyer may edit; while open, in the extra closing time and after it",
+    why: "With “buyer can edit a vendor's bid” on, an edit that changes nothing is refused (758), a change to a field not marked buyer-editable is refused (747), a change to a buyer-editable field is accepted while bidding is open and in the extra closing time, and refused once the extra closing time is over (101). Also answers whether a cost-breakdown request has its own vendor call.",
+    clients: [198678, 32461],
+    vendors: 2,
+    run: async (b, vs) => {
+      const [A, B2] = vs;
+      const cfg = await send(b.c.buyerApi, "GET", b.E.dashboardConfiguration());
+      const on = findKey(cfg.data, "can_buyer_edit_bid");
+      if (on !== true)
+        return void b.skip(
+          "The buyer edits a vendor's bid", "buyer", "Buyer edits follow the rules above.",
+          cfg.ok ? `buyer edits of a vendor's bid are switched off at ${b.c.company} (the company setting “buyer can edit a vendor's bid” is ${on === false ? "off" : "not set"}), so every edit would simply be refused` : `the company's settings could not be read (${said(cfg)})`,
+        );
+      const t = b.timing(0, 100, 60);
+      // On this QA round only, the price field is marked buyer-editable (no PROCOL DEMO pricing template marks a line field so).
+      const markPrice = (body: any) => {
+        for (const w of body?.widgets?.inline_components ?? []) if (w?.key_attribute === "price") w.configuration = { ...(w.configuration ?? {}), is_buyer_editable: true };
+      };
+      const ev = await b.build([{ kind: "rfq", timing: t, audience: vs, tweak: markPrice }], { title: TITLE("M10") });
+      if (!ev) return;
+      const trade = ev.trades.rfq!;
+      // What the round really carries: the setting copied onto it, and which fields the buyer may edit.
+      const sch = await send(b.c.buyerApi, "GET", b.E.tradeSchema(trade));
+      const roundOn = sch.data?.trade_config?.can_buyer_edit_bid;
+      const editable = ((sch.data?.sheets?.inline_components?.widgets ?? []) as any[]).filter((w) => w?.configuration?.is_buyer_editable === true).map((w) => String(w.key_attribute));
+      const priceEditable = editable.includes("price");
+      b.push({
+        title: "The round allows buyer edits and marks the price buyer-editable", actor: "buyer",
+        expected: "The round carries the company's “buyer can edit a vendor's bid” setting, and its price field is buyer-editable.",
+        actual: !sch.ok ? said(sch) : `Buyer edits ${roundOn === true ? "allowed" : `not allowed (${String(roundOn)})`} on the round; buyer-editable fields: ${editable.length ? editable.join(", ") : "none"}.`,
+        verdict: !sch.ok ? "inconclusive" : roundOn === true && priceEditable ? "pass" : "fail", ms: sch.ms,
+      });
+      const r = await b.bid(A, ev, trade, 100);
+      await b.bid(B2, ev, trade, 110);
+      if (!r.submitted) return;
+      const tp = await b.tradeProduct(b.c.buyerApi, trade, "the buyer");
+      if (!tp) return void b.skip("The buyer edits the bid", "buyer", "Edits follow the rules.", "the round's line item could not be read");
+      const edit = async (o: { title: string; expected: string; expect: Expect; price: number; gst?: number }) => {
+        const id = (await b.activeBid(A, trade)) ?? b.bidOf(A, trade);
+        if (!id) return b.skip(o.title, "buyer", o.expected, `${b.name(A)}'s active bid could not be found`);
+        const body: any = b.B.buildSurrogateRfqBody({ pricingTradeUuid: trade, vendorCompanyUuid: A.vendorCompanyUuid, ...b.line(ev, o.price, tp) });
+        const row = body.sheets.inline_components.data[A.vendorCompanyUuid][0];
+        if (o.gst !== undefined) row.gst = { ...row.gst, value: o.gst };
+        const res = await b.step({ title: o.title, actor: "buyer", expected: o.expected, expect: o.expect, api: b.c.buyerApi, method: "PATCH", path: `/bids/sheet_update/${id}`, body });
+        if (res.reply.ok) {
+          const now = await b.activeBid(A, trade);
+          if (now) b.setBid(A, trade, now);
+          const row = now ? await b.bidRow(now) : undefined;
+          b.push({
+            title: `${b.name(A)}'s current bid now carries ₹${o.price}`, actor: "buyer",
+            expected: `The edit replaced ${b.name(A)}'s bid: the active bid is a new one at ₹${o.price} per ${b.c.unit}.`,
+            actual: !row ? "The vendor's active bid could not be read back." : `The active bid is ${now === id ? "the same bid as before" : "a new bid"} at ₹${row.price ?? "?"} per ${b.c.unit}.`,
+            verdict: !row ? "inconclusive" : Number(row.price) === o.price ? "pass" : "fail", ms: 0,
+          });
+        }
+        return res.rec;
+      };
+      await edit({
+        title: `Buyer saves ${b.name(A)}'s bid without changing anything`, price: 100,
+        expected: "Refused: nothing was changed (758 “No changes found”).", expect: { refuse: ["758"] },
+      });
+      await edit({
+        title: `Buyer adds 18% GST to ${b.name(A)}'s bid (a field the buyer may not edit)`, price: 100, gst: 18,
+        expected: "Refused: only buyer-editable fields may be changed (747).", expect: { refuse: ["747"] },
+      });
+      await edit({
+        title: `While bidding is open: buyer changes ${b.name(A)}'s price to ₹95`, price: 95,
+        expected: priceEditable ? "Accepted: the price is buyer-editable and bidding is open." : "Refused (747): the price is not buyer-editable on this round.",
+        expect: priceEditable ? { accept: true } : { refuse: ["747"] },
+      });
+      await b.until(t.bet + 4, "the bid end time to pass (extra closing time)");
+      await edit({
+        title: `In the extra closing time: buyer changes ${b.name(A)}'s price to ₹92`, price: 92,
+        expected: priceEditable ? "Accepted: a buyer edit is allowed in the extra closing time." : "Refused (747): the price is not buyer-editable on this round.",
+        expect: priceEditable ? { accept: true } : { refuse: ["747"] },
+      });
+      await b.until(t.ect + 4, "the extra closing time to end");
+      await edit({
+        title: `After the extra closing time: buyer changes ${b.name(A)}'s price to ₹90`, price: 90,
+        expected: "Refused: buyer edits end with the extra closing time (101).", expect: { refuse: ["101"] },
+      });
+      // Open question: a cost-breakdown request — is there a separate vendor call? (Code: no; vendors answer through the normal bid.)
+      const w = await b.step({
+        title: `Ask ${b.name(A)} only for a cost breakdown, for two minutes`, actor: "buyer", expected: "A cost-breakdown window opens for QA vendor 1 only.",
+        expect: { accept: true }, api: b.c.buyerApi, method: "PATCH", path: `/trade/${trade}`,
+        body: { end_time_type: "request_for_cost_break_down", end_time: nowSec() + 120, end_time_applicable_vendor_ids: [A.vendorCompanyId] },
+      });
+      if (!w.reply.ok) return;
+      await b.bid(A, ev, trade, 91, { label: `${b.name(A)} sends the cost breakdown through the normal bid` });
+      await b.bid(B2, ev, trade, 104, {
+        label: `${b.name(B2)} (not asked) revises in the cost-breakdown window`,
+        open: { either: ["ok", "33"] }, openExpected: "A draft may open (it is only a draft).",
+        submit: { probe: "CBD-WINDOW-UI-ONLY", defectIf: "accepted" },
+      });
     },
   },
   {
@@ -1132,6 +1443,74 @@ export const COMBOS: Combo[] = [
     },
   },
   {
+    id: "M15",
+    title: "Auction with dynamic closing: a rank-changing bid in the last minute extends the auction by one minute",
+    why: "With dynamic closing on (rank based, trigger = last 1 minute, extension = 1 minute, rank limit 1), a bid in the last minute that changes who is first must push the bid end out by one minute (bid.rb trigger_dynamic_time_extension), and a vendor can bid after the original end. A trigger longer than half the remaining window is refused when the round is created (501).",
+    clients: [198678, 32461],
+    vendors: 2,
+    run: async (b, vs) => {
+      const [A, B2] = vs;
+      const { c } = b;
+      const dyn = (trigger: number) => (body: any) => {
+        const x = { is_dynamic_closing_time_allowed: true, dynamic_closing_time_strategy: "rank_based", last_n_minutes_for_time_extension: trigger, time_extension_value: 1, rank_limit_for_time_extension: 1 };
+        Object.assign(body.configurations ?? (body.configurations = {}), x);
+      };
+      // 1) The trigger rule at creation: 2 minutes is more than half of a 3-minute window.
+      const d = await b.step({
+        title: "Create a draft event for the trigger-time check", actor: "buyer", expected: "A draft event is created.", expect: { accept: true },
+        api: c.buyerApi, method: "POST", path: b.E.eventGroups(),
+        body: b.B.buildEventGroupBody({ productUuid: c.cat.productUuid, quantityUnit: c.unit, quantityValue: c.qty, productQualityUuid: c.cat.productQualityUuid }),
+      });
+      const eg0 = d.reply.data?.uuid ? String(d.reply.data.uuid) : undefined;
+      const line0 = d.reply.data?.event_group_line_item_ids?.[0] ? String(d.reply.data.event_group_line_item_ids[0]) : undefined;
+      if (eg0 && line0) {
+        const bad = b.timing(0, 180, 10);
+        const body = b.B.buildPricingStageBody({
+          eventGroupUuid: eg0, lineItemUuid: line0, vendorCompanyUuid: A.vendorCompanyUuid, pricingTemplateUuid: c.cat.pricingTemplateUuid,
+          productUuid: c.cat.productUuid, productQualityUuid: c.cat.productQualityUuid, locationUuid: c.cat.locationUuid,
+          quantityValue: c.qty, quantityUnit: c.unit, timing: bad, stageNo: 1, rfxMode: "auction", auctionConfig: "rank",
+        });
+        dyn(2)(body);
+        await b.step({
+          title: "Add an auction whose extension trigger (last 2 minutes) is more than half of its 3-minute window", actor: "buyer",
+          expected: "Refused: the trigger must be at least 1 minute and less than half of the time left (501 “Invalid Trigger Time for Dynamic Time Extension”).",
+          expect: { refuse: ["501"] }, api: c.buyerApi, method: "POST", path: b.E.createTrade(), body: { ...body, audience_company_uuids: [A.vendorCompanyUuid] },
+        });
+      }
+      // 2) A valid dynamic-closing auction.
+      const t = b.timing(0, 200, 10);
+      const ev = await b.build([{ kind: "auction", timing: t, audience: vs, auctionConfig: "rank", tweak: dyn(1) }], { title: TITLE("M15") });
+      if (!ev) return;
+      const trade = ev.trades.auction!;
+      const cfg = await send(c.buyerApi, "GET", b.E.tradeSchema(trade));
+      const tc = cfg.data?.trade_config ?? {};
+      b.push({
+        title: "The auction carries the dynamic-closing settings", actor: "buyer",
+        expected: "Dynamic closing on, rank based, trigger 1 minute, extension 1 minute, rank limit 1.",
+        actual: !cfg.ok ? said(cfg) : `Dynamic closing ${tc.is_dynamic_closing_time_allowed === true ? "on" : `off (${String(tc.is_dynamic_closing_time_allowed)})`}, strategy ${tc.dynamic_closing_time_strategy ?? "not set"}, extension ${tc.time_extension_value ?? "?"} min, rank limit ${tc.rank_limit_for_time_extension ?? "?"}.`,
+        verdict: !cfg.ok ? "inconclusive" : tc.is_dynamic_closing_time_allowed === true && tc.dynamic_closing_time_strategy === "rank_based" ? "pass" : "fail", ms: cfg.ms,
+      });
+      await b.bid(B2, ev, trade, 110);
+      await b.bid(A, ev, trade, 100);
+      const before = (await b.clock(trade))?.bet ?? t.bet;
+      await b.until(before - 45, "the last minute before the bid end");
+      await b.bid(B2, ev, trade, 95, { label: `In the last minute: ${b.name(B2)} takes first place with ₹95` });
+      const after = await b.clock(trade);
+      b.push({
+        title: "The bid end moved out by one minute", actor: "buyer",
+        expected: `The bid end moves from ${hhmmss(before)} to about ${hhmmss(before + 60)}.`,
+        actual: after ? `The bid end is now ${hhmmss(after.bet)} (${after.bet - before >= 0 ? "+" : ""}${after.bet - before} s).` : "The round's times could not be read back.",
+        verdict: !after ? "inconclusive" : Math.abs(after.bet - before - 60) <= 5 ? "pass" : "fail", ms: 0,
+      });
+      if (!after || after.bet - before < 30) return;
+      await b.until(before + 5, "the ORIGINAL bid end to pass");
+      await b.bid(A, ev, trade, 90, { label: `After the original end, inside the extension: ${b.name(A)} bids ₹90` });
+      const again = await b.clock(trade);
+      if (again)
+        b.note(`After that bid (again in the last minute, and again changing first place) the bid end is ${hhmmss(again.bet)} (${again.bet - after.bet >= 0 ? "+" : ""}${again.bet - after.bet} s against the first extension).`);
+    },
+  },
+  {
     id: "MX",
     title: "Configurable: vendors, surrogate, timing and award pattern chosen by the caller",
     why: "Lets a caller pick the permutation (vendor count, who bids on whose behalf, when, and how the award goes).",
@@ -1170,7 +1549,7 @@ export const COMBOS: Combo[] = [
   },
 ];
 
-export const DEFAULT_ORDER = ["M1", "M5", "M6", "M7", "M8", "M2", "M4", "M9", "M11", "M12", "M13", "M14"];
+export const DEFAULT_ORDER = ["M1", "M5", "M6", "M7", "M8", "M2", "M3", "M4", "M9", "M10", "M11", "M12", "M13", "M14"];
 
 // ── the run ────────────────────────────────────────────────────────────────
 
@@ -1241,7 +1620,7 @@ export async function runBiddingMatrix(companyId: number, opts: MatrixRunOptions
     };
     const c: Ctx = {
       reopenBuyer, buyerReopens: 0,
-      s, buyerApi: ctx.buyerApi, companyId, company, evaluatorUuid: ctx.evaluatorUuid, cat, unit, qty: 30, vendors, strangers,
+      s, buyerApi: ctx.buyerApi, companyId, company, evaluatorUuid: ctx.evaluatorUuid, evaluatorPhone: ctx.evaluatorPhone, cat, unit, qty: 30, vendors, strangers,
       baseURL: opts.baseURL, onLine, onStep: opts.onStep, probes,
     };
     const ids = opts.combos?.length ? opts.combos : DEFAULT_ORDER;

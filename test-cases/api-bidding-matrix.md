@@ -8,7 +8,7 @@ submission time is over, extending the time lets bids in again, and awarding
 follows the rules.
 
 They are run by the platform's bidding matrix (`prototype/src/checks/biddingMatrix.ts`,
-`npm run matrix -- --company <id> --combos M1,M5`), one combination (M1…M14) per
+`npm run matrix -- --company <id> --combos M1,M5`), one combination (M1…M15) per
 event, on PROCOL DEMO (198678) and Demo Account 2 (32461) only. The vendors are
 the platform's own QA vendors ("QA_Platform Vendor n …", emails
 qa_…@example.com, active buyer link), made through Procol's own invite and
@@ -298,3 +298,121 @@ combination in the Trace line; codes and endpoints stay in the Trace line.
 - **Expected.** Link active after the invite; after signup the user belongs to the invited company and the invitation is accepted; both sign-ins work.
 - **Oracle.** buyer_seller_company_mappings status 1; user_company_mappings active; invitations status accepted.
 - **Trace.** P1 · automate · `prototype/src/checks/matrixVendors.ts` · `POST /invitations/send_invite`, `POST /v1/vendor_signup`; invitation/send_service.rb:386-393; invitation/accept_service.rb:46-55.
+
+## 6. Technical evaluation with several vendors
+
+#### API-XMAT-061 — The evaluator cannot score while the technical round is still open
+- **Why it matters.** Scores given before every vendor has had the chance to answer would judge an incomplete round.
+- **Setup.** PROCOL DEMO or Demo Account 2. A technical round (open about 75 seconds) followed by a pricing round, three QA vendors invited; vendors 1 and 2 have submitted their technical responses. The evaluator named on the technical round is signed in.
+- **Steps.** 1. Before the technical round's bid end, the evaluator scores vendor 1's response with a score from the event's own scale.
+- **Expected.** Refused: evaluation opens only after the technical round's bid end. (The app's message, “Order not active”, does not say that; the wording is misleading.)
+- **Oracle.** Code 33.
+- **Trace.** P1 · automate · combination M3 · `POST /evaluations`; evaluations_controller.rb:14-26.
+
+#### API-XMAT-062 — Submitting an evaluation that leaves a responding vendor unscored is refused
+- **Why it matters.** If one of two responses could be skipped, a vendor could be dropped from the technical shortlist without ever being judged.
+- **Setup.** As API-XMAT-061, after the technical round's bid end.
+- **Steps.** 1. The evaluator scores vendor 1's response (the top score on the event's scale). 2. The evaluator submits the evaluation.
+- **Expected.** The score is recorded; the submit is refused because vendor 2 also responded and has no score yet (“Please, evaluate on all fields”).
+- **Oracle.** Score accepted; submit refused with code 571.
+- **Trace.** P0 · automate · combination M3 · `PATCH /evaluations/submit`; evaluations_helper.rb:604-610, 811-832 (rfp_evaluation_count_invalid?).
+
+#### API-XMAT-063 — A vendor that never responded cannot be scored
+- **Why it matters.** A score for a vendor with no answer would be invented data.
+- **Setup.** As API-XMAT-062; vendor 3 was invited to the technical round and did not respond.
+- **Steps.** 1. The evaluator scores vendor 3.
+- **Expected.** Refused: there is no response from this vendor to score.
+- **Oracle.** Code 101.
+- **Trace.** P1 · automate · combination M3 · `POST /evaluations`; evaluations/validate_service.rb allowed_to_evaluate_participant?.
+
+#### API-XMAT-064 — Once every response is scored the evaluation is submitted
+- **Why it matters.** This is the normal end of a technical evaluation with several vendors.
+- **Setup.** As API-XMAT-062.
+- **Steps.** 1. The evaluator scores vendor 2's response (the lowest accepted score on the event's scale). 2. The evaluator submits the evaluation.
+- **Expected.** Accepted. The result comes back as a proposal: “draft” where an approval flow applies (Demo Account 2), “selected” otherwise (PROCOL DEMO).
+- **Oracle.** Both calls succeed; proposal status draft or selected.
+- **Trace.** P0 · automate · combination M3 · `POST /evaluations`, `PATCH /evaluations/submit`; scores must be keys of evaluation_score_label_mapping (validate_service.rb valid_form?).
+
+## 7. The buyer edits a vendor's bid
+
+#### API-XMAT-065 — Buyer edits are only tried where the company allows them
+- **Why it matters.** Where the company has switched buyer edits off, every edit is refused and the edit cases say nothing new.
+- **Setup.** Demo Account 2 (the setting “buyer can edit a vendor's bid” is off there).
+- **Steps.** 1. Read the company's settings.
+- **Expected.** The buyer-edit cases are skipped with the reason stated. On PROCOL DEMO the setting is on and is copied onto each new pricing round.
+- **Oracle.** Dashboard configuration can_buyer_edit_bid; the round's trade_config.can_buyer_edit_bid.
+- **Trace.** P2 · automate · combination M10 · `GET /v1/dashboard_configuration`; users_controller.rb:594, 746; trade_request_model_helper.rb:1211.
+
+#### API-XMAT-066 — Saving a vendor's bid without changing anything is refused
+- **Why it matters.** An "edit" that changes nothing would still create a new revision and a buyer-edit label on the vendor's bid.
+- **Setup.** PROCOL DEMO. A pricing round open about 100 seconds with an extra closing time of 60 seconds; on this QA round only, the price field is marked buyer-editable. Vendor 1 bid ₹100, vendor 2 bid ₹110.
+- **Steps.** 1. As the buyer, save vendor 1's bid with exactly the same values.
+- **Expected.** Refused: “No changes found”.
+- **Oracle.** Code 758.
+- **Trace.** P1 · automate · combination M10 · `PATCH /bids/sheet_update/:id`; bids_controller_helper.rb:2063-2080.
+
+#### API-XMAT-067 — The buyer cannot change a field that is not buyer-editable
+- **Why it matters.** Only the fields the template hands to the buyer may be changed on a vendor's bid; the rest is the vendor's own word.
+- **Setup.** As API-XMAT-066.
+- **Steps.** 1. As the buyer, add 18% GST to vendor 1's bid (GST is not buyer-editable).
+- **Expected.** Refused: “You can only edit the buyer editable fields.”
+- **Oracle.** Code 747.
+- **Trace.** P1 · automate · combination M10 · bids_controller_helper.rb:2393-2421 (is_inline_value_changed?).
+
+#### API-XMAT-068 — The buyer can change a buyer-editable price while bidding is open
+- **Why it matters.** This is the edit the setting exists for.
+- **Setup.** As API-XMAT-066.
+- **Steps.** 1. As the buyer, change vendor 1's price to ₹95. 2. Read vendor 1's active bid back.
+- **Expected.** Accepted. The vendor's active bid is a new bid at ₹95 (the old one is kept as revised).
+- **Oracle.** HTTP 200; the active bid's price (database read) equals ₹95.
+- **Trace.** P0 · automate · combination M10 · `PATCH /bids/sheet_update/:id`; bids_controller_helper.rb:2102-2128.
+
+#### API-XMAT-069 — The buyer can still edit in the extra closing time
+- **Why it matters.** The extra closing time is the window for clean-up after bidding ends; buyer edits are meant to be allowed there.
+- **Setup.** As API-XMAT-068, after the bid end and before the end of the extra closing time.
+- **Steps.** 1. As the buyer, change vendor 1's price to ₹92. 2. Read the active bid back.
+- **Expected.** Accepted; the active bid is now ₹92.
+- **Oracle.** HTTP 200; active bid price ₹92.
+- **Trace.** P1 · automate · combination M10 · bids_controller_helper.rb:66-85.
+
+#### API-XMAT-070 — The buyer cannot edit once the extra closing time is over
+- **Why it matters.** After the round has fully closed, bids must stay as they are for evaluation and award.
+- **Setup.** As API-XMAT-069, after the extra closing time.
+- **Steps.** 1. As the buyer, change vendor 1's price to ₹90.
+- **Expected.** Refused.
+- **Oracle.** Code 101.
+- **Trace.** P1 · automate · combination M10 · bids_controller_helper.rb:76-82.
+
+#### API-XMAT-071 — A cost-breakdown request is answered through the normal bid; another vendor can also revise (suspected)
+- **Why it matters.** The design asked whether vendors send a cost breakdown through a call of its own. They do not: they re-bid. And a window opened for one vendor should not let a second vendor in.
+- **Setup.** As API-XMAT-070 (the round is closed).
+- **Steps.** 1. As the buyer, ask vendor 1 only for a cost breakdown, for two minutes. 2. Vendor 1 opens a bid, prices it and submits. 3. Vendor 2 (not asked) opens a bid, prices it and submits.
+- **Expected.** Steps 1 and 2 are accepted. Step 3 should be refused; if it is accepted, the one-vendor restriction exists only in the screens.
+- **Oracle.** HTTP 200 for steps 1–2; probe CBD-WINDOW-UI-ONLY on step 3.
+- **Trace.** P2 · automate · combination M10 · `PATCH /trade/:id {end_time_type: request_for_cost_break_down}`; no vendor cost-breakdown route in routes.rb; trade_request.rb:979-985; same root as suspected defect 4.
+
+## 8. Extensions and dynamic closing
+
+#### API-XMAT-072 — Extending the submission time also moves the end time stored on bids already placed
+- **Why it matters.** Bids carry their own end time (shown to vendors as "valid till"); a stale value would say the bid had expired while the round is open again.
+- **Setup.** PROCOL DEMO or Demo Account 2. A closed pricing round where vendor 1 bid before the close.
+- **Steps.** 1. As the buyer, extend the submission time. 2. Read vendor 1's bid back.
+- **Expected.** The bid's stored end time equals the round's new bid end.
+- **Oracle.** bids.end_time (database read) within 5 seconds of the new bid end.
+- **Trace.** P2 · automate · combination M7 · api/trade_controller.rb:680-683 (send_buyer_increase_time_notification); trade_request.rb:2152-2166 (bids.update_all end_time).
+
+#### API-XMAT-073 — A dynamic-closing trigger longer than half the remaining time is refused when the auction is created
+- **Why it matters.** A trigger of two minutes on a three-minute auction would make every bid an extension.
+- **Setup.** PROCOL DEMO or Demo Account 2. A draft event.
+- **Steps.** 1. Add an auction round with dynamic closing on, a trigger of the last 2 minutes and a 3-minute window.
+- **Expected.** Refused: “Invalid Trigger Time for Dynamic Time Extension.”
+- **Oracle.** Code 501.
+- **Trace.** P2 · automate · combination M15 · trade_controller_helper.rb:3311-3320, 6259-6265.
+
+#### API-XMAT-074 — A last-minute bid that changes first place extends the auction by one minute
+- **Why it matters.** Dynamic closing stops vendors from sniping at the last second: a rank-changing bid near the end gives the others time to answer.
+- **Setup.** PROCOL DEMO or Demo Account 2. An auction round (rank based) open about 200 seconds with dynamic closing on: trigger the last 1 minute, extension 1 minute, rank limit 1. Vendor 2 bid ₹110, then vendor 1 bid ₹100.
+- **Steps.** 1. Inside the last minute, vendor 2 bids ₹95 (takes first place). 2. Read the bid end. 3. After the original bid end, vendor 1 bids ₹90.
+- **Expected.** The bid end moves out by one minute; vendor 1's bid after the original end is accepted (and, again changing first place in the last minute, extends the end by another minute).
+- **Oracle.** Bid end read back +60 s (±5 s); vendor 1's open, price and submit succeed.
+- **Trace.** P1 · automate · combination M15 · bid.rb:330-423 (fetch_latest_btp_event_score, dynamic_extension_needed), bid.rb:439-448, 2256-2287.

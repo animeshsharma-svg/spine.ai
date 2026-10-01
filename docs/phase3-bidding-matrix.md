@@ -298,7 +298,7 @@
 | …RFP end must not exceed RFQ end | `validate_rfp_rfq_bid_end_time` `trade_controller_helper.rb:643-675`; called at stage create `:501`, edit `:538`, extension `:2025`, `event_groups/update_service.rb:232`; skipped for drafts and MCP (`:646-647`) | **712** | yes |
 | …`extend_rfq_time` on an RFP | `trade_controller_helper.rb:5754-5764` (lots present 818, auction present 819, no RFQ 820) | 818/819/820 | yes |
 | …effect on extra closing time and review windows | `adjust_trade_schedules` shifts the extra-closing (and cost-breakdown) window after the new end (`:5524-5561`) | — | — |
-| …effect on vendors who already bid | Bids stay active. A new submit is a normal revision. A closed RFP is set back to `active` (`api/trade_controller.rb:674-676`). Bid `end_time` is refreshed only on auto-extension (`bids_controller_helper.rb:406-407`). *Manual extension does not refresh it — unverified.* | — | yes |
+| …effect on vendors who already bid | Bids stay active. A new submit is a normal revision. A closed RFP is set back to `active` (`api/trade_controller.rb:674-676`). Bid `end_time` is refreshed only on auto-extension (`bids_controller_helper.rb:406-407`). **Verified live 2026-10-01 (M7): a manual extension DOES refresh existing bids' end time** — the extension sets a flag and the round's save hook rewrites every bid's end time. | — | yes |
 | Extend extra closing time | `api/trade_controller.rb:647-657` (746 not allowed; send-to-evaluation mode stores a duration instead); `trade_controller_helper.rb:5871-5901` (195 earlier than now or than its start; 496 already ended and reopening the evaluation not allowed) | 746/195/496 | yes |
 | Evaluation window | create and submit need `bid_end_time ≤ now` and stage `active` (`evaluations_controller.rb:14-26, 41-44`). **No upper bound at `ect`.** The stage turns `closed` only when every line is closed (`mark_event_closed_worker.rb:5-21`). | 33 | yes (after `bet`) |
 | Award timing | `is_awarding_allowed?` (`event_group_controller_helper.rb:629-648`): blocked outside extra closing time only with `is_order_allowed_to_close_in_extra_closing_time_only` (template default false; 0 recent events have it) | 720 | yes |
@@ -421,7 +421,7 @@ Supporting single-vendor regression coverage stays in the existing `eventJourney
 **Uncertain / unverified (not run live)**
 - The 5 suspected defects in 3.3.
 - The award quantity gap with partial awarding off.
-- Whether a manual extension refreshes bid `end_time`.
-- A vendor-side cost-breakdown submission endpoint.
+- ~~Whether a manual extension refreshes bid `end_time`~~ — answered: it does (M7, both clients).
+- ~~A vendor-side cost-breakdown submission endpoint~~ — answered: none exists; vendors answer through the normal bid (open → price → submit).
 - Whether a fake-looking domain (for example test.com) is a real mailbox.
 - Which QA-vendor creation path produces an active link.
