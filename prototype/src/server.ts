@@ -33,7 +33,9 @@ import { JourneyTrail } from "./ui/journeySteps.js";
 import { saveTrail, readTrail, deleteTrail, listTrails } from "./ui/trailStore.js";
 import { DEFAULT_CLIENT } from "../config/settings.js";
 import { isTokenClient, tokenClient } from "../config/tokenClients.js";
-import { readToken, tokenClientChoices } from "./tokenClient.js";
+import { readEnvVar, readToken, tokenClientChoices } from "./tokenClient.js";
+import { inputProblem, latestRfpRunId, readRfpRun, readRfpRunHtml, rfpFeatureCases, rfpJourney, rfpReady, runRfp } from "./rfpRunner.js";
+import { defectsFromRfpRun } from "./report/rfpDefects.js";
 import { saveRun, listRuns, getRun, newRunId, deleteRun } from "./runStore.js";
 import { defectsFromRun } from "./report/checkDefects.js";
 import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
@@ -543,6 +545,60 @@ const server = createServer(async (req, res) => {
       if (cached && Date.now() - cached.at < FEATURE_CACHE_MS) {
         return json(res, cached.payload);
       }
+      /**
+       * An account whose tests are a suite of their own.
+       *
+       * Its tree is that suite: the journey stages in its scope keep their
+       * place and order, the stage the suite covers lists the suite's parts,
+       * and every other feature is shown with no tests — greyed out, so the
+       * reader sees where the automation stands on the journey rather than a
+       * short list that looks like something failed to load. Nothing is read
+       * from the company for it, so it answers at once.
+       */
+      const suiteAccount = cid && isTokenClient(Number(cid)) ? tokenClient(Number(cid)) : undefined;
+      if (suiteAccount?.suite === "aanya-rfp") {
+        // The same tree every account sees, module for module. The features
+        // this suite tests carry its case counts; every other one has none and
+        // is greyed out, exactly as an unbuilt feature is anywhere else.
+        const covered = rfpFeatureCases();
+        /**
+         * The surrogate bid sits with the RFP it bids on.
+         *
+         * The shared tree files it under Bidding, several modules down — where
+         * nobody running an RFP looks for it. For this suite it is the next
+         * thing after publishing, so it moves to Sourcing events, straight
+         * under "Publish event", and leaves Bidding so it is not listed twice.
+         */
+        const MOVE = "bids.surrogate";
+        const moved = FEATURE_TREE.flatMap((g) => g.children).find((f) => f.id === MOVE);
+        const tree = FEATURE_TREE.map((g) => {
+          if (g.id === "events" && moved) {
+            const kids = [...g.children];
+            const at = kids.findIndex((f) => f.id === "events.publish");
+            kids.splice(at + 1, 0, { ...moved, what: "The buyer bids on the published RFP for an invited vendor — runs only when ticked." });
+            return { ...g, children: kids };
+          }
+          return { ...g, children: g.children.filter((f) => f.id !== MOVE) };
+        });
+        const groups = tree.map((g) => ({
+          ...g,
+          children: g.children.map((f) => {
+            const n = covered[f.id] ?? 0;
+            // "Event configuration" is a locked prerequisite on the case
+            // library; here it is a set of cases of its own, so it is a choice.
+            return { ...f, prerequisite: n ? undefined : f.prerequisite, cases: n, lineItemCases: n, config: { state: "n/a" } };
+          }),
+        }));
+        return json(res, {
+          groups,
+          defaults: [],
+          scope: null,
+          totalCases: groups.reduce((n, g) => n + g.children.reduce((m, f) => m + (f.cases ?? 0), 0), 0),
+          company: null,
+          suite: { id: suiteAccount.suite, ...rfpReady(), defaults: { lineItems: 2, quantities: "5", vendors: 3, surrogateBids: 1 }, journey: rfpJourney() },
+        });
+      }
+
       let cfg: Awaited<ReturnType<typeof loadCompanyConfig>> | null = null;
       if (cid) {
         const client = await openClientContext(Number(cid), baseOverride(url)).catch(() => null);
@@ -2151,7 +2207,10 @@ const server = createServer(async (req, res) => {
       const account = isTokenClient(Number(url.searchParams.get("c") ?? 0))
         ? tokenClient(Number(url.searchParams.get("c")))
         : undefined;
-      if (!account) return json(res, { ...summary, account: null, suiteClient: null });
+      // An account whose tests are a suite of their own (the RFP account) has
+      // no PO flow: offering the button would create a purchase order on an
+      // account that is here for sourcing events, and it hid "Run selected".
+      if (!account || account.suite) return json(res, { ...summary, account: null, suiteClient: null });
 
       /**
        * Get a working credential now, so the UI can say "this will not run"
@@ -2211,6 +2270,72 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // ── API: run the RFP suite for this account (SSE) ───────────────────
+    // Publishes a real RFP event on the account, so it only runs when someone
+    // presses the button. The parts ticked, the line-item count, the
+    // quantities and the vendor count travel as query parameters.
+    if (path === "/api/rfp-run") {
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const fail = (line: string) => {
+        send("run-error", { type: "run-error", line });
+        send("done", { type: "done", exitCode: 1 });
+        res.end();
+      };
+      const c = Number(url.searchParams.get("c") ?? 0);
+      const account = isTokenClient(c) ? tokenClient(c) : undefined;
+      if (!account || account.suite !== "aanya-rfp") return fail("this account has no RFP suite to run");
+      const ready = rfpReady();
+      if (!ready.ready) return fail(ready.reason ?? "the RFP suite is not ready");
+      const covered = rfpFeatureCases();
+      const features = (url.searchParams.get("features") ?? "")
+        .split(",")
+        .map((f) => f.trim())
+        .filter((f) => covered[f]);
+      if (!features.length) return fail("none of the ticked features has RFP cases");
+      const num = (k: string) => {
+        const v = url.searchParams.get(k);
+        return v === null || v === "" ? undefined : Number(v);
+      };
+      const inputs = {
+        features,
+        lineItems: num("lineItems"),
+        quantities: url.searchParams.get("qty")?.trim() || undefined,
+        vendors: num("vendors"),
+        // Only when the surrogate bid is part of this run.
+        surrogateBids: features.includes("bids.surrogate") ? num("sbBids") : undefined,
+      };
+      const problem = inputProblem(inputs);
+      if (problem) return fail(problem);
+      let token: string;
+      let lightspeed: string | undefined;
+      try {
+        const resolved = await resolveToken(account);
+        token = resolved.token;
+        lightspeed = resolved.lightspeed;
+      } catch (e) {
+        // The token lives in the suite's own .env, not the PO suite's.
+        return fail(`${account.name}: ${(e as Error).message.replace(/the API suite's \.env/g, "aanya_events/rfp/.env")}`);
+      }
+      const run = runRfp(account, { token, lightspeed: lightspeed ?? readEnvVar(account, "AANYA_EVENTS_LIGHTSPEED_TOKEN") }, inputs, (e) => {
+        send(e.type, e);
+        if (e.type === "done") res.end();
+      });
+      req.on("close", () => run.stop());
+      return;
+    }
+
+    if (path === "/api/rfp-report") {
+      const id = url.searchParams.get("run") || latestRfpRunId();
+      const html = id ? readRfpRunHtml(id) : null;
+      if (!html) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("No RFP report for that run — run the RFP suite first.");
+      }
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      return res.end(html);
+    }
+
     // ── API: run the API suite's PO flow for this account (SSE) ─────────
     // Header -> line items -> submit for approval, with the values in the
     // suite's config/po-input.json. Creates real records, so it only ever runs
@@ -2218,7 +2343,7 @@ const server = createServer(async (req, res) => {
     if (path === "/api/po-run") {
       const c = Number(url.searchParams.get("c") ?? 0);
       const account = isTokenClient(c) ? tokenClient(c) : undefined;
-      if (!account) {
+      if (!account || account.suite) {
         res.writeHead(400, { "content-type": "application/json" });
         return res.end(
           JSON.stringify({
@@ -2480,6 +2605,27 @@ const server = createServer(async (req, res) => {
                   : "it stopped early",
               // Facts about the run, shown above the bugs and not counted as any.
               notes: poRun.issues,
+            }),
+          );
+        }
+
+        /** An RFP suite run: its failed cases, from the report it filed under its id. */
+        const rfpRun = readRfpRun(runId);
+        if (rfpRun) {
+          const m = rfpRun.model ?? {};
+          return res.end(
+            renderBugSheet(defectsFromRfpRun(rfpRun), {
+              runId,
+              ts: rfpRun.startedAt,
+              request: `RFP event publish: ${(rfpRun.inputs.features ?? (rfpRun.inputs as any).parts ?? []).join(", ")}`,
+              companyName: rfpRun.companyName,
+              checks: m.summary?.total ?? 0,
+              outcome: m.event?.published
+                ? m.summary?.failed
+                  ? "the event was published, and some cases failed"
+                  : "it passed"
+                : "the event was not published",
+              notes: m.stoppedAt ? [`The publish flow stopped at step ${m.stoppedAt.at}: ${m.stoppedAt.reason}`] : undefined,
             }),
           );
         }
