@@ -140,7 +140,21 @@ export async function templateView(companyId: number, uuid: string) {
       ...pages.map((p) => ({ id: `page:${p}`, title: `Page: ${p}`, fields: group((f) => f.section === "form" && (f.page ?? "Page") === p) })),
     ].filter((s) => s.fields.length),
     problems: t.problems,
-    units: { rule: model.units.rulePlain, usable: model.units.usable.slice(0, 400).map((u) => u.symbol) },
+    // Real unit names first. Many clients carry units whose "name" is a bare
+    // number (PROCOL DEMO: 193 of 306, e.g. "24.200000000000003") — quantities
+    // saved as units somewhere upstream. They are listed last and counted, not hidden.
+    units: (() => {
+      const numeric = (sym: string) => /^[0-9.]+$/.test(sym.trim());
+      const syms = model.units.usable.map((u) => u.symbol);
+      const named = syms.filter((x) => !numeric(x));
+      const bare = syms.filter(numeric);
+      return {
+        rule: model.units.rulePlain + (bare.length ? ` ${bare.length} of them are named with a bare number (e.g. "${bare[0]}") — these look like quantities saved as units, a data problem worth fixing.` : ""),
+        usable: [...named, ...bare].slice(0, 400),
+        namedCount: named.length,
+        numericCount: bare.length,
+      };
+    })(),
     fetchedAt: model.fetchedAt,
     details: { from, snapshotId: model.snapshotId ?? null, uuid: t.uuid },
   };
