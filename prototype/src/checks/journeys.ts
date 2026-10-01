@@ -361,6 +361,19 @@ const JOURNEYS: JourneyDef[] = [
     apiGroups: [],
     spine: ["open_events_list", "open_event_details", "open_stage_responses", "open_stage_overview", "open_master_qcs", "compare_with_api"],
   },
+  {
+    // test-cases/api-template-fields.md — generic form of the per-template field
+    // cases generated from the product model (src/model/caseGen.ts), run by
+    // `npm run template:check` / GET /api/template-check/run.
+    id: "template-fields",
+    title: "Choosing a template and checking every field it defines",
+    persona: "Buyer (and vendor)",
+    goal: "Pick a template the client really has for the kind of round, build a sandbox round from it, and check each column: what cannot be filled is refused, what is entered is checked by the server — or, where only the screen checks it, the gap is recorded.",
+    order: 32,
+    uiGroups: [],
+    apiGroups: ["API-XTPL"],
+    spine: ["choose_template", "open_template", "create_draft_event", "add_round_from_template", "fill_buyer_columns", "publish_round", "vendor_fills_line", "vendor_answers_questions"],
+  },
 ];
 
 /**
