@@ -60,7 +60,8 @@ export const CLIENTS: Record<string, ClientInputs> = {
     // just the fallback for the static `asVendor()` identity.
     vendorEmail: "amd@gmail.com",
     evalPhone: "9811397474",
-    otp: "130899",
+    // Login code from the environment (CLIENTA_OTP in .env), never from code.
+    otp: process.env.CLIENTA_OTP?.trim() ?? "",
 
     productUuid: "TnBEa3BjWA==",
     productQualityUuid: "WFhYTlprWg==",
@@ -82,7 +83,7 @@ export const CLIENTS: Record<string, ClientInputs> = {
     buyerPhone: "1123987231",
     vendorEmail: "vendor53@gmail.in",
     evalPhone: "FILL_EVALUATOR_PHONE",
-    otp: "991133",
+    otp: process.env.RFXDEV_OTP?.trim() ?? "",
 
     productUuid: "FILL",
     productQualityUuid: "FILL",

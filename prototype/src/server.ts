@@ -1123,6 +1123,9 @@ const server = createServer(async (req, res) => {
          * events (`plan.wanted` false) skips the journey entirely.
          */
         let journey: JourneyRecord | undefined;
+        /** The shared copy of the event the edge cases act on, and how to get a fresh one. */
+        let sandbox: { eventGroupUuid: string; tradeId?: string; lineItemUuid: string } | undefined;
+        let rebuildSandbox: (() => Promise<typeof sandbox>) | undefined;
         if (plan.wanted) {
           /**
            * The journey IS the run for the sourcing features.
@@ -1167,6 +1170,10 @@ const server = createServer(async (req, res) => {
           });
           journey = walked.journey;
           send("journey", { journey });
+          if (walked.forCases) {
+            sandbox = { ...walked.forCases };
+            rebuildSandbox = walked.rebuildForCases;
+          }
           // The second event's ids are what `{{eventGroupUuid}}`, `{{tradeId}}`
           // and `{{lineItemUuid}}` resolve to in the cases that follow.
           const caseCtx = await caseCtxP;
@@ -1206,7 +1213,29 @@ const server = createServer(async (req, res) => {
         // and read as a test failure, which is the platform's bug, not theirs.
         // Read once, here: the ceiling is needed before the checks are built,
         // and the feature gating below needs the same configuration.
-        const caseCtx = await caseCtxP;
+        /**
+         * NOTHING BEFORE THE FIRST CASE MAY WAIT FOREVER.
+         *
+         * Seen 2026-10-01: a run built its journey and test copy, then sat
+         * idle with nothing streamed — one of the waits below never settled.
+         * Each now has a deadline and a stated fallback, so a run always gets
+         * to its cases and says what it had to do without.
+         */
+        const bounded = async <T,>(p: Promise<T>, ms: number, what: string, fallback: T): Promise<T> => {
+          let timer: NodeJS.Timeout | undefined;
+          const late = new Promise<T>((resolve) => {
+            timer = setTimeout(() => {
+              send("note", { line: `${what} took longer than ${Math.round(ms / 1000)} s — carrying on without it` });
+              resolve(fallback);
+            }, ms);
+          });
+          try {
+            return await Promise.race([p.catch(() => fallback), late]);
+          } finally {
+            clearTimeout(timer);
+          }
+        };
+        const caseCtx = await bounded(caseCtxP, 90_000, "reading the ids the cases need", {} as Awaited<typeof caseCtxP>);
         // Vendor bulk upload: Prospect-creating cases email the workspace's
         // vendor-management team, so they run only when asked for by name.
         // Only from this machine and from the dashboard's own page: a link on
@@ -1215,8 +1244,10 @@ const server = createServer(async (req, res) => {
         const loopback = /^(::1|127\.|::ffff:127\.)/.test(req.socket.remoteAddress ?? "");
         caseCtx.vbuRealMail = url.searchParams.get("realMail") === "1" && loopback && (fetchSite === "same-origin" || fetchSite === "none");
         caseCtx.vbuCreate = url.searchParams.get("vbuCreate") !== "0";
-        const actor = await actorP;
-        const companyCfg = await companyCfgP;
+        const actor = await bounded(actorP, 60_000, "finding out who the run acts as", {} as Awaited<typeof actorP>);
+        const companyCfg = await bounded(companyCfgP, 60_000, "reading the company's settings", {
+          companyId: c, flags: {}, permissions: [], loaded: false, error: "timed out",
+        } as unknown as Awaited<typeof companyCfgP>);
         const askedLineItems = Number(url.searchParams.get("lineItems") ?? "") || undefined;
         const lineItemCap = clampLineItems(
           askedLineItems,
@@ -1247,7 +1278,7 @@ const server = createServer(async (req, res) => {
         // bug — which is exactly how two unprovable BOQ "failures" were
         // reported before. (`companyCfg` was read above, for the line-item cap.)
         const byId = new Map(cases.map((cs) => [cs.id, cs]));
-        const runGates = isTokenClient(c) ? null : await featureGatesFor(c);
+        const runGates = isTokenClient(c) ? null : await bounded(featureGatesFor(c), 60_000, "reading which features this client has", null);
         const runnable: typeof checks = [];
         for (const chk of checks) {
           // (a) the whole FEATURE may be switched off for this company
@@ -1446,12 +1477,64 @@ const server = createServer(async (req, res) => {
           return null;
         };
 
-        for (const chk of runnable) {
+        /**
+         * ONE CASE MUST NOT DECIDE THE NEXT CASE'S VERDICT.
+         *
+         * The edge cases share one copy of the event. Re-checked by hand on
+         * 2026-10-01: a single wrongly-typed field (a number as the title)
+         * crashes the update AND leaves the event refusing every later update,
+         * even a correct one — so the cases after it "failed" for that reason,
+         * not their own (about a quarter of a run's recorded crashes). Same for
+         * a case that withdraws or closes the copy. So after a mutating case
+         * crashes the copy, or ends its life, the remaining cases move to a
+         * fresh copy before they run. Bounded; each move is said out loud.
+         */
+        let sandboxRebuilds = 0;
+        const MAX_SANDBOX_REBUILDS = 40;
+        const ENDS_LIFE = /"status":"(withdrawn|closed|cancelled|draft|in_active|deleted)"|"force_end":|"withdraw_remark"/;
+        const retarget = (pending: any[], from: NonNullable<typeof sandbox>, to: NonNullable<typeof sandbox>) => {
+          const pairs = ([["eventGroupUuid"], ["tradeId"], ["lineItemUuid"]] as const)
+            .map(([k]) => [from[k], to[k]] as const)
+            .filter(([a, b]) => a && b && a !== b) as Array<readonly [string, string]>;
+          const swap = (x: string) => pairs.reduce((acc, [a, b]) => acc.split(a).join(b), x);
+          for (const c of pending) {
+            if (!c?.request) continue;
+            const body = c.request.body === undefined ? undefined : JSON.parse(swap(JSON.stringify(c.request.body)));
+            c.request = { ...c.request, path: swap(String(c.request.path)), ...(body === undefined ? {} : { body }) };
+            if (typeof c.inputSummary === "string") c.inputSummary = swap(c.inputSummary);
+          }
+          for (const [k, v] of Object.entries(to)) if (v) (liveCtx as any)[k] = v;
+        };
+        const guardSandbox = async (chk: any, result: CheckResult, pending: any[]) => {
+          if (!sandbox || !rebuildSandbox || sandboxRebuilds >= MAX_SANDBOX_REBUILDS) return;
+          const req = chk.request ?? {};
+          if (String(req.method ?? "GET").toUpperCase() === "GET") return;
+          const text = `${req.path ?? ""} ${JSON.stringify(req.body ?? {})}`;
+          const touches = text.includes(sandbox.eventGroupUuid) || (!!sandbox.tradeId && text.includes(sandbox.tradeId));
+          if (!touches) return;
+          const crashed = (result.httpStatus ?? 0) >= 500;
+          const ended = !crashed && (result.httpStatus ?? 0) >= 200 && (result.httpStatus ?? 0) < 300 &&
+            (ENDS_LIFE.test(JSON.stringify(req.body ?? {})) || /withdraw|cancel|force_?(end|close)|close_trade|revert/i.test(String(req.path ?? "")));
+          if (!crashed && !ended) return;
+          sandboxRebuilds += 1;
+          const fresh = await rebuildSandbox();
+          if (!fresh) {
+            send("note", { line: `${chk.id} ${crashed ? "crashed" : "ended"} the test event and a fresh copy could not be built — later cases on it may fail for that reason` });
+            return;
+          }
+          retarget(pending, sandbox, fresh);
+          send("note", { line: `${chk.id} ${crashed ? "crashed the server and left the test event unusable" : "ended the test event's life"} — the remaining ${pending.length} case(s) continue on a fresh copy, so they are judged on their own` });
+          sandbox = fresh;
+        };
+
+        for (let i = 0; i < runnable.length; i++) {
+          const chk = runnable[i];
           const result = await runOne(chk);
           if (!result) break;
           results.push(result);
           send("check", { check: result });
           send("progress", { done: ++done, total: plannedTotal });
+          await guardSandbox(chk, result, runnable.slice(i + 1));
         }
 
         /**
@@ -1487,12 +1570,14 @@ const server = createServer(async (req, res) => {
             break;
           }
           if (stoppedEarly) break;
-          for (const chk of built.checks) {
+          for (let i = 0; i < built.checks.length; i++) {
+            const chk = built.checks[i];
             const result = await runOne(chk);
             if (!result) break;
             results.push(result);
             send("check", { check: result });
             send("progress", { done: ++done, total: Math.max(plannedTotal, done) });
+            await guardSandbox(chk, result, built.checks.slice(i + 1));
           }
           if (stoppedEarly) break;
           const ran = new Set(built.checks.map((c) => c.id));

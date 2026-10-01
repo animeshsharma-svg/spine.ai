@@ -470,12 +470,18 @@ export function gate(
       `${method} ${path}` + (body && Object.keys(body).length ? ` · ${JSON.stringify(body).slice(0, 160)}` : ""),
     // The whole request, untruncated, so the report can print a curl that runs.
     request: { method, path, body },
-    exec: () =>
-      method === "GET"
-        ? apiGet(api, path)
-        : method === "PATCH" || method === "PUT"
-          ? apiPatch(api, path, body)
-          : apiAttempt(api, path, body),
+    // Read the request when it RUNS, not when it was built: the runner may move
+    // the check onto a fresh copy of the event (new ids), and a renewed session
+    // arrives as a new client.
+    exec: (runClient?: Client) => {
+      const r = check.request!;
+      const a = runClient?.ctx?.buyerApi ?? api;
+      return r.method === "GET"
+        ? apiGet(a, r.path)
+        : r.method === "PATCH" || r.method === "PUT"
+          ? apiPatch(a, r.path, r.body)
+          : apiAttempt(a, r.path, r.body);
+    },
   };
   return { check };
 }

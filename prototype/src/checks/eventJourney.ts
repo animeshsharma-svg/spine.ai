@@ -143,6 +143,13 @@ export interface JourneyRunResult {
   journey: JourneyRecord;
   /** the ids the library cases address, when a second copy of the event was built */
   forCases?: { eventGroupUuid: string; tradeId?: string; lineItemUuid: string };
+  /**
+   * Build ANOTHER clean copy on demand. A case that crashes the copy (or ends
+   * its life — withdraw, close) leaves it unusable, and every case after it
+   * would then fail for that reason instead of its own: false positives. The
+   * case runner calls this to move the remaining cases onto a fresh copy.
+   */
+  rebuildForCases?: () => Promise<{ eventGroupUuid: string; tradeId?: string; lineItemUuid: string } | undefined>;
 }
 
 // ── the sibling framework, loaded once ─────────────────────────────────────
@@ -2358,7 +2365,21 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     ...(j.altProblems.length ? { alternativeProblems: j.altProblems } : {}),
     ...(Object.keys(forced).length ? { forced } : {}),
   };
-  return { journey: record(j.steps, j.made, j.waitedMs, variationsEvent, resilience, j.event.title), ...(forCases ? { forCases } : {}) };
+  const rebuildForCases = opts.buildVariationsEvent
+    ? async () => {
+        try {
+          return (await withWatchdog(buildVariationsEvent(j), 5 * 60_000, "building a fresh copy of the event")).forCases;
+        } catch (e) {
+          opts.onLine?.(`a fresh copy of the event could not be built: ${clean(e instanceof Error ? e.message : String(e))}`);
+          return undefined;
+        }
+      }
+    : undefined;
+  return {
+    journey: record(j.steps, j.made, j.waitedMs, variationsEvent, resilience, j.event.title),
+    ...(forCases ? { forCases } : {}),
+    ...(rebuildForCases ? { rebuildForCases } : {}),
+  };
 }
 
 // ── the legacy shapes, for readers that predate the journey ────────────────

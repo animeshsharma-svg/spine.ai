@@ -24,3 +24,12 @@ They are DRAFTS: nothing here is in the catalog until a person reviews it and mo
 - **Oracle.** The target event is visibly first in the list and retains its pinned state after refresh.
 - **Trace.** P1 · draft · `GEN-LIST-001` · layer none · coverage none · overlaps `UI-ENV-001`, `UI-PART-018`, `UI-ENV-006` · typed: “Buyer can pin an event to the top of the events list”
 
+### GEN-LI-002 — Renaming a draft event does not alter its line items
+
+- **Why it matters.** Ensures that a simple name change cannot unintentionally modify the underlying procurement data. **Draft, needs review** — written by the assistant on 2026-10-01 from a request typed in the chat box; no automation could be built for it yet — UI part: Rename an existing saved draft and persist the changed title.; UI part: Assert that the draft's line items are unchanged by comparing them before and after the rename..
+- **Setup.** Create a draft procurement event with at least two distinct line items, each having unique product and quantity values.
+- **Steps.** 1. Open the draft event in the system. 2. Edit the event title field and change it to a new, unique name. 3. Save the changes. 4. Navigate back to the event details view. 5. Inspect the list of line items.
+- **Expected.** The event title reflects the new name, while the number of line items, their product references, quantities, and other attributes remain exactly as they were before the rename.
+- **Oracle.** Compare the line‑item collection retrieved after the rename with the collection captured before the rename; they must be identical in count and attribute values.
+- **Trace.** P1 · draft · `GEN-LI-002` · layer none · coverage none · overlaps `GEN-LI-001`, `UI-PUB-020`, `API-PUB-017` · typed: “Renaming a draft event keeps its line items unchanged”
+
