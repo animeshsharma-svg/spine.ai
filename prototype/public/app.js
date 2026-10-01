@@ -45,8 +45,8 @@ let catRunning = null; // the open EventSource while cases are running
  */
 // Purchase-to-bill is off the nav for now: its runner and endpoints stay,
 // so restoring it is a nav entry and a view block, nothing more.
-// crosscheck = UI vs API (public/crosscheck.js), product = Product knowledge (public/model.js)
-const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product"];
+// crosscheck = UI vs API (public/crosscheck.js), product = Product knowledge (public/model.js), matrix = Bidding scenarios (public/matrix.js)
+const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product", "matrix"];
 const DEFAULT_VIEW = "run";
 
 function currentView() {
