@@ -1,0 +1,350 @@
+{
+  "screen": "summary",
+  "title": "event's Project Details tab",
+  "howToOpen": "Open the event from the list; the Project Details tab opens first.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-01",
+    "fromDiscovery": "probe-muopqf7t",
+    "note": "Sections: Overview, Published Stages (table), Quotation Templates, Contact Info, Line Items (table), Participants (table, one status column per stage)."
+  },
+  "sources": {
+    "event": {
+      "method": "GET",
+      "path": "^/api/event_groups/{eventUuid}$"
+    },
+    "lineItems": {
+      "method": "GET",
+      "path": "^/api/event_groups/{eventUuid}/get_line_items"
+    },
+    "audience": {
+      "method": "GET",
+      "path": "^/api/event_groups/{eventUuid}/get_audience"
+    }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-010",
+      "title": "The overview shows the event's title, project ID and creation time as the API returns them",
+      "fields": [
+        {
+          "key": "summary.title",
+          "label": "Event title",
+          "source": "event",
+          "value": "title",
+          "format": "text",
+          "scope": "page"
+        },
+        {
+          "key": "summary.ref",
+          "label": "Project ID",
+          "source": "event",
+          "value": "ref_uuid",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "Project ID"
+        },
+        {
+          "key": "summary.created",
+          "label": "Created at",
+          "source": "event",
+          "value": "created_at",
+          "format": "datetime",
+          "scope": "label",
+          "screenLabel": "Created at"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-011",
+      "title": "The Published Stages table shows each stage's code, title, participation and bidding window as the API returns them",
+      "counts": [
+        {
+          "key": "summary.stages.count",
+          "label": "Published stages",
+          "source": "event",
+          "value": "stages",
+          "rowsOf": "stages[].ref_id"
+        }
+      ],
+      "fields": [
+        {
+          "key": "summary.stage.title",
+          "label": "Stage title",
+          "source": "event",
+          "each": "stages[]",
+          "value": "title",
+          "anchor": "ref_id",
+          "format": "text",
+          "scope": "cell",
+          "screenLabel": "Stage Title"
+        },
+        {
+          "key": "summary.stage.participants",
+          "label": "Participants (active / invited)",
+          "source": "event",
+          "each": "stages[]",
+          "value": "participants_data.active_participants",
+          "other": "participants_data.total_participants",
+          "anchor": "ref_id",
+          "format": "ratio",
+          "scope": "cell",
+          "screenLabel": "Participants"
+        },
+        {
+          "key": "summary.stage.start",
+          "label": "Bidding starts at",
+          "source": "event",
+          "each": "stages[]",
+          "value": "starting_from",
+          "anchor": "ref_id",
+          "format": "datetime",
+          "scope": "cell",
+          "screenLabel": "Bidding Starts At"
+        },
+        {
+          "key": "summary.stage.end",
+          "label": "Bidding ends at",
+          "source": "event",
+          "each": "stages[]",
+          "value": "ending_at",
+          "anchor": "ref_id",
+          "format": "datetime",
+          "scope": "cell",
+          "screenLabel": "Bidding Ends At"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-012",
+      "title": "Contact Info shows the buyer's name, email and phone as the API returns them",
+      "fields": [
+        {
+          "key": "summary.buyer.name",
+          "label": "Buyer name",
+          "source": "event",
+          "value": "user_details.display_name",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "Buyer Name"
+        },
+        {
+          "key": "summary.buyer.email",
+          "label": "Buyer email",
+          "source": "event",
+          "value": "user_details.email",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "Email"
+        },
+        {
+          "key": "summary.buyer.phone",
+          "label": "Buyer phone",
+          "source": "event",
+          "value": "user_details.display_phone",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "Phone"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-013",
+      "title": "The Line Items table lists every line item the API returns, with its material code, category, subcategory and quantity",
+      "counts": [
+        {
+          "key": "summary.lineitems.count",
+          "label": "Line items",
+          "source": "lineItems",
+          "value": "count",
+          "screenLabel": "Line Items",
+          "rowsOf": "data[].title",
+          "note": "The API pages line items; the rows checked are the page the screen asked for."
+        }
+      ],
+      "fields": [
+        {
+          "key": "summary.li.code",
+          "label": "Material code",
+          "source": "lineItems",
+          "each": "data[]",
+          "value": "product_code",
+          "anchor": "title",
+          "format": "text",
+          "scope": "cell",
+          "screenLabel": "Material Code"
+        },
+        {
+          "key": "summary.li.category",
+          "label": "Category",
+          "source": "lineItems",
+          "each": "data[]",
+          "value": "category",
+          "anchor": "title",
+          "format": "text",
+          "scope": "cell",
+          "screenLabel": "Category"
+        },
+        {
+          "key": "summary.li.subcategory",
+          "label": "Subcategory",
+          "source": "lineItems",
+          "each": "data[]",
+          "value": "subcategory",
+          "anchor": "title",
+          "format": "text",
+          "scope": "cell",
+          "screenLabel": "Subcategory"
+        },
+        {
+          "key": "summary.li.quantity",
+          "label": "Quantity",
+          "source": "lineItems",
+          "each": "data[]",
+          "value": "quantity",
+          "anchor": "title",
+          "format": "quantity",
+          "scope": "cell",
+          "screenLabel": "Quantity"
+        },
+        {
+          "key": "summary.li.lastpo",
+          "label": "Last PO price",
+          "source": "lineItems",
+          "each": "data[]",
+          "value": "last_po_price",
+          "anchor": "title",
+          "format": "money",
+          "scope": "cell",
+          "screenLabel": "Last PO Price",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-014",
+      "title": "The Participants table lists every invited vendor the API returns, with location, invitation type and each stage's bid status",
+      "counts": [
+        {
+          "key": "summary.vendors.count",
+          "label": "Participants",
+          "source": "audience",
+          "value": "count",
+          "rowsOf": "vendors[].name"
+        }
+      ],
+      "fields": [
+        {
+          "key": "summary.vendor.location",
+          "label": "Vendor location",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "location",
+          "anchor": "name",
+          "format": "text",
+          "scope": "cell",
+          "screenLabel": "Location"
+        },
+        {
+          "key": "summary.vendor.code",
+          "label": "Vendor code",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "vendor_code",
+          "anchor": "name",
+          "format": "text",
+          "scope": "cell",
+          "screenLabel": "Vendor Code"
+        },
+        {
+          "key": "summary.vendor.type",
+          "label": "Invitation type",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "scope",
+          "anchor": "name",
+          "format": "enum",
+          "scope": "cell",
+          "screenLabel": "Type",
+          "display": {
+            "added_by_creator": [
+              "Invited"
+            ],
+            "self_joined": [
+              "Self Joined",
+              "Self-joined"
+            ],
+            "added_by_system": [
+              "Invited",
+              "Auto"
+            ]
+          }
+        },
+        {
+          "key": "summary.vendor.stage1",
+          "label": "Bid status in the first stage",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "$audience:stages[0].vendors.{uuid}",
+          "anchor": "name",
+          "format": "enum",
+          "scope": "cell",
+          "screenLabel": "{stage0Title}",
+          "display": {
+            "bid_placed": [
+              "Bid placed"
+            ],
+            "invited": [
+              "Pending",
+              "Invited"
+            ],
+            "rejected": [
+              "Rejected"
+            ],
+            "not_invited": [
+              "Not invited"
+            ]
+          },
+          "note": "Expected labels are the API's own (GET /event_groups/:id/audience_filter_options: bid_placed=Bid Placed, invited=Pending, rejected=Rejected, not_invited=Not invited). Reviewed 2026-10-01: the table renders 'invited' as 'Not Participated' at all times (client-dashboard participantsTable.jsx:237), even while bidding is open — kept as a finding, not mapped away."
+        },
+        {
+          "key": "summary.vendor.stage2",
+          "label": "Bid status in the second stage",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "$audience:stages[1].vendors.{uuid}",
+          "anchor": "name",
+          "format": "enum",
+          "scope": "cell",
+          "screenLabel": "{stage1Title}",
+          "display": {
+            "bid_placed": [
+              "Bid placed"
+            ],
+            "invited": [
+              "Pending",
+              "Invited"
+            ],
+            "rejected": [
+              "Rejected"
+            ],
+            "not_invited": [
+              "Not invited"
+            ]
+          },
+          "note": "Expected labels are the API's own (GET /event_groups/:id/audience_filter_options: bid_placed=Bid Placed, invited=Pending, rejected=Rejected, not_invited=Not invited). Reviewed 2026-10-01: the table renders 'invited' as 'Not Participated' at all times (client-dashboard participantsTable.jsx:237), even while bidding is open — kept as a finding, not mapped away."
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-050",
+      "title": "No screen of the event looks fine while a request behind it failed, and none reports an error while its requests succeeded",
+      "special": [
+        {
+          "kind": "api-vs-screen-errors",
+          "label": "Errors agree"
+        }
+      ]
+    }
+  ]
+}

@@ -145,7 +145,8 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
 const CASES_DIR = join(ROOT, "test-cases");
 const extra = (prefix: string) =>
   readdirSync(CASES_DIR).filter((f) => f.startsWith(prefix) && f.endsWith(".md")).sort().map((f) => join(CASES_DIR, f));
-const ui = [join(CASES_DIR, "events-ui.md"), ...extra("product-")].flatMap((f) => parse(f, "ui"));
+// `ui-*.md`: generated UI-layer cases in the same format (e.g. the UI↔API cross-checks).
+const ui = [join(CASES_DIR, "events-ui.md"), ...extra("product-"), ...extra("ui-")].flatMap((f) => parse(f, "ui"));
 const api = [join(CASES_DIR, "events-api.md"), ...extra("api-")].flatMap((f) => parse(f, "api"));
 const all = [...ui, ...api];
 const dupes = [...all.reduce((m, c) => m.set(c.id, (m.get(c.id) ?? 0) + 1), new Map<string, number>())].filter(([, n]) => n > 1);

@@ -1,0 +1,155 @@
+{
+  "screen": "list",
+  "title": "events list",
+  "howToOpen": "Open Events, type the event's title in the search box and press Enter.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-01",
+    "fromDiscovery": "probe-muopqf7t (API_Journey_RFQ_only_1790768879309, PROCOL DEMO)",
+    "note": "Each event is a card: creator · RFX ref · N items · title, then one line per stage: stage title, stage code, timeline, active/total participants, pending-action badges."
+  },
+  "sources": {
+    "search": {
+      "method": "GET",
+      "path": "^/api/event_groups\\?filters=.*%22title%22%3A%22{titleEnc}%22",
+      "pick": "last"
+    },
+    "unfiltered": {
+      "method": "GET",
+      "path": "^/api/event_groups\\?filters=.*%22title%22%3Anull",
+      "pick": "all"
+    }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-001",
+      "title": "The event's card in the list shows its title, reference, creator and item count as the API returns them",
+      "fields": [
+        {
+          "key": "list.title",
+          "label": "Title",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}]",
+          "value": "title",
+          "anchor": "ref_uuid",
+          "format": "text",
+          "scope": "row"
+        },
+        {
+          "key": "list.ref",
+          "label": "Event reference",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}]",
+          "value": "ref_uuid",
+          "anchor": "ref_uuid",
+          "format": "text",
+          "scope": "row"
+        },
+        {
+          "key": "list.creator",
+          "label": "Creator",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}]",
+          "value": "user.name",
+          "anchor": "ref_uuid",
+          "format": "text",
+          "scope": "row"
+        },
+        {
+          "key": "list.items",
+          "label": "Line item count",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}]",
+          "value": "line_item_count",
+          "anchor": "ref_uuid",
+          "format": "count",
+          "scope": "line",
+          "note": "Printed as \"N items\" on the card's first line."
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-002",
+      "title": "Each stage line on the event's card shows the stage code, title, participation and timeline the API returns",
+      "fields": [
+        {
+          "key": "list.stage.code",
+          "label": "Stage code",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}].stages[]",
+          "value": "ref_uuid",
+          "anchor": "ref_uuid",
+          "format": "text",
+          "scope": "line"
+        },
+        {
+          "key": "list.stage.title",
+          "label": "Stage title",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}].stages[]",
+          "value": "title",
+          "anchor": "ref_uuid",
+          "format": "text",
+          "scope": "line"
+        },
+        {
+          "key": "list.stage.participants",
+          "label": "Participation (active / invited)",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}].stages[]",
+          "value": "active_participants",
+          "other": "total_participants",
+          "anchor": "ref_uuid",
+          "format": "ratio",
+          "scope": "line"
+        },
+        {
+          "key": "list.stage.timeline",
+          "label": "Timeline",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}].stages[]",
+          "value": "timeline.display_value",
+          "anchor": "ref_uuid",
+          "format": "text",
+          "scope": "line",
+          "note": "The API sends the phrase (\"Overdue by\") and the screen appends a relative time it computes itself."
+        },
+        {
+          "key": "list.stage.updates",
+          "label": "Pending-action badge",
+          "source": "search",
+          "each": "event_groups[uuid={eventUuid}].stages[].updates[]",
+          "value": "label",
+          "format": "text",
+          "scope": "page",
+          "optional": true,
+          "note": "Badges can wrap below the stage line, so they are looked for on the card's screen, not the line."
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-003",
+      "title": "Searching the list by title shows exactly the events the API returned for that search",
+      "special": [
+        {
+          "kind": "list-search",
+          "label": "Rows equal the search result",
+          "params": {
+            "source": "search",
+            "unfiltered": "unfiltered"
+          }
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-050",
+      "title": "No screen of the event looks fine while a request behind it failed, and none reports an error while its requests succeeded",
+      "special": [
+        {
+          "kind": "api-vs-screen-errors",
+          "label": "Errors agree"
+        }
+      ]
+    }
+  ]
+}
