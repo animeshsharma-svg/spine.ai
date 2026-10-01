@@ -235,7 +235,9 @@ export function endpointInWords(method: string, path: string): string {
  * "a1paUQ=="), always with an upper-case letter and a digit or padding.
  */
 const ID_TOKEN =
-  /(?<![\w@.\/+=-])(?=[A-Za-z0-9+\/]*[A-Z])(?=[A-Za-z0-9+\/]*(?:\d|=))(?:[A-Za-z0-9+\/]{8}|[A-Za-z0-9+\/]{7}=|[A-Za-z0-9+\/]{6}==)(?![\w@.+\/=-])/g;
+  /(?<![\w@.\/+=-])(?=[A-Za-z0-9+\/]*[A-Z])(?=[A-Za-z0-9+\/]*(?:\d|=))(?:[A-Za-z0-9+\/]{8}|[A-Za-z0-9+\/]{7}=|[A-Za-z0-9+\/]{6}==)(?![\w@+\/=-]|\.\w)/g;
+/** Longer Procol ids ("Z2dnWmdaUWtnZw==", "a1FYTlpnZw==") — base64 with padding. */
+const LONG_ID = /(?<![\w@.\/+=-])(?=[A-Za-z0-9+\/]*[A-Z])(?=[A-Za-z0-9+\/]*[a-z])[A-Za-z0-9+\/]{9,30}={1,2}(?![\w@+\/=-]|\.\w)/g;
 /** Test-record names the platform creates: QA_Platform_…, API_Journey_…, API_Test_… */
 const TEST_NAME = /“(API_Journey|QA_Platform|API_Test)[^”]*”|"(API_Journey|QA_Platform|API_Test)[^"]*"/g;
 
@@ -250,7 +252,7 @@ export function looksLikeId(s: string): boolean {
  * Take the ids out of a sentence and say what they are.
  * `known` maps an id value to its name ("RFFEY0RO" → "the event").
  */
-export function scrubIds(text: string | undefined, known: Record<string, string> = {}): string {
+export function scrubIds(text: string | undefined, known: Record<string, string> = {}, opts: { dates?: boolean } = {}): string {
   let s = String(text ?? "");
   if (!s) return s;
   s = s.replace(TEST_NAME, (_m, a, b) => ((a ?? b) === "API_Journey" ? "the test event" : "the test record"));
@@ -267,8 +269,22 @@ export function scrubIds(text: string | undefined, known: Record<string, string>
   s = s.replace(new RegExp(`\\bthrough ${ID_TOKEN.source}\\b`, "g"), "through one of them,");
   s = s.replace(new RegExp(`\\s+(?:as|is)\\s+${ID_TOKEN.source}(?=[\\s;.,)]|$)`, "g"), "");
   s = s.replace(new RegExp(`[“"]${ID_TOKEN.source}[”"]\\s+—\\s+`, "g"), "");
-  s = s.replace(ID_TOKEN, (id) => known[id] ?? "a reference id");
-  return tidy(s);
+  s = s.replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, (id) => known[id] ?? "a reference id");
+  s = s.replace(ID_TOKEN, (id, off: number, all: string) =>
+    known[id] ?? (/\b(the|a|an|its|this|that|their)\s+(\w+\s+)?$/i.test(all.slice(Math.max(0, off - 30), off)) ? "record" : "a reference id"),
+  );
+  s = s.replace(LONG_ID, (id) => known[id] ?? "a reference id");
+  s = s.replace(/\b(the|a|an|its)\s+(\w+\s+)?a reference id\b/gi, "$1 $2record");
+  return tidy(opts.dates === false ? s : timestamps(s));
+}
+
+/** Unix timestamps in a sentence ("It was 1723796195") → a date a person reads. Leaves e-mail addresses and long test values alone. */
+function timestamps(s: string): string {
+  return s.replace(/(?<![\w@.+-])(1[5-9]\d{8}|1[5-9]\d{11})(?![\w@.-])/g, (n) => {
+    const ms = n.length === 13 ? Number(n) : Number(n) * 1000;
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? n : `${d.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  });
 }
 
 // ── making a sentence plain ────────────────────────────────────────────────
@@ -399,6 +415,10 @@ const POLISH: Array<[RegExp, string | ((...m: string[]) => string)]> = [
   [/\b(?:the )?request (?:body|payload)\b/g, "the data sent"],
   [/\b(?:a )?JSON body\b/g, "a structured reply"],
   [/\b(?:JSON|json)\b/g, "data"],
+  [/(\bwith |, )([a-z][a-z ]{2,40}?): \[\s*([^\]]*?)\s*\]/g, (_m, pre: string, k: string, v: string) =>
+    `${pre}“${k.trim()}” set to ${v ? `a list holding ${v.replace(/["']/g, "")}` : "an empty list"}`],
+  [/\brefuses it and with the message\b/g, "refuses it with the message"],
+  [/\bcheck for no ([\w -]+?) (was|is|were|are|has been|have been)\b/gi, "check that no $1 $2"],
   [/\binjection payloads?\b/gi, "injection text"],
   [/\b(an? |the )?(?:hostile |malicious )?payloads?\b/gi, (_m, a = "") => `${/^the/i.test(a) ? a : ""}data`],
   [/\bwrite endpoints?\b/g, "saving request"],
@@ -418,7 +438,7 @@ const POLISH: Array<[RegExp, string | ((...m: string[]) => string)]> = [
   [/\bBody\b/g, "The request"],
   [/\b(?:PATCH|POST|PUT)es\b/g, "requests"],
   [/\bto \/events\/(the [a-z]+)/g, "for $1"],
-  [/\b(?:round › )?event\.latest\? is off\b/g, "the round no longer belongs to the latest version of the event"],
+  [/\b(?:round › )?event\.latest\? is (?:off|false)\b/g, "the round no longer belongs to the latest version of the event"],
   [/\bHTTP \+ /g, "the app's answer + "],
   [/\b(an? |or a )200\b(?!-| ?(?:rows?|items?|characters|vendors?))/g, (_m, a: string) => `${/^or/.test(a) ? "or a" : "a"} success answer`],
   [/\bthe same (\d{3})\b(?!-| ?(?:rows?|items?|characters|vendors?))/g, "the same error"],
@@ -441,6 +461,15 @@ const POLISH: Array<[RegExp, string | ((...m: string[]) => string)]> = [
   [/\bHTTP (?=refusal|success|error)/g, ""],
   [/\b2xx\b/gi, "success"],
   [/\ban empty 200\b/g, "an empty success reply"],
+  [/\b(an?|is|into an?|returns?|with|gets?) ([24]\d\d)\b(?![-.]\d| ?(?:rows?|items?|characters|vendors?|ids|entries|line|copies|products?|companies))/gi, (m: string, w: string, st: string) => {
+    if (!HTTP_WORD[st]) {
+      const msg = errorMessage(st);
+      return msg ? `${w} the message “${msg}”` : m;
+    }
+    const word = HTTP_WORD[st];
+    return /^an?$/i.test(w) ? `${/^A/.test(w) ? "A" : "a"} ${word.replace(/^an? /, "")}${/^(success)$/.test(word) ? " answer" : ""}` : `${w} ${word}`;
+  }],
+  [/\b([a-z]+)((?:[A-Z][a-z0-9]+)+)\b/g, (_m, a: string, b: string) => words(a + b)],
   [/\b(?:or )?[45]\d\d(?:\s*\/\s*[45]\d\d)+\b/g, (m: string) => `${/^or/.test(m) ? "or " : ""}a refusal`],
   [/\b(?:the )?HTTP status\b/g, "the response status"],
   [/\bHTTP time\b/g, "response time"],
@@ -483,6 +512,16 @@ export function plain(text: string | undefined, opts: PlainOpts = {}): string {
   if (!s) return "";
   s = s.replace(/\*\*([^*]+)\*\*/g, "$1");
   s = settingNames(s);
+  // a deliberately made-up id: "WrongUuid1=", ["WrongUuid1="]
+  s = s.replace(/\[\s*["']?WrongUuid\d*=*["']?\s*\]/g, "a list holding one made-up id");
+  s = s.replace(/["']?\bWrongUuid\d*=*["']?/g, "a made-up id");
+  // "GET get_audience" — the request named by its action
+  s = s.replace(/\b(GET|POST|PATCH|PUT|DELETE)\s+(get_)?([a-z]+(?:_[a-z]+)*)\b(?!\/|\.\w)/g, (m, v: string, get: string | undefined, a: string) =>
+    v === "GET" && get ? `read the ${words(a)}` : /_/.test(a) || get ? `the “${words(a)}” request` : m);
+  // gate flags in camelCase: "Gate: routeAuctionsToAuctionTeam"
+  s = s.replace(/\b[Gg]ate:\s*`?([a-z]+(?:[A-Z][a-z0-9]+)+)`?/g, (_m, k: string) => `Setting: the “${words(k)}” setting`);
+  // a fixture path is for the runner, not the reader (it stays in Details)
+  s = s.replace(/\s*Fixture:\s*`?[^`]*?\.(?:xlsx|xls|csv|json|pdf)`?\.?/g, "");
   s = s.replace(/\bgate:\s*`?([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`?/g, (_m, k: string) => `the “${words(k)}” setting`);
   s = s.replace(/\{\{\s*rfpTradeId\s*\}\} is the TECHNICAL \(RFP\) stage of (the sandbox event)/g, (_m, e: string) => `${cap(e)} has a technical (RFP) round`);
   s = s.replace(/\bform\.uuid is \{\{\s*evalFormUuid\s*\}\}, the form assigned to the evaluator/g, "the evaluator has been assigned an evaluation form");
@@ -580,7 +619,7 @@ export function plain(text: string | undefined, opts: PlainOpts = {}): string {
   s = s.replace(/\btrade requests?\b/gi, (w) => (/s$/i.test(w) ? "rounds" : "round"));
   s = s.replace(/\bQA_Platform_?/g, "");
   s = s.replace(/\b\w+#\w+[?!]?/g, "the server code");
-  return tidy(polish(s));
+  return scrubIds(tidy(polish(s)), {}, { dates: false });
 }
 
 function tidy(s: string): string {
@@ -596,6 +635,7 @@ function tidy(s: string): string {
       .replace(/\s{2,}/g, " ")
       .replace(/^[\s,;.—–-]+/, "")
       .replace(/\.\s*\./g, ".")
+      .replace(/\b(\w+(?:'s)?) \1\b/gi, "$1")
       .trim(),
   );
 }
@@ -610,6 +650,8 @@ function plainSentences(text: string | undefined, opts: PlainOpts = {}): string 
       const codeSpans = p.match(/`[^`]*`/g) ?? [];
       if (codeSpans.some((c) => CODEY.test(c))) return "";
       if (/\b\w+\.rb:\d+|\bSorbet\b|\bsig\b|TypeError|ArgumentError|NoMethodError|unrescued|rescue/.test(p)) return "";
+      // Ruby / JS the author quoted without backticks: Product.active.where(id:), Current.workspace, VALID_EMAIL_REGEX, [^\w], parseInt
+      if (/\b[A-Z]\w*\.[a-z_]\w*|\b[a-z_]+\.[a-z_]+\(|\b\w+\([^)]*\)|\b[A-Z]{2,}_[A-Z_]+\b|\[\^?[^\]\s]*\\[^\]]*\]|\.dig\b|\b(?:parseInt|randInt|decode64|encode64)\b/.test(p)) return "";
       return plain(p, opts);
     })
     .filter(Boolean);
@@ -691,6 +733,14 @@ export function plainSteps(steps: string | string[] | undefined): string[] {
     );
   // A step that only names the request, followed by one that sends it with a change, is the same step.
   const bare = (x: string) => x.replace(/ with the values shown in Details$/, "");
+  // "Update the event" then "Send with title set to 12345" is one step: "Update the event with title set to 12345"
+  for (let i = 1; i < out.length; i++) {
+    if (/^Send (it )?with /.test(out[i]) && !/ with /.test(out[i - 1]) && /^(Update|Create|Add|Send|Convert|Invite|Issue)\b/.test(out[i - 1])) {
+      out[i - 1] = `${out[i - 1]} ${out[i].replace(/^Send (it )?/, "")}`;
+      out.splice(i, 1);
+      i--;
+    }
+  }
   return out
     .filter((x) => x && !/^(check that|check for)$/i.test(x))
     .filter((x, i, all) => !all.some((y, j) => j !== i && y.length > bare(x).length && y !== x && y.startsWith(bare(x)) && /^(Send|Create|Update|Add|Read|List|Convert|Invite|Issue)\b/.test(x)));
@@ -761,7 +811,9 @@ export function titleFromIdentifier(title: string): string {
     }
   }
   for (const [re, w] of VERB) s = s.replace(re, w);
-  s = s.replace(/\b(\d{3})\b/g, (m) => (/^5/.test(m) ? "a server error" : m));
+  // a status, not a count: "raises 500" yes, "exactly 500 audience entries" no
+  s = s.replace(/\b(raises|returns|answers|throws|gives|with|not|no|a|an)\s+(5\d\d)\b(?!\s*(?:\w+\s+)?(?:entries|items?|ids|rows?|vendors?|line|participants?|copies|products?|audience|characters|companies))/g, (_m, w: string) =>
+    /^(a|an)$/.test(w) ? "a server error" : /^no$/.test(w) ? "no server error" : `${w} a server error`);
   return tidy(polish(s));
 }
 
@@ -840,8 +892,20 @@ function expectedFor(kind: string | undefined, documented: string | undefined, b
   const m = messageNamed(documented);
   if (kind === "reject") return m ? `The app refuses it with the message “${m}”, and nothing is saved or changed.` : "The app refuses it with a clear message, and nothing is saved or changed.";
   if (kind === "accept") return "The app accepts the request and does what it asks.";
-  if (kind === "no-5xx")
-    return "The app copes with it without breaking: it may accept it or refuse it cleanly, but it never answers with a server error.";
+  if (kind === "no-5xx") {
+    // What the case's author says should happen, beyond "do not crash" — kept when it is specific.
+    const specific = plainSentences(documented, { codes: "message" })
+      .split(/(?<=[.;])\s+/)
+      .map((x) => x.trim())
+      .filter((x) => /\b(should|must|refus|reject|accept|expected|ignored|rounded|stored|saved|clamped|capped|never)\w*/i.test(x))
+      .filter((x) => !/^(no crash|no server error|must not crash|never (answers|crashes))/i.test(x))
+      .map((x) => x.replace(/^Must be refused[.;]?$/i, "It should be refused cleanly.").replace(/^Must be (a refusal|success)[.;]?$/i, (_m, w) => `It should get ${w}.`))
+      .join(" ")
+      .trim();
+    return specific
+      ? `The app does not crash the server. ${cap(specific.replace(/;$/, "."))}`
+      : "The app copes with it without breaking: it may accept it or refuse it cleanly, but it never answers with a server error.";
+  }
   return plainSentences(documented, { codes: "message" }) || "The app behaves as the case describes.";
 }
 
@@ -978,9 +1042,18 @@ function messageParts(message: string | null | undefined): { text?: string; code
   return { text: m.replace(/\s*\(code \d+\)/, "").trim(), code };
 }
 
+/** "edge-PUB-001 ("republish_active_event_is_a_noop")" → "another case"; "HTTP 403 on POST /v1/x" → words. */
+function verdictText(v: string): string {
+  return v
+    .replace(/\b(?:EDGE|edge|API|api|VBU|vbu)-(?:[A-Za-z]+-)?\d{3}\b(?:\s*\(\s*"[^"]*"\s*\))?/g, "another case")
+    .replace(/\(\s*"[a-z]+(?:_[a-z0-9]+)+"\s*\)/g, "")
+    .replace(/\bHTTP (\d{3}) on (GET|POST|PATCH|PUT|DELETE) (\/\S+)/g, (_m, st: string, mth: string, p: string) =>
+      `${Number(st) >= 500 ? "a server error" : st === "401" || st === "403" ? "a refusal (not allowed)" : "a refusal"} from ${endpointInWords(mth, p)}`);
+}
+
 /** Verdict word + the one-sentence reason, from the engine's own verdict. */
 export function verdictInWords(r: ResultRow): { verdict: VerdictWord; reason: string } {
-  const v = String(r.verdict ?? "");
+  const v = verdictText(String(r.verdict ?? ""));
   if (r._running || r._rerunning || /^running/.test(v)) return { verdict: "Not run", reason: "Running now." };
   if (/^not run yet|^never ran/i.test(v)) return { verdict: "Not run", reason: v.replace(/^never ran\s*—?\s*/i, "") ? cap(plain(v.replace(/^never ran\s*—?\s*/i, ""))) : "This step did not run." };
   const said = messageParts(r.message).text;
@@ -1000,7 +1073,7 @@ export function verdictInWords(r: ResultRow): { verdict: VerdictWord; reason: st
   if (r.pass) {
     if (/handled safely — served/.test(v)) return { verdict: "Passed", reason: "The app handled it without breaking — it accepted the request." };
     if (/handled safely — refused/.test(v)) return { verdict: "Passed", reason: "The app handled it without breaking — it refused the request cleanly." };
-    const refusedSaid = v.match(/^correctly refused\s*\(:?\s*([^)]*)\)/i)?.[1]?.replace(/^HTTP \d{3}:?\s*/, "").trim();
+    const refusedSaid = v.match(/^correctly refused\s*\(:?\s*([^)]*)\)/i)?.[1]?.replace(/^HTTP \d{3}:?\s*/, "").replace(/^a refusal(?: \(not allowed\))? from .*$/, "").trim();
     if (/^correctly refused/i.test(v)) return { verdict: "Passed", reason: `The app refused it, as it should${refusedSaid || said ? `: “${refusedSaid || said}”` : ""}.` };
     if (/correctly rejected/.test(v)) return { verdict: "Passed", reason: `The app refused it, as it should${said ? `: “${said}”` : ""}.` };
     if (/accepted, as expected/.test(v)) return { verdict: "Passed", reason: "The app accepted it, as it should." };
@@ -1015,7 +1088,7 @@ export function verdictInWords(r: ResultRow): { verdict: VerdictWord; reason: st
 /** What actually came back, in words. */
 export function actualInWords(r: ResultRow): string {
   if (r._running || r._rerunning) return "Running…";
-  const v = String(r.verdict ?? "");
+  const v = verdictText(String(r.verdict ?? ""));
   if (/^not run yet|^never ran/i.test(v)) return "Not run.";
   if (/every row came out|^row \d+:|rows? came out|expected columns|blocked by sandbox/.test(v)) return cap(plain(v.replace(/\s*\[[^\]]*\]\s*$/, ""))) + ".";
   if (r.category === "plan step" || r.category === "PO flow") return cap(plain(v.replace(/\s*·\s*\d+ms$/, ""))) + ".";
@@ -1135,7 +1208,7 @@ export function displayFieldCheck(r: FieldCheckResult, step: StepLike, known: Re
     type: "Positive",
     preconditions: `The API journey has reached “${step.title}”.`,
     steps: [`As ${who}, do “${step.title}”`, field ? `Look at ${field} in the app's response` : "Look at the app's answer"],
-    expected: plain(r.humanExpected ?? r.expected ?? ""),
+    expected: scrubIds(plain(r.humanExpected ?? r.expected ?? ""), known),
     actual: scrubIds(plain(r.humanActual ?? r.actual ?? ""), known),
     verdict,
     reason: r.pass === null ? scrubIds(r.humanActual ?? "It could not be checked on this reply.", known) : r.pass ? "The response matched." : "The response did not match what the check expects.",
@@ -1168,9 +1241,12 @@ export function displayJourneyStep(step: StepLike, journeyMade: Record<string, u
     area: "API journey",
     priority: "",
     type: "Workflow",
-    preconditions: "",
-    steps: [step.title],
-    expected: scrubIds(step.expected, known),
+    preconditions: step.n > 1 ? `The API journey has run its first ${step.n - 1} step${step.n === 2 ? "" : "s"} for this event.` : "A signed-in session for the company under test.",
+    steps: [
+      step.actor && step.actor !== "platform" ? `As the ${step.actor}, ${step.title.charAt(0).toLowerCase()}${step.title.slice(1)}` : step.title,
+      "Check the app's answer against the expected result",
+    ],
+    expected: scrubIds(plain(step.expected ?? ""), known),
     actual: scrubIds(plain(step.actual ?? ""), known),
     verdict,
     reason,

@@ -663,6 +663,8 @@ async function loadFeatures() {
     }
     renderTree();
     renderUiTree();
+    // History titles name features by their tree labels, which have just arrived.
+    if ($("#history")?.querySelector(".run-item")) loadHistory();
   } catch {
     box.innerHTML = "";
     box.appendChild(el("div", "empty", "Could not load the feature list."));
@@ -921,6 +923,8 @@ function renderTree() {
         });
       }
       body.appendChild(row);
+      // The feature's own test cases, as test cases — read on demand.
+      if (f.cases > 0) body.appendChild(featureCaseList(f));
     }
     mod.appendChild(body);
     box.appendChild(mod);
@@ -934,6 +938,56 @@ function renderTree() {
     meta.textContent = pickedFeatures
       ? `${pickedFeatures} picked · ${pickedCases} test${pickedCases === 1 ? "" : "s"} will run`
       : "nothing picked yet";
+}
+
+/**
+ * "Show its 12 test cases" under a feature row: each case as a tester would
+ * write it (title, steps, expected) with its track record, and the request
+ * and body behind a closed "Details". Kept open across re-renders.
+ */
+const openCaseLists = new Set();
+const CASE_PAGE = 25;
+function featureCaseList(f) {
+  const wrap = el("div", "cv-list");
+  const btn = el("button", "cv-sub-cases");
+  btn.type = "button";
+  const label = () => (openCaseLists.has(f.id) ? "Hide its test cases" : `Show its ${f.cases} test case${f.cases === 1 ? "" : "s"}`);
+  btn.textContent = label();
+  const box = el("div", "cv-list-box");
+  wrap.append(btn, box);
+  const fill = async (limit) => {
+    box.innerHTML = '<div class="loading">Reading the cases…</div>';
+    try {
+      const list = await CaseView.forFeature(f.id);
+      box.innerHTML = list.slice(0, limit).map((d) => CaseView.card(d, { compact: true, hideArea: true })).join("");
+      if (list.length > limit) {
+        const more = el("button", "cv-list-more", `Show all ${list.length}`);
+        more.type = "button";
+        more.addEventListener("click", (e) => {
+          e.stopPropagation();
+          fill(list.length);
+        });
+        box.appendChild(more);
+      }
+      if (!list.length) box.innerHTML = '<div class="empty">No runnable cases for this feature.</div>';
+      CaseView.fillTrack(box, currentClient);
+    } catch {
+      box.innerHTML = '<div class="empty">Could not read the cases.</div>';
+    }
+  };
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (openCaseLists.has(f.id)) {
+      openCaseLists.delete(f.id);
+      box.innerHTML = "";
+    } else {
+      openCaseLists.add(f.id);
+      fill(CASE_PAGE);
+    }
+    btn.textContent = label();
+  });
+  if (openCaseLists.has(f.id)) fill(CASE_PAGE);
+  return wrap;
 }
 
 /**
@@ -1725,7 +1779,7 @@ const UI_PHASES = {
   learned: { label: "Learned a locator", icon: "🧠" },
   stuck: { label: "Stuck", icon: "🚧" },
   oracle: { label: "Verdict", icon: "⚖️" },
-  playwright: { label: "Playwright", icon: "▶" },
+  playwright: { label: "The browser run", icon: "▶" },
   "po-to-bill": { label: "Purchase order to bill", icon: "🧾" },
   queue: { label: "Waiting for the browser", icon: "⏳" },
 };
@@ -1831,7 +1885,9 @@ function parseUiLine(line) {
   if (test) {
     // "tests/ui-master.spec.ts:88:5 › events.rfq_only" — the name is the last
     // chevron segment; the path in front of it is for the terminal, not here.
-    const title = test[2].split("›").pop().trim();
+    // A feature id ("events.rfq_only") is named the way the tree names it.
+    const last = test[2].split("›").pop().trim();
+    const title = /^[a-z_]+(\.[a-z_]+)+$/.test(last) ? featureLabel(last) : last;
     return {
       phase: "playwright",
       kind: test[1] === "✓" ? "ok" : test[1] === "-" ? "info" : "bad",
@@ -1956,7 +2012,7 @@ function renderUiSteps() {
     const row = el("div", "ui-step " + s.kind);
     const mark = { ok: "✓", bad: "✗", warn: "!", info: "·" }[s.kind] ?? "·";
     row.innerHTML =
-      `<span class="ui-step-mark">${mark}</span><span class="ui-step-text">${esc(s.text)}` +
+      `<span class="ui-step-mark">${mark}</span><span class="ui-step-text">${esc(CaseView.scrub(s.text))}` +
       (s.rounds ? ` <span class="ui-step-n">${s.rounds} attempts</span>` : "") +
       `</span>`;
     row.title = s.raw;
@@ -2507,7 +2563,7 @@ function runUiJourney(flow, onDone, opts = {}) {
   });
   es.addEventListener("done", (ev) => {
     const { exitCode: code, runId } = JSON.parse(ev.data);
-    write(code === 0 ? "✓ journey passed" : `✗ journey failed (exit ${code})`, code === 0 ? "ok" : "bad");
+    write(code === 0 ? "✓ The journey passed" : "✗ The journey failed — the report shows where it stopped", code === 0 ? "ok" : "bad");
     btn.classList.remove("running");
     btn.classList.add(code === 0 ? "ok" : "bad");
     es.close();
@@ -2683,6 +2739,17 @@ function finishAgentCard(card, e) {
 }
 
 // ── run history (the platform's own memory) ──
+/** "events.publish" → "Sourcing events (RFx) › Publish event", from the loaded tree; worded when the tree is not loaded yet. */
+function featureLabel(id) {
+  for (const g of featureGroups) {
+    if (g.id === id) return g.label;
+    const c = g.children.find((x) => x.id === id);
+    if (c) return `${g.label} › ${c.label}`;
+  }
+  const w = String(id).replace(/[._]+/g, " ").trim();
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
 async function loadHistory() {
   const box = $("#history");
   try {
@@ -2703,10 +2770,11 @@ async function loadHistory() {
        */
       const features = r.request?.match(/^\s*features:\s*(.+)$/i)?.[1];
       const list = features ? features.split(",").map((f) => f.trim()).filter(Boolean) : null;
+      // Feature ids ("events.publish") are named the way the tree names them.
       const title = list
         ? list.length === 1
-          ? list[0]
-          : `${list[0]} + ${list.length - 1} more`
+          ? featureLabel(list[0])
+          : `${featureLabel(list[0])} + ${list.length - 1} more`
         : r.request;
       /**
        * "clean" has to mean something ran and nothing broke.
@@ -2781,7 +2849,7 @@ async function loadHistory() {
           `${esc(r.journey.outcome)}</span>`
         : "";
       item.innerHTML = `
-        <div class="run-req" title="${esc(r.request)}">${kindTag}${esc(title)}</div>
+        <div class="run-req" title="${esc(list ? list.map(featureLabel).join(" · ") : r.request)}">${kindTag}${esc(title)}</div>
         <div class="run-meta">${esc(r.companyName ?? r.id)} · ${esc(when)} ${tag}
           ${counts}${fieldChecks}${journeyLine}</div>
         ${links ? `<div class="run-links">${links}</div>` : ""}
@@ -2878,6 +2946,45 @@ function rowSignature(c) {
   ].join("\u0001");
 }
 
+/**
+ * Plain-English displays for check rows, fetched in batches as rows stream in
+ * and cached by everything the row shows — so a row that has not changed is
+ * never re-asked, and a re-run (new verdict) gets fresh words.
+ */
+const rowDisplays = new Map();
+const rowDisplayWanted = new Map();
+let rowDisplayTimer = null;
+function rowDisplay(c) {
+  const key = rowSignature(c) + "\u0002" + c.id;
+  if (rowDisplays.has(key)) return rowDisplays.get(key);
+  rowDisplayWanted.set(key, c);
+  if (!rowDisplayTimer) rowDisplayTimer = setTimeout(flushRowDisplays, 350);
+  return null;
+}
+async function flushRowDisplays() {
+  rowDisplayTimer = null;
+  const batch = [...rowDisplayWanted.entries()].slice(0, 400);
+  for (const [k] of batch) rowDisplayWanted.delete(k);
+  if (!batch.length) return;
+  const items = await CaseView.forRows(batch.map(([, c]) => c));
+  batch.forEach(([k, c], i) => {
+    rowDisplays.set(k, items[i] || { title: scenarioInWords(c.scenario || c.id), details: [], steps: [] });
+    const entry = rowNodes.get(c.id);
+    const now = checkRows.find((x) => x.id === c.id);
+    if (entry && now && rowSignature(now) === rowSignature(c)) paintRow(entry.node, now);
+  });
+  if (rowDisplayWanted.size) rowDisplayTimer = setTimeout(flushRowDisplays, 50);
+  const box = $("#automation");
+  if (box) CaseView.fillTrack(box, currentClient);
+}
+/** "QA_Platform_publish_title_as_number_raises_500" → "Publish title as number raises 500", until the real words land. */
+function scenarioInWords(s) {
+  const t = String(s ?? "").replace(/^QA[_ ]?Platform[_ ]?/i, "");
+  if (/\s/.test(t) || !/_/.test(t)) return t;
+  const w = t.replace(/_+/g, " ").trim();
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
 function paintRow(node, c) {
   const is5xx = (c.httpStatus || 0) >= 500;
   const running = c._rerunning || c._running;
@@ -2891,22 +2998,28 @@ function paintRow(node, c) {
   node.dataset.state = state;
 
   node.querySelector(".chk-mark").textContent = running ? "⟳" : c.inconclusive ? "≈" : c.pass ? "✓" : "✗";
+  // The row reads as a test case: its plain-English title, type and verdict.
+  // The display comes from the server (/api/case-display), batched; until it
+  // lands the row shows a cleaned-up name, never the raw identifier.
+  const d = running ? null : rowDisplay(c);
   node.querySelector(".chk-id").textContent = c.id;
   const type = node.querySelector(".chk-type");
   type.className = "chk-type " + (TYPE_CLASS[c.type] ?? "");
-  type.textContent = c.category;
+  type.textContent = d?.type || c.category || "";
   node.querySelector(".chk-scn").innerHTML =
     (c.module === "AI-generated"
       ? '<span class="ai-tag" title="written by the AI for your request">AI</span>'
-      : "") + esc(c.scenario);
+      : "") + esc(d?.title || scenarioInWords(c.scenario || c.id));
   const http = node.querySelector(".chk-http");
   http.className = "chk-http" + (is5xx ? " err5" : "");
-  http.textContent = running ? "…" : (c.rightLabel ?? c.httpStatus ?? "err");
+  http.textContent = running ? "running…" : d?.verdict || (c.inconclusive ? "Couldn't tell" : c.pass ? "Passed" : "Failed");
+  http.title = c.httpStatus ? `The app answered with status ${c.httpStatus}` : "";
 
   const detail = node.querySelector(".chk-detail");
-  detail.innerHTML = `<b>${esc(c.module)}${c.field ? " · " + esc(c.field) : ""}</b>${
-    c.expected ? ` — expected to <b>${esc(c.expected)}</b>` : ""
-  }${c.inputSummary ? `<br>input: <span class="mono">${esc(c.inputSummary)}</span>` : ""}<br>${esc(c.verdict)}<br>` +
+  detail.innerHTML =
+    (d
+      ? CaseView.card(d, { noHead: true })
+      : `<div class="cv-reason">${running ? "Running now." : "Putting this result into words…"}</div>`) +
     (c.knownBug
       ? `<span class="known-bug ${/fixed|closed/i.test(c.knownBug.status) ? "fixed" : "open"}">${
           /fixed|closed/i.test(c.knownBug.status) ? "Known bug, confirmed fixed" : "Known bug"
@@ -2916,6 +3029,8 @@ function paintRow(node, c) {
       : !c.pass && !c.inconclusive && !c._running
         ? `<span class="known-bug new">New — not on any bug sheet yet</span>`
         : "");
+  detail.querySelector(".cv-details")?.addEventListener("click", (ev) => ev.stopPropagation());
+  detail.querySelectorAll(".cv-details, .cv-body").forEach((x) => x.addEventListener("click", (ev) => ev.stopPropagation()));
   // A PO step is one phase of one document — there is nothing to re-run on its
   // own, so the button only appears for library checks.
   if (c.flowId && !c.noRerun) {
@@ -2999,7 +3114,40 @@ let journeyProgress = "";    // the latest progress line for the step in flight
 let journeyNotes = [];       // { text, cls } — one-line notes about the run
 let journeyNode = null;
 
-const JOURNEY_VERDICT_WORD = { worked: "Worked", refused: "Refused", broken: "Broken", "not-run": "Not run" };
+const JOURNEY_VERDICT_WORD = { worked: "Passed", refused: "Failed — refused", broken: "Failed — server error", "not-run": "Not run" };
+
+/** id value → "the event", "the pricing round"…, from what the journey made — so a sentence never shows an id. */
+const JOURNEY_MADE_WORD = {
+  eventGroupUuid: "the event", lineItemUuid: "the line item", technicalTradeUuid: "the technical round",
+  pricingTradeUuid: "the pricing round", auctionTradeUuid: "the auction round", bidUuid: "the vendor's bid",
+  proposalUuid: "the award proposal", vendorCompanyUuid: "the vendor's company", templateResponseUuid: "the technical response",
+  evalFormUuid: "the evaluation form", techFormUuid: "the technical form", counterOfferUuid: "the counter offer",
+};
+function journeyKnownIds() {
+  const out = {};
+  const made = { ...(journeyRecord?.made || {}) };
+  for (const st of journeyStepsLive) Object.assign(made, st?.produced || {});
+  for (const [k, v] of Object.entries(made)) if (typeof v === "string" && v) out[v] = JOURNEY_MADE_WORD[k] || "the record";
+  return out;
+}
+
+/** The technical part of one journey step — request, status, the app's words, ids — for its closed "Details". */
+function journeyStepDetails(rec) {
+  const rows = [];
+  if (rec.call) rows.push({ label: "Request", value: `${rec.call.method} ${rec.call.path ?? ""}`, kind: "code" });
+  if (rec.call?.body !== undefined) rows.push({ label: "Body", value: JSON.stringify(rec.call.body, null, 2), kind: "block" });
+  if (rec.status != null) rows.push({ label: "HTTP status", value: String(rec.status), kind: "code" });
+  else if (rec.call) rows.push({ label: "HTTP status", value: "no reply", kind: "code" });
+  if (rec.ms != null) rows.push({ label: "Took", value: journeyMs(rec.ms) });
+  if (rec.message) rows.push({ label: "The app said", value: rec.message });
+  if (rec.errorCode) rows.push({ label: "Error code", value: String(rec.errorCode), kind: "code" });
+  const ids = Object.entries(rec.produced || {}).map(([k, v]) => `${k}: ${v}`).join(" · ");
+  if (ids) rows.push({ label: "Ids produced", value: ids, kind: "code" });
+  if (rec.reason && rec.verdict !== "not-run") rows.push({ label: "Runner's note", value: rec.reason });
+  const testName = `${rec.expected ?? ""} ${rec.actual ?? ""}`.match(/["“]((?:API_Journey|QA_Platform|API_Test)[^"”]*)["”]/)?.[1];
+  if (testName) rows.push({ label: "Test record name", value: testName, kind: "code" });
+  return CaseView.detailsHtml(rows);
+}
 const JOURNEY_ACTOR_WORD = { buyer: "Buyer", vendor: "Vendor", evaluator: "Evaluator", platform: "Platform" };
 
 function resetJourney() {
@@ -3060,7 +3208,7 @@ function journeyMs(ms) {
  * Postman-style "Tests" for one journey step: the field-level assertions the
  * runner evaluated against the live reply. Failed first, then the rest.
  */
-function journeyChecksHtml(a) {
+function journeyChecksHtml(a, known = {}) {
   if (!a || !a.total) return "";
   const icon = (p) => (p === true ? "✓" : p === false ? "✗" : "–");
   const cls = (p) => (p === true ? "ok" : p === false ? "bad" : "skip");
@@ -3076,9 +3224,9 @@ function journeyChecksHtml(a) {
     rows
       .map(
         (r) =>
-          `<tr class="${cls(r.pass)}"><td class="jc-t"><span class="jc-id">${esc(r.id)}</span>${esc(r.humanTitle || r.title)}</td>` +
-          `<td class="jc-e">${esc(r.humanExpected || r.expected || "")}</td>` +
-          `<td class="jc-a" title="${esc(r.actual || "")}">${esc(r.humanActual || r.actual || "")}</td>` +
+          `<tr class="${cls(r.pass)}"><td class="jc-t">${esc(CaseView.scrub(r.humanTitle || r.title, known))}<span class="jc-id">${esc(r.id)}</span></td>` +
+          `<td class="jc-e">${esc(CaseView.scrub(r.humanExpected || r.expected || "", known))}</td>` +
+          `<td class="jc-a" title="${esc(`Field: ${r.path || "the whole reply"} · seen: ${r.actual ?? ""}`)}">${esc(CaseView.scrub(r.humanActual || r.actual || "", known))}</td>` +
           `<td class="jc-i">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
       )
       .join("") +
@@ -3142,24 +3290,23 @@ function renderJourney() {
         ? `<span class="jstep-actor ${esc(actor)}">${esc(JOURNEY_ACTOR_WORD[actor] ?? actor)}</span>`
         : "";
       if (rec) {
-        const call = rec.call
-          ? `${rec.call.method} ${String(rec.call.path ?? "").split("?")[0]}` +
-            ` · ${rec.status ? rec.status : "no reply"}` +
-            (rec.ms != null ? ` · ${journeyMs(rec.ms)}` : "")
-          : rec.kind === "wait_close" && rec.ms != null
-            ? `waited ${journeyMs(rec.ms)}`
-            : "";
+        // The main line is the test case — what should happen, what did; the
+        // request, status and ids sit in the step's closed "Details".
+        const known = journeyKnownIds();
+        const took = rec.kind === "wait_close" && rec.ms != null ? `Waited ${journeyMs(rec.ms)}.` : rec.ms != null ? `Answered in ${journeyMs(rec.ms)}.` : "";
         const reason =
           rec.verdict === "not-run" && rec.reason && !String(rec.actual ?? "").includes(rec.reason)
-            ? `<div class="jstep-progress">${esc(rec.reason)}</div>`
+            ? `<div class="jstep-progress">${esc(CaseView.scrub(rec.reason, known))}</div>`
             : "";
         html +=
           `<li class="jstep ${esc(rec.verdict)}"><span class="jstep-n">${n}</span><div class="jstep-body">` +
           `<div class="jstep-title">${esc(title)}${actorChip}</div>` +
-          (rec.actual ? `<div class="jstep-actual">${esc(rec.actual)}</div>` : "") +
+          (rec.expected ? `<div class="jstep-expected"><span class="cv-k">Expected</span>${esc(CaseView.scrub(rec.expected, known))}</div>` : "") +
+          (rec.actual ? `<div class="jstep-actual"><span class="cv-k">What happened</span>${esc(CaseView.scrub(rec.actual, known))}</div>` : "") +
           reason +
-          (call ? `<div class="jstep-call">${esc(call)}</div>` : "") +
-          (rec.assertions ? journeyChecksHtml(rec.assertions) : "") +
+          (took ? `<div class="jstep-call">${esc(took)}</div>` : "") +
+          (rec.assertions ? journeyChecksHtml(rec.assertions, known) : "") +
+          journeyStepDetails(rec) +
           `</div><span class="jstep-verdict">${esc(JOURNEY_VERDICT_WORD[rec.verdict] ?? rec.verdict)}</span></li>`;
       } else if (i === current) {
         html +=
@@ -3962,6 +4109,34 @@ function runTestCase(dryRun) {
 
   es.addEventListener("stage", (ev) => write("› " + JSON.parse(ev.data).line, "cmd"));
   onQueued(es, write);
+  /**
+   * The compiler could not turn the text into steps, so the server stopped
+   * rather than run a default journey in its place. Nothing listened for this,
+   * so the run simply ended in silence. Say it plainly, where the run shows.
+   */
+  es.addEventListener("blocked", (ev) => {
+    let b = {};
+    try {
+      b = JSON.parse(ev.data);
+    } catch {}
+    const reason = String(b.reason || "the compiler could not turn that text into steps");
+    const steps = (b.suggestion || []).map((st) => planStepInWords({ step: st }));
+    runEmptyNote =
+      `<div class="cv-blocked"><b>This test case was not run.</b> ${esc(reason.charAt(0).toUpperCase() + reason.slice(1))}.` +
+      (b.covers ? `<p>${esc(b.covers)}</p>` : "") +
+      (b.hint ? `<p>${esc(b.hint)}</p>` : "") +
+      (steps.length
+        ? `<details class="cv-details"><summary>The default journey it would otherwise have run (${steps.length} steps)</summary><ol class="cv-steps">${steps
+            .map((x) => `<li>${esc(x)}</li>`)
+            .join("")}</ol></details>`
+        : "") +
+      "</div>";
+    checkRows = [];
+    runPending = null;
+    renderAutomation();
+    write(`⛔ Not run: ${reason}`, "bad");
+    if (b.hint) write(`   ${b.hint}`, "note");
+  });
   es.addEventListener("plan", (ev) => {
     const p = JSON.parse(ev.data);
     /**
@@ -4183,6 +4358,9 @@ const ROUTE_TAG = {
   "api-section": ["area", "API area only"],
   "api-suite": ["area", "validation suite"],
   "ui-compile": ["", "compiled plan"],
+  "ui-crosscheck": ["journey", "UI↔API cross-check"],
+  "api-library": ["exact", "API case library"],
+  "api-field": ["area", "field check on every journey"],
   manual: ["manual", "for a person"],
   none: ["none", "no runner yet"],
 };
@@ -4905,8 +5083,10 @@ function renderCatalog() {
     });
     const body = el("div", "cat-body");
     const [tagCls, tagText] = ROUTE_TAG[c.route.kind] || ["", c.route.kind];
+    // The headline is the case in plain words (from /api/case-display); the id
+    // is a muted reference. Until the words land, the author's title stands in.
     body.appendChild(
-      el("div", "", `<span class="cat-id">${esc(c.id)}</span><span class="cat-title">${esc(c.title)}</span>`),
+      el("div", "", `<span class="cat-title">${esc(caseTitleInWords(c.title))}</span><span class="cat-id">${esc(c.id)}</span>`),
     );
     const meta = el("div", "cat-meta");
     meta.appendChild(el("span", `cat-tag ${c.priority === "P0" ? "p0" : ""}`, esc(c.priority)));
@@ -4914,21 +5094,16 @@ function renderCatalog() {
     const rt = el("span", `cat-tag ${tagCls}`, esc(tagText));
     rt.title = c.route.because;
     meta.appendChild(rt);
-    if (c.gate) meta.appendChild(el("span", "cat-tag", `gate: ${esc(c.gate)}`));
+    if (c.gate) meta.appendChild(el("span", "cat-tag", `needs: ${esc(String(c.gate).replace(/[._]+/g, " "))}`));
     if (c.recordsCurrentBehaviour) {
       const t = el("span", "cat-tag area", "records today's behaviour");
       t.title = "This case documents what the product does now, not what it should do.";
       meta.appendChild(t);
     }
     body.appendChild(meta);
-    body.appendChild(
-      el(
-        "div",
-        "cat-why",
-        `<b>Why.</b> ${esc(c.why)}<br><b>Steps.</b> ${esc(c.steps)}<br><b>Expected.</b> ${esc(c.expected)}` +
-          (c.oracle ? `<br><b>Oracle.</b> ${esc(c.oracle)}` : ""),
-      ),
-    );
+    body.appendChild(el("div", "cat-why", '<div class="cv-reason">Reading the case…</div>'));
+    body.appendChild(el("div", "cv-track", "")).dataset.trackFor = c.id;
+    body.lastChild.hidden = true;
     body.querySelector(".cat-title").addEventListener("click", () => row.classList.toggle("open"));
     row.appendChild(cb);
     row.appendChild(body);
@@ -4936,6 +5111,24 @@ function renderCatalog() {
     box.appendChild(row);
   }
   updateCatCount();
+  paintCatalogWords(catCases);
+}
+
+/** Put the plain-English case into every catalog row, and its track record next to it. */
+async function paintCatalogWords(cases) {
+  const box = $("#cat-list");
+  const displays = await CaseView.many(cases.map((c) => c.id));
+  if (cases !== catCases) return; // the filters changed while we waited
+  for (const c of cases) {
+    const d = displays[c.id];
+    const row = document.getElementById(`cat-${c.id}`);
+    if (!row || !d) continue;
+    row.querySelector(".cat-title").textContent = d.title;
+    const extra = [{ label: "How it runs", value: c.route.because }];
+    if (c.route.runner?.how) extra.push({ label: "Where it runs", value: c.route.runner.how });
+    row.querySelector(".cat-why").innerHTML = CaseView.card(d, { noHead: true, noTrack: true, extraDetails: extra });
+  }
+  CaseView.fillTrack(box, currentClient);
 }
 
 function updateCatCount() {
@@ -5372,8 +5565,9 @@ function cbTable(cases) {
         `</div>`
       : `<span class="mute">Not run yet</span>`;
     html +=
-      `<tr class="cb-row r-${cls}"><td class="cb-id">${esc(c.id)}</td>` +
-      `<td class="cb-title">${esc(cbPlain(c.title))}<div class="cb-steps">${cbSteps(c.steps)}</div></td>` +
+      `<tr class="cb-row r-${cls}" data-id="${cbAttr(c.id)}"><td class="cb-id">${esc(c.id)}</td>` +
+      `<td class="cb-title"><span class="cb-tt">${esc(cbPlain(c.title))}</span><div class="cb-steps">${cbSteps(c.steps)}</div>` +
+      `<div class="cv-track" data-track-for="${cbAttr(c.id)}" hidden></div></td>` +
       `<td class="cb-exp">${esc(cbPlain(c.expected))}</td>` +
       `<td class="cb-act">${actual}</td><td class="cb-res ${cls}">${ic} ${word}</td>` +
       `<td><span class="cb-pri p-${cbAttr(String(c.priority).toLowerCase())}">${esc(c.priority)}</span></td></tr>` +
@@ -5382,9 +5576,24 @@ function cbTable(cases) {
       `<br><b>How it is checked.</b> ${esc(cbPlain(c.oracle))}</td></tr>`;
   }
   wrap.innerHTML = html + `</tbody></table>`;
+  // The plain-English case (title, numbered steps, expected; the technical part
+  // behind "Details") replaces the author's words as soon as it arrives.
+  CaseView.many(cases.map((c) => c.id)).then((displays) => {
+    for (const row of wrap.querySelectorAll("tr.cb-row")) {
+      const d = displays[row.dataset.id];
+      if (!d) continue;
+      row.querySelector(".cb-tt").textContent = d.title;
+      const steps = (d.steps || []).filter(Boolean);
+      row.querySelector(".cb-steps").innerHTML = steps.length ? `<ol class="cv-steps">${steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` : "";
+      if (d.expected) row.querySelector(".cb-exp").textContent = d.expected;
+      const more = row.nextElementSibling;
+      if (more?.classList.contains("cb-more")) more.firstElementChild.innerHTML = CaseView.card({ ...d, steps: [], expected: "" }, { noHead: true, noTrack: true });
+    }
+    CaseView.fillTrack(wrap, currentClient);
+  });
   wrap.addEventListener("click", (e) => {
     const row = e.target.closest("tr.cb-row");
-    if (!row || e.target.closest("a")) return;
+    if (!row || e.target.closest("a") || e.target.closest(".cv-details")) return;
     const more = row.nextElementSibling;
     if (more?.classList.contains("cb-more")) more.hidden = !more.hidden;
     row.classList.toggle("open");

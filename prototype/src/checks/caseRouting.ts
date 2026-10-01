@@ -36,6 +36,7 @@ export type RouteKind =
   | "api-case"
   | "api-library"
   | "api-field"
+  | "ui-crosscheck"
   | "api-section"
   | "api-suite"
   | "ui-compile"
@@ -58,7 +59,7 @@ export interface CaseRoute {
    * the API case library (EDGE-…, VBU-…, the mined cases) runs from the API
    * automation tree, and every field check (API-F…) runs on every API journey.
    */
-  runner?: { where: "api-library" | "api-journey"; id?: string; how: string };
+  runner?: { where: "api-library" | "api-journey" | "ui-crosscheck"; id?: string; how: string };
 }
 
 const FLOW_KEYS = new Set(UI_FLOWS.map((f) => f.key));
@@ -155,6 +156,17 @@ const SECTION_SUITES: Record<string, string> = {
 };
 
 export function routeFor(c: CatalogCase): CaseRoute {
+  // 0 · the UI↔API cross-check cases run through procol-ui-tests/tests/crosscheck.spec.ts,
+  //     started from /api/crosscheck/start — not from the case picker, so `runnable`
+  //     stays false and `runner` says where they do run. UI-XCHK-060/061 are automate-later.
+  if (/^UI-XCHK-\d+/.test(c.id)) {
+    if (/automate-later/i.test(`${c.verdict} ${c.source}`)) {
+      return { kind: "none", because: "written for the UI↔API cross-check, not automated yet — automate later", runnable: false };
+    }
+    const how = "Runs in the UI↔API cross-check: it opens the event on screen and compares every value with the API.";
+    return { kind: "ui-crosscheck", target: c.id, because: "runs in the UI↔API cross-check (crosscheck.spec.ts)", runnable: false, runner: { where: "ui-crosscheck", id: c.id, how } };
+  }
+
   // 1 · a built journey named in the trace line beats everything: it is
   //     deterministic, healed, and needs no compile step.
   const journey = c.refs.find((r) => FLOW_KEYS.has(r));
