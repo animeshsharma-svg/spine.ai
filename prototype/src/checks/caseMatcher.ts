@@ -97,6 +97,10 @@ const SYNONYMS: Array<[RegExp, string]> = [
   [/\bshouldn'?t\b/g, " should not "],
   [/\bmustn'?t\b/g, " must not "],
   [/\bsuppliers?\b|\bsellers?\b/g, " vendor "],
+  // An event's "audience" / "participants" ARE its vendors: "publish without
+  // vendors" must find "publishing with an empty audience".
+  [/\baudiences?\b/g, " vendor audience "],
+  [/\bparticipants?\b/g, " vendor participant "],
   [/\btenders?\b/g, " event "],
   [/\brequest for quotations?\b|\bquotations?\b/g, " rfq "],
   [/\brequest for proposals?\b/g, " rfp "],
