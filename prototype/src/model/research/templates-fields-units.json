@@ -1,0 +1,908 @@
+{
+ "_meta": {
+  "source": "procol-backend origin/main ae36e86894, read via git show/grep only",
+  "status": "complete",
+  "generated": "2026-10-01"
+ },
+ "templateTypes": [
+  {
+   "identifier": "t-trade",
+   "meaning": "Line-item sheet template (inline_components + global_price_components) for price events",
+   "usedFor": "rfq stage | auction | rfq_then_auction | offline_trade (event stage via /trade/template_input)",
+   "cite": "app/models/template.rb:58-61; app/models/template.rb:316-318; app/controllers/concerns/trade_template_helper.rb:1721-1724"
+  },
+  {
+   "identifier": "t-rfi",
+   "meaning": "Form/questionnaire template (widgets = array of forms with page_headers/page_response_headers); only rfi templates created >= 2022-07-30 are listed as saved",
+   "usedFor": "rfi / rfp (technical) stage - event body carries params['forms'] validated by valid_forms?",
+   "cite": "app/models/template.rb:166-168; app/helpers/templates_helper.rb:44-46; app/controllers/concerns/trade_template_helper.rb:1711-1720; app/controllers/concerns/trade_controller_helper.rb:3583-3586"
+  },
+  {
+   "identifier": "t-rfp",
+   "meaning": "RFP template identifier; NOT in TEMPLATE_FOR_TYPES so GET /templates?type_identifier=rfp is rejected (code 2); only read by Company#get_rfi_rfp_templates",
+   "usedFor": "rfp stage (unverified which UI path lists it)",
+   "cite": "app/models/company.rb:1105-1110; app/controllers/api/templates_controller.rb:118-120"
+  },
+  {
+   "identifier": "t-contract",
+   "meaning": "Contract template; per-company default or mapped via template_mappings.contract_template_id, falls back to global (company_id NULL)",
+   "usedFor": "not event stage (post-award contract)",
+   "cite": "app/models/template.rb:241-256"
+  },
+  {
+   "identifier": "t-boq",
+   "meaning": "Bill-of-quantities template (tabs/sections); boq_in_erfx_allowed needs config boq_in_erfx_allowed AND an active company t-boq template",
+   "usedFor": "boq event / boq-based rfx",
+   "cite": "app/models/template.rb:174-176; app/models/company.rb:1096-1103; app/models/trade_request.rb:448"
+  },
+  {
+   "identifier": "t-summary_view",
+   "meaning": "MQCS/summary view template linked from a trade template via template_mappings.summary_view_template_id; default one gets trade global widgets, formula->number",
+   "usedFor": "not a stage (comparison/summary view of a trade stage)",
+   "cite": "app/models/template.rb:211-228; app/models/template.rb:283-289"
+  },
+  {
+   "identifier": "t-po",
+   "meaning": "Purchase-order template (company default or mapped po_template_id)",
+   "usedFor": "not event stage (PO after award)",
+   "cite": "app/models/template.rb:230-239"
+  },
+  {
+   "identifier": "t-vendor_onboarding",
+   "meaning": "Vendor onboarding form template; excluded by hide_onboarding_v2_templates=true when company is vendor_onboarding v2",
+   "usedFor": "vendor_onboarding event (order_type vendor_onboarding)",
+   "cite": "app/models/template.rb:54; app/models/template.rb:178-180; app/helpers/templates_helper.rb:41-43"
+  },
+  {
+   "identifier": "t-intake",
+   "meaning": "Intake (purchase request) form template",
+   "usedFor": "not event stage (intake/PR)",
+   "cite": "app/models/template.rb:170-172"
+  },
+  {
+   "identifier": "t-document",
+   "meaning": "Document template, treated as intake template",
+   "usedFor": "not event stage",
+   "cite": "app/models/template.rb:170-172"
+  },
+  {
+   "identifier": "t-vendor_onboarding_buyer_form",
+   "meaning": "Buyer-side onboarding form",
+   "usedFor": "not event stage",
+   "cite": "app/models/template.rb:262-264"
+  },
+  {
+   "identifier": "t-service",
+   "meaning": "Service template; listing with type_identifier=service filters by t-trade and puts t-service first",
+   "usedFor": "rfq/auction stage (service lines)",
+   "cite": "app/helpers/templates_helper.rb:62-76"
+  },
+  {
+   "identifier": "t-site_visit",
+   "meaning": "Site-visit form; excluded from listing when company is vendor_onboarding v3",
+   "usedFor": "vendor activity event (vendor_activity_type site_visit)",
+   "cite": "app/models/template.rb:182-184; app/controllers/api/templates_controller.rb:117; app/controllers/concerns/trade_controller_helper.rb:3747"
+  },
+  {
+   "identifier": "t-vendor_assessment",
+   "meaning": "Vendor assessment form; attached to a stage via params.vendor_assessment_template_id (section_wise_scoring)",
+   "usedFor": "vendor assessment attached to event stage",
+   "cite": "app/models/template.rb:186-188; app/controllers/concerns/trade_controller_helper.rb:3336-3340; app/controllers/concerns/trade_controller_helper.rb:3636-3637"
+  },
+  {
+   "identifier": "t-allocation_summary",
+   "meaning": "Allocation summary template (template_for allocation_summary, custom)",
+   "usedFor": "not event stage",
+   "cite": "app/models/template.rb:258-260"
+  },
+  {
+   "identifier": "t-product",
+   "meaning": "Product view/export template",
+   "usedFor": "not event stage",
+   "cite": "app/procol_views/product_view.rb:275; app/services/exporting_engine/export_csv.rb:96"
+  },
+  {
+   "identifier": "t-nfa_report / t-mqcs_report / t-loa",
+   "meaning": "Report templates served by report_templates controller (separate model ReportTemplate)",
+   "usedFor": "not event stage",
+   "cite": "config/routes.rb:171-184"
+  }
+ ],
+ "templateListing": [
+  {
+   "fact": "GET /templates params: type_identifier (WITHOUT 't-' prefix, must be in TEMPLATE_FOR_TYPES else code 2), exclude_type_identifiers (array/JSON string, same whitelist), hide_onboarding_v2_templates ('true'), item_type/item_id, intake_template_id, condition_id",
+   "cite": "app/controllers/api/templates_controller.rb:107-131"
+  },
+  {
+   "fact": "Response {default:[...], saved:[...]} both serialized with TemplateSerializer minimal:true (no widgets/forms/configurations/current_user_access_type)",
+   "cite": "app/controllers/api/templates_controller.rb:139-143; app/serializers/template_serializer.rb:33-36,74-77,86-88,98-99"
+  },
+  {
+   "fact": "default = Template.active, template_type 'default', type_identifier && ['t-<x>'], company_id = workspace OR company_id NULL (global) unless company config hide_default_templates; ordered updated_at desc",
+   "cite": "app/helpers/templates_helper.rb:4-21"
+  },
+  {
+   "fact": "saved = get_allowed_templates_object(user) [active, company_id in allowed companies OR NULL] then template_type in (custom,dynamic), template_for not in (module,custom_search), rfi only created_at >= 2022-07-30",
+   "cite": "app/helpers/templates_helper.rb:23-53; app/models/template.rb:43; app/models/template.rb:148-164"
+  },
+  {
+   "fact": "Procol employee: saved list scoped to Current.workspace only (no access filter)",
+   "cite": "app/models/template.rb:149-153"
+  },
+  {
+   "fact": "Non-super-admin: t-rfi templates always filtered by access lists; t-trade templates filtered by access lists only if company config enable_template_access_filtering == true",
+   "cite": "app/models/template.rb:156-161; app/models/template.rb:329-334; app/models/company.rb:296-298"
+  },
+  {
+   "fact": "exclude 'site_visit' auto-appended when workspace is vendor_onboarding_version_v3",
+   "cite": "app/controllers/api/templates_controller.rb:117"
+  },
+  {
+   "fact": "GET /templates/:id -> Template.get_authorized_template_with_id: active only else 4; other company (not procol employee) -> 2; rfi needs access list -> 2; trade + template_access_filtering -> 5",
+   "cite": "app/models/template.rb:117-137; app/controllers/api/templates_controller.rb:356-360"
+  },
+  {
+   "fact": "GET /templates/:id response: TemplateSerializer full: id, name, template_for (type_identifier suffixes), template_type, widgets (trade only: inline_components/global_price_components with currency prefix + widget_precision override), forms (rfi/intake only, sorted by order), configurations, mapped_widgets, global_mapped_widgets (Widget rows via template_widget_mappings for custom, by order_type for default), order_configs, shared_with, sharing_note, currency_configuration, template_mapping_uuid, terms_and_conditions(+_structured), allow_currency_change_intake, linked_template_uuid",
+   "cite": "app/controllers/api/templates_controller.rb:156-174; app/serializers/template_serializer.rb:4-6,24-60,74-84; app/helpers/templates_helper.rb:104-129"
+  },
+  {
+   "fact": "Template name must be unique per (type_identifier overlap, company, template_type, order_type) among active: 'Template name has already been taken'",
+   "cite": "app/models/template.rb:338-342"
+  },
+  {
+   "fact": "Event stage links template by params['template_id']: trade.template_id set, template.configurations merged into trade.config, template_type_identifier copied, currency_config from other_details. Template.find_by_id has NO active/company check here (nil template would raise NoMethodError -> 500)",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:3592-3603"
+  },
+  {
+   "fact": "The widgets actually stored on the event come from the REQUEST body params[:widgets] (not re-read from template) - backend adds serial_number/rank/best_price/gross_total/status/action widgets and overwrites precision",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1721-1856"
+  }
+ ],
+ "structure": [
+  {
+   "fact": "templates table: id, name, template_for int enum, template_type int enum (default/custom/dynamic), order_type (buy/sell), status (0 in_active,1 active), type_identifier varchar[], widgets json, configurations json, other_details jsonb, template_mappings jsonb, terms_and_conditions jsonb, company_id (NULL=global), user_id",
+   "cite": "app/models/template.rb:1-26; db/schema.rb:2139-2155"
+  },
+  {
+   "fact": "TRADE templates: widgets = {inline_components:[widget], global_price_components:[widget]}; inline = per line-item column, global = per-bid (header) field",
+   "cite": "app/models/template.rb:291-297; app/services/templates/validate_service.rb:51-65; app/serializers/template_serializer.rb:39-58"
+  },
+  {
+   "fact": "Widget object: {name, key_attribute (unique within template), input_type, widget_type (default|custom), configuration:{...}, column_group, validation:{type,target_widget}}",
+   "cite": "app/models/widget.rb:172-231; app/services/templates/validate_service.rb:185-203; lib/modules/trade_validation.rb:94-96,105-106"
+  },
+  {
+   "fact": "RFI/INTAKE/onboarding templates: widgets = array of forms {order:int, name:string, config:{type:string}, page_headers:[widget] (creator/question), page_response_headers:[widget] (answers), aggregate_level_questions}; v3 onboarding keeps fields in page_headers",
+   "cite": "app/services/templates/validate_service.rb:220-278; app/models/template.rb:96-110"
+  },
+  {
+   "fact": "Allowed configuration keys (CONFIGURATION_OPTIONS): is_replicable, field_type, mode_type, is_negotiable, priority, is_removable, is_required, dropdown_data, cell_options, allow_failed_validation_submit, allow_failed_validation_refresh, allow_multi_response",
+   "cite": "app/models/template.rb:65-68"
+  },
+  {
+   "fact": "field_type in WIDGET_FIELD_TYPES = creator (buyer fills) | participant (vendor fills) | formula; mode_type = write | read | hidden",
+   "cite": "app/models/template.rb:62; app/models/template.rb:296; app/services/template_responses/validate_service.rb:155; app/models/widget.rb:48-56"
+  },
+  {
+   "fact": "Other configuration keys read by backend: input_group (price|amount|quantity|number; price/amount get currency prefix), prefix, suffix (unit on quantity/price), precision (overridden by company widget_precision / trade config widget_precision), formula, dropdown_data (URL with type=...), dropdown_options, data_source, is_buyer_editable, hide_in_product_sheet, freeze_widget, round_off_type, show_in_original_currency, options",
+   "cite": "app/models/widget.rb:34-35; app/serializers/template_serializer.rb:39-58; app/controllers/concerns/trade_template_helper.rb:1816-1852; app/models/template.rb:312-314; app/models/widget.rb:172-231"
+  },
+  {
+   "fact": "Template-level configurations: conditional_block (dependency rules), section_grouping_key, applied_filters, auto_fetch_from_rfp_widget_keys, clara_condition, template_for_trade_type (freight), validation_widgets_configuration, section_wise_scoring_enabled",
+   "cite": "app/models/template.rb:191,203-205,266-281,300-310; app/helpers/templates_helper.rb:88-99; app/controllers/concerns/trade_controller_helper.rb:3336-3340"
+  },
+  {
+   "fact": "Global widget catalogue: widgets table (name, key_attribute, input_type int enum, widget_type, config json, category inline/global, type_identifier[] for order type, company_id); mapped to custom templates via template_widget_mappings (template_id, widget_id, status). New templates auto-map custom_text_widget_participant, custom_text_widget_creator, floor_quantity, ceil_price, tick_size, floor_price",
+   "cite": "app/models/widget.rb:1-32; db/schema.rb:2129-2137,2519-2534; app/models/template.rb:344-350"
+  },
+  {
+   "fact": "Dropdown option values live in widget_data_mappings (key = widget key_attribute, value, configuration.display_value, company_id, status)",
+   "cite": "db/schema.rb:2507-2517; app/controllers/concerns/trade_template_helper.rb:1567-1600"
+  },
+  {
+   "fact": "Filled line items are stored as trade_products (quantity, price, unit_id, validations{default:{ceil_price,tick_size,tick_size_percentage,floor_quantity,floor_price},custom}, meta_data{postfix,...}, other_details custom keys); raw sheet in trade_requests.meta_data",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1461-1557; app/controllers/concerns/trade_template_helper.rb:1723; app/models/trade_product.rb:1-50"
+  },
+  {
+   "fact": "Vendor technical answers: template_responses (data jsonb, widgets json, item_type/item_id, template_id, company_id, status, approval_status) with form_responses -> form_page_responses.response_data",
+   "cite": "app/models/template_response.rb:1-29; app/services/template_responses/validate_service.rb:47-58"
+  }
+ ],
+ "widgetTypes": [
+  {
+   "type": "number",
+   "meaning": "numeric cell; numeric types = number, quantity, percentage, formula",
+   "attributes": [
+    "is_required",
+    "precision",
+    "input_group",
+    "prefix",
+    "suffix",
+    "mode_type",
+    "field_type",
+    "validation"
+   ],
+   "cite": "app/models/widget.rb:27,35"
+  },
+  {
+   "type": "quantity",
+   "meaning": "quantity; creator_quantity carries the line-item unit in configuration.suffix (default 'KG')",
+   "attributes": [
+    "is_required",
+    "precision",
+    "suffix(unit)",
+    "input_group=quantity"
+   ],
+   "cite": "app/models/widget.rb:211-231"
+  },
+  {
+   "type": "percentage",
+   "meaning": "percent value",
+   "attributes": [
+    "precision",
+    "is_required"
+   ],
+   "cite": "app/models/widget.rb:27,35"
+  },
+  {
+   "type": "formula",
+   "meaning": "computed from configuration.formula (infix, operands = key_attributes of number/percentage/formula/dropdown/quantity/percent_and_amount/number_with_percentage widgets, cannot reference itself)",
+   "attributes": [
+    "formula",
+    "precision",
+    "input_group",
+    "mode_type"
+   ],
+   "cite": "app/services/templates/validate_service.rb:92-125"
+  },
+  {
+   "type": "dropdown",
+   "meaning": "select; needs dropdown_data (URL) or dropdown_options AND data_source; values resolved via widget_data_mappings",
+   "attributes": [
+    "dropdown_data",
+    "dropdown_options",
+    "data_source",
+    "cell_options",
+    "is_required"
+   ],
+   "cite": "app/services/templates/validate_service.rb:74-90; app/controllers/concerns/trade_template_helper.rb:1536-1551"
+  },
+  {
+   "type": "string / text",
+   "meaning": "free text; required blank string shown as 'Not Provided' in bid excel",
+   "attributes": [
+    "is_required"
+   ],
+   "cite": "app/models/widget.rb:27; app/controllers/concerns/trade_controller_helper.rb:6625-6632"
+  },
+  {
+   "type": "date",
+   "meaning": "epoch integer",
+   "attributes": [
+    "is_required"
+   ],
+   "cite": "app/models/widget.rb:27; app/controllers/concerns/trade_controller_helper.rb:6631"
+  },
+  {
+   "type": "attachment",
+   "meaning": "files {values:[...]}; attachment count limit code 489",
+   "attributes": [
+    "is_required"
+   ],
+   "cite": "app/models/widget.rb:27; app/controllers/concerns/trade_template_helper.rb:1552-1553; app/controllers/api/trade_controller.rb:136"
+  },
+  {
+   "type": "product",
+   "meaning": "product picker (dropdown_data /api/products); not allowed for custom widgets",
+   "attributes": [
+    "is_required",
+    "dropdown_data"
+   ],
+   "cite": "app/models/widget.rb:172-190; app/services/templates/validate_service.rb:15"
+  },
+  {
+   "type": "variant",
+   "meaning": "product quality/variant",
+   "attributes": [
+    "is_required"
+   ],
+   "cite": "app/models/widget.rb:192-209"
+  },
+  {
+   "type": "delivery_location",
+   "meaning": "buyer_hub (delivery location); buyer_hub not allowed as custom widget",
+   "attributes": [
+    "is_required"
+   ],
+   "cite": "app/models/widget.rb:366-370; app/services/templates/validate_service.rb:15"
+  },
+  {
+   "type": "action / unit (synthetic)",
+   "meaning": "'action' used for status/approval widgets; 'unit' is synthesized in excel export right after quantity",
+   "attributes": [],
+   "cite": "app/models/widget.rb:483-487; app/services/procol_excel/template_excel_service.rb:289-296"
+  },
+  {
+   "type": "form types: number, dropdown, attachment, string, multiline_text, radio, multi_select, question_group, price, amount",
+   "meaning": "RFI/intake/onboarding form headers; question_group groups children via grouping_key; allow_multi_response repeats",
+   "attributes": [
+    "is_required",
+    "mode_type",
+    "field_type",
+    "validations",
+    "allow_multi_response",
+    "allow_failed_validation_submit",
+    "cell_options",
+    "grouping_key"
+   ],
+   "cite": "app/models/widget.rb:60-62; app/services/template_responses/validate_service.rb:61-75,96-133,172-186; app/helpers/templates_helper.rb:173-191"
+  }
+ ],
+ "fieldRules": [
+  {
+   "appliesTo": "template definition",
+   "kind": "required",
+   "rule": "name must be present",
+   "code": 2,
+   "message": "Insufficient parameters",
+   "cite": "app/services/templates/validate_service.rb:24-27; config/locales/en-IN.yml:1117"
+  },
+  {
+   "appliesTo": "template definition",
+   "kind": "enum",
+   "rule": "template_for array must be subset of TEMPLATE_FOR_TYPES (else raises InvalidTemplateForError)",
+   "code": null,
+   "message": "(exception)",
+   "cite": "app/services/templates/validate_service.rb:127-133"
+  },
+  {
+   "appliesTo": "template definition (trade)",
+   "kind": "enum",
+   "rule": "order_type must be buy|sell for trade, nil otherwise",
+   "code": 2,
+   "message": "Invalid Order Type",
+   "cite": "app/services/templates/validate_service.rb:135-147"
+  },
+  {
+   "appliesTo": "custom widget",
+   "kind": "type",
+   "rule": "widget_type custom must have is_replicable=true and input_type not product/buyer_hub",
+   "code": 2,
+   "message": "Invalid Custom Widget",
+   "cite": "app/services/templates/validate_service.rb:48-72"
+  },
+  {
+   "appliesTo": "formula",
+   "kind": "readOnly",
+   "rule": "formula must be valid infix, operands must exist among numeric widgets, no self reference",
+   "code": 2,
+   "message": "Invalid Formula for <name>",
+   "cite": "app/services/templates/validate_service.rb:92-125"
+  },
+  {
+   "appliesTo": "any widget",
+   "kind": "required",
+   "rule": "key_attribute required and unique across inline+global",
+   "code": 2,
+   "message": "Invalid column <name> / Duplicate columns: A and B",
+   "cite": "app/services/templates/validate_service.rb:185-203"
+  },
+  {
+   "appliesTo": "dropdown",
+   "kind": "enum",
+   "rule": "needs dropdown_data or dropdown_options, and data_source",
+   "code": 2,
+   "message": "Please provide options for X / Please provide data source for X",
+   "cite": "app/services/templates/validate_service.rb:74-90; config/locales/en-IN.yml:1100-1101"
+  },
+  {
+   "appliesTo": "template update",
+   "kind": "dependency",
+   "rule": "input_type of existing key cannot change when summary view (MQCS) template linked",
+   "code": 840,
+   "message": "Cannot change input type as a MQCs template is linked.",
+   "cite": "app/services/templates/validate_service.rb:149-183"
+  },
+  {
+   "appliesTo": "template update",
+   "kind": "required",
+   "rule": "no-op update rejected",
+   "code": 758,
+   "message": "No changes found. Please update the template to continue.",
+   "cite": "app/services/templates/update_validate_service.rb:14-21"
+  },
+  {
+   "appliesTo": "rfi/rfp forms (template + event creation)",
+   "kind": "required",
+   "rule": "each form: order Integer, name String, config.type String, page_response_headers (or page_headers v3) non-empty array; each widget: key_attribute String, name String, configuration.field_type in creator/participant/formula",
+   "code": 792,
+   "message": "Invalid Form (locale: Please fill all the required fields)",
+   "cite": "app/services/templates/validate_service.rb:205-293; app/controllers/concerns/trade_template_helper.rb:1711-1714; config/locales/en-IN.yml:2380"
+  },
+  {
+   "appliesTo": "line item unit (creator_quantity.configuration.suffix || product.unit_type)",
+   "kind": "required",
+   "rule": "every line item must carry a unit",
+   "code": 574,
+   "message": "Unit cannot be blank",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1391-1395; config/locales/en-IN.yml:1990-1992"
+  },
+  {
+   "appliesTo": "line item unit",
+   "kind": "unit",
+   "rule": "downcased unit must equal units.symbol of an active unit in Current.workspace.units",
+   "code": 495,
+   "message": "The unit X is not present / The units X, Y are not present",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1398-1416"
+  },
+  {
+   "appliesTo": "global price widgets (input_group price)",
+   "kind": "unit",
+   "rule": "all line items must share one meta_data.postfix (creator_quantity.postfix) because per-unit global price suffix is single",
+   "code": 486,
+   "message": "You cannot add multiple units in this template.",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1843-1853; config/locales/en-IN.yml:1724-1726"
+  },
+  {
+   "appliesTo": "line item from PR (pr_line_item_id)",
+   "kind": "unit",
+   "rule": "PR item data->>'uom' ILIKE trade product unit_symbol (or display_unit) else error; quantity <= open qty * (1+tolerance)",
+   "code": 559,
+   "message": "Quantity should be in same unit as requested (558: Quantity should be less than open quantity)",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:1750-1760; config/locales/en-IN.yml:1942-1947"
+  },
+  {
+   "appliesTo": "trade create",
+   "kind": "required",
+   "rule": "non rfi/rfp event must have trade_products; product ids must be active",
+   "code": 80,
+   "message": "Product not found",
+   "cite": "app/controllers/api/trade_controller.rb:127-135,167-169"
+  },
+  {
+   "appliesTo": "trade create",
+   "kind": "dependency",
+   "rule": "company config is_saving_configuration_mandatory + rfq/auction + no alternate bidding -> savings_configuration required",
+   "code": 719,
+   "message": "Saving Configurations is mandatory for Event",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1436-1438"
+  },
+  {
+   "appliesTo": "ceil_price / floor_price / floor_quantity (creator validations)",
+   "kind": "range",
+   "rule": "not negative (202/203/204); ceil_price cannot decrease after set (200); floor_quantity <= quantity (205); needs config can_add_ceil_price / can_add_floor_quantity (10)",
+   "code": 202,
+   "message": "Price Cap cannot be negative (203 Floor Price..., 204 Floor Quantity..., 205 Floor Quantity cannot be greater than the Total Quantity, 200 You cannot decrease the Price Cap.)",
+   "cite": "lib/modules/trade_validation.rb:43-87; config/locales/en-IN.yml:1372-1387"
+  },
+  {
+   "appliesTo": "bid price (participant)",
+   "kind": "range",
+   "rule": "estimated price <= ceil_price (38), >= floor_price (41); change vs previous >= tick_size / tick % (214)",
+   "code": 38,
+   "message": "Price cannot be more than the allowed price (41 less than allowed, 214 Quoted price difference must be greater than the tick size)",
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:1828-1891; config/locales/en-IN.yml:1177,1186,1526"
+  },
+  {
+   "appliesTo": "bid quantity (participant_quantity)",
+   "kind": "range",
+   "rule": ">= floor_quantity (39); == quantity when allow_fixed_quantity_for_bidding (207); <= quantity unless over-quantity allowed (138); >= quantity when under-quantity not allowed (139)",
+   "code": 39,
+   "message": "Quantity cannot be less than the allowed quantity",
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:1893-1908; config/locales/en-IN.yml:1180,1330,1333,1390"
+  },
+  {
+   "appliesTo": "custom validation widgets (widget.validation {type: max_value|min_value|step, target_widget})",
+   "kind": "range",
+   "rule": "target <= validation value / >= value / change by >= step vs previous bid, evaluated with FormulaEvaluator",
+   "code": 578,
+   "message": "Validation Failed",
+   "cite": "lib/modules/trade_validation.rb:157-202; app/controllers/concerns/bids_controller_helper.rb:1910-1912; config/locales/en-IN.yml:2002"
+  },
+  {
+   "appliesTo": "bid",
+   "kind": "dependency",
+   "rule": "same landed price as existing bid -> tie",
+   "code": 98,
+   "message": "A bid at this price already exists, please quote a different price.",
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:1937-1970; config/locales/en-IN.yml:1249"
+  },
+  {
+   "appliesTo": "global formula widgets (bid)",
+   "kind": "readOnly",
+   "rule": "formula widget with mode_type != write is skipped when comparing bid changes (not vendor editable)",
+   "code": null,
+   "message": "",
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:2434-2436"
+  },
+  {
+   "appliesTo": "buyer edits of bids",
+   "kind": "readOnly",
+   "rule": "buyer can edit only participant widgets (latest context) or is_buyer_editable widgets",
+   "code": null,
+   "message": "",
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:2102-2109; app/models/template.rb:312-314"
+  },
+  {
+   "appliesTo": "template response header (vendor/buyer answers)",
+   "kind": "required",
+   "rule": "is_required==true and field_type in validate_field_types (default participant+creator; buyer-only -> creator) and value blank; hidden headers skipped",
+   "code": 572,
+   "message": "Please fill '<name>' (locale: Fill all the Mandatory Fields)",
+   "cite": "app/services/template_responses/validate_service.rb:153-163; app/controllers/concerns/template_responses_controller_helper.rb:98-101; config/locales/en-IN.yml:1984-1986"
+  },
+  {
+   "appliesTo": "template response header with validations (GST/PAN/bank/udyam APIs)",
+   "kind": "regex",
+   "rule": "external validation result data.validated == false blocks submit unless allow_failed_validation_submit",
+   "code": 773,
+   "message": "Validation for <name> failed!",
+   "cite": "app/services/template_responses/validate_service.rb:164-167; app/models/template.rb:73-83"
+  },
+  {
+   "appliesTo": "question_group / allow_multi_response",
+   "kind": "dependency",
+   "rule": "group children validated when group is_required or any child filled; each repeated response validated",
+   "code": 572,
+   "message": "Please fill '<name>'",
+   "cite": "app/services/template_responses/validate_service.rb:96-151"
+  },
+  {
+   "appliesTo": "conditional_block (template configurations)",
+   "kind": "dependency",
+   "rule": "conditions (IS, IS NOT, IS NULL, IS NOT NULL, IS LESS/GREATER THAN(_EQUAL_TO), CONTAINS) on other answers merge new configuration (e.g. is_required/mode_type) into target headers before validation",
+   "code": null,
+   "message": "",
+   "cite": "app/services/template_responses/validate_service.rb:80-94; app/poro_classes/template/conditional_block_handler/condition.rb:5,35-50"
+  },
+  {
+   "appliesTo": "template response (TradeRequest item)",
+   "kind": "required",
+   "rule": "is_required rfi widget value blank",
+   "code": 2,
+   "message": "Insufficient parameters",
+   "cite": "app/services/template_responses/validate_service.rb:26-45"
+  },
+  {
+   "appliesTo": "excel line-item upload",
+   "kind": "type",
+   "rule": "mandatory (is_required creator write) columns non-null; number/quantity must be int/float string; Unit column must match a company display_unit case-insensitively",
+   "code": null,
+   "message": "Mandatory Item cannot be left empty / Input type is not valid / Invalid Unit",
+   "cite": "app/services/validations/auction_excel_validation_service.rb:120-215; app/services/procol_excel/base_excel_service.rb:12"
+  },
+  {
+   "appliesTo": "units table",
+   "kind": "maxLength",
+   "rule": "name <=30, symbol <=30 (model) / <=15 (API create validator), symbol regex [a-zA-Z0-9 whitespace % - / .]+, symbol unique per (company,status) when active, conversion_factor > 0",
+   "code": 888,
+   "message": "Invalid Parameters / can only contain alphabets, numbers or spaces",
+   "cite": "app/models/unit.rb:37-41; app/controllers/validate/unit_validator.rb:11-15; app/controllers/api/units_controller.rb:63-68"
+  },
+  {
+   "appliesTo": "no generic per-widget min/max/regex/maxLength",
+   "kind": "range",
+   "rule": "No backend enforcement found for template-declared min/max/maxLength/regex/precision on trade sheet cells; precision only rewritten, is_required only enforced for forms/template_responses (unverified for frontend)",
+   "code": null,
+   "message": "",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1816-1830; app/controllers/concerns/trade_template_helper.rb:1445-1557"
+  }
+ ],
+ "units": [
+  {
+   "fact": "units table: id, name, symbol (downcased before_save, indexed), conversion_factor float default 1.0 (rounded to 2dp), base_unit_id -> units.id, status 0 in_active/1 active, company_id (NULL = global Procol unit), user_id",
+   "cite": "app/models/unit.rb:1-43,73-75; db/schema.rb:2341-2355"
+  },
+  {
+   "fact": "Company#units == Unit.for_company(company_id): active company units OR active global units, cached 1 day under 'units_for_company_id#<id>' and 'procol_units'",
+   "cite": "app/models/company.rb:394-396; app/models/unit.rb:48-66"
+  },
+  {
+   "fact": "If company config material_codification == true OR get_company_only_units == true -> ONLY company_id = <company> units (global units excluded)",
+   "cite": "app/models/unit.rb:50-53,79-87; app/models/company.rb:238-240; db/migrate/20260610155824_add_get_company_only_units_config.rb:5-16 (added 2026-06-10, commit aef176aca5)"
+  },
+  {
+   "fact": "Unit conversion: base_unit_id + conversion_factor (>0); used in bulk upload (base unit resolved by LOWER(symbol) among company+global). No conversion is applied in the line-item unit check",
+   "cite": "app/models/unit.rb:32,41; app/services/params_generator/bulk_upload_params_generation_service.rb:95-115"
+  },
+  {
+   "fact": "Product units: product_units (product_id, unit_id, status) - Product has_many units through product_units (active only, ANY company incl. global); ProductUnit rejects inactive unit or unit.company_id != product.company_id with 'Unit not found'; global units allowed",
+   "cite": "app/models/product.rb:63-64; app/models/product_unit.rb:23-60; db/schema.rb:1565-1573"
+  },
+  {
+   "fact": "UnitSerializer returns symbol = display_unit (symbol upcased if < 3 chars, else titleize), NOT the raw symbol; ProductSerializer has_many units via UnitSerializer",
+   "cite": "app/serializers/unit_serializer.rb:1-12; app/models/unit.rb:68-71; app/serializers/product_serializer.rb:12"
+  },
+  {
+   "fact": "Line-item unit on event create = creator_quantity.configuration.suffix, else product.unit_type; downcased and looked up by exact symbol in Current.workspace.units; trade_product gets unit_id/unit_symbol/display_unit",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1391-1399,1446-1475"
+  },
+  {
+   "fact": "GET /units, /units/all, /units/autocomplete_search all return Unit.active.for_company(workspace) (same filter as the event check)",
+   "cite": "app/controllers/api/units_controller.rb:7-32"
+  },
+  {
+   "fact": "Units editable only if company-owned (find_unit where company_id = workspace)",
+   "cite": "app/controllers/api/units_controller.rb:74-77"
+  },
+  {
+   "fact": "Excel/BOQ uploads auto-create missing units for the company via Unit.insert_all! (skips callbacks: no cache invalidation, no validations); BOQ path always checks company+global ignoring company-only config",
+   "cite": "app/services/params_generator/auction_params_generation_service.rb:349-366; app/services/params_generator/dynamic_template_boq_params_generation_service.rb:279-295"
+  },
+  {
+   "fact": "ERP integrations (products, PR worker) find_or_initialize unit by downcased symbol in Unit.for_company and create a company unit if missing",
+   "cite": "app/helpers/api/integrations/products_controller_helper.rb:45-51; app/workers/pr_creation_worker.rb:88-95"
+  },
+  {
+   "fact": "RFQ stage from event-group line items resolves unit by Unit.for_company(company).find_by(symbol: egli.unit_symbol.downcase); egli.unit_symbol comes from precomputed_data.creator_fields.creator_quantity.unitSymbol",
+   "cite": "app/services/trade_requests/create/rfq.rb:61-74; app/models/event_group_line_item.rb:100-103"
+  },
+  {
+   "fact": "Intake products: unit_id from creator_quantity.configuration.suffix via workspace.units index_by symbol; missing -> 495",
+   "cite": "app/services/intake_requests/products_validate_service.rb:34-64"
+  },
+  {
+   "fact": "No text 'not available' / available_units / allowed_units / company_units exists for units in app, lib or en-IN.yml; the only unit-availability failure texts are 495 'Unit not found' / 'The unit X is not present', excel 'Invalid Unit', ProductUnit 'Unit not found', bulk 'Base unit with symbol X not found'",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1408-1415; app/models/product_unit.rb:44-54; app/services/validations/auction_excel_validation_service.rb:140-142; config/locales/en-IN.yml:507,1751-1753"
+  },
+  {
+   "fact": "Unit#products is has_and_belongs_to_many (default join table products_units) while the real join table is product_units - Unit#products likely broken (unverified: no products_units table in schema.rb)",
+   "cite": "app/models/unit.rb:33; db/schema.rb:1565"
+  },
+  {
+   "fact": "Product#add_units uses product_units.unscoped (drops product_id scope) - reactivation query can touch other products' product_units rows (Rails unscoped semantics; unverified at runtime)",
+   "cite": "app/models/product.rb:152-173"
+  }
+ ],
+ "unitErrors": [
+  {
+   "code": 574,
+   "message": "Unit cannot be blank",
+   "raisedWhen": "POST /trade/template_input (also PATCH /trade/:id/template_input, vendor onboarding events): any data[] item with no creator_quantity.configuration.suffix and no product.unit_type",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1391-1395; app/controllers/api/trade_controller.rb:28-31,36-39"
+  },
+  {
+   "code": 495,
+   "message": "Locale 'Unit not found', but trade path overrides with 'The unit <x> is not present' / 'The units <x, y> are not present'",
+   "raisedWhen": "a line-item unit (downcased) has no active row in Company#units (company units + global unless material_codification/get_company_only_units)",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1398-1416; config/locales/en-IN.yml:1751-1753"
+  },
+  {
+   "code": 495,
+   "message": "Unit not found",
+   "raisedWhen": "intake request products: creator_quantity.configuration.suffix not in workspace.units",
+   "cite": "app/services/intake_requests/products_validate_service.rb:51-58"
+  },
+  {
+   "code": 486,
+   "message": "You cannot add multiple units in this template.",
+   "raisedWhen": "trade has global_price_components with input_group 'price' and trade_products carry >1 distinct meta_data.postfix (creator_quantity.postfix)",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1843-1848"
+  },
+  {
+   "code": 559,
+   "message": "Quantity should be in same unit as requested",
+   "raisedWhen": "line item linked to a PR item (pr_line_item_id, not rfq_then_auction) whose data->>'uom' NOT ILIKE the trade product unit_symbol/display_unit",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:1735-1760"
+  },
+  {
+   "code": null,
+   "message": "Invalid Unit",
+   "raisedWhen": "excel template product sheet 'Unit' column not matching any company display_unit (case-insensitive)",
+   "cite": "app/services/validations/auction_excel_validation_service.rb:185-192,140-142"
+  },
+  {
+   "code": null,
+   "message": "Unit not found (ActiveRecord base error)",
+   "raisedWhen": "linking product to inactive unit or to another company's unit",
+   "cite": "app/models/product_unit.rb:44-54"
+  }
+ ],
+ "gmmccoHypotheses": [
+  {
+   "hypothesis": "H1 (strongest): company 47053 has get_company_only_units or material_codification = true, so Company#units excludes global units; a product/line item whose unit is a GLOBAL unit (e.g. 'nos','kg') fails with 495 'The unit X is not present' even though the product lists that unit (product.units is not company-filtered)",
+   "howToConfirmWithSql": "SELECT config_key, modifications->>'value' AS value, status FROM custom_configurations WHERE item_type='Company' AND item_id=47053 AND config_key IN ('get_company_only_units','material_codification'); SELECT config_key, defaults->>'value', company_id FROM master_configurations WHERE config_key IN ('get_company_only_units','material_codification') AND status=1;",
+   "cite": "app/models/unit.rb:48-66; app/models/company.rb:238-240; app/models/custom_configuration.rb:164-173"
+  },
+  {
+   "hypothesis": "H1b: products of 47053 linked to global units that are not available once company-only mode is on",
+   "howToConfirmWithSql": "SELECT p.id, p.name, p.product_code, u.id unit_id, u.symbol, u.company_id FROM products p JOIN product_units pu ON pu.product_id=p.id AND pu.status=1 JOIN units u ON u.id=pu.unit_id AND u.status=1 WHERE p.company_id=47053 AND u.company_id IS NULL;",
+   "cite": "app/models/product.rb:63-64; app/models/product_unit.rb:50-54"
+  },
+  {
+   "hypothesis": "H2: symbol vs display mismatch - API returns display_unit (titleize turns '-' and '_' into spaces), UI sends it back as suffix, backend downcases and compares to raw symbol -> 'sq ft' != 'sq-ft' -> 495 (frontend echo behaviour unverified)",
+   "howToConfirmWithSql": "SELECT id, name, symbol, company_id FROM units WHERE status=1 AND (company_id=47053 OR company_id IS NULL) AND (symbol ~ '[-_]' OR symbol ~ '_id$' OR symbol <> lower(symbol));",
+   "cite": "app/models/unit.rb:68-71; app/serializers/unit_serializer.rb:5-7; app/controllers/concerns/trade_template_helper.rb:1393-1403"
+  },
+  {
+   "hypothesis": "H3: the unit the UI sends is a unit NAME (e.g. 'Numbers') not the symbol ('nos'); lookup is by symbol only",
+   "howToConfirmWithSql": "SELECT id, name, symbol, company_id FROM units WHERE status=1 AND (company_id=47053 OR company_id IS NULL) AND lower(name) <> symbol ORDER BY company_id NULLS FIRST, symbol;",
+   "cite": "app/controllers/concerns/trade_template_helper.rb:1399"
+  },
+  {
+   "hypothesis": "H4: the unit exists only as INACTIVE (deactivated via /units/:id/deactivate) or under a different company",
+   "howToConfirmWithSql": "SELECT id, name, symbol, status, company_id FROM units WHERE lower(symbol)=lower('<suffix sent>') ORDER BY company_id NULLS FIRST;",
+   "cite": "app/controllers/api/units_controller.rb:51-59; app/models/unit.rb:52-61"
+  },
+  {
+   "hypothesis": "H5: PR-linked line items where PR uom text differs from unit symbol -> 559 rather than 495",
+   "howToConfirmWithSql": "SELECT pri.id, pri.data->>'uom' AS pr_uom, pri.unit_id, u.symbol FROM purchase_request_items pri LEFT JOIN units u ON u.id=pri.unit_id JOIN purchase_requests pr ON pr.id=pri.purchase_request_id WHERE pr.company_id=47053 AND lower(pri.data->>'uom') <> coalesce(u.symbol,'') LIMIT 200;",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:1750-1760"
+  },
+  {
+   "hypothesis": "H6: default creator_quantity suffix 'KG' left in template/line item while 47053 (company-only mode) has no company unit 'kg'",
+   "howToConfirmWithSql": "SELECT id, name, (widgets::jsonb->'inline_components') @> '[{\"key_attribute\":\"creator_quantity\"}]' has_qty, jsonb_path_query_array(widgets::jsonb, '$.inline_components[*] ? (@.key_attribute==\"creator_quantity\").configuration.suffix') qty_suffix FROM templates WHERE company_id=47053 AND status=1 AND type_identifier && ARRAY['t-trade']::varchar[];",
+   "cite": "app/models/widget.rb:211-231; app/controllers/concerns/trade_template_helper.rb:1393-1395"
+  },
+  {
+   "hypothesis": "H7 (unverified): stale unit cache - Unit.for_company caches relations 1 day in redis; Unit.insert_all! (excel/BOQ auto-create) skips invalidate_cache. Only matters if the cached value is materialised",
+   "howToConfirmWithSql": "SELECT id, symbol, company_id, created_at FROM units WHERE company_id=47053 ORDER BY created_at DESC LIMIT 20;  -- then retry after cache expiry / redis DEL units_for_company_id#47053",
+   "cite": "app/models/unit.rb:50-65,89-98; config/environments/production.rb:47"
+  }
+ ],
+ "tablesForSql": [
+  {
+   "table": "templates",
+   "keyColumns": [
+    "id",
+    "name",
+    "company_id",
+    "status (1=active)",
+    "template_type (0 default,1 custom,2 dynamic)",
+    "template_for (0 trade,1 contract,2 rfi,3 module,4 vendor,5 allocation_summary,6 custom_search)",
+    "order_type (0 buy,1 sell)",
+    "type_identifier varchar[]",
+    "widgets json",
+    "configurations json",
+    "other_details jsonb",
+    "template_mappings jsonb"
+   ],
+   "example": "SELECT id,name,template_type,type_identifier FROM templates WHERE status=1 AND (company_id=47053 OR company_id IS NULL) AND type_identifier && ARRAY['t-trade']::varchar[];",
+   "cite": "app/models/template.rb:1-26,46-51"
+  },
+  {
+   "table": "access_lists",
+   "keyColumns": [
+    "item_type ('Template')",
+    "item_id",
+    "shared_with_type",
+    "shared_with_id",
+    "access_type",
+    "status"
+   ],
+   "cite": "db/schema.rb:28-41"
+  },
+  {
+   "table": "template_widget_mappings",
+   "keyColumns": [
+    "template_id",
+    "widget_id",
+    "status"
+   ],
+   "cite": "db/schema.rb:2129-2137"
+  },
+  {
+   "table": "widgets",
+   "keyColumns": [
+    "id",
+    "key_attribute",
+    "input_type (0 number,1 product,2 dropdown,3 percentage,4 formula,5 delivery_location,6 quantity,7 attachment,8 string,9 date)",
+    "widget_type",
+    "category (0 inline,1 global)",
+    "config json",
+    "type_identifier[]",
+    "company_id",
+    "status"
+   ],
+   "cite": "app/models/widget.rb:1-30"
+  },
+  {
+   "table": "widget_data_mappings",
+   "keyColumns": [
+    "key",
+    "value",
+    "configuration jsonb",
+    "company_id",
+    "status"
+   ],
+   "cite": "db/schema.rb:2507-2517"
+  },
+  {
+   "table": "units",
+   "keyColumns": [
+    "id",
+    "name",
+    "symbol",
+    "conversion_factor",
+    "base_unit_id",
+    "company_id (NULL=global)",
+    "status (1=active)"
+   ],
+   "example": "SELECT * FROM units WHERE status=1 AND (company_id=47053 OR company_id IS NULL);",
+   "cite": "db/schema.rb:2341-2355"
+  },
+  {
+   "table": "product_units",
+   "keyColumns": [
+    "product_id",
+    "unit_id",
+    "status"
+   ],
+   "cite": "db/schema.rb:1565-1573"
+  },
+  {
+   "table": "products / product_qualities",
+   "keyColumns": [
+    "products.id",
+    "company_id",
+    "product_code",
+    "status",
+    "product_qualities.product_id",
+    "params"
+   ],
+   "cite": "app/models/product.rb:1-31; db/schema.rb:1537-1547"
+  },
+  {
+   "table": "custom_configurations",
+   "keyColumns": [
+    "config_key",
+    "item_type ('Company'|'Template'|'User')",
+    "item_id",
+    "company_id",
+    "modifications jsonb ({value})",
+    "status"
+   ],
+   "example": "SELECT config_key, modifications->>'value' FROM custom_configurations WHERE item_type='Company' AND item_id=47053 AND status=1 AND config_key IN ('get_company_only_units','material_codification','hide_default_templates','enable_template_access_filtering','widget_precision');",
+   "cite": "db/schema.rb:911-921; app/models/custom_configuration.rb:126-173"
+  },
+  {
+   "table": "master_configurations",
+   "keyColumns": [
+    "config_key",
+    "item_type",
+    "defaults jsonb ({value})",
+    "company_id",
+    "status"
+   ],
+   "cite": "app/models/master_configuration.rb:1-19"
+  },
+  {
+   "table": "trade_products",
+   "keyColumns": [
+    "trade_request_id",
+    "product_id",
+    "product_quality_id",
+    "quantity",
+    "unit_id",
+    "validations jsonb",
+    "meta_data jsonb (postfix)"
+   ],
+   "cite": "app/models/trade_product.rb:1-50"
+  },
+  {
+   "table": "trade_requests",
+   "keyColumns": [
+    "id",
+    "template_id",
+    "widgets json",
+    "meta_data json",
+    "config",
+    "rfx_mode (0 auction,1 rfq,2 rfq_then_auction,3 offline_trade,4 rfi,5 rfp)"
+   ],
+   "cite": "app/models/trade_request.rb:3-56,164"
+  },
+  {
+   "table": "template_responses",
+   "keyColumns": [
+    "item_type",
+    "item_id",
+    "template_id",
+    "company_id",
+    "data jsonb",
+    "widgets json",
+    "status"
+   ],
+   "cite": "app/models/template_response.rb:1-29"
+  }
+ ]
+}

@@ -1,0 +1,814 @@
+{
+ "timeFields": [
+  {
+   "entity": "trade_request",
+   "column": "bid_start_time / bid_end_time (DB columns exist but the model OVERRIDES them)",
+   "meaning": "Real bid window is read from trade_schedules by current_status: rfqing->rfq schedule, auctioning->auction(+dynamic_extra_time/sealbid_extension_time max end), offline_trading->offline_trade, rfi/rfp->bidding_time",
+   "cite": "db/schema.rb:2244-2245; app/models/trade_request.rb:723-733,828-838"
+  },
+  {
+   "entity": "trade_schedules",
+   "column": "start_time, end_time, schedule_type, status, meta_data",
+   "meaning": "Source of truth for every time window of a stage",
+   "cite": "db/schema.rb:2318-2328; app/models/trade_schedule.rb:24-30"
+  },
+  {
+   "entity": "trade_schedules",
+   "column": "schedule_type enum",
+   "meaning": "rfq=0, auction=1, rfq_extra_closing_time=2, auction_extra_closing_time=3, offline_trade=4, bidding_time=5 (RFI/RFP submission window), extra_closing_time=6 (RFI/RFP evaluation window), dynamic_extra_time=7 (anti-sniping extension), approval_pending_time=8, sealbid_extension_time=9, response_review_time_for_participant=10 (best-offer / cost-breakdown window)",
+   "cite": "app/models/trade_schedule.rb:24-28"
+  },
+  {
+   "entity": "trade_schedules",
+   "column": "status enum",
+   "meaning": "in_active=0, active=1, closed=2, withdrawn=3, requested=4, void=5",
+   "cite": "app/models/trade_schedule.rb:30"
+  },
+  {
+   "entity": "trade_schedules",
+   "column": "meta_data.end_time_type",
+   "meaning": "For response_review_time_for_participant schedules: 'request_for_best_price' or 'request_for_cost_break_down'",
+   "cite": "app/models/trade_schedule.rb:69,73-83"
+  },
+  {
+   "entity": "trade_schedules",
+   "column": "meta_data.update_for",
+   "meaning": "Why a schedule was changed: increase_auction_time, force_close_event, evaluation_end, reopening_staggered_line_items, etc.",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:1995,5834-5835,2181"
+  },
+  {
+   "entity": "trade_request",
+   "column": "extra_closing_time (DB column exists; model method overrides)",
+   "meaning": "End of the evaluation / extra closing window, read from the ACTIVE rfq_extra_closing_time / auction_extra_closing_time / extra_closing_time schedule by current_status",
+   "cite": "db/schema.rb:2263; app/models/trade_request.rb:934-942"
+  },
+  {
+   "entity": "trade_request",
+   "column": "closed_at",
+   "meaning": "When the whole stage finally closes = max end_time of all active schedules (bid end, extra closing, review, approval pending). is_expired? == now > closed_at",
+   "cite": "db/schema.rb:2277; app/controllers/concerns/trade_controller_helper.rb:546,1998-2001,2079-2082; app/models/trade_request.rb:970-973"
+  },
+  {
+   "entity": "trade_request",
+   "column": "current_status (int, default 0)",
+   "meaning": "Which phase drives schedule lookup: rfqing / auctioning / offline_trading (else RFI/RFP by rfx_mode)",
+   "cite": "db/schema.rb:2272; app/models/trade_request.rb:723-733"
+  },
+  {
+   "entity": "trade_request",
+   "column": "config.is_dynamic_closing_time_allowed / dynamic_closing_time_strategy / last_n_minutes_for_time_extension / time_extension_value / rank_limit_for_time_extension",
+   "meaning": "Auction anti-sniping (dynamic time extension) settings: turn it on, rank_based or price_based trigger, trigger window in minutes before end, minutes to add, rank threshold",
+   "cite": "app/models/model_helpers/trade_request_model_helper.rb:491-499,1003-1005; app/models/bid.rb:356,375,399-406"
+  },
+  {
+   "entity": "trade_request",
+   "column": "misc.dynamic_time_extension_count",
+   "meaning": "How many times anti-sniping has extended the auction",
+   "cite": "app/models/trade_schedule.rb:175-181; app/models/model_helpers/trade_request_model_helper.rb:1012-1014"
+  },
+  {
+   "entity": "trade_request",
+   "column": "config.is_order_allowed_to_close_in_extra_closing_time_only",
+   "meaning": "Award/close only allowed after bid end (in extra closing window). If on and no extra_closing_time given, default = bid_end_time + 30 min",
+   "cite": "app/models/model_helpers/trade_request_model_helper.rb:124-126; app/controllers/concerns/trade_controller_helper.rb:3523-3526,3229-3231"
+  },
+  {
+   "entity": "trade_request",
+   "column": "config.evaluation_duration",
+   "meaning": "RFP 'send to evaluation manually' mode: evaluation length stored as duration; the evaluation schedule is only created when buyer triggers evaluation (now + duration)",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:523-524; app/controllers/api/trade_controller.rb:650-652,700-710"
+  },
+  {
+   "entity": "trade_rounds",
+   "column": "starts_at, ends_at, round_no, version",
+   "meaning": "Per-round windows for knockout/dutch auctions",
+   "cite": "db/schema.rb:2302-2316"
+  },
+  {
+   "entity": "trade_request",
+   "column": "misc.trade_products_time",
+   "meaning": "Staggered (line-item-by-line-item) auction: per trade_product start_time/end_time epochs",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:2113-2128,2146-2169"
+  }
+ ],
+ "timeRules": [
+  {
+   "id": "rfp_end_not_after_rfq_end",
+   "rule": "In a project (event group), the technical RFP stage's bid end time may not be later than the commercial RFQ stage's bid end time; symmetrically an RFQ end may not be set earlier than the RFP end.",
+   "when": "Checked on stage create (set_trade_schedules), edit (edit_trade_schedules) and time extension (update_trade_schedule with auction_end_time). Skipped when: the stage being saved is draft; params from_mcp present; no event group; no counterpart non-cancelled/withdrawn stage; counterpart is a draft RFP added as a new stage while this RFQ is active/closed/requested/scheduled. Compares against counterpart's last for_bidding_time schedule end.",
+   "code": 712,
+   "message": "RFP duration exceeds RFQ end time. Please adjust.",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:643-675,501,538,2025; config/locales/en-IN.yml:2155-2157"
+  },
+  {
+   "id": "start_defaults_to_now",
+   "rule": "If no bid start is given the stage starts immediately (schedule start = now).",
+   "when": "create_trade_schedule / edit_trade_schedules",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:2004-2007,544"
+  },
+  {
+   "id": "no_future_start_or_end_gt_start_validation",
+   "rule": "UNVERIFIED-NEGATIVE: no general server-side check was found that bid start must be in the future or that end > start on stage create; schedules are built straight from params. Only specific checks exist (reschedule 258, dutch/knockout 238, staggered 507, extra closing 195).",
+   "when": "Searched trade_controller_helper set_trade_schedules/edit_trade_schedules/create_trade_schedule",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:500-533,1989-2015"
+  },
+  {
+   "id": "reschedule_only_before_start",
+   "rule": "An event can be re-scheduled (new start + end together) only if it has not started yet.",
+   "when": "PUT trade update with bid_start_time AND bid_end_time and no configurations, on a non-draft stage",
+   "code": 258,
+   "message": "You cannot re-schedule this event!",
+   "http": 422,
+   "cite": "app/controllers/api/trade_controller.rb:605-606; config/locales/en-IN.yml:1622-1624"
+  },
+  {
+   "id": "edit_status_gate",
+   "rule": "Only active, draft or requested stages can be edited (BOQ and RFP stages may also be edited when closed).",
+   "when": "trade update",
+   "code": 4,
+   "message": "Request not found",
+   "http": 422,
+   "cite": "app/controllers/api/trade_controller.rb:590-594"
+  },
+  {
+   "id": "round_time_diff",
+   "rule": "Knockout/Dutch auction: round time difference must be at least 30 s and first round (start + time_difference) must fit before bid end.",
+   "when": "auction_config knockout or dutch",
+   "code": 238,
+   "message": "Time difference cannot be greater than auction time. (248 = cannot be less than 30 seconds)",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:3455-3462,3496-3497; config/locales/en-IN.yml:1583-1585,1613-1615"
+  },
+  {
+   "id": "dte_trigger_window_valid",
+   "rule": "When turning on dynamic time extension, the trigger window (last N minutes) must be >= 1 and no more than half of the time remaining until bid end.",
+   "when": "is_dynamic_closing_time_allowed on create/edit",
+   "code": 501,
+   "message": "Invalid Trigger Time for Dynamic Time Extension.",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:3311-3320,6258-6268; config/locales/en-IN.yml:1769-1771"
+  },
+  {
+   "id": "dynamic_time_extension",
+   "rule": "Auction anti-sniping: when an active bid lands within the last N minutes before bid end AND (rank_based: the bid changes a rank within the top rank_limit, or price_based: a bid within rank_limit improves price), the auction is extended by time_extension_value minutes (default 3). A new dynamic_extra_time schedule from old end to old end+X is created, closed_at shifts, evaluation/review schedules shift after it, all bids' end_time are updated, and the extension counter increments.",
+   "when": "Only auctions (is_auction?) with is_dynamic_closing_time_allowed; not when the bid came from a declined/revoked additional request; staggered auctions extend the current line item's window",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/models/bid.rb:351-372,411-425,439-460,2256-2288; app/models/trade_schedule.rb:175-181,190-204"
+  },
+  {
+   "id": "sealbid_extension",
+   "rule": "Sealed-bid extension adds a sealbid_extension_time schedule after the bid end; extra closing schedule shifts after it. Sealbid only allowed after the first dynamic extension.",
+   "when": "trade update with sealbid_extension_time",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:3879; app/controllers/concerns/bids_controller_helper.rb:381-404; app/models/trade_schedule.rb:183-188; app/models/bid.rb:369"
+  },
+  {
+   "id": "schedule_chain_shift",
+   "rule": "Whenever a bidding schedule's end changes, the following windows (cost-breakdown review, then evaluation/extra closing) are shifted to start at the new end, keeping their duration (not for staggered). closed_at and all active/pending/requested bids' closed_at follow.",
+   "when": "after_update_commit on any non-extra-closing schedule",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/models/trade_schedule.rb:52,150-171,206-227"
+  },
+  {
+   "id": "extend_bidding_time",
+   "rule": "Buyer extends the submission window by sending increase_auction_time (new epoch). This moves the active bidding schedule's end (rfq / bidding_time / sealbid / latest auction or dynamic_extra_time). If the RFP was closed, its status goes back to active (reopen). Any running best-offer window is terminated. With lock_bid_by_default, bid visibility is reset to none.",
+   "when": "trade update; 'extend_rfq_time' on an RFP also extends the commercial RFQ stage (818 if lots, 819 if auction commercial stage, 820 if not RFQ)",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/api/trade_controller.rb:642-692; app/controllers/concerns/trade_controller_helper.rb:2018-2056,5754-5773,5824-5841"
+  },
+  {
+   "id": "reopen_expired_496",
+   "rule": "Extending an RFQ or auction whose bidding window has already ended is a REOPEN: refused unless user is a Procol employee, or super admin with config is_super_admin_allowed_to_reopen_event, or config is_user_allowed_to_reopen_event, or the stage is an RFP (RFPs are always reopenable).",
+   "when": "current_status rfqing/auctioning and schedule end < now. NOTE: the 496 check in get_auction_trade_schedule only fires for rfqing/auctioning, so RFP bidding_time extension after close is not blocked there.",
+   "code": 496,
+   "message": "You are not allowed to reopen an expired event",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:2028-2029,5830-5832; app/models/model_helpers/trade_request_model_helper.rb:1016-1022; config/locales/en-IN.yml:1754-1756"
+  },
+  {
+   "id": "reopen_expired_evaluation_496",
+   "rule": "Extending an evaluation / extra closing window that already ended is refused unless Procol employee, or config allow_event_evaluation_reopen_for_everyone, or super admin with is_super_admin_allowed_to_reopen_evaluation.",
+   "when": "extra_closing_time param; existing extra closing schedule end < now",
+   "code": 496,
+   "message": "You are not allowed to reopen an expired event",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:2030-2031,5885-5888; app/models/model_helpers/trade_request_model_helper.rb:1024-1030"
+  },
+  {
+   "id": "extra_closing_time_valid",
+   "rule": "A new evaluation end must be in the future and after the evaluation window's start.",
+   "when": "extending existing extra closing schedule",
+   "code": 195,
+   "message": "Invalid time.",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:5889-5891; config/locales/en-IN.yml:1369-1371"
+  },
+  {
+   "id": "extension_blocked_after_proposal",
+   "rule": "Bid time cannot be extended (or best-offer/cost-breakdown window opened) once a proposal (award) exists in the project in requested/active/selected status (per active lot if lots).",
+   "when": "trade update with increase_auction_time or end_time_type; skipped for dummy event groups",
+   "code": 801,
+   "message": "You cannot edit the time as proposals are already submitted.",
+   "http": 422,
+   "cite": "app/controllers/api/trade_controller.rb:438-440; app/controllers/concerns/trade_controller_helper.rb:6794-6805; config/locales/en-IN.yml:2407-2409"
+  },
+  {
+   "id": "evaluation_time_extend_gate",
+   "rule": "In RFP 'send to evaluation manually' mode, a client user WITHOUT purchase/customer_success authorized mode cannot extend evaluation time before evaluation has started.",
+   "when": "extra_closing_time param",
+   "code": 746,
+   "message": "You are not allowed to increase the evaluation time",
+   "http": 422,
+   "cite": "app/controllers/api/trade_controller.rb:647-649; app/models/model_helpers/trade_request_model_helper.rb:1176-1182"
+  },
+  {
+   "id": "send_to_evaluation_needs_duration",
+   "rule": "Manually triggering RFP evaluation requires an evaluation_duration; evaluation window = now + duration and closed_at moves to that end.",
+   "when": "trigger_evaluation and can_send_to_evaluation_be_triggered?",
+   "code": 825,
+   "message": "No evaluation time present. Set evaluation time to send RFP to evaluation.",
+   "http": 422,
+   "cite": "app/controllers/api/trade_controller.rb:700-710; app/controllers/concerns/trade_controller_helper.rb:2084-2087"
+  },
+  {
+   "id": "dutch_knockout_no_increase_in_projects",
+   "rule": "Increasing auction time for Dutch/Knockout auctions is refused when the company has rfx_project_enabled.",
+   "when": "is_knockout_or_dutch_auction? && increase_auction_time",
+   "code": 969,
+   "message": "Increasing auction time is not allowed in Dutch/Knockout auctions",
+   "http": 422,
+   "cite": "app/controllers/api/trade_controller.rb:554-559"
+  },
+  {
+   "id": "force_end",
+   "rule": "Force-closing an event (config allow_trade_force_close + force_end param) requires remarks and ends whichever window is live now (submission, evaluation, cost breakdown, best offer).",
+   "when": "trade update with force_end",
+   "code": 783,
+   "message": "Missing Remarks",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:5903-5920,5928-5930; app/controllers/api/trade_controller.rb:423-432"
+  },
+  {
+   "id": "bid_only_while_running",
+   "rule": "A vendor can place a bid only while the stage is running: bid start <= now <= bid end, or inside a best-offer/cost-breakdown review window. Before start and after end are both refused with the same code.",
+   "when": "Legacy POST bids create_bid (api/bids_controller). Surrogate bids (buyer bidding for vendor) are also allowed while upcoming (before start) and after expiry if config is_allowed_to_add_surrogate_bid_post_expiry.",
+   "code": 33,
+   "message": "Order not active",
+   "http": 422,
+   "cite": "app/controllers/api/bids_controller.rb:47-50; app/models/trade_request.rb:1191-1200; app/models/model_helpers/trade_request_model_helper.rb:1375-1377; config/locales/en-IN.yml:1162-1164"
+  },
+  {
+   "id": "bid_v1_create_only_while_running",
+   "rule": "V1 bid draft creation is refused when the stage isn't running unless the vendor has a bid pending justification or counter-offer modification applies (evaluation window + counter_offer_modification enabled). In v1 a buyer surrogate can only create a bid when counter-offer modification applies.",
+   "when": "POST api/v1/bids (is_allowed_to_create_bid)",
+   "code": 33,
+   "message": "Order not active",
+   "http": 422,
+   "cite": "app/helpers/api/v1/bids_controller_helper.rb:7-13,71-73; app/models/model_helpers/trade_request_model_helper.rb:1165-1167"
+  },
+  {
+   "id": "bid_revise_only_while_running",
+   "rule": "Revising/submitting a bid after bid end is refused (33), except: counter-offer modification during evaluation window on a requested bid; bid pending justification; buyer-added bid during extra closing time when can_buyer_edit_bid config is on (else 101). Counter-offer bids and additional-request revisions are allowed during running OR evaluation (extra closing) window.",
+   "when": "update_bid_action_helper (legacy) / update_bid_action_helper_v1",
+   "code": 33,
+   "message": "Order not active",
+   "http": 422,
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:54-85,118-122; app/helpers/api/v1/bids_controller_helper.rb:551-572,595-597"
+  },
+  {
+   "id": "lock_quote_after_submission",
+   "rule": "If lock_quote_after_submission is on, a vendor with an active bid cannot revise/create again.",
+   "when": "config lock_quote_after_submission",
+   "code": 875,
+   "message": "Revise bid is locked. You cannot edit your quote after submission.",
+   "http": 422,
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:48-51; app/helpers/api/v1/bids_controller_helper.rb:74-76; app/models/model_helpers/trade_request_model_helper.rb:1215-1217"
+  },
+  {
+   "id": "award_close_only_after_start_or_after_bid_end",
+   "rule": "Closing/selecting a bid (award in old flow) requires the stage to have started and closed_at still in the future; if is_order_allowed_to_close_in_extra_closing_time_only is on, it's only allowed after bid end (during extra closing time). Only the event owner, or super admin on a team event, may do it; blacklisted or unverified vendors (unless allow_bid_selection_for_unverified_vendor) cannot be selected.",
+   "when": "is_allowed_to_close_bid",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:3222-3237; app/models/trade_request.rb:672-674"
+  },
+  {
+   "id": "is_running_definition",
+   "rule": "'Running' = bid_start_time <= now <= bid_end_time OR inside participant review window; 'upcoming_or_running' = (bid_end >= now or in review window) and not closed; 'in_evaluation_time' = max(bid_end, review_end) <= now <= active extra closing end; 'expired' = now > closed_at; 'in_submission_time' = start <= now <= bid end.",
+   "when": "model predicates",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/models/trade_request.rb:954-977,1185-1204"
+  },
+  {
+   "id": "evaluate_only_after_bid_end",
+   "rule": "An evaluator can score (create evaluation) only on an ACTIVE RFI/RFP stage of their own workspace AFTER its bid end time has passed. Before bid end -> 33. Once the stage status is no longer active (closed/withdrawn) the stage isn't found -> 33. Vendor-onboarding v2 instead refuses while the stage is upcoming/running (789).",
+   "when": "POST evaluations create; TradeRequest.active.rfi_or_rfp scoped to Current.workspace",
+   "code": 33,
+   "message": "Order not active",
+   "http": 422,
+   "cite": "app/controllers/api/evaluations_controller.rb:13-26; config/locales/en-IN.yml:1162-1164,2371-2373"
+  },
+  {
+   "id": "evaluation_submit_only_after_bid_end",
+   "rule": "Submitting evaluations (which creates/submits the proposal) likewise requires an active RFI/RFP stage whose bid end has passed; vendor-onboarding v2 cannot use this endpoint.",
+   "when": "POST evaluations submit",
+   "code": 33,
+   "message": "Order not active",
+   "http": 422,
+   "cite": "app/controllers/api/evaluations_controller.rb:40-44"
+  },
+  {
+   "id": "evaluation_score_valid",
+   "rule": "Each form score must be an Integer that is a key of the project's evaluation score->label mapping; score 0 requires a remark; form must be one the user is allowed to evaluate.",
+   "when": "Evaluations::ValidateService#valid_form? (section-wise question_scores path skips score check)",
+   "code": 2,
+   "message": "Insufficient parameters",
+   "http": 422,
+   "cite": "app/services/evaluations/validate_service.rb:43-75; config/locales/en-IN.yml:1117-1119"
+  },
+  {
+   "id": "rfp_evaluation_start_notification",
+   "rule": "When an RFP's extra_closing_time (evaluation) schedule is saved active, planners are notified at the evaluation start time.",
+   "when": "after_save_commit on start_time change",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/models/trade_schedule.rb:53,85-90"
+  },
+  {
+   "id": "auto_close_non_rfx",
+   "rule": "For auctions/RFQs (not RFI/RFP), whenever closed_at changes, a MarkEventClosedWorker is queued AT closed_at; it flips status active->closed only if closed_at has really passed and all valid trade products are closed; unstarted knockout/dutch rounds are voided. RFI/RFP stages are NOT auto-closed by this worker.",
+   "when": "after_commit if saved_change_to_closed_at",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/models/trade_request.rb:303,358-361; app/workers/mark_event_closed_worker.rb:5-21"
+  },
+  {
+   "id": "no_start_job",
+   "rule": "There is no job that 'starts' a stage: live/upcoming/closed-for-bidding is computed on every request from trade_schedules vs now. The DB bid_end_time column is just a denormalised copy written before_save.",
+   "when": "",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/models/trade_request.rb:277,1191-1204,3096-3098"
+  },
+  {
+   "id": "scheduled_events_recurring_clone",
+   "rule": "'Scheduled events' = recurring project templates. A cron every minute enqueues due ScheduledJobs; the executor clones the source event group (must be active), shifts every trade schedule by whole days (scheduled date - source earliest bid start date), and publishes it. All scheduled-events endpoints require the company config scheduled_events_enabled, else 904 (HTTP 403). Editing a scheduled template flips it back to draft.",
+   "when": "company CustomConfiguration scheduled_events_enabled",
+   "code": 904,
+   "message": "Scheduled events feature is not enabled for your workspace",
+   "http": 403,
+   "cite": "config/sidekiq.yml:168-171; app/workers/scheduled_jobs/scheduler_worker.rb:6-27; app/workers/scheduled_jobs/executor_worker.rb:10-33; app/services/scheduled_jobs/handlers/event_group_clone.rb:14-38,105-110,152-154; app/models/company.rb:246-247; app/controllers/api/scheduled_jobs_controller.rb:2,75-76; app/controllers/api/trade_controller.rb:43-46"
+  },
+  {
+   "id": "time_zone",
+   "rule": "Rails default zone is 'Kolkata' (IST) but every authenticated API request runs inside Time.use_zone(Current.user.time_zone); request times are epoch seconds (Time.at(params[...])) so the zone only affects rendering. Vendor emails render in: recipient zone (if use_recipient_timezone_for_emails), else company time_zone when config use_company_timezone_for_vendor_emails, else vendor zone, default Asia/Kolkata.",
+   "when": "",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "config/application.rb:111; app/controllers/concerns/api_auth.rb:17,178-180; app/controllers/concerns/trade_controller_helper.rb:541,545; app/models/company.rb:1075-1090; app/models/trade_request.rb:843-864"
+  },
+  {
+   "id": "auction_reminders",
+   "rule": "RFQ-then-auction: reminder emails are scheduled 24 h and 30 min before auction start (only if start is further out than that).",
+   "when": "edit_trade_schedules with extra_closing_time for rfq_then_auction",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:597-615"
+  },
+  {
+   "id": "award_blocked_in_bidding_time",
+   "rule": "Creating an award proposal is refused if another proposal is already requested/selected (573 checked first), or this user already has a draft (returned instead), or the latest commercial stage has is_order_allowed_to_close_in_extra_closing_time_only and is NOT currently in its evaluation (extra closing) window. Without that config there is NO time gate on proposal creation (can award during bidding).",
+   "when": "POST proposal create -> create_proposal -> is_awarding_allowed? (per lot if lot_no)",
+   "code": 720,
+   "message": "You are not allowed to award in bidding time",
+   "http": 422,
+   "cite": "app/helpers/api/proposal_helper.rb:21-31; app/controllers/concerns/event_group_controller_helper.rb:629-648; config/locales/en-IN.yml:2179-2181"
+  },
+  {
+   "id": "one_live_proposal",
+   "rule": "Only one proposal per project (per lot) may be requested/selected at a time; create, add_response and submit all refuse otherwise.",
+   "when": "",
+   "code": 573,
+   "message": "The proposal has already been submitted",
+   "http": 422,
+   "cite": "app/helpers/api/proposal_helper.rb:22-24,44-46,128; config/locales/en-IN.yml:1987-1989"
+  },
+  {
+   "id": "proposal_submit_ends_bidding",
+   "rule": "When an award proposal is submitted and goes into approval, the latest commercial stage's still-open schedules are cut to now (submission expired) so vendors can't keep bidding; without approval, bids are closed directly (close_bids).",
+   "when": "submit_proposal with approval_request",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/helpers/api/proposal_helper.rb:171-186; app/controllers/concerns/trade_controller_helper.rb:7018-7025"
+  },
+  {
+   "id": "proposal_bids_not_revised",
+   "rule": "A proposal can't be submitted if any awarded bid has since been revised.",
+   "when": "submit_proposal",
+   "code": 1126,
+   "message": "A few bids have been revised. Please re-award to continue.",
+   "http": 422,
+   "cite": "app/helpers/api/proposal_helper.rb:121-125,241-250; config/locales/en-IN.yml:2824-2826"
+  },
+  {
+   "id": "publish_712_draft_project",
+   "rule": "At project publish (draft -> active) the same 'RFP end must not exceed RFQ end' check is applied across the draft stages being published (this is where it bites for drafts, since the per-stage check skips drafts).",
+   "when": "EventGroups::UpdateService#publish when both an RFP and an RFQ are among data[:draft_trade_request_ids]",
+   "code": 712,
+   "message": "RFP duration exceeds RFQ end time. Please adjust.",
+   "http": 422,
+   "cite": "app/services/event_groups/update_service.rb:226-233,303-314"
+  },
+  {
+   "id": "publish_past_start_shifts_window",
+   "rule": "When an auction/RFQ stage is published and its bid start time is already in the past, the bidding window is moved to start NOW keeping the same duration (same for the extra closing window). Future starts are kept.",
+   "when": "publish_auction (also on approval resolve)",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:4524-4551; app/models/trade_schedule.rb:138-148; app/services/approvals/resolve_approval.rb:54"
+  },
+  {
+   "id": "publish_status_requested_if_approval",
+   "rule": "Publishing a non-RFI/RFP stage that needs create_trade approval sets status 'requested' (not live) until approved; if the company routes auctions to an auction team and the user isn't in it, status stays 'draft'.",
+   "when": "publish_auction",
+   "code": null,
+   "message": "",
+   "http": null,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:4525-4540"
+  },
+  {
+   "id": "withdraw_blocked_after_proposal",
+   "rule": "A stage cannot be withdrawn/cancelled once a proposal is requested/selected in the project (per lot). Withdraw/cancel sets closed_at=now, voids upcoming schedules and ends the current one.",
+   "when": "set_trade_request_in_active",
+   "code": 841,
+   "message": "Cannot withdraw the event as proposals are already submitted.",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:186-212; config/locales/en-IN.yml:2521-2523"
+  },
+  {
+   "id": "cancel_only_draft",
+   "rule": "'Cancel' (vs withdraw) is only for draft stages: any draft stage in a draft project; otherwise only draft auctions, by super admin, the owner, or an auction-team member.",
+   "when": "status=cancelled",
+   "code": 101,
+   "message": "You are not allowed to perform this action",
+   "http": 422,
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:187-189; app/models/model_helpers/trade_request_model_helper.rb:1495-1505"
+  }
+ ],
+ "actors": [
+  {
+   "id": "buyer",
+   "who": "A user of the buying (client) company whose Company.allowed_companies includes the event's company_id. Owner = trade_request.user_id / event_group.user_id; team members get access via team permissions (module·operation) and team product-category/buyer-hub scope; super_admin and Procol employees bypass module checks.",
+   "cite": "app/policies/trade_request_policy.rb:74-90; app/models/user.rb:896-920; app/models/trade_request.rb:2865-2880"
+  },
+  {
+   "id": "evaluator",
+   "who": "A buyer-side user given an AccessList row with access_type 'evaluator' on the RFI/RFP stage (or on a line-item mapping / vendor-assessment Form for line-item or section-wise scoring). Assigned via the stage's evaluators/forms params on create/update. Users whose designation is in DESIGNATIONS_FOR_EVALUATING_TEAM submit to peer_review instead of creating a proposal.",
+   "cite": "app/models/access_list.rb:35; app/controllers/concerns/trade_template_helper.rb:1872-1896; app/controllers/api/trade_controller.rb:600-602,1848-1857; app/services/evaluations/validate_service.rb:84-100; app/controllers/api/evaluations_controller.rb:80-82; app/models/user.rb:379-382"
+  },
+  {
+   "id": "vendor",
+   "who": "A seller/broker company user whose company is in the stage's audience: restricted -> visible audiences; except_for -> buyer's dealing_with companies minus hidden; everyone -> buyer's dealing_with companies (brokers via CompanyBrokerMapping). Non-client users pass every module·operation check automatically.",
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:17-35; app/models/model_helpers/trade_request_model_helper.rb:336-371; app/models/user.rb:896-898"
+  },
+  {
+   "id": "surrogate",
+   "who": "A buyer-side user placing a bid ON BEHALF of a vendor: detected when the bidder's allowed companies include the event's company (and not offline trade). Allowed only if config is_buyer_not_allowed_to_add_surrogate_bid is not true AND user is super_admin, the event owner, or in a team whose product-category/buyer-hub scope covers the event.",
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:2130-2141"
+  },
+  {
+   "id": "approver",
+   "who": "A user matching an ApprovalWorkflow::Approver identifier: 'u-<user_id>', 't-<team_id>#r-<team_member.role>' or 'c-<client_company_id>#ur-<users.role>'. Users whose role is in config allowed_user_roles_to_force_resolve_approval_requests can resolve any approver row. Approver identifiers are copied onto trade.misc.approver_identifiers, which also grants view access (is_approver_for_trade?).",
+   "cite": "app/models/user.rb:730-738,1046-1052; app/controllers/concerns/approval_workflow_controller_helpers/approval_request_controller_helper.rb:123-140; app/models/approval_workflow/is_approver_methods.rb:23-30"
+  },
+  {
+   "id": "procol_employee_or_super_admin",
+   "who": "Bypass: is_allowed_to_perform_action? returns true for super_admin or Procol employee; many policies short-circuit true for Procol employees; reopen-expired rules and cancel rules give super admin extra powers when configs allow.",
+   "cite": "app/models/user.rb:900-902; app/policies/trade_request_policy.rb:75-77; app/controllers/concerns/trade_controller_helper.rb:2028-2031"
+  }
+ ],
+ "permissions": [
+  {
+   "action": "create event (project)",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/event_group_policy.rb#create?",
+   "permission": "trade:create_record",
+   "flags": [],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/event_groups_controller.rb:24,34; app/policies/event_group_policy.rb:21-23; app/controllers/concerns/api_auth.rb:16,117-119"
+  },
+  {
+   "action": "create stage (trade request)",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/trade_request_policy.rb#create?",
+   "permission": "trade:create_record",
+   "flags": [
+    "has_access_for_sourcing_events? (false if user's only authorized mode is vendor_management)"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/trade_controller.rb:122-123; app/policies/trade_request_policy.rb:13-16; app/models/user.rb:641-650"
+  },
+  {
+   "action": "add new stage to live project",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/trade_request_policy.rb#add_new_stage_in_live_event?",
+   "permission": "owner of referring stage OR trade:create_record (+sourcing access)",
+   "flags": [
+    "CustomConfiguration is_add_new_stage_allowed (else 1127)",
+    "referring stage must be RFI/RFP (2001)",
+    "no auction in project (1128)",
+    "not already RFP+RFQ (1129)",
+    "commercial RFQ must be running (712 reused!) and not closed (1130)"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/v1/trade_controller.rb:1117-1146; app/policies/trade_request_policy.rb:192-194; app/services/add_new_stage/validate_service.rb:9-79; config/locales/en-IN.yml:2758-2772,2797-2799"
+  },
+  {
+   "action": "publish project (draft -> active)",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/event_group_policy.rb#update?",
+   "permission": "trade:create_record + event company in Current.allowed_companies (Procol CSM of company bypasses)",
+   "flags": [
+    "712 cross-stage end check at publish",
+    "approval (create_trade) may make stage 'requested'",
+    "is_route_auctions_to_auction_team_enabled keeps auctions draft for non-auction-team users"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/event_groups_controller.rb:70-80; app/policies/event_group_policy.rb:37-40; app/services/event_groups/update_service.rb:226-233; app/controllers/concerns/trade_controller_helper.rb:4524-4540"
+  },
+  {
+   "action": "edit stage / extend or reschedule time / withdraw stage",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/trade_request_policy.rb#update?",
+   "permission": "trade:create_record + event company in allowed companies (Procol employee bypass)",
+   "flags": [
+    "workspace trade_mode 'sell' -> 101",
+    "vendor_onboarding v2 needs initiate/evaluate right",
+    "reopen after expiry: is_user_allowed_to_reopen_event / is_super_admin_allowed_to_reopen_event (RFP always) else 496",
+    "evaluation reopen: allow_event_evaluation_reopen_for_everyone / is_super_admin_allowed_to_reopen_evaluation else 496",
+    "proposal exists -> 801 (extend) / 841 (withdraw)",
+    "allow_trade_force_close for force_end"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/trade_controller.rb:399-414,438-440,598-599; app/policies/trade_request_policy.rb:74-90; app/controllers/concerns/trade_controller_helper.rb:186-199,2028-2031"
+  },
+  {
+   "action": "withdraw whole project",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/event_group_policy.rb#update?",
+   "permission": "trade:create_record + company in allowed companies",
+   "flags": [
+    "withdraws every non-cancelled stage (841 if proposal exists) and marks proposals withdrawn"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/event_groups_controller.rb:70-73; app/services/event_groups/update_service.rb:58-59,316-344"
+  },
+  {
+   "action": "invite / remove vendor (audience) on live or draft stage",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/trade_request_policy.rb#add_audience_live_auction? (private allowed_to_view_event?)",
+   "permission": "trade:read_record + trade_request.is_allowed_to_view?(user)",
+   "flags": [
+    "config is_user_allowed_to_modify_audience (nil = allowed; false = only super admin) else 685",
+    "cannot remove a vendor who already responded/bid -> 512"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/v1/trade_controller.rb:28-74; app/policies/trade_request_policy.rb:125-127,222-224; app/models/model_helpers/trade_request_model_helper.rb:936-941; config/locales/en-IN.yml:2071-2073,1802-1804"
+  },
+  {
+   "action": "submit bid (vendor)",
+   "actors": [
+    "vendor"
+   ],
+   "policy": "app/policies/bid_policy.rb#create_bid? (always true)",
+   "permission": "none enforced by policy (non-client users pass is_allowed_to_perform_action? anyway)",
+   "flags": [
+    "must be in audience (v1: 782)",
+    "can_place_bid_for_company else 101",
+    "not in misc.not_allow_rebidding_to_sellers else 101",
+    "is_rfq_changes_restricted (auction created from RFQ) -> 769",
+    "time window -> 33",
+    "lock_quote_after_submission -> 875",
+    "must have responded to technical RFP stage (check_participation_in_technical_and_commercial_stage)"
+   ],
+   "refusalCode": 33,
+   "cite": "app/policies/bid_policy.rb:17-19; app/controllers/api/bids_controller.rb:33-51; app/controllers/api/v1/bids_controller.rb:11-25; app/helpers/api/v1/bids_controller_helper.rb:7-38; app/models/user.rb:678-691"
+  },
+  {
+   "action": "surrogate bid (buyer bids for vendor)",
+   "actors": [
+    "surrogate"
+   ],
+   "policy": "app/policies/bid_policy.rb#create_bid? (always true); real gate bids_controller_helper#is_surrogate_bidding_and_is_allowed?",
+   "permission": "approval flows list: approval_flows:read_record (BidPolicy#approval_workflows_for_surrogate_bid_create?)",
+   "flags": [
+    "is_buyer_not_allowed_to_add_surrogate_bid -> 10",
+    "must be super admin / event owner / valid team -> 165",
+    "staggered events: only surrogate via legacy API else 508",
+    "allowed before start and (with is_allowed_to_add_surrogate_bid_post_expiry) after expiry",
+    "v1 API: surrogate only when counter-offer modification applies else 33"
+   ],
+   "refusalCode": 165,
+   "cite": "app/controllers/concerns/bids_controller_helper.rb:2130-2141; app/controllers/api/bids_controller.rb:47-50,87-101,419-431; app/policies/bid_policy.rb:49-51; app/helpers/api/v1/bids_controller_helper.rb:9-12; config/locales/en-IN.yml:1141-1143,1348-1350"
+  },
+  {
+   "action": "evaluate (score a vendor response)",
+   "actors": [
+    "evaluator"
+   ],
+   "policy": "NONE (no Pundit authorize in Api::EvaluationsController#create); gate = Evaluations::ValidateService#allowed_to_evaluate_participant?",
+   "permission": "AccessList access_type evaluator on stage / line-item mapping / form",
+   "flags": [
+    "stage must be active RFI/RFP of Current.workspace and past bid end (33)",
+    "vendor must have an active template response",
+    "RFP line-item form: mapping not already evaluated",
+    "score must be key of evaluation score-label mapping (2)"
+   ],
+   "refusalCode": 101,
+   "cite": "app/controllers/api/evaluations_controller.rb:13-37; app/services/evaluations/validate_service.rb:30-35,77-100"
+  },
+  {
+   "action": "submit evaluations (creates award proposal)",
+   "actors": [
+    "evaluator"
+   ],
+   "policy": "NONE (controller check Current.allowed_companies includes stage company)",
+   "permission": "-",
+   "flags": [
+    "evaluating-team designation -> evaluations go to peer_review, no proposal",
+    "section-wise scoring flag",
+    "proposal status draft if approval flow else selected (known)"
+   ],
+   "refusalCode": 101,
+   "cite": "app/controllers/api/evaluations_controller.rb:40-104"
+  },
+  {
+   "action": "create award proposal",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/event_group_policy.rb#create_proposal? (= update?)",
+   "permission": "trade:create_record + company in allowed companies",
+   "flags": [
+    "is_order_allowed_to_close_in_extra_closing_time_only -> only in evaluation window else 720",
+    "one live proposal per project/lot -> 573",
+    "project must be latest version -> 101"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/proposal_controller.rb:45-56; app/policies/event_group_policy.rb:68-70; app/helpers/api/proposal_helper.rb:21-31"
+  },
+  {
+   "action": "fill / submit award proposal",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "app/policies/proposal_policy.rb#add_response? / #submit?",
+   "permission": "none (company_id in Company.allowed_companies(user); Procol employee bypass)",
+   "flags": [
+    "only the proposal's creator (created_by_user_id) can add responses/submit (721 / 2)",
+    "budget integration, revised bids -> 1126",
+    "approval flow (close_event_group key) -> pending approval + submission window cut to now"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/proposal_controller.rb:58-67,79-103; app/policies/proposal_policy.rb:18-31; app/helpers/api/proposal_helper.rb:107-196"
+  },
+  {
+   "action": "approve / reject proposal (or any approval request)",
+   "actors": [
+    "approver"
+   ],
+   "policy": "No Pundit call in resolve_approval; ApprovalWorkflow::ApprovalRequestPolicy#update?/index? only check workspace approval flow version v2",
+   "permission": "-",
+   "flags": [
+    "approver row must match user's approver identifiers (u-, t-#r-, c-#ur-) unless role in allowed_user_roles_to_force_resolve_approval_requests",
+    "approver must be pending"
+   ],
+   "refusalCode": "unverified (non-matching approver returns nil; error path not traced)",
+   "cite": "app/controllers/api/approval_workflow/approval_requests_controller.rb:132-151; app/policies/approval_workflow/approval_request_policy.rb:3-25; app/controllers/concerns/approval_workflow_controller_helpers/approval_request_controller_helper.rb:123-140; app/models/approval_workflow/is_approver_methods.rb:23-30"
+  },
+  {
+   "action": "view a bid",
+   "actors": [
+    "buyer",
+    "vendor"
+   ],
+   "policy": "app/policies/trade_request_policy.rb#bids_controller_show? (= show?)",
+   "permission": "trade:read_record",
+   "flags": [
+    "User#can_view_bid?: bid owner, buyer workspace, bid's company, or same-GST/broker vendor else 32"
+   ],
+   "refusalCode": 455,
+   "cite": "app/controllers/api/bids_controller.rb:148-156; app/policies/trade_request_policy.rb:40-42,163-165; app/models/user.rb:711-728"
+  },
+  {
+   "action": "bid masking / sealed bids (who sees bids while live)",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "model rule TradeRequest#event_masking_enabled?(user)",
+   "permission": "-",
+   "flags": [
+    "event_masking_on_auctions / event_masking_on_rfqs (masked while upcoming/running except super admin or shared owner, and not in best-offer time)",
+    "closed_envelope_bidding_for_auctions / _for_rfqs (masked for everyone in buyer company while upcoming/running; settable per event only if company config enable_bid_masking_for_event)",
+    "auction team members never masked",
+    "lock_bid_by_default: bids locked until a finance user unlocks via OTP (RFQ/auction only); extension resets visibility to none",
+    "should_restrict_unlock_bid_before_evaluation -> 790",
+    "is_vendor_masking_enabled: hide vendor names while upcoming/running"
+   ],
+   "refusalCode": null,
+   "cite": "app/models/model_helpers/trade_request_model_helper.rb:236-284,967-969,1223-1230,1487-1489; app/controllers/concerns/trade_controller_helper.rb:3330-3335; app/controllers/api/v1/trade_controller.rb:1246-1293; app/controllers/api/trade_controller.rb:678-680"
+  },
+  {
+   "action": "close / select bid (legacy award)",
+   "actors": [
+    "buyer"
+   ],
+   "policy": "trade_controller_helper#is_allowed_to_close_bid (helper, not Pundit)",
+   "permission": "event owner, or super admin on a team event",
+   "flags": [
+    "is_order_allowed_to_close_in_extra_closing_time_only",
+    "allow_bid_selection_for_unverified_vendor",
+    "blacklisted vendor never"
+   ],
+   "refusalCode": "unverified",
+   "cite": "app/controllers/concerns/trade_controller_helper.rb:3222-3237"
+  }
+ ],
+ "other": [
+  {
+   "fact": "Any Pundit refusal (policy method false) is rescued and rendered as error 455 'You are not authorized to perform this action' with HTTP 422.",
+   "cite": "app/controllers/concerns/api_auth.rb:16,117-119; config/locales/en-IN.yml:1634-1636"
+  },
+  {
+   "fact": "is_allowed_to_perform_action? returns true for any user none of whose companies is category 'client' (i.e. vendors/brokers skip module·operation checks entirely), then true for super_admin / Procol employee, else scans company-level then team-level permission modules for {name, operation}.",
+   "cite": "app/models/user.rb:896-920"
+  },
+  {
+   "fact": "Resolved permissions are cached 12 hours per (company, users.role), per (company, team_type, team role) and per user — permission changes can take up to 12 h to apply unless cache is cleared.",
+   "cite": "app/helpers/api/team_permissions_helper.rb:14-17,36-43"
+  },
+  {
+   "fact": "Approver identifiers mix both role enums: 't-<team_id>#r-<team_members.role name>' and 'c-<client_company_id>#ur-<users.role name>'.",
+   "cite": "app/models/user.rb:730-732; app/models/access_list.rb:37"
+  },
+  {
+   "fact": "Most write endpoints refuse with 101 when the project isn't the latest version (event_group.latest?) — amendments create new versions.",
+   "cite": "app/controllers/api/trade_controller.rb:403; app/controllers/api/v1/bids_controller.rb:18,50; app/controllers/api/proposal_controller.rb:51; app/controllers/api/event_groups_controller.rb:79"
+  },
+  {
+   "fact": "trade_requests.status enum: in_active 0, active 1, closed 2, scheduled 3, void 4, withdrawn 5, requested 6, draft 7, cancelled 8. rfx_mode: auction 0, rfq 1, rfq_then_auction 2, offline_trade 3, rfi 4, rfp 5. current_status: auctioning 0, rfqing 1, offline_trading 2. No code path found that sets a trade_request to 'scheduled' (only approvers/delegations use scheduled).",
+   "cite": "app/models/trade_request.rb:162-165"
+  },
+  {
+   "fact": "Evaluations controller only finds stages with status active; RFI/RFP stages are NOT auto-closed by MarkEventClosedWorker (it returns early for RFI/RFP), so evaluation stays possible after closed_at until something else sets status closed. Which path closes RFPs in general is UNVERIFIED; one path found: lot stages with no active line items are closed in EventGroups::UpdateService#close_trade_requests_without_active_eglis.",
+   "cite": "app/controllers/api/evaluations_controller.rb:14,41; app/models/trade_request.rb:358-361; app/services/event_groups/update_service.rb:504-523"
+  },
+  {
+   "fact": "Evaluation create/submit and proposal submit use 3-second cache locks per user; concurrent duplicates get 516 'Transaction in Progress'.",
+   "cite": "app/controllers/api/evaluations_controller.rb:7-11,113-137; config/locales/en-IN.yml:1814-1816"
+  },
+  {
+   "fact": "RFP evaluation start: TradeSchedule after_save queues NotifyPlannersOnEvaluationStartWorker at the evaluation schedule's start_time; best-offer windows queue vendor reminders at 50% and 75% of their duration.",
+   "cite": "app/models/trade_schedule.rb:85-90,121-136"
+  }
+ ]
+}
