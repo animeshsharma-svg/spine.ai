@@ -136,10 +136,16 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
   const deadline = opts.tier === "reason" || opts.tier === "long"
     ? Number(process.env.SLINGRING_SLOW_TIMEOUT_MS ?? 90_000)
     : Number(process.env.SLINGRING_FAST_TIMEOUT_MS ?? 4_000);
+  // The gateway's HACK26 GPT models are reasoning models that refuse ANY
+  // `temperature` ("Unsupported parameter: 'temperature' is not supported with
+  // this model", HTTP 400 — verified 2026-10-01 for LUNA and ASTRA). Sending it
+  // made every Slingring call fail and fall silently to Groq. Leave it out
+  // unless an environment says its models accept it.
+  const sendTemperature = process.env.SLINGRING_SEND_TEMPERATURE === "1";
   const body = JSON.stringify({
     model,
     messages,
-    temperature: opts.temperature ?? 0.3,
+    ...(sendTemperature ? { temperature: opts.temperature ?? 0.3 } : {}),
     max_tokens: (opts.maxTokens ?? 900) + REASONING_ALLOWANCE,
   });
   for (let attempt = 0; attempt < 2; attempt++) {

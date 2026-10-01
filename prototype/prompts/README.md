@@ -105,3 +105,32 @@ Reads `GROQ_API_KEY` from `.env` (same as the other scripts under
 between calls to stay under the free Groq tier's rate limit, retries on a
 429, prints a summary table, and exits non-zero if overall accuracy drops
 below `EVAL_MIN_ACCURACY` (default `0.85`).
+
+---
+
+# Matching corpus (`matching.jsonl`)
+
+A second, separate evaluation set — for `matchTestCase()` in
+`src/checks/caseMatcher.ts`, the step that decides whether a test case typed
+into the assistant (`/api/assistant`) is one the catalog already has.
+
+One JSON object per line:
+
+```json
+{"id":"m002","typed":"event ko bina title ke publish karo, error aana chahiye","expect":{"relation":"same","match":["UI-CRE-017","API-NPUBLISH-001"]},"target":"UI-CRE-017","style":"hinglish","split":"dev","why":"…"}
+```
+
+- `expect.relation` — `same` (the ids in `match` cover it; any one marked SAME
+  is a hit), `new` (nothing in the catalog covers it; verified by keyword
+  search), or `partial` (an existing case plus one extra expectation nothing
+  checks; the ids should come back as PARTIAL, not SAME).
+- `style` — paraphrase · typo · hinglish · partial-description · question · new · partial.
+- `split` — thresholds in `caseMatcher.ts` (`THRESHOLDS`) were tuned on `dev`
+  only (`--tune`); `test` is reported separately.
+- Labels were corrected once after review where the matcher found a genuine
+  duplicate the label had missed; each such row says so in `why`.
+
+Run: `npx tsx scripts/eval-matcher.ts` (rules only, cached features),
+`--llm` (rules + fast-tier confirmation), `--tune` (grid search on dev),
+`--rescore prompts/last-matcher-eval-llm.json` (re-score saved answers, no calls).
+Results land in `last-matcher-eval.json` / `last-matcher-eval-llm.json`.
