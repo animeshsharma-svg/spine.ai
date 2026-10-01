@@ -5,7 +5,16 @@ import { journeyPlan, journeyWalksFeature } from "../checks/journeyModel.js";
 import { getRun, listRuns, type RunRecord } from "../runStore.js";
 import type { CheckResult } from "../ai/types.js";
 import { isTemplate, toCurl, TOKEN_VAR } from "./curl.js";
-import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
+import { PAGE_CSS, TEST_CASE_CSS, escapeHtml, humanText, renderDetailRows, renderTestCase, stamp, trackScript } from "./shared.js";
+import {
+  displayCase,
+  displayLibraryCase,
+  displayResult,
+  plain,
+  scrubIds,
+  type CaseDisplay,
+  type ResultRow,
+} from "../checks/caseDisplay.js";
 import { VBU_CSS, renderBugsSection, renderEvidence, renderQaDocSection } from "./vbuReport.js";
 import {
   JOURNEY_CSS,
@@ -46,6 +55,8 @@ import {
  */
 
 type Verdict = "pass" | "fail" | "inconclusive" | "notrun";
+
+const cap = (text: string): string => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
 
 export interface CaseRow {
   test: TestCaseRecord;
@@ -97,30 +108,40 @@ function skipInWords(reason: string | undefined): string {
   if (!reason) return "this run never got to it";
   const placeholders = reason.match(/unresolved placeholder\(s\):\s*(.+)/i);
   if (placeholders) {
-    return `needs something this run did not have — ${placeholders[1].trim()}`;
+    return `needs ${recordsInWords(placeholders[1])}, which this run did not have`;
   }
   // The deferred path words it differently: the case waited for a record that
   // an earlier case was supposed to create, and none did.
   const deferred = reason.match(/needs ([\w, ]+?), which no case in this run produced/i);
   if (deferred) {
-    return `waited for ${deferred[1].trim()} — nothing in this run created one`;
+    return `waited for ${recordsInWords(deferred[1])} — nothing in this run created one`;
   }
   const flagOff = reason.match(/"([^"]+)" is OFF for (.+?) —/);
   if (flagOff) {
-    return `“${flagOff[1]}” is switched off for ${flagOff[2]}, so there is nothing to check`;
+    return `“${plain(flagOff[1])}” is switched off for ${plain(flagOff[2])}, so there is nothing to check`;
   }
   const needsRole = reason.match(/needs (.+?); this run is authenticated as "([^"]+)"/);
   if (needsRole) {
-    return `needs ${needsRole[1]} — this run signed in as ${needsRole[2]}`;
+    return `needs ${plain(needsRole[1])} — this run signed in as ${plain(needsRole[2])}`;
   }
   if (/only holds when "([^"]+)" is ON/.test(reason)) {
     const flag = reason.match(/only holds when "([^"]+)" is ON/)?.[1];
-    return `only applies when “${flag}” is switched on, and it is off here`;
+    return `only applies when “${plain(flag)}” is switched on, and it is off here`;
   }
   if (/not on the allowlist/i.test(reason)) {
-    return "the platform is not allowed to call that endpoint";
+    return "the platform is not allowed to make this request yet";
   }
-  return reason;
+  return humanText(plain(reason));
+}
+
+/** "tradeId, bidUuid" → "a live stage and a bid that has been placed" — the machinery's names, in words. */
+function recordsInWords(names: string): string {
+  const list = names
+    .split(",")
+    .map((n) => n.trim())
+    .filter(Boolean)
+    .map((n) => PREREQUISITE[n]?.what ?? `a ${plain(n.replace(/(Uuid|Id)$/, "")).toLowerCase() || "record"}`);
+  return list.length > 1 ? `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}` : list[0] ?? "a record";
 }
 
 /**
@@ -162,8 +183,8 @@ function howToRunIt(reason: string | undefined, test: TestCaseRecord, hasRun: bo
     // No reason means nobody skipped it — either nothing has run at all, or
     // the run ended before reaching it. Those need different answers.
     return hasRun
-      ? `This run was in scope for it but stopped before firing it. Run ${test.feature} again on its own; if it keeps stopping short, the run is ending early.`
-      : `No run on record yet. Tick ${test.feature} under API automation and press Run selected tests.`;
+      ? `This run was in scope for it but stopped before firing it. Run “${labelOfFeature(test.feature)}” again on its own; if it keeps stopping short, the run is ending early.`
+      : `No run on record yet. Tick “${labelOfFeature(test.feature)}” under API automation and press Run selected tests.`;
   }
   const placeholders =
     reason.match(/unresolved placeholder\(s\):\s*(.+)/i) ??
@@ -172,7 +193,7 @@ function howToRunIt(reason: string | undefined, test: TestCaseRecord, hasRun: bo
     const names = placeholders[1].split(",").map((n) => n.trim()).filter(Boolean);
     const known = names.filter((n) => PREREQUISITE[n]);
     if (!known.length) {
-      return `This run had no ${names.join(" or ")} to use. Run the feature that creates one first, in the same run.`;
+      return `This run had no ${recordsInWords(names.join(","))} to use. Run the feature that creates one first, in the same run.`;
     }
     // One run creates records the later cases reuse, so ordering the selection
     // is usually the whole fix.
@@ -182,20 +203,20 @@ function howToRunIt(reason: string | undefined, test: TestCaseRecord, hasRun: bo
   }
   const flagOff = reason.match(/"([^"]+)" is OFF for/);
   if (flagOff) {
-    return `Switch “${flagOff[1]}” on for this company, or run this case against a client that already has it on. Until then there is nothing to test — this is not a failure.`;
+    return `Switch “${plain(flagOff[1])}” on for this company, or run this case against a client that already has it on. Until then there is nothing to test — this is not a failure.`;
   }
   if (/only holds when "([^"]+)" is ON/.test(reason)) {
     const flag = reason.match(/only holds when "([^"]+)" is ON/)?.[1];
-    return `This case only describes behaviour that exists when “${flag}” is on. Run it against a client where it is.`;
+    return `This case only describes behaviour that exists when “${plain(flag)}” is on. Run it against a client where it is.`;
   }
   const needsRole = reason.match(/needs (.+?); this run is authenticated as "([^"]+)"/);
   if (needsRole) {
-    return `Re-run signed in as ${needsRole[1]}. Run as ${needsRole[2]} it would prove nothing — the wrong actor is allowed to do this.`;
+    return `Re-run signed in as ${plain(needsRole[1])}. Run as ${plain(needsRole[2])} it would prove nothing — the wrong actor is allowed to do this.`;
   }
   if (/not on the allowlist/i.test(reason)) {
-    return `${test.method} ${test.path} is not on the runner's allowlist, so it cannot be fired from here. Check it by hand, or add the endpoint in src/checks/dynamicChecks.ts if it is safe to automate.`;
+    return "The platform is not allowed to make this request yet, so it cannot be run from here. Check it by hand, or ask for the request to be added to the platform's safe list (the technical details name it).";
   }
-  return `Resolve: ${reason}`;
+  return `Clear this first: ${humanText(plain(reason))}.`;
 }
 
 function statusInWords(status: number | null | undefined): string {
@@ -475,6 +496,17 @@ function documentsASuccess(test: TestCaseRecord): boolean {
   return /^(200|201)\b/.test(doc) || /\b20[01] with\b/.test(doc) || /^Created\b/i.test(doc);
 }
 
+/**
+ * One library case as a human test case.
+ *
+ * The summary line is what a reader scans: the verdict, the title in words,
+ * its type and priority, the area of Procol, and one sentence on what
+ * happened. Opened, it is the test case as a QA engineer writes one —
+ * preconditions, numbered steps, expected, actual, verdict and why — with
+ * the id, the request, the body, the status, the error code and the curl in a
+ * single "Technical details" fold, closed until someone wants it. The words
+ * come from `caseDisplay.ts`, the one display model every surface shares.
+ */
 function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean): string {
   const pill = VERDICT_PILL[row.verdict];
   const result = row.result;
@@ -482,29 +514,35 @@ function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean)
   // labelled as a template, because a curl with {{placeholders}} will not run.
   const request = result?.request ?? { method: row.test.method, path: row.test.path, body: row.test.body };
   const template = !result?.request && isTemplate(request);
-
-  const status =
-    row.verdict === "notrun"
-      ? "—"
-      : result?.httpStatus === null || result?.httpStatus === undefined
-        ? "no reply"
-        : `${result.httpStatus} · ${statusInWords(result.httpStatus)}`;
-
-  /**
-   * What happened, in a sentence a non-developer can read.
-   *
-   * The engine's own verdict is written for someone who knows the codes
-   * ("ACCEPTED input that should have been rejected (HTTP 200)"). Said plainly
-   * it is "the app accepted something it should have refused" — the technical
-   * wording is still there when the row is opened.
-   */
-  // Vendor bulk upload cases are judged on what each staged ROW became, not
-  // on the HTTP reply (which is 200 for every sheet the parser can read), so
-  // the accept/refuse wording below would describe the wrong thing.
   const bulk = row.test.bulk && row.test.bulk.kind !== "http";
+
+  const base = result
+    ? displayResult({ ...(result as unknown as ResultRow), id: row.test.id })
+    : displayCase(row.test.id) ?? displayLibraryCase(row.test);
+  const d: CaseDisplay = { ...base };
+  if (!result) {
+    d.verdict = "Not run";
+    d.actual = "Not run in this run.";
+    d.reason = cap(skipInWords(row.skipReason)) + ".";
+  } else if (row.verdict === "inconclusive") {
+    d.reason = cap(scrubIds(plain(inconclusiveInWords(row)))) + ".";
+  } else if (bulk) {
+    // Vendor bulk upload cases are judged on what each staged ROW became, not
+    // on the HTTP reply (200 for every sheet the parser can read).
+    d.reason =
+      row.verdict === "pass"
+        ? "Every row came out as the case documents."
+        : (result as { asyncServerError?: boolean }).asyncServerError
+          ? "A row crashed the background job that processes the sheet — that is always a bug."
+          : (result.httpStatus ?? 0) >= 500
+            ? "The app broke with a server error — that is always a bug."
+            : "The rows came out differently from what the case documents.";
+  }
+
+  /** The short "what happened" line on the closed row. */
   const outcome =
     row.verdict === "notrun"
-      ? skipInWords(row.skipReason)
+      ? cap(skipInWords(row.skipReason))
       : bulk && row.verdict !== "inconclusive"
         ? row.verdict === "pass"
           ? "Came out as documented"
@@ -513,128 +551,74 @@ function renderRow(row: CaseRow, companyId: number | undefined, hasRun: boolean)
             : (result?.httpStatus ?? 0) >= 500
               ? "The server broke on it"
               : "Came out differently from the documented result"
-      : row.verdict === "pass"
-        ? row.test.expected === "reject"
-          ? "Refused it, as it should"
-          : row.test.expected === "no-5xx"
-            ? "Handled it without breaking"
-            : "Worked, as it should"
-        : row.verdict === "inconclusive"
-          ? inconclusiveInWords(row)
-          : result?.accepted
-            ? "Accepted something it should have refused"
-            : (result?.httpStatus ?? 0) >= 500
-              ? "The server broke on it"
-              : "Refused something it should have accepted";
+        : row.verdict === "pass"
+          ? row.test.expected === "reject"
+            ? "Refused it, as it should"
+            : row.test.expected === "no-5xx"
+              ? "Handled it without breaking"
+              : "Worked, as it should"
+          : row.verdict === "inconclusive"
+            ? "Proved nothing either way — open for why"
+            : result?.accepted
+              ? "Accepted something it should have refused"
+              : (result?.httpStatus ?? 0) >= 500
+                ? "The server broke on it"
+                : "Refused something it should have accepted";
+
+  // Why this row's verdict is weaker than the outcome it documents, in
+  // priority order: the case's own reason, the runner's downgrade, then a
+  // documented success checked only for "did not crash".
+  const weak = row.test.weakReason
+    ? plain(row.test.weakReason)
+    : (result as { weakenedTo5xxOnly?: string } | undefined)?.weakenedTo5xxOnly
+      ? plain((result as { weakenedTo5xxOnly?: string }).weakenedTo5xxOnly)
+      : documentsASuccess(row.test)
+        ? "This case describes a specific success, but it only checks that the app did not crash. Any answer short of a server error passes it, so a pass here does not prove the result above happened."
+        : "";
+  const notes = [
+    weak ? `<p class="weakened"><b>Not fully checked.</b> ${escapeHtml(cap(humanText(weak)))}</p>` : "",
+    row.verdict === "notrun"
+      ? `<div class="todo"><h5>To make this one run</h5><p>${escapeHtml(howToRunIt(row.skipReason, row.test, hasRun))}</p></div>`
+      : "",
+    result?.knownBug
+      ? `<p class="${/fixed|closed/i.test(result.knownBug.status) ? "known-fixed" : "known-open"}"><b>${
+          /fixed|closed/i.test(result.knownBug.status) ? "Known bug, now confirmed fixed." : "Known bug."
+        }</b> ${escapeHtml(knownBugSentence(result.knownBug))} “${escapeHtml(plain(result.knownBug.title))}”</p>`
+      : row.verdict === "fail"
+        ? `<p class="known-new"><b>New.</b> Not on any of the team's bug sheets yet.</p>`
+        : "",
+  ].join("");
+
+  const tech = `
+    ${row.skipReason ? renderDetailRows([{ label: "Why it did not run, as recorded", value: row.skipReason }]) : ""}
+    <div class="curl-body">
+      <p class="pre">${template ? "The request we would send (values fill in when it runs):" : "Run this exact call yourself:"}</p>
+      <button class="copy" type="button" data-copy="curl-${escapeHtml(row.test.id)}">Copy curl</button>
+      <pre id="curl-${escapeHtml(row.test.id)}">${escapeHtml(toCurl(request, companyId))}</pre>
+    </div>
+    ${renderEvidence(result, row.test)}`;
 
   // The module the case belongs to travels with the row, because a row nested
   // under a journey step is no longer inside its module's section and the
   // module filter still has to find it.
-  const moduleLabel = groupOfFeature(row.test.feature)?.label ?? row.test.feature.split(".")[0];
+  const moduleLabel = groupOfFeature(row.test.feature)?.label ?? labelOfFeature(row.test.feature);
 
   return `
 <details class="case v-${row.verdict}" id="case-${escapeHtml(row.test.id)}" data-verdict="${row.verdict}" data-feature="${escapeHtml(row.test.feature)}"
          data-module="${escapeHtml(moduleLabel)}"
-         data-search="${escapeHtml(`${row.test.id} ${row.test.title} ${row.test.feature} ${request.path}`.toLowerCase())}">
+         data-search="${escapeHtml(`${row.test.id} ${d.title} ${row.test.title} ${d.area} ${row.test.feature} ${request.path}`.toLowerCase())}">
   <summary>
     <span class="col-verdict"><span class="pill ${pill.cls}">${escapeHtml(pill.label)}</span></span>
-    <span class="col-id">${escapeHtml(row.test.id)}</span>
-    <span class="col-title">${escapeHtml(row.test.title.replace(/^QA_Platform_/, ""))}
-      <span class="col-tags"><span class="tag t-${escapeHtml(row.test.type.toLowerCase())}">${escapeHtml(
-        row.test.type,
-      )}</span> <span class="tag">${escapeHtml(row.test.priority)}</span></span>
+    <span class="col-title">${escapeHtml(humanText(d.title))}
+      <span class="col-tags">${d.type ? `<span class="tag t-${escapeHtml(d.type.toLowerCase())}">${escapeHtml(d.type)}</span>` : ""}${
+        d.priority ? ` <span class="tag">${escapeHtml(d.priority)}</span>` : ""
+      }</span>
     </span>
-    <span class="col-call"><code>${escapeHtml(request.method)} ${escapeHtml(
-      request.path.split("?")[0],
-    )}</code></span>
-    <span class="col-status">${escapeHtml(status)}</span>
+    <span class="col-area">${escapeHtml(humanText(d.area))}</span>
     <span class="col-outcome">${escapeHtml(outcome)}</span>
   </summary>
   <div class="case-body">
-    <div class="panes">
-      <div>
-        <h5>What should happen</h5>
-        <p class="expect">${bulk ? "The sheet's rows should come out <strong>as documented</strong>" : `The app should <strong>${
-          row.test.expected === "reject"
-            ? "refuse this"
-            : row.test.expected === "no-5xx"
-              ? "cope with this without breaking"
-              : "accept this"
-        }</strong>`}. ${escapeHtml(row.test.expectedResult)}</p>
-        ${
-          // Why this row's verdict is weaker than the outcome it documents, in
-          // priority order: the case's own reason (written when the library was
-          // built, and the most specific — it names the change that is missing
-          // from the request), the runner's downgrade, then the generic case of
-          // a documented success checked only for "did not crash".
-          row.test.weakReason
-            ? `<p class="weakened"><b>Not fully checked.</b> ${escapeHtml(row.test.weakReason)}</p>`
-            : (row.result as { weakenedTo5xxOnly?: string } | undefined)?.weakenedTo5xxOnly
-              ? `<p class="weakened"><b>Not fully checked.</b> ${escapeHtml(
-                  (row.result as { weakenedTo5xxOnly?: string }).weakenedTo5xxOnly!,
-                )}</p>`
-              : documentsASuccess(row.test)
-                ? `<p class="weakened"><b>Not fully checked.</b> This case describes a specific success, but it is
-                   typed <code>${escapeHtml(row.test.type)}</code>, which only asserts that the server did not
-                   crash. Any status below 500 passes it — so a pass here does not mean the result above
-                   happened. To check that, the case needs to assert the success it documents.</p>`
-                : ""
-        }
-        ${
-          row.test.steps?.length
-            ? `<h5>How the test goes</h5><ol class="steps">${row.test.steps
-                .map((st) => `<li>${escapeHtml(st.replace(/^\d+\.\s*/, ""))}</li>`)
-                .join("")}</ol>`
-            : ""
-        }
-        ${
-          row.test.preconditions
-            ? `<h5>Only meaningful if</h5><p class="pre">${escapeHtml(row.test.preconditions)}</p>`
-            : ""
-        }
-      </div>
-      <div>
-        <h5>What actually happened</h5>
-        <p class="${row.verdict === "fail" ? "said-bad" : "said"}">${escapeHtml(
-          result?.verdict ?? skipInWords(row.skipReason),
-        )}</p>
-        ${
-          row.verdict === "notrun"
-            ? `<div class="todo"><h5>To make this one run</h5><p>${escapeHtml(
-                howToRunIt(row.skipReason, row.test, hasRun),
-              )}</p></div>`
-            : ""
-        }
-        ${
-          !result && row.skipReason && skipInWords(row.skipReason) !== row.skipReason
-            ? `<p class="pre">In the machinery's own words: ${escapeHtml(row.skipReason)}</p>`
-            : ""
-        }
-        ${result?.message ? `<p class="apisaid"><span>The app said:</span> ${escapeHtml(result.message)}</p>` : ""}
-        ${
-          result?.knownBug
-            ? `<p class="${/fixed|closed/i.test(result.knownBug.status) ? "known-fixed" : "known-open"}"><b>${
-                /fixed|closed/i.test(result.knownBug.status) ? "Known bug, now confirmed fixed." : "Known bug."
-              }</b> ${escapeHtml(knownBugSentence(result.knownBug))} “${escapeHtml(result.knownBug.title)}”</p>`
-            : row.verdict === "fail"
-              ? `<p class="known-new"><b>New.</b> Not on any of the team's bug sheets yet.</p>`
-              : ""
-        }
-        ${result ? `<p class="took">${Math.round(result.durationMs)}ms</p>` : ""}
-        <details class="curl">
-          <summary>${
-            template
-              ? "The request we would send (values fill in when it runs)"
-              : "Run this exact call yourself"
-          }</summary>
-          <div class="curl-body">
-            <button class="copy" type="button" data-copy="curl-${escapeHtml(row.test.id)}">Copy curl</button>
-            <pre id="curl-${escapeHtml(row.test.id)}">${escapeHtml(toCurl(request, companyId))}</pre>
-          </div>
-        </details>
-      </div>
-    </div>
-    ${renderEvidence(result, row.test)}
+    ${renderTestCase(d, { notes, tech, trackId: row.test.id })}
   </div>
 </details>`;
 }
@@ -723,11 +707,9 @@ function renderSection(
 /** The column headings every case table opens with — the module sections' and the ones nested under journey steps. */
 const ROW_HEAD = `<div class="rowhead">
       <span class="col-verdict">Result</span>
-      <span class="col-id">Test</span>
-      <span class="col-title">What we checked</span>
-      <span class="col-call">Where we checked it</span>
-      <span class="col-status">The app replied</span>
-      <span class="col-outcome">What that means</span>
+      <span class="col-title">Test case</span>
+      <span class="col-area">Area</span>
+      <span class="col-outcome">What happened</span>
     </div>`;
 
 export interface TestReportInput {
@@ -800,7 +782,7 @@ export function renderTestReport({ features, run }: TestReportInput): string {
   const refusalBanner = allRefused
     ? `<p class="refused"><b>Nothing was tested in this run.</b> All ${attempted.length}
        attempted check${attempted.length === 1 ? "" : "s"} came back
-       <code>HTTP ${refused[0].result?.httpStatus}</code>${
+       “not allowed”${
          refused[0].result?.message ? ` — “${escapeHtml(refused[0].result.message)}”` : ""
        }: the request was refused before it reached Procol's logic. That is an access problem, not a
        product one — the account's token has expired or been revoked. Refresh it and run again; until
@@ -933,8 +915,14 @@ ${PAGE_CSS}
 .rows { margin: 12px 0 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--card); }
 .rowhead, details.case > summary {
   display: grid;
-  grid-template-columns: 104px 108px minmax(230px, 1.6fr) minmax(170px, 1fr) 52px minmax(180px, 1.3fr);
+  grid-template-columns: 104px minmax(260px, 2fr) minmax(150px, 1fr) minmax(200px, 1.4fr);
   gap: 12px; align-items: baseline; padding: 9px 14px;
+}
+@media (max-width: 760px) {
+  .rowhead { display: none; }
+  details.case > summary { grid-template-columns: 1fr; gap: 4px; padding: 10px 12px; }
+  .col-area { font-size: 11.5px; }
+  .case-body { padding: 4px 12px 14px; }
 }
 .rowhead { background: var(--hover); border-bottom: 1px solid var(--line); font-size: 10.5px; text-transform: uppercase;
   letter-spacing: .06em; color: var(--muted); font-weight: 600; }
@@ -949,11 +937,9 @@ details.case.v-fail { box-shadow: inset 3px 0 0 #c5221f; }
 details.case.v-pass { box-shadow: inset 3px 0 0 #34a853; }
 details.case.v-inconclusive { box-shadow: inset 3px 0 0 #f9ab00; }
 details.case.v-notrun { box-shadow: inset 3px 0 0 #cfd4d9; }
-.col-id { font: 600 11px ui-monospace, Menlo, monospace; color: var(--muted); }
 .col-title { font-size: 13px; font-weight: 500; line-height: 1.4; }
 .col-tags { display: block; margin-top: 3px; }
-.col-call code { font-size: 11px; color: var(--ink-2); word-break: break-all; }
-.col-status { font: 600 12px ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.col-area { font-size: 12px; color: var(--ink-2); line-height: 1.4; }
 .col-outcome { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
 .tag { display: inline-block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
   padding: 1px 5px; border-radius: 3px; background: var(--code); color: var(--muted); }
@@ -998,6 +984,7 @@ button.copy { font: inherit; font-size: 11px; padding: 2px 8px; margin-bottom: 6
 .legend .pill { flex: 0 0 auto; }
 /* ── what wasn't checked: a worklist, ordered by how much it unblocks ── */
 .filters { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 10px 0; margin-bottom: 4px; }
+${TEST_CASE_CSS}
 ${JOURNEY_CSS}
 ${VBU_CSS}
 </style>
@@ -1005,9 +992,9 @@ ${VBU_CSS}
 <body>
 <div class="wrap">
   <h1>What we tested, and what happened</h1>
-  <p class="sub">${
+  <p class="sub"${run ? ` title="run ${escapeHtml(run.id)}"` : ""}>${
     run
-      ? `run ${escapeHtml(run.id)} · ${escapeHtml(run.companyName ?? String(run.companyId))} · ${escapeHtml(stamp(run.ts))}`
+      ? `Run of ${escapeHtml(stamp(run.ts))} · ${escapeHtml(run.companyName ?? "client " + String(run.companyId))}`
       : "no run on record yet — the case list below is what would run"
   }</p>
 
@@ -1243,6 +1230,7 @@ ${VBU_CSS}
   });
 })();
 </script>
+${trackScript(run?.companyId)}
 </body>
 </html>
 `;

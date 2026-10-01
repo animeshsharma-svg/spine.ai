@@ -46,6 +46,9 @@ const KNOWN_PLACEHOLDERS = new Set([
   // Filled from the journey: the technical (RFP) stage — {{tradeId}} is the
   // pricing stage when there is one — and the form assigned to the evaluator.
   "rfpTradeId", "evalFormUuid", "locationUuid",
+  // Also produced by the journey (eventJourney.ts `produced`), passed through as-is:
+  // the vendor's technical response and its form/page, the quoted line, the award flow.
+  "templateResponseUuid", "techFormUuid", "techPageUuid", "tradeProductUuid", "approvalFlowUuid",
   // Vendor bulk upload: the fixture's base64, loaded by the bulk runner.
   "vbuSheet",
 ]);

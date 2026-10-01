@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { UI_FLOWS } from "../ui/uiFlowRunner.js";
-import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
+import { PAGE_CSS, TEST_CASE_CSS, escapeHtml, flowKeyInWords, humanText, renderTestCase, stamp } from "./shared.js";
 
 /**
  * THE UI AUTOMATION REPORT — did the browser journey pass, and if it broke,
@@ -317,39 +317,49 @@ function renderFinding(f: UiFinding): string {
   <summary>
     <span class="pill ${kind.cls}">✕ Broke</span>
     <span class="pill p-muted">${escapeHtml(kind.label)}</span>
-    <span class="ctitle">${escapeHtml(flow?.label ?? f.flowKey)}</span>
+    <span class="ctitle">${escapeHtml(flow?.label ?? flowKeyInWords(f.flowKey))}</span>
     <span class="grow"></span>
-    <span class="meta">${escapeHtml(f.severity)}</span>
+    <span class="meta">${escapeHtml(({ critical: "P0 · critical", high: "P1 · high", medium: "P2 · medium", low: "P3 · low" } as Record<string, string>)[String(f.severity)] ?? f.severity)}</span>
     <span class="meta">${escapeHtml(stamp(f.createdAt))}</span>
   </summary>
   <div class="case-body">
-    <p class="verdict"><strong>${escapeHtml(f.title)}</strong><br>${escapeHtml(f.rationale)}</p>
-    <table class="kv">
-      <tr><th>Journey</th><td>${escapeHtml(flow?.label ?? f.flowKey)} <code>${escapeHtml(f.flowKey)}</code></td></tr>
-      ${ev.url ? `<tr><th>Last page</th><td><code>${escapeHtml(ev.url)}</code></td></tr>` : ""}
-      <tr><th>Whose problem</th><td>${escapeHtml(kind.label)} — for ${escapeHtml(kind.who)}</td></tr>
-      ${
-        (ev.httpFailures ?? []).length
-          ? `<tr><th>Failing requests</th><td>${(ev.httpFailures ?? [])
-              .map((h) => `<code>${escapeHtml(h.method)} ${escapeHtml(h.path)} → ${h.status}</code>`)
-              .join("<br>")}</td></tr>`
-          : ""
-      }
-      ${
-        (ev.toasts ?? []).length
-          ? `<tr><th>What the app said</th><td>${(ev.toasts ?? [])
-              .map((t) => `${escapeHtml(t.text)} <span class="meta">(${escapeHtml(t.severity)})</span>`)
-              .join("<br>")}</td></tr>`
-          : ""
-      }
-    </table>
+    ${renderTestCase(
+      {
+        ref: f.flowKey,
+        title: `${flow?.label ?? flowKeyInWords(f.flowKey)} — the whole journey in a real browser`,
+        area: `UI journey${flow?.group ? ` › ${flow.group}` : ""}`,
+        priority: { critical: "P0 · critical", high: "P1 · high", medium: "P2 · medium", low: "P3 · low" }[String(f.severity)] ?? "",
+        type: "Workflow",
+        preconditions: "Signed in to Procol as a buyer, in a real browser.",
+        steps: ["Open Procol and sign in", `Walk the “${flow?.label ?? flowKeyInWords(f.flowKey)}” journey to its last step`],
+        expected: "The journey reaches its last step and Procol shows each screen it expects.",
+        actual: humanText(f.title),
+        verdict: "Failed",
+        reason: `${humanText(f.rationale)} Whose problem: ${kind.label.toLowerCase()} — for ${kind.who}.`,
+        details: [
+          { label: "Journey", value: f.flowKey, kind: "code" },
+          { label: "Last page", value: ev.url ?? "", kind: "code" },
+          { label: "Failing requests", value: (ev.httpFailures ?? []).map((h) => `${h.method} ${h.path} → ${h.status}`).join("\n"), kind: "block" },
+          { label: "Finding as recorded", value: `${f.title}\n${f.rationale}`, kind: "block" },
+          { label: "Kind", value: f.kind, kind: "code" },
+        ],
+      },
+      {},
+    )}
+    ${
+      (ev.toasts ?? []).length
+        ? `<h5>What the app said</h5><p>${(ev.toasts ?? [])
+            .map((t) => `${escapeHtml(humanText(t.text))} <span class="meta">(${escapeHtml(t.severity)})</span>`)
+            .join("<br>")}</p>`
+        : ""
+    }
 
     <h5>Possible reasons</h5>
     <ol class="reasons">
       ${possibleReasons(f)
         .map(
           (r) =>
-            `<li><strong>${escapeHtml(r.cause)}</strong><span class="check">${escapeHtml(r.check)}</span></li>`,
+            `<li><strong>${escapeHtml(humanText(r.cause))}</strong><span class="check">${escapeHtml(humanText(r.check))}</span></li>`,
         )
         .join("")}
     </ol>
@@ -358,7 +368,7 @@ function renderFinding(f: UiFinding): string {
     ${
       shot
         ? `<a class="shot-link" href="/api/ui-shot?f=${encodeURIComponent(shot)}" target="_blank" rel="noopener">
-             <img class="shot" src="/api/ui-shot?f=${encodeURIComponent(shot)}" alt="the screen when ${escapeHtml(f.flowKey)} broke" loading="lazy">
+             <img class="shot" src="/api/ui-shot?f=${encodeURIComponent(shot)}" alt="the screen when ${escapeHtml(flow?.label ?? flowKeyInWords(f.flowKey))} broke" loading="lazy">
            </a>`
         : `<p class="none">No screenshot for this one — it predates screenshot capture, or the browser had already closed.
            Re-run the journey and the report will show the screen.</p>`
@@ -384,15 +394,25 @@ function renderPass(r: UiResult): string {
     <span class="meta">${escapeHtml(stamp(r.startedAt))}</span>
   </summary>
   <div class="case-body">
-    <p class="verdict">The browser did the whole journey and the app behaved. ${
-      r.covers ? escapeHtml(`It covers: ${r.covers}`) : ""
-    }</p>
-    <table class="kv">
-      <tr><th>Journey</th><td>${escapeHtml(flow?.label ?? r.title)} <code>${escapeHtml(r.flowKey)}</code></td></tr>
-      ${r.url ? `<tr><th>Finished on</th><td><code>${escapeHtml(r.url)}</code></td></tr>` : ""}
-      <tr><th>Account</th><td>${escapeHtml(String(r.companyId ?? "—"))}</td></tr>
-      <tr><th>Took</th><td>${escapeHtml(mins)}</td></tr>
-    </table>
+    ${renderTestCase({
+      ref: r.flowKey,
+      title: `${flow?.label ?? r.title} — the whole journey in a real browser`,
+      area: `UI journey${flow?.group ? ` › ${flow.group}` : ""}`,
+      priority: "",
+      type: "Workflow",
+      preconditions: `Signed in to Procol as a buyer${r.companyId ? ` of client ${r.companyId}` : ""}, in a real browser.`,
+      steps: ["Open Procol and sign in", `Walk the “${flow?.label ?? r.title}” journey to its last step`],
+      expected: `The journey reaches its last step and Procol behaves.${r.covers ? ` It covers: ${humanText(r.covers)}.` : ""}`,
+      actual: `The browser did the whole journey in ${mins}.`,
+      verdict: "Passed",
+      reason: "The browser did the whole journey and the app behaved.",
+      details: [
+        { label: "Journey", value: r.flowKey, kind: "code" },
+        { label: "Finished on", value: r.url ?? "", kind: "code" },
+        { label: "Client", value: String(r.companyId ?? ""), kind: "code" },
+        { label: "Run", value: String(r.runId ?? ""), kind: "code" },
+      ],
+    })}
     <h5>The screen it finished on</h5>
     ${
       shot
@@ -452,6 +472,7 @@ export function renderUiReport(findings: UiFinding[] = loadUiFindings()): string
 <title>spine.ai — UI automation</title>
 <style>
 ${PAGE_CSS}
+${TEST_CASE_CSS}
 .grow { flex: 1 1 auto; }
 .meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
 details.case { background: var(--card); border: 1px solid var(--line); border-radius: 9px; margin: 9px 0; }
@@ -533,7 +554,7 @@ img.shot { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; d
       .map(
         ([group, flows]) => `<div class="gname">${escapeHtml(group)}</div>
         <ul class="flowlist">${flows
-          .map((f) => `<li>${escapeHtml(f.label)} <span class="k">${escapeHtml(f.key)}</span></li>`)
+          .map((f) => `<li title="${escapeHtml(f.key)}">${escapeHtml(f.label)}</li>`)
           .join("")}</ul>`,
       )
       .join("")}

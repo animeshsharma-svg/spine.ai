@@ -38,6 +38,20 @@ export function resultRows(rec: RunRecord): Row[] {
     });
   }
   for (const s of rec.journey?.steps ?? []) {
+    // Every failed try the never-stuck engine moved past is its own result: a
+    // retry that worked must not erase the failure that made it necessary.
+    for (const a of s.attempts ?? []) {
+      rows.push({
+        kind: "journey-step",
+        case_id: `${s.kind}#try${a.attempt}`,
+        feature: rec.journey?.eventType ?? null,
+        title: `${s.title} (try ${a.attempt})`,
+        verdict: a.verdict,
+        http_status: a.status ?? null,
+        reason: a.reason?.slice(0, 2000) ?? null,
+        duration_ms: a.ms ?? null,
+      });
+    }
     rows.push({
       kind: "journey-step",
       case_id: s.kind,

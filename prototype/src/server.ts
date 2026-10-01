@@ -1177,6 +1177,10 @@ const server = createServer(async (req, res) => {
           const made = journey.made ?? {};
           // Ids only the journey makes (a bid, a proposal) are filled from it
           // either way; the second copy has no bids of its own.
+          // Every other id the journey produced (technical response, its form,
+          // the quoted line, the approval flow …) is available to the cases by its
+          // own name, unless the second copy already set it.
+          for (const [k, v] of Object.entries(made)) if (v && (caseCtx as any)[k] === undefined) (caseCtx as any)[k] = v;
           if (made.technicalTradeUuid) Object.assign(caseCtx, { rfpTradeId: made.technicalTradeUuid });
           if (made.evalFormUuid) Object.assign(caseCtx, { evalFormUuid: made.evalFormUuid });
           if (walked.forCases) {

@@ -349,6 +349,18 @@ const JOURNEYS: JourneyDef[] = [
     apiGroups: ["API-XVBU"],
     spine: ["download_vendor_template", "fill_vendor_sheet", "upload_vendor_sheet", "wait_for_vendor_job", "read_row_results", "download_error_sheet", "check_prospects_and_vendors"],
   },
+  {
+    // test-cases/ui-api-crosscheck.md — run by procol-ui-tests/tests/crosscheck.spec.ts,
+    // which compares each event screen with the API responses it was built from.
+    id: "ui-api-crosscheck",
+    title: "What the screen shows versus what the API sent",
+    persona: "Buyer (and vendor)",
+    goal: "Open an event's screens — list, details, each stage's responses and overview, Master QCS — and confirm every value the backend sent is shown, in the right place, with the same meaning.",
+    order: 31,
+    uiGroups: ["UI-XCHK"],
+    apiGroups: [],
+    spine: ["open_events_list", "open_event_details", "open_stage_responses", "open_stage_overview", "open_master_qcs", "compare_with_api"],
+  },
 ];
 
 /**

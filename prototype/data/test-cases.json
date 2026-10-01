@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T21:49:41.751Z",
+  "generatedAt": "2026-10-01T00:41:40.438Z",
   "cases": [
     {
       "id": "UI-ENV-001",
@@ -84686,16 +84686,16 @@
       "why": "The upload creates companies, users and invitations; CompanyPolicy#bulk_create_vendor? refuses sellers first. Run as one of our own QA test vendors (qa_…@example.com), never a real supplier.",
       "setup": "Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-041.xlsx`.",
       "steps": "1. Sign in as a QA test vendor of this workspace (vendor app, OTP rule of the sandbox) 2. POST a tripwired sheet",
-      "expected": "HTTP 401/403 not authorised; nothing staged.",
+      "expected": "Refused and nothing staged — HTTP 401 'This app is not authorized to use this API' (the vendor app may not call it at all) or 403/422 from the policy.",
       "recordsCurrentBehaviour": false,
       "oracle": "Refusal + no job rows for that user.",
       "priority": "P0",
       "verdict": "automate",
       "refs": [
         "VBU-041",
-        "app/policies/company_policy.rb:123-126"
+        "app/policies/company_policy.rb:123-126; config/app_auth_config.yml (bulk_create_vendor only in the console apps)"
       ],
-      "source": "P0 · automate · `VBU-041` · `app/policies/company_policy.rb:123-126`"
+      "source": "P0 · automate · `VBU-041` · `app/policies/company_policy.rb:123-126; config/app_auth_config.yml (bulk_create_vendor only in the console apps)`"
     },
     {
       "id": "API-XVBU-044",
@@ -84707,7 +84707,7 @@
       "why": "The policy's second condition. The runner only uses a member session after the dashboard configuration confirms it lacks company:create_record.",
       "setup": "Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-044.xlsx`.",
       "steps": "1. Use a workspace user whose permissions lack company:create_record 2. POST a tripwired sheet",
-      "expected": "HTTP 401/403 not authorised; nothing staged.",
+      "expected": "HTTP 422 'You are not authorized to perform this action' (or 401/403); nothing staged.",
       "recordsCurrentBehaviour": false,
       "oracle": "Refusal + no job rows for that user.",
       "priority": "P0",
@@ -84728,7 +84728,7 @@
       "why": "bulk_create_vendor_template never calls authorize, so anyone signed in to the console app gets the workspace's category codes and profile types.",
       "setup": "Data: creates nothing (every row stops in validation).",
       "steps": "1. As a user without company:create_record: GET /v1/bulk_create_vendor_template",
-      "expected": "Refused like the upload itself (401/403). Today: served.",
+      "expected": "Refused like the upload itself (401/403/422 not authorised). Today: served.",
       "recordsCurrentBehaviour": false,
       "oracle": "Status.",
       "priority": "P2",

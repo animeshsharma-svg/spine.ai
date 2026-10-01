@@ -1,0 +1,121 @@
+# spine.ai — offline checks on every push and pull request.
+#
+# What this does NOT do: call Procol. The UAT gateway and Procol's database are
+# private, so GitHub's machines cannot reach them, and no secret is stored in
+# this repository or in its GitHub settings. The live regression runs on the
+# owner's Mac instead (prototype/scripts/nightly.ts, docs/CI.md).
+#
+# Every step below is one check of `npm run ci:check` (prototype/scripts/ci-check.ts),
+# so the same thing can be run locally before pushing:  cd prototype && npm run ci:check
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Offline checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # A throwaway Postgres 17 with pgvector, for the migration check. It exists
+    # only for this job; its password is not a secret (nothing else can reach it).
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: spine_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d spine_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      CI: "true"
+      # Playwright and the browser tooling are dependencies, but no browser runs here.
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      CI_SPINE_DB_URL: postgres://postgres:postgres@localhost:5432/spine_ci
+      # Make sure nothing falls back to a real database or provider.
+      SPINE_DB_URL: ""
+
+    # Each check runs even when an earlier one failed, so one push shows every
+    # problem at once; the job fails if any of them did.
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Node 24: what the platform is developed and verified on. Stagehand
+      # needs at least 22.18.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            prototype/package-lock.json
+            procol test/package-lock.json
+
+      # --ignore-scripts: no third-party install script runs on the CI machine,
+      # and none is needed to type-check or test (verified locally).
+      - name: Install prototype dependencies
+        id: deps_prototype
+        working-directory: prototype
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install "procol test" dependencies
+        id: deps_procol_test
+        working-directory: procol test
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Type-check prototype
+        if: ${{ !cancelled() && steps.deps_prototype.outcome == 'success' && steps.deps_procol_test.outcome == 'success' }}
+        working-directory: prototype
+        run: npm run ci:check -- --only typecheck-prototype
+
+      - name: Type-check "procol test"
+        if: ${{ !cancelled() && steps.deps_prototype.outcome == 'success' && steps.deps_procol_test.outcome == 'success' }}
+        working-directory: prototype
+        run: npm run ci:check -- --only typecheck-procol-test
+
+      - name: Test catalog is up to date (cases:import, 0 orphans)
+        if: ${{ !cancelled() && steps.deps_prototype.outcome == 'success' && steps.deps_procol_test.outcome == 'success' }}
+        working-directory: prototype
+        run: npm run ci:check -- --only catalog
+
+      - name: API case library is valid
+        if: ${{ !cancelled() && steps.deps_prototype.outcome == 'success' && steps.deps_procol_test.outcome == 'success' }}
+        working-directory: prototype
+        run: npm run ci:check -- --only case-data
+
+      - name: Database migrations apply twice (pgvector)
+        if: ${{ !cancelled() && steps.deps_prototype.outcome == 'success' && steps.deps_procol_test.outcome == 'success' }}
+        working-directory: prototype
+        run: npm run ci:check -- --only migrations
+
+      - name: Unit tests
+        if: ${{ !cancelled() && steps.deps_prototype.outcome == 'success' && steps.deps_procol_test.outcome == 'success' }}
+        working-directory: prototype
+        run: npm run ci:check -- --only unit
+
+      - name: Workflow and secrets hygiene
+        if: ${{ !cancelled() && steps.deps_prototype.outcome == 'success' && steps.deps_procol_test.outcome == 'success' }}
+        working-directory: prototype
+        run: npm run ci:check -- --only workflow,no-secrets

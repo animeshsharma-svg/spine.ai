@@ -21,7 +21,8 @@ import { fileURLToPath } from "node:url";
 import type { CheckResult } from "../ai/types.js";
 import type { TestCaseRecord } from "../checks/caseLibrary.js";
 import { bugForCase, readEvidence, vbuBugs, type VbuEvidence } from "../checks/vendorBulkExtras.js";
-import { escapeHtml } from "./shared.js";
+import { displayCase } from "../checks/caseDisplay.js";
+import { escapeHtml, humanText, renderTechFold } from "./shared.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const QA_DOC_FILE = join(here, "..", "..", "config", "vbuQaDoc.json");
@@ -184,8 +185,15 @@ export function renderQaDocSection(rows: Row[]): string {
       : "inconclusive";
     tally[overall] = (tally[overall] ?? 0) + 1;
     const label = overall === "partly" ? "Partly" : PILL[overall];
-    return [td(qa), td(v.what, "wrap"), `<td><b>${e(label)}</b></td>`,
-      td(got.map((r) => `${r.test.id}: ${PILL[r.verdict] ?? r.verdict}`).join(" · ") || v.cases.join(", "), "wrap")];
+    const counts = new Map<string, number>();
+    for (const r of got) counts.set(PILL[r.verdict] ?? r.verdict, (counts.get(PILL[r.verdict] ?? r.verdict) ?? 0) + 1);
+    const inWords = [...counts].map(([w, n]) => `${n} ${w.toLowerCase()}`).join(" · ") || "none run";
+    return [td(qa), td(humanText(v.what), "wrap"), `<td><b>${e(label)}</b></td>`,
+      `<td class="wrap">${e(`${got.length || v.cases.length} test case${(got.length || v.cases.length) === 1 ? "" : "s"}: ${inWords}`)}${renderTechFold(
+        [{ label: "Cases", value: got.map((r) => `${r.test.id}: ${PILL[r.verdict] ?? r.verdict}`).join(" · ") || v.cases.join(", ") }],
+        "",
+        "Details",
+      )}</td>`];
   });
   const cls = Object.entries(doc).map(([, v]) => {
     const vs = v.cases.map((c) => byId.get(c)?.verdict);
@@ -215,16 +223,30 @@ export function renderBugsSection(rows: Row[]): string {
   const lines = ids.map((id) => {
     const b = reg.get(id);
     const cs = byBug.get(id)!;
+    // The bug in words, with the cases that showed it by their titles; the
+    // suggested fix and the case refs are for developers, in the fold.
+    const fix = b?.fix ?? "Not in the bug registry yet — see the case's evidence.";
     return [
-      td(id), td(b?.severity ?? "—"), td(b?.title ?? cs[0].result?.verdict ?? "", "wrap"),
-      `<td>${cs.map((r) => `<a href="#case-${e(r.test.id)}">${e(r.test.id)}</a>`).join(", ")}</td>`,
-      td(b?.fix ?? "Not in the bug registry yet — see the case's evidence.", "wrap"),
+      `<td>${e(id === "unfiled" ? "Not filed yet" : id)}</td>`,
+      td(b?.severity ?? "—"),
+      `<td class="wrap">${e(humanText(b?.title ?? cs[0].result?.verdict ?? ""))}${renderTechFold(
+        [
+          { label: "Suggested fix", value: fix },
+          ...(b?.where ? [{ label: "Where", value: b.where, kind: "code" as const }] : []),
+          { label: "Cases", value: cs.map((r) => r.test.id).join(", "), kind: "code" as const },
+        ],
+        "",
+        "Details",
+      )}</td>`,
+      `<td class="wrap">${cs
+        .map((r) => `<a href="#case-${e(r.test.id)}">${e(humanText(displayCase(r.test.id)?.title ?? r.test.title))}</a>`)
+        .join("<br>")}</td>`,
     ];
   });
   const cls = ids.map((id) => (reg.get(id)?.severity === "Critical" ? "bad" : ""));
   return `<section class="card vbu" id="vbu-bugs">
     <h2>Bugs this run reproduced</h2>
-    <p class="lede">${e(failing.length)} failing vendor bulk upload case(s) map to ${e(ids.length)} bug(s). Each case below carries the uploaded sheet, what each row became, the records it created and the code line.</p>
-    ${table(["Bug", "Severity", "What goes wrong", "Cases", "Suggested fix"], lines, cls)}
+    <p class="lede">${e(failing.length)} failing vendor bulk upload test case(s) come down to ${e(ids.length)} bug(s). Open a test case below for its steps and result; its technical details hold the uploaded sheet, what each row became and the records it created.</p>
+    ${table(["Bug", "Severity", "What goes wrong", "Test cases that show it"], lines, cls)}
   </section>`;
 }

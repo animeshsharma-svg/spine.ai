@@ -6,18 +6,41 @@ import { PROCOL_TEST } from "../executor.js";
 import { redactSecrets } from "./engine.js";
 import { evaluateStepAssertions, keepResponse } from "./apiAssertions.js";
 import {
+  CHOICE_WORD,
   STAGE_LABEL,
   STEP_META,
   journeyOutcome,
+  type ChoiceKind,
   type EventType,
+  type JourneyBacktrack,
   type JourneyCall,
+  type JourneyFinding,
   type JourneyPlan,
   type JourneyRecord,
+  type JourneyResilience,
+  type JourneyStepAttempt,
   type JourneyStepRecord,
   type StageKind,
   type StepKind,
   type VariationsEvent,
 } from "./journeyModel.js";
+import {
+  BOUNDS,
+  ChoiceBook,
+  STEP_CHOICES,
+  WatchdogTimeout,
+  backoffMs,
+  backtrackOrigin,
+  blameSentence,
+  classifyStep,
+  failureSentence,
+  rankTemplates,
+  rankUnits,
+  unitListed,
+  withWatchdog,
+  type ChoiceOption,
+  type Classified,
+} from "./resilience.js";
 
 /**
  * THE JOURNEY RUNNER — walks the Postman collection, one step per request.
@@ -86,6 +109,17 @@ export interface JourneyRunOptions {
   onStep?: (step: JourneyStepRecord, planned: number) => void;
   /** progress lines between steps — the wait's countdown, the second event's build */
   onLine?: (line: string) => void;
+  /**
+   * TESTING ONLY: force the first choice of some data, to prove the retry and
+   * backtracking work (e.g. { unit: "Nos" } on a company without that unit).
+   * Also read from the SPINE_JOURNEY_FORCE environment variable
+   * ("unit=Nos;location=<uuid>"). The record says a choice was forced.
+   */
+  force?: Partial<Record<ChoiceKind, string>>;
+  /** the whole journey's time budget, retries included (default 30 minutes) */
+  journeyBudgetMs?: number;
+  /** TESTING ONLY: a shorter watchdog for request steps (default BOUNDS.stepMs) */
+  stepBoundMs?: number;
 }
 
 export interface JourneyRunResult {
@@ -106,6 +140,10 @@ interface Sibling {
   listCompanyUsers: (api: any) => Promise<any[]>;
   /** undefined when the database module cannot load here (no DATABASE_URL) */
   resolveClient?: (companyId: number) => Promise<any>;
+  /** ranked alternatives for units / products / templates / locations (catalog/resolve.ts) */
+  resolveCatalogAlternatives?: (api: any) => Promise<any>;
+  /** vendors with a login email (flows/vendors.ts) */
+  listInvitableVendors?: (api: any, query?: string, limit?: number) => Promise<any[]>;
 }
 
 let siblingLoad: Promise<Sibling> | undefined;
@@ -131,6 +169,8 @@ function loadSibling(): Promise<Sibling> {
         imp("catalog/users.ts"),
       ]);
       const db = await imp("db/clients.ts").catch(() => undefined);
+      const resolve = await imp("catalog/resolve.ts").catch(() => undefined);
+      const vendors = await imp("flows/vendors.ts").catch(() => undefined);
       return {
         bodies,
         Endpoints: endpoints.Endpoints,
@@ -140,6 +180,8 @@ function loadSibling(): Promise<Sibling> {
         clientFromSession: sessionAuth.clientFromSession,
         listCompanyUsers: users.listCompanyUsers,
         resolveClient: db?.resolveClient,
+        resolveCatalogAlternatives: resolve?.resolveCatalogAlternatives,
+        listInvitableVendors: vendors?.listInvitableVendors,
       };
     })();
     siblingLoad.catch(() => {
@@ -196,6 +238,8 @@ interface Journey {
   catalog: EventCatalog;
   vendorCompanyUuid: string;
   vendorName: string;
+  /** the vendor's login email — changes with the vendor choice */
+  vendorEmail?: string;
   qty: number;
   unit: string;
   price: number;
@@ -223,6 +267,20 @@ interface Journey {
   /** every window the wait step has to see out: the rounds', and an auction's */
   closeTimes: number[];
   waitedMs: number;
+  // ── resilience ──
+  /** the base title; a rebuilt event gets a suffix */
+  title: string;
+  /** the options for every choice, and which have been tried */
+  book: ChoiceBook;
+  /** the alternatives have been read (or tried and failed) */
+  altsLoaded: boolean;
+  /** the company's active units, as listed by the app — undefined when not read */
+  companyUnits?: string[];
+  altProblems: string[];
+  forced: Partial<Record<ChoiceKind, string>>;
+  /** Date.now() past which no new step starts */
+  deadline: number;
+  res: { sameRequestRetries: number; backtracks: JourneyBacktrack[]; watchdogTrips: number; budgetExhausted: boolean; rebuilds: number };
 }
 
 // ── one request, one outcome ───────────────────────────────────────────────
@@ -415,7 +473,16 @@ const first = (...reasons: Needs[]): Needs => reasons.find(Boolean);
  */
 async function ensureEvaluator(j: Journey): Promise<void> {
   if (j.evaluatorLookedUp) return;
-  j.evaluatorLookedUp = true;
+  // Marked done only when the look-up finishes: a step the watchdog abandoned
+  // mid-look-up must look again on its retry, not find "nobody".
+  try {
+    await lookUpEvaluator(j);
+  } finally {
+    j.evaluatorLookedUp = true;
+  }
+}
+
+async function lookUpEvaluator(j: Journey): Promise<void> {
   const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "").slice(-10);
 
   let users: any[] = [];
@@ -715,10 +782,15 @@ const readBack: StepSpec = {
 
 const vendorLogin: StepSpec = {
   kind: "vendor_login",
-  needs: (j) => (j.client.ctx.vendor?.email ? undefined : "this client's invited vendor has no login email"),
-  expected: (j) => `A one-time code is sent to ${j.client.ctx.vendor?.email} and, once verified, signs the vendor into the supplier app.`,
+  needs: (j) => (j.vendorEmail ? undefined : "this client's invited vendor has no login email"),
+  expected: (j) => `A one-time code is sent to ${j.vendorEmail} and, once verified, signs the vendor into the supplier app.`,
   run: async (j) => {
-    const email = j.client.ctx.vendor!.email!;
+    const email = j.vendorEmail!;
+    // A rebuilt event signs the vendor in again; the earlier client is closed first.
+    if (j.actors.vendorApi) {
+      await withWatchdog(Promise.resolve(j.actors.vendorApi.dispose?.()), 10_000, "closing the earlier vendor session").catch(() => {});
+      j.actors.vendorApi = undefined;
+    }
     const { login, fired } = await otpLogin(j, { ...j.s.CONFIG.identities.vendor, email, tenantCompanyId: j.companyId }, { email });
     if (!login && fired.reply?.errorCode === "705")
       return { ...fired, hint: TNC_HINT(`the vendor (${email})`) };
@@ -1105,7 +1177,8 @@ const waitClose: StepSpec = {
     const closesAt = Math.max(...j.closeTimes);
     const due = (closesAt + WAIT_GRACE_SEC) * 1000 - Date.now();
     if (due <= 0) return { ms: 0, actual: `The window had already closed at ${hhmmss(closesAt)}; no wait was needed.` };
-    const total = Math.min(due, WAIT_CAP_MS);
+    // Never past the journey's own budget: the steps after the wait need time too.
+    const total = Math.max(0, Math.min(due, WAIT_CAP_MS, j.deadline - Date.now() - 60_000));
     const t0 = Date.now();
     let remaining = total;
     while (remaining > 0) {
@@ -1115,10 +1188,10 @@ const waitClose: StepSpec = {
     }
     const waited = Date.now() - t0;
     j.waitedMs += waited;
-    if (due > WAIT_CAP_MS) {
+    if (due > total) {
       return {
         ms: waited,
-        actual: `Waited ${fmtDuration(waited)} — the five-minute cap — but the window only closes at ${hhmmss(closesAt)}, so the steps after this may still be refused while bidding is open.`,
+        actual: `Waited ${fmtDuration(waited)} — ${total < WAIT_CAP_MS ? "all the journey's time budget allowed" : "the five-minute cap"} — but the window only closes at ${hhmmss(closesAt)}, so the steps after this may still be refused while bidding is open.`,
       };
     }
     return { ms: waited, actual: `Waited ${fmtDuration(waited)}; the window closed at ${hhmmss(closesAt)}.` };
@@ -1487,6 +1560,8 @@ function finish(rec: JourneyStepRecord, fired: Fired): void {
 /** Runs one step against one event build; never throws, never touches the journey's lists. */
 async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild, done: JourneyStepRecord[]): Promise<JourneyStepRecord> {
   const rec = blankRecord(spec.kind, n);
+  const choices = choicesFor(j, spec.kind);
+  if (choices) rec.choices = choices;
   let reason: Needs;
   try {
     reason = await spec.needs(j, ev, done);
@@ -1527,6 +1602,438 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
   return rec;
 }
 
+// ── resilience: choices, alternatives, the guarded step, the walk ──────────
+
+const LOGIN_KINDS: StepKind[] = ["buyer_login", "vendor_login", "evaluator_login"];
+const isStage = (k: StepKind) => k === "add_stage_rfp" || k === "add_stage_pricing";
+
+/** The words for the current value of a choice, with a plain fallback before the lists are read. */
+function choiceLabel(j: Journey, kind: ChoiceKind): string {
+  const cur = j.book.current(kind)?.label;
+  if (cur) return cur;
+  switch (kind) {
+    case "unit":
+      return j.unit;
+    case "vendor":
+      return j.vendorName;
+    case "timing":
+      return `${j.stageSeconds}-second rounds`;
+    case "product":
+      return "the catalog product";
+    case "location":
+      return "the first delivery location";
+    case "pricingTemplate":
+      return "the first pricing template";
+    case "technicalTemplate":
+      return "the first technical template";
+    default:
+      return CHOICE_WORD[kind];
+  }
+}
+
+function choicesFor(j: Journey, kind: StepKind): JourneyStepRecord["choices"] | undefined {
+  const kinds = STEP_CHOICES[kind];
+  if (!kinds?.length) return undefined;
+  const out: NonNullable<JourneyStepRecord["choices"]> = {};
+  for (const k of kinds) {
+    if (k === "technicalTemplate" && !j.plan.stages.includes("rfp")) continue;
+    out[k] = choiceLabel(j, k);
+  }
+  return out;
+}
+
+/** Puts a new option into the journey's state, so every later body is built from it. */
+function applyChoice(j: Journey, kind: ChoiceKind, opt: ChoiceOption): void {
+  switch (kind) {
+    case "unit":
+      j.unit = opt.value;
+      break;
+    case "product":
+      j.catalog.productUuid = opt.value;
+      if (opt.extra?.qualityUuid) j.catalog.productQualityUuid = opt.extra.qualityUuid;
+      break;
+    case "location":
+      j.catalog.locationUuid = opt.value;
+      break;
+    case "pricingTemplate":
+      j.catalog.pricingTemplateUuid = opt.value;
+      break;
+    case "technicalTemplate":
+      j.catalog.technicalTemplateUuid = opt.value;
+      break;
+    case "vendor":
+      j.vendorCompanyUuid = opt.value;
+      j.catalog.vendorBidCompanyUuid = opt.value;
+      j.vendorName = opt.label;
+      j.vendorEmail = opt.extra?.email;
+      break;
+    case "timing":
+      j.stageSeconds = Number(opt.value) || j.stageSeconds;
+      break;
+    default:
+      break;
+  }
+}
+
+/** SPINE_JOURNEY_FORCE="unit=Nos;location=<uuid>" → { unit: "Nos", location: "<uuid>" } */
+function forcedChoices(opts: JourneyRunOptions): Partial<Record<ChoiceKind, string>> {
+  const out: Partial<Record<ChoiceKind, string>> = { ...(opts.force ?? {}) };
+  const raw = process.env.SPINE_JOURNEY_FORCE ?? "";
+  for (const part of raw.split(/[;,]/)) {
+    const [k, ...rest] = part.split("=");
+    const key = k?.trim() as ChoiceKind;
+    const v = rest.join("=").trim();
+    if (key && v && key in CHOICE_WORD) out[key] = v;
+  }
+  return out;
+}
+
+/**
+ * Reads the alternatives once, bounded: the company's units, products,
+ * templates and locations from the live app (catalog/resolve.ts), and the
+ * vendors it could invite instead. Nothing here is required — a list that
+ * cannot be read leaves that choice with nothing to move on to, and says so.
+ *
+ * Vendors: only test vendors (an …@example.com login) are offered as
+ * alternatives. Inviting a different real company to an event emails its
+ * people, and that is never the platform's call.
+ */
+async function ensureAlternatives(j: Journey): Promise<void> {
+  if (j.altsLoaded) return;
+  j.altsLoaded = true;
+  const api = j.client.ctx.buyerApi;
+  const book = j.book;
+  try {
+    if (!j.s.resolveCatalogAlternatives) throw new Error("the alternatives lister could not be loaded");
+    const alts = await withWatchdog(j.s.resolveCatalogAlternatives(api), 45_000, "reading the alternatives");
+    j.altProblems.push(...((alts?.problems as string[]) ?? []));
+    const units: string[] = alts?.units ?? [];
+    if (units.length) j.companyUnits = units;
+    const products: any[] = alts?.products ?? [];
+    const current = products.find((p) => p.uuid === j.catalog.productUuid);
+    book.setOptions(
+      "product",
+      { value: j.catalog.productUuid, label: current?.name ? String(current.name) : products.length ? `a product not in ${j.company}'s product search` : "the catalog product", extra: { qualityUuid: j.catalog.productQualityUuid } },
+      products
+        // a product whose own units the company lists first; one with none of them last
+        .map((p) => ({ p, fits: !p.units?.length || !units.length || p.units.some((u: string) => unitListed(units, u)) }))
+        .sort((a, b) => Number(b.fits) - Number(a.fits))
+        .map(({ p }) => ({ value: p.uuid, label: String(p.name), extra: { qualityUuid: p.qualityUuid } })),
+    );
+    book.setOptions(
+      "unit",
+      { value: j.unit, label: j.unit },
+      rankUnits(units, current?.units ?? []).map((u) => ({ value: u, label: u })),
+    );
+    const tplOpt = (t: any) => ({ value: t.uuid, label: String(t.name) });
+    const pt: any[] = alts?.pricingTemplates ?? [];
+    const curPt = pt.find((t) => t.uuid === j.catalog.pricingTemplateUuid);
+    book.setOptions("pricingTemplate", { value: j.catalog.pricingTemplateUuid, label: curPt ? String(curPt.name) : pt.length ? `a pricing template not in ${j.company}'s list` : "the first pricing template" }, rankTemplates(pt, "pricing").map(tplOpt));
+    const tt: any[] = alts?.technicalTemplates ?? [];
+    const curTt = tt.find((t) => t.uuid === j.catalog.technicalTemplateUuid);
+    book.setOptions("technicalTemplate", { value: j.catalog.technicalTemplateUuid, label: curTt ? String(curTt.name) : tt.length ? `a technical template not in ${j.company}'s list` : "the first technical template" }, rankTemplates(tt, "technical").map(tplOpt));
+    const locs: any[] = alts?.locations ?? [];
+    const curLoc = locs.find((l) => l.uuid === j.catalog.locationUuid);
+    book.setOptions("location", { value: j.catalog.locationUuid, label: curLoc ? String(curLoc.name) : locs.length ? `a delivery location not in ${j.company}'s list` : "the first delivery location" }, locs.map((l) => ({ value: l.uuid, label: String(l.name) })));
+  } catch (e) {
+    j.altProblems.push(`catalog alternatives: ${clean(e instanceof Error ? e.message : String(e))}`);
+  }
+  try {
+    const vendors: any[] = j.s.listInvitableVendors ? await withWatchdog(j.s.listInvitableVendors(api, "", 10), 30_000, "reading the vendor list") : [];
+    const safe = vendors.filter((v) => v?.uuid && typeof v.email === "string" && /@example\.com$/i.test(v.email));
+    book.setOptions(
+      "vendor",
+      { value: j.vendorCompanyUuid, label: j.vendorName, extra: j.vendorEmail ? { email: j.vendorEmail } : undefined },
+      safe.map((v) => ({ value: String(v.uuid), label: String(v.name ?? v.email), extra: { email: String(v.email) } })),
+    );
+  } catch (e) {
+    j.altProblems.push(`vendors: ${clean(e instanceof Error ? e.message : String(e))}`);
+  }
+  // The clock: a longer window each time, never shorter than asked for.
+  const base = j.stageSeconds;
+  book.setOptions(
+    "timing",
+    { value: String(base), label: `${base}-second rounds` },
+    [base * 2, base * 3].map((sec) => ({ value: String(sec), label: `${sec}-second rounds` })),
+  );
+}
+
+/**
+ * Runs one step under a watchdog. A step that hangs — a request that never
+ * answers, a database look-up that never returns — is recorded as a step
+ * that never finished (no reply, status 0), which the classifier treats as an
+ * environment failure, so it is tried again rather than freezing the run.
+ */
+async function performGuarded(j: Journey, spec: StepSpec, n: number, ev: EventBuild, done: JourneyStepRecord[]): Promise<JourneyStepRecord> {
+  const bound = spec.kind === "wait_close" ? BOUNDS.waitCapMs + 60_000 : LOGIN_KINDS.includes(spec.kind) ? BOUNDS.loginStepMs : (j.opts.stepBoundMs ?? BOUNDS.stepMs);
+  try {
+    return await withWatchdog(performStep(j, spec, n, ev, done), bound, `Step ${n} (${STEP_META[spec.kind].title.toLowerCase()})`);
+  } catch (e) {
+    const rec = blankRecord(spec.kind, n);
+    const choices = choicesFor(j, spec.kind);
+    if (choices) rec.choices = choices;
+    try {
+      rec.expected = spec.expected(j, ev);
+    } catch {
+      rec.expected = STEP_META[spec.kind].title;
+    }
+    const msg = clean(e instanceof Error ? e.message : String(e)) ?? "the step did not finish";
+    if (e instanceof WatchdogTimeout) j.res.watchdogTrips++;
+    rec.verdict = "broken";
+    rec.status = 0;
+    rec.ms = bound;
+    rec.message = msg;
+    rec.actual = `The step never finished: ${msg}.`;
+    return rec;
+  }
+}
+
+function attemptOf(rec: JourneyStepRecord, c: Classified, attempt: number, next: JourneyStepAttempt["next"], reason: string, choiceValue?: string): JourneyStepAttempt {
+  return {
+    attempt,
+    verdict: rec.verdict,
+    ...(rec.status !== undefined ? { status: rec.status } : {}),
+    ...(rec.errorCode ? { errorCode: rec.errorCode } : {}),
+    ...(rec.message ? { message: rec.message } : {}),
+    actual: rec.actual,
+    ...(rec.call ? { call: rec.call } : {}),
+    ...(rec.ms !== undefined ? { ms: rec.ms } : {}),
+    startedAt: rec.startedAt,
+    failureClass: c.cls,
+    failureRule: c.rule,
+    ...(c.choice ? { choice: c.choice } : {}),
+    ...(choiceValue ? { choiceValue } : {}),
+    ...(rec.choices ? { choices: rec.choices } : {}),
+    next,
+    reason,
+  };
+}
+
+/**
+ * Why a unit was refused, decided from the company's own unit list (the list
+ * the backend checks against): a unit the company LISTS and the app still
+ * refuses is a product bug; a unit it does not list is test data that did
+ * not fit this client.
+ */
+function unitBlame(j: Journey, unit: string): string | undefined {
+  if (!j.companyUnits?.length) return undefined;
+  const n = j.companyUnits.length;
+  return unitListed(j.companyUnits, unit)
+    ? `“${unit}” IS in ${j.company}'s own list of ${n} units, so the app refused a unit it offers — this is a product bug for ${j.company}.`
+    : `“${unit}” is not in ${j.company}'s list of ${n} units, so the unit the platform picked did not fit this client — a test-data mismatch rather than a product bug (if ${j.company} should have “${unit}”, it is a configuration gap). Recorded so it is not hidden.`;
+}
+
+function freshEvent(j: Journey, mode: "journey" | "variations"): EventBuild {
+  j.res.rebuilds++;
+  const suffix = `_retry${j.res.rebuilds}`;
+  if (mode === "variations") return { title: `QA_Platform_Variations_${Date.now()}`, timing: j.s.bodies.stageTiming(nowSec(), 1800), trades: [] };
+  return { title: `${j.title}${suffix}`, timing: journeyTiming(nowSec(), j.stageSeconds), trades: [] };
+}
+
+/** Forget everything the abandoned event produced; keep what came before the draft. */
+function resetJourneyState(j: Journey, kept: JourneyStepRecord[], ev: EventBuild, vendorChanged: boolean): void {
+  j.event = ev;
+  j.made = Object.assign({}, ...kept.map((r) => r.produced ?? {}));
+  j.tradeProduct = undefined;
+  j.techForm = undefined;
+  j.bidTotal = undefined;
+  j.bidPlaced = false;
+  j.techResponded = false;
+  j.evalForm = undefined;
+  j.evalScored = false;
+  j.approvalFlowUuid = undefined;
+  j.closeTimes = [];
+  if (vendorChanged && j.actors.vendorApi) {
+    const api = j.actors.vendorApi;
+    j.actors.vendorApi = undefined;
+    void withWatchdog(Promise.resolve(api.dispose?.()), 10_000, "closing the vendor session").catch(() => {});
+  }
+}
+
+interface WalkOptions {
+  mode: "journey" | "variations";
+  emit?: (rec: JourneyStepRecord) => void;
+}
+
+/**
+ * Walks `kinds` in order, never stuck and never silent:
+ *
+ *  1. every step runs under a watchdog, and nothing new starts after the
+ *     journey's deadline (the rest is "not run" with that reason);
+ *  2. an environment failure (502/503/504, timeout, no reply) is tried again
+ *     as the same request, with backoff, at most twice;
+ *  3. a data-choice failure (a unit, product, template, location or vendor
+ *     this client cannot use) moves that choice to its next option — in
+ *     place when the failing step is where the choice is made, else by going
+ *     BACK to the draft and rebuilding the event from there — at most three
+ *     options per choice and six moves in all;
+ *  4. product defects and clean refusals are recorded and not retried.
+ *
+ * Every failed try stays on the step's record (`attempts`). Returns the event
+ * build the walk ended on (a rebuild replaces it).
+ */
+async function walk(j: Journey, kinds: StepKind[], ev0: EventBuild, out: JourneyStepRecord[], wo: WalkOptions): Promise<EventBuild> {
+  let ev = ev0;
+  let i = 0;
+  const carried = new Map<number, JourneyStepAttempt[]>();
+  const carry = (idx: number, a: JourneyStepAttempt) => carried.set(idx, [...(carried.get(idx) ?? []), a]);
+  const triesAt = (idx: number) => (carried.get(idx)?.length ?? 0) + 1;
+  /** step indexes being run again because the event was rebuilt */
+  const rerun = new Set<number>();
+
+  while (i < kinds.length) {
+    const kind = kinds[i];
+    if (Date.now() > j.deadline) {
+      j.res.budgetExhausted = true;
+      const why = `the journey used up its ${Math.round((j.opts.journeyBudgetMs ?? BOUNDS.journeyMs) / 60_000)}-minute time budget before this step (retries included), so the platform stopped rather than hang`;
+      for (let k = i; k < kinds.length; k++) {
+        const rec = notRunRecord(kinds[k], k + 1, why);
+        out[k] = rec;
+        wo.emit?.(rec);
+      }
+      break;
+    }
+    if (wo.mode === "journey" && isStage(kind) && !j.closeTimes.length) j.closeTimes.push(ev.timing.ect);
+    if (STEP_CHOICES[kind] && !j.altsLoaded) await ensureAlternatives(j);
+
+    // ── run, retrying the same request on an environment failure ──
+    let rec: JourneyStepRecord;
+    let c: Classified | undefined;
+    let same = 0;
+    for (;;) {
+      rec = await performGuarded(j, SPECS[kind], i + 1, ev, out.slice(0, i));
+      c = classifyStep(rec);
+      if (c) {
+        rec.failureClass = c.cls;
+        rec.failureRule = c.rule;
+      }
+      const sameRetry = !!c && (c.cls === "environment" || (c.cls === "timing" && !c.choice));
+      if (!sameRetry || same >= BOUNDS.maxSameRequestRetries) break;
+      same++;
+      const delay = c!.cls === "timing" ? 20_000 : backoffMs(same);
+      if (Date.now() + delay > j.deadline) break;
+      j.res.sameRequestRetries++;
+      const reason = `${failureSentence(rec)} ${blameSentence(c!, j.company)} The platform tried the same request again after ${Math.round(delay / 1000)} s.`;
+      carry(i, attemptOf(rec, c!, triesAt(i), "same-request", reason));
+      j.opts.onLine?.(`↻ step ${i + 1} (${rec.title.toLowerCase()}) — ${rec.message ?? `HTTP ${rec.status}`}; trying the same request again in ${Math.round(delay / 1000)} s`);
+      await sleep(delay);
+    }
+
+    // ── a choice that does not fit: try the next option, going back if it was made earlier ──
+    if (c?.choice && (c.cls === "data-choice" || c.cls === "timing")) {
+      const choice = c.choice;
+      const origin = backtrackOrigin(kinds, i, choice);
+      const fromValue = choiceLabel(j, choice);
+      if (origin !== undefined && !j.altsLoaded) await ensureAlternatives(j);
+      const canMove = origin !== undefined && j.res.backtracks.length < BOUNDS.maxBacktracks && j.book.remaining(choice) > 0 && Date.now() < j.deadline;
+      const blame = blameSentence(c, j.company, choice === "unit" ? unitBlame(j, j.unit) : undefined);
+      if (canMove) {
+        const opt = j.book.advance(choice)!;
+        applyChoice(j, choice, opt);
+        const inPlace = origin === i;
+        const abandoned = !inPlace ? ev.eventGroupUuid : undefined;
+        const how = inPlace
+          ? `The platform tried this step again with ${CHOICE_WORD[choice]} “${opt.label}”.`
+          : `The ${CHOICE_WORD[choice]} is set when step ${origin! + 1} (${STEP_META[kinds[origin!]].title.toLowerCase()}) runs, so the platform went back there and rebuilt the event with ${CHOICE_WORD[choice]} “${opt.label}”${abandoned ? `, leaving the first draft as a test record` : ""}.`;
+        const reason = `${failureSentence(rec, choice, fromValue)} ${blame} ${how}`;
+        carry(i, attemptOf(rec, c, triesAt(i), inPlace ? "next-alternative" : "rebuilt-event", reason, fromValue));
+        j.res.backtracks.push({
+          fromStep: i + 1,
+          toStep: origin! + 1,
+          choice,
+          from: fromValue,
+          to: opt.label,
+          ...(abandoned ? { abandonedEvent: abandoned } : {}),
+          why: rec.message ?? c.why,
+        });
+        j.opts.onLine?.(
+          `↺ step ${i + 1} (${rec.title.toLowerCase()}) refused ${CHOICE_WORD[choice]} “${fromValue}”: “${rec.message ?? c.why}” — ${inPlace ? "trying again" : `going back to step ${origin! + 1}`} with “${opt.label}”`,
+        );
+        if (!inPlace) {
+          // The steps being re-run keep the failures their earlier tries met:
+          // a superseded record's attempts go back on the pile for its index.
+          for (let k = origin!; k < i; k++) {
+            rerun.add(k);
+            const prior = out[k]?.attempts;
+            if (prior?.length) carried.set(k, [...prior, ...(carried.get(k) ?? [])]);
+          }
+          ev = freshEvent(j, wo.mode);
+          out.length = origin!;
+          if (wo.mode === "journey") resetJourneyState(j, out, ev, choice === "vendor");
+        }
+        i = origin!;
+        continue;
+      }
+      // Nothing left to move to — the refusal is the verdict, and the row says what was tried.
+      const tried = j.book.has(choice) ? (carried.get(i) ?? []).filter((a) => a.choice === choice).length : 0;
+      const none =
+        choice === "limit"
+          ? ` ${blame}`
+          : j.res.backtracks.length >= BOUNDS.maxBacktracks
+            ? ` The platform had already made ${BOUNDS.maxBacktracks} retries with other data in this journey, its limit, so it stopped here.`
+            : ` There was no other ${CHOICE_WORD[choice]} to try${tried ? ` after ${tried + 1} tries` : ""}${choice === "vendor" ? " (only test vendors with an …@example.com login are ever invited instead — never a real company)" : ""}. ${blame}`;
+      rec.actual += none;
+    }
+
+    const earlier = carried.get(i);
+    const again = rerun.delete(i);
+    if (earlier?.length) {
+      rec.attempts = earlier;
+      rec.attempt = earlier.length + 1;
+      carried.delete(i);
+      if (again) {
+        rec.actual += ` (Run again for the rebuilt event; ${earlier.length === 1 ? "an earlier failed try of this step is" : `${earlier.length} earlier failed tries of this step are`} recorded as ${earlier.length === 1 ? "a finding" : "findings"}.)`;
+      } else if (rec.verdict === "worked") {
+        const last = earlier[earlier.length - 1];
+        const changed = last.choice && last.next !== "same-request" && rec.choices?.[last.choice] ? ` with ${CHOICE_WORD[last.choice]} “${rec.choices[last.choice]}”` : "";
+        rec.actual += ` (Worked on try ${rec.attempt}${changed}; ${earlier.length === 1 ? "the earlier try" : `the ${earlier.length} earlier tries`} failed and ${earlier.length === 1 ? "is" : "are"} recorded as ${earlier.length === 1 ? "a finding" : "findings"}.)`;
+      }
+    }
+    else if (again) rec.actual += " (Run again for the rebuilt event.)";
+    out[i] = rec;
+    if (wo.mode === "journey" && rec.produced) Object.assign(j.made, rec.produced);
+    wo.emit?.(rec);
+    i++;
+  }
+  return ev;
+}
+
+/** Every failed try in these steps, as findings, with how it ended. */
+function findingsOf(steps: JourneyStepRecord[], prefix: string, titlePrefix = ""): JourneyFinding[] {
+  const out: JourneyFinding[] = [];
+  for (const st of steps) {
+    if (!st?.attempts?.length) continue;
+    const resolved = st.verdict === "worked";
+    st.attempts.forEach((a, k) => {
+      const nextTry = st.attempts![k + 1];
+      const nextValue = a.choice ? (nextTry ? nextTry.choices?.[a.choice] : st.choices?.[a.choice]) : undefined;
+      const then =
+        nextTry
+          ? ` The next try${nextValue && a.next !== "same-request" ? ` (${CHOICE_WORD[a.choice!]} “${nextValue}”)` : ""} failed too${resolved ? `; the step worked on try ${st.attempt}` : ""}.`
+          : resolved
+            ? ` The next try${nextValue && a.next !== "same-request" ? `, with ${CHOICE_WORD[a.choice!]} “${nextValue}”,` : ""} worked, so the journey carried on — but this failure stands.`
+            : ` Every try of this step failed; its own verdict is “${st.verdict}”.`;
+      out.push({
+        id: `${prefix}-${st.kind}-try${a.attempt}`,
+        n: st.n,
+        kind: st.kind,
+        title: `${titlePrefix}${st.title}`,
+        attempt: a.attempt,
+        verdict: a.verdict,
+        ...(a.status !== undefined ? { status: a.status } : {}),
+        ...(a.errorCode ? { errorCode: a.errorCode } : {}),
+        ...(a.message ? { message: a.message } : {}),
+        failureClass: a.failureClass,
+        ...(a.choice ? { choice: a.choice } : {}),
+        ...(a.choiceValue ? { choiceValue: a.choiceValue } : {}),
+        reason: `${a.reason}${then}`,
+        resolved,
+      });
+    });
+  }
+  return out;
+}
+
 // ── the second copy of the event, for the variations ───────────────────────
 
 const VARIATIONS_NOTE =
@@ -1537,10 +2044,11 @@ const VARIATIONS_NOTE =
  * vendors to it, close it — so they cannot run against the journey's own
  * event without changing what the journey was measuring. A second copy, built
  * by the same four steps with the collection's standard half-hour window, is
- * what they get.
+ * what they get. It is built from the choices the journey ended on (a unit
+ * that was refused is not tried again) and walked the same resilient way.
  */
 async function buildVariationsEvent(j: Journey): Promise<{ variationsEvent?: VariationsEvent; forCases?: JourneyRunResult["forCases"] }> {
-  const ev: EventBuild = { title: `QA_Platform_Variations_${Date.now()}`, timing: j.s.bodies.stageTiming(nowSec(), 1800), trades: [] };
+  const ev0: EventBuild = { title: `QA_Platform_Variations_${Date.now()}`, timing: j.s.bodies.stageTiming(nowSec(), 1800), trades: [] };
   const kinds: StepKind[] = [
     "create_draft",
     ...j.plan.stages.map((sk): StepKind => (sk === "rfp" ? "add_stage_rfp" : "add_stage_pricing")),
@@ -1549,11 +2057,7 @@ async function buildVariationsEvent(j: Journey): Promise<{ variationsEvent?: Var
   ];
   j.opts.onLine?.("Building a second copy of the event for the variations to act on…");
   const steps: JourneyStepRecord[] = [];
-  for (const kind of kinds) {
-    const rec = await performStep(j, SPECS[kind], steps.length + 1, ev, steps);
-    steps.push(rec);
-    j.opts.onLine?.(`  ${rec.n}. ${rec.title} — ${rec.actual}`);
-  }
+  const ev = await walk(j, kinds, ev0, steps, { mode: "variations", emit: (rec) => j.opts.onLine?.(`  ${rec.n}. ${rec.title} — ${rec.actual}`) });
   if (!ev.eventGroupUuid || !ev.lineItemUuid) return {};
   const tradeId = tradeOf(ev, "pricing") ?? tradeOf(ev, "rfp");
   const variationsEvent: VariationsEvent = {
@@ -1577,8 +2081,9 @@ async function buildVariationsEvent(j: Journey): Promise<{ variationsEvent?: Var
 
 /**
  * Walks `plan.steps` in order against the client's account and returns the
- * record. Never throws: whatever goes wrong becomes a step verdict, and a run
- * that could not even start is one not-run step that says why.
+ * record. Never throws and never hangs: whatever goes wrong becomes a step
+ * verdict, every step is held to a watchdog and the whole run to a budget,
+ * and a run that could not even start is one not-run step that says why.
  */
 export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, opts: JourneyRunOptions = {}): Promise<JourneyRunResult> {
   const startedAt = new Date().toISOString();
@@ -1586,14 +2091,22 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   const stageSeconds = opts.stageSeconds && opts.stageSeconds > 0 ? Math.floor(opts.stageSeconds) : 45;
   const title = `API_Journey_${TITLE_TAG[plan.eventType]}_${Date.now()}`;
   const planned = plan.steps.length;
+  const budgetMs = opts.journeyBudgetMs && opts.journeyBudgetMs > 0 ? opts.journeyBudgetMs : BOUNDS.journeyMs;
 
-  const record = (steps: JourneyStepRecord[], made: Record<string, string>, waitedMs: number, variationsEvent?: VariationsEvent): JourneyRecord => {
-    const { outcome, stoppedAt } = journeyOutcome(steps);
+  const record = (
+    steps: JourneyStepRecord[],
+    made: Record<string, string>,
+    waitedMs: number,
+    variationsEvent?: VariationsEvent,
+    resilience?: JourneyResilience,
+    finalTitle?: string,
+  ): JourneyRecord => {
+    const { outcome, stoppedAt } = journeyOutcome(steps, resilience);
     return {
       eventType: plan.eventType,
       label: plan.label,
       stages: plan.stages,
-      title,
+      title: finalTitle ?? title,
       stageSeconds,
       features: plan.features,
       steps,
@@ -1604,6 +2117,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
       durationMs: Date.now() - t0,
       waitedMs,
       ...(variationsEvent ? { variationsEvent } : {}),
+      ...(resilience ? { resilience } : {}),
     };
   };
 
@@ -1622,7 +2136,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
 
   let s: Sibling;
   try {
-    s = await loadSibling();
+    s = await withWatchdog(loadSibling(), 90_000, "loading the API framework");
   } catch (e) {
     const step = notRunRecord(plan.steps[0] ?? "buyer_login", 1, `the API framework could not be loaded: ${clean(e instanceof Error ? e.message : String(e))}`);
     opts.onStep?.(step, planned);
@@ -1631,6 +2145,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
 
   const testData = s.CONFIG?.testData ?? {};
   const cat = catalog as Partial<EventCatalog>;
+  const forced = forcedChoices(opts);
   const j: Journey = {
     s,
     client,
@@ -1650,6 +2165,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     },
     vendorCompanyUuid: ctx.vendor?.uuid ?? cat.vendorBidCompanyUuid ?? "",
     vendorName: ctx.vendor?.name ?? "the vendor",
+    vendorEmail: ctx.vendor?.email,
     qty: Number(testData.quantityValue) || 50,
     unit: testData.quantityUnit ?? "KG",
     price: Number(testData.bidPrice) || 100,
@@ -1664,26 +2180,33 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     evalScored: false,
     closeTimes: [],
     waitedMs: 0,
+    title,
+    book: new ChoiceBook(),
+    altsLoaded: false,
+    altProblems: [],
+    forced,
+    deadline: t0 + budgetMs,
+    res: { sameRequestRetries: 0, backtracks: [], watchdogTrips: 0, budgetExhausted: false, rebuilds: 0 },
   };
+  // A forced first choice (tests only) replaces the catalog's before anything is built.
+  if (forced.unit) j.unit = forced.unit;
+  if (forced.product) j.catalog.productUuid = forced.product;
+  if (forced.location) j.catalog.locationUuid = forced.location;
+  if (forced.pricingTemplate) j.catalog.pricingTemplateUuid = forced.pricingTemplate;
+  if (forced.technicalTemplate) j.catalog.technicalTemplateUuid = forced.technicalTemplate;
+  if (Object.keys(forced).length) opts.onLine?.(`Test mode: first choice forced — ${Object.entries(forced).map(([k, v]) => `${CHOICE_WORD[k as ChoiceKind] ?? k} “${v}”`).join(", ")}.`);
 
   try {
-    for (let i = 0; i < plan.steps.length; i++) {
-      const kind = plan.steps[i];
-      // The rounds are built on the journey event's own clock, and the wait
-      // step reads that clock once the first round exists.
-      if ((kind === "add_stage_rfp" || kind === "add_stage_pricing") && !j.closeTimes.length) j.closeTimes.push(j.event.timing.ect);
-      const rec = await performStep(j, SPECS[kind], i + 1, j.event, j.steps);
-      j.steps.push(rec);
-      if (rec.produced) Object.assign(j.made, rec.produced);
-      opts.onStep?.(rec, planned);
-    }
+    const ev = await walk(j, plan.steps, j.event, j.steps, { mode: "journey", emit: (rec) => opts.onStep?.(rec, planned) });
+    j.event = ev;
   } catch (e) {
-    // performStep never throws, so this is the runner itself failing; say so
-    // on every step that was still to come rather than losing them.
+    // walk and performStep never throw, so this is the runner itself failing;
+    // say so on every step that was still to come rather than losing them.
     const why = `the runner hit an unexpected error: ${clean(e instanceof Error ? e.message : String(e))}`;
-    for (let i = j.steps.length; i < plan.steps.length; i++) {
+    for (let i = 0; i < plan.steps.length; i++) {
+      if (j.steps[i]) continue;
       const rec = notRunRecord(plan.steps[i], i + 1, why);
-      j.steps.push(rec);
+      j.steps[i] = rec;
       opts.onStep?.(rec, planned);
     }
   }
@@ -1692,7 +2215,8 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   let forCases: JourneyRunResult["forCases"];
   if (opts.buildVariationsEvent) {
     try {
-      ({ variationsEvent, forCases } = await buildVariationsEvent(j));
+      // Bounded like a step: build steps + their retries, never past the budget by more than this.
+      ({ variationsEvent, forCases } = await withWatchdog(buildVariationsEvent(j), 10 * 60_000, "building the second copy of the event"));
     } catch (e) {
       opts.onLine?.(`the second copy of the event could not be built: ${clean(e instanceof Error ? e.message : String(e))}`);
     }
@@ -1700,10 +2224,32 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
 
   // The vendor's and evaluator's clients are this run's own; the buyer's
   // belongs to the server and outlives the journey.
-  await j.actors.vendorApi?.dispose?.().catch(() => {});
-  await j.actors.evaluatorApi?.dispose?.().catch(() => {});
+  await withWatchdog(Promise.resolve(j.actors.vendorApi?.dispose?.()), 10_000, "closing the vendor session").catch(() => {});
+  await withWatchdog(Promise.resolve(j.actors.evaluatorApi?.dispose?.()), 10_000, "closing the evaluator session").catch(() => {});
 
-  return { journey: record(j.steps, j.made, j.waitedMs, variationsEvent), ...(forCases ? { forCases } : {}) };
+  const findings = [...findingsOf(j.steps, "JRN"), ...findingsOf(variationsEvent?.steps ?? [], "JRN-VAR", "Second copy — ")];
+  const retried = j.res.sameRequestRetries + j.res.backtracks.length > 0;
+  const resilience: JourneyResilience = {
+    sameRequestRetries: j.res.sameRequestRetries,
+    backtracks: j.res.backtracks,
+    findings,
+    completedAfterRetries: retried && !j.steps.some((st) => st.verdict === "refused" || st.verdict === "broken"),
+    bounds: {
+      stepMs: opts.stepBoundMs ?? BOUNDS.stepMs,
+      loginStepMs: BOUNDS.loginStepMs,
+      waitCapMs: BOUNDS.waitCapMs,
+      journeyMs: budgetMs,
+      maxAlternativesPerChoice: BOUNDS.maxAlternativesPerChoice,
+      maxBacktracks: BOUNDS.maxBacktracks,
+      maxSameRequestRetries: BOUNDS.maxSameRequestRetries,
+    },
+    watchdogTrips: j.res.watchdogTrips,
+    ...(j.res.budgetExhausted ? { budgetExhausted: true } : {}),
+    ...(j.altsLoaded ? { alternatives: j.book.summary() } : {}),
+    ...(j.altProblems.length ? { alternativeProblems: j.altProblems } : {}),
+    ...(Object.keys(forced).length ? { forced } : {}),
+  };
+  return { journey: record(j.steps, j.made, j.waitedMs, variationsEvent, resilience, j.event.title), ...(forCases ? { forCases } : {}) };
 }
 
 // ── the legacy shapes, for readers that predate the journey ────────────────

@@ -15,7 +15,20 @@ import {
 import { redactSecrets } from "../checks/engine.js";
 import type { RunRecord } from "../runStore.js";
 import { toCurl } from "./curl.js";
-import { escapeHtml } from "./shared.js";
+import { escapeHtml, humanText, renderDetailRows, renderTechFold, renderTestCase } from "./shared.js";
+import { displayFieldCheck, displayJourneyStep, knownIds, plain } from "../checks/caseDisplay.js";
+
+/**
+ * "API_Journey_RFQ_only_1790768879309" → "API Journey RFQ only (test record)".
+ * The exact name — what to search for in Procol — stays in the technical fold
+ * and the title attribute; the sentence carries words.
+ */
+export function testRecordName(name: string | undefined): string {
+  const n = String(name ?? "").trim();
+  const m = n.match(/^(QA_Platform|API_Journey|API_Test|QA_VBU|QA)_(.+?)(?:_\d{6,})?$/);
+  if (!m) return n;
+  return `${m[1].replace(/_/g, " ")} ${m[2].replace(/_/g, " ")} (test record)`.replace(/\s+/g, " ");
+}
 import type { CaseRow } from "./testReport.js";
 
 /**
@@ -258,21 +271,17 @@ export function fieldCheckTotals(journey: JourneyRecord | undefined): { total: n
 export function renderFieldChecksSection(journey: JourneyRecord | undefined): string {
   const t = fieldCheckTotals(journey);
   if (!journey || !t.total) return "";
-  const icon = (p: boolean | null) => (p === true ? "✓" : p === false ? "✗" : "–");
-  const cls = (p: boolean | null) => (p === true ? "ok" : p === false ? "bad" : "skip");
-  const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
-  const verdict = (p: boolean | null) => (p === true ? "pass" : p === false ? "fail" : "notrun");
   const groups = journey.steps
     .filter((st) => st.assertions?.total)
     .map((st) => {
       const a = st.assertions!;
       const rows = [...a.results].sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
-      const call = callLabel(st.call);
+      const known = { ...knownIds(journey.made), ...knownIds(st.produced) };
       return `
 <details class="fc-step${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""} data-verdict="${a.failed ? "fail" : "pass"}">
   <summary>
     <span class="fc-n">${st.n}</span>
-    <span class="fc-t">${safe(st.title)}${call ? ` <code>${escapeHtml(call)}</code>` : ""}</span>
+    <span class="fc-t">${safe(st.title)}</span>
     <span class="fc-c">${a.failed ? `<b class="bad">✗ ${a.failed} failed</b> · ` : ""}<span class="ok">✓ ${a.passed} passed</span>${
       a.skipped ? ` · ${a.skipped} not checked` : ""
     } · ${a.total} test cases</span>
@@ -280,18 +289,7 @@ export function renderFieldChecksSection(journey: JourneyRecord | undefined): st
   <table class="jchecks-t fc-t">
     <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
     <tbody>${rows
-      .map((r) => {
-        const title = r.humanTitle ?? r.title;
-        const expected = r.humanExpected ?? r.expected;
-        const actual = r.humanActual ?? r.actual ?? "";
-        const search = `${r.id} ${title} ${expected} ${actual} ${st.title}`.toLowerCase();
-        return (
-          `<tr class="fc-row ${cls(r.pass)}" data-verdict="${verdict(r.pass)}" data-search="${safe(search)}">` +
-          `<td title="${safe(`${r.op} ${r.path}`)}"><span class="jc-id">${safe(r.id)}</span> ${safe(title)}</td>` +
-          `<td>${safe(expected)}</td><td title="${safe(r.actual ?? "")}">${safe(actual)}</td>` +
-          `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`
-        );
-      })
+      .map((r) => fieldCheckRow(r, st, known, true))
       .join("")}</tbody>
   </table>
 </details>`;
@@ -320,7 +318,7 @@ export function renderJourneyLede(journey: JourneyRecord): string {
   const made = journey.made ?? {};
   const eventId = made.eventGroupUuid ?? journey.steps.find((s) => s.produced?.eventGroupUuid)?.produced?.eventGroupUuid;
   const event = journey.title
-    ? ` The event it built: “${safe(journey.title)}”${eventId ? ` (<code>${safe(eventId)}</code>)` : ""}.`
+    ? ` The event it built: <span${eventId ? ` title="event id ${safe(eventId)}"` : ""}>“${safe(testRecordName(journey.title))}”</span>.`
     : "";
   return `<p class="lede journey-lede"><strong>The ${safe(journey.label)} journey.</strong> ${safe(journey.outcome)}${event}</p>`;
 }
@@ -418,16 +416,16 @@ function renderVariations(rows: CaseRow[], input: JourneySectionInput, heading: 
 </details>`;
 }
 
-function renderStep(step: JourneyStepRecord, rows: CaseRow[], input: JourneySectionInput): string {
+function renderStep(step: JourneyStepRecord, rows: CaseRow[], input: JourneySectionInput, journey: JourneyRecord): string {
   const companyId = input.run?.companyId;
   const call = callLabel(step.call);
-  const status =
-    step.verdict === "not-run" || !step.call
-      ? "—"
-      : !step.status
-        ? "no reply"
-        : `${step.status} · ${input.statusInWords(step.status)}`;
-  const actual = step.verdict === "not-run" ? step.actual || step.reason || "Did not run." : step.actual;
+  // The step as a test case, in words; the call, status, ids and curl in the fold.
+  const d = displayJourneyStep(step as unknown as Parameters<typeof displayJourneyStep>[0], journey.made ?? {});
+  const known = { ...knownIds(journey.made), ...knownIds(step.produced) };
+  const actual = d.actual || (step.verdict === "not-run" ? d.reason || "Did not run." : "");
+  d.actual = actual;
+  d.area = `${ACTOR_LABEL[step.actor]} · step ${step.n} of the journey`;
+  d.type = "";
   const tally = rows.length ? tallyCases(rows) : undefined;
   const search = [
     String(step.n),
@@ -442,6 +440,14 @@ function renderStep(step: JourneyStepRecord, rows: CaseRow[], input: JourneySect
   ]
     .join(" ")
     .toLowerCase();
+  const took = [step.ms ? `took ${duration(step.ms)}` : "", clock(step.startedAt) ? `started at ${clock(step.startedAt)}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+  const tech = `
+    ${step.postman ? renderDetailRows([{ label: "Postman request it mirrors", value: step.postman }]) : ""}
+    ${took ? `<p class="took">${escapeHtml(took)}</p>` : ""}
+    ${renderProduced(step)}
+    ${renderStepCurls(step, companyId)}`;
 
   return `
 <details class="jstep v-${step.verdict}" data-verdict="${filterVerdictOf(step.verdict)}"
@@ -458,47 +464,11 @@ function renderStep(step: JourneyStepRecord, rows: CaseRow[], input: JourneySect
           : ""
       }</span>
     </span>
-    <span class="col-call js-call">${call ? `<code>${escapeHtml(call)}</code>` : `<span class="mute">—</span>`}</span>
-    <span class="col-status js-status">${escapeHtml(status)}${step.ms ? `<span class="js-ms">${escapeHtml(duration(step.ms))}</span>` : ""}</span>
-    <span class="js-actual">${safe(actual)}</span>
+    <span class="js-actual">${safe(humanText(actual, known))}</span>
   </summary>
   <div class="jstep-body">
-    <div class="panes">
-      <div>
-        <h5>What should happen</h5>
-        <p class="expect">${safe(step.expected)}</p>
-        <h5>What actually happened</h5>
-        <p class="${step.verdict === "broken" || step.verdict === "refused" ? "said-bad" : "said"}">${safe(actual)}</p>
-        ${
-          step.verdict === "not-run" && step.reason && step.reason !== actual
-            ? `<p class="pre">Why it did not run: ${safe(step.reason)}</p>`
-            : ""
-        }
-        ${
-          step.message
-            ? `<p class="apisaid"><span>The app said:</span> ${safe(step.message)}${
-                step.errorCode ? ` <span class="mute">(code ${safe(step.errorCode)})</span>` : ""
-              }</p>`
-            : ""
-        }
-        ${renderProduced(step)}
-      </div>
-      <div>
-        ${step.postman ? `<h5>The Postman request it mirrors</h5><p class="pre">${safe(step.postman)}</p>` : ""}
-        ${
-          step.verdict !== "not-run"
-            ? `<p class="took">${[
-                step.ms ? `took ${duration(step.ms)}` : "",
-                clock(step.startedAt) ? `started at ${clock(step.startedAt)}` : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")}</p>`
-            : ""
-        }
-        ${renderStepCurls(step, companyId)}
-      </div>
-    </div>
-    ${renderChecks(step)}
+    ${renderTestCase(d, { tech, known })}
+    ${renderChecks(step, journey)}
     ${renderVariations(rows, input, "Variations tried at this step")}
   </div>
 </details>`;
@@ -509,37 +479,48 @@ function renderStep(step: JourneyStepRecord, rows: CaseRow[], input: JourneySect
  * runner evaluated against the live reply (`apiAssertions.ts`), failures
  * first. The step's verdict is about the request; this is about the body.
  */
-function renderChecks(step: JourneyStepRecord): string {
+function renderChecks(step: JourneyStepRecord, journey: JourneyRecord): string {
   const a = step.assertions;
   if (!a || !a.total) return "";
-  const icon = (p: boolean | null) => (p === true ? "✓" : p === false ? "✗" : "–");
-  const cls = (p: boolean | null) => (p === true ? "ok" : p === false ? "bad" : "skip");
   const rows = [...a.results].sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
   const head =
     `${a.passed} of ${a.total} field checks passed` +
     (a.failed ? ` · <b>${a.failed} failed</b>` : "") +
     (a.skipped ? ` · ${a.skipped} not checked` : "");
-  const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
   // Each check reads as a test case: what is tested, what should happen, what
-  // did happen, and the result — in plain English. The engine's own terms stay
-  // one click away (title attribute) for engineers.
+  // did happen, and the result — in plain English. The field path, the check
+  // and the value seen are in the row's technical fold.
+  const known = { ...knownIds(journey.made), ...knownIds(step.produced) };
   return `
 <details class="jchecks${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""}>
   <summary><h5>Field checks on the response</h5> <span>${head}</span></summary>
   <table class="jchecks-t">
     <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
-    <tbody>${rows
-      .map(
-        (r) =>
-          `<tr class="${cls(r.pass)}">` +
-          `<td title="${safe(`${r.op} ${r.path}`)}"><span class="jc-id">${safe(r.id)}</span> ${safe(r.humanTitle ?? r.title)}</td>` +
-          `<td>${safe(r.humanExpected ?? r.expected)}</td>` +
-          `<td title="${safe(r.actual ?? "")}">${safe(r.humanActual ?? r.actual ?? "")}</td>` +
-          `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
-      )
-      .join("")}</tbody>
+    <tbody>${rows.map((r) => fieldCheckRow(r, step, known, false)).join("")}</tbody>
   </table>
 </details>`;
+}
+
+type FieldCheckRecord = NonNullable<JourneyStepRecord["assertions"]>["results"][number];
+
+/** One field check as a table row: title, expected, actual, result — the field path and check in its fold. */
+function fieldCheckRow(r: FieldCheckRecord, step: JourneyStepRecord, known: Record<string, string>, filterable: boolean): string {
+  const d = displayFieldCheck(
+    r as unknown as Parameters<typeof displayFieldCheck>[0],
+    step as unknown as Parameters<typeof displayFieldCheck>[1],
+    known,
+  );
+  const cls = r.pass === true ? "ok" : r.pass === false ? "bad" : "skip";
+  const icon = r.pass === true ? "✓" : r.pass === false ? "✗" : "–";
+  const word = r.pass === true ? "Passed" : r.pass === false ? "Failed" : "Not checked";
+  const verdict = r.pass === true ? "pass" : r.pass === false ? "fail" : "notrun";
+  const search = `${r.id} ${d.title} ${d.expected} ${d.actual} ${step.title} ${r.path}`.toLowerCase();
+  return (
+    `<tr class="${filterable ? "fc-row " : ""}${cls}"${filterable ? ` data-verdict="${verdict}" data-search="${safe(search)}"` : ""}>` +
+    `<td>${safe(humanText(d.title, known))}${renderTechFold(d.details, "", "Details")}</td>` +
+    `<td>${safe(humanText(d.expected, known))}</td><td>${safe(humanText(d.actual, known))}</td>` +
+    `<td class="jc-res">${icon} ${word}</td></tr>`
+  );
 }
 
 /**
@@ -576,7 +557,7 @@ function renderVariationsEvent(journey: JourneyRecord, run: RunRecord | null, in
   let lines: Line[] = [];
   if (veSteps?.length) {
     lines = veSteps.map((s) => ({
-      did: s.actual || s.title,
+      did: humanText(plain(s.actual || s.title), knownIds({ ...(journey.made ?? {}), ...(s.produced ?? {}) })),
       call: callLabel(s.call),
       status: s.status,
       ms: s.ms,
@@ -590,9 +571,7 @@ function renderVariationsEvent(journey: JourneyRecord, run: RunRecord | null, in
   if (!lines.length) return "";
 
   const made = ve
-    ? `“${safe(ve.title)}” — <b>${safe(ve.status)}</b>, ${ve.stageCount} round${ve.stageCount === 1 ? "" : "s"}${
-        ve.eventGroupUuid ? ` (<code>${safe(ve.eventGroupUuid)}</code>)` : ""
-      }`
+    ? `<span${ve.eventGroupUuid ? ` title="event id ${safe(ve.eventGroupUuid)}"` : ""}>“${safe(testRecordName(ve.title))}”</span> — <b>${safe(plain(ve.status))}</b>, ${ve.stageCount} round${ve.stageCount === 1 ? "" : "s"}`
     : run?.setupSummary
       ? `“${safe(run.setupSummary.title)}” — <b>${safe(run.setupSummary.status)}</b>, ${run.setupSummary.stageCount} round${
           run.setupSummary.stageCount === 1 ? "" : "s"
@@ -615,8 +594,7 @@ function renderVariationsEvent(journey: JourneyRecord, run: RunRecord | null, in
       .map(
         (l) => `<li class="${l.ok ? "ok" : "bad"}">
           <span class="setup-did">${safe(l.did)}</span>
-          ${l.call ? `<code class="setup-call">${escapeHtml(l.call)}</code>` : ""}
-          ${l.status !== undefined ? `<span class="setup-status ${l.ok ? "ok" : "bad"}">${l.status} · ${escapeHtml(input.statusInWords(l.status))}</span>` : ""}
+          ${l.status !== undefined ? `<span class="setup-status ${l.ok ? "ok" : "bad"}"${l.call ? ` title="${escapeHtml(`${l.call} → HTTP ${l.status}`)}"` : ""}>${escapeHtml(input.statusInWords(l.status))}</span>` : ""}
           ${l.ms !== undefined ? `<span class="setup-ms">${escapeHtml(duration(l.ms))}</span>` : ""}
         </li>`,
       )
@@ -656,8 +634,6 @@ function renderUnwalked(journey: JourneyRecord, input: JourneySectionInput): str
         t.total === 1 ? "" : "s"
       } · ${tallyWords(t)}</span></span>
     </span>
-    <span class="col-call js-call"><span class="mute">—</span></span>
-    <span class="col-status js-status">—</span>
     <span class="js-actual">This journey had no such step${
       meta.postman ? `; in the collection it is “${escapeHtml(meta.postman)}”` : ""
     }.</span>
@@ -735,7 +711,7 @@ export function renderJourneySection(input: JourneySectionInput): string {
     ${steps
       .map(
         (step) =>
-          `<li>${renderStep(step, nest.byStep.get(step.kind) ?? [], input)}${
+          `<li>${renderStep(step, nest.byStep.get(step.kind) ?? [], input, journey)}${
             stoppedAt === step.n ? renderStopped(step, journey) : ""
           }</li>`,
       )
@@ -762,7 +738,7 @@ export const JOURNEY_CSS = `
 .journey .jsteps > li:first-child { border-top: 0; }
 details.jstep > summary {
   display: grid;
-  grid-template-columns: 104px 26px minmax(230px, 1.6fr) minmax(170px, 1fr) 116px minmax(220px, 1.5fr);
+  grid-template-columns: 104px 26px minmax(260px, 2fr) minmax(220px, 1.6fr);
   gap: 12px; align-items: baseline; padding: 10px 14px; cursor: pointer; list-style: none;
 }
 details.jstep > summary::-webkit-details-marker { display: none; }
@@ -850,12 +826,24 @@ details.jchecks.has-fail > summary { color: var(--bad); }
 .jchecks-t td.jc-res { white-space: nowrap; }
 .jchecks-t .jc-id { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--muted); }
 .jchecks-t tr.skip td { color: var(--muted); }
+.jchecks-t details.tech { margin: 4px 0 0; padding-top: 0; border-top: 0; }
+@media (max-width: 640px) {
+  .jchecks-t thead { display: none; }
+  .jchecks-t, .jchecks-t tbody, .jchecks-t tr, .jchecks-t td { display: block; width: 100%; }
+  .jchecks-t tr { border-bottom: 1px solid var(--line); padding: 6px 0; }
+  .jchecks-t td { border: 0; padding: 2px 4px; }
+  details.fc-step > summary { grid-template-columns: 24px 1fr; }
+  details.fc-step .fc-c { grid-column: 2; white-space: normal; }
+  details.jstep > summary { grid-template-columns: 1fr; gap: 4px; }
+  .js-n { display: none; }
+  .js-actual { grid-column: 1; }
+}
 .unwalked { margin: 18px 0 0; }
 .unwalked h4 { margin: 0 0 4px; font-size: 14px; }
 .unwalked h4 .count { margin-left: 6px; }
 @media (max-width: 900px) {
   details.jstep > summary { grid-template-columns: 90px 24px 1fr; }
-  .js-call, .js-status, .js-actual { grid-column: 3; }
+  .js-actual { grid-column: 3; }
   .step-stopped { padding-left: 14px; }
 }
 @media print {

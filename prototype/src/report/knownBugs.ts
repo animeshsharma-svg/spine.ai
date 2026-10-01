@@ -104,7 +104,8 @@ export function sheetDate(iso: string | undefined): string {
 
 /** One sentence for a report: where this bug was first written down and where it stands. */
 export function knownBugSentence(ref: KnownBugRef): string {
-  const sheet = ref.sheet.replace(/^Internal RFX_Bugs - /, "");
+  // The sheet by its name, without the file it is kept in ("… (config/vbuBugs.json)").
+  const sheet = ref.sheet.replace(/^Internal RFX_Bugs - /, "").replace(/\s*\([^)]*\.(json|xlsx|csv)\)\s*/g, " ").trim();
   const who = ref.qa ? ` by ${ref.qa}` : "";
   const fixed = /fixed|closed/i.test(ref.status);
   return fixed
