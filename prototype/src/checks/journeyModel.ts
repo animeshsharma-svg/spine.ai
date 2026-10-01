@@ -161,7 +161,7 @@ export const STEP_META: Record<StepKind, StepMeta> = {
   surrogate_tech: { title: "Enter the vendor's technical response on their behalf", actor: "buyer", postman: "F3_surrogate_bid › technical" },
   surrogate_rfq: { title: "Enter the vendor's price on their behalf", actor: "buyer", postman: "F3_surrogate_bid › rfq" },
   counter_offer: { title: "Counter the vendor's price", actor: "buyer", postman: "F4_Counter Offer" },
-  convert_auction: { title: "Convert the pricing round into a live auction", actor: "buyer", postman: "F5_convert to auction" },
+  convert_auction: { title: "Convert the pricing round into a live auction and bid in it", actor: "buyer", postman: "F5_convert to auction" },
   wait_close: { title: "Wait for the bidding window to close", actor: "platform", postman: "evaluation › Get Technical Schema-form (TIMING CHECK)" },
   evaluator_login: { title: "Sign in as the evaluator", actor: "evaluator", postman: "auth › evaluator generate otp, evaluator verify otp" },
   eval_schema: { title: "Open the technical responses to score", actor: "evaluator", postman: "evaluation › Get Technical Schema-form" },

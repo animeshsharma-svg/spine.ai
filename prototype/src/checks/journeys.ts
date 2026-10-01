@@ -374,6 +374,19 @@ const JOURNEYS: JourneyDef[] = [
     apiGroups: ["API-XTPL"],
     spine: ["choose_template", "open_template", "create_draft_event", "add_round_from_template", "fill_buyer_columns", "publish_round", "vendor_fills_line", "vendor_answers_questions"],
   },
+  {
+    // test-cases/api-bidding-matrix.md — run by src/checks/biddingMatrix.ts
+    // (`npm run matrix`, /api/matrix/*): one event per combination M1…M14 with
+    // the platform's own QA vendors (src/checks/matrixVendors.ts).
+    id: "bidding-matrix",
+    title: "Several vendors, bids on a vendor's behalf, and the clock",
+    persona: "Buyer and several vendors",
+    goal: "Invite several vendors and have each bid through its own login; bid on a vendor's behalf only when the rules allow; keep the technical round inside the pricing round; refuse bids once the submission time is over, let them in again after an extension, and award by the rules.",
+    order: 33,
+    uiGroups: [],
+    apiGroups: ["API-XMAT"],
+    spine: ["invite_vendors", "vendors_bid", "surrogate_bid", "compare_bids", "time_rules", "extend_time", "award"],
+  },
 ];
 
 /**

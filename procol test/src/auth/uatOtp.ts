@@ -88,7 +88,7 @@ export async function resolveUatOtps(who: { phone?: string; email?: string }): P
         : undefined;
 
     if (!user) {
-      const m = await query<{ value: string }>(`SELECT value FROM procol_variables WHERE key = 'MASTER_OTP_6' LIMIT 1`);
+      const m = await query<{ value: string }>(`SELECT value FROM procol_variables WHERE key = 'MASTER_OTP_6' AND status = 1 ORDER BY id DESC LIMIT 1`);
       return m[0]?.value ? [{ otp: String(m[0].value), source: "the master UAT code (no user with that login yet)" }] : [];
     }
 

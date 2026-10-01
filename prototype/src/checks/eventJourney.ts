@@ -116,6 +116,23 @@ export interface JourneyRunOptions {
    * ("unit=Nos;location=<uuid>"). The record says a choice was forced.
    */
   force?: Partial<Record<ChoiceKind, string>>;
+  /**
+   * A caller's choice of data (the template chooser, the bidding matrix): it
+   * REPLACES the catalog's first pick before anything is built. Unlike
+   * `force`, it is not a test of the retry: it is the run's intended data. If
+   * the app refuses a chosen value, the never-stuck alternatives still apply,
+   * starting from it, and the record says what was chosen and what replaced it.
+   */
+  choose?: {
+    pricingTemplateUuid?: string;
+    technicalTemplateUuid?: string;
+    unit?: string;
+    productUuid?: string;
+    /** the quality that goes with productUuid (the catalog's is kept when absent) */
+    productQualityUuid?: string;
+    /** a QA vendor to invite and sign in as instead of the catalog's vendor */
+    vendor?: { uuid: string; email: string; name?: string };
+  };
   /** the whole journey's time budget, retries included (default 30 minutes) */
   journeyBudgetMs?: number;
   /** TESTING ONLY: a shorter watchdog for request steps (default BOUNDS.stepMs) */
@@ -1134,14 +1151,89 @@ const convertAuction: StepSpec = {
     if (!uuid) return { call, reply, shortfall: "the reply carried no auction round id" };
     j.closeTimes.push(timing.ect);
     const status = reply.data?.status;
+    const converted = `The pricing round was converted into live auction ${uuid}${status ? ` (status ${status})` : ""}; bidding open ${hhmm(timing.bst)}–${hhmm(timing.bet)}.`;
+    // The award goes to a vendor of the LATEST round, so the vendor must bid in
+    // the auction too — without it the award is refused “Awarded vendor is not
+    // present in the latest stage” (826). The bid is part of this step.
+    const bid = await bidInAuction(j, ev, String(uuid));
+    const alsoCalled = [call, ...bid.calls.slice(0, -1)];
+    const last = bid.calls[bid.calls.length - 1];
+    if (!bid.ok) {
+      return {
+        call: last ?? call,
+        alsoCalled,
+        reply: bid.reply ?? reply,
+        ...(bid.reply && bid.reply.ok ? { shortfall: bid.why } : {}),
+        hint: `${converted} But the auction bid failed (${bid.why}), so the award will be refused: the awarded vendor must have bid in the latest round.`,
+        produced: { auctionTradeUuid: String(uuid) },
+      };
+    }
     return {
-      call,
-      reply,
-      actual: `The pricing round was converted into live auction ${uuid}${status ? ` (status ${status})` : ""}; bidding open ${hhmm(timing.bst)}–${hhmm(timing.bet)}.`,
+      call: last ?? call,
+      alsoCalled,
+      reply: bid.reply ?? reply,
+      actual: `${converted} ${bid.actual}`,
       produced: { auctionTradeUuid: String(uuid) },
     };
   },
 };
+
+/**
+ * One bid in the auction round: the vendor's own (open → price → submit), or
+ * the buyer's on the vendor's behalf when the journey is a surrogate one.
+ * One rupee below the RFQ price, so it is a real improvement.
+ */
+async function bidInAuction(
+  j: Journey,
+  ev: EventBuild,
+  auctionUuid: string,
+): Promise<{ ok: boolean; calls: JourneyCall[]; reply?: Reply; actual?: string; why?: string }> {
+  const calls: JourneyCall[] = [];
+  const price = Math.max(1, j.price - 1);
+  const surrogate = j.plan.features.surrogate || !j.actors.vendorApi;
+  const api = surrogate ? j.client.ctx.buyerApi : j.actors.vendorApi;
+  const read = await fire(api, "GET", j.s.Endpoints.tradeDetails(auctionUuid));
+  calls.push(read.call);
+  if (!read.reply.ok) return { ok: false, calls, reply: read.reply, why: "the auction round could not be opened" };
+  const p = read.reply.data?.order_details?.[0]?.product;
+  if (!p?.trade_product_uuid) return { ok: false, calls, reply: read.reply, why: "the auction round came back without its line item's product ids" };
+  const tradeProduct = {
+    trade_product_uuid: p.trade_product_uuid,
+    trade_product_id: p.trade_product_id,
+    trade_product_category_uuid: p.trade_product_category_uuid,
+    product_id: p.id,
+    product_code: p.product_code,
+  };
+  const line = {
+    productUuid: j.catalog.productUuid,
+    productQualityUuid: j.catalog.productQualityUuid,
+    locationUuid: j.catalog.locationUuid,
+    lineItemUuid: ev.lineItemUuid,
+    quantityValue: j.qty,
+    quantityUnit: j.unit,
+    price,
+    tradeProduct,
+  };
+  if (surrogate) {
+    const body = j.s.bodies.buildSurrogateRfqBody({ pricingTradeUuid: auctionUuid, vendorCompanyUuid: j.vendorCompanyUuid, ...line });
+    const r = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.surrogateRfqBid(), body);
+    calls.push(r.call);
+    if (!r.reply.ok) return { ok: false, calls, reply: r.reply, why: "the buyer's on-behalf auction bid was refused" };
+    return { ok: true, calls, reply: r.reply, actual: `The buyer then entered ${rupees(price)} per ${j.unit} in the auction on ${j.vendorName}'s behalf.` };
+  }
+  const open = await fire(api, "POST", j.s.Endpoints.createBid(), j.s.bodies.buildCreateBid({ pricingTradeUuid: auctionUuid, vendorCompanyUuid: j.vendorCompanyUuid }));
+  calls.push(open.call);
+  const bidUuid = open.reply.data?.bid_uuid ?? open.reply.data?.uuid;
+  if (!open.reply.ok || !bidUuid) return { ok: false, calls, reply: open.reply, why: open.reply.ok ? "the auction bid came back without an id" : "the vendor could not open an auction bid" };
+  const { body, total } = j.s.bodies.buildBidProductsBody({ pricingTradeUuid: auctionUuid, vendorCompanyUuid: j.vendorCompanyUuid, ...line });
+  const prod = await fire(api, "POST", j.s.Endpoints.createBidProducts(String(bidUuid)), body);
+  calls.push(prod.call);
+  if (!prod.reply.ok) return { ok: false, calls, reply: prod.reply, why: "the vendor's auction price was refused" };
+  const sub = await fire(api, "PATCH", j.s.Endpoints.submitBid(String(bidUuid)), j.s.bodies.buildSubmitBidBody({ pricingTradeUuid: auctionUuid, vendorCompanyUuid: j.vendorCompanyUuid, total }));
+  calls.push(sub.call);
+  if (!sub.reply.ok || sub.reply.data?.success === false) return { ok: false, calls, reply: sub.reply, why: sub.reply.ok ? "the app answered success: false" : "the vendor's auction bid was refused at submit" };
+  return { ok: true, calls, reply: sub.reply, actual: `${j.vendorName} then bid ${rupees(price)} per ${j.unit} in the auction (${rupees(total)} before tax).` };
+}
 
 /**
  * THE WINDOW THE JOURNEY GIVES ITSELF.
@@ -2194,6 +2286,23 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   if (forced.location) j.catalog.locationUuid = forced.location;
   if (forced.pricingTemplate) j.catalog.pricingTemplateUuid = forced.pricingTemplate;
   if (forced.technicalTemplate) j.catalog.technicalTemplateUuid = forced.technicalTemplate;
+  // A caller's choice (template chooser, matrix) replaces the catalog's pick.
+  const ch = opts.choose ?? {};
+  if (ch.unit) j.unit = ch.unit;
+  if (ch.productUuid) {
+    j.catalog.productUuid = ch.productUuid;
+    if (ch.productQualityUuid) j.catalog.productQualityUuid = ch.productQualityUuid;
+  }
+  if (ch.pricingTemplateUuid) j.catalog.pricingTemplateUuid = ch.pricingTemplateUuid;
+  if (ch.technicalTemplateUuid) j.catalog.technicalTemplateUuid = ch.technicalTemplateUuid;
+  if (ch.vendor?.uuid && ch.vendor.email) {
+    j.vendorCompanyUuid = ch.vendor.uuid;
+    j.catalog.vendorBidCompanyUuid = ch.vendor.uuid;
+    j.vendorEmail = ch.vendor.email;
+    j.vendorName = ch.vendor.name ?? ch.vendor.email;
+  }
+  const chosen = Object.entries(ch).filter(([, v]) => v !== undefined && v !== "");
+  if (chosen.length) opts.onLine?.(`Chosen by the caller: ${chosen.map(([k, v]) => `${k} “${typeof v === "object" ? (v as any).name ?? (v as any).email : v}”`).join(", ")}.`);
   if (Object.keys(forced).length) opts.onLine?.(`Test mode: first choice forced — ${Object.entries(forced).map(([k, v]) => `${CHOICE_WORD[k as ChoiceKind] ?? k} “${v}”`).join(", ")}.`);
 
   try {
