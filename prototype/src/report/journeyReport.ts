@@ -549,7 +549,7 @@ export function mergeFieldChecks(results: CheckRow[], step: StepKind): MergedRow
   return [...callChecks.map(passthrough), ...merged];
 }
 
-function checksTable(rows: ReturnType<typeof mergeFieldChecks>): string {
+function checksTable(rows: ReturnType<typeof mergeFieldChecks>, known: Record<string, string>): string {
   const icon = (p: boolean | null) => (p === true ? "✓" : p === false ? "✗" : "–");
   const cls = (p: boolean | null) => (p === true ? "ok" : p === false ? "bad" : "skip");
   const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
@@ -561,16 +561,16 @@ function checksTable(rows: ReturnType<typeof mergeFieldChecks>): string {
       .map(
         (r) =>
           `<tr class="${cls(r.pass)}">` +
-          `<td title="${safe(`${r.ops.join("+")} ${r.path}`)}"><span class="jc-id">${safe(r.ids[0])}${r.ids.length > 1 ? ` (${r.ids.length} checks)` : ""}</span> ${safe(r.title)}</td>` +
-          `<td>${safe(r.expected)}</td>` +
-          `<td title="${safe(r.ids.map((id, i) => `${id}: ${r.ops[i]}`).join(" · "))}">${safe(r.actual)}</td>` +
+          `<td title="${safe(`${r.ops.join("+")} ${r.path}`)}"><span class="jc-id">${safe(r.ids[0])}${r.ids.length > 1 ? ` (${r.ids.length} checks)` : ""}</span> ${safe(humanText(r.title, known))}</td>` +
+          `<td>${safe(humanText(r.expected, known))}</td>` +
+          `<td title="${safe(r.ids.map((id, i) => `${id}: ${r.ops[i]}`).join(" · "))}">${safe(humanText(r.actual, known))}</td>` +
           `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
       )
       .join("")}</tbody>
   </table>`;
 }
 
-function renderChecks(step: JourneyStepRecord): string {
+function renderChecks(step: JourneyStepRecord, journey: JourneyRecord): string {
   const a = step.assertions;
   if (!a || !a.total) return "";
   const merged = mergeFieldChecks(a.results, step.kind);
@@ -578,13 +578,16 @@ function renderChecks(step: JourneyStepRecord): string {
     `${a.passed} of ${a.total} field checks passed` +
     (a.failed ? ` · <b>${a.failed} failed</b>` : "") +
     (a.skipped ? ` · ${a.skipped} not checked` : "");
+  // Raw ids an earlier step produced (the event, the line item, the bid…)
+  // read as noise in a check's title or actual text — swapped for what they
+  // are, same as every other field-check rendering in this file.
+  const known = { ...knownIds(journey.made), ...knownIds(step.produced) };
   // Each check reads as a test case: what is tested, what should happen, what
   // did happen, and the result — in plain English. The field path, the check
   // and the value seen are in the row's technical fold.
-  const known = { ...knownIds(journey.made), ...knownIds(step.produced) };
   return `
 <details class="jchecks${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""}>
-  <summary><h5>Field checks on the response</h5> <span>${head}</span></summary>${checksTable(merged)}
+  <summary><h5>Field checks on the response</h5> <span>${head}</span></summary>${checksTable(merged, known)}
 </details>`;
 }
 
