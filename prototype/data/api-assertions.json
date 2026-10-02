@@ -8502,9 +8502,9 @@
           "endpoint": "GET /proposal/:id/approval_workflows",
           "samples": 2,
           "human": {
-            "title": "Read the approval workflow for the award answers within 5 seconds",
+            "title": "Read the approval workflow for the award answers within 7 seconds",
             "steps": "1. As the buyer, do “Read the approval workflow for the award” in the API journey (`GET /proposal/:id/approval_workflows`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 7 seconds."
           }
         },
         {
@@ -10705,9 +10705,9 @@
           "endpoint": "POST /trade/template_input",
           "samples": 1,
           "human": {
-            "title": "Add the technical round (RFP) answers within 5 seconds",
+            "title": "Add the technical round (RFP) answers within 15 seconds",
             "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 15 seconds."
           }
         },
         {
@@ -10941,6 +10941,24 @@
             "title": "The technical round's extra closing time is saved exactly as sent",
             "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`), noting the value sent for it. 2. Compare the technical round's extra closing time in the app's response with what was sent.",
             "expected": "The technical round's extra closing time is exactly what the buyer sent."
+          }
+        },
+        {
+          "id": "API-FRFPSTG-065",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "path": "title",
+          "op": "equals_request",
+          "ref": "configurations.title",
+          "title": "`title` comes back exactly as sent",
+          "expected": "equals the request's `configurations.title`",
+          "why": "The server stored what the buyer sent — the core promise of a create or update, and what a Postman test on the echo proves.",
+          "severity": "critical",
+          "human": {
+            "title": "The technical round's title is saved exactly as sent",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`), noting the value sent for it. 2. Compare the technical round's title in the app's response with what was sent.",
+            "expected": "The technical round's title is exactly what the buyer sent."
           }
         },
         {
@@ -11790,6 +11808,137 @@
             "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the round's settings' 'show proposal value in base currency' setting in the app's response.",
             "expected": "The round's settings' 'show proposal value in base currency' setting is a yes/no value."
           }
+        },
+        {
+          "id": "API-FRFPSTG-066",
+          "path": "trade_config.show_vendor_integration_status",
+          "op": "exists",
+          "title": "`trade_config.show_vendor_integration_status` is present",
+          "expected": "always",
+          "why": "It was present in all 17 real response(s); a client reading it would break if it vanished.",
+          "severity": "critical",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "human": {
+            "title": "The round's settings' 'show vendor integration status' setting is returned",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the round's settings' 'show vendor integration status' setting in the app's response.",
+            "expected": "The response includes the round's settings' 'show vendor integration status' setting."
+          }
+        },
+        {
+          "id": "API-FRFPSTG-067",
+          "path": "trade_config.show_vendor_integration_status",
+          "op": "type_is",
+          "value": [
+            "boolean"
+          ],
+          "title": "`trade_config.show_vendor_integration_status` is boolean",
+          "expected": "JSON type boolean",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "human": {
+            "title": "The round's settings' 'show vendor integration status' setting is a yes/no value",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the round's settings' 'show vendor integration status' setting in the app's response.",
+            "expected": "The round's settings' 'show vendor integration status' setting is a yes/no value."
+          }
+        },
+        {
+          "id": "API-FRFPSTG-068",
+          "path": "user.user_type",
+          "op": "exists",
+          "title": "`user.user_type` is present",
+          "expected": "always",
+          "why": "It was present in all 17 real response(s); a client reading it would break if it vanished.",
+          "severity": "critical",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "human": {
+            "title": "The user's user type is returned",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the user's user type in the app's response.",
+            "expected": "The response includes the user's user type."
+          }
+        },
+        {
+          "id": "API-FRFPSTG-069",
+          "path": "user.user_type",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`user.user_type` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "human": {
+            "title": "The user's user type is text",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the user's user type in the app's response.",
+            "expected": "The user's user type is text."
+          }
+        },
+        {
+          "id": "API-FRFPSTG-070",
+          "path": "user.user_type",
+          "op": "one_of",
+          "value": [
+            "buyer"
+          ],
+          "title": "`user.user_type` is \"buyer\"",
+          "expected": "one of \"buyer\"",
+          "why": "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.",
+          "severity": "critical",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "human": {
+            "title": "The user's user type is “buyer”",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the user's user type in the app's response.",
+            "expected": "The user's user type reads “buyer”."
+          }
+        },
+        {
+          "id": "API-FRFPSTG-071",
+          "path": "user.company.status",
+          "op": "exists",
+          "title": "`user.company.status` is present",
+          "expected": "always",
+          "why": "It was present in all 17 real response(s); a client reading it would break if it vanished.",
+          "severity": "critical",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "human": {
+            "title": "The user's company's status is returned",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the user's company's status in the app's response.",
+            "expected": "The response includes the user's company's status."
+          }
+        },
+        {
+          "id": "API-FRFPSTG-072",
+          "path": "user.company.status",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`user.company.status` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "add_stage_rfp",
+          "endpoint": "POST /trade/template_input",
+          "samples": 17,
+          "human": {
+            "title": "The user's company's status is text",
+            "steps": "1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Look at the user's company's status in the app's response.",
+            "expected": "The user's company's status is text."
+          }
         }
       ]
     },
@@ -11828,9 +11977,9 @@
           "endpoint": "GET /trade/:id",
           "samples": 1,
           "human": {
-            "title": "Open the technical round as the vendor answers within 5 seconds",
+            "title": "Open the technical round as the vendor answers within 9 seconds",
             "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 9 seconds."
           }
         },
         {
@@ -12923,6 +13072,160 @@
             "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at each layer's type in the app's response.",
             "expected": "The response includes each layer's type."
           }
+        },
+        {
+          "id": "API-FVTECH-061",
+          "path": "layers[*].type",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`layers[*].type` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "Each layer's type is text",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at each layer's type in the app's response.",
+            "expected": "Each layer's type is text."
+          }
+        },
+        {
+          "id": "API-FVTECH-062",
+          "path": "layers[*].type",
+          "op": "one_of",
+          "value": [
+            "default"
+          ],
+          "title": "`layers[*].type` is \"default\"",
+          "expected": "one of \"default\"",
+          "why": "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.",
+          "severity": "critical",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "Each layer's type is “default”",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at each layer's type in the app's response.",
+            "expected": "Each layer's type reads “default”."
+          }
+        },
+        {
+          "id": "API-FVTECH-063",
+          "path": "creator.user.company.status",
+          "op": "exists",
+          "title": "`creator.user.company.status` is present",
+          "expected": "always",
+          "why": "It was present in all 15 real response(s); a client reading it would break if it vanished.",
+          "severity": "critical",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "The user's company's status is returned",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at the user's company's status in the app's response.",
+            "expected": "The response includes the user's company's status."
+          }
+        },
+        {
+          "id": "API-FVTECH-064",
+          "path": "creator.user.company.status",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`creator.user.company.status` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "The user's company's status is text",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at the user's company's status in the app's response.",
+            "expected": "The user's company's status is text."
+          }
+        },
+        {
+          "id": "API-FVTECH-065",
+          "path": "creator.user.company.status",
+          "op": "one_of",
+          "value": [
+            "active"
+          ],
+          "title": "`creator.user.company.status` is \"active\"",
+          "expected": "one of \"active\"",
+          "why": "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.",
+          "severity": "critical",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "The user's company's status is “active”",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at the user's company's status in the app's response.",
+            "expected": "The user's company's status reads “active”."
+          }
+        },
+        {
+          "id": "API-FVTECH-066",
+          "path": "sheets.forms[*].status",
+          "op": "exists",
+          "title": "`sheets.forms[*].status` is present",
+          "expected": "on every element",
+          "why": "It was present in all 15 real response(s); a client reading it would break if it vanished.",
+          "severity": "critical",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "The pricing sheet's form's status is returned",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at the pricing sheet's form's status in the app's response.",
+            "expected": "The response includes the pricing sheet's form's status for every item."
+          }
+        },
+        {
+          "id": "API-FVTECH-067",
+          "path": "sheets.forms[*].status",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`sheets.forms[*].status` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "The pricing sheet's form's status is text",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at the pricing sheet's form's status in the app's response.",
+            "expected": "The pricing sheet's form's status is text."
+          }
+        },
+        {
+          "id": "API-FVTECH-068",
+          "path": "sheets.forms[*].status",
+          "op": "one_of",
+          "value": [
+            "active"
+          ],
+          "title": "`sheets.forms[*].status` is \"active\"",
+          "expected": "one of \"active\"",
+          "why": "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.",
+          "severity": "critical",
+          "step": "vendor_open_technical",
+          "endpoint": "GET /trade/:id",
+          "samples": 15,
+          "human": {
+            "title": "The pricing sheet's form's status is “active”",
+            "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Look at the pricing sheet's form's status in the app's response.",
+            "expected": "The pricing sheet's form's status reads “active”."
+          }
         }
       ]
     },
@@ -12961,9 +13264,9 @@
           "endpoint": "POST /template_responses",
           "samples": 1,
           "human": {
-            "title": "Start the technical response answers within 5 seconds",
+            "title": "Start the technical response answers within 17 seconds",
             "steps": "1. As the vendor, do “Start the technical response” in the API journey (`POST /template_responses`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 17 seconds."
           }
         },
         {
@@ -13497,9 +13800,9 @@
           "endpoint": "PATCH /template_responses/:id",
           "samples": 1,
           "human": {
-            "title": "Submit the technical response answers within 5 seconds",
+            "title": "Submit the technical response answers within 10 seconds",
             "steps": "1. As the vendor, do “Submit the technical response” in the API journey (`PATCH /template_responses/:id`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -15110,6 +15413,160 @@
             "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at the creator's user's user type in the app's response.",
             "expected": "The response includes the creator's user's user type."
           }
+        },
+        {
+          "id": "API-FESCHEMA-061",
+          "path": "creator.user.user_type",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`creator.user.user_type` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "The creator's user's user type is text",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at the creator's user's user type in the app's response.",
+            "expected": "The creator's user's user type is text."
+          }
+        },
+        {
+          "id": "API-FESCHEMA-062",
+          "path": "creator.user.user_type",
+          "op": "one_of",
+          "value": [
+            "buyer"
+          ],
+          "title": "`creator.user.user_type` is \"buyer\"",
+          "expected": "one of \"buyer\"",
+          "why": "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.",
+          "severity": "critical",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "The creator's user's user type is “buyer”",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at the creator's user's user type in the app's response.",
+            "expected": "The creator's user's user type reads “buyer”."
+          }
+        },
+        {
+          "id": "API-FESCHEMA-063",
+          "path": "evaluators[*].access_type",
+          "op": "exists",
+          "title": "`evaluators[*].access_type` is present",
+          "expected": "on every element",
+          "why": "It was present in all 11 real response(s); a client reading it would break if it vanished.",
+          "severity": "critical",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "Each evaluator's access type is returned",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at each evaluator's access type in the app's response.",
+            "expected": "The response includes each evaluator's access type."
+          }
+        },
+        {
+          "id": "API-FESCHEMA-064",
+          "path": "evaluators[*].access_type",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`evaluators[*].access_type` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "Each evaluator's access type is text",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at each evaluator's access type in the app's response.",
+            "expected": "Each evaluator's access type is text."
+          }
+        },
+        {
+          "id": "API-FESCHEMA-065",
+          "path": "evaluators[*].access_type",
+          "op": "one_of",
+          "value": [
+            "evaluator"
+          ],
+          "title": "`evaluators[*].access_type` is \"evaluator\"",
+          "expected": "one of \"evaluator\"",
+          "why": "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.",
+          "severity": "critical",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "Each evaluator's access type is “evaluator”",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at each evaluator's access type in the app's response.",
+            "expected": "Each evaluator's access type reads “evaluator”."
+          }
+        },
+        {
+          "id": "API-FESCHEMA-066",
+          "path": "evaluators[*].shared_with_type",
+          "op": "exists",
+          "title": "`evaluators[*].shared_with_type` is present",
+          "expected": "on every element",
+          "why": "It was present in all 11 real response(s); a client reading it would break if it vanished.",
+          "severity": "critical",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "Each evaluator's shared with type is returned",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at each evaluator's shared with type in the app's response.",
+            "expected": "The response includes each evaluator's shared with type."
+          }
+        },
+        {
+          "id": "API-FESCHEMA-067",
+          "path": "evaluators[*].shared_with_type",
+          "op": "type_is",
+          "value": [
+            "string"
+          ],
+          "title": "`evaluators[*].shared_with_type` is string",
+          "expected": "JSON type string",
+          "why": "A type change (a number turning into a string, an object into an array) breaks every consumer silently.",
+          "severity": "major",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "Each evaluator's shared with type is text",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at each evaluator's shared with type in the app's response.",
+            "expected": "Each evaluator's shared with type is text."
+          }
+        },
+        {
+          "id": "API-FESCHEMA-068",
+          "path": "evaluators[*].shared_with_type",
+          "op": "one_of",
+          "value": [
+            "User"
+          ],
+          "title": "`evaluators[*].shared_with_type` is \"User\"",
+          "expected": "one of \"User\"",
+          "why": "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.",
+          "severity": "critical",
+          "step": "eval_schema",
+          "endpoint": "GET /v1/trade/:id/schema",
+          "samples": 11,
+          "human": {
+            "title": "Each evaluator's shared with type is “User”",
+            "steps": "1. As the evaluator, do “Open the technical responses to score” in the API journey (`GET /v1/trade/:id/schema`). 2. Look at each evaluator's shared with type in the app's response.",
+            "expected": "Each evaluator's shared with type reads “User”."
+          }
         }
       ]
     },
@@ -15148,9 +15605,9 @@
           "endpoint": "POST /evaluations",
           "samples": 1,
           "human": {
-            "title": "Score the vendor's technical response answers within 5 seconds",
+            "title": "Score the vendor's technical response answers within 7 seconds",
             "steps": "1. As the evaluator, do “Score the vendor's technical response” in the API journey (`POST /evaluations`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 7 seconds."
           }
         }
       ]

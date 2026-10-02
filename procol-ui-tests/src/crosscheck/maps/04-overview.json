@@ -1,0 +1,66 @@
+{
+  "screen": "overview",
+  "title": "stage's Overview tab",
+  "howToOpen": "Open the event, click the stage's tab, then the Overview sub-tab.",
+  "reviewed": { "by": "spine.ai crosscheck agent", "at": "2026-10-01", "fromDiscovery": "probe-muopqf7t", "note": "Order Duration is ending_at − starting_from rendered by getDisplayTime() (client-dashboard src/utils/index.js); Evaluation Time is extra_closing_time − ending_at." },
+  "sources": {
+    "summary": { "method": "GET", "path": "^/api/trade/{stageUuid}/event_summary" },
+    "savings": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/aggregate_savings", "fromEarlierScreen": true },
+    "lineSavings": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/best_line_wise_savings" },
+    "schema": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/schema\\?response_type=template", "fromEarlierScreen": true }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-030",
+      "title": "The Participation Summary shows the participant, bid and counter-offer counts the API returns",
+      "fields": [
+        { "key": "ov.total_participants", "label": "Total participants", "source": "summary", "value": "participant_summary_data.total_participants", "format": "count", "scope": "label", "screenLabel": "Total Participants" },
+        { "key": "ov.active_participants", "label": "Active participants", "source": "summary", "value": "participant_summary_data.active_participants", "format": "count", "scope": "label", "screenLabel": "Active participants" },
+        { "key": "ov.total_bids", "label": "Total bids", "source": "summary", "value": "participant_summary_data.total_bids", "format": "count", "scope": "label", "screenLabel": "Total Bids" },
+        { "key": "ov.revised_bids", "label": "Revised bids", "source": "summary", "value": "participant_summary_data.revised_bids", "format": "count", "scope": "label", "screenLabel": "Revised bids" },
+        { "key": "ov.rejected_bids", "label": "Rejected bids", "source": "summary", "value": "participant_summary_data.rejected_bids", "format": "count", "scope": "label", "screenLabel": "Rejected bids" },
+        { "key": "ov.counter_offers", "label": "Counter offers", "source": "summary", "value": "participant_summary_data.counter_offers", "format": "count", "scope": "label", "screenLabel": "Counter offers" },
+        { "key": "ov.active_counter_offers", "label": "Active counter offers", "source": "summary", "value": "participant_summary_data.active_counter_offers", "format": "count", "scope": "label", "screenLabel": "Active Counter Offers" },
+        { "key": "ov.accepted_counter_offers", "label": "Accepted counter offers", "source": "summary", "value": "participant_summary_data.accepted_counter_offers", "format": "count", "scope": "label", "screenLabel": "Accepted Counter Offers" },
+        { "key": "ov.dynamic_ext", "label": "Dynamic time extended", "source": "summary", "value": "participant_summary_data.dynamic_time_extended", "format": "text", "scope": "label", "screenLabel": "Dynamic time extended" }
+      ]
+    },
+    {
+      "case": "UI-XCHK-031",
+      "title": "The Savings Summary shows the reference price, savings amount, percentage and per-line savings the API computed",
+      "fields": [
+        { "key": "ov.savings.reference", "label": "Savings reference", "source": "savings", "each": "savings[]", "value": "reference.value", "format": "money", "scope": "label", "screenLabel": "Reference" },
+        { "key": "ov.savings.amount", "label": "Savings amount", "source": "savings", "each": "savings[]", "value": "savings_amount.value", "format": "money", "scope": "label", "screenLabel": "Savings" },
+        { "key": "ov.savings.percent", "label": "Savings percentage", "source": "savings", "each": "savings[]", "value": "savings_percent.value", "format": "number", "scope": "page" },
+        { "key": "ov.savings.line", "label": "Line-item savings", "source": "lineSavings", "each": "[][]", "value": "savings_amount.value", "format": "money", "scope": "page" }
+      ]
+    },
+    {
+      "case": "UI-XCHK-032",
+      "title": "The Bidding Summary names the best (L1) vendor and price for each line item as the API returns them",
+      "fields": [
+        { "key": "ov.l1.vendor", "label": "L1 vendor", "source": "summary", "each": "line_data.data.inline_data[].l1", "value": "vendor", "format": "text", "scope": "page" },
+        { "key": "ov.l1.price", "label": "L1 price", "source": "summary", "each": "line_data.data.inline_data[].l1", "value": "value", "format": "money", "scope": "page" },
+        { "key": "ov.l1.product", "label": "Line item in the summary", "source": "summary", "each": "trade_products[]", "value": "name", "format": "text", "scope": "page" }
+      ]
+    },
+    {
+      "case": "UI-XCHK-033",
+      "title": "Order Configurations show the stage's start time, duration, evaluation time, type, mode and template as the API returns them",
+      "fields": [
+        { "key": "ov.started", "label": "Started at", "source": "schema", "value": "starting_from", "format": "datetime", "scope": "label", "screenLabel": "Started At" },
+        { "key": "ov.duration", "label": "Order duration", "source": "schema", "value": "ending_at", "other": "starting_from", "format": "duration", "scope": "label", "screenLabel": "Order Duration" },
+        { "key": "ov.evaluation", "label": "Evaluation time", "source": "schema", "value": "extra_closing_time", "other": "ending_at", "format": "duration", "scope": "label", "screenLabel": "Evaluation Time" },
+        { "key": "ov.order_type", "label": "Order type", "source": "schema", "value": "order_type", "format": "enum", "scope": "label", "screenLabel": "Order Type", "display": { "buy": ["Buy"], "sell": ["Sell"] } },
+        { "key": "ov.mode", "label": "Order mode", "source": "schema", "value": "rfx_mode", "format": "enum", "scope": "label", "screenLabel": "Order Mode", "display": { "rfq": ["RFQ"], "rfp": ["RFP", "Technical"], "auction": ["Auction"] } },
+        { "key": "ov.template", "label": "Template", "source": "schema", "value": "template_name", "format": "text", "scope": "label", "screenLabel": "Template" },
+        { "key": "ov.title", "label": "Stage title", "source": "schema", "value": "title", "format": "text", "scope": "label", "screenLabel": "Event Title" }
+      ]
+    },
+    {
+      "case": "UI-XCHK-050",
+      "title": "No screen of the event looks fine while a request behind it failed, and none reports an error while its requests succeeded",
+      "special": [{ "kind": "api-vs-screen-errors", "label": "Errors agree" }]
+    }
+  ]
+}

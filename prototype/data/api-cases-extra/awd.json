@@ -1,0 +1,4307 @@
+[
+  {
+    "id": "EDGE-AWD-001",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_missing_company_uuid",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; caller is an assigned evaluator.",
+    "steps": [
+      "1. Log in as the evaluator.",
+      "2. POST /evaluations with the journey body minus company_uuid.",
+      "3. Assert 422 code 2 and no row."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — Evaluations::ValidateService#valid_params? requires @options[:company_id].present? (app/services/evaluations/validate_service.rb:44). No evaluations / evaluation_scores row is written.",
+    "rationale": "company_id is the first of the three ANDed conditions in valid_params?; without it the score has no vendor to attach to."
+  },
+  {
+    "id": "EDGE-AWD-002",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_missing_form",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed.",
+    "steps": [
+      "1. POST /evaluations with trade_request_uuid and company_uuid only."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — @options[:form].present? is false (app/services/evaluations/validate_service.rb:45). No evaluations / evaluation_scores row is written.",
+    "rationale": "Second ANDed condition of valid_params?; the lock identifier also reads params.dig(:form, :id), so a missing form must not break the before_action either."
+  },
+  {
+    "id": "EDGE-AWD-003",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_form_without_uuid_or_id",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed.",
+    "steps": [
+      "1. POST /evaluations with form {score: 3, remark} and no uuid/id."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — valid_form? needs form[:id].present? (app/services/evaluations/validate_service.rb:61). No evaluations / evaluation_scores row is written.",
+    "rationale": "The journey sends form.uuid, which ParamsAuth rewrites to form.id; a client that forgets it must get code 2, not a score on 'no form'."
+  },
+  {
+    "id": "EDGE-AWD-004",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_form_id_as_string",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.id sent as the string \"10\" (no uuid)."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "id": "10",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — form[:id].instance_of?(Integer) is false for a string (app/services/evaluations/validate_service.rb:62); ParamsAuth only decodes keys containing 'uuid', so 'id' is passed through untouched. No evaluations / evaluation_scores row is written.",
+    "rationale": "Only form.uuid is decoded to an Integer; a raw form.id must be a JSON integer. The Integer check is what stops '10abc'-style coercion matching an allowed id."
+  },
+  {
+    "id": "EDGE-AWD-005",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_form_not_assigned_to_caller_with_code_2",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; the caller evaluates a DIFFERENT line item's form; the body deliberately keeps the non-existent form Z2dnWmdaUWtnZw== instead of {{evalFormUuid}}.",
+    "steps": [
+      "1. As evaluator A, POST /evaluations with the form uuid assigned to evaluator B (here the non-existent Z2dnWmdaUWtnZw==)."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "Z2dnWmdaUWtnZw==",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 'Insufficient parameters' (not 101) — form[:id].in?(get_allowed_forms_for_user(...).pluck(:id)) is part of valid_form? (app/services/evaluations/validate_service.rb:63), which runs before validate_evaluator. No evaluations / evaluation_scores row is written.",
+    "rationale": "Scoring someone else's form surfaces as a PARAMS error, which is why the journey sees 'Insufficient parameters' when it picks the wrong form. A regression that moves the form check into validate_evaluator would change the code the UI keys on."
+  },
+  {
+    "id": "EDGE-AWD-006",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_missing_score",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form {uuid, remark} and no score."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — form[:score].present? is false (app/services/evaluations/validate_service.rb:64). No evaluations / evaluation_scores row is written.",
+    "rationale": "A missing score must not be stored as nil: nil scores drop out of QCS averages and silently raise a vendor's mean."
+  },
+  {
+    "id": "EDGE-AWD-007",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_score_as_numeric_string",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.score = \"3\" (string)."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": "3",
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — form[:score].instance_of?(Integer) is required unless the event is vendor-onboarding v2 (app/services/evaluations/validate_service.rb:65). No evaluations / evaluation_scores row is written.",
+    "rationale": "Form inputs are strings by default; a client that forgets to parseInt gets 'Insufficient parameters' with no hint the TYPE is the problem."
+  },
+  {
+    "id": "EDGE-AWD-008",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_decimal_score",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.score = 3.5."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3.5,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — 3.5 is a Float, not Integer (app/services/evaluations/validate_service.rb:65), and not a label key (app/services/evaluations/validate_service.rb:66). No evaluations / evaluation_scores row is written.",
+    "rationale": "Scores are discrete label keys; a half-score would not map to any label (TNA/T1/T2…) and would break display_value_for_evaluation_score."
+  },
+  {
+    "id": "EDGE-AWD-009",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_score_6_above_default_label_set",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; the RFP uses the default evaluation_score_label_mapping (scores 0-5); form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.score = 6 (one above the highest default label)."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 6,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — form[:score].in?(event_group.get_evaluation_score_vs_label.keys) is false; the default mapping has keys 0..5 (db/migrate/20250209130259_set_evaluation_score_label_mapping.rb, app/services/evaluations/validate_service.rb:66). No evaluations / evaluation_scores row is written.",
+    "rationale": "ROOT CAUSE of the journey's intermittent 'Insufficient parameters': eventJourney.ts scores randInt(1,10), so every draw of 6-10 is refused. The score is NOT 'out of 10' — it is a label key."
+  },
+  {
+    "id": "EDGE-AWD-010",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_negative_score",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.score = -1."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": -1,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — -1 is not a label key (app/services/evaluations/validate_service.rb:66). No evaluations / evaluation_scores row is written.",
+    "rationale": "A negative score would pull a weighted QCS total below zero."
+  },
+  {
+    "id": "EDGE-AWD-011",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_zero_score_with_empty_remark",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; not vendor-onboarding v2; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.score = 0 and remark = \"\"."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 0,
+        "remark": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — a zero score is only valid when form[:remark].present? (app/services/evaluations/validate_service.rb:67-69); \"\" is not present. No evaluations / evaluation_scores row is written.",
+    "rationale": "Score 0 is TNA (technically not accepted) in the default mapping — the one score that disqualifies a vendor from awarding. An empty-string remark is the easy bypass of the mandatory justification."
+  },
+  {
+    "id": "EDGE-AWD-012",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_accepts_zero_score_with_remark_boundary",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator; 0 is a key of the event's evaluation_score_label_mapping (TNA in both defaults).",
+    "steps": [
+      "1. POST /evaluations with form.score = 0 and a real remark."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 0,
+        "remark": "QA_Platform_TNA_reason_{{stamp}}"
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "200 success:true — 0 is a label key and the remark is present, so valid_form? passes; a draft evaluation_score of 0 with a Remark row is written. (app/services/evaluations/validate_service.rb:67-69, app/helpers/api/evaluations_helper.rb:1099)",
+    "rationale": "Pairs with the two refusals above: the rule is 'zero needs a reason', not 'zero is forbidden'."
+  },
+  {
+    "id": "EDGE-AWD-013",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_accepts_highest_label_score_5",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; 5 is a key of the event's evaluation_score_label_mapping; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.score = 5 (highest default label key)."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 5,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "200 success:true — 5 is a key of both default mappings (app/services/evaluations/validate_service.rb:66). NOTE the per-RFP mapping from the 2025-02 migration makes 5 = 'Regret', which BLOCKS awarding when restrict_awarding_for_tna_vendors is on (app/helpers/api/proposal_helper.rb:1271-1280). If the event's mapping tops out below 5 this becomes code 2.",
+    "rationale": "The top of the range is a boundary AND, depending on which mapping the RFP carries, a disqualification — the same number means T1 in the company default and Regret in the per-RFP default."
+  },
+  {
+    "id": "EDGE-AWD-014",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_every_score_when_rfp_has_no_label_mapping",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; the RFP's config has no evaluation_score_label_mapping key (EventGroup#evaluation_score_label_mapping uses the RFP's config whenever an RFP exists, and TradeRequest#evaluation_score_label_mapping returns [] when the key is absent); form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with a normally valid score 3."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 for EVERY score — get_evaluation_score_vs_label.keys is [] (app/models/event_group.rb:718-735, app/models/model_helpers/trade_request_model_helper.rb:912-914). The company-level MasterConfiguration default is never consulted once an RFP exists. No evaluations / evaluation_scores row is written.",
+    "rationale": "CONFIG trap: no code path writes evaluation_score_label_mapping into a NEW RFP's config (only the 2025-02 backfill migration did). If new RFPs lack it, scoring is impossible and every attempt reads as 'Insufficient parameters'."
+  },
+  {
+    "id": "EDGE-AWD-015",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_remark_as_integer_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.remark = 5 (a number)."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": 5
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 422, not a 500. Today valid_form? passes (remark is only checked for score 0) and find_or_create_remark calls message.html_safe on an Integer (app/helpers/api/evaluations_helper.rb:1120), which raises NoMethodError → 500.",
+    "rationale": "DEFECT-IN-WAITING: the remark is never type-checked; only strings have html_safe."
+  },
+  {
+    "id": "EDGE-AWD-016",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_score_breakdown_as_string_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.score_type_vs_key_attribute_vs_score = \"QA_Platform_{{stamp}}\"."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}",
+        "score_type_vs_key_attribute_vs_score": "QA_Platform_{{stamp}}"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 422. build_updated_score_obj calls score_type_vs_key_attribute_vs_score&.to_unsafe_h (app/helpers/api/evaluations_helper.rb:1108), which a String does not have → 500 today.",
+    "rationale": "Optional nested hash never validated for type."
+  },
+  {
+    "id": "EDGE-AWD-017",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rescore_dropping_breakdown_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; the evaluator already saved a score WITH score_type_vs_key_attribute_vs_score; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. Score once with a breakdown {\"technical\": {\"q1\": 3}}.",
+      "2. Re-score the same form without the breakdown key."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 4,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 200 or 422. get_meta_data_for_evaluation_score iterates the OLD breakdown and indexes new_score_type_vs_key_attribute_vs_score[...] on nil (app/helpers/api/evaluations_helper.rb:1161-1172) → NoMethodError → 500 today.",
+    "rationale": "Re-scoring is routine; a partial payload on the second save is exactly what a UI that only sends changed fields does."
+  },
+  {
+    "id": "EDGE-AWD-018",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_before_bid_end_time",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; the RFP is still accepting responses (bid_end_time in the future).",
+    "steps": [
+      "1. POST /evaluations with a valid body while the RFP is live."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 33 'Order not active' — render_error_json(33) if trade_request.bid_end_time > Time.now (app/controllers/api/evaluations_controller.rb:25). No evaluations / evaluation_scores row is written.",
+    "rationale": "Two-envelope confidentiality: scoring while vendors can still edit would let a score leak and responses change after it."
+  },
+  {
+    "id": "EDGE-AWD-019",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_commercial_stage_id",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the PRICING (RFQ) stage of the sandbox event; form.uuid is {{evalFormUuid}}.",
+    "steps": [
+      "1. POST /evaluations with trade_request_uuid = the RFQ stage ({{tradeId}}) instead of {{rfpTradeId}}."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 33 — the lookup is TradeRequest.active.rfi_or_rfp (app/controllers/api/evaluations_controller.rb:14-16), so an RFQ/auction id finds nothing. No evaluations / evaluation_scores row is written.",
+    "rationale": "Commercial stages have no forms; the scope is the only thing stopping a score being filed against a price round."
+  },
+  {
+    "id": "EDGE-AWD-020",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_draft_rfp_stage",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is an RFP stage still in draft (event not activated).",
+    "steps": [
+      "1. POST /evaluations against the draft stage."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 33 — TradeRequest.active excludes status draft (app/controllers/api/evaluations_controller.rb:14). No evaluations / evaluation_scores row is written.",
+    "rationale": "Wrong order of actions: evaluating an event no vendor has seen."
+  },
+  {
+    "id": "EDGE-AWD-021",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_vendor_caller",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; caller is the VENDOR user.",
+    "steps": [
+      "1. Log in as the vendor.",
+      "2. POST /evaluations scoring itself 5."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 5,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 33 — the lookup is scoped to company_id: Current.workspace.id (app/controllers/api/evaluations_controller.rb:14); the vendor's workspace owns no RFP. No evaluations / evaluation_scores row is written.",
+    "rationale": "Self-scoring is the most direct fraud on a technical evaluation."
+  },
+  {
+    "id": "EDGE-AWD-022",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_vendor_without_active_response",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; {{vendorUuid}} was invited but never submitted a technical response (or it was deleted).",
+    "steps": [
+      "1. POST /evaluations for that vendor with the evaluator's assigned form."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 'You are not allowed to perform this action' — allowed_to_evaluate_participant? requires trade_request.template_responses.active.exists?(company_id:) (app/services/evaluations/validate_service.rb:79). No evaluations / evaluation_scores row is written.",
+    "rationale": "Scoring a non-respondent invents a qualification for a vendor who never qualified; code 101, not 2, is the tell that the params were fine."
+  },
+  {
+    "id": "EDGE-AWD-023",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_rejects_double_click_inside_lock",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time has passed; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. Fire two identical POST /evaluations within 3 seconds."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "The second returns HTTP 422 code 516 'Transaction in Progress' — lock_evaluation_create keys on trade/company/form/user for 3s (app/controllers/api/evaluations_controller.rb:126-132). Exactly one evaluation_score row.",
+    "rationale": "Without the lock two draft Evaluation rows are created for the same vendor (the find-or-new at app/helpers/api/evaluations_helper.rb:25-36 is not atomic)."
+  },
+  {
+    "id": "EDGE-AWD-024",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_after_evaluation_window_is_not_time_guarded",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; now is AFTER extra_closing_time (the evaluation window has ended) but the stage is still status active.",
+    "steps": [
+      "1. POST /evaluations with a valid body."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "score": 3,
+        "remark": "QA_Platform_eval_{{stamp}}"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today the create action only checks the LOWER bound (bid_end_time > now → 33, app/controllers/api/evaluations_controller.rb:25); nothing refuses a score after extra_closing_time. Expected per product rules: refused. Must never 5xx.",
+    "rationale": "DEFECT-IN-WAITING: re-evaluation is explicitly limited to in_evaluation_time? (app/controllers/api/v1/trade_controller.rb:1352) but first-time scoring is not, so a late score changes QCS after the window everyone relied on."
+  },
+  {
+    "id": "EDGE-AWD-025",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_section_wise_rejects_unknown_question_key",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; config: section-wise scoring enabled on the RFP; the form is a vendor-assessment form; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. POST /evaluations with form.question_scores = {\"QA_Platform_bogus_{{stamp}}\": 3}."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "question_scores": {
+          "QA_Platform_bogus_key": 3
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 15 with message 'Invalid question keys: QA_Platform_bogus_key' from validate_and_parse_question_scores (app/helpers/api/evaluations_helper.rb:838-841). No evaluations / evaluation_scores row is written.",
+    "rationale": "Keys must be the form's page_response_headers key_attributes; an unknown key would otherwise be stored and weighted as 0."
+  },
+  {
+    "id": "EDGE-AWD-026",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_evaluation_section_wise_rejects_score_above_max",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; config: section-wise scoring; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator; the question key is valid.",
+    "steps": [
+      "1. POST /evaluations with a question score of 99999."
+    ],
+    "method": "POST",
+    "path": "/evaluations",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "company_uuid": "{{vendorUuid}}",
+      "form": {
+        "uuid": "{{evalFormUuid}}",
+        "question_scores": {
+          "q1": 99999
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 15 'Score for q1 must be between 0 and <section_wise_max_score>' (app/helpers/api/evaluations_helper.rb:848-850). No evaluations / evaluation_scores row is written.",
+    "rationale": "Section-wise scores are floats with a per-form max, unlike the label-key scores."
+  },
+  {
+    "id": "EDGE-AWD-027",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_schema_rejects_nonexistent_trade",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Caller is the evaluator.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/schema (decodes to id 999999999)."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/schema?response_type=template&additional_fields=order_details",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' — validate_event returns 4 when trade is nil (app/controllers/concerns/trade_controller_helper.rb:2215), called from app/controllers/api/v1/trade_controller.rb:276-277.",
+    "rationale": "The evaluator's first call; a nil trade must be a clean 4, not a nil dereference in the Dynamo logging that follows."
+  },
+  {
+    "id": "EDGE-AWD-028",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_schema_rejects_uninvited_vendor",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; caller is a vendor user who is NOT in the RFP's audience.",
+    "steps": [
+      "1. GET the RFP schema as that vendor."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{rfpTradeId}}/schema?response_type=template&additional_fields=order_details",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 536 'You are not allowed to view this event.' — validate_event checks trade.is_allowed_to_view?(Current.user) (app/controllers/concerns/trade_controller_helper.rb:2219-2221).",
+    "rationale": "The schema carries sheets.forms with evaluator assignments and extra_closing_time; an uninvited vendor must not read another vendor's technical round."
+  },
+  {
+    "id": "EDGE-AWD-029",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_evaluation_submit_via_post_is_not_routed",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event.",
+    "steps": [
+      "1. POST (not PATCH) /evaluations/submit."
+    ],
+    "method": "POST",
+    "path": "/evaluations/submit",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Routing error (404) — config/routes.rb:741-742 declares only `patch 'submit'`. The existing library cases EVAL-QCS-001..004 use POST and therefore never reach the controller.",
+    "rationale": "Documents that the four existing submit cases are exercising the router, not the guards they describe."
+  },
+  {
+    "id": "EDGE-AWD-030",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_evaluation_submit_rejects_before_close_patch",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time is in the future; the evaluator has draft scores.",
+    "steps": [
+      "1. PATCH /evaluations/submit before the RFP closes."
+    ],
+    "method": "PATCH",
+    "path": "/evaluations/submit",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 33 — trade_request.bid_end_time > Time.now (app/controllers/api/evaluations_controller.rb:42). No Proposal created by create_proposal_for_evaluations.",
+    "rationale": "Same guard as EVAL-QCS-001 but on the route that actually exists (PATCH)."
+  },
+  {
+    "id": "EDGE-AWD-031",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_evaluation_submit_rejects_partial_scoring",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time passed; two vendors responded; the evaluator scored only one.",
+    "steps": [
+      "1. PATCH /evaluations/submit."
+    ],
+    "method": "PATCH",
+    "path": "/evaluations/submit",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 571 'Please, evaluate on all fields' — rfp_evaluation_count_invalid? compares expected (participants × items) with draft/peer_review scores (app/helpers/api/evaluations_helper.rb:811-832, returned at app/helpers/api/evaluations_helper.rb:609).",
+    "rationale": "A half-scored submission would create a technical proposal that disqualifies the unscored vendor by omission."
+  },
+  {
+    "id": "EDGE-AWD-032",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_evaluation_submit_rejects_vendor_caller",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; caller is a vendor.",
+    "steps": [
+      "1. PATCH /evaluations/submit as the vendor."
+    ],
+    "method": "PATCH",
+    "path": "/evaluations/submit",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 33 — the trade lookup is scoped to Current.workspace.id (app/controllers/api/evaluations_controller.rb:41).",
+    "rationale": "Wrong actor on the call that publishes the technical outcome."
+  },
+  {
+    "id": "EDGE-AWD-033",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_evaluation_submit_unknown_action_type_only_saves",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time passed; the evaluator scored every vendor.",
+    "steps": [
+      "1. PATCH /evaluations/submit with action_type = \"QA_Platform_bogus\"."
+    ],
+    "method": "PATCH",
+    "path": "/evaluations/submit",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "action_type": "QA_Platform_bogus"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "200 with a DRAFT proposal and no approval started — only action_type == 'proposal_submit' submits (app/controllers/api/evaluations_controller.rb:97-100). Never 5xx.",
+    "rationale": "An unknown enum is silently treated as 'save', which a client may mistake for a submission."
+  },
+  {
+    "id": "EDGE-AWD-034",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_evaluation_submit_section_wise_without_form_rejected",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; config: section-wise scoring enabled; caller is NOT on an evaluating team; all sections scored.",
+    "steps": [
+      "1. PATCH /evaluations/submit with no form_id / form_ids."
+    ],
+    "method": "PATCH",
+    "path": "/evaluations/submit",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "action_type": "proposal_submit"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — section-wise submission needs form_ids.first (app/controllers/api/evaluations_controller.rb:85-87); get_form_ids_for_evaluation_submission returns [] without form_id (app/helpers/api/evaluations_helper.rb:749-762).",
+    "rationale": "CONFIG-dependent: the same body is valid when section-wise scoring is off."
+  },
+  {
+    "id": "EDGE-AWD-035",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_evaluation_submit_double_patch_inside_lock",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; bid_end_time passed; every vendor scored.",
+    "steps": [
+      "1. Fire two PATCH /evaluations/submit within 3s."
+    ],
+    "method": "PATCH",
+    "path": "/evaluations/submit",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Second call → HTTP 422 code 516 (app/controllers/api/evaluations_controller.rb:113-119). One draft technical proposal.",
+    "rationale": "find_or_initialize_draft_proposal is not atomic; the 3s cache lock is the only guard against two proposals."
+  },
+  {
+    "id": "EDGE-AWD-036",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_line_items_rejected_outside_evaluation_time",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; the RFP is still live (before bid_end_time).",
+    "steps": [
+      "1. GET /v1/trade/{{rfpTradeId}}/line_items_for_reevaluation."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{rfpTradeId}}/line_items_for_reevaluation",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 — render_error_json(101) unless trade_request.in_evaluation_time? (app/controllers/api/v1/trade_controller.rb:1316); in_evaluation_time? is the window bid_end_time..extra_closing_time.",
+    "rationale": "Re-evaluation is only meaningful during evaluation time; listing items outside it invites requests that will all fail."
+  },
+  {
+    "id": "EDGE-AWD-037",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_rejected_during_bidding",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; the RFP is still live.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation with a form uuid and remarks."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "form_uuids": [
+        "{{evalFormUuid}}"
+      ],
+      "remarks": "QA_Platform_reeval_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 (app/controllers/api/v1/trade_controller.rb:1352). No AdditionalRequest created.",
+    "rationale": "'Only during evaluation time' rule."
+  },
+  {
+    "id": "EDGE-AWD-038",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_rejected_after_extra_closing_time",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; now is after extra_closing_time.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "form_uuids": [
+        "{{evalFormUuid}}"
+      ],
+      "remarks": "QA_Platform_reeval_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 — in_evaluation_time? (alias of is_auction_in_extra_closing_time?, app/models/trade_request.rb:968) is false after the window (app/controllers/api/v1/trade_controller.rb:1352).",
+    "rationale": "Upper bound of the same rule; contrast with first-time scoring, which has no upper bound."
+  },
+  {
+    "id": "EDGE-AWD-039",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_without_form_uuids_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; line-item (not lot) evaluation.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation with remarks only."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "remarks": "QA_Platform_reeval_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2/786. Today form_ids is nil and `(form_ids & form_objects.pluck(:id))` raises NoMethodError (app/controllers/api/v1/trade_controller.rb:1364) → 500.",
+    "rationale": "DEFECT-IN-WAITING: the only params guard is id.blank? (app/controllers/api/v1/trade_controller.rb:1349); form_ids is never presence-checked."
+  },
+  {
+    "id": "EDGE-AWD-040",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_form_uuids_as_string_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation with form_ids = \"12\" (a string, not an array)."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "form_ids": "12",
+      "remarks": "QA_Platform_reeval_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. String#& does not exist → NoMethodError at app/controllers/api/v1/trade_controller.rb:1364 → 500 today.",
+    "rationale": "Wrong container type."
+  },
+  {
+    "id": "EDGE-AWD-041",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_rejects_form_not_visible_to_caller",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; the caller can see some forms.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation with form_uuids = [Z2dnWmdaUWtnZw==]."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "form_uuids": [
+        "Z2dnWmdaUWtnZw=="
+      ],
+      "remarks": "QA_Platform_reeval_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 786 'Select correct line items for reevaluation' — (form_ids & allowed ids) != form_ids (app/controllers/api/v1/trade_controller.rb:1364-1366).",
+    "rationale": "Re-evaluation resets another evaluator's score; it must be limited to forms the requester can see."
+  },
+  {
+    "id": "EDGE-AWD-042",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_rejects_item_not_tr_submitted",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; the form's evaluation is still DRAFT (evaluator has not submitted TR); form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation for that form."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "form_uuids": [
+        "{{evalFormUuid}}"
+      ],
+      "remarks": "QA_Platform_reeval_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 786 — get_item_status returns reevaluation_disabled_reason 'TR is Pending' for evaluation_status draft (app/controllers/concerns/trade_controller_helper.rb:5680-5691), refused at app/controllers/api/v1/trade_controller.rb:1379-1381.",
+    "rationale": "'Only TR-submitted items' rule: you cannot send back something that was never handed in."
+  },
+  {
+    "id": "EDGE-AWD-043",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_rejects_item_already_requested",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; a re-evaluation for this form is already pending; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation for the same form again."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "form_uuids": [
+        "{{evalFormUuid}}"
+      ],
+      "remarks": "QA_Platform_reeval_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 786 ('Reevaluation is already requested', app/controllers/concerns/trade_controller_helper.rb:5688-5689) or, if the status check is bypassed, 787 'Reevaluation already Requested' (app/helpers/api/additional_requests_helper.rb:555).",
+    "rationale": "Two pending requests on one score would each flip it back to draft on accept."
+  },
+  {
+    "id": "EDGE-AWD-044",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_request_without_reason_is_not_enforced",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; TR submitted for the form; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. PATCH request_tr_reevaluation with no remarks."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/request_tr_reevaluation",
+    "body": {
+      "form_uuids": [
+        "{{evalFormUuid}}"
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Per product rules the reason is mandatory; the backend stores request_remark: remarks || '' (app/helpers/api/additional_requests_helper.rb:574) and accepts it. Record: 200 means the rule lives only in the UI. Never 5xx.",
+    "rationale": "'Reason required' is enforced client-side only — an API caller can send an evaluator's score back with no justification."
+  },
+  {
+    "id": "EDGE-AWD-045",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_resolve_rejects_unknown_action",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; a pending re-evaluation exists; caller is the requested evaluator.",
+    "steps": [
+      "1. PATCH resolve_tr_reevaluation_request with request_action = \"approve\"."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/resolve_tr_reevaluation_request/{{evalFormUuid}}",
+    "body": {
+      "request_action": "approve",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — return 2 if !action.in?(['accept','reject']) (app/helpers/additional_request_resolution_helper.rb:1146).",
+    "rationale": "Invalid enum on the call that either resets or keeps a score."
+  },
+  {
+    "id": "EDGE-AWD-046",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_resolve_rejects_non_requested_evaluator",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; a pending re-evaluation is addressed to evaluator B; caller is buyer A.",
+    "steps": [
+      "1. As A, PATCH resolve with request_action accept."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/resolve_tr_reevaluation_request/{{evalFormUuid}}",
+    "body": {
+      "request_action": "accept",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 — return 101 if user.id != additional_request.requested_from_id (app/helpers/additional_request_resolution_helper.rb:1160).",
+    "rationale": "Only the evaluator who owns the score can agree to re-open it."
+  },
+  {
+    "id": "EDGE-AWD-047",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_resolve_rejects_when_nothing_pending",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; no re-evaluation pending on the form; form.uuid is {{evalFormUuid}}, the form assigned to the evaluator.",
+    "steps": [
+      "1. PATCH resolve with request_action reject."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/resolve_tr_reevaluation_request/{{evalFormUuid}}",
+    "body": {
+      "request_action": "reject",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' — AdditionalRequest.active.requested.where(grouping_id:) is blank (app/helpers/additional_request_resolution_helper.rb:1155-1156).",
+    "rationale": "Resolve twice / resolve nothing."
+  },
+  {
+    "id": "EDGE-AWD-048",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_resolve_by_user_without_forms_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{rfpTradeId}} is the TECHNICAL (RFP) stage of the sandbox event; inside evaluation time; caller is a buyer-side user who is allowed to show the trade but has NO allowed forms.",
+    "steps": [
+      "1. PATCH resolve with request_action accept."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{rfpTradeId}}/resolve_tr_reevaluation_request/{{evalFormUuid}}",
+    "body": {
+      "request_action": "accept",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 101. get_forms returns [allowed_forms, nil] when nothing is allowed (app/helpers/api/forms_helper.rb:56), and form_objects.find on nil raises (app/helpers/additional_request_resolution_helper.rb:1148) → 500 today. request_tr_reevaluation has the same shape at app/controllers/api/v1/trade_controller.rb:1363-1364.",
+    "rationale": "DEFECT-IN-WAITING in both re-evaluation writes."
+  },
+  {
+    "id": "EDGE-AWD-049",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_reeval_revoke_by_non_requester_rejected",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A re-evaluation request exists, raised by buyer A; caller is buyer B (not requester, not super admin, not event owner). The request id is supplied by the runner.",
+    "steps": [
+      "1. PATCH /additional_request/revoke_additional_requests with item_type reevaluation."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {
+      "item_type": "reevaluation",
+      "requests": [
+        {
+          "id": "Z2dnWmdaUWtnZw==",
+          "status": "revoke"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 5 'Not authorized' when the id is real (app/controllers/api/additional_requests_controller.rb:199-203); code 4 for the ghost id (app/controllers/api/additional_requests_controller.rb:182-185).",
+    "rationale": "Revoking a re-evaluation restores the old score; only its requester or the owner may do it."
+  },
+  {
+    "id": "EDGE-AWD-050",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_regenerate_master_qcs_refused_for_client_user",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Caller is an ordinary client buyer (not a Procol employee on the ALLOWED_USER_IDS_TO_REGENERATE_MASTER_QCS list).",
+    "steps": [
+      "1. POST /event_groups/regenerate_master_qcs with event_group_uuids [{{eventGroupUuid}}]."
+    ],
+    "method": "POST",
+    "path": "/event_groups/regenerate_master_qcs",
+    "body": {
+      "event_group_uuids": [
+        "{{eventGroupUuid}}"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 455 'You are not authorized to perform this action' — EventGroupPolicy#regenerate_master_qcs? requires is_procol_employee? and the allow-list (app/policies/event_group_policy.rb:92-97), rescued by app/controllers/concerns/api_auth.rb:16,117-118.",
+    "rationale": "Regeneration re-runs PrecomputationEngine over every bid; a client must not be able to trigger it."
+  },
+  {
+    "id": "EDGE-AWD-051",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_proposal_show_rejects_vendor_reader",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is the sandbox award proposal; caller is the vendor.",
+    "steps": [
+      "1. GET /proposal/{{proposalUuid}} as the vendor."
+    ],
+    "method": "GET",
+    "path": "/proposal/{{proposalUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 455 — ProposalPolicy#show? → add_response? requires record.company_id in Company.allowed_companies(user) (app/policies/proposal_policy.rb:10-23).",
+    "rationale": "The proposal carries every vendor's allocation and price — the QCS in award form."
+  },
+  {
+    "id": "EDGE-AWD-052",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_rejects_missing_item_type",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{bidUuid}} is the vendor's submitted bid on the closed RFQ.",
+    "steps": [
+      "1. POST raise_additional_request without item_type."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 — the before_action transform_bid_products finds no trade (item_type is not counter_offer_for_bid and there is no trade_request_id) and returns code 4 (app/controllers/concerns/trade_template_helper.rb:5548-5555); without the filter the action would return 2 (app/controllers/api/additional_requests_controller.rb:20-21). No additional_requests row; bid status unchanged.",
+    "rationale": "Guard order: the before_action answers first, so the documented code-2 check is unreachable from this body."
+  },
+  {
+    "id": "EDGE-AWD-053",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_ghost_bid_must_not_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. POST raise_additional_request with item_uuid Z2dnWmdaUWtnZw== (well-formed, id 999999999, no such bid)."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "Z2dnWmdaUWtnZw==",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 4. Today transform_product does Bid.find_by_id(bid_id).trade_request on nil (app/controllers/concerns/trade_template_helper.rb:5550) → NoMethodError → 500; create_additional_request_for_bid would also call nil.status (app/helpers/api/additional_requests_helper.rb:157-158).",
+    "rationale": "DEFECT-IN-WAITING: a well-formed but unknown id crashes the before_action; the nil guard is on the wrong side of the dereference."
+  },
+  {
+    "id": "EDGE-AWD-054",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_unknown_item_type_is_silent_success",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{bidUuid}} is a submitted bid; body also carries trade_request_uuid so the before_action resolves a trade.",
+    "steps": [
+      "1. POST raise_additional_request with item_type = \"QA_Platform_bogus\"."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "QA_Platform_bogus",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}",
+      "trade_request_uuid": "{{tradeId}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today 200 success with nothing created — neither branch of the if/elsif matches and the action falls through to render_success_json (app/controllers/api/additional_requests_controller.rb:23-32). Expected: 422 code 2.",
+    "rationale": "An invalid enum answered with success:true makes the caller believe a counter offer was sent."
+  },
+  {
+    "id": "EDGE-AWD-055",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_rejects_bid_already_under_counter",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} already has a pending counter offer (bid status requested).",
+    "steps": [
+      "1. POST raise_additional_request again."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 — return 101 if bid.status != 'active' (app/helpers/api/additional_requests_helper.rb:158). No additional_requests row; bid status unchanged.",
+    "rationale": "Two open counter offers on one bid would race on accept."
+  },
+  {
+    "id": "EDGE-AWD-056",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_rejects_selected_bid",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{bidUuid}} has been awarded (status selected).",
+    "steps": [
+      "1. POST raise_additional_request on the awarded bid."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 (app/helpers/api/additional_requests_helper.rb:158).",
+    "rationale": "Negotiating after award changes a committed price."
+  },
+  {
+    "id": "EDGE-AWD-057",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_rejects_unsubmitted_bid",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} is a vendor's DRAFT bid (never submitted).",
+    "steps": [
+      "1. POST raise_additional_request on the draft."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 — status draft ≠ active (app/helpers/api/additional_requests_helper.rb:158).",
+    "rationale": "Counter-offering a price the vendor never committed to."
+  },
+  {
+    "id": "EDGE-AWD-058",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_rejects_buyer_from_other_company",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Caller is a buyer of a different company with trade create/read rights.",
+    "steps": [
+      "1. POST raise_additional_request on {{bidUuid}}."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 — is_allowed_to_raise_additional_request? requires trade_request.is_allowed_to_view?(Current.user) for buyers (app/helpers/api/additional_requests_helper.rb:954-963), checked at app/helpers/api/additional_requests_helper.rb:161.",
+    "rationale": "Cross-tenant price pressure on someone else's vendor."
+  },
+  {
+    "id": "EDGE-AWD-059",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_by_vendor_on_own_bid",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Caller is the VENDOR who owns {{bidUuid}} (status active).",
+    "steps": [
+      "1. POST raise_additional_request on its own bid."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected: refused (only the buyer counters). Today for non-buyer users is_allowed_to_raise_additional_request? returns can_view_bid? (app/helpers/api/additional_requests_helper.rb:962-963), which is true for the owner, so the request proceeds (to 587 without a trade product, or to a real counter offer addressed to the vendor itself).",
+    "rationale": "DEFECT-IN-WAITING: the actor check for vendors is 'can see the bid', not 'is the buyer'."
+  },
+  {
+    "id": "EDGE-AWD-060",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_zero_price_is_silent_success",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} is active; the row's product.trade_product_uuid (the vendor's quoted line) has no library placeholder; without it the row matches no bid line and the first line-level guard to fire is 587.",
+    "steps": [
+      "1. POST raise_additional_request with price.value = 0."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 0,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected: 422. Today get_bid_products_array drops the row because allowed_to_add needs price > 0 (app/controllers/concerns/trade_template_helper.rb:5839-5843), no change is detected and create_additional_request_for_bid returns nil → 200 success with nothing raised (app/helpers/api/additional_requests_helper.rb:189).",
+    "rationale": "A zero counter price is answered 'success' — the buyer believes a counter was sent."
+  },
+  {
+    "id": "EDGE-AWD-061",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_negative_price_is_silent_success",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} is active.",
+    "steps": [
+      "1. POST raise_additional_request with price.value = -50."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": -50,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Same path as zero: row dropped by allowed_to_add (app/controllers/concerns/trade_template_helper.rb:5841), 200 no-op. Expected: 422.",
+    "rationale": "Negative price must never be accepted as a counter."
+  },
+  {
+    "id": "EDGE-AWD-062",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_price_above_bid_rfq_config_dependent",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} active on a BUY RFQ; the row carries the vendor's trade_product_uuid (the row's product.trade_product_uuid (the vendor's quoted line) has no library placeholder; without it the row matches no bid line and the first line-level guard to fire is 587); config: RFQ trade config allow_price_reversal_in_counter_offer_in_rfq = false.",
+    "steps": [
+      "1. POST raise_additional_request with price above the vendor's quoted price (the journey sends bid + 50)."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 999999,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "With the config false: HTTP 422 code 300 'You cannot increase the price' (app/helpers/api/additional_requests_helper.rb:935-949). With the key absent the default is TRUE (app/models/model_helpers/trade_request_model_helper.rb:90-96) and a higher counter is allowed. For auctions the rule follows is_price_increase_allowed?.",
+    "rationale": "The journey counters with price + 50 — above the bid — which only works because the default allows reversal; flip the config and the journey step fails."
+  },
+  {
+    "id": "EDGE-AWD-063",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_on_unquoted_line_rejected",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} active; the row names a trade product the vendor did not quote (the row's product.trade_product_uuid (the vendor's quoted line) has no library placeholder; without it the row matches no bid line and the first line-level guard to fire is 587).",
+    "steps": [
+      "1. POST raise_additional_request (single, not bulk)."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 587 'You cannot raise a counter offer on a non quoted item.' — prev_bid_trade_product blank and not bulk (app/helpers/api/additional_requests_helper.rb:795-800). No additional_requests row; bid status unchanged.",
+    "rationale": "Negotiating a line the vendor declined creates a price nobody quoted."
+  },
+  {
+    "id": "EDGE-AWD-064",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_quantity_change_when_not_negotiable",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{bidUuid}} active; participant_quantity is not a negotiable widget; the row carries the vendor's trade_product_uuid.",
+    "steps": [
+      "1. POST raise_additional_request changing participant_quantity 10 → 7."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "7",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 504 'You cannot give a counter offer on these columns.' — is_counter_offer_allowed? rejects a quantity change when participant_quantity is not negotiable (app/models/model_helpers/trade_request_model_helper.rb:512-527), checked at app/helpers/api/additional_requests_helper.rb:168-169.",
+    "rationale": "Only negotiable widgets may move in a counter offer."
+  },
+  {
+    "id": "EDGE-AWD-065",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_without_sheets_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} active.",
+    "steps": [
+      "1. POST raise_additional_request with item_uuid/item_type but no sheets."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2. Today params[:bid_products] is nil and is_counter_offer_allowed?(btps, nil) calls nil.map (app/models/model_helpers/trade_request_model_helper.rb:514) → 500.",
+    "rationale": "DEFECT-IN-WAITING: bid_products presence is never checked."
+  },
+  {
+    "id": "EDGE-AWD-066",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_row_without_product_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{bidUuid}} active.",
+    "steps": [
+      "1. POST raise_additional_request with a row that has no product key."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. get_line_item_object reads item[:product][:trade_product_id] (app/controllers/concerns/trade_template_helper.rb:5644) → nil[] → 500 today.",
+    "rationale": "Missing nested object in a before_action transform."
+  },
+  {
+    "id": "EDGE-AWD-067",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_too_many_attachments_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{bidUuid}} active; the row carries a real price change for the vendor's trade product.",
+    "steps": [
+      "1. POST raise_additional_request with 11 attachments."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}",
+      "attachments": [
+        "QA_Platform_a1_{{stamp}}",
+        "QA_Platform_a2_{{stamp}}",
+        "QA_Platform_a3_{{stamp}}",
+        "QA_Platform_a4_{{stamp}}",
+        "QA_Platform_a5_{{stamp}}",
+        "QA_Platform_a6_{{stamp}}",
+        "QA_Platform_a7_{{stamp}}",
+        "QA_Platform_a8_{{stamp}}",
+        "QA_Platform_a9_{{stamp}}",
+        "QA_Platform_a10_{{stamp}}",
+        "QA_Platform_a11_{{stamp}}"
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a single 422. create_remarks_helper fails and the helper calls render_error_json inside the model loop, marked '! POTENTIAL RENDERING ISSUE' (app/helpers/api/additional_requests_helper.rb:421-428); the action then renders success again → AbstractController::DoubleRenderError (500) with the additional request already saved.",
+    "rationale": "DEFECT-IN-WAITING: a render inside a helper that returns normally — the request half-commits."
+  },
+  {
+    "id": "EDGE-AWD-068",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_concurrent_raise_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{bidUuid}} active; the row carries a real price change.",
+    "steps": [
+      "1. Fire two raise_additional_request calls for the same bid within 3s."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "The second must be 422 'This bid is being revised, please try again later'. Today render_error_json(15, …) at app/controllers/api/additional_requests_controller.rb:15 has no `&& return`, so the action keeps going and renders again → DoubleRenderError 500.",
+    "rationale": "DEFECT-IN-WAITING: the lock is detected but the request is not stopped."
+  },
+  {
+    "id": "EDGE-AWD-069",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_counter_offer_to_inactive_vendor_profile",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{bidUuid}} active, but the vendor company's profile was deactivated after bidding.",
+    "steps": [
+      "1. POST raise_additional_request."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "10",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 90,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "uuid": "{{productUuid}}",
+                "unit_type": "KG",
+                "event_group_line_item_uuid": "{{lineItemUuid}}",
+                "key": "product"
+              },
+              "variant": {
+                "uuid": "{{productQualityUuid}}",
+                "key": "variant"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_co_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No vendor-status check exists on this path (app/helpers/api/additional_requests_helper.rb:155-200); the counter goes to bid.user (app/helpers/api/additional_requests_helper.rb:989-1005). Expected product behaviour: refused like awarding is (1124). Never 5xx.",
+    "rationale": "A counter offer nobody can answer holds the bid in 'requested' and blocks awarding it."
+  },
+  {
+    "id": "EDGE-AWD-070",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_bulk_counter_offer_missing_trade_must_not_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. POST raise_bulk_counter_offer with change_type counter_offer_for_bid and no trade_request_uuid."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_bulk_counter_offer",
+    "body": {
+      "change_type": "counter_offer_for_bid",
+      "is_bulk_counter_offer": true,
+      "remarks": "QA_Platform_bulk_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 4. The before_action returns 4 when it cannot resolve a trade (app/controllers/concerns/trade_template_helper.rb:5555); if that ever passes, TradeRequest.find_by_id(nil).bids (app/controllers/api/additional_requests_controller.rb:39-40) is a nil dereference.",
+    "rationale": "The action itself has no nil guard and no authorize call."
+  },
+  {
+    "id": "EDGE-AWD-071",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_bulk_counter_offer_unknown_change_type_silent_success",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the closed RFQ with active bids.",
+    "steps": [
+      "1. POST raise_bulk_counter_offer with change_type = \"QA_Platform_bogus\"."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_bulk_counter_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "change_type": "QA_Platform_bogus",
+      "is_bulk_counter_offer": true,
+      "remarks": "QA_Platform_bulk_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today 200 {success:true} with nothing raised (app/controllers/api/additional_requests_controller.rb:38,55). Expected: 422 code 2.",
+    "rationale": "Invalid enum answered with success."
+  },
+  {
+    "id": "EDGE-AWD-072",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_bulk_counter_offer_by_vendor_rejected",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is the closed RFQ with other vendors' active bids; caller is a vendor.",
+    "steps": [
+      "1. POST raise_bulk_counter_offer as the vendor."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_bulk_counter_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "change_type": "counter_offer_for_bid",
+      "is_bulk_counter_offer": true,
+      "sheets": {
+        "inline_components": {
+          "data": []
+        }
+      },
+      "remarks": "QA_Platform_bulk_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 — the controller has NO authorize call; the only stop is per-bid is_allowed_to_raise_additional_request? → can_view_bid? false for a competitor's bid, raised as error '101' and rendered at app/controllers/api/additional_requests_controller.rb:48-50.",
+    "rationale": "Security depends entirely on a per-bid helper; a competitor's own bid in the set would be counter-offered by the competitor."
+  },
+  {
+    "id": "EDGE-AWD-073",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_revoke_counter_offer_without_requests_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. PATCH revoke_additional_requests with {}."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2/4. Today params['requests'].pluck(:id) on nil (app/controllers/api/additional_requests_controller.rb:95-96) → 500.",
+    "rationale": "DEFECT-IN-WAITING: the revoke action reads requests before any presence check."
+  },
+  {
+    "id": "EDGE-AWD-074",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_revoke_counter_offer_invalid_status_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A pending counter offer raised by the caller exists (id supplied by the runner).",
+    "steps": [
+      "1. PATCH revoke_additional_requests with requests [{id, status: \"QA_Platform_bogus\"}]."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {
+      "requests": [
+        {
+          "id": 999999999,
+          "status": "QA_Platform_bogus"
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. With a real id, additional_request.status = request['status'] (app/helpers/api/additional_requests_helper.rb:652) assigns an unknown enum value → ArgumentError → 500 (enum status: in_active/active/revoke/draft, app/models/additional_request.rb:53). With the ghost id: code 4.",
+    "rationale": "DEFECT-IN-WAITING: the client chooses the stored status and it is not whitelisted."
+  },
+  {
+    "id": "EDGE-AWD-075",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_revoke_counter_offer_by_other_buyer_rejected",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A pending counter offer raised by buyer A; caller is buyer B (not requester, not owner, not super admin).",
+    "steps": [
+      "1. PATCH revoke_additional_requests as B."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {
+      "requests": [
+        {
+          "id": 999999999,
+          "status": "revoke"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 5 'Not authorized' with the real id (app/controllers/api/additional_requests_controller.rb:199-203).",
+    "rationale": "Revoke restores the vendor's original price; it belongs to the requester."
+  },
+  {
+    "id": "EDGE-AWD-076",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_vendor_resolve_counter_offer_unknown_resolution_is_silent_success",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A counter offer is pending to the caller (vendor); the id is supplied by the runner.",
+    "steps": [
+      "1. PATCH resolve_additional_request with resolution = \"maybe\"."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/resolve_additional_request",
+    "body": {
+      "item_type": "counter_offer_for_bid",
+      "resolution": "maybe",
+      "request_ids": [
+        999999999
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422. With a real id today: resolve_additional_request_for_counter_offer matches neither 'accepted' nor 'rejected' and renders success (app/helpers/additional_request_resolution_helper.rb:597-609) — the request stays pending. With the ghost id: code 4.",
+    "rationale": "An invalid decision is acknowledged as success; the vendor believes they answered."
+  },
+  {
+    "id": "EDGE-AWD-077",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_buyer_cannot_accept_counter_offer_for_vendor",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A counter offer is pending to the vendor; caller is the BUYER who raised it.",
+    "steps": [
+      "1. As the buyer, PATCH resolve_additional_request with resolution accepted."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/resolve_additional_request",
+    "body": {
+      "item_type": "counter_offer_for_bid",
+      "resolution": "accepted",
+      "request_ids": [
+        999999999
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "With the real id: HTTP 422 code 5 — the buyer is not requested_from and the buyer's allowed companies exclude requesting_from_company_id (the vendor) (app/controllers/api/additional_requests_controller.rb:153-162). Ghost id: code 4.",
+    "rationale": "Accepting on the vendor's behalf would commit the vendor to a price they never agreed."
+  },
+  {
+    "id": "EDGE-AWD-078",
+    "feature": "bids.counter_offer",
+    "title": "QA_Platform_vendor_accepts_counter_offer_twice_rejected",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The vendor already accepted this counter offer.",
+    "steps": [
+      "1. PATCH resolve_additional_request accepted again."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/resolve_additional_request",
+    "body": {
+      "item_type": "counter_offer_for_bid",
+      "resolution": "accepted",
+      "request_ids": [
+        999999999
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 — the lookup is status active + resolution requested (app/controllers/api/additional_requests_controller.rb:146), so a resolved request is not found.",
+    "rationale": "Double-accept must not re-run update_bid_action_helper and create a second revised bid."
+  },
+  {
+    "id": "EDGE-AWD-079",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_trade_request_id_raw_uuid_not_decoded",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the closed RFQ.",
+    "steps": [
+      "1. POST move_to_auction with trade_request_id = \"{{tradeId}}\" (a uuid under an *_id key)."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG"
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}"
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false,
+      "trade_request_id": "{{tradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 95 'Trade Request not found' — only keys containing 'uuid' are decoded (app/controllers/concerns/params_auth.rb:74-75), so where(id: '<uuid>') finds nothing (app/controllers/api/trade_controller.rb:965-969). No child trade_requests row.",
+    "rationale": "The existing library conversion cases (API-CONV-*, AUC-CONV-*) send trade_request_id with a uuid, so every one of them lands on 95 regardless of the rule it describes."
+  },
+  {
+    "id": "EDGE-AWD-080",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_rejects_draft_rfq",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is an RFQ stage still in draft (event not activated).",
+    "steps": [
+      "1. POST move_to_auction."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG"
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}"
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 95 — TradeRequest.active excludes draft (app/controllers/api/trade_controller.rb:965-969). No child trade_requests row.",
+    "rationale": "Converting an event no vendor has seen."
+  },
+  {
+    "id": "EDGE-AWD-081",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_technical_round_is_not_type_guarded",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is replaced by the event's RFP (technical) stage; latest event version; caller owns it.",
+    "steps": [
+      "1. POST move_to_auction on the RFP."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG"
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}"
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected: refused. The controller never checks rfx_mode — only active, latest?, no existing child, company and auctioning? (app/controllers/api/trade_controller.rb:963-979); TradeRequestPolicy#move_to_auction? is create? && allowed_to_view_event? (app/policies/trade_request_policy.rb:158-160). Record what RfqToAuction::CreateService does; never 5xx.",
+    "rationale": "DEFECT-IN-WAITING: nothing names the RFQ as the only legal source; a technical round could become an 'auction' with no prices to start from."
+  },
+  {
+    "id": "EDGE-AWD-082",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_rejects_vendor_caller",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{tradeId}} is the closed RFQ; caller is a vendor.",
+    "steps": [
+      "1. POST move_to_auction as the vendor."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG"
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}"
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 455 — authorize old_trade → TradeRequestPolicy#move_to_auction? fails (app/controllers/api/trade_controller.rb:975, app/controllers/concerns/api_auth.rb:117-118). Note 95/101/94 are checked BEFORE authorize, so a vendor can probe which RFQs already have auctions (94) by id.",
+    "rationale": "Wrong actor on a call that creates a trade; also documents the pre-authorize information leak."
+  },
+  {
+    "id": "EDGE-AWD-083",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_row_without_unit_rejected",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the closed RFQ; caller owns it.",
+    "steps": [
+      "1. POST move_to_auction with a data row whose product has no unit_type and no creator_quantity suffix."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}"
+          },
+          "creator_quantity": {
+            "value": 10
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 574 'Unit cannot be blank' (app/controllers/concerns/trade_template_helper.rb:1393-1395). No child trade_requests row.",
+    "rationale": "Every auction line needs a unit to rank on."
+  },
+  {
+    "id": "EDGE-AWD-084",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_row_unknown_unit_rejected",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the closed RFQ; caller owns it.",
+    "steps": [
+      "1. POST move_to_auction with unit 'QA_PLATFORM_UNIT'."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "QA_PLATFORM_UNIT"
+          },
+          "creator_quantity": {
+            "value": 10,
+            "configuration": {
+              "suffix": "QA_PLATFORM_UNIT"
+            }
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 495 with message 'The unit qa_platform_unit is not present' (app/controllers/concerns/trade_template_helper.rb:1402-1415). No child trade_requests row.",
+    "rationale": "Units are looked up in the workspace; a stranger unit must be named in the error."
+  },
+  {
+    "id": "EDGE-AWD-085",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_with_empty_data_does_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the closed RFQ; caller owns it.",
+    "steps": [
+      "1. POST move_to_auction with data []."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422. transform_trade_product defaults data to [] (app/controllers/api/trade_controller.rb:986 → app/controllers/concerns/trade_template_helper.rb:1389) and trade_products.pluck(:id) is [] (app/controllers/api/trade_controller.rb:996-997); what RfqToAuction::CreateService does with zero products is unguarded. Never 5xx.",
+    "rationale": "An auction with no lines."
+  },
+  {
+    "id": "EDGE-AWD-086",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_knockout_start_above_l1_rejected",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the closed RFQ with valid bids; config: company rfx_project_enabled; the L1 RFQ sum total is known.",
+    "steps": [
+      "1. POST move_to_auction with auction_config knockout and bulk_price far above L1."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG"
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}"
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "title": "QA_Platform_Auction_{{stamp}}"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false,
+      "auction_config": "knockout",
+      "bulk_price": 999999999
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 966 'Starting price cannot be more than the lowest RFQ (L1) Sum Total' (app/controllers/concerns/trade_controller_helper.rb:5813-5815). Only when rfx_project_enabled (app/controllers/api/trade_controller.rb:989-994); otherwise no check. No child trade_requests row.",
+    "rationale": "Knockout/dutch availability: a start above L1 makes the first round meaningless. CONFIG-dependent."
+  },
+  {
+    "id": "EDGE-AWD-087",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_dutch_end_price_above_l1_rejected",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "As above; auction_config dutch.",
+    "steps": [
+      "1. POST move_to_auction with auction_config dutch, a valid bulk_price, and end_price above L1."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG"
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}"
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "dutch",
+        "title": "QA_Platform_Auction_{{stamp}}"
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false,
+      "auction_config": "dutch",
+      "bulk_price": 1,
+      "end_price": 999999999
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 968 'End price cannot be more than the lowest RFQ (L1) Sum Total' (app/controllers/concerns/trade_controller_helper.rb:5817-5818), end_price read only for dutch (app/controllers/api/trade_controller.rb:990). No child trade_requests row.",
+    "rationale": "Dutch auctions descend to end_price; an end above L1 lets the auction close above what was already offered."
+  },
+  {
+    "id": "EDGE-AWD-088",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_end_before_start_does_not_500",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the closed RFQ; caller owns it.",
+    "steps": [
+      "1. POST move_to_auction with bid_end_time one hour before bid_start_time."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG"
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}"
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102441200,
+        "extra_closing_time": 4102441200
+      },
+      "status": "active",
+      "audience_company_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": true,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422. set_trade_schedules only runs validate_rfp_rfq_bid_end_time (RFP vs RFQ ordering, app/controllers/concerns/trade_controller_helper.rb:500-503, 643+) — it does not compare the auction's own start and end. Never 5xx.",
+    "rationale": "An auction that ends before it starts would close instantly with the RFQ bids copied in as final."
+  },
+  {
+    "id": "EDGE-AWD-089",
+    "feature": "award.proposal",
+    "title": "QA_Platform_proposal_rejects_ghost_event_group",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. POST /proposal with event_group_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "POST",
+    "path": "/proposal",
+    "body": {
+      "event_group_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 (app/controllers/api/proposal_controller.rb:50).",
+    "rationale": "Well-formed unknown id."
+  },
+  {
+    "id": "EDGE-AWD-090",
+    "feature": "award.proposal",
+    "title": "QA_Platform_proposal_rejects_draft_event_group",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} is a DRAFT event group (never activated).",
+    "steps": [
+      "1. POST /proposal."
+    ],
+    "method": "POST",
+    "path": "/proposal",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — EventGroup.active excludes draft (enum status active:1, draft:2; app/controllers/api/proposal_controller.rb:49-50).",
+    "rationale": "Awarding an event nobody bid on."
+  },
+  {
+    "id": "EDGE-AWD-091",
+    "feature": "award.proposal",
+    "title": "QA_Platform_proposal_rejects_vendor_caller",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{eventGroupUuid}} is the sandbox event; caller is a vendor.",
+    "steps": [
+      "1. POST /proposal as the vendor."
+    ],
+    "method": "POST",
+    "path": "/proposal",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 455 — EventGroupPolicy#create_proposal? → update? requires the event's company in Current.allowed_companies and create_record permission (app/policies/event_group_policy.rb:34-37,68-70).",
+    "rationale": "A vendor opening an award on its own event."
+  },
+  {
+    "id": "EDGE-AWD-092",
+    "feature": "award.proposal",
+    "title": "QA_Platform_proposal_create_is_idempotent_per_user",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} is closed and awardable; the caller already has a draft proposal on it.",
+    "steps": [
+      "1. POST /proposal twice."
+    ],
+    "method": "POST",
+    "path": "/proposal",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "accept",
+    "expectedResult": "200 both times with the SAME proposal uuid — create_proposal returns the existing draft before any awarding check (app/helpers/api/proposal_helper.rb:25-28).",
+    "rationale": "Double-click on 'Award' must not fork two drafts."
+  },
+  {
+    "id": "EDGE-AWD-093",
+    "feature": "award.proposal",
+    "title": "QA_Platform_proposal_during_bidding_is_config_gated",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{eventGroupUuid}}'s latest commercial stage is still LIVE (before bid_end_time); the caller has no draft.",
+    "steps": [
+      "1. POST /proposal during bidding."
+    ],
+    "method": "POST",
+    "path": "/proposal",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Only when the stage config is_order_allowed_to_close_in_extra_closing_time_only is true is this refused: HTTP 422 code 720 'You are not allowed to award in bidding time' (app/controllers/concerns/event_group_controller_helper.rb:644-645, app/helpers/api/proposal_helper.rb:29-30). With the config off, a draft is created during bidding and add_response has no time check either.",
+    "rationale": "'Award before close' is guarded only by an opt-in trade config — by default a buyer can start allocating while vendors are still bidding."
+  },
+  {
+    "id": "EDGE-AWD-094",
+    "feature": "award.proposal",
+    "title": "QA_Platform_proposal_unknown_lot_no_does_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} is closed, not lot-based.",
+    "steps": [
+      "1. POST /proposal with lot_no = \"QA_Platform_lot_{{stamp}}\"."
+    ],
+    "method": "POST",
+    "path": "/proposal",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}",
+      "lot_no": "QA_Platform_lot_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422. latest_commercial_stage_for_lot returns nil for an unknown lot and is_awarding_allowed? tolerates a nil stage (app/controllers/concerns/event_group_controller_helper.rb:630-644), so a draft is created for a lot that does not exist; the later add_response then calls nil.bids (app/helpers/api/proposal_helper.rb:1041). Never 5xx here.",
+    "rationale": "A lot-scoped draft for a phantom lot is a trap for the next call."
+  },
+  {
+    "id": "EDGE-AWD-095",
+    "feature": "award.proposal",
+    "title": "QA_Platform_proposal_on_rfp_only_event_add_response_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} has only an RFP stage (no RFQ/auction); a draft proposal {{proposalUuid}} was created on it.",
+    "steps": [
+      "1. POST /proposal/{{proposalUuid}}/add_response with the journey body."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. extract_initial_params does latest_stage.bids with latest_commercial_stage nil (app/helpers/api/proposal_helper.rb:1040-1041) → 500 today; POST /proposal happily creates the draft (app/helpers/api/proposal_helper.rb:21-39).",
+    "rationale": "DEFECT-IN-WAITING: create does not require a commercial stage but every allocation does."
+  },
+  {
+    "id": "EDGE-AWD-096",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_without_responses_must_not_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is the caller's draft proposal on a closed event.",
+    "steps": [
+      "1. POST add_response with {}."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2. Today extract_initial_params calls responses.values on nil (app/helpers/api/proposal_helper.rb:1051) and add_response_in_proposal then responses.keys (app/helpers/api/proposal_helper.rb:55) → 500.",
+    "rationale": "DEFECT-IN-WAITING: the controller passes params[:responses] straight through (app/controllers/api/proposal_controller.rb:60-64)."
+  },
+  {
+    "id": "EDGE-AWD-097",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_vendor_value_as_string_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is the caller's draft.",
+    "steps": [
+      "1. POST add_response with responses = {\"<vendor>\": \"add\"}."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": "add"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. responses[vendor_id].permit! on a String (app/helpers/api/proposal_helper.rb:97) → NoMethodError → 500 today.",
+    "rationale": "Scalar where an object is expected."
+  },
+  {
+    "id": "EDGE-AWD-098",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_without_egli_data_or_ids_must_not_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is the caller's draft.",
+    "steps": [
+      "1. POST add_response with responses {<vendor>: {action: add}} — no egli_data, no egli_uuids."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add"
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 (683 'Proposal cannot be empty' or 2). Today egli_ids is nil and process_vendor does (egli_ids - eg_line_items.map(&:id)) (app/helpers/api/proposal_helper.rb:1082-1084) → NoMethodError → 500.",
+    "rationale": "DEFECT-IN-WAITING: the most natural 'award the vendor, all lines' shorthand crashes."
+  },
+  {
+    "id": "EDGE-AWD-099",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_ghost_line_item_rejected",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is the caller's draft.",
+    "steps": [
+      "1. POST add_response with egli_data key Z2dnWmdaUWtnZw==."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "Z2dnWmdaUWtnZw==": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 738 (app/helpers/api/proposal_helper.rb:1084). proposals.responses_hash unchanged.",
+    "rationale": "A line item from another event (or none) must not be awarded into this proposal."
+  },
+  {
+    "id": "EDGE-AWD-100",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_rejects_vendor_with_no_bid",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{proposalUuid}} is the caller's draft; {{vendorUuid}} was invited but never bid.",
+    "steps": [
+      "1. POST add_response for that vendor."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 826 — no bid in Bid::VALID_STATUSES_TO_RANK (active/selected/requested) on the latest stage (app/helpers/api/proposal_helper.rb:1041-1042,1085-1086). proposals.responses_hash unchanged.",
+    "rationale": "Award with no bids: the PO would carry no price."
+  },
+  {
+    "id": "EDGE-AWD-101",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_rejects_vendor_only_in_rfq_after_auction",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "The RFQ was converted to an auction; {{vendorUuid}} bid on the RFQ but has no bid in the auction (latest stage).",
+    "steps": [
+      "1. POST add_response for that vendor."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 826 'Awarded vendor is not present in the latest stage' — only latest_commercial_stage bids are considered (app/helpers/api/proposal_helper.rb:1040-1042,1086).",
+    "rationale": "The error seen live. Awarding an earlier-stage price after an auction discards the auction's result."
+  },
+  {
+    "id": "EDGE-AWD-102",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_rejects_vendor_with_revoked_bid",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{vendorUuid}}'s latest-stage bid was revoked or rejected.",
+    "steps": [
+      "1. POST add_response for that vendor."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 826 — revoked/rejected are outside VALID_STATUSES_TO_RANK (app/models/bid.rb:163; app/helpers/api/proposal_helper.rb:1086).",
+    "rationale": "A regretted/withdrawn vendor must not be awarded by API even if the UI hides them."
+  },
+  {
+    "id": "EDGE-AWD-103",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_rejects_line_vendor_did_not_quote",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Two-line event; {{vendorUuid}} quoted line A only; the body awards line B ({{lineItemUuid}}).",
+    "steps": [
+      "1. POST add_response for line B."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 715 'Bid not present on this line item' — egli.precomputed_data[company_id] blank (app/helpers/api/proposal_helper.rb:1308).",
+    "rationale": "Awarding a line at a price the vendor never gave."
+  },
+  {
+    "id": "EDGE-AWD-104",
+    "feature": "award.add_response",
+    "title": "QA_Platform_add_response_unknown_action_is_treated_as_remove",
+    "type": "Validation",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} already awards {{lineItemUuid}} to {{vendorUuid}}.",
+    "steps": [
+      "1. POST add_response with action = \"QA_Platform_bogus\"."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "QA_Platform_bogus",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422 code 2. Today every action that is not 'add' takes the remove branch: validations are skipped (they return unless action == 'add', app/helpers/api/proposal_helper.rb:1245,1288), the line is subtracted from the vendor's set and totals are decremented (app/helpers/api/proposal_helper.rb:1097,1109-1121).",
+    "rationale": "DEFECT-IN-WAITING: an invalid enum silently UN-awards a line."
+  },
+  {
+    "id": "EDGE-AWD-105",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_over_line_quantity_with_partial_awarding",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Config: is_partial_awarding_enabled on, is_over_awarding_allowed off; line quantity 10.",
+    "steps": [
+      "1. POST add_response with awarded_quantity 10.001."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10.001
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 561 'You cannot select bid with more than requested quantity.' — sum + awarded > egli_quantity (app/helpers/api/proposal_helper.rb:836-837). proposals.responses_hash unchanged.",
+    "rationale": "The smallest over-award; there is no rounding tolerance on this branch."
+  },
+  {
+    "id": "EDGE-AWD-106",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_exact_line_quantity_with_partial_awarding",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Config: is_partial_awarding_enabled on; line quantity 10; nothing else awarded.",
+    "steps": [
+      "1. POST add_response with awarded_quantity 10."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "200 — 0 + 10 is not > 10 (app/helpers/api/proposal_helper.rb:837).",
+    "rationale": "Exactly-at-limit is allowed; the pair with the case above pins the comparison as '>' not '>='."
+  },
+  {
+    "id": "EDGE-AWD-107",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_over_quantity_is_unchecked_when_both_configs_off",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Config: is_partial_awarding_enabled OFF and is_over_awarding_allowed OFF (the defaults); line quantity 10.",
+    "steps": [
+      "1. POST add_response with awarded_quantity 999999."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 999999
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422 code 561. Today when awarded_quantity is supplied and neither config is on, none of the if/elsif branches applies and validate_awarding_quantity returns nil (app/helpers/api/proposal_helper.rb:820-839) — the value is stored unchecked.",
+    "rationale": "DEFECT-IN-WAITING: the quantity ceiling exists only when one of two opt-in configs is on; the journey's own awarded_quantity lands on this branch by default."
+  },
+  {
+    "id": "EDGE-AWD-108",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_negative_quantity_with_partial_awarding",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Config: is_partial_awarding_enabled on.",
+    "steps": [
+      "1. POST add_response with awarded_quantity -5."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": -5
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422. The only comparison is sum + awarded > egli_quantity (app/helpers/api/proposal_helper.rb:837); -5 passes. get_previously_fulfilled_quantity later clamps negatives to 0 for OTHER vendors (app/helpers/api/proposal_helper.rb:1327-1328), which lets the next vendor be awarded the full quantity on top.",
+    "rationale": "DEFECT-IN-WAITING: no lower bound (the existing AWD-PART-001/002 expect a refusal the code does not make)."
+  },
+  {
+    "id": "EDGE-AWD-109",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_zero_quantity_with_partial_awarding",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Config: is_partial_awarding_enabled on.",
+    "steps": [
+      "1. POST add_response with awarded_quantity 0."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 0
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422. 0 passes the ceiling check (app/helpers/api/proposal_helper.rb:837) and — note — awarded_quantity_provided uses .present?, which is TRUE for 0 (app/helpers/api/proposal_helper.rb:820). A vendor 'awarded' 0 still becomes a PO recipient.",
+    "rationale": "Zero awards create empty POs."
+  },
+  {
+    "id": "EDGE-AWD-110",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_non_numeric_quantity",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Config: is_partial_awarding_enabled on.",
+    "steps": [
+      "1. POST add_response with awarded_quantity \"ten\"."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": "ten"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected 422. safe_to_f('ten') is 0.0 (app/helpers/api/proposal_helper.rb:1346-1354), so it is validated as 0 but the RAW string is merged into responses_hash (app/helpers/api/proposal_helper.rb:1099-1100).",
+    "rationale": "Validated value and stored value differ."
+  },
+  {
+    "id": "EDGE-AWD-111",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_over_awarding_allowed_without_pr_is_unbounded",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Config: is_over_awarding_allowed ON; the line is NOT linked to a PR.",
+    "steps": [
+      "1. POST add_response with awarded_quantity 999999."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 999999
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "200 by design — `elsif is_over_awarding_allowed && !pr_mapping_exists` returns nil (app/helpers/api/proposal_helper.rb:834-835); over_quantity_tolerance_percentage is ignored without a PR.",
+    "rationale": "CONFIG: the tolerance only bounds PR-linked lines; a manual event with over-awarding on has no ceiling at all."
+  },
+  {
+    "id": "EDGE-AWD-112",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_over_awarding_above_pr_tolerance_rejected",
+    "type": "Boundary",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Config: is_over_awarding_allowed ON, over_quantity_tolerance_percentage 10; the line is PR-linked with 10 open.",
+    "steps": [
+      "1. POST add_response with awarded_quantity 12 (above 10 × 1.10)."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 12
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 561 — awarded + sum > max(egli_quantity, pr_uncompleted × (1 + tol/100) − other_events_in_progress) (app/helpers/api/proposal_helper.rb:824-830).",
+    "rationale": "The tolerance ceiling on PR-linked lines."
+  },
+  {
+    "id": "EDGE-AWD-113",
+    "feature": "award.partial",
+    "title": "QA_Platform_add_response_over_awarding_partial_off_requires_full",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Config: is_over_awarding_allowed ON, is_partial_awarding_enabled OFF; PR-linked line of 10.",
+    "steps": [
+      "1. POST add_response with awarded_quantity 6."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 6
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 561 — with partial awarding off, sum + awarded < egli_quantity is refused too (app/helpers/api/proposal_helper.rb:831-833). The message ('more than requested') is misleading for an UNDER-award.",
+    "rationale": "Under-award refused with an over-award message."
+  },
+  {
+    "id": "EDGE-AWD-114",
+    "feature": "evaluation.tna",
+    "title": "QA_Platform_add_response_rejects_line_item_marked_regret",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Config: restrict_awarding_for_tna_vendors on; the vendor's score on {{lineItemUuid}} is the Regret score.",
+    "steps": [
+      "1. POST add_response for that line."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 1136 'One or more selected line items cannot be awarded as they have been marked as Regret' (app/helpers/api/proposal_helper.rb:1262-1266, codes at app/helpers/api/proposal_helper.rb:16-19).",
+    "rationale": "Line-level disqualification (vendor-level cases already exist)."
+  },
+  {
+    "id": "EDGE-AWD-115",
+    "feature": "evaluation.tna",
+    "title": "QA_Platform_add_response_allows_tna_vendor_when_stage_allows_tna_bidding",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Config: restrict_awarding_for_tna_vendors on; the vendor is TNA; the latest stage has misc.allow_tna_vendors_to_bid = true (the journey's convert body sets it).",
+    "steps": [
+      "1. POST add_response for the TNA vendor."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+    "body": {
+      "responses": {
+        "{{vendorUuid}}": {
+          "action": "add",
+          "egli_data": {
+            "{{lineItemUuid}}": {
+              "awarded_quantity": 10
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "TNA is not blocked — get_blocked_evaluation_scores only adds 'tna' when !latest_stage.allow_tna_vendors_to_bid? (app/helpers/api/proposal_helper.rb:1271-1277); Regret stays blocked.",
+    "rationale": "The journey's move_to_auction body sets allow_tna_vendors_to_bid: true, which silently lifts TNA award blocking for the whole event."
+  },
+  {
+    "id": "EDGE-AWD-116",
+    "feature": "award.approval",
+    "title": "QA_Platform_approval_workflows_rejects_colleagues_proposal",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} was created by another buyer of the same company.",
+    "steps": [
+      "1. GET approval_workflows as a different buyer."
+    ],
+    "method": "GET",
+    "path": "/proposal/{{proposalUuid}}/approval_workflows",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 — lookup is scoped to created_by_user_id: Current.user.id (app/controllers/api/proposal_controller.rb:72).",
+    "rationale": "Creator-scoped read."
+  },
+  {
+    "id": "EDGE-AWD-117",
+    "feature": "award.approval",
+    "title": "QA_Platform_approval_workflows_evaluating_team_gets_empty_body",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is on an evaluating team in this workspace.",
+    "steps": [
+      "1. GET /proposal/{{proposalUuid}}/approval_workflows."
+    ],
+    "method": "GET",
+    "path": "/proposal/{{proposalUuid}}/approval_workflows",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Intended {}; actual: `render json: {} && return if …` parses as render(json: ({} && return)) (app/controllers/api/proposal_controller.rb:71), so the method returns BEFORE rendering and Rails answers 204 No Content. Never 5xx.",
+    "rationale": "Precedence bug: the journey's parser treats a 204 as 'no workflow configured' and skips submit."
+  },
+  {
+    "id": "EDGE-AWD-118",
+    "feature": "award.approval",
+    "title": "QA_Platform_approval_workflows_via_post_is_not_routed",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. POST /proposal/{{proposalUuid}}/approval_workflows."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/approval_workflows",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Routing error — config/routes.rb:338 declares only GET. The existing AWD-APPR-001 uses POST.",
+    "rationale": "Documents the wrong verb in an existing case."
+  },
+  {
+    "id": "EDGE-AWD-119",
+    "feature": "award.submit",
+    "title": "QA_Platform_submit_twice_second_is_code_2_not_573",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} was already submitted (status requested or selected).",
+    "steps": [
+      "1. POST submit again."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {}
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 'Insufficient parameters' — the lookup requires status: :draft (app/controllers/api/proposal_controller.rb:82-83), so the second submit reads as a missing proposal, not 573 'already submitted'.",
+    "rationale": "Double submit must not start a second approval; the code is 2, which clients must not show as 'fill all fields'."
+  },
+  {
+    "id": "EDGE-AWD-120",
+    "feature": "award.submit",
+    "title": "QA_Platform_submit_after_removing_every_vendor_is_empty",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} had one allocation which was then removed via add_response action remove.",
+    "steps": [
+      "1. POST submit."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {}
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 683 'Proposal cannot be empty. Please award the vendors again.' — responses_hash['data'] is {} (app/controllers/api/proposal_controller.rb:84-86). The proposal stays draft; no approval_requests row.",
+    "rationale": "responses_hash is present but its data is empty — the SECOND of the two 683 guards."
+  },
+  {
+    "id": "EDGE-AWD-121",
+    "feature": "award.submit",
+    "title": "QA_Platform_submit_exactly_11_attachments_rejected",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is a populated draft.",
+    "steps": [
+      "1. POST submit with 11 attachments."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [
+        "QA_Platform_att1_{{stamp}}",
+        "QA_Platform_att2_{{stamp}}",
+        "QA_Platform_att3_{{stamp}}",
+        "QA_Platform_att4_{{stamp}}",
+        "QA_Platform_att5_{{stamp}}",
+        "QA_Platform_att6_{{stamp}}",
+        "QA_Platform_att7_{{stamp}}",
+        "QA_Platform_att8_{{stamp}}",
+        "QA_Platform_att9_{{stamp}}",
+        "QA_Platform_att10_{{stamp}}",
+        "QA_Platform_att11_{{stamp}}"
+      ],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {}
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 472 with message 'You can attach a maximum of 10 files. Please remove some attachments and try again.' (app/controllers/api/proposal_controller.rb:88-89; Remark::MAX_ATTACHMENTS = 10, app/models/remark.rb:29). The proposal stays draft; no approval_requests row.",
+    "rationale": "One over the limit (the existing case uses 16). The guard runs BEFORE submit_proposal, so nothing is awarded."
+  },
+  {
+    "id": "EDGE-AWD-122",
+    "feature": "award.submit",
+    "title": "QA_Platform_submit_without_step_map_must_not_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is a populated draft.",
+    "steps": [
+      "1. POST submit without step_uuid_vs_user_uuid."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 200/422. Today params[:step_uuid_vs_user_uuid].to_enum.to_h on nil (app/controllers/api/proposal_controller.rb:93) raises NoMethodError → 500 before authorize.",
+    "rationale": "DEFECT-IN-WAITING: an optional field is mandatory by crash; every API client must send {}."
+  },
+  {
+    "id": "EDGE-AWD-123",
+    "feature": "award.submit",
+    "title": "QA_Platform_submit_step_map_as_string_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is a populated draft.",
+    "steps": [
+      "1. POST submit with step_uuid_vs_user_uuid = \"QA_Platform_{{stamp}}\"."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": "QA_Platform_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. String#to_enum(:each) → to_h raises NoMethodError (app/controllers/api/proposal_controller.rb:93) → 500 today.",
+    "rationale": "Wrong type."
+  },
+  {
+    "id": "EDGE-AWD-124",
+    "feature": "award.approval",
+    "title": "QA_Platform_submit_without_flow_when_approvals_exist_rejected",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "destructive — acts on the sandbox copy only and must run last: if the company has NO award approval configured, this body awards the proposal for real via close_bids. {{proposalUuid}} is a populated draft on the sandbox copy; the company HAS an award (close_event_group) approval configured.",
+    "steps": [
+      "1. POST submit with no approval_flow_uuid."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {}
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 570 'Approval Flow not found' — check_proposal_approval returns 570 when is_approval_exists?(close_event_group) and no flow was sent (app/helpers/api/proposal_approval_helper.rb:40). The proposal stays draft; no approval_requests row.",
+    "rationale": "Skipping approval by omitting the flow; without 570 close_bids would award immediately."
+  },
+  {
+    "id": "EDGE-AWD-125",
+    "feature": "award.approval",
+    "title": "QA_Platform_submit_undecodable_flow_behaves_as_no_flow",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "destructive — acts on the sandbox copy only and must run last: if the company has NO award approval configured, this body awards the proposal for real via close_bids. {{proposalUuid}} is a populated draft on the sandbox copy; the company HAS an award approval.",
+    "steps": [
+      "1. POST submit with approval_flow_uuid 'WrongUuid1='."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {},
+      "approval_flow_uuid": "WrongUuid1="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 570 — the uuid decodes to approval_flow_id nil, identical to 'no flow' (app/helpers/api/proposal_approval_helper.rb:11,40). If the company had NO approval configured the same body awards straight away via close_bids.",
+    "rationale": "A garbage flow id is treated as absence, not as an error — safe only while an approval exists."
+  },
+  {
+    "id": "EDGE-AWD-126",
+    "feature": "award.approval",
+    "title": "QA_Platform_submit_ghost_flow_rejected",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is a populated draft.",
+    "steps": [
+      "1. POST submit with approval_flow_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {},
+      "approval_flow_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 523 'Invalid Approval' — is_valid_approval_flow_id fails (app/helpers/api/proposal_approval_helper.rb:12-13). The proposal stays draft; no approval_requests row.",
+    "rationale": "Well-formed id that is not an applicable flow."
+  },
+  {
+    "id": "EDGE-AWD-127",
+    "feature": "award.approval",
+    "title": "QA_Platform_submit_peer_outside_team_rejected",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Config: peer_review_enabled; {{proposalUuid}} is a populated draft; a valid approval flow is supplied by the runner; peer_id is a user outside the caller's teams.",
+    "steps": [
+      "1. POST submit with peer_id 999999999."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {},
+      "peer_id": 999999999
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 70 'User does not exist' — peer lookup restricted to the caller's active teams (app/helpers/api/proposal_approval_helper.rb:22-25). Only reached with a flow present.",
+    "rationale": "CONFIG-dependent: with peer review off, peer_id is ignored."
+  },
+  {
+    "id": "EDGE-AWD-128",
+    "feature": "award.submit",
+    "title": "QA_Platform_submit_when_colleague_already_submitted_must_not_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Two buyers each opened a draft on the same event; buyer B submitted first (B's proposal requested). Caller is buyer A with a populated draft {{proposalUuid}}.",
+    "steps": [
+      "1. As A, POST submit."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {}
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 573 'The proposal has already been submitted'. Today submit_proposal does `return proposal, 573` (a bare Integer, app/helpers/api/proposal_helper.rb:128) and the controller reads error[:code] (app/controllers/api/proposal_controller.rb:98) → 573[:code] → TypeError → 500.",
+    "rationale": "DEFECT-IN-WAITING: every other error in submit_proposal is a Hash; this one is an Integer, so the one race the guard exists for crashes."
+  },
+  {
+    "id": "EDGE-AWD-129",
+    "feature": "award.submit",
+    "title": "QA_Platform_submit_after_bid_revised_rejected",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} awards a bid that the vendor has since revised (old bid status revised).",
+    "steps": [
+      "1. POST submit."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/submit",
+    "body": {
+      "attachments": [],
+      "remarks": "QA_Platform_award_{{stamp}}",
+      "step_uuid_vs_user_uuid": {}
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 1126 'A few bids have been revised. Please re-award to continue.' (app/helpers/api/proposal_helper.rb:241-250). The proposal stays draft; no approval_requests row.",
+    "rationale": "Awarding a stale price."
+  },
+  {
+    "id": "EDGE-AWD-130",
+    "feature": "award.submit",
+    "title": "QA_Platform_preview_loa_missing_vendor_rejected",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is a populated draft of the caller.",
+    "steps": [
+      "1. POST preview_loa with {}."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/preview_loa",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 896 'Vendor is not part of this proposal' — decode_data(nil).to_i is 0 (app/controllers/api/proposal_controller.rb:132-133).",
+    "rationale": "Missing vendor."
+  },
+  {
+    "id": "EDGE-AWD-131",
+    "feature": "award.submit",
+    "title": "QA_Platform_preview_loa_vendor_not_in_proposal_rejected",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is a populated draft that does NOT award {{vendorUuid}}.",
+    "steps": [
+      "1. POST preview_loa for that vendor."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/preview_loa",
+    "body": {
+      "vendor_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 896 — get_response_data_for_vendor(vendor_company_id).blank? (app/controllers/api/proposal_controller.rb:134).",
+    "rationale": "An LOA to a vendor not awarded would be a binding letter with no allocation."
+  },
+  {
+    "id": "EDGE-AWD-132",
+    "feature": "award.submit",
+    "title": "QA_Platform_preview_loa_without_template_rejected",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is a populated draft awarding {{vendorUuid}}; the company has NO t-loa report template.",
+    "steps": [
+      "1. POST preview_loa for the awarded vendor."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/preview_loa",
+    "body": {
+      "vendor_uuid": "{{vendorUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 895 'Letter of Award template is not configured for this company' (app/controllers/api/proposal_controller.rb:136-137).",
+    "rationale": "CONFIG: LOA needs a template; the error must say so rather than 897."
+  },
+  {
+    "id": "EDGE-AWD-133",
+    "feature": "award.submit",
+    "title": "QA_Platform_preview_loa_generation_failure_is_897",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is a populated draft awarding {{vendorUuid}}; an LOA template exists but references a field the proposal lacks.",
+    "steps": [
+      "1. POST preview_loa."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/preview_loa",
+    "body": {
+      "vendor_uuid": "{{vendorUuid}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "A generation failure must be HTTP 422 code 897 'Failed to generate Letter of Award' (app/controllers/api/proposal_controller.rb:145-147), never 5xx.",
+    "rationale": "Template rendering errors must be contained inside Reports::LoaService."
+  },
+  {
+    "id": "EDGE-AWD-134",
+    "feature": "po.generate",
+    "title": "QA_Platform_po_form_on_submitted_proposal_rejected",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is submitted.",
+    "steps": [
+      "1. POST create_po_form."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/create_po_form",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 — draft-only (app/controllers/api/proposal_controller.rb:107-108).",
+    "rationale": "PO forms are built while the award is still a draft."
+  },
+  {
+    "id": "EDGE-AWD-135",
+    "feature": "po.generate",
+    "title": "QA_Platform_po_form_requires_every_line_awarded_when_configured",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Config: disallow_partial_line_item_awarding on; the event has 2 lines and {{proposalUuid}} awards 1.",
+    "steps": [
+      "1. POST create_po_form."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/create_po_form",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 791 'Please ensure all line items are awarded before continuing.' (app/helpers/api/proposal_helper.rb:219-231).",
+    "rationale": "CONFIG-dependent PO precondition."
+  },
+  {
+    "id": "EDGE-AWD-136",
+    "feature": "po.generate",
+    "title": "QA_Platform_po_form_without_po_template_rejected",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is a populated draft; no PO template is configured for the event.",
+    "steps": [
+      "1. POST create_po_form."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/create_po_form",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 477 'Template not found' (app/helpers/api/proposal_helper.rb:553-555).",
+    "rationale": "PO precondition."
+  },
+  {
+    "id": "EDGE-AWD-137",
+    "feature": "po.generate",
+    "title": "QA_Platform_po_form_on_empty_proposal_rejected",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is an EMPTY draft; a PO template exists.",
+    "steps": [
+      "1. POST create_po_form."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/create_po_form",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 684 'Please award for at least one Vendor' (app/helpers/api/proposal_helper.rb:619-621).",
+    "rationale": "PO forms with no allocation."
+  },
+  {
+    "id": "EDGE-AWD-138",
+    "feature": "award.proposal",
+    "title": "QA_Platform_contract_form_requires_contract_config",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is a populated draft; is_contract_creation_enabled is off.",
+    "steps": [
+      "1. POST create_contract_form."
+    ],
+    "method": "POST",
+    "path": "/proposal/{{proposalUuid}}/create_contract_form",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 455 — ProposalPolicy#create_contract_form? needs the config (app/policies/proposal_policy.rb:33-35).",
+    "rationale": "CONFIG gate."
+  },
+  {
+    "id": "EDGE-AWD-139",
+    "feature": "award.proposal",
+    "title": "QA_Platform_discard_colleagues_draft_is_not_creator_scoped",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} is buyer A's draft; caller is buyer B of the same company.",
+    "steps": [
+      "1. POST /proposal/discard_draft_proposal with proposal_uuid {{proposalUuid}} as B."
+    ],
+    "method": "POST",
+    "path": "/proposal/discard_draft_proposal",
+    "body": {
+      "proposal_uuid": "{{proposalUuid}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Expected: refused like add_response/submit (creator-scoped). Today discard looks up Proposal.find_by(id:) with no created_by filter (app/controllers/api/proposal_controller.rb:182) and ProposalPolicy only checks the company (app/policies/proposal_policy.rb:43-45) → A's draft becomes in_active.",
+    "rationale": "DEFECT-IN-WAITING: every other proposal write is creator-scoped; discard is not."
+  },
+  {
+    "id": "EDGE-AWD-140",
+    "feature": "award.proposal",
+    "title": "QA_Platform_discard_submitted_proposal_rejected",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is submitted (requested).",
+    "steps": [
+      "1. POST discard_draft_proposal."
+    ],
+    "method": "POST",
+    "path": "/proposal/discard_draft_proposal",
+    "body": {
+      "proposal_uuid": "{{proposalUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 888 'Invalid Parameters' — render_error_json(888) unless proposal.draft? (app/controllers/api/proposal_controller.rb:185).",
+    "rationale": "An award in approval must be withdrawn through the approval, not discarded."
+  }
+]

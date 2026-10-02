@@ -27,6 +27,16 @@ export interface CheckOutcome {
    * bodies is what made a report 7.8MB.
    */
   data?: unknown;
+  /**
+   * A verdict the check worked out itself.
+   *
+   * Set by checks whose outcome is not the HTTP reply — a vendor bulk upload
+   * answers 200 at once and decides every row later in a background job, so
+   * `classify` on the status would pass every negative case vacuously. The
+   * bulk runner (vendorBulk.ts) reads the staged rows and hands back the
+   * verdict; it is used as-is.
+   */
+  verdictOverride?: { pass: boolean; verdict: string; inconclusive?: boolean };
 }
 
 export interface Check {
@@ -283,14 +293,16 @@ export async function runCheck(
   } catch (e: any) {
     outcome = { httpStatus: e?.status ?? null, accepted: false, message: redactSecrets(e?.message ?? String(e)), durationMs: Date.now() - t };
   }
-  const { pass, verdict, inconclusive } = classify(
-    check.expected,
-    outcome,
-    check.expectMessage,
-    (check as { expectedResult?: string }).expectedResult,
-  );
+  const { pass, verdict, inconclusive } =
+    outcome.verdictOverride ??
+    classify(
+      check.expected,
+      outcome,
+      check.expectMessage,
+      (check as { expectedResult?: string }).expectedResult,
+    );
   const { exec, ...meta } = check;
-  const { data, ...recorded } = outcome;
+  const { data, verdictOverride: _v, ...recorded } = outcome;
   if (data !== undefined) onData?.(data, check);
   return { ...meta, ...recorded, pass, verdict, inconclusive: !!inconclusive };
 }

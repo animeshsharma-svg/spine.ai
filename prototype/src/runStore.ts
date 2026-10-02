@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import type { AgentEvent, Report, CheckResult } from "./ai/types.js";
 import type { TestCaseRecord } from "./checks/caseLibrary.js";
 import type { JourneyRecord } from "./checks/journeyModel.js";
+import { recordRun, removeRun } from "./db/runHistory.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS_DIR = join(here, "..", "data", "runs");
@@ -83,7 +84,7 @@ export interface RunSummary {
    * of how many, and where it stopped if it did. A feature run's verdict is
    * this sentence far more than its check counts.
    */
-  journey?: { outcome: string; worked: number; steps: number; stoppedAt?: number };
+  journey?: { outcome: string; worked: number; steps: number; stoppedAt?: number; fieldChecks?: { total: number; passed: number; failed: number } };
 }
 
 function ensureDir() {
@@ -98,6 +99,9 @@ export function newRunId(): string {
 export function saveRun(rec: RunRecord): void {
   ensureDir();
   writeFileSync(join(RUNS_DIR, `${rec.id}.json`), JSON.stringify(rec, null, 0));
+  // A copy in spine.ai's database, for track records across runs. Best-effort
+  // and in the background: the file above is what the run depends on.
+  void recordRun(rec);
 }
 
 export function getRun(id: string): RunRecord | null {
@@ -121,6 +125,7 @@ export function deleteRun(id: string): boolean {
   const file = join(RUNS_DIR, `${safe}.json`);
   if (!existsSync(file)) return false;
   rmSync(file, { force: true });
+  void removeRun(safe);
   return true;
 }
 
@@ -168,6 +173,14 @@ export function listRuns(limit = 20): RunSummary[] {
               worked: (r.journey.steps ?? []).filter((s) => s.verdict === "worked").length,
               steps: (r.journey.steps ?? []).length,
               ...(r.journey.stoppedAt ? { stoppedAt: r.journey.stoppedAt } : {}),
+              // Postman-style field checks on every request, when the run made any.
+              ...(() => {
+                const fc = (r.journey.steps ?? []).reduce(
+                  (t, st: any) => (st.assertions ? { total: t.total + st.assertions.total, passed: t.passed + st.assertions.passed, failed: t.failed + st.assertions.failed } : t),
+                  { total: 0, passed: 0, failed: 0 },
+                );
+                return fc.total ? { fieldChecks: fc } : {};
+              })(),
             }
           : undefined,
       });

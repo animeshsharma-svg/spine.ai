@@ -19,6 +19,12 @@ export function getPool(): pg.Pool {
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
       statement_timeout: 20_000,
+      // Client-side limits too: a socket that died (sleep, network change) must
+      // fail fast instead of leaving a query waiting forever.
+      connectionTimeoutMillis: 10_000,
+      query_timeout: 30_000,
+      keepAlive: true,
+      idleTimeoutMillis: 30_000,
       max: 4,
     });
   }

@@ -70,10 +70,9 @@ export const CLIENTS: Record<string, ProfileSeed> = {
     appUrl: "https://cpanel.ag-ri.in",
     apiUrl: "https://sec-api.ag-ri.in/api",
     buyerPhone: "1234567516",
-    otp: "130899",
+    // otp / vendorOtp come from .env (CLIENTA_OTP, CLIENTA_VENDOR_OTP) — never from code.
     vendorUrl: "https://quotes.ag-ri.in",
     vendorEmail: "amd@gmail.com",
-    vendorOtp: "130899",
   },
 
   // Example second client — fill these in (or override via CLIENTB_* env) then

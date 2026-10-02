@@ -60,7 +60,8 @@ export const CLIENTS: Record<string, ClientInputs> = {
     // just the fallback for the static `asVendor()` identity.
     vendorEmail: "amd@gmail.com",
     evalPhone: "9811397474",
-    otp: "130899",
+    // Login code from the environment (CLIENTA_OTP in .env), never from code.
+    otp: process.env.CLIENTA_OTP?.trim() ?? "",
 
     productUuid: "TnBEa3BjWA==",
     productQualityUuid: "WFhYTlprWg==",
@@ -82,7 +83,7 @@ export const CLIENTS: Record<string, ClientInputs> = {
     buyerPhone: "1123987231",
     vendorEmail: "vendor53@gmail.in",
     evalPhone: "FILL_EVALUATOR_PHONE",
-    otp: "991133",
+    otp: process.env.RFXDEV_OTP?.trim() ?? "",
 
     productUuid: "FILL",
     productQualityUuid: "FILL",
@@ -124,6 +125,18 @@ export interface IdentityConfig {
   email?: string;
   phonePrefix: string;
   otp: string;
+  /**
+   * The company this login acts for (the tenant a run is testing). On UAT its
+   * own login code is accepted for its users and for the vendors it invites,
+   * so login tries that code first (auth/uatOtp.ts).
+   */
+  tenantCompanyId?: number;
+  /**
+   * The email of the person this login is for, when the login itself is by
+   * phone — used only to recognise a QA test user (see login.ts: such a user's
+   * Terms-of-Use acceptance may be recorded automatically; a real person's never).
+   */
+  ownerEmail?: string;
 }
 
 const buyer: IdentityConfig = {

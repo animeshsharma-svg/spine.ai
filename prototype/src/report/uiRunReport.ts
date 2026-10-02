@@ -1,4 +1,5 @@
-import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
+import { PAGE_CSS, TEST_CASE_CSS, escapeHtml, flowKeyInWords, humanText, renderTestCase, stamp } from "./shared.js";
+import type { CaseDisplay } from "../checks/caseDisplay.js";
 import { findUiResult, loadUiFindings, possibleReasons } from "./uiReport.js";
 import { JOURNEY_PHASES, type JourneyStep } from "../ui/journeySteps.js";
 import { readTrail, type JourneyTrailRecord } from "../ui/trailStore.js";
@@ -97,6 +98,15 @@ const REPORT_CSS = `
   font-family: var(--mono); font-size: 11.5px; line-height: 1.55; overflow-x: auto; }
 `;
 
+/** "UI_Auto_RFP_2026-09-29_1234" → "UI Auto RFP 2026-09-29 1234"; a bare reference id → "reference id". */
+function factInWords(value: string): string {
+  const v = String(value ?? "");
+  if (/^[A-Za-z0-9+\/]{6,8}={0,2}$/.test(v) && /[A-Z]/.test(v) && /[\d=]/.test(v)) return "a reference id (hover to see it)";
+  return humanText(v).replace(/_/g, " ");
+}
+
+const lowerFirst = (t: string) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+
 /** Minutes and seconds, because "141845ms" is not a duration anyone reads. */
 function tookInWords(ms: number): string {
   if (!ms || ms < 0) return "—";
@@ -112,7 +122,7 @@ function stepRow(step: JourneyStep, isHere: boolean): string {
   // bottom of the page, in full and in order.
   return `<li class="${step.kind}${isHere ? " here" : ""}">
     <span class="mark">${mark}</span>
-    <span>${escapeHtml(step.text)}${
+    <span>${escapeHtml(humanText(step.text))}${
       step.repeats ? `<span class="repeats">${step.repeats} attempts</span>` : ""
     }</span>
     <span class="at">${step.at != null ? `${(step.at / 1000).toFixed(1)}s` : ""}</span>
@@ -165,6 +175,71 @@ function readableConsoleErrors(lines: string[]): Array<{ text: string; count: nu
   return [...seen.entries()].map(([text, count]) => ({ text, count }));
 }
 
+/**
+ * The run as a test case: what the journey is, the phases it walks as numbered
+ * steps, what it must show, what it showed, and the verdict with its reason.
+ * The flow key, the run id, the last URL and the raw error are in the fold.
+ */
+function runAsTestCase(input: {
+  title: string;
+  group?: string;
+  broke: boolean;
+  trail: JourneyTrailRecord | null;
+  result: ReturnType<typeof findUiResult>;
+  flowKey: string;
+  runId: string;
+  took: string;
+}): string {
+  const { trail, result, broke } = input;
+  const phases: string[] = [];
+  for (const st of trail?.steps ?? []) {
+    const label = (JOURNEY_PHASES[st.phase] ?? { label: st.phase }).label;
+    // The test runner's own phase ("Playwright starting") is not a step of the journey.
+    if (label && !/playwright|runner|setup/i.test(label) && !phases.includes(label)) phases.push(label);
+  }
+  const checks = result?.verified?.checks ?? [];
+  const failedCheck = checks.find((c) => !c.ok);
+  const stoppedAt = trail?.stoppedAt ? humanText(trail.stoppedAt.text) : "";
+  const d: CaseDisplay = {
+    ref: input.flowKey,
+    title: `${input.title} — the whole journey in a real browser`,
+    area: `UI journey${input.group ? ` › ${input.group}` : ""}`,
+    priority: "",
+    type: "Workflow",
+    preconditions: `Signed in to Procol as a buyer${result?.companyId ? ` of client ${result.companyId}` : ""}, in a real browser.`,
+    steps: phases.length ? phases : ["Walk the journey from start to finish"],
+    expected: checks.length
+      ? `Every step completes, and at the end Procol's own records agree with what was done: ${checks
+          .map((c) => `${lowerFirst(humanText(c.what))} (${humanText(c.expected).replace(/_/g, " ")})`)
+          .join("; ")}.`
+      : "Every step completes and Procol shows each screen the journey expects.",
+    actual: broke
+      ? `The browser stopped before the end${stoppedAt ? `, at “${stoppedAt}”` : ""}.`
+      : checks.length
+        ? `It finished in ${input.took}, and ${checks.filter((c) => c.ok).length} of ${checks.length} end checks agreed${
+            failedCheck ? ` — ${lowerFirst(humanText(failedCheck.what))} was ${humanText(failedCheck.actual).replace(/_/g, " ")}` : ""
+          }.`
+        : `The browser finished the whole journey in ${input.took}.`,
+    verdict: broke ? "Failed" : failedCheck ? "Failed" : "Passed",
+    reason: broke
+      ? result?.error
+        ? `It failed on: ${humanText(result.error)}`
+        : "The journey did not reach its last step."
+      : failedCheck
+        ? `It finished, but ${humanText(failedCheck.what)} was ${humanText(failedCheck.actual)} instead of ${humanText(failedCheck.expected)}.`
+        : "The browser did the whole journey and the app behaved.",
+    details: [
+      { label: "Journey", value: input.flowKey, kind: "code" },
+      { label: "Run", value: input.runId, kind: "code" },
+      { label: broke ? "Stopped on" : "Finished on", value: result?.url ?? "", kind: "code" },
+      { label: "Client", value: String(result?.companyId ?? trail?.companyId ?? ""), kind: "code" },
+      { label: "What broke, as recorded", value: result?.error ?? "" },
+      { label: "Checked via", value: result?.verified?.via ?? "" },
+    ],
+  };
+  return `<section class="card"><h2>The test case</h2>${renderTestCase(d)}</section>`;
+}
+
 export function renderUiRunReport(runId: string): string {
   const trail = readTrail(runId);
   const result = findUiResult(runId);
@@ -175,7 +250,7 @@ export function renderUiRunReport(runId: string): string {
   // A run is a pass only if the journey itself says so. Playwright's exit code
   // agrees, and is the fallback when the journey never got far enough to write.
   const broke = result ? result.status === "broke" : (trail?.exitCode ?? 1) !== 0;
-  const title = flow?.label ?? result?.title ?? (flowKey || "This run");
+  const title = flow?.label ?? (flowKey ? flowKeyInWords(flowKey) : humanText(result?.title ?? "This run"));
   const shot = result?.screenshot;
   const took = tookInWords(result?.durationMs ?? trail?.durationMs ?? 0);
   const when = result?.startedAt ?? trail?.startedAt;
@@ -203,12 +278,14 @@ export function renderUiRunReport(runId: string): string {
       <p>${
         broke
           ? `The browser stopped before finishing${
-              trail?.stoppedAt ? ` at: ${escapeHtml(trail.stoppedAt.text)}` : ""
+              trail?.stoppedAt ? ` at: ${escapeHtml(humanText(trail.stoppedAt.text))}` : ""
             }.`
           : "The browser did the whole journey and the app behaved."
       } Took ${escapeHtml(took)}.</p>
     </div>
   </div>
+
+  ${runAsTestCase({ title, group: flow?.group, broke, trail, result, flowKey, runId, took })}
 
   <section class="card">
     <h2>What the browser did</h2>
@@ -219,7 +296,7 @@ export function renderUiRunReport(runId: string): string {
     ${
       broke && trail?.stoppedAt
         ? `<p class="here-note"><strong>Where it stopped:</strong> ${escapeHtml(
-            trail.stoppedAt.text,
+            humanText(trail.stoppedAt.text),
           )} — in <strong>${escapeHtml(
             (JOURNEY_PHASES[trail.stoppedAt.phase] ?? { label: trail.stoppedAt.phase }).label,
           )}</strong>.</p>`
@@ -245,9 +322,8 @@ export function renderUiRunReport(runId: string): string {
         : `<p class="none">No screenshot was written for this run.</p>`
     }
     <table class="kv">
-      <tr><th>Journey</th><td>${escapeHtml(title)} <code>${escapeHtml(flowKey)}</code></td></tr>
+      <tr><th>Journey</th><td>${escapeHtml(title)}</td></tr>
       ${result?.covers ? `<tr><th>Covers</th><td>${escapeHtml(result.covers)}</td></tr>` : ""}
-      ${result?.url ? `<tr><th>${broke ? "Stopped on" : "Finished on"}</th><td><code>${escapeHtml(result.url)}</code></td></tr>` : ""}
       <tr><th>Account</th><td>${escapeHtml(String(result?.companyId ?? trail?.companyId ?? "—"))}</td></tr>
       <tr><th>Took</th><td>${escapeHtml(took)}</td></tr>
       ${
@@ -255,7 +331,7 @@ export function renderUiRunReport(runId: string): string {
           ? `<tr><th>Server errors</th><td>${result.httpFailures} request(s) the app made came back 4xx/5xx</td></tr>`
           : ""
       }
-      ${result?.error ? `<tr><th>What broke</th><td>${escapeHtml(result.error)}</td></tr>` : ""}
+      ${result?.error ? `<tr><th>What broke</th><td>${escapeHtml(humanText(result.error))}</td></tr>` : ""}
     </table>
   </section>
 
@@ -273,10 +349,10 @@ export function renderUiRunReport(runId: string): string {
     <div class="facts">${left
       .map(
         (f) => `<div class="fact"><span class="fact-l">${escapeHtml(f.label)}</span>
-          <span class="fact-v">${
+          <span class="fact-v" title="${escapeHtml(f.value)}">${
             f.href
-              ? `<a href="${escapeHtml(f.href)}" target="_blank" rel="noopener">${escapeHtml(f.value)}</a>`
-              : escapeHtml(f.value)
+              ? `<a href="${escapeHtml(f.href)}" target="_blank" rel="noopener">${escapeHtml(factInWords(f.value))}</a>`
+              : escapeHtml(factInWords(f.value))
           }</span></div>`,
       )
       .join("")}</div>
@@ -295,7 +371,7 @@ export function renderUiRunReport(runId: string): string {
     screens under a real browser — ${escapeHtml(took)} in total.</p>
     <ul class="bars">${slowest
       .map(
-        (t) => `<li><span class="bar-l">${escapeHtml(t.label)}</span>
+        (t) => `<li><span class="bar-l">${escapeHtml(humanText(t.label))}</span>
           <span class="bar-t">${(t.ms / 1000).toFixed(1)}s · ${t.share}%</span>
           <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2, t.share)}%"></span></span></li>`,
       )
@@ -328,7 +404,7 @@ export function renderUiRunReport(runId: string): string {
     <ul class="wobbles">${result.observations
       .map(
         (o) =>
-          `<li><span class="wobble-kind">${escapeHtml(o.kind)}</span>${escapeHtml(o.detail)}</li>`,
+          `<li><span class="wobble-kind">${escapeHtml(humanText(o.kind))}</span>${escapeHtml(humanText(o.detail))}</li>`,
       )
       .join("")}</ul>
   </section>`
@@ -340,7 +416,7 @@ export function renderUiRunReport(runId: string): string {
       ? `<section class="card">
     <h2>Why it might have broken</h2>
     <ul>${possibleReasons(finding)
-      .map((r) => `<li><strong>${escapeHtml(r.cause)}</strong> — ${escapeHtml(r.check)}</li>`)
+      .map((r) => `<li><strong>${escapeHtml(humanText(r.cause))}</strong> — ${escapeHtml(humanText(r.check))}</li>`)
       .join("")}</ul>
   </section>`
       : ""
@@ -360,12 +436,13 @@ export function renderUiRunReport(runId: string): string {
 <style>
 ${PAGE_CSS}
 ${REPORT_CSS}
+${TEST_CASE_CSS}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>This run</h1>
-  <p class="sub">${escapeHtml(flowKey || runId)}${
+  <p class="sub" title="${escapeHtml(`${flowKey} · run ${runId}`)}">${escapeHtml(title)}${
     when ? ` · ${escapeHtml(stamp(when))}` : ""
   } · <a href="/api/ui-report">every journey's state</a></p>
   ${body}

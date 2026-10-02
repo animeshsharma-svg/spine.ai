@@ -357,6 +357,22 @@ export const FEATURE_TREE: FeatureGroup[] = [
     ],
   },
   {
+    id: "vendorbulk",
+    label: "Vendor bulk upload",
+    icon: "📥",
+    when: "Loading many vendors at once — a new client, an ERP backlog.",
+    what: "One sheet → one job row per vendor → Prospect (onboarding needed) or Vendor (skipped).",
+    children: [
+      { id: "vendorbulk.file", label: "The sheet & the request", what: "File type, encoding, old format, empty sheet, header rows, column order, size.", portal: "buyer" },
+      { id: "vendorbulk.access", label: "Template, status & who may upload", what: "Template columns/dropdowns/sample row, job status, error sheet, permissions.", portal: "buyer" },
+      { id: "vendorbulk.rows", label: "Row rules", what: "Every column: mandatory, tax, city, email, Deals In, profile, Status, onboarding, codes, extra fields.", portal: "buyer" },
+      { id: "vendorbulk.onboarding", label: "Prospect vs Vendor", what: "Onboarding Required Yes/No, Status rejected, contactless rows, POC 2, what gets created.", portal: "buyer" },
+      { id: "vendorbulk.dedup", label: "Duplicates", what: "GST + address + pincode + account group; inside one sheet and against existing vendors.", portal: "buyer" },
+      { id: "vendorbulk.data", label: "Data fidelity", what: "What the parser does to values: trailing zeros, '<', numbers, formulas.", portal: "buyer" },
+      { id: "vendorbulk.settings", label: "Other workspaces (regression)", what: "Contactless off, required extra fields — behaviour must not change.", portal: "buyer" },
+    ],
+  },
+  {
     id: "platform",
     label: "Platform & config",
     icon: "⚙️",

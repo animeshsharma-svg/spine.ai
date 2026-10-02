@@ -80,6 +80,7 @@
   <div id="cases"><p class="empty">Pick a recording and press Convert.</p></div>
 </main>
 
+<script src="/caseView.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c]));
@@ -128,18 +129,22 @@ function render(fc) {
         <div class="ctop" onclick="this.parentElement.classList.toggle('open')">
           <span class="cid">${esc(c.id)}</span>
           <div>
-            <div class="ctitle">${esc(c.title)}</div>
-            <div class="route">${esc(c.method)} ${esc(c.path)} → ${esc(c.recordedStatus)}</div>
+            <div class="ctitle">${esc(CaseView.scrub(c.title))}</div>
           </div>
           <div class="cverdict">${pill}<div style="margin-top:4px;color:var(--ink-soft)">${esc(c.priority)}</div></div>
         </div>
         <div class="cbody">
           <div class="meta">
-            <b>Why:</b> ${esc(c.why)}<br/>
-            <b>Steps:</b> ${esc(c.steps)}<br/>
-            <b>Expected:</b> ${esc(c.expected)}
+            <b>Why:</b> ${esc(CaseView.scrub(c.why))}<br/>
+            <b>Steps:</b> ${esc(CaseView.scrub(c.steps))}<br/>
+            <b>Expected:</b> ${esc(CaseView.scrub(c.expected))}
           </div>
-          <table class="v"><thead><tr><th>#</th><th>Field / check</th><th>Assertion</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>
+          ${CaseView.detailsHtml([
+            { label: "Ref", value: c.id, kind: "code" },
+            { label: "Request", value: `${c.method} ${c.path}`, kind: "code" },
+            { label: "Status when recorded", value: String(c.recordedStatus ?? ""), kind: "code" },
+          ])}
+          <details class="cv-details"><summary>Field checks (${(c.validations||[]).length})</summary><table class="v"><thead><tr><th>#</th><th>Field / check</th><th>Assertion</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table></details>
         </div>
       </div>`;
   }).join("");

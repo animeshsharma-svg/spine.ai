@@ -138,7 +138,7 @@ async function interpretWithRetry(prompt: string, maxAttempts = 4): Promise<{ in
     const intent = await interpret(prompt);
     last = intent;
     const looksLikeTransientFallback =
-      mode === "groq" && intent.source === "keyword" && GENERIC_FALLBACK_RE.test(intent.reasoning);
+      mode !== "fallback" && intent.source === "keyword" && GENERIC_FALLBACK_RE.test(intent.reasoning);
     if (!looksLikeTransientFallback || attempt === maxAttempts) {
       return { intent, attempts: attempt };
     }
@@ -161,7 +161,9 @@ for (const c of cases) {
 
   const gotFlowKey = intent.flowKey;
   const expectKeys = c.expect.flowKey ? [c.expect.flowKey] : c.expect.flowKeyAnyOf ?? [];
-  const flowKeyPass = expectKeys.includes(gotFlowKey);
+  // "Any journey" cases (the platform cannot do what was asked): any REAL
+  // journey counts — only the caveat says whether it understood.
+  const flowKeyPass = c.expect.flowKeyAny ? VALID_KEYS.has(gotFlowKey) : expectKeys.includes(gotFlowKey);
 
   const lineItemsPass = norm(intent.lineItems) === norm(c.expect.lineItems);
   const templatePass = normTemplate(intent.template) === normTemplate(c.expect.template);
@@ -231,7 +233,7 @@ console.log(`ALL-FIELDS exact match: ${(overallExactAccuracy * 100).toFixed(1)}%
 // pinned single-journey expectation).
 const buckets = new Map<string, CaseResult[]>();
 for (const r of results) {
-  const key = r.expect.flowKey ?? `(ambiguous) ${r.expect.flowKeyAnyOf!.join(" | ")}`;
+  const key = r.expect.flowKey ?? (r.expect.flowKeyAnyOf ? `(ambiguous) ${r.expect.flowKeyAnyOf.join(" | ")}` : "(any journey — caveat only)");
   if (!buckets.has(key)) buckets.set(key, []);
   buckets.get(key)!.push(r);
 }

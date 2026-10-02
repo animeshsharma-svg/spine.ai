@@ -161,7 +161,7 @@ export const STEP_META: Record<StepKind, StepMeta> = {
   surrogate_tech: { title: "Enter the vendor's technical response on their behalf", actor: "buyer", postman: "F3_surrogate_bid › technical" },
   surrogate_rfq: { title: "Enter the vendor's price on their behalf", actor: "buyer", postman: "F3_surrogate_bid › rfq" },
   counter_offer: { title: "Counter the vendor's price", actor: "buyer", postman: "F4_Counter Offer" },
-  convert_auction: { title: "Convert the pricing round into a live auction", actor: "buyer", postman: "F5_convert to auction" },
+  convert_auction: { title: "Convert the pricing round into a live auction and bid in it", actor: "buyer", postman: "F5_convert to auction" },
   wait_close: { title: "Wait for the bidding window to close", actor: "platform", postman: "evaluation › Get Technical Schema-form (TIMING CHECK)" },
   evaluator_login: { title: "Sign in as the evaluator", actor: "evaluator", postman: "auth › evaluator generate otp, evaluator verify otp" },
   eval_schema: { title: "Open the technical responses to score", actor: "evaluator", postman: "evaluation › Get Technical Schema-form" },
@@ -237,6 +237,133 @@ export interface JourneyStepRecord {
   /** Postman-style field checks run against the live reply (`apiAssertions.ts`). */
   assertions?: StepAssertions;
   startedAt: string;
+  /**
+   * RESILIENCE. Earlier tries of this step that failed, oldest first, before
+   * the try this record describes. Present only when the step was tried more
+   * than once. Each is a FAILED result in its own right — a retry that worked
+   * never erases the failure it got past (see `JourneyResilience.findings`).
+   */
+  attempts?: JourneyStepAttempt[];
+  /** which try this record is (1 = first); absent means the first */
+  attempt?: number;
+  /** for a refused / broken step: what kind of failure it was (`resilience.ts` classifier) */
+  failureClass?: FailureClass;
+  /** the classifier rule that decided `failureClass` */
+  failureRule?: string;
+  /** the data this step was built from, in words: { unit: "KG", product: "abc" } */
+  choices?: Partial<Record<ChoiceKind, string>>;
+}
+
+// ── resilience: retries, backtracking, and the failures they got past ──────
+
+/**
+ * What kind of failure a refused / broken step was — decided from the status,
+ * the app's error code and its message, never by an LLM.
+ *
+ *   environment       502/503/504, a timeout, no reply — try the SAME request again
+ *   timing            "too early / too late" — rebuild on a fresh clock, or wait and retry
+ *   data-choice       the data the platform picked does not fit this client (a unit
+ *                     the company lacks, a template it cannot use) — try the next option
+ *   product-defect    a 5xx, or a 2xx that did not do the thing — record, stop that branch
+ *   expected-refusal  a clean 4xx the step has no other data for — the normal verdict
+ *   access            not signed in / not allowed — no retry
+ */
+export type FailureClass = "environment" | "timing" | "data-choice" | "product-defect" | "expected-refusal" | "access";
+
+/** The data a journey chooses, and can choose differently on a retry. */
+export type ChoiceKind = "unit" | "product" | "location" | "pricingTemplate" | "technicalTemplate" | "vendor" | "timing" | "limit";
+
+export const CHOICE_WORD: Record<ChoiceKind, string> = {
+  unit: "unit",
+  product: "product",
+  location: "delivery location",
+  pricingTemplate: "pricing template",
+  technicalTemplate: "technical template",
+  vendor: "vendor",
+  timing: "bidding window",
+  limit: "account limit",
+};
+
+/** One failed try of a step, kept after the step was tried again. */
+export interface JourneyStepAttempt {
+  /** 1-based try of this step position */
+  attempt: number;
+  verdict: StepVerdict;
+  status?: number;
+  errorCode?: string;
+  message?: string;
+  /** the sentence the step's record carried for this try */
+  actual: string;
+  call?: JourneyCall;
+  ms?: number;
+  startedAt: string;
+  failureClass: FailureClass;
+  failureRule: string;
+  /** the choice the classifier blamed, and the value it had on this try */
+  choice?: ChoiceKind;
+  choiceValue?: string;
+  choices?: Partial<Record<ChoiceKind, string>>;
+  /** what the runner did next */
+  next: "same-request" | "next-alternative" | "rebuilt-event";
+  /** the plain-English reason, written for a reader: what failed, why, and what was tried next */
+  reason: string;
+}
+
+/** A failed try the journey got past (or did not) — a FAILED case, never hidden by the retry. */
+export interface JourneyFinding {
+  /** stable id for history: JRN-<step kind>-try<k> */
+  id: string;
+  n: number;
+  kind: StepKind;
+  title: string;
+  attempt: number;
+  verdict: StepVerdict;
+  status?: number;
+  errorCode?: string;
+  message?: string;
+  failureClass: FailureClass;
+  choice?: ChoiceKind;
+  choiceValue?: string;
+  /** one paragraph: what failed, the app's words, whose fault it looks like, what was tried, how it ended */
+  reason: string;
+  /** true when a later try of the same step worked */
+  resolved: boolean;
+}
+
+/** The runner going back to an earlier step with a different choice. */
+export interface JourneyBacktrack {
+  /** the step whose failure caused it */
+  fromStep: number;
+  /** the step the journey went back to (equal to fromStep for an in-place retry) */
+  toStep: number;
+  choice: ChoiceKind;
+  from: string;
+  to: string;
+  /** an event abandoned by the rebuild, left on UAT as a QA-named draft */
+  abandonedEvent?: string;
+  why: string;
+}
+
+export interface JourneyResilience {
+  /** tries of the same request after an environment failure */
+  sameRequestRetries: number;
+  /** tries with a different choice (in place or by rebuilding) */
+  backtracks: JourneyBacktrack[];
+  findings: JourneyFinding[];
+  /** every step ran to its end, but only after at least one retry */
+  completedAfterRetries: boolean;
+  /** the hard bounds the run was held to */
+  bounds: { stepMs: number; loginStepMs: number; waitCapMs: number; journeyMs: number; maxAlternativesPerChoice: number; maxBacktracks: number; maxSameRequestRetries: number };
+  /** steps a watchdog stopped waiting for */
+  watchdogTrips: number;
+  /** the journey hit its overall time budget and the rest was not run */
+  budgetExhausted?: boolean;
+  /** the options that were available to try, by choice, in words */
+  alternatives?: Partial<Record<ChoiceKind, string[]>>;
+  /** lists of alternatives that could not be read */
+  alternativeProblems?: string[];
+  /** a first choice forced for a test (SPINE_JOURNEY_FORCE), so a reader knows the failure was provoked */
+  forced?: Partial<Record<ChoiceKind, string>>;
 }
 
 export interface JourneyFeatures {
@@ -301,6 +428,8 @@ export interface JourneyRecord {
   /** how long the run spent waiting for the bidding window to close */
   waitedMs: number;
   variationsEvent?: VariationsEvent;
+  /** retries, backtracks and the failures they got past — absent on records made before resilience */
+  resilience?: JourneyResilience;
 }
 
 // ── which features want a journey, and which type ──────────────────────────
@@ -456,17 +585,36 @@ export const STEP_VERDICT_LABEL: Record<StepVerdict, string> = {
  * The one-sentence outcome of a journey, for the summary tile and the
  * "Recent runs" list.
  */
-export function journeyOutcome(steps: JourneyStepRecord[]): { outcome: string; stoppedAt?: number } {
+export function journeyOutcome(
+  steps: JourneyStepRecord[],
+  resilience?: Pick<JourneyResilience, "findings" | "sameRequestRetries" | "backtracks" | "budgetExhausted">,
+): { outcome: string; stoppedAt?: number } {
   const attempted = steps.filter((s) => s.verdict !== "not-run");
   const worked = attempted.filter((s) => s.verdict === "worked").length;
   const first = steps.find((s) => s.verdict === "refused" || s.verdict === "broken");
   const notRun = steps.filter((s) => s.verdict === "not-run").length;
   if (!steps.length) return { outcome: "The journey did not start." };
+  // The failures a retry got past are part of the outcome, never folded into "worked".
+  const findings = resilience?.findings ?? [];
+  const retries = (resilience?.sameRequestRetries ?? 0) + (resilience?.backtracks.length ?? 0);
+  const firstFinding = findings[0];
+  const findingsTail = findings.length
+    ? ` ${findings.length} failed attempt${findings.length === 1 ? " is" : "s are"} recorded as ${findings.length === 1 ? "a finding" : "findings"}` +
+      (firstFinding
+        ? ` — first: step ${firstFinding.n}, ${firstFinding.title.toLowerCase()}${firstFinding.choiceValue && firstFinding.choice && firstFinding.choice !== "limit" ? ` with ${CHOICE_WORD[firstFinding.choice]} “${firstFinding.choiceValue}”` : ""}` +
+          (firstFinding.message ? `: “${firstFinding.message}”` : "")
+        : "") +
+      "."
+    : "";
+  const budget = resilience?.budgetExhausted ? " The journey ran out of its time budget; the steps after that did not run." : "";
   if (!first) {
     return {
       outcome:
         `All ${worked} step${worked === 1 ? "" : "s"} that ran worked` +
-        (notRun ? `; ${notRun} did not run (the rows say why).` : "."),
+        (retries ? ` — completed after ${retries} retr${retries === 1 ? "y" : "ies"}` : "") +
+        (notRun ? `; ${notRun} did not run (the rows say why).` : ".") +
+        findingsTail +
+        budget,
     };
   }
   const verb = first.verdict === "broken" ? "broke" : "was refused";
@@ -476,7 +624,10 @@ export function journeyOutcome(steps: JourneyStepRecord[]): { outcome: string; s
       `${worked} of ${attempted.length} step${attempted.length === 1 ? "" : "s"} worked; ` +
       `step ${first.n} — ${first.title.toLowerCase()} — ${verb}` +
       (first.message ? `: “${first.message}”` : "") +
-      (notRun ? `. ${notRun} step${notRun === 1 ? "" : "s"} that depended on it did not run.` : "."),
+      (first.attempts?.length ? ` (after ${first.attempts.length + 1} tries)` : "") +
+      (notRun ? `. ${notRun} step${notRun === 1 ? "" : "s"} that depended on it did not run.` : ".") +
+      findingsTail +
+      budget,
   };
 }
 

@@ -112,6 +112,20 @@ const ALLOW_CURATED: AllowRule[] = [
   { method: "GET", re: /^\/delivery\/all(\?|$)/, what: "delivery tracking read" },
   { method: "POST", re: /^\/delivery\/add_dispatch_details$/, what: "dispatch details (negatives only)" },
   { method: "POST", re: /^\/vendor_payments\/submit_proof$/, what: "payment proof (negatives only)" },
+
+  // ── Vendor bulk upload ────────────────────────────────────────────────
+  // Every fixture names its vendors QA_Platform_VBU_<stamp>_… with
+  // qa_…@example.com contacts; row-rule fixtures carry a "tripwire" value that
+  // stops the row in validation, so a rule that fails to fire still creates
+  // nothing. Cases that would email the client's vendor-management team are
+  // skipped unless a run opts in (realMail=1) — see vendorBulk.ts.
+  { method: "POST", re: /^\/v1\/bulk_create_vendor$/, what: "vendor bulk upload (QA fixtures)" },
+  { method: "GET", re: /^\/v1\/bulk_create_vendor_(template|status)$/, what: "vendor bulk template / job status" },
+  { method: "GET", re: /^\/v1\/bulk_create_vendor_error_sheet(\?|$)/, what: "vendor bulk error sheet" },
+  { method: "GET", re: /^\/v1\/bulk_create_vendor_template\?as=/, what: "vendor bulk template as another user" },
+  // The manual Invite Vendor call, for the cases that compare it with bulk
+  // upload: QA_Platform_ names, qa_…@example.com or no contact, skip onboarding.
+  { method: "POST", re: /^\/invitations\/send_invite$/, what: "single-vendor invite (QA test vendors)" },
 ];
 
 /** The endpoint menu the LLM is shown — kept in sync with ALLOW above. */
@@ -171,6 +185,14 @@ export interface DynamicContext {
   invoiceUuid?: string;
   grnUuid?: string;
   billUuid?: string;
+  /** a marker for the bulk-upload fixture; the real base64 is loaded when the case runs */
+  vbuSheet?: string;
+  /** this workspace's vendor bulk upload settings (vendorBulk.ts), read once per run */
+  vbu?: import("./vendorBulk.js").VbuWorkspace | null;
+  /** run bulk cases that create a Prospect (and so email the vendor-management team) */
+  vbuRealMail?: boolean;
+  /** false = skip bulk cases that create test vendors */
+  vbuCreate?: boolean;
 }
 
 export interface DynamicSpec {
@@ -309,7 +331,9 @@ export function substitute(value: any, ctx: DynamicContext): { value: any; missi
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") {
       const o: any = {};
-      for (const [k, val] of Object.entries(v)) o[k] = walk(val);
+      // Keys too: award bodies are keyed by vendor / line-item uuid, and a
+      // literal "{{vendorUuid}}" key went out on the wire before.
+      for (const [k, val] of Object.entries(v)) o[walk(k)] = walk(val);
       return o;
     }
     return v;
@@ -357,6 +381,9 @@ const SIMPLE_CREATE: RegExp[] = [
   /^\/teams$/,
   /^\/buyer_hubs\/create$/,
   /^\/users\/create_user$/,
+  // One request stages the whole sheet; the bulk runner then reads each row's
+  // outcome, so a documented success is fully checkable here.
+  /^\/v1\/bulk_create_vendor$/,
 ];
 
 const VALID_EXPECTED = new Set(["accept", "reject", "no-5xx"]);
@@ -443,12 +470,18 @@ export function gate(
       `${method} ${path}` + (body && Object.keys(body).length ? ` · ${JSON.stringify(body).slice(0, 160)}` : ""),
     // The whole request, untruncated, so the report can print a curl that runs.
     request: { method, path, body },
-    exec: () =>
-      method === "GET"
-        ? apiGet(api, path)
-        : method === "PATCH" || method === "PUT"
-          ? apiPatch(api, path, body)
-          : apiAttempt(api, path, body),
+    // Read the request when it RUNS, not when it was built: the runner may move
+    // the check onto a fresh copy of the event (new ids), and a renewed session
+    // arrives as a new client.
+    exec: (runClient?: Client) => {
+      const r = check.request!;
+      const a = runClient?.ctx?.buyerApi ?? api;
+      return r.method === "GET"
+        ? apiGet(a, r.path)
+        : r.method === "PATCH" || r.method === "PUT"
+          ? apiPatch(a, r.path, r.body)
+          : apiAttempt(a, r.path, r.body);
+    },
   };
   return { check };
 }

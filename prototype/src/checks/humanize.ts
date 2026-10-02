@@ -189,7 +189,7 @@ const OWNER: Record<string, { one: string; each: string }> = {
   quotation_templates: { one: "the quotation template", each: "each quotation template" },
 };
 
-const words = (k: string): string =>
+export const words = (k: string): string =>
   k
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/_uuids$/, " ids")
@@ -198,7 +198,7 @@ const words = (k: string): string =>
     .toLowerCase()
     .trim();
 
-function leafWord(k: string): string {
+export function leafWord(k: string): string {
   if (LEAF[k]) return LEAF[k];
   if (/^is_/.test(k)) return `'${words(k.slice(3))}' flag`;
   if (/^(show|allow|enable|hide)_/.test(k)) return `'${words(k)}' setting`;

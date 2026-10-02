@@ -6,6 +6,45 @@ import type { JourneyRecord, JourneyStepRecord } from "../checks/journeyModel.js
 import { getRun, listRuns } from "../runStore.js";
 import { toCurl } from "./curl.js";
 import { readJourney } from "./journeyReport.js";
+import { displayJourneyStep, displayResult, plain, type ResultRow } from "../checks/caseDisplay.js";
+import { humanText, type HumanBug, type WithHuman } from "./shared.js";
+
+const lower = (t: string) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+const unstop = (t: string) => t.replace(/[.\s]+$/, "");
+
+/** A failed check as a bug a person can act on — the case's own words, from caseDisplay. */
+function humanOfCheck(check: CheckResult): HumanBug {
+  const d = displayResult(check as unknown as ResultRow);
+  const broke = (check.httpStatus ?? 0) >= 500;
+  const deviation = broke
+    ? "the app breaks with a server error"
+    : check.expected === "reject" && check.accepted
+      ? "the app accepts it although it should refuse it"
+      : check.expected === "accept" && !check.accepted
+        ? "the app refuses it although it is valid"
+        : lower(unstop(d.actual ?? "it does not do what the case expects"));
+  // A case title that already states the rule ("… must not crash the server",
+  // "… are refused") only needs "— but it does / but the app accepts it".
+  const caseTitle = unstop(humanText(d.title));
+  const short =
+    broke && /crash|server error|\b5\d\d\b|break/i.test(caseTitle)
+      ? "but it does"
+      : check.expected === "reject" && check.accepted && /refus|reject|block|not allowed|cannot/i.test(caseTitle)
+        ? "but the app accepts it"
+        : check.expected === "accept" && !check.accepted && /accept|allow|work|saved|succeed/i.test(caseTitle)
+          ? "but the app refuses it"
+          : deviation;
+  const title = check.knownBug?.title ? humanText(plain(check.knownBug.title)) : `${caseTitle} — ${short}`;
+  return {
+    title,
+    what: humanText(`${d.reason ?? ""}`.trim()) || undefined,
+    where: humanText(d.area),
+    steps: [...(d.preconditions ? [`Start from: ${humanText(d.preconditions)}`] : []), ...d.steps.map((st) => humanText(st))],
+    expected: humanText(d.expected),
+    actual: humanText(d.actual),
+    caseIds: [check.id],
+  };
+}
 
 /**
  * DEFECTS FROM CHECK RUNS — the bugs a "run ticked features" run found.
@@ -97,6 +136,8 @@ function collect(
 
     if (existing) {
       existing.occurrences++;
+      const ids = (existing as WithHuman<DefectGroup>).human?.caseIds;
+      if (ids && !ids.includes(check.id)) ids.push(check.id);
       if (!existing.flows.includes(check.flowId)) existing.flows.push(check.flowId);
       if (!existing.runs.includes(runId)) existing.runs.push(runId);
       if (existing.evidence.length < 8) existing.evidence.push(evidence);
@@ -105,7 +146,7 @@ function collect(
       continue;
     }
 
-    groups.set(key, {
+    groups.set(key, <WithHuman<DefectGroup>>{
       defectFingerprint: key,
       kind: "product_defect",
       severity: severityOf(check),
@@ -121,10 +162,21 @@ function collect(
       firstSeen: ts,
       lastSeen: ts,
       evidence: [evidence],
-      // The curl IS the reproduction — one command, no prose.
-      reproduction: check.request
-        ? toCurl(check.request, run?.companyId).split("\n")
-        : [check.inputSummary],
+      // The curl IS the reproduction — one command, no prose. A vendor bulk
+      // upload case is reproduced with its sheet instead: the curl would only
+      // carry a placeholder where the file goes.
+      human: humanOfCheck(check),
+      reproduction: (check as { evidenceRef?: string }).evidenceRef
+        ? [
+            `Download the exact sheet: /api/vbu/sheet?e=${encodeURIComponent((check as { evidenceRef?: string }).evidenceRef!)}&which=main`,
+            "Upload it on Vendors → Bulk Upload in the same workspace (or POST /api/v1/bulk_create_vendor with its base64 as excel_data).",
+            `Expected: ${String((check as { expectedResult?: string }).expectedResult ?? check.expected).replace(/ Rule: .*$/, "")}`,
+            `Actual: ${check.verdict}`,
+            `Full evidence (rows, records, code line): /api/test-report?run=${runId}#case-${check.id}`,
+          ]
+        : check.request
+          ? toCurl(check.request, run?.companyId).split("\n")
+          : [check.inputSummary],
       actionable: true,
     });
   }
@@ -204,7 +256,19 @@ function collectJourney(
     const broke = step.verdict === "broken";
     const environment = !broke && PRECONDITION_MESSAGE.test(step.message ?? "");
     const verb = broke ? "broke" : "was refused";
-    groups.set(key, {
+    const d = displayJourneyStep(step as unknown as Parameters<typeof displayJourneyStep>[0], journey.made ?? {});
+    const said = step.message && !/^HTTP \d{3}\b/.test(step.message) ? humanText(plain(step.message)) : "";
+    const human: HumanBug = {
+      title: `${journey.label} journey, step ${step.n} “${step.title}” — ${broke ? "the app breaks with a server error" : `the app refuses it${said ? `: “${unstop(said)}”` : ""}`}`,
+      what: humanText(d.reason ?? ""),
+      where: `The ${journey.label} journey, step ${step.n} of ${journey.steps.length} (as the ${step.actor})`,
+      // The journey up to this step IS the reproduction: each earlier step, in order.
+      steps: journey.steps.filter((s0) => s0.n <= step.n).map((s0) => `${s0.n === step.n ? "Now: " : ""}${s0.title}`),
+      expected: humanText(d.expected),
+      actual: humanText(d.actual),
+    };
+    groups.set(key, <WithHuman<DefectGroup>>{
+      human,
       defectFingerprint: key,
       kind: environment ? "environment" : "product_defect",
       severity: broke ? "critical" : environment ? "medium" : "high",

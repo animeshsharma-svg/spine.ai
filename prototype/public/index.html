@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>spine.ai</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/spine-extra.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
   </head>
   <body>
@@ -63,10 +64,13 @@
       <nav class="nav" aria-label="Sections">
         <a class="nav-item" href="#/run" data-view="run"><span class="nav-ico">▶</span><span>Run</span></a>
         <a class="nav-item" href="#/api" data-view="api"><span class="nav-ico">⚡</span><span>API automation</span></a>
+        <a class="nav-item" href="#/matrix" data-view="matrix"><span class="nav-ico">⚖</span><span>Bidding scenarios</span></a>
         <a class="nav-item" href="#/ui" data-view="ui"><span class="nav-ico">🖥</span><span>UI automation</span></a>
         <a class="nav-item" href="#/journeys" data-view="journeys"><span class="nav-ico">🧭</span><span>Journeys</span></a>
         <a class="nav-item" href="#/cases" data-view="cases"><span class="nav-ico">🗂</span><span>Test catalogue</span></a>
         <a class="nav-item" href="#/reports" data-view="reports"><span class="nav-ico">📊</span><span>Reports</span></a>
+        <a class="nav-item" href="#/crosscheck" data-view="crosscheck"><span class="nav-ico">⇄</span><span>UI vs API</span></a>
+        <a class="nav-item" href="#/product" data-view="product"><span class="nav-ico">📖</span><span>Product knowledge</span></a>
         <a class="nav-item" href="#/bugs" data-view="bugs"><span class="nav-ico">🐞</span><span>Bugs</span></a>
         <div class="nav-spacer"></div>
         <div class="nav-foot" id="nav-foot"></div>
@@ -143,6 +147,12 @@
           <p class="rc-foot">Whatever you ask for is matched or compiled and run as real requests —
           API results appear above, UI results under <strong>Automation run</strong> below, as it happens.</p>
         </div>
+        <!-- The assistant's answer: progress, matches, results, a new draft (public/assistant.js) -->
+        <div id="as-out" class="sx-assist" hidden></div>
+        <details id="as-drafts" class="sx-drafts">
+          <summary><b>Drafts the assistant wrote</b> <span class="hint" id="as-drafts-n"></span></summary>
+          <div id="as-drafts-list" class="sx-drafts-list"><div class="empty">Loading…</div></div>
+        </details>
         <div class="col-head">
           <h2>Automation run</h2>
           <span class="hint" id="auto-counts">real requests against UAT — each check is live</span>
@@ -260,6 +270,11 @@
                 <input type="number" id="api-vb" min="1" max="50" value="1" />
               </label>
               <span class="li-note" id="api-li-note"></span>
+              <!-- Edge / negative cases change ONE thing a working request sends
+                   and expect a refusal; they act on a second copy of the event. -->
+              <label class="li-field" title="Also run the edge and negative cases for the ticked features — each changes one field of a working request and expects the backend to refuse it. They act on a second copy of the event, so the journey's own event is untouched.">
+                <input type="checkbox" id="api-edges" checked /> edge &amp; negative cases
+              </label>
             </div>
             </div>
             <!-- Its own block, not a second button in the row above: this runs
@@ -579,6 +594,32 @@
         </div>
           </div>
         </section>
+        <!-- ── UI vs API (public/crosscheck.js) ───────────────────────── -->
+        <section class="view" id="view-crosscheck" data-view="crosscheck">
+          <header class="view-head">
+            <h1>UI vs API</h1>
+            <p>Opens an event's screens in a browser and checks that what each screen shows matches what the backend sent it. A difference is a finding.</p>
+          </header>
+          <div class="view-body" id="xc-root"><div class="loading">Loading…</div></div>
+        </section>
+
+        <!-- ── Bidding scenarios (public/matrix.js) ──────────────────────── -->
+        <section class="view" id="view-matrix" data-view="matrix">
+          <header class="view-head">
+            <h1>Bidding scenarios</h1>
+            <p>Several test vendors bid on one event, the buyer bids for some of them, clocks run out, awards are split — and every step is checked against what the app should do.</p>
+          </header>
+          <div class="view-body" id="mx-root"><div class="loading">Loading…</div></div>
+        </section>
+
+        <!-- ── Product knowledge (public/model.js) ─────────────────────── -->
+        <section class="view" id="view-product" data-view="product">
+          <header class="view-head">
+            <h1>Product knowledge</h1>
+            <p>What spine.ai knows about how sourcing events work, and what this client really has — templates and their fields, units, vendors, settings.</p>
+          </header>
+          <div class="view-body" id="pm-root"><div class="loading">Loading…</div></div>
+        </section>
       </main>
     </div>
 
@@ -598,6 +639,11 @@
       </div>
     </div>
 
+    <script src="/caseView.js"></script>
     <script src="/app.js"></script>
+    <script src="/assistant.js"></script>
+    <script src="/crosscheck.js"></script>
+    <script src="/model.js"></script>
+    <script src="/matrix.js"></script>
   </body>
 </html>

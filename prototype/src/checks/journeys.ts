@@ -49,7 +49,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Create an event: choose the stages, pick a template, and add the line items that will be sourced.",
     order: 2,
     uiGroups: ["UI-CRE", "UI-TPL", "UI-LI"],
-    apiGroups: ["API-EG", "API-STG", "API-LI"],
+    apiGroups: ["API-EG", "API-STG", "API-LI", "API-XCRT", "API-XSTG"],
     spine: ["open_create", "compose_stages", "set_title", "select_template", "add_line_items", "fill_sheet", "expect_line_items", "expect_sheet_columns"],
   },
   {
@@ -99,7 +99,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Publish the event to its audience, or keep it as a draft; and refuse to publish when something is missing.",
     order: 7,
     uiGroups: ["UI-PUB"],
-    apiGroups: ["API-PUB"],
+    apiGroups: ["API-PUB", "API-XPUB"],
     spine: ["publish", "save_draft", "expect_published", "expect_publish_blocked", "expect_event_status"],
   },
   {
@@ -109,7 +109,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Sign into the supplier portal and submit a priced quote inside the window.",
     order: 8,
     uiGroups: ["UI-VBID", "PRD-KBVDB"],
-    apiGroups: ["API-BID"],
+    apiGroups: ["API-BID", "API-XBID"],
     spine: ["place_bid", "expect_bid_submitted"],
   },
   {
@@ -129,7 +129,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Compare bids on Master QCS, counter-offer, and award the event to a vendor.",
     order: 10,
     uiGroups: ["UI-AWD"],
-    apiGroups: ["API-AWD"],
+    apiGroups: ["API-AWD", "API-XAWD"],
     spine: ["open_master_qcs", "place_counter_offer", "expect_counter_offer_sent", "accept_counter_offer", "award_event", "expect_awarded"],
   },
   {
@@ -336,6 +336,56 @@ const JOURNEYS: JourneyDef[] = [
     uiGroups: ["PRD-KBAI"],
     apiGroups: [],
     spine: ["ai_intake", "smart_grouping", "rfp_generator", "vendor_finder", "smart_awarding"],
+  },
+  {
+    // test-cases/api-vendor-bulk.md — generated with the runnable VBU-* cases
+    // and their fixtures from procol test/scripts/vendor-bulk/spec.ts.
+    id: "vendor-bulk-upload",
+    title: "Loading vendors in bulk",
+    persona: "Buyer / vendor-management admin",
+    goal: "Download the workspace's template, fill it, upload it, and see each row land as a Prospect, a Vendor or a clean per-row error — with duplicates caught against existing vendors and inside the sheet.",
+    order: 30,
+    uiGroups: [],
+    apiGroups: ["API-XVBU"],
+    spine: ["download_vendor_template", "fill_vendor_sheet", "upload_vendor_sheet", "wait_for_vendor_job", "read_row_results", "download_error_sheet", "check_prospects_and_vendors"],
+  },
+  {
+    // test-cases/ui-api-crosscheck.md — run by procol-ui-tests/tests/crosscheck.spec.ts,
+    // which compares each event screen with the API responses it was built from.
+    id: "ui-api-crosscheck",
+    title: "What the screen shows versus what the API sent",
+    persona: "Buyer (and vendor)",
+    goal: "Open an event's screens — list, details, each stage's responses and overview, Master QCS — and confirm every value the backend sent is shown, in the right place, with the same meaning.",
+    order: 31,
+    uiGroups: ["UI-XCHK"],
+    apiGroups: [],
+    spine: ["open_events_list", "open_event_details", "open_stage_responses", "open_stage_overview", "open_master_qcs", "compare_with_api"],
+  },
+  {
+    // test-cases/api-template-fields.md — generic form of the per-template field
+    // cases generated from the product model (src/model/caseGen.ts), run by
+    // `npm run template:check` / GET /api/template-check/run.
+    id: "template-fields",
+    title: "Choosing a template and checking every field it defines",
+    persona: "Buyer (and vendor)",
+    goal: "Pick a template the client really has for the kind of round, build a sandbox round from it, and check each column: what cannot be filled is refused, what is entered is checked by the server — or, where only the screen checks it, the gap is recorded.",
+    order: 32,
+    uiGroups: [],
+    apiGroups: ["API-XTPL"],
+    spine: ["choose_template", "open_template", "create_draft_event", "add_round_from_template", "fill_buyer_columns", "publish_round", "vendor_fills_line", "vendor_answers_questions"],
+  },
+  {
+    // test-cases/api-bidding-matrix.md — run by src/checks/biddingMatrix.ts
+    // (`npm run matrix`, /api/matrix/*): one event per combination M1…M14 with
+    // the platform's own QA vendors (src/checks/matrixVendors.ts).
+    id: "bidding-matrix",
+    title: "Several vendors, bids on a vendor's behalf, and the clock",
+    persona: "Buyer and several vendors",
+    goal: "Invite several vendors and have each bid through its own login; bid on a vendor's behalf only when the rules allow; keep the technical round inside the pricing round; refuse bids once the submission time is over, let them in again after an extension, and award by the rules.",
+    order: 33,
+    uiGroups: [],
+    apiGroups: ["API-XMAT"],
+    spine: ["invite_vendors", "vendors_bid", "surrogate_bid", "compare_bids", "time_rules", "extend_time", "award"],
   },
 ];
 

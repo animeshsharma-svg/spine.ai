@@ -15,7 +15,8 @@
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readEvidence } from "./checks/vendorBulkExtras.js";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
 import { needsEventFixture } from "./checks/eventsFixture.js";
 import { journeyPlan, journeyWalksFeature, STEP_META } from "./checks/journeyModel.js";
@@ -42,6 +43,7 @@ import { buildChecksForFlow, ALL_SUITES } from "./checks/suites.js";
 import { runCheck } from "./checks/engine.js";
 import type { Check } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
+import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
 import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
@@ -69,8 +71,10 @@ import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 import { flowToCases, loadRecording } from "./checks/flowToCases.js";
 import { replayCase, disposeReplay } from "./checks/flowReplay.js";
 import { parsePastedCases, runPastedCases } from "./checks/pastedCases.js";
+import { dispatch as dispatchRoute } from "./routes/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const PROCOL_TEST_DIR = join(here, "..", "..", "procol test");
 const PUBLIC = join(here, "..", "public");
 const DATA_DIR = join(here, "..", "data");
 const REC_DIR = join(here, "..", "..", "procol-ui-tests", "recordings");
@@ -153,6 +157,7 @@ const CLIENTS = [
   { id: 198678, name: "PROCOL DEMO", note: "best all-round · fresh session" },
   { id: 32461, name: "Demo Account 2", note: "BOQ on" },
   { id: 39490, name: "M/s Moon Beverages", note: "workspace client · BOQ off" },
+  { id: 47053, name: "GMMCO LIMITED", note: "vendor onboarding v2 · contactless bulk upload · dedup on GST+address+pincode+account group" },
 ];
 
 // Cache capability maps so re-selecting a client is instant.
@@ -188,6 +193,9 @@ const server = createServer(async (req, res) => {
   const path = url.pathname;
 
   try {
+    // Route modules in src/routes/ (one file per platform area) answer first.
+    if (path.startsWith("/api/") && (await dispatchRoute(req, res, url))) return;
+
     // ── API: client list ──
     if (path === "/api/clients") {
       // UAT companies first, then the accounts that live on their own
@@ -483,8 +491,15 @@ const server = createServer(async (req, res) => {
         send("fatal", { message: "No test cases found in what was pasted — number them, one per line." });
         return res.end();
       }
-      if (process.env.SPINE_SCRIPTED_CASES === "0") {
-        send("fatal", { message: "The pasted-case runner is switched off on this server (SPINE_SCRIPTED_CASES=0)." });
+      // The pasted-list runner replays SCRIPTED demo outcomes (config/demoCases.ts)
+      // — nothing in it reaches Procol. It is off unless a demo explicitly turns
+      // it on, so a pasted list can never be mistaken for a real run.
+      if (process.env.SPINE_SCRIPTED_CASES !== "1") {
+        send("fatal", {
+          message:
+            "A pasted list of test cases is not run as a batch yet. Paste one test case and press “Compile this test case & run it”, " +
+            "or pick the cases you want under Test cases → Run.",
+        });
         return res.end();
       }
       const startedAt = Date.now();
@@ -740,6 +755,9 @@ const server = createServer(async (req, res) => {
       // the sandbox demo is a purchase-order tenant, so offering it sourcing
       // events would invite someone to tick a journey that cannot exist there.
       const scoped = cid && isTokenClient(Number(cid)) ? tokenClient(Number(cid)) : undefined;
+      // What the backend itself would allow this client (licences, settings,
+      // predicates — config/featureGates.json). Null without a database.
+      const gates = cid && !scoped ? await featureGatesFor(Number(cid)) : null;
       /**
        * Scope to what this tenant actually has — down to the single feature.
        *
@@ -773,14 +791,19 @@ const server = createServer(async (req, res) => {
           // How many of them send line items — decides whether the count field
           // applies to a selection at all.
           lineItemCases: lineItemCounts[f.id] ?? 0,
-          config: cfg ? featureConfigState(cfg, f.requiresConfig) : { state: f.requiresConfig ? "unknown" : "n/a" },
+          config: mergeConfigState(
+            cfg ? featureConfigState(cfg, f.requiresConfig) : { state: f.requiresConfig ? "unknown" : "n/a" },
+            gates?.[f.id],
+          ),
         })),
       }));
 
       // Defaults have to live inside the scope too, or the run would start with
       // features ticked that the tree does not even show.
       const inScope = new Set(groups.flatMap((g) => g.children.map((f) => f.id)));
-      const defaults = defaultSelection().filter((id: string) => inScope.has(id));
+      // …and never tick by default what this client does not have switched on.
+      const offHere = new Set(groups.flatMap((g) => g.children.filter((f) => f.config?.state === "off").map((f) => f.id)));
+      const defaults = defaultSelection().filter((id: string) => inScope.has(id) && !offHere.has(id));
 
       const payload = {
         groups,
@@ -1195,14 +1218,14 @@ const server = createServer(async (req, res) => {
 
     // ── API: what the platform knows (the two-tier QA memory) ───────────
     if (path === "/api/knowledge") {
-      if (!isBuilt()) {
+      if (!(await isBuilt())) {
         json(res, { built: false, note: "run `npm run rag:build` to index the knowledge base" });
         return;
       }
       const q = url.searchParams.get("q");
       const mod = url.searchParams.get("module") ?? undefined;
       if (!q) {
-        json(res, { built: true, ...ragStats() });
+        json(res, { built: true, ...(await ragStats()) });
         return;
       }
       const { expectations, experience } = await recall(q, mod, 6);
@@ -1266,6 +1289,10 @@ const server = createServer(async (req, res) => {
       const stale: Array<{ dispose?: () => Promise<unknown> }> = [];
       try {
         let cases = casesForFeatures(ids);
+        // Optional: only these case ids (comma list) — e.g. re-running the
+        // vendor bulk cases that failed, without the whole feature.
+        const onlyCases = (url.searchParams.get("cases") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+        if (onlyCases.length) cases = cases.filter((cs) => onlyCases.includes(cs.id));
         // Read real ids (a PR, a vendor, a category, a city…) out of the live
         // client so cases referencing them can actually run.
         // Off by default: writing to real proposals/bids/trades is opt-in only.
@@ -1296,6 +1323,9 @@ const server = createServer(async (req, res) => {
          * events (`plan.wanted` false) skips the journey entirely.
          */
         let journey: JourneyRecord | undefined;
+        /** The shared copy of the event the edge cases act on, and how to get a fresh one. */
+        let sandbox: { eventGroupUuid: string; tradeId?: string; lineItemUuid: string } | undefined;
+        let rebuildSandbox: (() => Promise<typeof sandbox>) | undefined;
         if (plan.wanted) {
           /**
            * The journey IS the run for the sourcing features.
@@ -1310,7 +1340,23 @@ const server = createServer(async (req, res) => {
            * individual cases. The library is untouched; it is simply not
            * replayed after the thing it describes has already been done.
            */
-          cases = cases.filter((cs) => !journeyWalksFeature(cs.feature, plan));
+          // Edge and negative cases (EDGE-…, data/api-cases-extra) are not the
+          // journey tried again — each changes ONE thing a working request sends
+          // and expects a refusal — so they stay unless the reader turned them off.
+          const withEdges = url.searchParams.get("edges") !== "0";
+          const isEdge = (cs: { id: string }) => /^EDGE-/.test(cs.id);
+          cases = cases.filter((cs) => (withEdges && isEdge(cs)) || !journeyWalksFeature(cs.feature, plan));
+          // Cases that end the shared copy's life (withdraw, close, revert to
+          // draft, force-end…) go last, or every case after them would be
+          // testing a dead event and report its refusal as a result.
+          const destructive = (cs: { id: string; path: string; body?: unknown; preconditions?: string; title?: string }) =>
+            isEdge(cs) &&
+            (/destructive|own copy|run it last/i.test(`${cs.preconditions ?? ""} ${cs.title ?? ""}`) ||
+              /withdraw|cancel|force_?(end|close)|close_trade|revert/i.test(cs.path) ||
+              /"status":"(withdrawn|closed|cancelled|draft|in_active|deleted)"|"force_end":|"withdraw_remark"/.test(JSON.stringify(cs.body ?? {})));
+          cases = [...cases.filter((cs) => !destructive(cs)), ...cases.filter(destructive)];
+          const edgeCount = cases.filter(isEdge).length;
+          if (edgeCount) send("line", { line: `${edgeCount} edge / negative case(s) will run after the journey, on a second copy of the event.` });
           // The plan itself was sent before the client opened, so the list was
           // on screen while the session was being made.
           const walked = await runEventJourney(client, plan, {
@@ -1330,6 +1376,18 @@ const server = createServer(async (req, res) => {
           // own event — by then closed, which a case about a live event will
           // say, honestly, as "couldn't tell".
           const made = journey.made ?? {};
+          // Ids only the journey makes (a bid, a proposal) are filled from it
+          // either way; the second copy has no bids of its own.
+          // Every other id the journey produced (technical response, its form,
+          // the quoted line, the approval flow …) is available to the cases by its
+          // own name, unless the second copy already set it.
+          for (const [k, v] of Object.entries(made)) if (v && (caseCtx as any)[k] === undefined) (caseCtx as any)[k] = v;
+          if (made.technicalTradeUuid) Object.assign(caseCtx, { rfpTradeId: made.technicalTradeUuid });
+          if (made.evalFormUuid) Object.assign(caseCtx, { evalFormUuid: made.evalFormUuid });
+          if (walked.forCases) {
+            if (made.bidUuid && !caseCtx.bidUuid) Object.assign(caseCtx, { bidUuid: made.bidUuid });
+            if (made.proposalUuid && !caseCtx.proposalUuid) Object.assign(caseCtx, { proposalUuid: made.proposalUuid });
+          }
           if (!walked.forCases && made.eventGroupUuid) {
             Object.assign(caseCtx, {
               eventGroupUuid: made.eventGroupUuid,
@@ -1349,9 +1407,41 @@ const server = createServer(async (req, res) => {
         // and read as a test failure, which is the platform's bug, not theirs.
         // Read once, here: the ceiling is needed before the checks are built,
         // and the feature gating below needs the same configuration.
-        const caseCtx = await caseCtxP;
-        const actor = await actorP;
-        const companyCfg = await companyCfgP;
+        /**
+         * NOTHING BEFORE THE FIRST CASE MAY WAIT FOREVER.
+         *
+         * Seen 2026-10-01: a run built its journey and test copy, then sat
+         * idle with nothing streamed — one of the waits below never settled.
+         * Each now has a deadline and a stated fallback, so a run always gets
+         * to its cases and says what it had to do without.
+         */
+        const bounded = async <T,>(p: Promise<T>, ms: number, what: string, fallback: T): Promise<T> => {
+          let timer: NodeJS.Timeout | undefined;
+          const late = new Promise<T>((resolve) => {
+            timer = setTimeout(() => {
+              send("note", { line: `${what} took longer than ${Math.round(ms / 1000)} s — carrying on without it` });
+              resolve(fallback);
+            }, ms);
+          });
+          try {
+            return await Promise.race([p.catch(() => fallback), late]);
+          } finally {
+            clearTimeout(timer);
+          }
+        };
+        const caseCtx = await bounded(caseCtxP, 90_000, "reading the ids the cases need", {} as Awaited<typeof caseCtxP>);
+        // Vendor bulk upload: Prospect-creating cases email the workspace's
+        // vendor-management team, so they run only when asked for by name.
+        // Only from this machine and from the dashboard's own page: a link on
+        // another site (or a LAN neighbour) must never be able to send mail.
+        const fetchSite = String(req.headers["sec-fetch-site"] ?? "same-origin");
+        const loopback = /^(::1|127\.|::ffff:127\.)/.test(req.socket.remoteAddress ?? "");
+        caseCtx.vbuRealMail = url.searchParams.get("realMail") === "1" && loopback && (fetchSite === "same-origin" || fetchSite === "none");
+        caseCtx.vbuCreate = url.searchParams.get("vbuCreate") !== "0";
+        const actor = await bounded(actorP, 60_000, "finding out who the run acts as", {} as Awaited<typeof actorP>);
+        const companyCfg = await bounded(companyCfgP, 60_000, "reading the company's settings", {
+          companyId: c, flags: {}, permissions: [], loaded: false, error: "timed out",
+        } as unknown as Awaited<typeof companyCfgP>);
         const askedLineItems = Number(url.searchParams.get("lineItems") ?? "") || undefined;
         const lineItemCap = clampLineItems(
           askedLineItems,
@@ -1382,22 +1472,26 @@ const server = createServer(async (req, res) => {
         // bug — which is exactly how two unprovable BOQ "failures" were
         // reported before. (`companyCfg` was read above, for the line-item cap.)
         const byId = new Map(cases.map((cs) => [cs.id, cs]));
+        const runGates = isTokenClient(c) ? null : await bounded(featureGatesFor(c), 60_000, "reading which features this client has", null);
         const runnable: typeof checks = [];
         for (const chk of checks) {
           // (a) the whole FEATURE may be switched off for this company
           const feat = findFeature(chk.flowId);
-          const st = featureConfigState(companyCfg, feat?.requiresConfig);
+          const st = mergeConfigState(featureConfigState(companyCfg, feat?.requiresConfig), feat ? runGates?.[feat.id] : undefined);
           if (st.state === "off") {
             skipped.push({
               id: chk.id,
               title: chk.scenario,
-              reason: `"${st.flag}" is OFF for ${companyCfg.companyName ?? "this company"} — the feature isn't enabled here, so a result would prove nothing`,
+              reason: `${offReason(st, companyCfg.companyName ?? "this company")} — the feature isn't enabled here, so a result would prove nothing`,
             });
             continue;
           }
           // (b) this individual CASE may depend on a setting that's off, which
           //     would make its expected outcome wrong rather than the product buggy
-          const rule = companyCfg.loaded
+          // Vendor bulk upload cases gate themselves on the workspace's own
+          // settings (vbuSkipReason); reading their preconditions here as well
+          // judged vendor_onboarding_version = "v2" as OFF and skipped VBU-122.
+          const rule = companyCfg.loaded && !byId.get(chk.id)?.bulk
             ? configRequirementOf(byId.get(chk.id)?.preconditions, companyCfg.flags)
             : null;
           if (rule) {
@@ -1577,12 +1671,64 @@ const server = createServer(async (req, res) => {
           return null;
         };
 
-        for (const chk of runnable) {
+        /**
+         * ONE CASE MUST NOT DECIDE THE NEXT CASE'S VERDICT.
+         *
+         * The edge cases share one copy of the event. Re-checked by hand on
+         * 2026-10-01: a single wrongly-typed field (a number as the title)
+         * crashes the update AND leaves the event refusing every later update,
+         * even a correct one — so the cases after it "failed" for that reason,
+         * not their own (about a quarter of a run's recorded crashes). Same for
+         * a case that withdraws or closes the copy. So after a mutating case
+         * crashes the copy, or ends its life, the remaining cases move to a
+         * fresh copy before they run. Bounded; each move is said out loud.
+         */
+        let sandboxRebuilds = 0;
+        const MAX_SANDBOX_REBUILDS = 40;
+        const ENDS_LIFE = /"status":"(withdrawn|closed|cancelled|draft|in_active|deleted)"|"force_end":|"withdraw_remark"/;
+        const retarget = (pending: any[], from: NonNullable<typeof sandbox>, to: NonNullable<typeof sandbox>) => {
+          const pairs = ([["eventGroupUuid"], ["tradeId"], ["lineItemUuid"]] as const)
+            .map(([k]) => [from[k], to[k]] as const)
+            .filter(([a, b]) => a && b && a !== b) as Array<readonly [string, string]>;
+          const swap = (x: string) => pairs.reduce((acc, [a, b]) => acc.split(a).join(b), x);
+          for (const c of pending) {
+            if (!c?.request) continue;
+            const body = c.request.body === undefined ? undefined : JSON.parse(swap(JSON.stringify(c.request.body)));
+            c.request = { ...c.request, path: swap(String(c.request.path)), ...(body === undefined ? {} : { body }) };
+            if (typeof c.inputSummary === "string") c.inputSummary = swap(c.inputSummary);
+          }
+          for (const [k, v] of Object.entries(to)) if (v) (liveCtx as any)[k] = v;
+        };
+        const guardSandbox = async (chk: any, result: CheckResult, pending: any[]) => {
+          if (!sandbox || !rebuildSandbox || sandboxRebuilds >= MAX_SANDBOX_REBUILDS) return;
+          const req = chk.request ?? {};
+          if (String(req.method ?? "GET").toUpperCase() === "GET") return;
+          const text = `${req.path ?? ""} ${JSON.stringify(req.body ?? {})}`;
+          const touches = text.includes(sandbox.eventGroupUuid) || (!!sandbox.tradeId && text.includes(sandbox.tradeId));
+          if (!touches) return;
+          const crashed = (result.httpStatus ?? 0) >= 500;
+          const ended = !crashed && (result.httpStatus ?? 0) >= 200 && (result.httpStatus ?? 0) < 300 &&
+            (ENDS_LIFE.test(JSON.stringify(req.body ?? {})) || /withdraw|cancel|force_?(end|close)|close_trade|revert/i.test(String(req.path ?? "")));
+          if (!crashed && !ended) return;
+          sandboxRebuilds += 1;
+          const fresh = await rebuildSandbox();
+          if (!fresh) {
+            send("note", { line: `${chk.id} ${crashed ? "crashed" : "ended"} the test event and a fresh copy could not be built — later cases on it may fail for that reason` });
+            return;
+          }
+          retarget(pending, sandbox, fresh);
+          send("note", { line: `${chk.id} ${crashed ? "crashed the server and left the test event unusable" : "ended the test event's life"} — the remaining ${pending.length} case(s) continue on a fresh copy, so they are judged on their own` });
+          sandbox = fresh;
+        };
+
+        for (let i = 0; i < runnable.length; i++) {
+          const chk = runnable[i];
           const result = await runOne(chk);
           if (!result) break;
           results.push(result);
           send("check", { check: result });
           send("progress", { done: ++done, total: plannedTotal });
+          await guardSandbox(chk, result, runnable.slice(i + 1));
         }
 
         /**
@@ -1618,12 +1764,14 @@ const server = createServer(async (req, res) => {
             break;
           }
           if (stoppedEarly) break;
-          for (const chk of built.checks) {
+          for (let i = 0; i < built.checks.length; i++) {
+            const chk = built.checks[i];
             const result = await runOne(chk);
             if (!result) break;
             results.push(result);
             send("check", { check: result });
             send("progress", { done: ++done, total: Math.max(plannedTotal, done) });
+            await guardSandbox(chk, result, built.checks.slice(i + 1));
           }
           if (stoppedEarly) break;
           const ran = new Set(built.checks.map((c) => c.id));
@@ -2458,6 +2606,38 @@ const server = createServer(async (req, res) => {
     // ── API: one failure screenshot ─────────────────────────────────────
     // Path-guarded: the report only ever asks for files under the UI suite's
     // findings directory, and anything that resolves outside it is refused.
+    // The exact vendor bulk upload sheet a case sent, rebuilt from its evidence
+    // record (fixture + that run's values). Path-guarded by readEvidence.
+    if (path === "/api/vbu/sheet") {
+      const ev = readEvidence(url.searchParams.get("e") ?? "");
+      const which = url.searchParams.get("which") ?? "main";
+      const file = which === "second" ? ev?.fixture?.file2 : ev?.fixture?.file;
+      if (!ev || !file || !/^VBU-[\w-]+\.(xlsx|xls|csv|pdf|png|docx)$/.test(file)) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("no such evidence record");
+      }
+      try {
+        const mod = await import(pathToFileURL(join(PROCOL_TEST_DIR, "src", "flows", "vendorBulkUpload.ts")).href);
+        const { base64 } = mod.loadFixture(file, ev.fixture!.vars);
+        const ext = file.split(".").pop()!;
+        const name = `${ev.caseId}${which === "second" ? "-b" : ""}-uploaded.${ext}`;
+        const TYPES: Record<string, string> = {
+          xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls: "application/vnd.ms-excel",
+          csv: "text/csv", pdf: "application/pdf", png: "image/png",
+          docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        };
+        res.writeHead(200, {
+          "content-type": TYPES[ext],
+          "content-disposition": `attachment; filename="${name}"`,
+          "cache-control": "no-store",
+        });
+        return res.end(Buffer.from(base64, "base64"));
+      } catch (err) {
+        res.writeHead(500, { "content-type": "text/plain" });
+        return res.end(`could not rebuild the sheet: ${(err as Error).message}`);
+      }
+    }
+
     if (path === "/api/ui-shot") {
       const rel = url.searchParams.get("f") ?? "";
       const file = uiShotPath(rel);

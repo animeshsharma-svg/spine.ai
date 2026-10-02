@@ -8,6 +8,8 @@
  * is present — so the whole pipeline runs correctly with ₹0 and no key.
  */
 import { retrieve } from "../rag/knowledgeBase.js";
+import { normalizeText } from "../checks/caseMatcher.js";
+import { caseById } from "../checks/testCatalog.js";
 import { narrate, chat, llmMode } from "../ai/llm.js";
 import { runSelected, capabilityFromClient, openClientContext } from "../executor.js";
 import { buildChecksForFlow, suiteKey } from "../checks/suites.js";
@@ -78,6 +80,70 @@ const WHY: Record<string, string> = {
   "masterdata.user_permissions": "Exercises the user-creation form's field validation (the 'break the inputs' ask).",
   "vendor.discovery": "Reading the client's vendor list.",
 };
+
+/** Flows whose keyword rule matches this text (the old router, kept as the fallback). */
+export function keywordFlows(text: string): string[] {
+  const ids: string[] = [];
+  for (const rule of RULES) if (rule.re.test(text)) ids.push(...rule.flows);
+  return [...new Set(ids)];
+}
+
+export interface FlowSelection {
+  flows: string[];
+  via: "memory" | "keywords" | "default";
+  /** the memory hits that voted, strongest first */
+  evidence: Array<{ id: string; title: string; score: number; flows: string[] }>;
+}
+
+/**
+ * MEMORY-BASED FLOW SELECTION.
+ *
+ * The request is normalised the way the case matcher does it (Hinglish, typos,
+ * synonyms), then the memory is asked for the catalog cases and flows closest
+ * to it in meaning. Each hit votes, weighted by its score, for the flows its
+ * own TITLE describes — titles are written in the product's vocabulary, so the
+ * keyword rules that were brittle on a person's phrasing are reliable on them.
+ * A flow needs at least 60% of the top flow's vote; at most three are chosen.
+ * With the memory unavailable or silent, the rules run on the request itself,
+ * as before.
+ */
+export async function selectFlows(request: string): Promise<FlowSelection> {
+  const normalized = normalizeText(request).text || request;
+  try {
+    const hits = await retrieve(normalized, 12, { kinds: ["test-case", "flow"] });
+    const votes = new Map<string, number>();
+    const evidence: FlowSelection["evidence"] = [];
+    for (const h of hits) {
+      let title = "";
+      let id = "";
+      let flows: string[] = [];
+      if (h.kind === "flow") {
+        id = h.text.match(/^Flow ([a-z_]+\.[a-z_]+)/)?.[1] ?? "";
+        title = h.text.slice(0, 120);
+        if (id) flows = [id];
+      } else {
+        id = String(h.labels?.[0] ?? "");
+        const c = caseById(id);
+        title = c?.title ?? h.text.slice(0, 120);
+        const named = (c?.refs ?? []).filter((r) => r in WHY);
+        flows = named.length ? named : keywordFlows(title);
+      }
+      if (!flows.length) continue;
+      evidence.push({ id, title, score: +h.score.toFixed(3), flows });
+      for (const f of flows) votes.set(f, (votes.get(f) ?? 0) + h.score / flows.length);
+    }
+    const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+    if (ranked.length) {
+      const top = ranked[0][1];
+      return { flows: ranked.filter(([, v]) => v >= top * 0.6).slice(0, 3).map(([f]) => f), via: "memory", evidence };
+    }
+  } catch {
+    /* memory not built or not reachable — fall back to the rules */
+  }
+  const kw = keywordFlows(normalized);
+  if (kw.length) return { flows: kw, via: "keywords", evidence: [] };
+  return { flows: ["events.rfp_rfq"], via: "default", evidence: [] };
+}
 
 interface CaseTpl { title: string; given: string; when: string; then: string; expectation?: string; }
 interface FlowCases { functional: CaseTpl; validation?: CaseTpl[]; edge?: CaseTpl[]; nonFunctional?: CaseTpl[]; }
@@ -231,12 +297,17 @@ export async function planner(
 
   const capability = capabilityFromClient(client);
 
-  // Match the request against the flow rules (multiple can match → richer plan).
-  const ids: string[] = [];
-  for (const rule of RULES) {
-    if (rule.re.test(state.request)) ids.push(...rule.flows);
-  }
-  if (ids.length === 0) ids.push("events.rfp_rfq"); // sensible default
+  // Which flows: chosen from MEMORY (the catalog cases closest in meaning to
+  // the request vote for the flows their titles describe), with the keyword
+  // rules on the request itself only as a fallback.
+  const selection = await selectFlows(state.request);
+  const ids = selection.flows;
+  emit({
+    agent: "Planner",
+    status: "reasoning",
+    title: `Flows chosen by ${selection.via}`,
+    data: { routing: selection.via, evidence: selection.evidence.slice(0, 6) },
+  });
 
   const plan: PlannedFlow[] = [...new Set(ids)].map((id) => {
     const cap = capability.find((c: { id: string; title?: string; category?: string }) => c.id === id);
@@ -253,7 +324,7 @@ export async function planner(
   const enabled = plan.filter((p) => p.enabled).length;
   const names = plan.map((p) => p.name).join(", ");
   const facts =
-    `For client "${client.companyName}" I matched the request to ${plan.length} flow(s) from the catalog — ` +
+    `For client "${client.companyName}" I matched the request to ${plan.length} flow(s) ${selection.via === "memory" ? "using the closest test cases in memory" : selection.via === "keywords" ? "by keywords (the memory had nothing)" : "by default (nothing matched)"} — ` +
     `${names} — and checked each against the client's live configuration: ${enabled}/${plan.length} are enabled here. ` +
     `I'll focus execution on the enabled ones.`;
   const reasoning = await narrate("Planner", facts);

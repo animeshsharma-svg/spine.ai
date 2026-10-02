@@ -602,6 +602,18 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
   }
   out.push(...echoes.slice(0, 12), ...cross.slice(0, 8));
 
+  // States the backend can legitimately answer that one sample client never
+  // showed, because they depend on that company's configuration. Merged into
+  // the sampled states so a check fails only on a state the code cannot produce.
+  const CONFIG_STATES: Record<string, Record<string, { values: string[]; why: string }>> = {
+    eval_submit: {
+      status: {
+        values: ["draft"],
+        why: "With a technical-evaluation approval flow the proposal stays draft and the evaluations go to 'requested' (procol-backend app/helpers/api/evaluations_helper.rb submit_evaluations_proposal).",
+      },
+    },
+  };
+
   // Candidates in priority buckets — business meaning first, plumbing last —
   // so the cap trims the least informative checks, never a state or money one.
   //   1 state (one_of)  2 money (gte)  3 names  4 collections (non_empty)
@@ -631,8 +643,15 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
       add(bucket, f, { path: f.path, op: "format", value: fmt, title: `${humanPath(f.path)} is ${FORMATS[fmt].words}`, expected: FORMATS[fmt].words, why: "Downstream steps and the UI parse this value; a malformed one fails far from its cause.", severity: isId ? "critical" : "major" });
     if (!isFree) {
       const distinct = [...new Set(f.values.filter((v) => v !== null && typeof v !== "object").map((v) => JSON.stringify(v)))];
-      if (HINT.status.test(k) && distinct.length > 0 && distinct.length <= 3 && nonNull.every((t) => t === "string"))
-        add(1, f, { path: f.path, op: "one_of", value: distinct.map((d) => JSON.parse(d)), title: `${humanPath(f.path)} is ${distinct.join(" or ")}`, expected: `one of ${distinct.join(", ")}`, why: "The state after this call decides what the next actor can do; an unexpected state is a workflow defect.", severity: "critical" });
+      // A company's configured defaults (trade_config.default_event_type …) are
+      // that client's choice, not a workflow state: pinning them to the sampled
+      // client's value fails every other client (Demo Account 2 defaults to
+      // auction and line-item closing where PROCOL DEMO has rfi and lot-based).
+      const isClientSetting = /(^|\.)(trade_config|configurations?|settings)\./.test(f.path) || /^default_/.test(k);
+      const extra = CONFIG_STATES[step]?.[f.path];
+      if (extra) for (const v of extra.values) if (!distinct.includes(JSON.stringify(v))) distinct.push(JSON.stringify(v));
+      if (!isClientSetting && HINT.status.test(k) && distinct.length > 0 && distinct.length <= 3 && nonNull.every((t) => t === "string"))
+        add(1, f, { path: f.path, op: "one_of", value: distinct.map((d) => JSON.parse(d)), title: `${humanPath(f.path)} is ${distinct.join(" or ")}`, expected: `one of ${distinct.join(", ")}`, why: "The state after this call decides what the next actor can do; an unexpected state is a workflow defect." + (extra ? ` ${extra.why}` : ""), severity: "critical" });
       if (HINT.money.test(k) && f.values.some((v) => typeof v === "number" || (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v))))
         add(2, f, { path: f.path, op: "gte", value: 0, title: `${humanPath(f.path)} is never negative`, expected: "≥ 0", why: "A negative quantity, price or amount is never a valid business value; it points at a sign or calculation error.", severity: "critical" });
     }

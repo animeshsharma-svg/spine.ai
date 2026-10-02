@@ -82,8 +82,12 @@ interface UiFinding {
 }
 
 /** Findings the UI framework's own Oracle wrote for this run. */
-function readUiFindings(runId?: string): UiFinding[] {
+function readUiFindings(runId: string | undefined, opts: { all?: boolean } = {}): UiFinding[] {
   const out: UiFinding[] = [];
+  // No browser run belongs to this verdict pass: there are no UI findings to
+  // read. Reading "all of them" pulled every finding ever written into an
+  // API-only run's verdicts. Only the cross-run summary asks for all.
+  if (!runId && !opts.all) return out;
   for (const dir of FINDINGS_DIRS) {
     if (!existsSync(dir)) continue;
     const files = readdirSync(dir).filter(
@@ -272,7 +276,7 @@ function defectTitle(f: UiFinding): string {
 }
 
 export function summariseFindings(): DefectGroup[] {
-  const all = readUiFindings();
+  const all = readUiFindings(undefined, { all: true });
   const byDefect = new Map<string, DefectGroup>();
   for (const f of all) {
     const key = defectKey(f);

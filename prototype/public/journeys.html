@@ -57,6 +57,7 @@
   </div>
   <div id="list"><div class="loading" style="padding:30px;color:var(--ink-soft)">Loading journeys…</div></div>
 </main>
+<script src="/caseView.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const el = (t,c,h) => { const n=document.createElement(t); if(c)n.className=c; if(h!=null)n.innerHTML=h; return n; };
@@ -102,6 +103,7 @@ function card(j) {
     const r = el("div","crow"); r.id = "jc-"+x.id; r.style.cursor="pointer";
     r.appendChild(el("span","cid", esc(x.id)));
     r.appendChild(el("span","ctitle", esc(x.title)));
+    r.dataset.caseId = x.id;
     r.appendChild(el("span",`tag ${x.priority==="P0"?"p0":""}`, esc(x.priority)));
     r.appendChild(el("span","tag", esc(x.verdict)));
     if (x.layer==="api") r.appendChild(el("span","tag api","API"));
@@ -113,7 +115,22 @@ function card(j) {
     list.appendChild(wrap);
   }
   c.appendChild(list);
+  // Each case in plain words (title, numbered steps, expected; the technical
+  // part behind a closed "Details"), with its track record — read when opened.
+  toggle.addEventListener("click", () => { if (c.classList.contains("open")) wordCases(list, j.cases); });
   return c;
+}
+async function wordCases(list, cases) {
+  if (list.dataset.worded) return;
+  list.dataset.worded = "1";
+  const displays = await CaseView.many(cases.map((x) => x.id));
+  for (const r of list.querySelectorAll(".crow")) {
+    const d = displays[r.dataset.caseId];
+    if (!d) continue;
+    r.querySelector(".ctitle").textContent = d.title;
+    r.nextElementSibling.innerHTML = CaseView.card(d, { noHead: true });
+  }
+  CaseView.fillTrack(list);
 }
 
 function compileJourney(j, btn) {

@@ -13,7 +13,7 @@
  * executable (method + path + body + expected outcome). The runtime AI layer
  * still exists for novel requests — this library is the dependable backbone.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Check, Client } from "./engine.js";
@@ -31,8 +31,50 @@ const here = dirname(fileURLToPath(import.meta.url));
  * to run and said so in no way at all.
  */
 const LIB_PATH = join(here, "..", "..", "data", "api-cases.json");
+/**
+ * Edge and negative cases written per area from the backend code (one file per
+ * area: crt, stg, pub, bid, awd …), each citing the guard it exercises. Kept
+ * out of api-cases.json so regenerating that file never drops them.
+ */
+const EXTRA_DIR = join(here, "..", "..", "data", "api-cases-extra");
+
+/** Placeholders a case may use — anything else could never be filled in. */
+const KNOWN_PLACEHOLDERS = new Set([
+  "eventGroupUuid", "tradeId", "lineItemUuid", "bidUuid", "proposalUuid", "vendorUuid", "vendorCompanyId",
+  "productUuid", "productQualityUuid", "stamp", "prId", "prItemId", "userUuid", "teamUuid", "categoryUuid",
+  "cityUuid", "familyUuid", "orderUuid", "intakeId",
+  // Filled from the journey: the technical (RFP) stage — {{tradeId}} is the
+  // pricing stage when there is one — and the form assigned to the evaluator.
+  "rfpTradeId", "evalFormUuid", "locationUuid",
+  // Also produced by the journey (eventJourney.ts `produced`), passed through as-is:
+  // the vendor's technical response and its form/page, the quoted line, the award flow.
+  "templateResponseUuid", "techFormUuid", "techPageUuid", "tradeProductUuid", "approvalFlowUuid",
+  // Vendor bulk upload: the fixture's base64, loaded by the bulk runner.
+  "vbuSheet",
+]);
+
+function readExtraCases(): TestCaseRecord[] {
+  if (!existsSync(EXTRA_DIR)) return [];
+  const out: TestCaseRecord[] = [];
+  for (const f of readdirSync(EXTRA_DIR).filter((n) => n.endsWith(".json")).sort()) {
+    try {
+      const parsed = JSON.parse(readFileSync(join(EXTRA_DIR, f), "utf8"));
+      const list: TestCaseRecord[] = Array.isArray(parsed) ? parsed : (parsed.cases ?? []);
+      for (const c of list) {
+        const unknown = [...JSON.stringify({ p: c?.path, b: c?.body }).matchAll(/\{\{(\w+)\}\}/g)]
+          .map((m) => m[1])
+          .filter((n) => !KNOWN_PLACEHOLDERS.has(n));
+        out.push(unknown.length ? { ...c, notRunnable: c.notRunnable ?? `uses ${unknown.map((n) => `{{${n}}}`).join(", ")}, which no run can fill in` } : c);
+      }
+    } catch (e) {
+      console.log(`[caseLibrary] skipped ${f}: ${(e as Error).message}`);
+    }
+  }
+  return out;
+}
 
 import { planLineItems, type HeldCase } from "./lineItems.js";
+import { makeBulkExec, resolveVbuWorkspace, vbuSkipReason } from "./vendorBulk.js";
 
 export interface TestCaseRecord {
   id: string;
@@ -68,6 +110,18 @@ export interface TestCaseRecord {
    * "the product accepted it" would be a false one about the product.
    */
   notRunnable?: string;
+  /**
+   * Vendor bulk upload cases (data/api-cases-extra/vbu.json): the fixture to
+   * send and what each staged row must become. Run by vendorBulk.ts.
+   */
+  bulk?: import("./vendorBulk.js").BulkSpec;
+  /** QA-document case ids this case covers (vendor bulk upload: the PR's QA doc, A1…D7) */
+  qaDoc?: string[];
+  /** file:line of the rule the case exercises */
+  rule?: string;
+  /** where a written spec and the code disagree */
+  disagree?: string;
+  tier?: string;
 }
 
 /**
@@ -129,7 +183,10 @@ export function loadCases(): TestCaseRecord[] {
   }
   try {
     const parsed = JSON.parse(readFileSync(LIB_PATH, "utf8"));
-    const list: TestCaseRecord[] = Array.isArray(parsed) ? parsed : (parsed.cases ?? []);
+    const base: TestCaseRecord[] = Array.isArray(parsed) ? parsed : (parsed.cases ?? []);
+    // The main library wins on an id clash; extra files only add.
+    const seen = new Set(base.map((c) => c?.id));
+    const list = [...base, ...readExtraCases().filter((c) => c?.id && !seen.has(c.id) && (seen.add(c.id), true))];
     const shaped = list.filter((c) => c && c.id && c.feature && c.path && c.method);
     HELD = shaped.filter(bodyIsAParaphrase);
     CACHE = shaped.filter((c) => !bodyIsAParaphrase(c));
@@ -460,6 +517,11 @@ export async function resolveCaseContext(
   const uList = users?.users ?? users?.data ?? (Array.isArray(users) ? users : []);
   if (Array.isArray(uList) && uList[0]) ctx.userUuid = firstId(uList[0]);
 
+  // Vendor bulk upload settings, straight from the configuration tables — most
+  // of them (allow_contactless_vendor_upload, vendor_duplicate_check_fields)
+  // are not in the dashboard configuration the other gates read.
+  if (typeof client.ctx.companyId === "number") ctx.vbu = await resolveVbuWorkspace(client.ctx.companyId);
+
   // ── DELIBERATELY GATED ──────────────────────────────────────────────────
   // tradeId / proposalUuid / bidUuid identify REAL, LIVE business records — an
   // actual award proposal, an actual bid. Bidding and awarding cases POST and
@@ -575,6 +637,22 @@ export function buildChecksFromCases(
       }
     }
 
+    // Vendor bulk upload: gated on the workspace's own settings and on what the
+    // case would create, then run by the bulk runner (see vendorBulk.ts).
+    if (c.bulk) {
+      const why = vbuSkipReason(c.bulk, fullCtx.vbu, {
+        realMail: fullCtx.vbuRealMail,
+        creates: fullCtx.vbuCreate,
+        hasUser: typeof (client.ctx as any).buyerUserId === "number",
+      });
+      if (why) {
+        skipped.push({ id: c.id, title: c.title, reason: why });
+        continue;
+      }
+    }
+    const caseCtx: DynamicContext =
+      c.bulk?.fixture ? { ...fullCtx, vbuSheet: `<base64 of procol test/fixtures/vendor-bulk-upload/${c.bulk.fixture}, filled per run>` } : fullCtx;
+
     const spec: DynamicSpec = {
       scenario: c.title,
       method: c.method,
@@ -588,7 +666,19 @@ export function buildChecksFromCases(
     };
     // curated=true — these cases were reviewed against the source, so they may
     // use the wider ALLOW_CURATED endpoint list that AI-generated checks cannot.
-    const { check, reason } = gate(spec, fullCtx, client, c.feature, c.id, c.feature, true);
+    const { check, reason } = gate(spec, caseCtx, client, c.feature, c.id, c.feature, true);
+    if (check && c.bulk && (c.bulk.kind !== "http" || c.bulk.actor)) {
+      check.exec = makeBulkExec(c.bulk, String(fullCtx.stamp), c.id, {
+        method: c.method,
+        path: c.path,
+        expectedResult: c.expectedResult,
+        rule: c.rule,
+        qaDoc: c.qaDoc,
+        steps: c.steps,
+      });
+      delete check.weakenedTo5xxOnly;
+      (check as any).bulkTier = c.bulk.tier;
+    }
     if (check) {
       // Only meaningful for reject cases — that's where "right reason" matters.
       if (c.expected === "reject") check.expectMessage = expectedMessageOf(c.expectedResult);

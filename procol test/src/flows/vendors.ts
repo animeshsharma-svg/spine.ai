@@ -12,12 +12,62 @@ export interface VendorPage {
   totalPages: number;
 }
 
-/** Vendors that have a login email (candidates for the vendor self-bid flow). */
+/**
+ * The platform's OWN test vendors for this buyer: companies with an ACTIVE
+ * buyer link whose active member is a qa_…@example.com user with a verified
+ * email (made by prototype/src/checks/matrixVendors.ts — invite + vendor
+ * signup). Inviting or signing in as them mails only a reserved domain, so
+ * they are the default everywhere a vendor is invited. SELECT only; the
+ * uuid comes from the buyer's own vendor list. [] when none (or no database).
+ */
+export async function listQaVendors(buyerApi: ApiClient, workspaceId?: number, limit = 4): Promise<VendorCompany[]> {
+  const ws = workspaceId ?? (buyerApi as unknown as { companyId?: number }).companyId;
+  if (!ws) return [];
+  let rows: Array<{ id: number; name: string; email: string }> = [];
+  try {
+    const { query: sql } = await import("../db/pool.js");
+    rows = await sql(
+      `select distinct on (c.id) c.id, c.name, u.email
+         from companies c
+         join buyer_seller_company_mappings b on b.dealing_with_company_id = c.id and b.client_company_id = $1 and b.status = 1
+         join user_company_mappings m on m.company_id = c.id and m.status = 1
+         join users u on u.id = m.user_id and u.status = 1 and u.email_verified = 1
+        where c.status = 1 and u.email ilike 'qa\\_%@example.com'
+        order by c.id, u.id`,
+      [ws],
+    );
+  } catch {
+    return [];
+  }
+  const out: VendorCompany[] = [];
+  for (const r of rows.slice(0, Math.max(limit * 2, limit))) {
+    if (out.length >= limit) break;
+    const { companies } = await fetchVendorsFiltered(buyerApi, 1, r.name).catch(() => ({ companies: [] as VendorCompany[], totalPages: 0 }));
+    const hit = companies.find((c) => c.name === r.name && c.uuid);
+    if (hit) out.push({ uuid: hit.uuid, name: r.name, email: r.email });
+  }
+  return out;
+}
+
+const warned = new Set<number>();
+function warnRealVendor(buyerApi: ApiClient): void {
+  const ws = (buyerApi as unknown as { companyId?: number }).companyId ?? 0;
+  if (warned.has(ws)) return;
+  warned.add(ws);
+  console.warn(`[vendors] no QA vendor for this client${ws ? ` (${ws})` : ""} — using a real vendor. Its people get the invite and one-time-code emails.`);
+}
+
+/** Vendors that have a login email (candidates for the vendor self-bid flow). QA vendors first. */
 export async function listInvitableVendors(
   buyerApi: ApiClient,
   query = "",
   limit = 5,
 ): Promise<VendorCompany[]> {
+  if (!query) {
+    const qa = await listQaVendors(buyerApi, undefined, limit);
+    if (qa.length) return qa;
+    warnRealVendor(buyerApi);
+  }
   const { companies } = await fetchVendorsFiltered(buyerApi, 1, query);
   const withEmail = companies.filter((c) => c.uuid && c.email && c.email.includes("@"));
   if (withEmail.length) return withEmail.slice(0, limit);

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  spine.ai nightly regression — a launchd TEMPLATE. Not installed by anything.
+  Fill the placeholders and install by hand (docs/CI.md, "Switching on the nightly"):
+
+    __PROTOTYPE_DIR__   absolute path of prototype/, e.g. /Users/animesh/Desktop/procol/prototype
+    __NODE_BIN_DIR__    the folder `which node` prints, without /node, e.g. /opt/homebrew/bin
+    __LOG_DIR__         where launchd writes stdout/stderr, e.g. /Users/animesh/Library/Logs/spine-ai
+
+  Runs every day at 02:00 local time. If the Mac is asleep at 02:00, launchd runs
+  it once when the Mac wakes. A run that is still going when the next one starts
+  is left alone (the script's own lock), and the script stops itself after 6 hours.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.spine.nightly</string>
+
+  <key>WorkingDirectory</key>
+  <string>__PROTOTYPE_DIR__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE_BIN_DIR__/npm</string>
+    <string>run</string>
+    <string>nightly</string>
+    <string>--</string>
+    <string>--clients</string>
+    <string>198678,32461</string>
+    <string>--total-timeout-min</string>
+    <string>360</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- launchd does not read your shell profile: node and git must be on this PATH. -->
+    <key>PATH</key>
+    <string>__NODE_BIN_DIR__:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>5</integer>
+
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/nightly.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/nightly.err.log</string>
+</dict>
+</plist>

@@ -2,7 +2,9 @@
  * KNOWLEDGE BASE — the "memory" the AI reads before it plans.
  *
  * build():   read the knowledge docs + the flow catalog, chop them into chunks,
- *            embed each chunk, and save everything to one local file.
+ *            embed each chunk, and save everything — to spine.ai's Postgres
+ *            (memory_chunks, pgvector) when SPINE_DB_URL is reachable, else to
+ *            one local file (data/vector-store.json), as before.
  * retrieve(): given a question, return the most relevant chunks by MEANING.
  *
  * This is real RAG (Retrieval-Augmented Generation): the agents look things up
@@ -13,6 +15,8 @@ import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { embedOne, embedMany, similarity, embedderId, ensureEmbedderReady } from "./embedder.js";
 import { allCases } from "../checks/testCatalog.js";
+import { spineDb } from "../db/spineDb.js";
+import { syncChunks, candidates, memoryStats } from "./pgMemory.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..");
@@ -322,9 +326,18 @@ function splitMarkdown(raw: string, maxChars = 1100): string[] {
 }
 
 // ── 2. Build & save the index ─────────────────────────────────────────────
-export async function build(): Promise<{ chunks: number; dims: number }> {
+export async function build(
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ chunks: number; dims: number; embedded?: number; removed?: number; store: "postgres" | "file" }> {
   await ensureEmbedderReady();
   const chunks = gatherChunks();
+  const db = await spineDb();
+  if (db) {
+    // Incremental: only new or changed chunks are embedded.
+    const r = await syncChunks(db, chunks, embedderId(), embedMany, onProgress);
+    dbEmbedder = embedderId();
+    return { chunks: r.chunks, dims: r.dims, embedded: r.embedded, removed: r.removed, store: "postgres" };
+  }
   const embeddings = await embedMany(chunks.map((c) => c.text));
   chunks.forEach((c, i) => (c.embedding = embeddings[i]));
   writeFileSync(
@@ -333,7 +346,7 @@ export async function build(): Promise<{ chunks: number; dims: number }> {
   );
   cache = undefined;
   storeEmbedder = embedderId();
-  return { chunks: chunks.length, dims: embeddings[0]?.length ?? 0 };
+  return { chunks: chunks.length, dims: embeddings[0]?.length ?? 0, store: "file" };
 }
 
 // ── 3. Load & retrieve ────────────────────────────────────────────────────
@@ -366,8 +379,51 @@ export function embedderMismatch(): { stale: boolean; store: string; current: st
   return { stale: storeEmbedder !== embedderId(), store: storeEmbedder, current: embedderId() };
 }
 
+/** The embedder the Postgres memory was last built with (cached per process). */
+let dbEmbedder: string | undefined;
+async function dbMemoryEmbedder(): Promise<string | null> {
+  const db = await spineDb();
+  if (!db) return null;
+  if (dbEmbedder === undefined) {
+    const r = await db.query(`SELECT embedder FROM memory_builds ORDER BY id DESC LIMIT 1`).catch(() => ({ rows: [] as any[] }));
+    dbEmbedder = r.rows[0]?.embedder ?? "";
+  }
+  return dbEmbedder || null;
+}
+
+/** Hybrid score, the same rule for both stores. */
+function hybrid(dense: number, lexical: number, haveVector: boolean): number {
+  return haveVector ? dense * 0.75 + lexical * 0.25 : lexical;
+}
+
+/** Top-k from Postgres: indexed candidates, then the same hybrid scoring as the file store. */
+async function retrieveFromDb(query: string, k: number, opts: RetrieveOptions, built: string): Promise<Retrieved[]> {
+  const db = (await spineDb())!;
+  await ensureEmbedderReady();
+  const stale = built !== embedderId();
+  if (stale && !warnedMismatch) {
+    warnedMismatch = true;
+    console.warn(`[rag] the memory was built with ${built} but ${embedderId()} is now in use — retrieving by words only until \`npm run rag:build\``);
+  }
+  const q = stale ? null : await embedOne(query);
+  const queryTerms = lexicalTerms(query);
+  const limit = Math.max(60, k * 8);
+  let found = await candidates(db, built, q, queryTerms, opts, limit);
+  // A scope that matches nothing falls back to everything, as the file store does.
+  if (!found.length && (opts.kinds || opts.module)) found = await candidates(db, built, q, queryTerms, {}, limit);
+  return found
+    .map((c) => {
+      const lexical = lexicalOverlap(queryTerms, { id: "", source: c.source, kind: c.kind, labels: c.labels, text: c.text });
+      return { source: c.source, kind: c.kind, module: c.module, labels: c.labels, text: c.text, score: hybrid(c.dense, lexical, !!q) };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
+}
+
 /** Return the top-k chunks most relevant (by meaning) to the query. */
 export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {}): Promise<Retrieved[]> {
+  const built = await dbMemoryEmbedder();
+  if (built) return retrieveFromDb(query, k, opts, built);
   const all = load();
   const pool = all.filter(
     (c) =>
@@ -402,7 +458,7 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
         module: c.module,
         labels: c.labels,
         text: c.text,
-        score: q ? dense * 0.75 + lexical * 0.25 : lexical,
+        score: hybrid(dense, lexical, !!q),
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -426,13 +482,21 @@ export async function recall(
 }
 
 /** Counts per kind, for the dashboard to show what the memory actually holds. */
-export function stats(): {
+export async function stats(): Promise<{
   total: number;
   byKind: Record<string, number>;
   byModule: Record<string, number>;
   embedder: string;
   stale: boolean;
-} {
+  store: "postgres" | "file";
+  builtAt?: string | null;
+}> {
+  const db = await spineDb();
+  const fromDb = db ? await memoryStats(db).catch(() => null) : null;
+  if (fromDb) {
+    await ensureEmbedderReady();
+    return { ...fromDb, stale: fromDb.embedder !== embedderId(), store: "postgres" };
+  }
   const chunks = load();
   const byKind: Record<string, number> = {};
   const byModule: Record<string, number> = {};
@@ -441,9 +505,10 @@ export function stats(): {
     if (c.module) byModule[c.module] = (byModule[c.module] ?? 0) + 1;
   }
   const { stale } = embedderMismatch();
-  return { total: chunks.length, byKind, byModule, embedder: storeEmbedder, stale };
+  return { total: chunks.length, byKind, byModule, embedder: storeEmbedder, stale, store: "file" };
 }
 
-export function isBuilt(): boolean {
+export async function isBuilt(): Promise<boolean> {
+  if (await dbMemoryEmbedder()) return true;
   return existsSync(STORE_PATH);
 }

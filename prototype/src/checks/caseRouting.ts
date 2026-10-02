@@ -5,6 +5,9 @@ import { UI_FLOWS } from "../ui/uiFlowRunner.js";
 import { ALL_SUITES } from "./suites.js";
 import type { CatalogCase } from "./testCatalog.js";
 import { allCases } from "./testCatalog.js";
+import { loadCases } from "./caseLibrary.js";
+import { STEP_CODE } from "./apiAssertions.js";
+import { STEP_META, type StepKind } from "./journeyModel.js";
 
 /**
  * How a written case reaches an actual runner — and, just as importantly, when
@@ -31,6 +34,9 @@ const API_REGISTRY = join(here, "..", "..", "..", "procol test", "src", "flows",
 export type RouteKind =
   | "ui-journey"
   | "api-case"
+  | "api-library"
+  | "api-field"
+  | "ui-crosscheck"
   | "api-section"
   | "api-suite"
   | "ui-compile"
@@ -43,7 +49,17 @@ export interface CaseRoute {
   target?: string;
   /** Why this route, in one line, for the dashboard to show on hover. */
   because: string;
+  /**
+   * Whether the case picker (/api/case-run) can run this one case on its own.
+   * A case can reach a real runner without that — see `runner`.
+   */
   runnable: boolean;
+  /**
+   * Where the case really runs, in words, when that is not the case picker:
+   * the API case library (EDGE-…, VBU-…, the mined cases) runs from the API
+   * automation tree, and every field check (API-F…) runs on every API journey.
+   */
+  runner?: { where: "api-library" | "api-journey" | "ui-crosscheck"; id?: string; how: string };
 }
 
 const FLOW_KEYS = new Set(UI_FLOWS.map((f) => f.key));
@@ -140,6 +156,17 @@ const SECTION_SUITES: Record<string, string> = {
 };
 
 export function routeFor(c: CatalogCase): CaseRoute {
+  // 0 · the UI↔API cross-check cases run through procol-ui-tests/tests/crosscheck.spec.ts,
+  //     started from /api/crosscheck/start — not from the case picker, so `runnable`
+  //     stays false and `runner` says where they do run. UI-XCHK-060/061 are automate-later.
+  if (/^UI-XCHK-\d+/.test(c.id)) {
+    if (/automate-later/i.test(`${c.verdict} ${c.source}`)) {
+      return { kind: "none", because: "written for the UI↔API cross-check, not automated yet — automate later", runnable: false };
+    }
+    const how = "Runs in the UI↔API cross-check: it opens the event on screen and compares every value with the API.";
+    return { kind: "ui-crosscheck", target: c.id, because: "runs in the UI↔API cross-check (crosscheck.spec.ts)", runnable: false, runner: { where: "ui-crosscheck", id: c.id, how } };
+  }
+
   // 1 · a built journey named in the trace line beats everything: it is
   //     deterministic, healed, and needs no compile step.
   const journey = c.refs.find((r) => FLOW_KEYS.has(r));
@@ -153,8 +180,15 @@ export function routeFor(c: CatalogCase): CaseRoute {
     return { kind: "api-case", target: be, because: `the API framework implements this as ${be}`, runnable: true };
   }
 
+  // The API case library may run this exact case — by its own id, or by the
+  // library twin its trace names (API-XPUB-019 ↔ EDGE-PUB-019, VBU-…).
+  const libTwin = c.layer === "api" ? libraryTwin(c) : undefined;
+  const runner: CaseRoute["runner"] = libTwin
+    ? { where: "api-library", id: libTwin, how: "Runs from the API case library — tick its feature under API automation." }
+    : undefined;
+
   if (c.verdict === "manual") {
-    return { kind: "manual", because: "the catalog marks this one for a person", runnable: false };
+    return { kind: "manual", because: "the catalog marks this one for a person", runnable: false, ...(runner ? { runner } : {}) };
   }
 
   // 3 · the framework may cover this AREA without covering this case.
@@ -167,6 +201,7 @@ export function routeFor(c: CatalogCase): CaseRoute {
         target: ids.join(","),
         because: `no exact runner — the API framework covers ${area.what} as ${ids.length} case(s) (BE-${area.group}.x)`,
         runnable: true,
+        ...(runner ? { runner } : {}),
       };
     }
   }
@@ -174,7 +209,34 @@ export function routeFor(c: CatalogCase): CaseRoute {
   // 4 · a validation suite covering the same ground is the last API answer.
   const suite = SECTION_SUITES[c.group];
   if (c.layer === "api" && suite && SUITE_IDS.has(suite)) {
-    return { kind: "api-suite", target: suite, because: `the "${suite}" validation suite covers this section`, runnable: true };
+    return { kind: "api-suite", target: suite, because: `the "${suite}" validation suite covers this section`, runnable: true, ...(runner ? { runner } : {}) };
+  }
+
+  if (c.layer === "api") {
+    if (libTwin) {
+      return {
+        kind: "api-library",
+        target: libTwin,
+        because: `runs from the API case library as ${libTwin} — tick its feature under API automation`,
+        runnable: false,
+        runner,
+      };
+    }
+    // A field check runs against the live reply of its journey step, on every API journey.
+    const step = fieldCheckStep(c.group);
+    if (step) {
+      return {
+        kind: "api-field",
+        target: step,
+        because: `checked on every API journey, against the reply of “${STEP_META[step].title}”`,
+        runnable: false,
+        runner: { where: "api-journey", how: `Checked on every API journey run, against the reply of “${STEP_META[step].title}”.` },
+      };
+    }
+    // Request negatives (API-N<step>-…) are written from the journey's bodies but not wired to a runner yet.
+    if (requestNegativeStep(c.group)) {
+      return { kind: "none", because: "written from the journey's requests, not wired to a runner yet — automate later", runnable: false };
+    }
   }
 
   /**
@@ -212,15 +274,41 @@ export function routeFor(c: CatalogCase): CaseRoute {
   };
 }
 
+let libIds: Set<string> | null = null;
+function libraryIds(): Set<string> {
+  return (libIds ??= new Set(loadCases().map((c) => c.id)));
+}
+function libraryTwin(c: CatalogCase): string | undefined {
+  const lib = libraryIds();
+  return lib.has(c.id) ? c.id : (c.refs.find((r) => lib.has(r)) ?? edgeTwin(c.id, lib));
+}
+function edgeTwin(id: string, lib: Set<string>): string | undefined {
+  const m = id.match(/^API-X([A-Z]+)-(\d{3})$/);
+  const t = m ? `EDGE-${m[1]}-${m[2]}` : undefined;
+  return t && lib.has(t) ? t : undefined;
+}
+const CODE_STEP = new Map(Object.entries(STEP_CODE).map(([k, v]) => [v, k as StepKind]));
+/** "API-FPUBLISH" → "publish" */
+function fieldCheckStep(group: string): StepKind | undefined {
+  const m = group.match(/^API-F([A-Z]+)$/);
+  return m ? CODE_STEP.get(m[1]) : undefined;
+}
+function requestNegativeStep(group: string): StepKind | undefined {
+  const m = group.match(/^API-N([A-Z]+)$/);
+  return m ? CODE_STEP.get(m[1]) : undefined;
+}
+
 /** Coverage, counted rather than claimed. */
 export function routingCoverage() {
   const byKind: Record<string, number> = {};
   let runnable = 0;
+  let reachesRunner = 0;
   for (const c of allCases()) {
     const r = routeFor(c);
     byKind[r.kind] = (byKind[r.kind] ?? 0) + 1;
     if (r.runnable) runnable += 1;
+    if (r.runnable || r.runner) reachesRunner += 1;
   }
   const total = allCases().length;
-  return { total, runnable, unrunnable: total - runnable, byKind };
+  return { total, runnable, reachesRunner, unrunnable: total - runnable, byKind };
 }

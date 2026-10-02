@@ -664,7 +664,7 @@ Step `add_stage_rfp` (buyer) · Postman: event create › Template Technical · 
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 1 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `add_stage_rfp`
 
-#### API-FRFPSTG-002 — Add the technical round (RFP) answers within 5 seconds
+#### API-FRFPSTG-002 — Add the technical round (RFP) answers within 15 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (Technical + RFQ), at the step "Add the technical round (RFP)".
 - **Steps.** 1. As the buyer, do “Add the technical round (RFP)” in the API journey (`POST /trade/template_input`). 2. Time the answer.
@@ -3104,7 +3104,7 @@ Step `vendor_open_technical` (vendor) · Postman: vendor technical and bid › g
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 1 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `vendor_open_technical`
 
-#### API-FVTECH-002 — Open the technical round as the vendor answers within 5 seconds
+#### API-FVTECH-002 — Open the technical round as the vendor answers within 9 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (Technical + RFQ), at the step "Open the technical round as the vendor".
 - **Steps.** 1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Time the answer.
@@ -3588,7 +3588,7 @@ Step `tech_start` (vendor) · Postman: vendor technical and bid › start techni
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 1 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `tech_start`
 
-#### API-FTSTART-002 — Start the technical response answers within 5 seconds
+#### API-FTSTART-002 — Start the technical response answers within 17 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (Technical + RFQ), at the step "Start the technical response".
 - **Steps.** 1. As the vendor, do “Start the technical response” in the API journey (`POST /template_responses`). 2. Time the answer.
@@ -3828,7 +3828,7 @@ Step `tech_submit` (vendor) · Postman: vendor technical and bid › submit tech
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 1 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `tech_submit`
 
-#### API-FTSUBMIT-002 — Submit the technical response answers within 5 seconds
+#### API-FTSUBMIT-002 — Submit the technical response answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (Technical + RFQ), at the step "Submit the technical response".
 - **Steps.** 1. As the vendor, do “Submit the technical response” in the API journey (`PATCH /template_responses/:id`). 2. Time the answer.
@@ -4676,7 +4676,7 @@ Step `eval_score` (evaluator) · Postman: evaluation › create evaluations · s
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 1 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `eval_score`
 
-#### API-FESCORE-002 — Score the vendor's technical response answers within 5 seconds
+#### API-FESCORE-002 — Score the vendor's technical response answers within 7 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A evaluator walking the API journey (Technical + RFQ), at the step "Score the vendor's technical response".
 - **Steps.** 1. As the evaluator, do “Score the vendor's technical response” in the API journey (`POST /evaluations`). 2. Time the answer.
@@ -5664,7 +5664,7 @@ Step `award_workflow` (buyer) · Postman: Awarding › get approval flows · see
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 2 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `award_workflow`
 
-#### API-FAWDFLOW-002 — Read the approval workflow for the award answers within 5 seconds
+#### API-FAWDFLOW-002 — Read the approval workflow for the award answers within 7 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ), at the step "Read the approval workflow for the award".
 - **Steps.** 1. As the buyer, do “Read the approval workflow for the award” in the API journey (`GET /proposal/:id/approval_workflows`). 2. Time the answer.

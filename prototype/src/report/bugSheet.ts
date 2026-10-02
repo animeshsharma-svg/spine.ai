@@ -15,7 +15,8 @@ import {
   STATUS_COLOR,
   chipStyle,
 } from "./bugStatus.js";
-import { PAGE_CSS, escapeHtml, stamp } from "./shared.js";
+import { PAGE_CSS, TEST_CASE_CSS, escapeHtml, humanText, renderTechFold, stamp, trackScript, type WithHuman } from "./shared.js";
+import { plain } from "../checks/caseDisplay.js";
 import { defectsFromObservations } from "./uiObservationDefects.js";
 
 /**
@@ -179,7 +180,9 @@ function textArea(id: string, field: string, value: string, placeholder: string)
  * because a re-run recomputes them and an edit there would be silently lost.
  */
 function row(group: DefectGroup, index: number, triage: TriageStore): string {
-  const kind = KIND[group.kind];
+  // Older findings carry kinds this sheet has no column for ("contract_violation");
+  // they are read as an unconfirmed product finding rather than crashing the page.
+  const kind = KIND[group.kind] ?? { devType: "BE", chip: "chip-dev", verification: "unconfirmed" as const, status: "TO BE DISCUSSED" as const };
   const saved: Triage = triage[group.defectFingerprint] ?? {};
   const id = group.defectFingerprint;
   // A curated row brings its own columns — someone already filled them in.
@@ -221,58 +224,106 @@ function row(group: DefectGroup, index: number, triage: TriageStore): string {
         <td>${textCell(id, "userType", saved.userType ?? curated?.userType ?? "All users", "who hits it")}</td>
         <td class="c-mid">${textCell(id, "module", module, "module")}</td>
         <td class="c-desc${blocker === "YES" ? " tinted" : ""}">
-          <strong class="desc-title">${escapeHtml(group.title)}</strong>
-          <span class="desc-meta">
-            <span class="verify v-${curated ? (curated.status === "not-a-bug" ? "not-a-bug" : curated.status === "confirmed" ? "confirmed" : "unconfirmed") : kind.verification}">${escapeHtml(
-              curated ? curated.status.replace(/-/g, " ") : VERIFY_LABEL[kind.verification],
-            )}</span>
-            ${
-              curated
-                ? `· raised by hand${curated.endpoint ? ` · <code>${escapeHtml(curated.endpoint)}</code>` : ""}${
-                    curated.client ? ` · ${escapeHtml(curated.client)}` : ""
-                  }`
-                : `· found by the platform · seen ${group.occurrences}× · ${group.flows.length} journey${
-                    group.flows.length === 1 ? "" : "s"
-                  }${group.firstSeen ? ` · first ${escapeHtml(stamp(group.firstSeen))}` : ""}${
-                    group.lastSeen && group.lastSeen !== group.firstSeen
-                      ? `, last ${escapeHtml(stamp(group.lastSeen))}`
-                      : ""
-                  }`
-            }
-          </span>
-          ${
-            group.knownBug
-              ? `<span class="known ${/fixed|closed/i.test(group.knownBug.status) ? "k-fixed" : "k-open"}">${escapeHtml(
-                  knownBugSentence(group.knownBug),
-                )}</span>`
-              : ""
-          }
-          <details class="more">
-            <summary>what we found${group.reproduction.length ? " · how to reproduce" : ""}</summary>
-            <p>${escapeHtml(group.rationale)}</p>
-            ${
-              group.evidence.length
-                ? `<p><strong>Evidence:</strong></p><ol>${group.evidence
-                    .slice(0, 6)
-                    .map((e) => `<li>${escapeHtml(e)}</li>`)
-                    .join("")}</ol>`
-                : ""
-            }
-            ${
-              group.reproduction.length
-                ? group.reproduction[0].startsWith("curl")
-                  ? `<p><strong>Reproduce:</strong></p><pre>${escapeHtml(group.reproduction.join("\n"))}</pre>`
-                  : `<p><strong>Reproduce:</strong></p><ol>${group.reproduction
-                      .slice(0, 8)
-                      .map((r) => `<li>${escapeHtml(r)}</li>`)
-                      .join("")}</ol>`
-                : ""
-            }
-            <p><strong>Journeys hit:</strong> ${escapeHtml(group.flows.join(", ") || "—")}</p>
-          </details>
+          ${describeBug(group, curated, kind.verification)}
         </td>
         <td class="c-note">${textArea(id, "notes", notes, "your remark")}</td>
       </tr>`;
+}
+
+/** "features: events.rfq_only, bids.place" → "RFQ only, Place a bid"; "browser journey: events.rfp_only" → "browser journey: RFP only". */
+function requestInWords(request: string): string {
+  const m = request.match(/^\s*(features|browser journey):\s*(.+)$/i);
+  if (!m) return humanText(request);
+  const labels = m[2].split(",").map((f) => f.trim()).filter(Boolean).map((f) => {
+    for (const g of FEATURE_TREE) {
+      const c = g.children.find((x) => x.id === f);
+      if (c) return c.label;
+    }
+    return humanText(plain(f));
+  });
+  return `${/^browser/i.test(m[1]) ? "browser journey" : "tested"}: ${labels.join(", ")}`;
+}
+
+/** "events.rfp_rfq" → "Sourcing events (RFx) › RFP + RFQ"; "journey.rfq" → "the RFQ journey". */
+function flowInWords(flow: string): string {
+  if (/^journey\./.test(flow)) return `the ${flow.slice(8).replace(/_/g, " ").toUpperCase().replace(/ ONLY$/, " only")} journey`;
+  const group = FEATURE_TREE.find((g) => g.id === flow.split(".")[0]);
+  const child = group?.children.find((c) => c.id === flow);
+  return [group?.label, child?.label].filter(Boolean).join(" › ") || plain(flow);
+}
+
+/**
+ * The Description cell: the bug in plain words — what goes wrong, what
+ * happened, where, how to reproduce it, expected against actual, and how
+ * often — with the evidence, the exact call and the fingerprint folded away.
+ */
+function describeBug(group: DefectGroup, curated: CuratedBug | undefined, verification: string): string {
+  const h = (group as WithHuman<DefectGroup>).human;
+  const title = h?.title ?? humanText(plain(group.title));
+  const where = h?.where ?? [...new Set(group.flows.map(flowInWords))].join("; ");
+  const curlRepro = group.reproduction[0]?.startsWith("curl");
+  const steps =
+    h?.steps ??
+    (curlRepro
+      ? []
+      : group.reproduction
+          // Lines that are evidence rather than a step (a documented status, the
+          // oracle's rule, a JSON body) stay in the technical fold.
+          .filter((r) => !/^(Expected|Actual|Full evidence|Documented|Oracle)\b/.test(r) && !/[{}]/.test(r))
+          .map((r) => r.replace(/^\[plan\]\s*/, ""))
+          .map((r) => humanText(r.replace(/\s*\(or (POST|GET|PATCH|PUT) [^)]*\)/, "").replace(/:\s*\/api\/\S+$/, "")))
+          .filter(Boolean)
+          .slice(0, 8));
+  const what = h?.what ?? humanText(plain(group.rationale));
+  const runs = group.runs?.length ?? 0;
+  const often = curated
+    ? ""
+    : `Seen ${group.occurrences} time${group.occurrences === 1 ? "" : "s"}${runs ? ` in ${runs} run${runs === 1 ? "" : "s"}` : ""}${
+        group.firstSeen ? `, first on ${stamp(group.firstSeen)}` : ""
+      }${group.lastSeen && group.lastSeen !== group.firstSeen ? `, last on ${stamp(group.lastSeen)}` : ""}.`;
+  const verifyClass = curated ? (curated.status === "not-a-bug" ? "not-a-bug" : curated.status === "confirmed" ? "confirmed" : "unconfirmed") : verification;
+  const verifyWord = curated ? curated.status.replace(/-/g, " ") : VERIFY_LABEL[verification as keyof typeof VERIFY_LABEL] ?? verification;
+  const firstCase = h?.caseIds?.[0];
+
+  const tech = renderTechFold(
+    [
+      ...(curated?.endpoint ? [{ label: "Endpoint", value: curated.endpoint, kind: "code" as const }] : []),
+      ...(h?.caseIds?.length ? [{ label: "Test cases", value: h.caseIds.join(", "), kind: "code" as const }] : []),
+      { label: "Title as recorded", value: title !== group.title ? group.title : "" },
+      { label: "What the platform recorded", value: what !== group.rationale ? group.rationale : "" },
+      { label: "Journeys hit", value: group.flows.join(", "), kind: "code" as const },
+      { label: "Evidence", value: group.evidence.slice(0, 6).join("\n"), kind: "block" as const },
+      { label: curlRepro ? "Reproduce with" : "Reproduction as recorded", value: group.reproduction.slice(0, 12).join("\n"), kind: "block" as const },
+      { label: "Fingerprint", value: group.defectFingerprint, kind: "code" as const },
+    ],
+    group.reproduction
+      .map((r) => r.match(/(\/api\/\S+)$/)?.[1])
+      .filter((u): u is string => Boolean(u))
+      .map((u) => `<a href="${escapeHtml(u)}">${escapeHtml(u.startsWith("/api/vbu/sheet") ? "Download the exact sheet (.xlsx)" : "Open the evidence")}</a>`)
+      .join(" · "),
+  );
+
+  return `<strong class="desc-title">${escapeHtml(title)}</strong>
+          <span class="desc-meta">
+            <span class="verify v-${verifyClass}">${escapeHtml(verifyWord)}</span>
+            · ${curated ? `raised by hand${curated.client ? ` · ${escapeHtml(curated.client)}` : ""}` : "found by the platform"}${often ? ` · ${escapeHtml(often)}` : ""}
+          </span>
+          ${
+            group.knownBug
+              ? `<span class="known ${/fixed|closed/i.test(group.knownBug.status) ? "k-fixed" : "k-open"}">${escapeHtml(knownBugSentence(group.knownBug))}</span>`
+              : ""
+          }
+          ${firstCase ? `<span class="desc-meta" data-track="${escapeHtml(firstCase)}" data-track-label="This test across runs" hidden></span>` : ""}
+          <details class="more">
+            <summary>what happened${steps.length ? " · how to reproduce" : ""}</summary>
+            ${what ? `<p><strong>What happened:</strong> ${escapeHtml(what)}</p>` : ""}
+            ${where ? `<p><strong>Where:</strong> ${escapeHtml(where)}</p>` : ""}
+            ${steps.length ? `<p><strong>How to reproduce:</strong></p><ol>${steps.map((st) => `<li>${escapeHtml(st)}</li>`).join("")}</ol>` : ""}
+            ${h?.expected ? `<p><strong>Expected:</strong> ${escapeHtml(humanText(h.expected))}</p>` : ""}
+            ${h?.actual ? `<p><strong>Actual:</strong> ${escapeHtml(humanText(h.actual))}</p>` : ""}
+            ${often ? `<p><strong>How often:</strong> ${escapeHtml(often)}</p>` : ""}
+            ${tech}
+          </details>`;
 }
 
 /**
@@ -425,6 +476,13 @@ export function renderBugSheet(
 <style>
 ${PAGE_CSS}
 ${SHEET_CSS}
+${TEST_CASE_CSS}
+table.sheet details.tech > summary { color: #1a73e8; }
+table.sheet details.tech { border-top-color: #d7d7d7; }
+table.sheet dl.tc-tech dt { color: #5f6368; }
+table.sheet dl.tc-tech dd { color: #3c4043; }
+table.sheet dl.tc-tech code, table.sheet details.tech pre { background: #f1f3f4; color: #202124; border-color: #d7d7d7; }
+details.more details.tech pre { white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
 ${EDITABLE_CSS}
 .scope-note { margin: -4px 0 12px; padding: 7px 10px; border-left: 3px solid #f9ab00;
   background: #fff8e1; border-radius: 5px; font-size: 12.5px; color: #5c4404; }
@@ -436,7 +494,7 @@ ${EDITABLE_CSS}
   ${
     scope
       ? `<p class="sub">${groups.length} defect${groups.length === 1 ? "" : "s"} from
-        <b>this run</b>${scope.request ? ` — ${escapeHtml(scope.request)}` : ""}${
+        <b>this run</b>${scope.request ? ` — ${escapeHtml(requestInWords(scope.request))}` : ""}${
           scope.companyName ? ` on ${escapeHtml(scope.companyName)}` : ""
         }${scope.ts ? `, ${escapeHtml(new Date(scope.ts).toLocaleString())}` : ""}${
           scope.checks ? ` · ${scope.checks} checks ran` : ""
@@ -677,6 +735,7 @@ ${EDITABLE_CSS}
   apply();
 })();
 </script>
+${trackScript()}
 </body>
 </html>
 `;
