@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>spine.ai</title>
+    <link rel="stylesheet" href="/workflow.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+  </head>
+  <body class="wf">
+    <header class="wf-top">
+      <div class="wf-brand">
+        <span class="wf-logo">🤖</span>
+        <div>
+          <div class="wf-title">spine.ai</div>
+          <div class="wf-sub">describe a test · it plans, runs and judges it</div>
+        </div>
+      </div>
+      <div class="wf-top-right">
+        <label class="wf-field"><span>Client</span><select id="client"></select></label>
+        <label class="wf-check" title="Uncheck to run without a visible browser window">
+          <input type="checkbox" id="headed" checked /> watch the browser
+        </label>
+        <span id="provider" class="wf-provider">…</span>
+        <a class="wf-link" href="/">classic dashboard</a>
+      </div>
+    </header>
+
+    <!-- The workflow: one path, five stages, in order. -->
+    <ol class="wf-stepper" id="stepper">
+      <li data-stage="ask" class="on"><span>1</span>What to test</li>
+      <li data-stage="plan"><span>2</span>Plan</li>
+      <li data-stage="run"><span>3</span>Run</li>
+      <li data-stage="verdict"><span>4</span>Verdict</li>
+      <li data-stage="report"><span>5</span>Report</li>
+    </ol>
+
+    <main class="wf-main">
+      <!-- 1 · ASK ─────────────────────────────────────────────────────── -->
+      <section class="wf-card" id="card-ask">
+        <h2>What should I test?</h2>
+        <p class="wf-hint">
+          Write it as you would tell a colleague. Publishing, filling the sheet and inviting a vendor are
+          implied by creating an event — you do not need to list them.
+        </p>
+        <textarea id="ask" rows="3" placeholder="e.g. Create an RFQ with 3 line items, invite AMD, publish it, then place a surrogate bid for AMD and award them"></textarea>
+        <div class="wf-chips" id="examples"></div>
+        <div class="wf-actions">
+          <button id="go" class="wf-primary">Plan &amp; run this test</button>
+          <button id="plan-only" class="wf-ghost">Show me the plan first</button>
+        </div>
+      </section>
+
+      <!-- 2 · PLAN ────────────────────────────────────────────────────── -->
+      <section class="wf-card" id="card-plan" hidden>
+        <h2>The plan <span class="wf-badge" id="plan-source"></span></h2>
+        <p class="wf-hint" id="plan-why"></p>
+        <ol class="wf-steps" id="plan-steps"></ol>
+        <div class="wf-repairs" id="plan-repairs" hidden></div>
+        <div class="wf-actions" id="plan-actions" hidden>
+          <button id="run-plan" class="wf-primary">Run these steps</button>
+          <button id="back-ask" class="wf-ghost">Change the test</button>
+        </div>
+      </section>
+
+      <!-- 3 · RUN ─────────────────────────────────────────────────────── -->
+      <section class="wf-card" id="card-run" hidden>
+        <h2>Running <span class="wf-badge" id="run-count"></span></h2>
+        <ol class="wf-steps live" id="run-steps"></ol>
+        <details class="wf-log"><summary>browser output</summary><div id="console"></div></details>
+      </section>
+
+      <!-- 4 · VERDICT ─────────────────────────────────────────────────── -->
+      <section class="wf-card" id="card-verdict" hidden>
+        <h2>Verdict</h2>
+        <div id="verdict"></div>
+      </section>
+
+      <!-- 5 · REPORT ──────────────────────────────────────────────────── -->
+      <section class="wf-card" id="card-report" hidden>
+        <h2>What this run adds up to</h2>
+        <div id="report-summary"></div>
+        <div class="wf-actions">
+          <a class="wf-ghost" href="/api/report" target="_blank" rel="noopener">Read the full bug report</a>
+          <a class="wf-ghost" href="/api/report?download=1">Download it</a>
+          <button id="again" class="wf-primary">Test something else</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Everything that is context rather than the current run lives below,
+         collapsed, so it never competes with the flow. -->
+    <aside class="wf-aside">
+      <details id="d-defects"><summary>Defects found <span id="c-defects"></span></summary><div id="defects"></div></details>
+      <details id="d-stuck"><summary>Stuck points <span id="c-stuck"></span></summary><div id="stuck"></div></details>
+      <details id="d-memory"><summary>QA memory <span id="c-memory"></span></summary>
+        <div class="wf-actions">
+          <input id="kb-q" placeholder="ask the memory, e.g. savings column rules" />
+          <button id="kb-go" class="wf-ghost">search</button>
+        </div>
+        <div id="knowledge"></div>
+      </details>
+    </aside>
+
+    <script src="/workflow.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1728 @@
+[
+ {
+  "id": "BID-PLACE-001",
+  "feature": "bids.place",
+  "title": "Create draft bid with no company_uuid",
+  "type": "Validation",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Authenticated vendor session; a live RFQ stage exists on the latest event group version",
+  "steps": [
+   "1. Authenticate as the vendor and resolve the workspace",
+   "2. POST /v1/bids sending only trade_request_uuid, omitting company_uuid",
+   "3. Read the error envelope and confirm no Bid row was created"
+  ],
+  "method": "POST",
+  "path": "/v1/bids",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "currency_preference": false
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 2 (Insufficient parameters) from the company_id.blank? guard in Api::V1::BidsController#create. No bids row inserted, no bid_trade_products rows.",
+  "rationale": "company_id is the tenant scoping key for the whole bid; if it can be omitted the draft bid is created unattributed and later ranking/awarding queries silently mis-scope."
+ },
+ {
+  "id": "BID-PLACE-002",
+  "feature": "bids.place",
+  "title": "Create draft bid for a company outside the event audience",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Authenticated vendor session; company_uuid belongs to a company that is NOT in the trade request audience (restricted event)",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. POST /v1/bids with a company_uuid outside the audience list of the event",
+   "3. Assert the refusal and that trade_request.bids count is unchanged"
+  ],
+  "method": "POST",
+  "path": "/v1/bids",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "currency_preference": false
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 782 (Bid could not be placed) raised by allowed_to_bid? in BidsControllerHelper, which resolves audiences from trade_request.audiences.visible for restricted events. No bids row created.",
+  "rationale": "Audience membership is the only thing separating an invited vendor from an arbitrary tenant; a hole here leaks the event and pollutes the commercial comparison with an uninvited bidder."
+ },
+ {
+  "id": "BID-PLACE-003",
+  "feature": "bids.place",
+  "title": "Create draft bid on a stale (non-latest) event group version",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "Event group has been re-versioned so trade_request.event_group.latest? is false",
+  "steps": [
+   "1. Authenticate as the invited vendor",
+   "2. POST /v1/bids referencing the trade request that hangs off the superseded event group version",
+   "3. Confirm the refusal"
+  ],
+  "method": "POST",
+  "path": "/v1/bids",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "currency_preference": false
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 101 (You are not allowed to perform this action) from the !trade_request.event_group.latest? guard in Api::V1::BidsController#create. No bids row created against the stale version.",
+  "rationale": "Bids written against a superseded event group version are invisible to the awarding proposal built from the latest version, producing vendors who believe they quoted but never appear in QCS."
+ },
+ {
+  "id": "BID-PLACE-004",
+  "feature": "bids.place",
+  "title": "Vendor quotes commercially without participating in the technical stage",
+  "type": "Negative",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Event group has an RFP technical stage; the vendor has no active TemplateResponse on that stage and is not in the RFQ audience",
+  "steps": [
+   "1. Authenticate as the vendor that skipped the RFP stage",
+   "2. POST /v1/bids against the commercial RFQ stage of the same event group",
+   "3. Confirm refusal and that no draft bid exists for that company on the RFQ"
+  ],
+  "method": "POST",
+  "path": "/v1/bids",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "currency_preference": false
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 737 (You cannot quote for this item because you didn't participate in the technical stage) from check_participation_in_technical_and_commercial_stage. No bids row created.",
+  "rationale": "This is the code-level expression of the business rule that only technically accepted vendors reach commercial comparison; if it regresses, unqualified vendors surface in QCS and can be awarded."
+ },
+ {
+  "id": "BID-PLACE-005",
+  "feature": "bids.place",
+  "title": "Create draft bid with an SQL/script injection payload in currency_preference",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Authenticated vendor session on a live RFQ",
+  "steps": [
+   "1. Authenticate as the invited vendor",
+   "2. POST /v1/bids with a hostile string where a currency code hash is expected",
+   "3. Assert the response is a handled 4xx and the server does not return 500"
+  ],
+  "method": "POST",
+  "path": "/v1/bids",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "currency_preference": "'); DROP TABLE bids;--<script>alert(1)</script>"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No HTTP 5xx. ParamsAuth#sanitize_input_params strips the markup before the controller runs; validate_currency_preference reads params['currency_preference']['code'] and the request must fail closed with a 4xx envelope. bids table intact.",
+  "rationale": "currency_preference is one of the few free-form nested params on the bid create path and is dereferenced as a hash; a type confusion there is both a crash vector and an injection surface."
+ },
+ {
+  "id": "BID-SUBMIT-001",
+  "feature": "bids.submit",
+  "title": "Submit bid line items for a bid that is no longer in draft",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "A bid already moved out of draft (active or revised) for this vendor on the event",
+  "steps": [
+   "1. Authenticate as the vendor that owns the bid",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products with a full inline_components sheet payload",
+   "3. Confirm refusal and that bid_trade_products for that bid are unchanged"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "100"
+        },
+        "participant_quantity": {
+         "key": "participant_quantity",
+         "value": "5"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 32 (Bid not found), because create_bid_trade_products scopes the lookup with Bid.draft.for_company(Current.allowed_companies). No new bid_trade_products rows.",
+  "rationale": "The draft scope is the only thing preventing a vendor from mutating line items on a bid that has already been ranked or awarded; a widened scope rewrites history after cutoff."
+ },
+ {
+  "id": "BID-SUBMIT-002",
+  "feature": "bids.submit",
+  "title": "Submit bid line items using another tenant's bid uuid",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "{{bidUuid}} resolves to a draft bid owned by a different company than the authenticated vendor",
+  "steps": [
+   "1. Authenticate as vendor A",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products where the bid belongs to vendor B",
+   "3. Confirm refusal and that vendor B's bid_trade_products are untouched"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "1"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 32 (Bid not found) from the for_company(Current.allowed_companies) scope, or 101 from Current.user.can_place_bid_for_company. Vendor B's bid_products array is byte-identical afterwards.",
+  "rationale": "Cross-tenant bid mutation is the highest-value attack on a sourcing platform; the id is an encoded integer so enumeration is cheap and the check must be ownership-based, not obscurity-based."
+ },
+ {
+  "id": "BID-SUBMIT-003",
+  "feature": "bids.submit",
+  "title": "Activate a bid that is already active",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The vendor already has an active bid on the event; {{bidUuid}} points at it",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. PATCH /v1/bids/{{bidUuid}} with status active",
+   "3. Confirm refusal and that no duplicate bid revision chain was created"
+  ],
+  "method": "PATCH",
+  "path": "/v1/bids/{{bidUuid}}",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "status": "active"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 34 (A bid has already been placed from your team) from the bid.active? && params[:status].in?(['active','draft']) guard in Api::V1::BidsController#update. No new bids row, no change to bid_products statuses.",
+  "rationale": "A double-activate would create a second ranked bid for the same vendor and corrupt L1 determination; this is exactly the race a retrying mobile client produces."
+ },
+ {
+  "id": "BID-SUBMIT-004",
+  "feature": "bids.submit",
+  "title": "Submit two bid activations concurrently for the same vendor and event",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A draft bid exists for the vendor; the Rails cache lock key t<trade_request_id>_c<company_id> is free",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. Fire two PATCH /v1/bids/{{bidUuid}} activations within the 3-second lock window",
+   "3. Assert exactly one succeeds and the other is refused"
+  ],
+  "method": "PATCH",
+  "path": "/v1/bids/{{bidUuid}}",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "status": "active"
+  },
+  "expected": "reject",
+  "expectedResult": "The losing request returns HTTP 422 with error code 516 (Transaction in Progress) from Api::V1::BidsController#lock_transaction, whose key is built by get_bid_identifier and expires in 3 seconds. Exactly one active bid row exists afterwards.",
+  "rationale": "Auction endgames are the highest-concurrency moment in the product; without the cache lock two activations interleave and produce duplicate active bids that both enter ranking."
+ },
+ {
+  "id": "BID-SURR-001",
+  "feature": "bids.surrogate",
+  "title": "Buyer places surrogate bid after the bidding window closed",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The RFQ stage has passed bid_end_time and is_allowed_to_add_surrogate_bid_post_expiry? is false for the workspace",
+  "steps": [
+   "1. Authenticate as the buyer with surrogate bidding rights",
+   "2. POST /bids/template_input with a complete surrogate sheet payload on behalf of the vendor",
+   "3. Confirm refusal and that trade_request.bids is unchanged"
+  ],
+  "method": "POST",
+  "path": "/bids/template_input",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "currency_preference": false,
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "100"
+        },
+        "participant_quantity": {
+         "key": "participant_quantity",
+         "value": "10"
+        }
+       }
+      ]
+     }
+    },
+    "global_price_components": {
+     "global_data": {
+      "{{vendorUuid}}": {}
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 33 (Order not active) from the guard in Api::BidsController#create_bid: !(trade_request.is_running || (is_surrogate_bidding && (is_upcoming_or_running || is_allowed_to_add_surrogate_bid_post_expiry?))). No bids row created.",
+  "rationale": "Post-close surrogate entry is the classic collusion vector: a buyer inserting a price after seeing every other quote. The time gate must be enforced server side, never by hiding the UI."
+ },
+ {
+  "id": "BID-SURR-002",
+  "feature": "bids.surrogate",
+  "title": "Vendor calls the buyer-only surrogate bid endpoint",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Authenticated vendor session; the vendor's company is in the event audience",
+  "steps": [
+   "1. Authenticate as the vendor (not the buying workspace)",
+   "2. POST /bids/template_input impersonating the surrogate flow",
+   "3. Confirm the refusal is an authorization refusal, not a validation one"
+  ],
+  "method": "POST",
+  "path": "/bids/template_input",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "currency_preference": false,
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "1"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 101 from allowed_surrogate_bid_placement / is_surrogate_bidding_and_is_allowed?, or a Pundit refusal surfaced as 455 (You are not authorized to perform this action) with HTTP 422 from the authorize Bid call at the top of #template_input. No bids row created.",
+  "rationale": "Surrogate bidding bypasses the vendor's own price-cap and tick-size context; letting a vendor reach it would let them quote under a buyer's privilege set."
+ },
+ {
+  "id": "BID-SURR-003",
+  "feature": "bids.surrogate",
+  "title": "Surrogate bid payload keyed under a different company uuid than company_uuid",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Buyer with surrogate rights on a running RFQ; sheets data keyed by a company uuid that does not match the top-level company_uuid",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /bids/template_input where sheets.inline_components.data is keyed by {{eventGroupUuid}} instead of {{vendorUuid}}",
+   "3. Confirm no bid_trade_products were written for either company"
+  ],
+  "method": "POST",
+  "path": "/bids/template_input",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "currency_preference": false,
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{eventGroupUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "100"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422. transform_product('trade_products') in TradeTemplateHelper resolves data by params['company_id'] / company_uuid, finds nothing under the mismatched key, and the flow fails with error code 4 (Request not found) or 2. No bid_trade_products rows created for either company id.",
+  "rationale": "The sheets payload is a nested map keyed by company uuid while authorization is done on the flat company_uuid; a mismatch is exactly how a buyer could file a price under the wrong vendor."
+ },
+ {
+  "id": "BID-SURR-004",
+  "feature": "bids.surrogate",
+  "title": "Create surrogate technical response for a non RFI/RFP stage",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "{{tradeId}} points at an RFQ or auction stage, not an RFI/RFP",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /template_responses/create_surrogate_response with item_type TradeRequest pointing at the commercial stage",
+   "3. Confirm no TemplateResponse row was created for the vendor"
+  ],
+  "method": "POST",
+  "path": "/template_responses/create_surrogate_response",
+  "body": {
+   "item_type": "TradeRequest",
+   "item_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "surrogate_remarks": "QA_Platform_Surrogate_{{stamp}}"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422. Api::TemplateResponsesController#create_surrogate_response scopes with TradeRequest.where(rfx_mode: [:rfi, :rfp]).find_by_id, so the trade request resolves to nil and create_surrogate_trade_request_response returns an error code (2 / 33). No template_responses row inserted.",
+  "rationale": "Technical responses filed against a commercial stage would create a phantom qualification record that the awarding TNA check then reads, silently qualifying a vendor who was never evaluated."
+ },
+ {
+  "id": "BID-CAP-001",
+  "feature": "bids.price_cap",
+  "title": "Quote above the configured ceiling price",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The trade product has a ceil_price configured for this vendor company; a draft bid exists",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products quoting a landed price strictly above the ceiling",
+   "3. Confirm refusal and that no bid_trade_product row was persisted for that line"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "999999999"
+        },
+        "participant_quantity": {
+         "key": "participant_quantity",
+         "value": "1"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 38 (Price cannot be more than the allowed price) returned by validate_bid_product_details, which compares estimated_price against trade_product.ceil_price_for_user after rounding both to the currency precision. No bid_trade_products row saved.",
+  "rationale": "The ceiling is the buyer's contractual maximum; a bid above it that reaches ranking distorts savings reporting and can be awarded by an approver who trusts the number on screen."
+ },
+ {
+  "id": "BID-CAP-002",
+  "feature": "bids.price_cap",
+  "title": "Quote below the configured floor price",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The trade product has a floor_price configured for this vendor company; a draft bid exists",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products quoting a landed price strictly below the floor",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "0.01"
+        },
+        "participant_quantity": {
+         "key": "participant_quantity",
+         "value": "1"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 41 (Price cannot be less than the allowed price) from the floor_price_for_user branch of validate_bid_product_details. No bid_trade_products row saved.",
+  "rationale": "Floor price protects forward auctions and reverse auctions with a reserve; an under-floor quote wins ranking and then fails at contracting, wasting the whole event."
+ },
+ {
+  "id": "BID-CAP-003",
+  "feature": "bids.price_cap",
+  "title": "Revise a bid by less than the configured tick size",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The trade product has tick_size configured; the vendor has a previous active bid and a parent bid product",
+  "steps": [
+   "1. Authenticate as the vendor with an existing active bid",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products with a price that differs from the parent bid product by a non-zero amount smaller than the tick size",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "99.99"
+        },
+        "participant_quantity": {
+         "key": "participant_quantity",
+         "value": "1"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 214 (Quoted price difference must be greater than the tick size) from validate_bid_product_details, which only fires when price_difference is non-zero and strictly below tick_size. No revised bid_trade_products row saved.",
+  "rationale": "Tick size stops penny-shaving bots from spamming micro-decrements at the auction close; the non-zero exclusion also means an unchanged price must still be accepted, so the boundary has two sides."
+ },
+ {
+  "id": "BID-CAP-004",
+  "feature": "bids.price_cap",
+  "title": "Quote above the PR budget tolerance limit",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The line item is mapped to a PurchaseRequestItem carrying a reference price; the workspace has bid_tolerance_reference_key and a budget tolerance percentage configured",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products quoting a price above reference_price * (1 + tolerance/100)",
+   "3. Confirm refusal names the budget tolerance"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "100000000"
+        },
+        "participant_quantity": {
+         "key": "participant_quantity",
+         "value": "1"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 889 (Bid price exceeds the budget tolerance limit) from exceeds_budget_tolerance? in TradeControllerHelper, which computes reference_price + reference_price * budget_tolerance_limit / 100 against the bid landed price. No bid_trade_products row saved.",
+  "rationale": "889 is the only guard tying a quote back to the approved PR budget; when it silently no-ops (blank reference key, zero reference price) over-budget spend reaches award with no second gate."
+ },
+ {
+  "id": "BID-CO-001",
+  "feature": "bids.counter_offer",
+  "title": "Modify a counter offer on an event that does not allow counter offer modification",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "The trade request is not running and is_counter_offer_modification_applicable? is false",
+  "steps": [
+   "1. Authenticate as the vendor holding the counter offer",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products with a revised price after the event stopped running",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "90"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 33 (Order not active) returned by is_allowed_to_modify_counter_offer, which is invoked from create_bid_trade_products whenever !trade_request.is_running. No bid_trade_products row created or updated.",
+  "rationale": "Counter offers are the one legitimate way to change a price after close; the applicability flag is the boundary between negotiation and post-close price editing."
+ },
+ {
+  "id": "BID-CO-002",
+  "feature": "bids.counter_offer",
+  "title": "Modify a counter offer on a line item with no requested bid trade product",
+  "type": "Negative",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "Counter offer modification is applicable, but no BidTradeProduct in requested state exists for this company and trade product",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. POST /v1/bids/{{bidUuid}}/create_bid_products for a line item the buyer never counter-offered on",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/v1/bids/{{bidUuid}}/create_bid_products",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "sheets": {
+    "inline_components": {
+     "data": {
+      "{{vendorUuid}}": [
+       {
+        "product": {
+         "uuid": "{{productQualityUuid}}"
+        },
+        "price": {
+         "key": "price",
+         "value": "80"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 508 (Not allowed to bid on this product) from the BidTradeProduct.requested lookup loop in is_allowed_to_modify_counter_offer. No new bid_trade_products row for that trade product.",
+  "rationale": "A vendor who can attach an unrequested line item to a counter offer effectively re-opens bidding on items the buyer deliberately excluded from negotiation."
+ },
+ {
+  "id": "BID-CO-003",
+  "feature": "bids.counter_offer",
+  "title": "Accept a counter offer after it has already been rejected",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The vendor previously PATCHed the bid to rejected; {{bidUuid}} is that rejected bid",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. PATCH /v1/bids/{{bidUuid}} with status active to accept the offer they already rejected",
+   "3. Confirm the bid status in the database is still rejected"
+  ],
+  "method": "PATCH",
+  "path": "/v1/bids/{{bidUuid}}",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "status": "active"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422. validate_bid_update_conditions returns 101 for an 'active' transition unless the caller is the trade request owner, a super admin, or the broker company; a vendor re-activating their own rejected bid fails that check. bids.status stays rejected and bid_products statuses are unchanged.",
+  "rationale": "Reject then accept is the cleanest way to get a second look at the market: the vendor rejects, watches ranks move, then flips back. The state machine must be one-way per round."
+ },
+ {
+  "id": "BID-CO-004",
+  "feature": "bids.counter_offer",
+  "title": "Re-accept an offer round that was already accepted",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Knockout or dutch auction; the vendor's vpc company id is already present in current_round.accepted_participant_ids",
+  "steps": [
+   "1. Authenticate as the vendor who already accepted the round",
+   "2. Replay the acceptance for the same accepted_round_no",
+   "3. Confirm the duplicate acceptance is refused and accepted_participant_ids is not appended twice"
+  ],
+  "method": "PATCH",
+  "path": "/v1/bids/{{bidUuid}}",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "status": "active",
+   "accepted_round_no": 1
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 459 (You have already accepted this offer, please wait for the next one) from validate_automated_offer_acceptance; for a dutch event a non first-time acceptance instead returns 458. trade_rounds.accepted_participant_ids gains no duplicate entry.",
+  "rationale": "Round acceptance is idempotent by contract but append-based in storage; a duplicate entry double-counts the vendor and can end the knockout round early."
+ },
+ {
+  "id": "BID-CO-005",
+  "feature": "bids.counter_offer",
+  "title": "Revoke a bid after it has been accepted on an event where revoke is disabled",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The event has is_revoke_bid_allowed? false; the vendor's bid is active/selected",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. PATCH /v1/bids/{{bidUuid}} with status revoke",
+   "3. Confirm the bid is still active and bid_products were not flipped to revoked"
+  ],
+  "method": "PATCH",
+  "path": "/v1/bids/{{bidUuid}}",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "status": "revoke"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 101 from validate_bid_update_conditions, which returns 101 unless trade_request.is_revoke_bid_allowed? and the caller is bid.user. update_bid_trade_product_statuses must not run, so bid_products keep their prior status and quote_status is not set to revoked.",
+  "rationale": "Revoke after acceptance is a withdrawal from a commitment; it moves quantity back into the pool and can silently orphan an in-flight award approval if it is allowed to slip through."
+ },
+ {
+  "id": "EVAL-SCORE-001",
+  "feature": "evaluation.score",
+  "title": "Score a vendor with no form in the payload",
+  "type": "Validation",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "RFP technical stage whose bid_end_time has passed; the caller is a valid evaluator",
+  "steps": [
+   "1. Authenticate as the evaluator",
+   "2. POST /evaluations with company_uuid but no form object",
+   "3. Confirm no evaluations row was created"
+  ],
+  "method": "POST",
+  "path": "/evaluations",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 2 (Insufficient parameters) set by Evaluations::ValidateService#validate_params, since valid_params? requires company_id, form and valid_form? together. No evaluations row inserted.",
+  "rationale": "The evaluation payload is the input to QCS weighting; a missing form silently scoring as nil would shift every weighted total in the event."
+ },
+ {
+  "id": "EVAL-SCORE-002",
+  "feature": "evaluation.score",
+  "title": "Score with a form id that is a string rather than an integer",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "RFP stage past bid_end_time; the caller is an assigned evaluator on form id 10",
+  "steps": [
+   "1. Authenticate as the evaluator",
+   "2. POST /evaluations with form.id sent as a string",
+   "3. Confirm the type check refuses it"
+  ],
+  "method": "POST",
+  "path": "/evaluations",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "form": {
+    "id": "10",
+    "score": 3
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 2, because valid_form? asserts form[:id].instance_of?(Integer) before the in? check against get_allowed_forms_for_user(...).pluck(:id). No evaluations row inserted.",
+  "rationale": "The Integer type assertion is what prevents '10abc'.to_i style coercion from matching an unrelated allowed form id; a loosened check turns a type bug into an authorization bug."
+ },
+ {
+  "id": "EVAL-SCORE-003",
+  "feature": "evaluation.score",
+  "title": "Score with a value outside the event's configured score labels",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "RFP stage past bid_end_time; event group get_evaluation_score_vs_label defines a bounded key set that excludes 99",
+  "steps": [
+   "1. Authenticate as the evaluator",
+   "2. POST /evaluations with form.score set to 99",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/evaluations",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "form": {
+    "id": 10,
+    "score": 99
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 2, from the form[:score].in?(trade_request.event_group.get_evaluation_score_vs_label.keys) branch of valid_form?. No evaluations row inserted.",
+  "rationale": "An out-of-range score is not merely bad data: TNA and Regret are themselves score values, so an unbounded score field lets an evaluator invent a disqualification state that awarding then reads."
+ },
+ {
+  "id": "EVAL-SCORE-004",
+  "feature": "evaluation.score",
+  "title": "Score zero without supplying a remark",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "RFP stage past bid_end_time; the event is not vendor onboarding v2; score 0 is a configured label key",
+  "steps": [
+   "1. Authenticate as the evaluator",
+   "2. POST /evaluations with form.score 0 and no remark",
+   "3. Confirm refusal, then confirm the same payload with a remark is accepted"
+  ],
+  "method": "POST",
+  "path": "/evaluations",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "form": {
+    "id": 10,
+    "score": 0
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 2, from valid_form?: when is_valid_form && form[:score].zero? && !is_vendor_onboarding_v2 the form is only valid if form[:remark].present?. No evaluations row inserted.",
+  "rationale": "A zero score is the strongest negative an evaluator can give and is audit-visible to the vendor; the mandatory justification is a compliance control, not a UI nicety."
+ },
+ {
+  "id": "EVAL-SCORE-005",
+  "feature": "evaluation.score",
+  "title": "Score a stage the caller is not an assigned evaluator for",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "RFP stage past bid_end_time; the caller has workspace access but is absent from the trade request and EGLITM evaluator access lists",
+  "steps": [
+   "1. Authenticate as a buyer-side user who is not on the evaluator access list",
+   "2. POST /evaluations with an otherwise valid form and score",
+   "3. Confirm the refusal is the evaluator check, not the params check"
+  ],
+  "method": "POST",
+  "path": "/evaluations",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "form": {
+    "id": 10,
+    "score": 3
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 101, set by Evaluations::ValidateService#validate_evaluator via allowed_to_evaluate_participant? -> valid_evaluator?, which requires AccessLists::QueryService(...).allowed?(access_type: :evaluator) on the trade request, the Form, or the EGLITM. No evaluations row inserted.",
+  "rationale": "Evaluator assignment is the segregation-of-duties control in a tender; anyone who can score can move a vendor to TNA and eliminate a competitor without ever touching price."
+ },
+ {
+  "id": "EVAL-TNA-001",
+  "feature": "evaluation.tna",
+  "title": "Evaluate a vendor with no active template response on the stage",
+  "type": "Negative",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "RFP stage past bid_end_time; the target company never submitted (or had withdrawn) its technical response",
+  "steps": [
+   "1. Authenticate as an assigned evaluator",
+   "2. POST /evaluations for a company with no active TemplateResponse on the stage",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/evaluations",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "company_uuid": "{{vendorUuid}}",
+   "form": {
+    "id": 10,
+    "score": 3
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 101, from allowed_to_evaluate_participant? which requires trade_request.template_responses.active.exists?(company_id: evaluated_company_id). No evaluations row inserted, so the vendor never acquires a vendor-level evaluation score.",
+  "rationale": "Scoring a non-responding vendor manufactures a qualification record; because vendor_evaluation_score later drives the TNA award block, a phantom score can both qualify and disqualify."
+ },
+ {
+  "id": "EVAL-TNA-002",
+  "feature": "evaluation.tna",
+  "title": "Award a vendor whose evaluation score equals the configured TNA score",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "restrict_awarding_for_tna_vendors is enabled; the event group defines a tna score key; the commercial stage does not allow_tna_vendors_to_bid?; the vendor carries that score; a draft proposal exists",
+  "steps": [
+   "1. Authenticate as the buyer who created the draft proposal",
+   "2. POST /proposal/{{proposalUuid}}/add_response awarding the TNA vendor",
+   "3. Confirm the refusal and that responses_hash still has no entry for this vendor"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ]
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 1137 (You cannot award to this vendor as this vendor is marked as TNA) from validate_tna_for_awarding via AWARDING_BLOCKED_SCORE_ERROR_CODES[:vendor]['tna']. proposals.responses_hash is unchanged.",
+  "rationale": "TNA means technically not acceptable; awarding one is the single most damaging correctness failure in the module because the PO is legally valid once issued."
+ },
+ {
+  "id": "EVAL-TNA-003",
+  "feature": "evaluation.tna",
+  "title": "Award a line item that carries the TNA score for the selected vendor",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "restrict_awarding_for_tna_vendors enabled; the vendor is acceptable overall but one selected EGLI has a TNA line item score for that vendor",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /proposal/{{proposalUuid}}/add_response including the TNA-scored line item in egli_uuids",
+   "3. Confirm the refusal identifies a line-item level block"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}",
+      "{{productQualityUuid}}"
+     ]
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 1135 (One or more selected line items cannot be awarded as they have been marked as TNA) from AWARDING_BLOCKED_SCORE_ERROR_CODES[:line_item]['tna']. No vendor entry added to proposals.responses_hash.",
+  "rationale": "Line-item TNA is easy to lose in a multi-line award because the vendor-level check passes first; a partial regression here awards a rejected make while the overall vendor looks clean."
+ },
+ {
+  "id": "EVAL-TNA-004",
+  "feature": "evaluation.tna",
+  "title": "Award a vendor scored Regret",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "restrict_awarding_for_tna_vendors enabled; the event group defines a regret score key and the vendor carries it",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /proposal/{{proposalUuid}}/add_response awarding the regretted vendor",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ]
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 1134 (You cannot award to this vendor as this vendor is marked as Regret). Unlike TNA, get_blocked_evaluation_scores registers regret regardless of allow_tna_vendors_to_bid?, so no stage config can unblock it. responses_hash unchanged.",
+  "rationale": "Regret is unconditional while TNA is conditional on the stage flag; a senior tester separates the two because a single shared code path would let a stage flag accidentally unblock regret."
+ },
+ {
+  "id": "EVAL-QCS-001",
+  "feature": "evaluation.qcs",
+  "title": "Submit evaluations while the technical stage is still running",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "RFP stage with bid_end_time still in the future; the caller is an evaluator with draft evaluations",
+  "steps": [
+   "1. Authenticate as the evaluator",
+   "2. POST /evaluations/submit before the stage closes",
+   "3. Confirm no proposal was created and evaluations stay in their prior status"
+  ],
+  "method": "POST",
+  "path": "/evaluations/submit",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "action_type": "proposal_submit"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 33 (Order not active) from the trade_request.bid_end_time > Time.now guard in Api::EvaluationsController#submit. No proposals row created by create_proposal_for_evaluations and no evaluation status transition.",
+  "rationale": "Publishing technical scores before close reveals the qualification outcome while vendors can still revise; the time gate is the confidentiality boundary of a two-envelope tender."
+ },
+ {
+  "id": "EVAL-QCS-002",
+  "feature": "evaluation.qcs",
+  "title": "Submit evaluations from a workspace that does not own the trade request",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The stage is closed; the authenticated user's allowed companies exclude trade_request.company_id",
+  "steps": [
+   "1. Authenticate as a user from a different buying workspace",
+   "2. POST /evaluations/submit for the foreign trade request",
+   "3. Confirm the refusal and that no evaluation status changed"
+  ],
+  "method": "POST",
+  "path": "/evaluations/submit",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 33 when the tenant-scoped TradeRequest.active.rfi_or_rfp.find_by(id:, company_id: Current.workspace.id) misses, or 101 from the Current.allowed_companies.include?(trade_request.company_id) guard. No evaluations updated, no proposal created.",
+  "rationale": "The lookup is already tenant-scoped, so this test pins that the scoping stays on find_by and is never relaxed to find_by_id during a refactor."
+ },
+ {
+  "id": "EVAL-QCS-003",
+  "feature": "evaluation.qcs",
+  "title": "Submit evaluations when the evaluator has scored nothing",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The stage is closed; the caller is a valid evaluator but has zero evaluations in active, draft or peer_review status",
+  "steps": [
+   "1. Authenticate as an evaluator who has not scored anyone",
+   "2. POST /evaluations/submit",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/evaluations/submit",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 571 (Please, evaluate on all fields) from the evaluations.blank? guard in Api::EvaluationsController#submit. No proposal row created.",
+  "rationale": "An empty submission would close the evaluation stage with no scores, letting the QCS report render weighted totals from nothing and pass the event to commercial comparison unqualified."
+ },
+ {
+  "id": "EVAL-QCS-004",
+  "feature": "evaluation.qcs",
+  "title": "Double-submit evaluations inside the three second lock window",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Closed RFP stage; the evaluator has complete scores; the cache key eval_submit_t<trade_request_id>_u<user_id> is free",
+  "steps": [
+   "1. Authenticate as the evaluator",
+   "2. Fire two POST /evaluations/submit calls back to back",
+   "3. Assert only one proposal is created for the event group"
+  ],
+  "method": "POST",
+  "path": "/evaluations/submit",
+  "body": {
+   "trade_request_uuid": "{{tradeId}}",
+   "action_type": "proposal_submit"
+  },
+  "expected": "reject",
+  "expectedResult": "The second request returns HTTP 422 with error code 516 (Transaction in Progress) from the lock_evaluation_submit before_action. Exactly one proposals row exists for the event group afterwards.",
+  "rationale": "create_proposal_for_evaluations is not idempotent; without the lock a double click produces two proposals for one event and the second one silently blocks awarding with 573."
+ },
+ {
+  "id": "AWD-PROP-001",
+  "feature": "award.proposal",
+  "title": "Create an awarding proposal with no event_group_uuid",
+  "type": "Validation",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Authenticated buyer with create_proposal rights",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /proposal with an empty body",
+   "3. Confirm no proposals row was created"
+  ],
+  "method": "POST",
+  "path": "/proposal",
+  "body": {},
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 2 (Insufficient parameters) from the event_group.blank? guard in Api::ProposalController#create. No proposals row inserted.",
+  "rationale": "The proposal is the container that later mints purchase orders; creating one without an event group would produce an award with no auditable source event."
+ },
+ {
+  "id": "AWD-PROP-002",
+  "feature": "award.proposal",
+  "title": "Create an awarding proposal on a superseded event group version",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "The referenced event group is no longer the latest version",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /proposal referencing the stale event group version",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/proposal",
+  "body": {
+   "event_group_uuid": "{{eventGroupUuid}}"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 101 from the !event_group.latest? guard in Api::ProposalController#create. No proposals row inserted.",
+  "rationale": "Awarding off a stale version reads stale line item quantities and stale audiences, so quantity reconciliation against the PR silently drifts."
+ },
+ {
+  "id": "AWD-PROP-003",
+  "feature": "award.proposal",
+  "title": "Create a proposal while the commercial stage is still in bidding time",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The latest commercial stage is still running so is_awarding_allowed? returns false",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /proposal for the live event group",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/proposal",
+  "body": {
+   "event_group_uuid": "{{eventGroupUuid}}"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 720 (You are not allowed to award in bidding time) returned by create_proposal in Api::ProposalHelper when is_awarding_allowed? is false. No proposals row inserted.",
+  "rationale": "Starting awarding mid-auction exposes the buyer's intended allocation while vendors can still revise, which is both a fairness breach and a leak of the comparison state."
+ },
+ {
+  "id": "AWD-PROP-004",
+  "feature": "award.proposal",
+  "title": "Create a second proposal while one is already requested or selected",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A proposal for the same event group and lot is already in requested or selected status",
+  "steps": [
+   "1. Authenticate as the buyer",
+   "2. POST /proposal for the same event group and lot",
+   "3. Confirm refusal and that only the original proposal exists"
+  ],
+  "method": "POST",
+  "path": "/proposal",
+  "body": {
+   "event_group_uuid": "{{eventGroupUuid}}",
+   "lot_no": "1"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 573 (The proposal has already been submitted) from is_any_proposal_in_requested_or_selected? at the top of create_proposal. Proposal count for the event group and lot stays at one.",
+  "rationale": "Two live proposals on one lot means two competing award decisions and two approval chains; the winner is then decided by whichever job runs last."
+ },
+ {
+  "id": "AWD-ADD-001",
+  "feature": "award.add_response",
+  "title": "Add an award response to a proposal that is not in draft",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "{{proposalUuid}} points at a proposal already submitted (status requested or selected)",
+  "steps": [
+   "1. Authenticate as the buyer who created the proposal",
+   "2. POST /proposal/{{proposalUuid}}/add_response",
+   "3. Confirm refusal and that responses_hash is byte identical"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ]
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 721 (Proposal does not exists) because the lookup is Proposal.preload(:item).find_by(id:, status: :draft, created_by_user_id: Current.user.id). proposals.responses_hash unchanged.",
+  "rationale": "Editing an allocation after submission changes what approvers already signed off on; the draft scope plus creator scope is the whole integrity story for this endpoint."
+ },
+ {
+  "id": "AWD-ADD-002",
+  "feature": "award.add_response",
+  "title": "Add an award response to another user's draft proposal",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "{{proposalUuid}} is a draft proposal created by a different buyer in the same workspace",
+  "steps": [
+   "1. Authenticate as a buyer who did not create the proposal",
+   "2. POST /proposal/{{proposalUuid}}/add_response",
+   "3. Confirm refusal and that the owner's allocation is unchanged"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ]
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 721, from the created_by_user_id: Current.user.id condition on the find_by; the Pundit authorize(proposal) call is never reached. responses_hash unchanged.",
+  "rationale": "Same-workspace does not mean same-authority: awarding is personally attributable and the creator scope is what makes the audit trail meaningful."
+ },
+ {
+  "id": "AWD-ADD-003",
+  "feature": "award.add_response",
+  "title": "Add an award response with an empty responses map",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A draft proposal exists and is owned by the caller",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/add_response with responses set to an empty object",
+   "3. Inspect responses_hash and confirm no vendor entry appeared"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {}
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No HTTP 5xx. add_response_in_proposal iterates responses.keys, so the loop body never executes and save_proposal persists an unchanged allocation; the response is either a 200 ProposalSerializer payload with the same responses_hash or a 422 error envelope. No vendor is added.",
+  "rationale": "The empty-collection path is where nil-safety bugs hide: vendor_uuids drives every downstream hash build, and a nil dereference here 500s the awarding screen for the whole event."
+ },
+ {
+  "id": "AWD-ADD-004",
+  "feature": "award.add_response",
+  "title": "Award with a cross-tenant vendor uuid",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "A draft proposal owned by the caller; {{vendorUuid}} resolves to a company that never participated in this event group",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/add_response naming a foreign vendor company",
+   "3. Confirm the vendor does not appear in responses_hash and no PO form can be generated for it"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ]
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422. process_vendor cannot resolve precomputed_data for a company id absent from the line items, so the flow returns an error code (2 / 561 from validate_awarding_quantity reading a blank participant_quantity). No vendor entry is written to responses_hash and proposal.get_vendor_ids does not include the foreign company.",
+  "rationale": "Vendor uuids are reversible encoded integers; if awarding accepts a non-participant the platform will happily raise a purchase order to a company that never quoted."
+ },
+ {
+  "id": "AWD-ADD-005",
+  "feature": "award.add_response",
+  "title": "Two concurrent add_response calls on the same proposal",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A draft proposal owned by the caller; the cache lock proposal_<proposal_id> is free",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. Fire two add_response calls for different vendors inside the 3 second lock window",
+   "3. Assert the loser is refused and the winner's allocation is intact"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ]
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "The second request returns HTTP 422 with error code 516 (Transaction in Progress) from around_lock_transaction in Api::ProposalController, keyed proposal_<params[:id]> with a 3 second expiry. responses_hash reflects exactly one of the two writes, never a merged or truncated hash.",
+  "rationale": "responses_hash is a read-modify-write JSON blob; without the lock two concurrent awards last-write-wins and one vendor's allocation vanishes with no error anywhere."
+ },
+ {
+  "id": "AWD-SUB-001",
+  "feature": "award.submit",
+  "title": "Submit a proposal with an empty responses_hash",
+  "type": "Negative",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "A draft proposal owned by the caller whose responses_hash has been cleared (no vendor awarded)",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/submit",
+   "3. Confirm the proposal is still draft"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/submit",
+  "body": {
+   "attachments": [],
+   "remarks": "QA_Platform_Submit_{{stamp}}",
+   "step_uuid_vs_user_uuid": {}
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 683 (Proposal cannot be empty. Please award the vendors again) from the responses_hash.blank? and responses_hash['data'].blank? guards in Api::ProposalController#submit. proposals.status stays draft and no approval_requests row is created.",
+  "rationale": "Directly mirrors the check_empty_proposal_submission example in the controller spec; an empty submit would start an approval chain that later mints zero purchase orders and leaves the PR quantity stranded."
+ },
+ {
+  "id": "AWD-SUB-002",
+  "feature": "award.submit",
+  "title": "Resubmit an already submitted proposal",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The proposal has already been submitted once and is now in selected or requested status",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/submit a second time",
+   "3. Confirm only one approval chain and one set of purchase orders exists"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/submit",
+  "body": {
+   "attachments": [],
+   "remarks": "QA_Platform_Resubmit_{{stamp}}",
+   "step_uuid_vs_user_uuid": {}
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 2 (Insufficient parameters), because the submit lookup is Proposal.find_by(id:, status: :draft, created_by_user_id: Current.user.id) and the proposal is no longer draft. No second Remark with event_type proposal_submitted, no duplicate PO.",
+  "rationale": "The proposal spec pins this exact behaviour; a retrying client or a double click must not be able to raise a second purchase order against the same allocation."
+ },
+ {
+  "id": "AWD-SUB-003",
+  "feature": "award.submit",
+  "title": "Submit a proposal with more attachments than the remark limit",
+  "type": "Boundary",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "A draft proposal with a populated responses_hash owned by the caller",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/submit with an attachments array longer than Remark::MAX_ATTACHMENTS",
+   "3. Confirm refusal and that the proposal is still draft"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/submit",
+  "body": {
+   "attachments": [
+    "a1",
+    "a2",
+    "a3",
+    "a4",
+    "a5",
+    "a6",
+    "a7",
+    "a8",
+    "a9",
+    "a10",
+    "a11",
+    "a12",
+    "a13",
+    "a14",
+    "a15",
+    "a16"
+   ],
+   "remarks": "QA_Platform_Attach_{{stamp}}",
+   "step_uuid_vs_user_uuid": {}
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 472 and the message 'You can attach a maximum of <Remark::MAX_ATTACHMENTS> files. Please remove some attachments and try again.' from the attachments.size guard in #submit. No Remark row created and proposals.status stays draft.",
+  "rationale": "This guard runs before submit_proposal, so a regression makes it run after: the proposal would be awarded and only then fail on the remark, leaving state half-committed."
+ },
+ {
+  "id": "AWD-SUB-004",
+  "feature": "award.submit",
+  "title": "Vendor attempts to submit a buyer's awarding proposal",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "{{proposalUuid}} is a valid draft proposal in the buying workspace; the caller is authenticated as a vendor",
+  "steps": [
+   "1. Authenticate as the vendor",
+   "2. POST /proposal/{{proposalUuid}}/submit",
+   "3. Confirm the proposal is untouched and no PO was generated"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/submit",
+  "body": {
+   "attachments": [],
+   "remarks": "QA_Platform_VendorSubmit_{{stamp}}",
+   "step_uuid_vs_user_uuid": {}
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 401 with error code app_error_auth_failed ('This app is not authorized to use this API') when the vendor app hits the buyer API, matching the proposal controller spec; if the request reaches the action it fails with 2 on the created_by_user_id scope or 455 from the Pundit authorize(proposal) call rendered as HTTP 422. proposals.status stays draft.",
+  "rationale": "Awarding is strictly buyer-side; the vendor app is a separate client with its own token, so this test pins both the app-level 401 and the policy-level 455 as acceptable refusals but never a 200."
+ },
+ {
+  "id": "AWD-SUB-005",
+  "feature": "award.submit",
+  "title": "Submit a proposal with a hostile object where remarks expects a string",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A draft proposal owned by the caller",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/submit with remarks as a nested object containing script and SQL payloads",
+   "3. Confirm no 5xx and that any stored remark is sanitised"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/submit",
+  "body": {
+   "attachments": [],
+   "remarks": {
+    "payload": "<script>alert(1)</script>' OR 1=1--",
+    "name": "QA_Platform_Injection_{{stamp}}"
+   },
+   "step_uuid_vs_user_uuid": {}
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No HTTP 5xx. ParamsAuth#sanitize_object strips the script markup before the action runs, and #submit converts an ActionController::Parameters remarks value with to_json, so any persisted Remark.message contains escaped, tag-free text and never raw markup.",
+  "rationale": "remarks is rendered back into the approval timeline for other users, so it is a stored-XSS sink; the params-are-a-hash branch is also a type-confusion crash candidate."
+ },
+ {
+  "id": "AWD-PART-001",
+  "feature": "award.partial",
+  "title": "Partially award a zero quantity",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Partial awarding is enabled for the workspace; a draft proposal owned by the caller; the line item has remaining quantity",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/add_response with awarded_quantity 0 for the line item",
+   "3. Confirm refusal and that responses_hash has no entry for the vendor"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ],
+     "egli_data": {
+      "{{productUuid}}": {
+       "awarded_quantity": {
+        "value": "0"
+       }
+      }
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 561 (You cannot select bid with more than requested quantity). The same guard exists on the non-eRFx path where validate_partial_awarding_for_non_erfx returns 561 for qty <= 0 (proven by bids_controller_helper_spec). No allocation written.",
+  "rationale": "A zero award is not a no-op: it creates a vendor allocation row with no quantity, which then consumes a PO slot and blocks the remaining quantity from being re-awarded."
+ },
+ {
+  "id": "AWD-PART-002",
+  "feature": "award.partial",
+  "title": "Partially award a negative quantity",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Partial awarding enabled; draft proposal owned by the caller",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/add_response with awarded_quantity -5",
+   "3. Confirm refusal and that the line item's remaining quantity did not increase"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ],
+     "egli_data": {
+      "{{productUuid}}": {
+       "awarded_quantity": {
+        "value": "-5"
+       }
+      }
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 561; coerce_awarded_quantity turns the widget hash into -5.0 and the qty <= 0 guard fires. Critically, set_remaining_quantity_for_trade_product must never run, because it subtracts the awarded quantity and a negative would inflate remaining_quantity.",
+  "rationale": "Negative quantity is the classic ledger-inflation bug: subtracting a negative silently manufactures inventory and lets the same line item be awarded repeatedly."
+ },
+ {
+  "id": "AWD-PART-003",
+  "feature": "award.partial",
+  "title": "Partially award more than the remaining quantity",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Partial awarding enabled; the line item has a bounded remaining quantity; draft proposal owned by the caller",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/add_response with awarded_quantity far above the remaining quantity",
+   "3. Confirm refusal"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ],
+     "egli_data": {
+      "{{productUuid}}": {
+       "awarded_quantity": {
+        "value": "999999"
+       }
+      }
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 561, from validate_awarding_quantity (sum_of_quantities + awarded_quantity > egli_quantity when is_partial_awarding_enabled). The non-eRFx twin returns 561 when the per-trade-product total exceeds remaining_quantity.round(6). No allocation written.",
+  "rationale": "Over-remaining award is how a buyer accidentally commits more spend than the PR authorised; the round(6) comparison also means float drift must not open a silent tolerance."
+ },
+ {
+  "id": "AWD-PART-004",
+  "feature": "award.partial",
+  "title": "Split award across two vendors whose totals exceed the line item quantity",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "Partial awarding enabled; vendor A already holds an allocation on the line item; the caller now awards vendor B a quantity that pushes the aggregate over the line item quantity",
+  "steps": [
+   "1. Authenticate as the proposal creator with vendor A already allocated",
+   "2. POST /proposal/{{proposalUuid}}/add_response allocating vendor B the remainder plus one",
+   "3. Confirm refusal and that vendor A's allocation is unchanged"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ],
+     "egli_data": {
+      "{{productUuid}}": {
+       "awarded_quantity": {
+        "value": "60"
+       }
+      }
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 561. validate_over_quantity accumulates sum_of_quantities across every vendor already in proposal.get_egli_vs_vendor_ids before calling validate_awarding_quantity, so the aggregate check fires even though each individual award looks legal. Vendor A's entry in responses_hash is untouched.",
+  "rationale": "Single-vendor bounds pass trivially; the aggregate across vendors is where multi-source awarding actually breaks, and it is exactly the case the helper spec covers for two BTPs sharing one trade product."
+ },
+ {
+  "id": "AWD-PART-005",
+  "feature": "award.partial",
+  "title": "Partially award exactly the remaining quantity",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Partial awarding enabled; the line item's remaining quantity is known; draft proposal owned by the caller",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/add_response with awarded_quantity exactly equal to the remaining quantity",
+   "3. Confirm the allocation is accepted and remaining quantity drops to zero"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ],
+     "egli_data": {
+      "{{productUuid}}": {
+       "awarded_quantity": {
+        "value": "100"
+       }
+      }
+     }
+    }
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No HTTP 5xx and no error code 561: the guards are strictly greater-than (total > remaining, sum + awarded > egli_quantity), so an exact-equal award is legal. Expect HTTP 200 with the ProposalSerializer payload and the vendor present in responses_hash, or a documented business refusal that is not 561.",
+  "rationale": "Every over-quantity test is worthless without its inclusive twin; an off-by-one hardening that flips > to >= would block every full award and is only caught here."
+ },
+ {
+  "id": "AWD-PART-006",
+  "feature": "award.partial",
+  "title": "Partially award a quantity above the linked PR open quantity",
+  "type": "Boundary",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The line item is mapped to a PurchaseRequestItem; over awarding is enabled with a tolerance percentage; the requested quantity exceeds the PR-level ceiling",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/add_response with awarded_quantity above pr_uncompleted_quantity * (1 + tolerance/100) minus other in-progress events",
+   "3. Confirm refusal and that PurchaseRequestItem.quantity_closed is unchanged"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/add_response?lot_no=",
+  "body": {
+   "responses": {
+    "{{vendorUuid}}": {
+     "action": "add",
+     "egli_uuids": [
+      "{{productUuid}}"
+     ],
+     "egli_data": {
+      "{{productUuid}}": {
+       "awarded_quantity": {
+        "value": "500000"
+       }
+      }
+     }
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 561 from the is_over_awarding_allowed && pr_mapping_exists branch of validate_awarding_quantity, which builds pr_level_ceiling from quantity_requested - quantity_closed and subtracts other_events_in_progress. The sibling PR guards must also stay intact: 558 (Quantity should be less than open quantity) and 557 (Purchase request items are not valid) on the PR-to-event and PR-to-PO paths. No PR quantity is consumed.",
+  "rationale": "This is the only place the award is reconciled against the originating purchase request; if it drifts, the platform over-commits against a budget that a different event already spent."
+ },
+ {
+  "id": "AWD-APPR-001",
+  "feature": "award.approval",
+  "title": "Fetch award approval workflows for a proposal the caller does not own",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "{{proposalUuid}} is a proposal created by another buyer; the caller is not part of the evaluating team",
+  "steps": [
+   "1. Authenticate as a buyer who did not create the proposal",
+   "2. POST /proposal/{{proposalUuid}}/approval_workflows",
+   "3. Confirm no approval flow list is disclosed"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/approval_workflows",
+  "body": {},
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with error code 4 (Request not found) from the Proposal.find_by(id:, created_by_user_id: Current.user.id) scope in approval_workflows_for_proposal_create; the route is registered as GET so a POST additionally fails routing. No ApprovalFlowSerializer payload is returned.",
+  "rationale": "The approval flow list names the approvers and their thresholds; disclosing it to a non-owner tells an attacker exactly which value keeps an award below the approval bar."
+ },
+ {
+  "id": "AWD-APPR-002",
+  "feature": "award.approval",
+  "title": "Submit an award naming an approval_flow_id from another workspace",
+  "type": "Security",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "A draft proposal with a populated responses_hash owned by the caller; the supplied approval_flow_id belongs to a different company",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/submit with a foreign approval_flow_id",
+   "3. Confirm no approval_requests row is created against the foreign flow"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/submit",
+  "body": {
+   "approval_flow_id": 999999,
+   "attachments": [],
+   "remarks": "QA_Platform_ForeignFlow_{{stamp}}",
+   "step_uuid_vs_user_uuid": {}
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 with an error envelope from submit_proposal (rendered via render_error_json(error[:code], nil, error[:message])). The proposal must stay draft and no approval_requests row may reference the cross-tenant flow.",
+  "rationale": "approval_flow_id is caller-supplied and drives who signs off; if it is not re-validated against the proposal's company, a buyer can route their own award to an approver list they control."
+ },
+ {
+  "id": "AWD-APPR-003",
+  "feature": "award.approval",
+  "title": "Submit an award with a malformed step_uuid_vs_user_uuid map",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A draft proposal with a populated responses_hash owned by the caller; the workspace uses approval flow v2 with per-step approver selection",
+  "steps": [
+   "1. Authenticate as the proposal creator",
+   "2. POST /proposal/{{proposalUuid}}/submit with step_uuid_vs_user_uuid sent as an array instead of a map",
+   "3. Confirm no 5xx and that the proposal is still draft"
+  ],
+  "method": "POST",
+  "path": "/proposal/{{proposalUuid}}/submit",
+  "body": {
+   "attachments": [],
+   "remarks": "QA_Platform_BadSteps_{{stamp}}",
+   "step_uuid_vs_user_uuid": [
+    "{{vendorUuid}}",
+    "{{proposalUuid}}"
+   ]
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No HTTP 5xx. Api::ProposalController#submit calls params[:step_uuid_vs_user_uuid].to_enum.to_h before authorize, so a non-pair enumerable must be handled as a 4xx error envelope rather than raising TypeError/ArgumentError into a 500. proposals.status stays draft.",
+  "rationale": "to_enum.to_h on caller-controlled input raises on any shape that is not a pair list; this is an unguarded crash path sitting directly in front of the award commit."
+ }
+]

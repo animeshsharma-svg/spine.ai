@@ -1,0 +1,454 @@
+{
+ "repo": "/Users/animesh/Desktop/procol/procol-client-dashboard (branch feat/mvvm-orders-only, read-only); backend refs via git show origin/main",
+ "templateTypesByEventType": [
+  {
+   "eventType": "eRFX project / single stage / RFP+RFQ / RFP+Auction / RFQ->Auction (non-BOQ)",
+   "stage": "RFQ or Auction (commercial, mode rfq|auction)",
+   "typeIdentifier": "trade",
+   "apiCall": "GET /templates?type_identifier=trade&hide_onboarding_v2_templates=true (fired once on TemplateSelection mount)",
+   "cite": "src/views/eventCreation/templateSelection.jsx:439-448,452-480; src/redux/orders/actions.js:1378-1405; src/models/orders/ordersService.js:256-257"
+  },
+  {
+   "eventType": "any project with a Technical stage (RFP) or legacy RFI single stage",
+   "stage": "Technical Stage (mode rfp) / RFI",
+   "typeIdentifier": "rfi",
+   "apiCall": "GET /templates?type_identifier=rfi&hide_onboarding_v2_templates=true",
+   "cite": "src/views/eventCreation/templateSelection.jsx:439-442"
+  },
+  {
+   "eventType": "BOQ based RFX project (?projectCreation=true&boqProject=true)",
+   "stage": "RFQ or Auction (commercial)",
+   "typeIdentifier": "boq",
+   "apiCall": "GET /templates?type_identifier=boq&hide_onboarding_v2_templates=true",
+   "cite": "src/views/eventCreation/templateSelection.jsx:444-446"
+  },
+  {
+   "eventType": "BOQ based RFX project",
+   "stage": "Technical Stage (rfp)",
+   "typeIdentifier": "(none - template picker hidden)",
+   "apiCall": "none: showTemplateSelection = mode && !(isBoqProjectCreation && mode === rfp)",
+   "cite": "src/views/eventCreation/eventCreation.jsx:478-479,1805-1809"
+  },
+  {
+   "eventType": "any project with Technical stage",
+   "stage": "Vendor Assessment section (global RFP section)",
+   "typeIdentifier": "rfi",
+   "apiCall": "GET /templates?type_identifier=rfi&hide_onboarding_v2_templates=true (fired each time the SelectTemplate dropdown opens)",
+   "cite": "src/views/rfiBuilder/rfiSectionWrapper.jsx:114-122; src/components/selectTemplate/selectTemplate.jsx:86-95"
+  },
+  {
+   "eventType": "legacy single-stage eventCreation mode switch",
+   "stage": "switching event type (Auction/RFQ/RFI)",
+   "typeIdentifier": "rfi if RFI else trade",
+   "apiCall": "GET /templates?type_identifier=<rfi|trade>&hide_onboarding_v2_templates=true",
+   "cite": "src/views/eventCreation/eventCreation.jsx:98-102,505-513"
+  },
+  {
+   "eventType": "intake-form grouped section (not the event create screen)",
+   "stage": "rfiGroupedTableSection",
+   "typeIdentifier": "boq",
+   "apiCall": "GET /templates?type_identifier=boq&hide_onboarding_v2_templates=true&item_type=<CONDITION_ITEM_TYPE.TEMPLATE>&intake_template_uuid=<formId>",
+   "cite": "src/views/rfiBuilder/rfiGroupedTableSection.jsx:87-91; src/redux/orders/actions.js:1384-1398"
+  },
+  {
+   "eventType": "Auction strategies (rank/price/traffic_light/knockout/dutch)",
+   "stage": "Auction",
+   "typeIdentifier": "trade (strategy is a stage config, not a template type)",
+   "apiCall": "same trade list; strategy sent as configurations.auction_config",
+   "cite": "src/constants/index.js:110-118; src/redux/orders/helpers.js:1099"
+  }
+ ],
+ "templateChooser": [
+  {
+   "fact": "Commercial/technical stage chooser component = src/views/eventCreation/templateSelection.jsx (antd Dropdown, trigger click+hover, Search 'Search Template' data-testid=template-search-input, items data-testid=template-item-<uuid>, data-template-name). Label 'Select Template(s)' until chosen.",
+   "cite": "src/views/eventCreation/templateSelection.jsx:483-534,560-590"
+  },
+  {
+   "fact": "List response has two arrays: default and saved; the menu shows [...default, ...saved] concatenated (no section headers), each normalised to {uuid,name,type:order_type,templateFor:template_for,...} and rendered as TemplateTag = coloured order_type tag + name.",
+   "cite": "src/redux/orders/selectors.js:6687-6707; src/redux/orders/helpers.js:67-81; src/views/eventCreation/templateSelection.jsx:113; src/components/templateTag/templateTag.jsx:7-20"
+  },
+  {
+   "fact": "Nothing is preselected: the current template is filtered out of the list and a fresh stage has no currentTemplateId. Exception: from PR, the RFP stage auto-selects the saved template matching prLineItems[].technicalEvaluationTemplate; commercial template from PR comes from prData.defaultTemplateUuid.",
+   "cite": "src/views/eventCreation/templateSelection.jsx:455-476,527-529; src/views/projectCreation/projectCreation.jsx:2221-2229"
+  },
+  {
+   "fact": "In non-BOQ project creation, templates whose template_for includes 'boq' are filtered out of the trade list.",
+   "cite": "src/views/eventCreation/templateSelection.jsx:120-133"
+  },
+  {
+   "fact": "Chooser disabled while list loading, for RFQ->Auction (tooltip templateAlreadySelected) and in recurring edit mode.",
+   "cite": "src/views/eventCreation/templateSelection.jsx:136-137,550-560; src/views/eventCreation/eventCreation.jsx:1822"
+  },
+  {
+   "fact": "Changing an already-chosen commercial template asks Modal.confirm 'Do you really want to change the template?' and resets sheet upload data.",
+   "cite": "src/views/eventCreation/templateSelection.jsx:343-355,411-420"
+  },
+  {
+   "fact": "RFP stage: template is removable (trash icon) and chosen template questions are merged into rfiData; a section-wise-scoring template is refused with 'Section-wise scoring templates can only be selected in the Vendor Assessment section.'",
+   "cite": "src/views/eventCreation/templateSelection.jsx:141,357-409,428-437"
+  },
+  {
+   "fact": "Vendor Assessment picker = src/components/selectTemplate/selectTemplate.jsx (div.templateName dropdown trigger, 'Select Template' text, Search Template), used inside RfiSectionWrapper with templateParams {type: rfi}; selection handled by trGlobalSection.handleSelectTemplate -> GET /templates/:uuid, sets rfiGlobalSectionTemplateId.",
+   "cite": "src/components/selectTemplate/selectTemplate.jsx:84-121; src/views/rfiBuilder/rfiSectionWrapper.jsx:108-122; src/views/rfiBuilder/trGlobalSection.jsx:63-74,270-282"
+  },
+  {
+   "fact": "On template select: GET /templates/:uuid (fetchTemplateDetails; same endpoint for RFI via fetchRfiTemplateDetails) AND GET /v1/trade/new_request_config?additional_fields=terms_and_conditions&filters={\"template_uuid\":uuid[,\"for_boq_based_project\":true]}.",
+   "cite": "src/views/eventCreation/templateSelection.jsx:143-149; src/redux/orders/actions.js:413-432,1428-1452; src/models/orders/ordersService.js:39-44,262"
+  },
+  {
+   "fact": "Template order_configs.event_duration_predefined_values, if present, overwrite the stage schedule (start=undefined, end=defaultDuration relative, eval=defaultEvaluation).",
+   "cite": "src/views/eventCreation/templateSelection.jsx:152-172"
+  }
+ ],
+ "fieldRendering": [
+  {
+   "widgetType": "(all) template widget -> sheet column",
+   "component": "normalizeWidget in src/utils/widgetUtils.js (inline_components -> default columns; mapped_widgets split creator/participant as addable columns)",
+   "honours": [
+    "configuration.is_required -> isRequired",
+    "readOnly = !(field_type==='creator' && mode_type==='write')",
+    "configuration.mode_type ('hidden' columns dropped)",
+    "configuration.precision",
+    "configuration.formula -> expr",
+    "configuration.validations (rule + error_message)",
+    "configuration.cell_options",
+    "configuration.allow_negative_value",
+    "configuration.allow_zero_value",
+    "configuration.suffix/prefix (unit/currency)",
+    "configuration.dropdown_data URL",
+    "configuration.priority -> column rank",
+    "configuration.freeze_widget",
+    "configuration.is_removable",
+    "configuration.allow_free_text",
+    "configuration.date_validator"
+   ],
+   "clientValidation": "see rows below",
+   "message": "",
+   "cite": "src/utils/widgetUtils.js:4-74; src/redux/orders/helpers.js:1444-1453; src/redux/orders/selectors.js:507-531; src/components/sheet/sheet.jsx:241-243"
+  },
+  {
+   "widgetType": "product",
+   "component": "SelectField + ProductFilter (product search GET /products/search?query=&include_free_text_products=&subcategory_uuid=)",
+   "honours": [
+    "allowFreeText",
+    "productLocked in eRFX (product, creator_quantity, variant locked: managed from Manage Line Items)"
+   ],
+   "clientValidation": "last product row cannot be removed",
+   "message": "At least one product is required, so the last one can't be removed.",
+   "cite": "src/components/sheet/sheet.jsx:1614-1626,2169-2171; src/views/projectCreation/constants.js:103-107; src/views/eventCreation/templateSelection.jsx:255-261; src/redux/products/actions.js:24-35; src/translations/en.json:1403"
+  },
+  {
+   "widgetType": "quantity (creator_quantity etc.)",
+   "component": "InputField + UnitPicker (UnitPicker hidden, postfix shown, if product has units and freeze_default_uom)",
+   "honours": [
+    "postfix=unit symbol",
+    "allow_negative_value",
+    "precision"
+   ],
+   "clientValidation": "must be finite number; negative only if allowNegativeValue",
+   "message": "(invalid value silently rejected)",
+   "cite": "src/components/sheet/sheet.jsx:1382-1431,1674-1706"
+  },
+  {
+   "widgetType": "number / percentage",
+   "component": "InputField (default editor)",
+   "honours": [
+    "allow_negative_value",
+    "precision (value rounded toFixed(precision))"
+   ],
+   "clientValidation": "Number.isFinite, >=0 unless allowNegativeValue",
+   "message": "(silently rejected)",
+   "cite": "src/components/sheet/sheet.jsx:1413-1431,1773-1785,2077-2086"
+  },
+  {
+   "widgetType": "any with configuration.validations",
+   "component": "validateExpression on change",
+   "honours": [
+    "validation.rule",
+    "validation.error_message"
+   ],
+   "clientValidation": "rule evaluated against row/global data; on failure row reverted",
+   "message": "validation.error_message from template (cell.error)",
+   "cite": "src/components/sheet/sheet.jsx:2010-2025,2158-2160"
+  },
+  {
+   "widgetType": "formula",
+   "component": "computed via computeExpression / dependentWidgetsFormulaHash; read-only unless creator+write",
+   "honours": [
+    "configuration.formula",
+    "dependent_widgets_formula_hash",
+    "formula_required_fields"
+   ],
+   "clientValidation": "n/a",
+   "message": "",
+   "cite": "src/components/sheet/sheet.jsx:1932-1934,2044-2070,2130-2150"
+  },
+  {
+   "widgetType": "multiline_text / dropdown(cell_options) / radio (RFI field types)",
+   "component": "TextAreaField / SelectField / Radio.Group",
+   "honours": [
+    "cell_options",
+    "regex {expression,error_message} on RFI sheets"
+   ],
+   "clientValidation": "regex test",
+   "message": "regex.error_message",
+   "cite": "src/components/sheet/sheet.jsx:1478-1518,2027-2035; src/views/rfiBuilder/fieldTypes.js:1-13"
+  },
+  {
+   "widgetType": "dropdown (trade)",
+   "component": "CustomDropdownSelect (dataUrl = configuration.dropdown_data); clears dependent_widgets on change",
+   "honours": [
+    "dropdown_data",
+    "dependent_widgets"
+   ],
+   "clientValidation": "",
+   "message": "",
+   "cite": "src/components/sheet/sheet.jsx:1652-1666,1997-2008"
+  },
+  {
+   "widgetType": "date",
+   "component": "antd DatePicker",
+   "honours": [
+    "date_validator"
+   ],
+   "clientValidation": "",
+   "message": "",
+   "cite": "src/components/sheet/sheet.jsx:1537-1552"
+  },
+  {
+   "widgetType": "attachment / variant / delivery_location / vendor / action / flexi_relation / rfi_configuration / percent_and_amount",
+   "component": "Attachment / VariantCell / SelectField+BuyerHubFilter / SelectField+VendorFilter / SelectField+ActionSelect / Button / RfiConfiguration / CustomPercentAmountField",
+   "honours": [],
+   "clientValidation": "",
+   "message": "",
+   "cite": "src/components/sheet/sheet.jsx:1520-1650,1711-1760"
+  },
+  {
+   "widgetType": "cell read-only rule",
+   "component": "grid builder",
+   "honours": [
+    "sheet readOnly",
+    "widget.productLocked",
+    "widget.readOnly",
+    "cell.readOnly/unchecked"
+   ],
+   "clientValidation": "",
+   "message": "",
+   "cite": "src/components/sheet/sheet.jsx:335-344"
+  },
+  {
+   "widgetType": "required (publish-time)",
+   "component": "getStageWiseErrors",
+   "honours": [
+    "isRequired && !readOnly, trade modes only"
+   ],
+   "clientValidation": "every non-last row must have value for each editable required widget",
+   "message": "Sheet partially filled, please check again.",
+   "cite": "src/views/projectCreation/helpers.js:236-274,482-485; src/views/projectCreation/projectCreation.jsx:1642-1645"
+  },
+  {
+   "widgetType": "min/max/tick validation columns",
+   "component": "getStageWiseErrors",
+   "honours": [
+    "validationsOn min_value/max_value/tick_size"
+   ],
+   "clientValidation": "max>min and tick <= max-min",
+   "message": "Please fill correct values in the validation columns",
+   "cite": "src/views/projectCreation/helpers.js:576-620; src/views/projectCreation/projectCreation.jsx:1726-1729"
+  }
+ ],
+ "createFlow": [
+  {
+   "step": 1,
+   "what": "Events page 'New Event' -> menu Single Stage (?singleStage=true) | eRFX Project (opens 'Add Line Items' drawer with stage multi-select, then POST /event_groups and navigate ?projectCreation=true) | BOQ based RFX Project (?projectCreation=true&boqProject=true)",
+   "gate": "menu only when rfx_project_enabled; BOQ item only when boq_in_erfx_allowed",
+   "cite": "src/views/orders/components/projectTable.jsx:106-195,346-363,980-990"
+  },
+  {
+   "step": 2,
+   "what": "eRFX Project drawer: search product, set qty+unit per line; primary 'Create Project' is CustomSelectStagesDropdown (stages Technical/RFQ/Auction, defaults from default_project_stages). POST /event_groups body {status:'draft',title,description,attachments,line_items:[{product_uuid,quantity,product_quality_uuid,createdBy,serial_number,pr_line_item_uuid,pr_id}],config:{boq_based_rfx:true}|undefined}",
+   "gate": "'Please fill valid quantity on every line item' / 'Please add atleast one item to proceed!'; RFQ+Auction together disabled: 'RFQ and Auction cannot be scheduled together'",
+   "cite": "src/views/projectCreation/components/manageLineItemsModal.jsx:83-138,230-238; src/views/projectCreation/components/customSelectStagesDropdown.jsx/customSelectStagesDropdown.jsx:18-36; src/redux/project/actions.js:219-257; src/models/project/projectService.js:41-42"
+  },
+  {
+   "step": 3,
+   "what": "Create screen builds stages from projectDetails.selectedProjectStages, else [PROJECT_STAGES[default_event_type] || 'auction'] (direct /orders/quick-create?projectCreation=true lands with ONE Auction stage). BOQ project auto-calls createProject({isBoqBasedRfx:true}).",
+   "gate": "",
+   "cite": "src/views/projectCreation/projectCreation.jsx:2072-2086,3084-3098; src/redux/orders/selectors.js:717"
+  },
+  {
+   "step": 4,
+   "what": "Stage add/remove: '+' menu 'Add Stages' lists PROJECT_STAGES passing isValidStage; \u22ee menu Edit title / Delete",
+   "gate": "no duplicate mode; RFQ and Auction mutually exclusive (tooltips 'Remove Auction to add RFQ' / 'Remove RFQ to add Auction'); '+' disabled at 2 stages; Delete disabled when only 1 stage; hidden for RFQ->Auction and add-new-stage",
+   "cite": "src/views/projectCreation/projectCreation.jsx:3059-3082,3111-3159,3161-3236"
+  },
+  {
+   "step": 5,
+   "what": "Per stage choose template (TemplateSelection). The ProductSheet (line-item grid) only renders when isModeTrade && currentTemplateId && widgets; banner shown until then; footer disabled until a product row exists.",
+   "gate": "template before sheet",
+   "cite": "src/views/eventCreation/eventCreation.jsx:406-411,438-439,1976-1980"
+  },
+  {
+   "step": 6,
+   "what": "Manage line items via toolbar 'Items N' button (opens ManageLineItemsModal, Save -> PATCH /event_groups/:uuid with line_items or POST /event_groups if no project yet); sheet shows copy 'You can manage the product and quantity from the Manage Line Items section'",
+   "gate": "Button hidden for BOQ projects and RFQ->Auction; in source it is NOT disabled by missing template (unverified vs live behaviour)",
+   "cite": "src/views/projectCreation/projectCreation.jsx:2259-2268,3329-3340,3566-3577; src/views/eventCreation/productSheet/productSheet.jsx:189"
+  },
+  {
+   "step": 7,
+   "what": "Event type/strategy drawer: tabs Auction / RFQ / Technical Stage (RFI tab only in non-project flow); Auction strategies Rank / Price / Traffic light / Knockout / Dutch",
+   "gate": "'<Stage> already exists in the project'; 'You cannot change the event type as this is a new stage'; Knockout & Dutch disabled when rfx_project_enabled && !isRfqToAuction ('...can be created only when converting an RFQ to an auction'); Price/Traffic hidden for service templates; strategy row hidden for sheet BOQ unless service template; Knockout hidden for basket auction",
+   "cite": "src/views/eventCreation/components/auctionConfiguration/auctionConfiguration.jsx:284-334,775-894; src/translations/en.json:542-545"
+  },
+  {
+   "step": 8,
+   "what": "Technical stage: Vendor Assessment section with its own rfi template + evaluators",
+   "gate": "'Please add Evaluator in the Technical Stage' (lot) / '...to all the line items...' (line); 'Some sections are empty...'; 'There are some errors in vendor specific sections, please check and try again' (isGlobalSectionEmpty)",
+   "cite": "src/views/projectCreation/helpers.js:318-370; src/views/projectCreation/projectCreation.jsx:1650-1690"
+  },
+  {
+   "step": 9,
+   "what": "Schedule drawer (ProjectScheduler) per stage: start (now|absolute), end (relative duration|absolute), evaluation (extra) time, cost-breakdown time; 'Save Schedule' writes eventStartTime/EndTime/EvalTime/EndTimeType/costBreakdownTime into stageConfig",
+   "gate": "'Start time should be less than end time'; 'Start time cannot be less than the current time'; 'End time cannot be less than the current time'; 'Evaluation time is required for serial bidding event'. Stage defaults exist WITHOUT Save Schedule: end=1800s relative, start=undefined(now at publish), eval=1800s",
+   "cite": "src/views/projectCreation/components/projectScheduler/projectScheduler.jsx:40-113,218-222; src/views/projectCreation/helpers.js:134-139; src/translations/en.json:325-329"
+  },
+  {
+   "step": 10,
+   "what": "Time math at publish: bid_start_time = start||now; bid_end_time = absolute end or start+duration; extra_closing_time = (end [+costBreakdown]) + eval; response_review_time_for_participant = costBreakdown when fast bidding",
+   "gate": "'Please add end time for the event' if eventEndTime falsy",
+   "cite": "src/views/projectCreation/components/projectScheduler/helpers.js:12-42; src/views/projectCreation/helpers.js:474-476; src/redux/orders/helpers.js:1104-1112"
+  },
+  {
+   "step": 11,
+   "what": "Publish (handleClickPublish): project title, participants, RFP end <= RFQ end, then getStageWiseErrors per stage",
+   "gate": "'Please fill project title!'; 'Please add participants to proceed!'; 'RFP duration exceeds RFQ end time. Please adjust.'; 'Please select a valid column for savings' (savingsColumn default {budget:'price'} must exist in template widgets); 'Savings configuration is mandatory' (is_saving_configuration_mandatory); 'Payment Terms and Conditions are mandatory'; 'Maximum no of product addition reached'; 'Please add valid dynamic closing time'; 'Please select closing on mode for the event'; 'Please add delivery date'",
+   "cite": "src/views/projectCreation/projectCreation.jsx:1595-1735; src/views/projectCreation/helpers.js:276-300,465-472; src/views/projectCreation/constants.js:37-39"
+  },
+  {
+   "step": 12,
+   "what": "Each stage: POST /trade/template_input?template_name=trade&additional_fields=order_details (new) or PATCH /trade/:id/template_input?... (draft stage) or POST /trade/move_to_auction (RFQ->Auction, non auction-team user). Body: {widgets, data, weightages, forms (rfp/rfi), configurations:{auto_award_configs, fast_bidding_mode_enabled, stage_no, event_group_uuid, payment_tnc, staggered, is_tnc_mandatory, currency_configuration, is_english_auction_enabled, closed_envelope_bidding_for_auctions|_rfqs, is_alternate_bidding_allowed, order_type, num_revisions_req_to_show_indicator, rfx_mode, rank_type, auction_config, auction_closing_mode, rfp_evaluation_mode, delivery_schedules, pickup_schedules:false, bid_start_time, bid_end_time, extra_closing_time, response_review_time_for_participant, end_time_type, title, description, terms_and_conditions, attachments, template_uuid, vendor_assessment_template_uuid, section_wise_max_score, section_wise_scoring_enabled, savings_configuration, bulk_price, traffic_light_config, traffic_light_ranges, is_dynamic_closing_time_allowed, time_extension_value, last_n_minutes_for_time_extension, rank_limit_for_time_extension, dynamic_closing_time_strategy, price_difference, time_difference, end_price, is_auction_on_base_price, integration_response_uuid, integration_type, closing_mode, is_basket_auction, basket_auction_time_interval, is_new_stage_addition}, tabs, status ('draft' when projectId or publishToDraft), audience_company_uuids, creation_flow_type:'quick_flow', trade_request_uuid, use_rfq_quotes_as_bids, allow_tna_vendors_to_bid, transfer_weights, evaluators}",
+   "gate": "",
+   "cite": "src/views/projectCreation/projectCreation.jsx:1771-1841; src/redux/orders/actions.js:122-189; src/models/orders/ordersService.js:22-35; src/redux/orders/api.js:159-160,257-258; src/redux/orders/helpers.js:1053-1176; src/views/projectCreation/helpers.js:1034-1060"
+  },
+  {
+   "step": 13,
+   "what": "Then PATCH /event_groups/:uuid body {attachments, title, description, status:'active', draft_trade_request_uuids, audience_company_uuids, line_items:[{status,uuid,quantity,product_uuid,product_quality_uuid}], terms_and_conditions:{clauses, attachments:[{type:'t_and_c', value:[{name,private_url}]}]}, show_under_open_events, purchase_request_uuid, delete_draft_stage_uuids, amendment_remarks:{remarks}, config?(recurring)} -> 'Project created successfully' and redirect to project detail",
+   "gate": "only when projectId && isProjectCreation",
+   "cite": "src/views/projectCreation/projectCreation.jsx:1843-1885; src/redux/project/actions.js:28-90; src/models/project/projectService.js:44-49"
+  },
+  {
+   "step": 14,
+   "what": "Save as draft button disabled with tooltip",
+   "gate": "'Please select template for <stage title>' (non-rfp stage without template) / 'Please add line items'",
+   "cite": "src/views/projectCreation/projectCreation.jsx:1457-1480,3342-3358"
+  }
+ ],
+ "units": [
+  {
+   "fact": "Unit options everywhere on the create screen = company units from GET /v1/dashboard_configuration -> config.units (state.user.units), mapped by selectDefaultUnits to {uuid,name,symbol,conversionFactor}; the dropdown shows only symbols.",
+   "cite": "src/redux/user/api.js:6; src/redux/user/index.js:165-170; src/redux/user/selectors.js:8,335-344"
+  },
+  {
+   "fact": "Manage Line Items drawer: UnitPicker options = defaultUnits (all company units, NOT filtered by product); default unit when adding a product = product.units[0] || defaultUnits[0]. Tooltip when locked: \"'Quantity Requested' and 'Unit of Measurement' cannot be modified\".",
+   "cite": "src/views/projectCreation/components/manageLineItemsModal.jsx:67-80; src/views/projectCreation/components/projectLineItem.jsx:166-201"
+  },
+  {
+   "fact": "Sheet quantity cell: options = all company unit symbols (units prop = selectDefaultUnits); on product select, quantity-group cells get postfix = product.data.units[0].symbol and price-group cells '/<symbol>' (only if qty empty).",
+   "cite": "src/components/sheet/sheet.jsx:1476,1674-1706,1957-1977,2821"
+  },
+  {
+   "fact": "freeze_default_uom (newTradeConfig.disableUOMPicker, from /v1/trade/new_request_config) hides the UnitPicker when the product has units -> unit is fixed to product default.",
+   "cite": "src/redux/orders/selectors.js:726; src/components/sheet/sheet.jsx:1675-1679"
+  },
+  {
+   "fact": "No template-level unit restriction found in the dashboard. UnitPicker filters by case-insensitive substring search only; if no match and allow_user_to_add_uom, shows 'Create <text>' -> AddUnit form (POST /units {name,symbol}; name/symbol required, max 15 chars, symbol /^[a-zA-Z0-9\\s-]+$/ else 'Invalid input', 'Symbol is already taken'), then refetches dashboard config, 'Unit added successfully'. If no match and not allowed -> antd <Empty/> (no text).",
+   "cite": "src/components/unitPicker/selectUnit.jsx:77-127,208-236; src/components/unitPicker/addUnit.jsx:29-83; src/components/unitPicker/constant.js:11; src/redux/user/api.js:27; src/redux/user/selectors.js:223-224"
+  },
+  {
+   "fact": "No client-side 'Unit not found' / 'not available' / 'select a valid unit' message exists in src (grep of src + translations for unit/uom messages found none).",
+   "cite": "grep over src/**/*.js,jsx and src/translations/en.json (only uomSelectPlaceHolder at en.json:2122)"
+  },
+  {
+   "fact": "Unit is serialised per row as <widget>.configuration.suffix (from cell postfix).",
+   "cite": "src/redux/orders/helpers.js:372-377"
+  },
+  {
+   "fact": "BACKEND: POST /trade/template_input and PATCH /trade/:id/template_input read data[].creator_quantity.configuration.suffix (fallback product.unit_type), lowercase it, and require it in Current.workspace.units by symbol; else 422 code 495 'The unit X is not present' / 'The units X, Y are not present'; blank -> 574 'Unit cannot be blank'. ProductUnit model: 'Unit not found' if unit in_active or other company.",
+   "cite": "procol-backend origin/main:app/controllers/concerns/trade_template_helper.rb:1386-1415; app/controllers/api/trade_controller.rb:28-38; config/routes.rb:120-128; config/locales/en-IN.yml:1990-1992; config/error_config.yml:650-652; app/models/product_unit.rb:44-54"
+  }
+ ],
+ "menuGates": [
+  {
+   "option": "New Event dropdown (Single Stage / eRFX Project / BOQ based RFX Project)",
+   "flag": "rfx_project_enabled (state.user.rfx_project_enabled via /v1/dashboard_configuration). Off -> button goes straight to /orders/quick-create (or old create-auction route when old_creation_flow_config === 'show_old_flow')",
+   "cite": "src/views/orders/components/projectTable.jsx:125-137,166-190; src/redux/user/selectors.js:119-125; src/redux/user/index.js:341,357"
+  },
+  {
+   "option": "Single Stage",
+   "flag": "always in menu when rfx_project_enabled -> /orders/quick-create?singleStage=true",
+   "cite": "src/views/orders/components/projectTable.jsx:156-160,169-174"
+  },
+  {
+   "option": "eRFX Project",
+   "flag": "rfx_project_enabled; stage defaults from default_project_stages",
+   "cite": "src/views/orders/components/projectTable.jsx:141-145,176-181; src/redux/user/selectors.js:134-135; src/viewModels/project/useManageLineItemsModalViewModel.js:23"
+  },
+  {
+   "option": "BOQ based RFX Project",
+   "flag": "boq_in_erfx_allowed (-> state.user.isBoqInErfxAllowed)",
+   "cite": "src/views/orders/components/projectTable.jsx:120,183-190; src/redux/user/index.js:389,497; src/redux/user/selectors.js:304-305"
+  },
+  {
+   "option": "Orders list variant menu (eRFX Project / Single Stage)",
+   "flag": "rfx_project_enabled",
+   "cite": "src/views/orders/components/ordersTable.jsx:72-91"
+  },
+  {
+   "option": "Knockout / Dutch auction strategy",
+   "flag": "disabled when rfx_project_enabled unless RFQ->Auction conversion",
+   "cite": "src/views/eventCreation/components/auctionConfiguration/auctionConfiguration.jsx:326-334,870-894"
+  },
+  {
+   "option": "Default first stage type",
+   "flag": "new_request_config.default_event_type",
+   "cite": "src/redux/orders/selectors.js:717; src/views/projectCreation/projectCreation.jsx:2080-2086"
+  },
+  {
+   "option": "Save as draft button",
+   "flag": "allow_draft_project_creation && !route_auctions_to_auction_team(with auction stage)",
+   "cite": "src/views/projectCreation/projectCreation.jsx:287-296"
+  },
+  {
+   "option": "Convert to Auction (RFQ->Auction)",
+   "flag": "on event header; with rfx_project_enabled opens quick-create with draftStageIds,isRfqToAuction=true,projectCreation,projectId,boqProject; is_publish_auction_in_draft / route_auctions_to_auction_team switch to draft publish",
+   "cite": "src/views/orderDetails/eventHeader/eventHeader.jsx:288-320; src/views/projectCreation/projectCreation.jsx:298-304; src/redux/orders/selectors.js:722-724"
+  },
+  {
+   "option": "Closed-envelope bidding toggle",
+   "flag": "enable_bid_masking_for_event && isProjectCreation && trade mode",
+   "cite": "src/views/eventCreation/eventCreation.jsx:1826-1829; src/views/projectCreation/helpers.js:964-975"
+  }
+ ],
+ "other": [
+  {
+   "fact": "Template detail payload fields used: widgets.inline_components, widgets.global_price_components, mapped_widgets, global_mapped_widgets, configurations.{is_english_auction_allowed, section_grouping_key, section_wise_scoring_enabled}, order_configs.{event_duration_predefined_values, hide_tabs}, terms_and_conditions.{clauses,attachments}, type_identifier (contains 'boq' -> isSheetBoq, vendor onboarding -> onboarding event), name.",
+   "cite": "src/views/eventCreation/templateSelection.jsx:153,176-181,202-222,302-339; src/redux/orders/actions.js:126-129; src/redux/orders/selectors.js:507-531"
+  },
+  {
+   "fact": "In project creation, product / creator_quantity / variant widgets are productLocked (qty/product edited only in Manage Line Items).",
+   "cite": "src/views/projectCreation/constants.js:103-107; src/views/eventCreation/templateSelection.jsx:255-261"
+  },
+  {
+   "fact": "Stage defaults: mode auction, strategy rank, closingOn lot, savingsColumn {budget:'price'}, eventEndTime 1800 relative, eventEvalTime 1800, costBreakdownTime 1800.",
+   "cite": "src/views/projectCreation/helpers.js:55-151; src/constants/ordersConstants.js:133-135"
+  },
+  {
+   "fact": "Discrepancy vs memory note: source shows the 'Items N' button is not gated on template choice, and default schedule values ARE sent at publish without Save Schedule; only the product sheet is template-gated. Live behaviour may differ (e.g. template event_duration_predefined_values can set eventEndTime undefined -> 'Please add end time for the event').",
+   "cite": "src/views/projectCreation/projectCreation.jsx:3329-3340; src/views/projectCreation/helpers.js:134-139; src/views/eventCreation/templateSelection.jsx:161-171"
+  },
+  {
+   "fact": "PROJECT_STAGES: rfp 'Technical Stage', rfq 'RFQ', auction 'Auction'; ORDER_MODE incl. rfq_then_auction sent as rfx_mode for conversion.",
+   "cite": "src/views/projectCreation/constants.js:113-117; src/views/createOrder/constants.js:13-19; src/redux/orders/helpers.js:1044-1051"
+  }
+ ]
+}

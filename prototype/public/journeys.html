@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Procol · User Journeys</title>
+<link rel="stylesheet" href="/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>" />
+<style>
+  main { display:block; max-width:1100px; margin:0 auto; padding:20px 24px 80px; }
+  .jhead { display:flex; align-items:baseline; gap:12px; margin:6px 0 18px; }
+  .jhead h1 { font-size:22px; margin:0; }
+  .jhead .sub { color:var(--ink-soft); font-size:13px; }
+  .jhead a { margin-left:auto; font-size:13px; }
+  .jcard { border:1px solid var(--card-line); background:var(--panel); border-radius:14px; padding:16px 18px; margin-bottom:14px; box-shadow:var(--shadow); }
+  .jtop { display:flex; align-items:flex-start; gap:12px; }
+  .jnum { font-family:var(--mono); font-size:12px; color:var(--ink-soft); background:var(--accent-soft); border-radius:8px; padding:4px 8px; flex:0 0 auto; }
+  .jtitle { font-size:16px; font-weight:650; }
+  .jpersona { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); margin-left:8px; }
+  .jgoal { color:var(--ink-soft); font-size:13px; margin:4px 0 0; }
+  .jmeta { margin-left:auto; text-align:right; font-size:11px; color:var(--ink-soft); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .jmeta b { font-size:20px; color:var(--ink); font-family:var(--serif,inherit); }
+  .spine { display:flex; flex-wrap:wrap; gap:5px; margin:12px 0 6px; }
+  .spine .s { font-family:var(--mono); font-size:11px; padding:2px 7px; border-radius:6px; background:var(--soft,rgba(0,0,0,.05)); border:1px solid var(--line); }
+  .jbar { display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  .jbtn { font-size:12.5px; font-weight:600; color:#fff; background:var(--accent); border:none; border-radius:8px; padding:5px 12px; cursor:pointer; }
+  .jbtn.ghost { background:transparent; color:var(--accent); border:1px solid var(--card-line); }
+  .jbtn:disabled { opacity:.5; cursor:default; }
+  .clist { margin-top:12px; border-top:1px solid var(--line); display:none; }
+  .jcard.open .clist { display:block; }
+  .crow { display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--line); font-size:12.5px; }
+  .crow:first-child { border-top:none; }
+  .cwrap:first-child .crow { border-top:none; }
+  .cdetail { display:none; padding:2px 0 10px 92px; font-size:11.5px; color:var(--ink-soft); line-height:1.5; }
+  .cwrap.open .cdetail { display:block; }
+  .cid { font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); min-width:92px; }
+  .ctitle { flex:1; }
+  .tag { font-size:9.5px; padding:0 5px; border-radius:3px; background:rgba(122,162,247,.16); color:var(--accent); white-space:nowrap; }
+  .tag.p0 { background:rgba(255,107,107,.18); color:var(--bad,#ff6b6b); }
+  .tag.api { background:rgba(230,180,80,.18); color:var(--warn,#e0a458); }
+  .tag.none { background:rgba(160,160,160,.18); color:var(--ink-soft); }
+  .jout { margin-top:10px; font-family:var(--mono); font-size:11px; max-height:34vh; overflow:auto; background:var(--code-bg,rgba(0,0,0,.16)); border:1px solid var(--card-line); border-radius:10px; padding:8px 10px; display:none; }
+  .jout.show { display:block; }
+  .jout .l { white-space:pre-wrap; }
+  .jout .l.full { color:var(--good); } .jout .l.part { color:var(--warn,#e0a458); } .jout .l.none { color:var(--bad,#ff6b6b); }
+</style>
+</head>
+<body>
+<main>
+  <div class="jhead">
+    <span class="logo" style="font-size:24px">🧭</span>
+    <div>
+      <h1>User journeys</h1>
+      <div class="sub" id="sub">the 648 written cases, arranged as the paths a person actually takes</div>
+    </div>
+    <a href="/">← back to the dashboard</a>
+  </div>
+  <div id="list"><div class="loading" style="padding:30px;color:var(--ink-soft)">Loading journeys…</div></div>
+</main>
+<script src="/caseView.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const n=document.createElement(t); if(c)n.className=c; if(h!=null)n.innerHTML=h; return n; };
+const esc = s => String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+async function load() {
+  const { journeys } = await (await fetch("/api/journeys")).json();
+  const total = journeys.reduce((n,j)=>n+j.counts.total,0);
+  const runnable = journeys.reduce((n,j)=>n+j.counts.runnable,0);
+  $("#sub").textContent = `${journeys.length} journeys · ${total} cases · ${runnable} reach a runner · derived from the catalog, so it updates itself`;
+  const box = $("#list"); box.innerHTML = "";
+  for (const j of journeys) box.appendChild(card(j));
+}
+
+function card(j) {
+  const c = el("div","jcard"); c.id = "j-"+j.id;
+  const top = el("div","jtop");
+  top.appendChild(el("span","jnum", String(j.order).padStart(2,"0")));
+  const mid = el("div","",""); mid.style.flex="1";
+  mid.appendChild(el("div","",`<span class="jtitle">${esc(j.title)}</span><span class="jpersona">${esc(j.persona)}</span>`));
+  mid.appendChild(el("div","jgoal", esc(j.goal)));
+  top.appendChild(mid);
+  top.appendChild(el("div","jmeta", `<b>${j.counts.total}</b> cases<br>${j.counts.ui} UI · ${j.counts.api} API<br>${j.counts.runnable} runnable`));
+  c.appendChild(top);
+  const spine = el("div","spine"); for(const s of j.spine) spine.appendChild(el("span","s", esc(s))); c.appendChild(spine);
+
+  const bar = el("div","jbar");
+  const toggle = el("button","jbtn ghost","▸ show its cases");
+  toggle.onclick = () => { c.classList.toggle("open"); toggle.textContent = c.classList.contains("open")?"▾ hide cases":"▸ show its cases"; };
+  bar.appendChild(toggle);
+  const compilable = j.cases.filter(x=>x.routeKind==="ui-compile").length;
+  const cbtn = el("button","jbtn", `⚡ Compile all ${compilable} plans (parallel)`);
+  cbtn.disabled = !compilable;
+  cbtn.onclick = () => compileJourney(j, cbtn);
+  bar.appendChild(cbtn);
+  c.appendChild(bar);
+
+  const out = el("div","jout"); out.id = "out-"+j.id; c.appendChild(out);
+
+  const list = el("div","clist");
+  for (const x of j.cases) {
+    const wrap = el("div","cwrap");
+    const r = el("div","crow"); r.id = "jc-"+x.id; r.style.cursor="pointer";
+    r.appendChild(el("span","cid", esc(x.id)));
+    r.appendChild(el("span","ctitle", esc(x.title)));
+    r.dataset.caseId = x.id;
+    r.appendChild(el("span",`tag ${x.priority==="P0"?"p0":""}`, esc(x.priority)));
+    r.appendChild(el("span","tag", esc(x.verdict)));
+    if (x.layer==="api") r.appendChild(el("span","tag api","API"));
+    if (!x.runnable) r.appendChild(el("span","tag none","no runner"));
+    const detail = el("div","cdetail");
+    detail.innerHTML = `<b>Why.</b> ${esc(x.why)}<br>`+(x.setup?`<b>Setup.</b> ${esc(x.setup)}<br>`:"")+`<b>Steps.</b> ${esc(x.steps)}<br><b>Expected.</b> ${esc(x.expected)}`+(x.oracle?`<br><b>How to tell.</b> ${esc(x.oracle)}`:"");
+    r.onclick = () => wrap.classList.toggle("open");
+    wrap.appendChild(r); wrap.appendChild(detail);
+    list.appendChild(wrap);
+  }
+  c.appendChild(list);
+  // Each case in plain words (title, numbered steps, expected; the technical
+  // part behind a closed "Details"), with its track record — read when opened.
+  toggle.addEventListener("click", () => { if (c.classList.contains("open")) wordCases(list, j.cases); });
+  return c;
+}
+async function wordCases(list, cases) {
+  if (list.dataset.worded) return;
+  list.dataset.worded = "1";
+  const displays = await CaseView.many(cases.map((x) => x.id));
+  for (const r of list.querySelectorAll(".crow")) {
+    const d = displays[r.dataset.caseId];
+    if (!d) continue;
+    r.querySelector(".ctitle").textContent = d.title;
+    r.nextElementSibling.innerHTML = CaseView.card(d, { noHead: true });
+  }
+  CaseView.fillTrack(list);
+}
+
+function compileJourney(j, btn) {
+  const out = $("#out-"+j.id); out.classList.add("show"); out.innerHTML="";
+  const w = (t,cls)=>{ out.appendChild(el("div","l "+(cls||""), esc(t))); out.scrollTop=out.scrollHeight; };
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "compiling…";
+  const es = new EventSource(`/api/journey-compile?id=${j.id}&concurrency=6`);
+  let done=0, full=0, part=0, none=0, total=0;
+  es.addEventListener("plan", e => { const d=JSON.parse(e.data); total=d.total; w(`Compiling ${d.total} plans, ${d.concurrency} at a time — many planner agents, no browser.`); });
+  es.addEventListener("compiled", e => {
+    const d=JSON.parse(e.data); done++;
+    const cls = d.coverage==="full"?"full":d.coverage==="none"?"none":"part";
+    if(d.coverage==="full")full++; else if(d.coverage==="none")none++; else part++;
+    w(`[${done}/${total}] ${d.id} — ${d.coverage.toUpperCase()}: ${d.steps.join(" → ")||"(none)"}${d.gaps&&d.gaps.length?"  ·gap: "+d.gaps.join("; "):""}`, cls);
+  });
+  es.addEventListener("done", () => { w(`Done — ${full} full · ${part} partial · ${none} refused.`); es.close(); btn.disabled=false; btn.textContent=label; });
+  es.addEventListener("error", () => { es.close(); btn.disabled=false; btn.textContent=label; });
+}
+load();
+</script>
+</body>
+</html>

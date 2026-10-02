@@ -1,0 +1,3983 @@
+{
+  "id": "decathlon",
+  "displayName": "Decathlon",
+  "baseUrlEnv": "DECATHLON_BASE_URL",
+  "auth": {
+    "type": "otp",
+    "headerName": "access-token",
+    "phoneEnv": "DECATHLON_BUYER_PHONE",
+    "otpEnv": "DECATHLON_OTP",
+    "appKeyEnv": "DECATHLON_APP_KEY",
+    "appSecretEnv": "DECATHLON_APP_SECRET",
+    "phonePrefix": "+91",
+    "tokenEnv": "DECATHLON_ACCESS_TOKEN"
+  },
+  "datasources": {
+    "p2p_invoice": {
+      "uuid": "Z2RrWmM=",
+      "keyAttribute": "p2p_invoice",
+      "displayName": "Invoice",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "invoice_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WGRra2dk",
+          "dataType": "text",
+          "label": "Invoice Number",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "max_length",
+              "configuration": {
+                "value": 16
+              },
+              "error_message": "Invoice Number cannot exceed 16 characters",
+              "severity": "error"
+            },
+            {
+              "rule_type": "input_type",
+              "operator": "matches_regex",
+              "configuration": {
+                "pattern": "^[A-Za-z0-9/-]{1,16}$"
+              },
+              "error_message": "Invoice Number can only contain letters, numbers, hyphen (-) and slash (/)",
+              "severity": "error"
+            }
+          ]
+        },
+        "status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WGRna2dk",
+          "dataType": "dropdown_select",
+          "label": "Status",
+          "options": [
+            "Draft",
+            "Submitted",
+            "Approved",
+            "In Approval",
+            "Released",
+            "Acknowledged",
+            "On Hold",
+            "Cancelled",
+            "Rejected",
+            "Need Acknowledgement",
+            "In Buyer's Review"
+          ],
+          "readOnly": true
+        },
+        "invoice_type": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZGdYa2dk",
+          "dataType": "dropdown_select",
+          "label": "Category",
+          "options": [
+            "Goods",
+            "Service"
+          ]
+        },
+        "invoice_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WFFwa2dk",
+          "dataType": "date",
+          "label": "Invoice Date",
+          "format": "DD-MM-YYYY"
+        },
+        "po_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZERRa2dk",
+          "dataType": "relational",
+          "label": "Link General PO",
+          "relatedDatasourceId": 10056
+        },
+        "po_number_ref": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGROa2dk",
+          "dataType": "reference",
+          "label": "PO Number",
+          "relationFieldId": 102609,
+          "referencedFieldId": 102531
+        },
+        "po_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UVpEa1hw",
+          "dataType": "date",
+          "label": "PO Date"
+        },
+        "rent_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TmRYa2Nn",
+          "dataType": "relational",
+          "label": "Link Rent Purchase Order",
+          "relatedDatasourceId": 10063
+        },
+        "gift_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlFra2Nn",
+          "dataType": "relational",
+          "label": "Link Gift Purchase Order",
+          "relatedDatasourceId": 10065
+        },
+        "candex_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlFRa2Nn",
+          "dataType": "relational",
+          "label": "Link Candex Purchase Order",
+          "relatedDatasourceId": 10069
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WFhYa2dk",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.name",
+          "readOnly": true
+        },
+        "vendor_gstin": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WFFka2dk",
+          "dataType": "external_relation",
+          "label": "Vendor GSTIN",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no"
+        },
+        "supplier_tax_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "UWNna1hw",
+          "dataType": "external_relation",
+          "label": "Supplier Third number",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.misc->>'supplier_third_number'"
+        },
+        "buyer_name": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZGdaa2dk",
+          "dataType": "string",
+          "label": "Buyer Name"
+        },
+        "buyer_gstin": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZGNja2dk",
+          "dataType": "string",
+          "label": "Buyer GSTIN"
+        },
+        "rcm_applicable": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "UWtja1hw",
+          "dataType": "dropdown_select",
+          "label": "Whether covered under RCM?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "linked_cost_center": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Y2tYRFpR",
+          "dataType": "relational",
+          "label": "Linked Cost Center",
+          "relatedDatasourceId": 13451
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0RnRFpR",
+          "dataType": "reference",
+          "label": "Cost Center Name",
+          "relationFieldId": 139405,
+          "referencedFieldId": 138128
+        },
+        "entity_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0RrRFpR",
+          "dataType": "reference",
+          "label": "Entity Name",
+          "relationFieldId": 139405,
+          "referencedFieldId": 138127
+        },
+        "environment_code": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0RORFpR",
+          "dataType": "reference",
+          "label": "Environment Code",
+          "relationFieldId": 139405,
+          "referencedFieldId": 138132
+        },
+        "currency": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZFpOa2dk",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ]
+        },
+        "ldc_applicable": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWRacFFO",
+          "dataType": "dropdown_select",
+          "label": "LDC Applicable",
+          "options": [
+            "No",
+            "Yes"
+          ],
+          "readOnly": true
+        },
+        "ldc_consumed_flag": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWREcFFO",
+          "dataType": "string",
+          "label": "LDC Consumed Flag",
+          "readOnly": true
+        },
+        "total_invoice_value": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZFpna2dk",
+          "dataType": "rollup",
+          "label": "Total Invoice Value",
+          "aggregation": "sum"
+        },
+        "total_tax_amount": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZFpRa2dk",
+          "dataType": "rollup",
+          "label": "Total Tax Amount",
+          "aggregation": "sum"
+        },
+        "requestor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y3BwRFhr",
+          "dataType": "string",
+          "label": "Requestor email ID"
+        },
+        "invoice_submission_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWtka1hw",
+          "dataType": "date",
+          "label": "Date of Invoice submission"
+        },
+        "invoice_assignment_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "UURaa1hw",
+          "dataType": "date",
+          "label": "Invoice assignment date"
+        },
+        "remarks": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZERra2dk",
+          "dataType": "text",
+          "label": "Remarks"
+        },
+        "attachment": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZGtaa2dk",
+          "dataType": "attachment",
+          "label": "Attachment"
+        },
+        "ocr_extracted_data": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WFFja2dk",
+          "dataType": "text",
+          "label": "Ocr Extracted Data"
+        },
+        "created_on": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZEROa2dk",
+          "dataType": "date",
+          "label": "Created On"
+        },
+        "total_tds_value": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0RRRFhr",
+          "dataType": "rollup",
+          "label": "Total TDS Value",
+          "aggregation": "sum"
+        },
+        "payable_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y3BjRFhr",
+          "dataType": "formula",
+          "label": "Payable Amount"
+        },
+        "buyer_user_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGRRa2dk",
+          "dataType": "number",
+          "label": "Buyer User Id"
+        },
+        "grns": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZFhja1hw",
+          "dataType": "inverse_relation",
+          "label": "GRNs"
+        },
+        "invoice_accrual_entries": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZFhwa1hw",
+          "dataType": "inverse_relation",
+          "label": "Invoice Accrual Entries"
+        },
+        "inverse_relation": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZHBja2dk",
+          "dataType": "inverse_relation",
+          "label": "Invoice Line Items"
+        },
+        "linked_credit_note": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y3BkRFpR",
+          "dataType": "inverse_relation",
+          "label": "Linked Credit Note"
+        },
+        "po_validator_s_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0RnRFhr",
+          "dataType": "string",
+          "label": "PO Validator's Email ID"
+        },
+        "account_validator_s_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2tYRFhr",
+          "dataType": "string",
+          "label": "Account Validator's ID"
+        },
+        "accounts_validation_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2tERFhr",
+          "dataType": "dropdown_select",
+          "label": "Accounts Validation Status",
+          "options": [
+            "Not Assigned",
+            "Pending",
+            "Rejected",
+            "Validated"
+          ]
+        },
+        "accounts_validation_time_stamp": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0RrRFhr",
+          "dataType": "date",
+          "label": "Accounts Validation Time stamp"
+        },
+        "bills": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UVhwRGta",
+          "dataType": "inverse_relation",
+          "label": "Bills"
+        },
+        "rejection_reason": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a0RnRGRY",
+          "dataType": "dropdown_select",
+          "label": "Rejection Reason",
+          "options": [
+            "NO PO number quoted on the invoice",
+            "Duplicate Invoice",
+            "Invoice is not related to Decathlon",
+            "Invoice is not signed/authenticated",
+            "Invoice number length exceeds 16 digits",
+            "Invoice number includes special characters other than / and",
+            "Invoice date is earlier than PO date",
+            "Invoice date is related to Previous year",
+            "GST Rate is incorrect",
+            "GST Type (IGST/SGST-CGST/UTGST) is incorrect",
+            "Decathlon GSTN is incorrect",
+            "Decathlon Entity Name/Address is incorrect",
+            "Decathlon entity address is incorrect",
+            "Arithmetical error - Total of Invoice is not correct",
+            "Pages are missing in the invoice",
+            "Unable to open attachment",
+            "Incorrect file format - share only PDF or images",
+            "Rejected as per request by the PO creator/Vendor",
+            "Incorrect attachment",
+            "Incorrect supplier Name/GSTN",
+            "Supplier is not registered in the system",
+            "Invoice is a Draft or Proforma Invoice",
+            "Scan Quality Poor / Unreadable",
+            "3 way Amount Mismatch (Over-billed)",
+            "Others, please specify"
+          ]
+        },
+        "payments": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2RYcFhk",
+          "dataType": "inverse_relation",
+          "label": "Payments"
+        },
+        "ocr_attachment": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z0RrTmdE",
+          "dataType": "attachment",
+          "label": "OCR Attachment",
+          "readOnly": true
+        },
+        "ocr_failure_reason": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z0ROTmdE",
+          "dataType": "text",
+          "label": "OCR Failure Reason",
+          "readOnly": true
+        },
+        "matched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWtORGta",
+          "dataType": "number",
+          "label": "Matched Amount",
+          "readOnly": true
+        },
+        "unmatched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWtRRGta",
+          "dataType": "formula",
+          "label": "Unmatched Amount",
+          "readOnly": true
+        },
+        "type_of_invoice": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1FacE5R",
+          "dataType": "string",
+          "label": "Type of Invoice",
+          "readOnly": true
+        }
+      },
+      "submitAutomationUuid": "ZFpjcFo="
+    },
+    "p2p_purchase_order": {
+      "uuid": "UWdrWlo=",
+      "keyAttribute": "p2p_purchase_order",
+      "displayName": "Purchase Order",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "po_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Tlpwa2dk",
+          "dataType": "string",
+          "label": "PO Number",
+          "readOnly": true,
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "is_unique",
+              "configuration": {},
+              "error_message": "PO Number must be unique",
+              "severity": "error"
+            }
+          ]
+        },
+        "status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cGdYa2dk",
+          "dataType": "dropdown_select",
+          "label": "PO Status",
+          "options": [
+            "Draft",
+            "In Approval",
+            "Submitted",
+            "Released",
+            "Acknowledged",
+            "On Hold",
+            "On Hold for Revision",
+            "Closed",
+            "Short Closed",
+            "Cancelled",
+            "Approval Rejected"
+          ],
+          "readOnly": true
+        },
+        "po_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cGtaa2dk",
+          "dataType": "date",
+          "label": "PO Date",
+          "readOnly": true
+        },
+        "linked_cost_center": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RHBYRFpw",
+          "dataType": "relational",
+          "label": "Linked Cost Center",
+          "relatedDatasourceId": 13451
+        },
+        "entity_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZGtOa1hw",
+          "dataType": "reference",
+          "label": "Entity Name",
+          "relationFieldId": 138145,
+          "referencedFieldId": 138127
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RHBaRFpw",
+          "dataType": "reference",
+          "label": "Cost Center Name",
+          "relationFieldId": 138145,
+          "referencedFieldId": 138128
+        },
+        "environment_code": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RHBERFpw",
+          "dataType": "reference",
+          "label": "Environment Code",
+          "relationFieldId": 138145,
+          "referencedFieldId": 138132
+        },
+        "state_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2tacGNO",
+          "dataType": "external_relation",
+          "label": "State Code",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.state_code"
+        },
+        "buyer_gst": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cHBka2dk",
+          "dataType": "external_relation",
+          "label": "Buyer GST",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.gst_provisional_id",
+          "readOnly": true
+        },
+        "buyer_billing_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cGRka2dk",
+          "dataType": "string",
+          "label": "Buyer Billing Address"
+        },
+        "buyer_shipping_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cGRja2dk",
+          "dataType": "string",
+          "label": "Buyer Shipping Address"
+        },
+        "vendor_gst": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cFpna2dk",
+          "dataType": "external_relation",
+          "label": "Vendor GST",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no"
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cE5Ea2dk",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.name",
+          "readOnly": true
+        },
+        "vendor_address": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cGNwa2dk",
+          "dataType": "external_relation",
+          "label": "Vendor Address",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.address",
+          "readOnly": true
+        },
+        "vendor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cFpra2dk",
+          "dataType": "external_relation",
+          "label": "Vendor Email ID",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.email",
+          "readOnly": true
+        },
+        "po_remark": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZGtRa1hw",
+          "dataType": "string",
+          "label": "PO Remark"
+        },
+        "supplier_tax_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZERja1hw",
+          "dataType": "external_relation",
+          "label": "Supplier Third number",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.misc->>'supplier_third_number'",
+          "readOnly": true
+        },
+        "expected_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cGtYa2dk",
+          "dataType": "date",
+          "label": "Expected Delivery Date",
+          "format": "DD-MM-YYYY",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "greater_than_current_date",
+              "configuration": {
+                "value": true
+              },
+              "error_message": "Only future dates are allowed",
+              "severity": null
+            }
+          ]
+        },
+        "expense_period_start_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cERra2dk",
+          "dataType": "date",
+          "label": "Expense Period Start Date"
+        },
+        "expense_period_end_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Tmdra2dk",
+          "dataType": "date",
+          "label": "Expense Period End Date",
+          "validations": [
+            {
+              "rule_type": "same_datasource",
+              "operator": "greater_than_or_equals",
+              "configuration": {
+                "field_key": "expense_period_start_date"
+              },
+              "error_message": "Expense Period End Date cannot be earlier than Expense Period Start Date",
+              "severity": "error"
+            }
+          ]
+        },
+        "currency": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cGNka2dk",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ]
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZGNYa1hw",
+          "dataType": "rollup",
+          "label": "Total Amount",
+          "aggregation": "sum"
+        },
+        "total_quantity": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZE5Ra1hw",
+          "dataType": "rollup",
+          "label": "Total Quantity",
+          "aggregation": "sum"
+        },
+        "legistify_contract_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZE5na1hw",
+          "dataType": "string",
+          "label": "Legistify contract number"
+        },
+        "legistify_contract_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZE5ra1hw",
+          "dataType": "date",
+          "label": "Legistify contract date"
+        },
+        "requestor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZHBaa1hw",
+          "dataType": "string",
+          "label": "Requestor Name",
+          "readOnly": true
+        },
+        "requestor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2taRFhr",
+          "dataType": "string",
+          "label": "Requestor Email ID",
+          "readOnly": true
+        },
+        "exchange_rate": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cFhra2dk",
+          "dataType": "number",
+          "label": "Exchange Rate",
+          "readOnly": true
+        },
+        "approval_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cFpRa2dk",
+          "dataType": "dropdown_select",
+          "label": "Approval Status",
+          "options": [
+            "Approval not required",
+            "Approval pending",
+            "Approval Completed",
+            "Approval Expired",
+            "Approval Rejected",
+            "Approval Withdrawn"
+          ],
+          "readOnly": true
+        },
+        "goods_receipt_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cFpOa2dk",
+          "dataType": "inverse_relation",
+          "label": "Goods Receipt Notes"
+        },
+        "inverse_relation": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TmdRa2dk",
+          "dataType": "inverse_relation",
+          "label": "PO Line Items"
+        },
+        "po_and_invoice": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Tlpja2dk",
+          "dataType": "inverse_relation",
+          "label": "PO and Invoice"
+        },
+        "accrual": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZGtna1hw",
+          "dataType": "inverse_relation",
+          "label": "Accrual"
+        },
+        "bills": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWRaRGta",
+          "dataType": "inverse_relation",
+          "label": "Bills"
+        },
+        "total_amount_with_tolerance": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z0RRTmdE",
+          "dataType": "formula",
+          "label": "Total Amount with Tolerance",
+          "readOnly": true
+        },
+        "matched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWNYRGta",
+          "dataType": "number",
+          "label": "Matched Amount",
+          "readOnly": true
+        },
+        "unmatched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWtnRGta",
+          "dataType": "formula",
+          "label": "Unmatched Amount",
+          "readOnly": true
+        },
+        "billing_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWtrRGta",
+          "dataType": "dropdown_select",
+          "label": "Billing Status",
+          "options": [
+            "Open",
+            "Closed"
+          ],
+          "readOnly": true
+        },
+        "linked_credit_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cGNwRGRk",
+          "dataType": "inverse_relation",
+          "label": "Credit Notes"
+        },
+        "team": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z3BjcERE",
+          "dataType": "external_relation",
+          "label": "Team",
+          "relatedDatasourceTable": "teams",
+          "readOnly": true
+        },
+        "other_attachments": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RFhacGRY",
+          "dataType": "attachment",
+          "label": "Other Attachments"
+        }
+      },
+      "submitAutomationUuid": "a05jcFo=",
+      "role": "header",
+      "lineItemKeyAttribute": "p2p_po_line_item",
+      "approvalFlowUuid": "Y0RacGM=",
+      "approvalFlowName": "General PO approvals"
+    },
+    "p2p_po_line_item": {
+      "uuid": "ZERrWlo=",
+      "keyAttribute": "p2p_po_line_item",
+      "displayName": "PO Line Item",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "item_no": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGNOa2dk",
+          "dataType": "number",
+          "label": "Item No."
+        },
+        "item_description": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGdwa2dk",
+          "dataType": "string",
+          "label": "Item Description"
+        },
+        "sac_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a1FOa2dk",
+          "dataType": "number",
+          "label": "HSN Code"
+        },
+        "nature_of_expense": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a1FkRE5j",
+          "dataType": "relational",
+          "label": "Nature of expense",
+          "relatedDatasourceId": 13452
+        },
+        "transaction_category": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZGNaa1hw",
+          "dataType": "dropdown_select",
+          "label": "Transaction Category",
+          "options": [
+            "Goods",
+            "Service"
+          ]
+        },
+        "qty": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGNna2dk",
+          "dataType": "number",
+          "label": "Qty",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "greater_than_or_equals",
+              "configuration": {
+                "value": 0,
+                "trigger_on_load": true
+              },
+              "error_message": "Qty must be non-negative",
+              "severity": null
+            }
+          ]
+        },
+        "uom": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RFpEa2dk",
+          "dataType": "external_relation",
+          "label": "UOM",
+          "relatedDatasourceTable": "units"
+        },
+        "unit_price": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2REa2dk",
+          "dataType": "number",
+          "label": "Unit Price",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "greater_than_or_equals",
+              "configuration": {
+                "value": 0,
+                "trigger_on_load": true
+              },
+              "error_message": "Unit Price must be non-negative",
+              "severity": null
+            }
+          ]
+        },
+        "base_price": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a1FRa2dk",
+          "dataType": "formula",
+          "label": "Base Price",
+          "readOnly": true
+        },
+        "gst_type": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "TmtRcFFR",
+          "dataType": "dropdown_select",
+          "label": "GST Type",
+          "options": [
+            "IGST",
+            "CGST/SGST"
+          ],
+          "readOnly": true
+        },
+        "gst_rate": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TkRjcFFR",
+          "dataType": "external_relation",
+          "label": "GST Rate",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.gst_rate"
+        },
+        "tax_amount": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2RYa2dk",
+          "dataType": "formula",
+          "label": "Tax Amount",
+          "readOnly": true
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGdja2dk",
+          "dataType": "formula",
+          "label": "Total Amount",
+          "readOnly": true
+        },
+        "purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGNRa2dk",
+          "dataType": "relational",
+          "label": "Purchase Order",
+          "relatedDatasourceId": 10056
+        },
+        "currency": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGdka2dk",
+          "dataType": "reference",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ],
+          "relationFieldId": 102469,
+          "referencedFieldId": 102502
+        },
+        "inverse_relation": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1Fna2dk",
+          "dataType": "inverse_relation",
+          "label": "GRN Line Items"
+        },
+        "invoice_line_items_ref": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1Fra2dk",
+          "dataType": "inverse_relation",
+          "label": "Invoice Line Items"
+        },
+        "accrual_line_item": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZFpka1hw",
+          "dataType": "inverse_relation",
+          "label": "Accrual Line Item"
+        },
+        "ica_label": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGdaRE5j",
+          "dataType": "reference",
+          "label": "ICA label",
+          "relationFieldId": 153792,
+          "referencedFieldId": 138169,
+          "readOnly": true
+        },
+        "linked_credit_note_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cGNjRGRk",
+          "dataType": "inverse_relation",
+          "label": "Credit Note Line Items",
+          "readOnly": true
+        }
+      },
+      "role": "lineItem",
+      "parentKeyAttribute": "p2p_purchase_order",
+      "parentLinkField": "purchase_order"
+    },
+    "p2p_rent_purchase_order": {
+      "uuid": "WlprWmM=",
+      "keyAttribute": "p2p_rent_purchase_order",
+      "displayName": "Rent Purchase Order",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "po_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "UURwa2dk",
+          "dataType": "string",
+          "label": "PO Number",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "is_unique",
+              "configuration": {},
+              "error_message": "PO Number must be unique",
+              "severity": "error"
+            }
+          ]
+        },
+        "status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "UXBaa2dk",
+          "dataType": "dropdown_select",
+          "label": "PO Status",
+          "options": [
+            "Draft",
+            "In Approval",
+            "Submitted",
+            "Released",
+            "Acknowledged",
+            "On Hold",
+            "On Hold for Revision",
+            "Closed",
+            "Short Closed",
+            "Cancelled",
+            "Approval Rejected"
+          ],
+          "readOnly": true
+        },
+        "po_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZE5aa2dk",
+          "dataType": "date",
+          "label": "PO Date"
+        },
+        "linked_cost_center": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RFhwRFpw",
+          "dataType": "relational",
+          "label": "Linked Cost Center",
+          "relatedDatasourceId": 13451
+        },
+        "entity_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UXBRa1hw",
+          "dataType": "reference",
+          "label": "Entity Name",
+          "relationFieldId": 138151,
+          "referencedFieldId": 138127
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RFhkRFpw",
+          "dataType": "reference",
+          "label": "Cost Center Name",
+          "relationFieldId": 138151,
+          "referencedFieldId": 138128
+        },
+        "environment_code": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGRaRFpw",
+          "dataType": "reference",
+          "label": "Environment Code",
+          "relationFieldId": 138151,
+          "referencedFieldId": 138132
+        },
+        "state_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGRYcFhY",
+          "dataType": "external_relation",
+          "label": "State Code",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.state_code"
+        },
+        "buyer_gst": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZFFaa2dk",
+          "dataType": "external_relation",
+          "label": "Buyer GST",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.gst_provisional_id",
+          "readOnly": true
+        },
+        "buyer_billing_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "UWdOa2dk",
+          "dataType": "string",
+          "label": "Buyer Billing Address"
+        },
+        "buyer_shipping_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZFFEa2dk",
+          "dataType": "string",
+          "label": "Buyer Shipping Address"
+        },
+        "vendor_gst": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZHBwa2dk",
+          "dataType": "external_relation",
+          "label": "Vendor GST",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no"
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWdna2dk",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.name",
+          "readOnly": true
+        },
+        "vendor_address": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZFhna2dk",
+          "dataType": "external_relation",
+          "label": "Vendor Address",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.address",
+          "readOnly": true
+        },
+        "vendor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZE5Ea2dk",
+          "dataType": "external_relation",
+          "label": "Vendor Email ID",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.email",
+          "readOnly": true
+        },
+        "po_remark": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UU5ja1hw",
+          "dataType": "string",
+          "label": "PO Remark"
+        },
+        "supplier_tax_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UVFja1hw",
+          "dataType": "external_relation",
+          "label": "Supplier Third number",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.misc->>'supplier_third_number'",
+          "readOnly": true
+        },
+        "expected_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWNaa2dk",
+          "dataType": "date",
+          "label": "Expected Delivery Date",
+          "format": "DD-MM-YYYY",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "greater_than_current_date",
+              "configuration": {
+                "value": true
+              },
+              "error_message": "Only future dates are allowed",
+              "severity": null
+            }
+          ]
+        },
+        "expense_period_start_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWtna2dk",
+          "dataType": "date",
+          "label": "Expense Period Start Date"
+        },
+        "expense_period_end_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWtOa2dk",
+          "dataType": "date",
+          "label": "Expense Period End Date",
+          "validations": [
+            {
+              "rule_type": "same_datasource",
+              "operator": "greater_than_or_equals",
+              "configuration": {
+                "field_key": "expense_period_start_date"
+              },
+              "error_message": "Expense Period End Date cannot be earlier than Expense Period Start Date",
+              "severity": "error"
+            }
+          ]
+        },
+        "currency": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "ZHBka2dk",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ]
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UUREa1hw",
+          "dataType": "rollup",
+          "label": "Total Amount",
+          "aggregation": "sum"
+        },
+        "total_quantity": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWRRa1hw",
+          "dataType": "rollup",
+          "label": "Total Quantity",
+          "aggregation": "sum"
+        },
+        "legistify_contract_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWRna1hw",
+          "dataType": "string",
+          "label": "Legistify contract number"
+        },
+        "legistify_contract_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWRra1hw",
+          "dataType": "date",
+          "label": "Legistify contract date"
+        },
+        "requestor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UVhaa1hw",
+          "dataType": "string",
+          "label": "Requestor Name",
+          "readOnly": true
+        },
+        "rent_purchase_order_inverse_6839": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UXBra1hw",
+          "dataType": "inverse_relation",
+          "label": "Inverse Relation"
+        },
+        "inverse_relation": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UURka2dk",
+          "dataType": "inverse_relation",
+          "label": "PO Line Items"
+        },
+        "bills": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a3BwTlpn",
+          "dataType": "inverse_relation",
+          "label": "Bills"
+        },
+        "accrual": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UURYa1hw",
+          "dataType": "inverse_relation",
+          "label": "Accrual"
+        },
+        "exchange_rate": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "ZFhRa2dk",
+          "dataType": "number",
+          "label": "Exchange Rate",
+          "readOnly": true
+        },
+        "approval_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UXBYa2dk",
+          "dataType": "dropdown_select",
+          "label": "Approval Status",
+          "options": [
+            "Approval not required",
+            "Approval pending",
+            "Approval Completed",
+            "Approval Expired",
+            "Approval Rejected",
+            "Approval Withdrawn"
+          ],
+          "readOnly": true
+        },
+        "requestor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TkRkRGRk",
+          "dataType": "string",
+          "label": "Requestor Email ID",
+          "readOnly": true
+        },
+        "goods_receipt_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TnBaRGRk",
+          "dataType": "inverse_relation",
+          "label": "Goods Receipt Notes"
+        },
+        "linked_credit_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TkRjRGRk",
+          "dataType": "inverse_relation",
+          "label": "Credit Notes"
+        },
+        "team": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z3BwcERE",
+          "dataType": "external_relation",
+          "label": "Team",
+          "relatedDatasourceTable": "teams",
+          "readOnly": true
+        },
+        "total_amount_with_tolerance": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a0ROTlpn",
+          "dataType": "formula",
+          "label": "Total Amount with Tolerance",
+          "readOnly": true
+        },
+        "matched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a0RrTlpn",
+          "dataType": "number",
+          "label": "Matched Amount",
+          "readOnly": true
+        },
+        "unmatched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a0RRTlpn",
+          "dataType": "formula",
+          "label": "Unmatched Amount",
+          "readOnly": true
+        },
+        "billing_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a3BjTlpn",
+          "dataType": "dropdown_select",
+          "label": "Billing Status",
+          "options": [
+            "Open",
+            "Closed"
+          ],
+          "readOnly": true
+        },
+        "other_attachments": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGtacGRk",
+          "dataType": "attachment",
+          "label": "Other Attachments"
+        }
+      },
+      "submitAutomationUuid": "RGNjcFo=",
+      "role": "header",
+      "lineItemKeyAttribute": "p2p_bill"
+    },
+    "p2p_bill": {
+      "uuid": "Z3BrWmM=",
+      "keyAttribute": "p2p_bill",
+      "displayName": "Bill",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "bill_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UXBYRGta",
+          "dataType": "string",
+          "label": "Bill Number",
+          "readOnly": true
+        },
+        "bill_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UU5nRGta",
+          "dataType": "date",
+          "label": "Bill Date",
+          "readOnly": true
+        },
+        "vendor": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UU5rRGta",
+          "dataType": "external_relation",
+          "label": "Vendor",
+          "relatedDatasourceTable": "companies",
+          "readOnly": true
+        },
+        "invoice": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UVhkRGta",
+          "dataType": "relational",
+          "label": "Invoice",
+          "relatedDatasourceId": 10062,
+          "readOnly": true
+        },
+        "purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWRERGta",
+          "dataType": "relational",
+          "label": "Purchase Order",
+          "relatedDatasourceId": 10056,
+          "readOnly": true
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UU5ORGta",
+          "dataType": "number",
+          "label": "Total Amount",
+          "readOnly": true
+        },
+        "matching_status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "UU5RRGta",
+          "dataType": "dropdown_select",
+          "label": "Matching Status",
+          "options": [
+            "Matching in Progress",
+            "Mismatched",
+            "Bill Matched"
+          ],
+          "readOnly": true
+        },
+        "remarks": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UVhjRGta",
+          "dataType": "text",
+          "label": "Remarks",
+          "readOnly": true
+        },
+        "bill_grn_consumptions": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGdERE5j",
+          "dataType": "inverse_relation",
+          "label": "Bill GRN Consumption",
+          "relatedDatasourceId": 15090,
+          "readOnly": true
+        },
+        "approval_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2tEcGNO",
+          "dataType": "dropdown_select",
+          "label": "Approval Status",
+          "options": [
+            "Approval not required",
+            "Approval pending",
+            "Approval Completed",
+            "Approval Expired",
+            "Approval Rejected",
+            "Approval Withdrawn"
+          ],
+          "readOnly": true
+        },
+        "grns": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWRYRGta",
+          "dataType": "inverse_relation",
+          "label": "GRNs",
+          "readOnly": true
+        },
+        "rent_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a3BkTlpn",
+          "dataType": "relational",
+          "label": "Rent Purchase Order",
+          "relatedDatasourceId": 10063
+        },
+        "gift_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1hOTlpn",
+          "dataType": "relational",
+          "label": "Gift Purchase Order",
+          "relatedDatasourceId": 10065
+        },
+        "candex_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1FETlpn",
+          "dataType": "relational",
+          "label": "Candex Purchase Order",
+          "relatedDatasourceId": 10069
+        }
+      },
+      "role": "lineItem",
+      "parentKeyAttribute": "p2p_candex_purchase_order",
+      "parentLinkField": "purchase_order"
+    },
+    "p2p_gift_purchase_order": {
+      "uuid": "WlhrWmM=",
+      "keyAttribute": "p2p_gift_purchase_order",
+      "displayName": "Gift Purchase Order",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "po_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z1Fja2dR",
+          "dataType": "string",
+          "label": "PO Number",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "is_unique",
+              "configuration": {},
+              "error_message": "PO Number must be unique",
+              "severity": "error"
+            }
+          ]
+        },
+        "status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z1Fwa2dR",
+          "dataType": "dropdown_select",
+          "label": "PO Status",
+          "options": [
+            "Draft",
+            "In Approval",
+            "Submitted",
+            "Released",
+            "Acknowledged",
+            "On Hold",
+            "On Hold for Revision",
+            "Closed",
+            "Short Closed",
+            "Cancelled",
+            "Approval Rejected"
+          ],
+          "readOnly": true
+        },
+        "po_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z2dka2dR",
+          "dataType": "date",
+          "label": "PO Date"
+        },
+        "linked_cost_center": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RFFrRFpw",
+          "dataType": "relational",
+          "label": "Linked Cost Center",
+          "relatedDatasourceId": 13451
+        },
+        "entity_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2Nka1hO",
+          "dataType": "reference",
+          "label": "Entity Name",
+          "relationFieldId": 138157,
+          "referencedFieldId": 138127
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RFFORFpw",
+          "dataType": "reference",
+          "label": "Cost Center Name",
+          "relationFieldId": 138157,
+          "referencedFieldId": 138128
+        },
+        "environment_code": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RFFRRFpw",
+          "dataType": "reference",
+          "label": "Environment Code",
+          "relationFieldId": 138157,
+          "referencedFieldId": 138132
+        },
+        "state_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RFFncFhY",
+          "dataType": "external_relation",
+          "label": "State Code",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.state_code"
+        },
+        "buyer_gst": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2tka2dR",
+          "dataType": "external_relation",
+          "label": "Buyer GST",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.gst_provisional_id",
+          "readOnly": true
+        },
+        "buyer_billing_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z3Bra2dR",
+          "dataType": "string",
+          "label": "Buyer Billing Address"
+        },
+        "buyer_shipping_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z0Raa2dR",
+          "dataType": "string",
+          "label": "Buyer Shipping Address"
+        },
+        "vendor_gst": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z2dja2dR",
+          "dataType": "external_relation",
+          "label": "Vendor GST",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no",
+          "validations": [
+            {
+              "rule_type": "external_relation_attribute",
+              "operator": "contains",
+              "configuration": {
+                "related_table": "companies",
+                "attribute_path": [
+                  "misc",
+                  "vendor_category"
+                ],
+                "expected_value": 2
+              },
+              "error_message": "Selected vendor is not enabled for Gift POs.",
+              "severity": "error"
+            }
+          ]
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z0RYa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.name",
+          "readOnly": true
+        },
+        "vendor_address": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1pYa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Address",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.address",
+          "readOnly": true
+        },
+        "vendor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1paa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Email ID",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.email",
+          "readOnly": true
+        },
+        "po_remark": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2taa1hO",
+          "dataType": "string",
+          "label": "PO Remark"
+        },
+        "supplier_tax_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2tEa1hO",
+          "dataType": "external_relation",
+          "label": "Supplier Third number",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.misc->>'supplier_third_number'",
+          "readOnly": true
+        },
+        "expected_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z05ka2dR",
+          "dataType": "date",
+          "label": "Expected Delivery Date",
+          "format": "DD-MM-YYYY",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "greater_than_current_date",
+              "configuration": {
+                "value": true
+              },
+              "error_message": "Only future dates are allowed",
+              "severity": null
+            }
+          ]
+        },
+        "expense_period_start_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1hYa2dR",
+          "dataType": "date",
+          "label": "Expense Period Start Date"
+        },
+        "expense_period_end_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2Rra2dR",
+          "dataType": "date",
+          "label": "Expense Period End Date",
+          "validations": [
+            {
+              "rule_type": "same_datasource",
+              "operator": "greater_than_or_equals",
+              "configuration": {
+                "field_key": "expense_period_start_date"
+              },
+              "error_message": "Expense Period End Date cannot be earlier than Expense Period Start Date",
+              "severity": "error"
+            }
+          ]
+        },
+        "currency": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z2dwa2dR",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ]
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1pna1hO",
+          "dataType": "rollup",
+          "label": "Total Amount",
+          "aggregation": "sum"
+        },
+        "total_quantity": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z3Bka1hO",
+          "dataType": "rollup",
+          "label": "Total Quantity",
+          "aggregation": "sum"
+        },
+        "legistify_contract_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z3Bja1hO",
+          "dataType": "string",
+          "label": "Legistify contract number"
+        },
+        "legistify_contract_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z3Bwa1hO",
+          "dataType": "date",
+          "label": "Legistify contract date"
+        },
+        "requestor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z0Rra1hO",
+          "dataType": "string",
+          "label": "Requestor Name",
+          "readOnly": true
+        },
+        "gift_purchase_order_inverse_6839": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1pRa1hO",
+          "dataType": "inverse_relation",
+          "label": "Inverse Relation"
+        },
+        "inverse_relation": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1Fka2dR",
+          "dataType": "inverse_relation",
+          "label": "PO Line Items"
+        },
+        "bills": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1hrTlpn",
+          "dataType": "inverse_relation",
+          "label": "Bills"
+        },
+        "accrual": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1pra1hO",
+          "dataType": "inverse_relation",
+          "label": "Accrual"
+        },
+        "exchange_rate": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2NOa2dR",
+          "dataType": "number",
+          "label": "Exchange Rate",
+          "readOnly": true
+        },
+        "approval_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WnBYa1pn",
+          "dataType": "dropdown_select",
+          "label": "Approval Status",
+          "options": [
+            "Approval not required",
+            "Approval pending",
+            "Approval Completed",
+            "Approval Expired",
+            "Approval Rejected",
+            "Approval Withdrawn"
+          ],
+          "readOnly": true
+        },
+        "requestor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Tk5ORGRk",
+          "dataType": "string",
+          "label": "Requestor Email ID",
+          "readOnly": true
+        },
+        "goods_receipt_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TnBYRGRk",
+          "dataType": "inverse_relation",
+          "label": "Goods Receipt Notes"
+        },
+        "linked_credit_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Tk5nRGRk",
+          "dataType": "inverse_relation",
+          "label": "Credit Notes"
+        },
+        "team": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z3BkcERE",
+          "dataType": "external_relation",
+          "label": "Team",
+          "relatedDatasourceTable": "teams",
+          "readOnly": true
+        },
+        "total_amount_with_tolerance": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a05ETlpn",
+          "dataType": "formula",
+          "label": "Total Amount with Tolerance",
+          "readOnly": true
+        },
+        "matched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a05aTlpn",
+          "dataType": "number",
+          "label": "Matched Amount",
+          "readOnly": true
+        },
+        "unmatched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a05YTlpn",
+          "dataType": "formula",
+          "label": "Unmatched Amount",
+          "readOnly": true
+        },
+        "billing_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1hnTlpn",
+          "dataType": "dropdown_select",
+          "label": "Billing Status",
+          "options": [
+            "Open",
+            "Closed"
+          ],
+          "readOnly": true
+        },
+        "other_attachments": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGtYcGRk",
+          "dataType": "attachment",
+          "label": "Other Attachments"
+        }
+      },
+      "submitAutomationUuid": "cERjcFo=",
+      "role": "header",
+      "lineItemKeyAttribute": "p2p_bill"
+    },
+    "p2p_candex_purchase_order": {
+      "uuid": "Y1FrWmM=",
+      "keyAttribute": "p2p_candex_purchase_order",
+      "displayName": "Candex Purchase Order",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "po_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Y2tRa2dR",
+          "dataType": "string",
+          "label": "PO Number",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "is_unique",
+              "configuration": {},
+              "error_message": "PO Number must be unique",
+              "severity": "error"
+            }
+          ]
+        },
+        "status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Y0Rja2dR",
+          "dataType": "dropdown_select",
+          "label": "PO Status",
+          "options": [
+            "Draft",
+            "In Approval",
+            "Submitted",
+            "Released",
+            "Acknowledged",
+            "On Hold",
+            "On Hold for Revision",
+            "Closed",
+            "Short Closed",
+            "Cancelled",
+            "Approval Rejected"
+          ],
+          "readOnly": true
+        },
+        "po_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WnBja2dR",
+          "dataType": "date",
+          "label": "PO Date"
+        },
+        "linked_cost_center": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cFpaRFpw",
+          "dataType": "relational",
+          "label": "Linked Cost Center",
+          "relatedDatasourceId": 13451
+        },
+        "entity_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1FYa1hO",
+          "dataType": "reference",
+          "label": "Entity Name",
+          "relationFieldId": 138163,
+          "referencedFieldId": 138127
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cFpERFpw",
+          "dataType": "reference",
+          "label": "Cost Center Name",
+          "relationFieldId": 138163,
+          "referencedFieldId": 138128
+        },
+        "environment_code": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cFpYRFpw",
+          "dataType": "reference",
+          "label": "Environment Code",
+          "relationFieldId": 138163,
+          "referencedFieldId": 138132
+        },
+        "state_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RFFrcFhY",
+          "dataType": "external_relation",
+          "label": "State Code",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.state_code"
+        },
+        "buyer_gst": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WmRja2dR",
+          "dataType": "external_relation",
+          "label": "Buyer GST",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.gst_provisional_id",
+          "readOnly": true
+        },
+        "buyer_billing_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WlFYa2dR",
+          "dataType": "string",
+          "label": "Buyer Billing Address"
+        },
+        "buyer_shipping_address": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WmRwa2dR",
+          "dataType": "string",
+          "label": "Buyer Shipping Address"
+        },
+        "vendor_gst": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WkROa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor GST",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no"
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WlFaa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.name",
+          "readOnly": true
+        },
+        "vendor_address": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Wk5aa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Address",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.address",
+          "readOnly": true
+        },
+        "vendor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WnBwa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Email ID",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.email",
+          "readOnly": true
+        },
+        "po_remark": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Wmdna1hO",
+          "dataType": "string",
+          "label": "PO Remark"
+        },
+        "supplier_tax_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WmNEa1hO",
+          "dataType": "external_relation",
+          "label": "Supplier Third number",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.misc->>'supplier_third_number'",
+          "readOnly": true
+        },
+        "expected_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1pja2dR",
+          "dataType": "date",
+          "label": "Expected Delivery Date",
+          "format": "DD-MM-YYYY",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "greater_than_current_date",
+              "configuration": {
+                "value": true
+              },
+              "error_message": "Only future dates are allowed",
+              "severity": null
+            }
+          ]
+        },
+        "expense_period_start_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2NEa2dR",
+          "dataType": "date",
+          "label": "Expense Period Start Date"
+        },
+        "expense_period_end_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2tna2dR",
+          "dataType": "date",
+          "label": "Expense Period End Date",
+          "validations": [
+            {
+              "rule_type": "same_datasource",
+              "operator": "greater_than_or_equals",
+              "configuration": {
+                "field_key": "expense_period_start_date"
+              },
+              "error_message": "Expense Period End Date cannot be earlier than Expense Period Start Date",
+              "severity": "error"
+            }
+          ]
+        },
+        "currency": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WkRRa2dR",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ]
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1hOa1hO",
+          "dataType": "rollup",
+          "label": "Total Amount",
+          "aggregation": "sum"
+        },
+        "total_quantity": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WmNaa1hO",
+          "dataType": "rollup",
+          "label": "Total Quantity",
+          "aggregation": "sum"
+        },
+        "legistify_contract_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Wlpka1hO",
+          "dataType": "string",
+          "label": "Legistify contract number"
+        },
+        "legistify_contract_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2Rka1hO",
+          "dataType": "date",
+          "label": "Legistify contract date"
+        },
+        "requestor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WmdRa1hO",
+          "dataType": "string",
+          "label": "Requestor Name",
+          "readOnly": true
+        },
+        "candex_purchase_order_inverse_6839": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2Rwa1hO",
+          "dataType": "inverse_relation",
+          "label": "Inverse Relation"
+        },
+        "inverse_relation": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0Rwa2dR",
+          "dataType": "inverse_relation",
+          "label": "PO Line Items"
+        },
+        "bills": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1FaTlpn",
+          "dataType": "inverse_relation",
+          "label": "Bills"
+        },
+        "accrual": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1hRa1hO",
+          "dataType": "inverse_relation",
+          "label": "Accrual"
+        },
+        "exchange_rate": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Wlhna2dR",
+          "dataType": "number",
+          "label": "Exchange Rate",
+          "readOnly": true
+        },
+        "approval_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Wk5na1pn",
+          "dataType": "dropdown_select",
+          "label": "Approval Status",
+          "options": [
+            "Approval not required",
+            "Approval pending",
+            "Approval Completed",
+            "Approval Expired",
+            "Approval Rejected",
+            "Approval Withdrawn"
+          ],
+          "readOnly": true
+        },
+        "requestor_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlhkRGRk",
+          "dataType": "string",
+          "label": "Requestor Email ID",
+          "readOnly": true
+        },
+        "goods_receipt_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TmRaRGRk",
+          "dataType": "inverse_relation",
+          "label": "Goods Receipt Notes"
+        },
+        "linked_credit_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlhjRGRk",
+          "dataType": "inverse_relation",
+          "label": "Credit Notes"
+        },
+        "team": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z05acERE",
+          "dataType": "external_relation",
+          "label": "Team",
+          "relatedDatasourceTable": "teams",
+          "readOnly": true
+        },
+        "total_amount_with_tolerance": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2RjTlpn",
+          "dataType": "formula",
+          "label": "Total Amount with Tolerance",
+          "readOnly": true
+        },
+        "matched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1hRTlpn",
+          "dataType": "number",
+          "label": "Matched Amount",
+          "readOnly": true
+        },
+        "unmatched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2RwTlpn",
+          "dataType": "formula",
+          "label": "Unmatched Amount",
+          "readOnly": true
+        },
+        "billing_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2RkTlpn",
+          "dataType": "dropdown_select",
+          "label": "Billing Status",
+          "options": [
+            "Open",
+            "Closed"
+          ],
+          "readOnly": true
+        },
+        "other_attachments": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RERrcGRk",
+          "dataType": "attachment",
+          "label": "Other Attachments"
+        }
+      },
+      "submitAutomationUuid": "TmtjcFo=",
+      "role": "header",
+      "lineItemKeyAttribute": "p2p_bill"
+    },
+    "p2p_cost_center": {
+      "uuid": "WHBEWms=",
+      "keyAttribute": "p2p_cost_center",
+      "displayName": "Cost Unit",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "cost_center_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGtORFpw",
+          "dataType": "string",
+          "label": "Cost Center Code",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "is_unique",
+              "configuration": {
+                "value": true
+              },
+              "error_message": "Cost Center Code must be unique",
+              "severity": "error"
+            }
+          ]
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGdORFpw",
+          "dataType": "string",
+          "label": "Cost Center Name"
+        },
+        "entity_name": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGdrRFpw",
+          "dataType": "string",
+          "label": "Entity Name"
+        },
+        "entity_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGNaRFpw",
+          "dataType": "string",
+          "label": "Entity Code"
+        },
+        "environment_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RFpkRFpw",
+          "dataType": "string",
+          "label": "Environment Code"
+        },
+        "activity": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGNYRFpw",
+          "dataType": "dropdown_select",
+          "label": "Activity",
+          "options": [
+            "Store",
+            "Production",
+            "Services"
+          ]
+        },
+        "status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RERkRFpw",
+          "dataType": "dropdown_select",
+          "label": "Status",
+          "options": [
+            "Draft",
+            "Active",
+            "Inactive"
+          ],
+          "readOnly": true
+        },
+        "pnl_code": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGNERFpw",
+          "dataType": "string",
+          "label": "PnL Code"
+        },
+        "gstin": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RFpjRFpw",
+          "dataType": "string",
+          "label": "GSTIN",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "matches_regex",
+              "configuration": {
+                "pattern": "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$"
+              },
+              "error_message": "GSTIN must be in valid format",
+              "severity": "error"
+            }
+          ]
+        },
+        "address_line_1": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RFpwRFpw",
+          "dataType": "string",
+          "label": "Address Line 1"
+        },
+        "address_line_2": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGtRRFpw",
+          "dataType": "text",
+          "label": "Address Line 2"
+        },
+        "address_line_3": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RERjRFpw",
+          "dataType": "text",
+          "label": "Address Line 3"
+        },
+        "city": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGdnRFpw",
+          "dataType": "string",
+          "label": "City"
+        },
+        "state": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGdRRFpw",
+          "dataType": "string",
+          "label": "State"
+        },
+        "fp_email_id": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGtrRFpw",
+          "dataType": "string",
+          "label": "FP Email ID",
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "matches_regex",
+              "configuration": {
+                "pattern": "^[^@]+@[^@]+\\.[^@]+$"
+              },
+              "error_message": "Invalid email format",
+              "severity": "error"
+            }
+          ]
+        },
+        "expansion_manager_email_ids": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGtnRFpw",
+          "dataType": "text",
+          "label": "Expansion Manager Email IDs"
+        },
+        "purchase_orders": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RERwRFpw",
+          "dataType": "inverse_relation",
+          "label": "Purchase Orders"
+        },
+        "rent_purchase_orders": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1FaRFpw",
+          "dataType": "inverse_relation",
+          "label": "Rent Purchase Orders"
+        },
+        "gift_purchase_orders": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1FERFpw",
+          "dataType": "inverse_relation",
+          "label": "Gift Purchase Orders"
+        },
+        "candex_purchase_orders": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1FYRFpw",
+          "dataType": "inverse_relation",
+          "label": "Candex Purchase Orders"
+        },
+        "invoices": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WlFkRFpR",
+          "dataType": "inverse_relation",
+          "label": "Invoices"
+        },
+        "goods_receipt_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2dOcGRw",
+          "dataType": "inverse_relation",
+          "label": "Goods Receipt Notes"
+        },
+        "credit_notes": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cFpRRGRk",
+          "dataType": "inverse_relation",
+          "label": "Credit Notes"
+        },
+        "mapped_team": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z0RRcERE",
+          "dataType": "string",
+          "label": "Team"
+        },
+        "state_code": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2tjTlpj",
+          "dataType": "external_relation",
+          "label": "State Code",
+          "relatedDatasourceTable": "widget_data_mappings",
+          "externalReferenceName": "widget_data_mappings.state_code"
+        }
+      },
+      "submitAutomationUuid": "RGNjcEQ="
+    },
+    "p2p_nature_of_expense": {
+      "uuid": "WGREWms=",
+      "keyAttribute": "p2p_nature_of_expense",
+      "displayName": "Nature of Expense",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "ica_label": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cGNRRFpw",
+          "dataType": "string",
+          "label": "ICA Label"
+        },
+        "ica_account": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "cGtjRFpw",
+          "dataType": "string",
+          "label": "ICA Account"
+        },
+        "sub_ica": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cGtwRFpw",
+          "dataType": "string",
+          "label": "Sub ICA"
+        },
+        "provision_ica": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cERaRFpw",
+          "dataType": "string",
+          "label": "Provision ICA"
+        },
+        "provision_sub_ica": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cERERFpw",
+          "dataType": "string",
+          "label": "Provision Sub ICA"
+        },
+        "status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "cERYRFpw",
+          "dataType": "dropdown_select",
+          "label": "Status",
+          "options": [
+            "Draft",
+            "Active",
+            "Inactive"
+          ],
+          "readOnly": true
+        },
+        "grn_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1pwcGRw",
+          "dataType": "inverse_relation",
+          "label": "GRN Line Items"
+        },
+        "po_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGNkRE5j",
+          "dataType": "inverse_relation",
+          "label": "PO Line Items"
+        },
+        "rent_po_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGtaRE5j",
+          "dataType": "inverse_relation",
+          "label": "Rent PO Line Items"
+        },
+        "gift_po_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGtERE5j",
+          "dataType": "inverse_relation",
+          "label": "Gift PO Line Items"
+        },
+        "candex_po_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGtYRE5j",
+          "dataType": "inverse_relation",
+          "label": "Candex PO Line Items"
+        },
+        "invoice_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WE5kRGRk",
+          "dataType": "inverse_relation",
+          "label": "Invoice Line Items"
+        },
+        "credit_note_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WFhaRGRk",
+          "dataType": "inverse_relation",
+          "label": "Credit Note Line Items"
+        }
+      },
+      "submitAutomationUuid": "a1FjcEQ="
+    },
+    "p2p_grn": {
+      "uuid": "a3BrWmM=",
+      "keyAttribute": "p2p_grn",
+      "displayName": "Goods Receipt Note",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "grn_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2NOa2dR",
+          "dataType": "string",
+          "label": "GRN Number",
+          "readOnly": true,
+          "validations": [
+            {
+              "rule_type": "input_type",
+              "operator": "is_unique",
+              "configuration": {
+                "value": false
+              },
+              "error_message": "Value must be unique",
+              "severity": "error"
+            }
+          ]
+        },
+        "grn_creation_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2NOTlpj",
+          "dataType": "date",
+          "label": "GRN Creation Date",
+          "readOnly": true
+        },
+        "status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a1pEa2dR",
+          "dataType": "dropdown_select",
+          "label": "Status",
+          "options": [
+            "Draft",
+            "Submitted",
+            "Posted",
+            "Under Amendment"
+          ],
+          "readOnly": true
+        },
+        "grn_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2dja2dR",
+          "dataType": "date",
+          "label": "GRN Date"
+        },
+        "purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1Fra2dR",
+          "dataType": "relational",
+          "label": "Purchase Order",
+          "relatedDatasourceId": 10056,
+          "readOnly": true
+        },
+        "rent_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TmtRa2Nn",
+          "dataType": "relational",
+          "label": "Rent Purchase Order",
+          "relatedDatasourceId": 10063
+        },
+        "gift_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TkRwa2Nn",
+          "dataType": "relational",
+          "label": "Gift Purchase Order",
+          "relatedDatasourceId": 10065
+        },
+        "candex_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TnBaa2Nn",
+          "dataType": "relational",
+          "label": "Candex Purchase Order",
+          "relatedDatasourceId": 10069
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Y1Fna2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies",
+          "readOnly": true
+        },
+        "vendor_gstin": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2Nna2dR",
+          "dataType": "external_relation",
+          "label": "Vendor GSTIN",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no",
+          "readOnly": true
+        },
+        "plant_location": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Y1FRa2dR",
+          "dataType": "text",
+          "label": "Plant / Location"
+        },
+        "matching_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1pYa2dR",
+          "dataType": "string",
+          "label": "Matching Status",
+          "readOnly": true
+        },
+        "attachment": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a1paa2dR",
+          "dataType": "attachment",
+          "label": "Proof of Delivery (Attachment)"
+        },
+        "invoice": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WkRja1hO",
+          "dataType": "relational",
+          "label": "Invoice",
+          "relatedDatasourceId": 10062
+        },
+        "currency": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WkRka1hO",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ],
+          "readOnly": true
+        },
+        "po_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2drcGRw",
+          "dataType": "date",
+          "label": "PO Date",
+          "readOnly": true
+        },
+        "linked_cost_center": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2dRcGRw",
+          "dataType": "relational",
+          "label": "Linked Cost Center",
+          "relatedDatasourceId": 13451,
+          "readOnly": true
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1pjcGRw",
+          "dataType": "reference",
+          "label": "Cost Center Name",
+          "relationFieldId": 194729,
+          "referencedFieldId": 138128,
+          "readOnly": true
+        },
+        "transporter_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2NacGRw",
+          "dataType": "string",
+          "label": "Transporter Name"
+        },
+        "lr_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2NEcGRw",
+          "dataType": "string",
+          "label": "LR Number"
+        },
+        "matched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UXBaRGta",
+          "dataType": "number",
+          "label": "Matched Amount",
+          "readOnly": true
+        },
+        "unmatched_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UXBERGta",
+          "dataType": "formula",
+          "label": "Unmatched Amount",
+          "readOnly": true
+        },
+        "bill": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UVFnRGta",
+          "dataType": "relational",
+          "label": "Bill",
+          "relatedDatasourceId": 10061,
+          "readOnly": true
+        },
+        "bill_grn_consumptions": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RGNwRE5j",
+          "dataType": "inverse_relation",
+          "label": "Bill GRN Consumptions",
+          "relatedDatasourceId": 15090,
+          "readOnly": true
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UURkRGta",
+          "dataType": "rollup",
+          "label": "GRN Total Amount",
+          "aggregation": "sum",
+          "readOnly": true
+        },
+        "inverse_relation": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2NRa2dR",
+          "dataType": "inverse_relation",
+          "label": "GRN Line Items"
+        },
+        "accrual": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WkRwa1hO",
+          "dataType": "inverse_relation",
+          "label": "Accrual"
+        }
+      },
+      "submitAutomationUuid": "TlFjcFo="
+    },
+    "p2p_accrual": {
+      "uuid": "UVhrTlg=",
+      "keyAttribute": "p2p_accrual",
+      "displayName": "Accrual",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "accrual_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2Nna1hO",
+          "dataType": "string",
+          "label": "Accrual"
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2dja1hO",
+          "dataType": "external_relation",
+          "label": "Vendor name",
+          "relatedDatasourceTable": "companies"
+        },
+        "linked_po": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2NOa1hO",
+          "dataType": "relational",
+          "label": "Linked po",
+          "relatedDatasourceId": 10056
+        },
+        "linked_grn": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Y2Nra1hO",
+          "dataType": "relational",
+          "label": "Linked grn",
+          "relatedDatasourceId": 10071
+        },
+        "currency": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2dwa1hO",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "USD",
+            "EUR"
+          ]
+        },
+        "begin_period": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2dka1hO",
+          "dataType": "date",
+          "label": "Begin period"
+        },
+        "end_period": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1paa1hO",
+          "dataType": "date",
+          "label": "End period"
+        },
+        "created_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1pEa1hO",
+          "dataType": "date",
+          "label": "Created date"
+        },
+        "status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y1pYa1hO",
+          "dataType": "dropdown_select",
+          "label": "Status",
+          "options": [
+            "Draft",
+            "Accrued",
+            "Reversed",
+            "Partially Reversed",
+            "Exception"
+          ],
+          "readOnly": true
+        },
+        "total_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2twa1hO",
+          "dataType": "rollup",
+          "label": "Total amount",
+          "aggregation": "sum",
+          "readOnly": true
+        },
+        "accrual_amount_reversed": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2tja1hO",
+          "dataType": "rollup",
+          "label": "Accrual Amount Reversed",
+          "aggregation": "sum",
+          "readOnly": true
+        },
+        "accrual_line_items": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2NRa1hO",
+          "dataType": "inverse_relation",
+          "label": "Accrual line items"
+        },
+        "invoice_accrual_entries": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y2tka1hO",
+          "dataType": "inverse_relation",
+          "label": "Invoice Accrual Entries"
+        },
+        "linked_rent_po": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0Raa1hO",
+          "dataType": "relational",
+          "label": "Linked rent po",
+          "relatedDatasourceId": 10063
+        },
+        "linked_gift_po": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0REa1hO",
+          "dataType": "relational",
+          "label": "Linked gift po",
+          "relatedDatasourceId": 10065
+        },
+        "linked_candex_po": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y0RYa1hO",
+          "dataType": "relational",
+          "label": "Linked candex po",
+          "relatedDatasourceId": 10069
+        }
+      }
+    },
+    "p2p_credit_note": {
+      "uuid": "a2RrWmM=",
+      "keyAttribute": "p2p_credit_note",
+      "displayName": "Credit Note",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "credit_note_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2twa2dR",
+          "dataType": "string",
+          "label": "Credit Note Number"
+        },
+        "currency": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2tka2dR",
+          "dataType": "dropdown_select",
+          "label": "Currency",
+          "options": [
+            "INR",
+            "AED",
+            "AUD",
+            "BDT",
+            "BGN",
+            "CAD",
+            "CHF",
+            "CNY",
+            "EGP",
+            "EUR",
+            "GBP",
+            "HKD",
+            "IDR",
+            "JPY",
+            "LKR",
+            "SAR",
+            "SGD",
+            "USD",
+            "MYR",
+            "MVR",
+            "BHD",
+            "QAR",
+            "DZD",
+            "AOA",
+            "XCD"
+          ]
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a0REa2dR",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies"
+        },
+        "vendor_gstin": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "WlpnRGtj",
+          "dataType": "external_relation",
+          "label": "Vendor GSTIN",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no"
+        },
+        "buyer_name": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a2Rra2dR",
+          "dataType": "string",
+          "label": "Buyer Name",
+          "relatedDatasourceTable": "companies",
+          "readOnly": true
+        },
+        "buyer_gstin": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2Rna2dR",
+          "dataType": "string",
+          "label": "Buyer GSTIN"
+        },
+        "total_tax_amount": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2RRa2dR",
+          "dataType": "rollup",
+          "label": "Total Tax Amount",
+          "aggregation": "sum"
+        },
+        "reference_invoice": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Y05aRFpR",
+          "dataType": "relational",
+          "label": "Reference Invoice",
+          "relatedDatasourceId": 10062
+        },
+        "invoice_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y05ERFpR",
+          "dataType": "reference",
+          "label": "Invoice Number",
+          "relationFieldId": 139413,
+          "referencedFieldId": 102587
+        },
+        "status": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "RGdEa2dR",
+          "dataType": "dropdown_select",
+          "label": "Status",
+          "options": [
+            "Draft",
+            "In Approval",
+            "Approved",
+            "Rejected",
+            "Cancelled"
+          ]
+        },
+        "created_on": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "a3Bna2dR",
+          "dataType": "date",
+          "label": "Created On"
+        },
+        "linked_credit_note_line_item": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "UWdrRGNj",
+          "dataType": "inverse_relation",
+          "label": "Linked Credit Note Line Item"
+        },
+        "po_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y05rRHBn",
+          "dataType": "relational",
+          "label": "Link General PO",
+          "relatedDatasourceId": 10056
+        },
+        "environment_code": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Y05ORHBn",
+          "dataType": "string",
+          "label": "Environment Code"
+        },
+        "credit_note_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TmRYRGRk",
+          "dataType": "date",
+          "label": "Credit Note Date",
+          "format": "DD-MM-YYYY"
+        },
+        "po_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlFnRGRk",
+          "dataType": "date",
+          "label": "PO Date",
+          "format": "DD-MM-YYYY"
+        },
+        "credit_note_submission_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlFrRGRk",
+          "dataType": "date",
+          "label": "Date of CN submission",
+          "format": "DD-MM-YYYY"
+        },
+        "credit_note_assignment_date": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlFORGRk",
+          "dataType": "date",
+          "label": "CN assignment date",
+          "format": "DD-MM-YYYY"
+        },
+        "accounts_validation_time_stamp": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "TlFRRGRk",
+          "dataType": "date",
+          "label": "Accounts Validation Time stamp",
+          "format": "DD-MM-YYYY"
+        },
+        "remarks": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGdjRGRk",
+          "dataType": "text",
+          "label": "Remarks"
+        },
+        "ocr_extracted_data": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGdwRGRk",
+          "dataType": "text",
+          "label": "OCR Extracted Data"
+        },
+        "account_validator_s_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGdkRGRk",
+          "dataType": "string",
+          "label": "Account Validator's ID"
+        },
+        "po_validator_s_email_id": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WFpaRGRk",
+          "dataType": "string",
+          "label": "PO Validator's Email ID"
+        },
+        "supplier_tax_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WE5wRGRk",
+          "dataType": "external_relation",
+          "label": "Supplier Third number",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.misc->>'supplier_third_number'"
+        },
+        "attachment": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WFpERGRk",
+          "dataType": "attachment",
+          "label": "Attachment"
+        },
+        "invoice_type": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WFpYRGRk",
+          "dataType": "dropdown_select",
+          "label": "Category",
+          "options": [
+            "Goods",
+            "Service"
+          ]
+        },
+        "payment_terms": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGNnRGRk",
+          "dataType": "dropdown_select",
+          "label": "Payment Terms",
+          "options": [
+            "NET 15",
+            "NET 30",
+            "NET 45",
+            "NET 60",
+            "ADVANCE"
+          ]
+        },
+        "gst_input_eligibility": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGNrRGRk",
+          "dataType": "dropdown_select",
+          "label": "GST input eligibility",
+          "options": [
+            "Eligible",
+            "Ineligible"
+          ]
+        },
+        "rcm_applicable": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGNORGRk",
+          "dataType": "dropdown_select",
+          "label": "Whether covered under RCM?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "accounts_validation_status": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGNRRGRk",
+          "dataType": "dropdown_select",
+          "label": "Accounts Validation Status",
+          "options": [
+            "Not Assigned",
+            "Pending",
+            "Rejected",
+            "Validated"
+          ]
+        },
+        "gst_rate": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGtjRGRk",
+          "dataType": "dropdown_select",
+          "label": "GST Rate",
+          "options": [
+            "40%",
+            "28%",
+            "18%",
+            "12%",
+            "5%",
+            "0%"
+          ]
+        },
+        "rejection_reason": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGtwRGRk",
+          "dataType": "dropdown_select",
+          "label": "Rejection Reason",
+          "options": [
+            "NO PO number quoted on the invoice",
+            "Duplicate Invoice",
+            "Invoice is not related to Decathlon",
+            "Invoice is not signed/authenticated",
+            "Invoice number length exceeds 16 digits",
+            "Invoice number includes special characters other than / and",
+            "Invoice date is earlier than PO date",
+            "Invoice date is related to Previous year",
+            "GST Rate is incorrect",
+            "GST Type (IGST/SGST-CGST/UTGST) is incorrect",
+            "Decathlon GSTN is incorrect",
+            "Decathlon Entity Name/Address is incorrect",
+            "Decathlon entity address is incorrect",
+            "Arithmetical error - Total of Invoice is not correct",
+            "Pages are missing in the invoice",
+            "Unable to open attachment",
+            "Incorrect file format - share only PDF or images",
+            "Rejected as per request by the PO creator/Vendor",
+            "Incorrect attachment",
+            "Incorrect supplier Name/GSTN",
+            "Supplier is not registered in the system",
+            "Invoice is a Draft or Proforma Invoice",
+            "Scan Quality Poor / Unreadable",
+            "3 way Amount Mismatch (Over-billed)",
+            "Others, please specify"
+          ]
+        },
+        "rent_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WHBORGRk",
+          "dataType": "relational",
+          "label": "Rent Purchase Order",
+          "relatedDatasourceId": 10063
+        },
+        "gift_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WGtkRGRk",
+          "dataType": "relational",
+          "label": "Gift Purchase Order",
+          "relatedDatasourceId": 10065
+        },
+        "candex_purchase_order": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WERaRGRk",
+          "dataType": "relational",
+          "label": "Candex Purchase Order",
+          "relatedDatasourceId": 10069
+        },
+        "linked_cost_center": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WERERGRk",
+          "dataType": "relational",
+          "label": "Linked Cost Center",
+          "relatedDatasourceId": 13451
+        },
+        "cost_center_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WHBRRGRk",
+          "dataType": "reference",
+          "label": "Cost Center Name",
+          "relationFieldId": 162574,
+          "referencedFieldId": 138128
+        },
+        "entity_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WERYRGRk",
+          "dataType": "reference",
+          "label": "Entity Name",
+          "relationFieldId": 162574,
+          "referencedFieldId": 138127
+        },
+        "po_number_ref": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WHBnRGRk",
+          "dataType": "reference",
+          "label": "PO Number",
+          "relationFieldId": 149747,
+          "referencedFieldId": 102531
+        },
+        "total_credit_note_value": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WE5jRGRk",
+          "dataType": "rollup",
+          "label": "Total Credit Note Value",
+          "aggregation": "sum"
+        },
+        "total_tds_value": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "WHBrRGRk",
+          "dataType": "rollup",
+          "label": "Total TDS Value",
+          "aggregation": "sum"
+        }
+      },
+      "submitAutomationUuid": "ZFpjcEQ="
+    },
+    "p2p_payment": {
+      "uuid": "a0RwWFo=",
+      "keyAttribute": "p2p_payment",
+      "displayName": "Payment",
+      "fields": {
+        "sequence": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Serial No.",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "title": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Title",
+          "synthetic": true
+        },
+        "created_by_user_name": {
+          "present": true,
+          "mandatory": false,
+          "dataType": "string",
+          "label": "Created By",
+          "readOnly": true,
+          "synthetic": true
+        },
+        "utr_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z1pOcFhY",
+          "dataType": "string",
+          "label": "UTR Number"
+        },
+        "vendor_name": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "Z2dYcFhY",
+          "dataType": "external_relation",
+          "label": "Vendor Name",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.name"
+        },
+        "amount_paid": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z1prcFhY",
+          "dataType": "number",
+          "label": "Paid Amount"
+        },
+        "payment_due_date": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z1pncFhY",
+          "dataType": "date",
+          "label": "Payment Date",
+          "format": "DD-MM-YYYY"
+        },
+        "invoice_link": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "a2REcFhk",
+          "dataType": "relational",
+          "label": "Invoice",
+          "relatedDatasourceId": 10062
+        },
+        "po_number": {
+          "present": true,
+          "mandatory": false,
+          "uuid": "RFhjcFhY",
+          "dataType": "string",
+          "label": "PO Number"
+        },
+        "vendor_gstin": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z1pRcFhY",
+          "dataType": "external_relation",
+          "label": "Vendor GSTIN",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.gst_no"
+        },
+        "supplier_tax_number": {
+          "present": true,
+          "mandatory": true,
+          "uuid": "Z2dacFhY",
+          "dataType": "external_relation",
+          "label": "Supplier Third Number",
+          "relatedDatasourceTable": "companies",
+          "externalReferenceName": "companies.misc->>'supplier_third_number'"
+        }
+      }
+    }
+  },
+  "endpoints": {
+    "modules": "/api/v1/dashboard_configuration",
+    "schema": "/api/flexi_datasources/{datasourceUuid}",
+    "view": "/api/fx_views/{viewUuid}",
+    "searchRecords": "/api/fx_views/records",
+    "createRecord": "/api/fx_responses/create_row",
+    "getRecord": "/api/fx_responses/{recordUuid}",
+    "updateRecord": "/api/fx_responses/{recordUuid}",
+    "triggerAutomation": "/fx_automations/trigger_automation",
+    "submitForApproval": "/api/approval_workflow/approval_requests",
+    "recordApprovals": "/api/fx_responses/{recordUuid}/get_approvals",
+    "resolveApproval": "/api/approval_workflow/approval_requests/resolve_approval",
+    "remarks": "/api/remarks",
+    "approvalFlows": "/api/approval_workflow/approval_flows",
+    "pendingApprovals": "/api/approval_workflow/approval_requests/get_pending_approvals"
+  },
+  "discoveredAt": "2026-09-10",
+  "appVersion": "20.0.0"
+}

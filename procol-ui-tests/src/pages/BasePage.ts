@@ -1,0 +1,310 @@
+import { Page, Locator } from "@playwright/test";
+import { noteToast } from "../oracle/journal.js";
+import { recipesFor } from "../ai/learned.js";
+import { recordStuck } from "../oracle/stuck.js";
+import { TIMEOUTS } from "../config.js";
+import {
+  Candidate,
+  ClickOptions,
+  FindOptions,
+  clickFirst,
+  clickIfPresent,
+  expectFirst,
+  fillFirst,
+  firstMatch,
+} from "../support/locate.js";
+
+/**
+ * Base for every Page Object. Exposes the resilient locator helpers bound to
+ * this page, plus dismissal of the recurring console distractions that
+ * otherwise intercept clicks (browser-notification prompt, "stay updated"
+ * notice, cookie banner).
+ */
+export class BasePage {
+  constructor(public readonly page: Page) {}
+
+  /**
+   * Locators the automation has LEARNED for this step, tried before the
+   * hand-written ones.
+   *
+   * When the healer finds an element the built-in candidates missed, the way it
+   * got there is written down against the step's label. Putting those recipes
+   * first means a locator that drifted once is deterministic from then on —
+   * the AI is asked once, not once per run. They never replace the built-in
+   * candidates, so a recipe that later goes stale costs one failed attempt
+   * rather than breaking the step.
+   */
+  private learned(label?: string): Candidate[] {
+    if (!label) return [];
+    return recipesFor(label)
+      .map((r) => {
+        try {
+          switch (r.kind) {
+            case "role":
+              return r.name
+                ? this.page.getByRole(r.value as Parameters<Page["getByRole"]>[0], {
+                    name: new RegExp(`^\\s*${r.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i"),
+                  })
+                : this.page.getByRole(r.value as Parameters<Page["getByRole"]>[0]);
+            case "testid":
+              return this.page.getByTestId(r.value);
+            case "text":
+              return this.page.getByText(new RegExp(r.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+            case "selector":
+              if (r.value.startsWith("placeholder:")) return this.page.getByPlaceholder(r.value.slice(12));
+              if (r.value.startsWith("label:")) return this.page.getByLabel(r.value.slice(6));
+              return this.page.locator(r.value);
+            default:
+              return null;
+          }
+        } catch {
+          return null; // a malformed recipe must never break a run
+        }
+      })
+      .filter((c): c is Candidate => c !== null);
+  }
+
+  /** A readable description of what was tried, for the stuck report. */
+  private describe(candidates: Candidate[]): string[] {
+    return candidates.map((c) => String(c).replace(/^locator\('|'\)$/g, "").slice(0, 160));
+  }
+
+  // ── resilient action wrappers ────────────────────────────────────────────
+  /**
+   * Click the first candidate that works — and when none does, record WHERE it
+   * got stuck before failing.
+   *
+   * The report carries the step's label, the URL, every candidate tried and the
+   * page's accessibility tree. That last part is the difference between "a
+   * locator failed somewhere" and a fix someone can make without reproducing
+   * the whole journey by hand.
+   */
+  async click(candidates: Candidate[], opts: ClickOptions = {}) {
+    try {
+      return await clickFirst(this.page, [...this.learned(opts.label), ...candidates], opts);
+    } catch (err) {
+      // The "Want to stay updated?" card arrives seconds AFTER a screen renders
+      // and sits over its primary action — it covered the Create Event chevron,
+      // Save as draft and Create Proposal in one day, each time after the
+      // step's own dismissal had already run. If clearing a distraction NOW
+      // actually removes something, the click deserves one more try.
+      if (await this.dismissDistractions().catch(() => false)) {
+        try {
+          return await clickFirst(this.page, [...this.learned(opts.label), ...candidates], { ...opts, timeout: TIMEOUTS.SHORT });
+        } catch {
+          /* fall through to the stuck report with the original error */
+        }
+      }
+      if (opts.label) {
+        await recordStuck(this.page, {
+          label: opts.label,
+          message: (err as Error).message,
+          triedCandidates: this.describe(candidates),
+          healerTried: false,
+        });
+      }
+      throw err;
+    }
+  }
+  async fill(candidates: Candidate[], value: string, opts: FindOptions = {}) {
+    try {
+      return await fillFirst(this.page, [...this.learned(opts.label), ...candidates], value, opts);
+    } catch (err) {
+      // A field that cannot be filled deserves the same evidence as a button
+      // that cannot be clicked. The vendor portal's email field failed once
+      // with no report at all, which left nothing to diagnose from.
+      if (opts.label) {
+        await recordStuck(this.page, {
+          label: opts.label,
+          message: (err as Error).message,
+          triedCandidates: this.describe(candidates),
+          healerTried: false,
+        });
+      }
+      throw err;
+    }
+  }
+  find(candidates: Candidate[], opts: FindOptions = {}) {
+    return firstMatch([...this.learned(opts.label), ...candidates], opts);
+  }
+  async expect(candidates: Candidate[], opts: FindOptions = {}) {
+    try {
+      return await expectFirst([...this.learned(opts.label), ...candidates], opts);
+    } catch (err) {
+      if (opts.label) {
+        await recordStuck(this.page, {
+          label: opts.label,
+          message: (err as Error).message,
+          triedCandidates: this.describe(candidates),
+          healerTried: false,
+        });
+      }
+      throw err;
+    }
+  }
+  clickIfPresent(candidates: Candidate[], opts: ClickOptions = {}) {
+    return clickIfPresent(this.page, [...this.learned(opts.label), ...candidates], opts);
+  }
+
+  /**
+   * Close whatever transient popups are on screen RIGHT NOW — in a single
+   * pass, without polling. Cheap and safe to call before any important
+   * interaction; each dismissal is best-effort.
+   *
+   * The old version waited up to 1.5s for a distraction that usually was not
+   * there, and it is called 64 times across the suite, so a healthy run spent
+   * well over a minute waiting for popups to maybe appear. A distraction that
+   * is present is present now; one that shows up later is caught by the next
+   * call or by `click()`'s own retry-after-clearing path. Checking each
+   * candidate's visibility is a fast DOM query (no auto-wait), so the whole
+   * pass costs a few milliseconds when nothing is there.
+   *
+   * Debounced: repeated calls within 400ms are no-ops, which collapses the
+   * back-to-back calls inside tight retry loops.
+   */
+  private lastDismissAt = 0;
+  async dismissDistractions(): Promise<boolean> {
+    if (Date.now() - this.lastDismissAt < 400) return false;
+    const p = this.page;
+    const candidates: Locator[] = [
+      p.getByRole("button", { name: /^Not now$/i }),
+      p.getByRole("button", { name: /^Got it$/i }),
+      p.locator(".ant-notification-notice").getByRole("button", { name: /Not now|Close|Dismiss/i }),
+      p.locator(".ant-notification-notice-close"),
+      p
+        .locator("div, section, header")
+        .filter({ hasText: /Turn on notifications/i })
+        .last()
+        // Never a drawer/modal close — that would slam shut the panel we opened.
+        .locator(
+          "button:not(.ant-drawer-close):not(.ant-modal-close), [role='button']:not(.ant-drawer-close):not(.ant-modal-close)",
+        )
+        .last(),
+      // The accessibility dump of a stalled create page still showed
+      // `button "Not now"` next to `button "Yes, I'm in"` — a second, modal
+      // opt-in prompt that the strict /^Not now$/ match above misses when the
+      // label carries surrounding whitespace or an icon. Match it loosely and
+      // ALWAYS take the declining half, never "Yes, I'm in".
+      p.getByRole("button", { name: /not\s*now/i }),
+      p.locator("button", { hasText: /not\s*now/i }),
+    ];
+    let dismissed = false;
+    for (const c of candidates) {
+      const target = c.first();
+      // isVisible() does NOT auto-wait — it answers about the DOM as it is.
+      if (!(await target.isVisible().catch(() => false))) continue;
+      await target.click({ timeout: 1_000 }).catch(() => {});
+      dismissed = true;
+    }
+    this.lastDismissAt = Date.now();
+    return dismissed;
+  }
+
+  /** Wait for any antd loading spinner to disappear (best-effort). */
+  async waitForSpinnerHidden(timeout = TIMEOUTS.MEDIUM): Promise<void> {
+    await this.page
+      .locator(".ant-spin-spinning")
+      .first()
+      .waitFor({ state: "hidden", timeout })
+      .catch(() => {});
+  }
+
+  /** Read the current URL path. */
+  path(): string {
+    return new URL(this.page.url()).pathname;
+  }
+
+  /** Grab the first success toast text if one shows up (data validation aid). */
+  async successToastText(timeout: number = TIMEOUTS.SHORT): Promise<string | null> {
+    const toast = this.page.locator(".ant-message-success, .ant-notification-notice-success").first();
+    const ok = await toast
+      .waitFor({ state: "visible", timeout })
+      .then(() => true)
+      .catch(() => false);
+    if (!ok) return null;
+    const text = (await toast.textContent())?.trim() ?? null;
+    // A success toast is evidence too — it is what makes a UI-says-yes /
+    // API-says-500 contradiction detectable.
+    if (text) noteToast("success", text);
+    return text;
+  }
+
+  /** Grab the first error toast text if one shows up. */
+  /**
+   * URL segments that sit under /orders/ but are NOT a project id.
+   *
+   * `/orders/quick-create` is the CREATE screen itself and it satisfied the old
+   * `/orders/[^/]+` redirect test — so a publish the app had REJECTED still
+   * counted as a successful redirect, and `projectId()` returned the literal
+   * string "quick-create" to satisfy `expect(projectId).toBeTruthy()`. Every
+   * event flow could pass without ever publishing anything.
+   */
+  private static readonly NON_PROJECT_SEGMENTS = /^(quick-create|create|detail|new)$/i;
+
+  /** The project id in a URL, or null when the URL is not a project page. */
+  static projectIdFromUrl(url: string): string | null {
+    let path = url;
+    try {
+      path = new URL(url).pathname;
+    } catch {
+      /* already a path */
+    }
+    const id = path.match(/\/(?:project|orders)\/([^/?#]+)/)?.[1] ?? null;
+    return id && !BasePage.NON_PROJECT_SEGMENTS.test(id) ? id : null;
+  }
+
+  /** Wait until the browser is actually on a published project page. */
+  async waitForRedirectToProject(timeout: number = TIMEOUTS.XLONG): Promise<void> {
+    await this.page.waitForURL((url) => !!BasePage.projectIdFromUrl(url.toString()), { timeout });
+  }
+
+  projectId(): string | null {
+    return BasePage.projectIdFromUrl(this.page.url());
+  }
+
+  /**
+   * Wait for the page to settle, not for a fixed number of milliseconds.
+   *
+   * The suite was carrying 58 hard-coded sleeps — about 39 seconds a run spent
+   * waiting whether or not anything was happening. A fixed sleep is wrong in
+   * both directions: too long when the app already responded, too short when it
+   * is genuinely busy. This waits a short floor for animations to start, then
+   * returns as soon as the network goes quiet, falling back to the full budget
+   * when it never does (this console holds long-lived connections open, so
+   * networkidle is not guaranteed).
+   *
+   * `UI_SPEED` scales the budget: 0.5 halves every wait, 2 doubles it for a
+   * slow environment. Timeouts for real conditions are untouched — only the
+   * blind waiting shrinks.
+   */
+  protected async pause(ms: number): Promise<void> {
+    const factor = Number(process.env.UI_SPEED);
+    const budget = Math.max(60, Math.round(ms * (Number.isFinite(factor) && factor > 0 ? factor : 1)));
+    const floor = Math.min(120, budget);
+    await this.page.waitForTimeout(floor);
+    if (budget > floor) {
+      // This console holds long-lived connections open, so networkidle never
+      // actually fires and the wait always burns its full budget for nothing.
+      // Cap the settle so a long nominal pause does not cost the earth; a real
+      // condition is waited on with waitFor elsewhere, never here.
+      await this.page.waitForLoadState("networkidle", { timeout: Math.min(budget - floor, 400) }).catch(() => {});
+    }
+  }
+
+  async errorToastText(timeout: number = TIMEOUTS.SHORT): Promise<string | null> {
+    const toast = this.page.locator(".ant-message-error, .ant-notification-notice-error").first();
+    const ok = await toast
+      .waitFor({ state: "visible", timeout })
+      .then(() => true)
+      .catch(() => false);
+    if (!ok) return null;
+    const text = (await toast.textContent())?.trim() ?? null;
+    // Report it to the Oracle's journal while it is still on screen. This is
+    // the app saying why it refused, and an antd message is gone in about three
+    // seconds — long before the assertion fails and anyone thinks to look.
+    if (text) noteToast("error", text);
+    return text;
+  }
+}
+
+export type { Locator };

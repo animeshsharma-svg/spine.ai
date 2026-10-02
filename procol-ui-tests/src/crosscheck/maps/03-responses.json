@@ -1,0 +1,47 @@
+{
+  "screen": "responses",
+  "title": "stage's Responses grid",
+  "howToOpen": "Open the event, click the stage's tab (e.g. RFQ); the Responses sub-tab opens first.",
+  "reviewed": { "by": "spine.ai crosscheck agent", "at": "2026-10-01", "fromDiscovery": "probe-muopqf7t", "note": "Columns come from the stage's template (schema → sheets.inline_components.widgets); creator columns sit in the frozen left pane, each bidder's columns under the bidder's name. Participation reads bid_placed / invited from bidders_delivery_stats (participantStats.jsx)." },
+  "sources": {
+    "schema": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/schema\\?response_type=template" },
+    "quotes": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/quote_details/", "pick": "all" },
+    "savings": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/aggregate_savings" },
+    "delivery": { "method": "GET", "path": "^/api/trade/{stageUuid}/bidders_delivery_stats" }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-020",
+      "title": "The stage's status chip agrees with the stage's status and bidding window in the API",
+      "special": [{ "kind": "stage-status", "label": "Status chip", "params": { "source": "schema" } }]
+    },
+    {
+      "case": "UI-XCHK-021",
+      "title": "The Responses grid has a column for every bidder and shows every quoted value exactly as the API returns it",
+      "special": [{ "kind": "sheet-widgets", "label": "Quote cells", "params": { "schema": "schema", "quotes": "quotes" } }],
+      "fields": [
+        { "key": "responses.total", "label": "Bid total", "source": "schema", "each": "layers[]", "value": "total_amount", "anchor": "label", "format": "money", "scope": "page", "note": "Shown as the bidder's Sum Total / Total Amount." }
+      ]
+    },
+    {
+      "case": "UI-XCHK-022",
+      "title": "The Participation counter shows bids placed out of vendors invited, as the API counts them",
+      "fields": [
+        { "key": "responses.participation", "label": "Participation (bids placed / invited)", "source": "delivery", "value": "bid_placed.length", "other": "invited.length", "format": "ratio", "scope": "label", "screenLabel": "Participation" }
+      ]
+    },
+    {
+      "case": "UI-XCHK-023",
+      "title": "The savings strip shows the savings amount and percentage the API computed",
+      "fields": [
+        { "key": "responses.savings.amount", "label": "Savings amount", "source": "savings", "each": "savings[]", "value": "savings_amount.value", "format": "money", "scope": "page" },
+        { "key": "responses.savings.percent", "label": "Savings percentage", "source": "savings", "each": "savings[]", "value": "savings_percent.value", "format": "number", "scope": "page" }
+      ]
+    },
+    {
+      "case": "UI-XCHK-050",
+      "title": "No screen of the event looks fine while a request behind it failed, and none reports an error while its requests succeeded",
+      "special": [{ "kind": "api-vs-screen-errors", "label": "Errors agree" }]
+    }
+  ]
+}

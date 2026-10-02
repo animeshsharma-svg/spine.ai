@@ -1,0 +1,63 @@
+{
+  "_readme": [
+    "Product findings surfaced by this suite, rendered into reports/api-report.html.",
+    "Hand-written: a finding lands here once someone has judged it. `status` says how far:",
+    "  confirmed    reproduced, and the behaviour is agreed to be wrong",
+    "  intermittent real, but does not reproduce on demand",
+    "  unconfirmed  observed; could still be test data or a wrong expectation",
+    "  not-a-bug    kept because it was reported once and ruled out",
+    "`evidence` should name the case that shows it, so a reader can find the request below."
+  ],
+  "findings": [
+    {
+      "id": "event-group-update-500",
+      "title": "every eRFX event save and publish fails with 500",
+      "status": "confirmed",
+      "severity": "high",
+      "flow": "events",
+      "endpoint": "PATCH /api/event_groups/:id",
+      "detail": "Both status \"draft\" and status \"active\" return 500 Internal Server Error. A regression: the same automation published successfully at 07:49 on 2026-09-08 and has failed since ~16:29 that day. Non-eRFX single-stage creation still works, so the seven eRFX journeys reach publish and stop there.",
+      "evidence": "prototype/knowledge/events/regression-event-group-update-500.md"
+    },
+    {
+      "id": "create-event-group-accepts-anything",
+      "title": "event-group create accepts invalid payloads with 200",
+      "status": "confirmed",
+      "severity": "high",
+      "flow": "events.create",
+      "endpoint": "POST /api/event_groups",
+      "detail": "A negative quantity, a non-numeric quantity and an unrecognised unit symbol are all accepted and persisted. Type and range enforcement happens client-side only, so any caller that is not the UI can write nonsense into a tender.",
+      "evidence": "[negative] a negative quantity is refused / text in the numeric quantity field is refused / an unrecognised quantity unit is refused"
+    },
+    {
+      "id": "create-event-group-500-on-bad-input",
+      "title": "invalid input returns 500 instead of a client error",
+      "status": "confirmed",
+      "severity": "high",
+      "flow": "events.create",
+      "endpoint": "POST /api/event_groups",
+      "detail": "An unknown product uuid, an unknown status value, and status \"active\" at create time each return 500 rather than 4xx. Invalid input reaching a 500 means it got past validation into code that assumed it had resolved, and a 500 leaks framework detail to the caller.",
+      "evidence": "[negative] a line item naming a product that does not exist is refused / an unknown status value is refused / an event cannot be created already active"
+    },
+    {
+      "id": "evaluation-insufficient-parameters",
+      "title": "vendor evaluation fails with \"Insufficient parameters\"",
+      "status": "intermittent",
+      "severity": "medium",
+      "flow": "flows.vendor-bid",
+      "endpoint": "POST /api/evaluations",
+      "detail": "runEvaluation returns 422 \"Insufficient parameters\" on some runs and passes on others, from an identical journey. Either the payload is missing a field the API only sometimes requires, or it depends on state left by an earlier step.",
+      "evidence": "vendor lifecycle (invite → bid → evaluate → award)"
+    },
+    {
+      "id": "content-type-not-enforced",
+      "title": "a JSON body sent as text/plain is accepted",
+      "status": "confirmed",
+      "severity": "low",
+      "flow": "http.methods",
+      "endpoint": "POST /api/event_groups",
+      "detail": "Content-Type is ignored and the body parsed as JSON regardless. Defensible, since many APIs do this deliberately, so recorded as behaviour to know rather than a defect to fix.",
+      "evidence": "[edge] a JSON body sent as text/plain gets a deliberate answer"
+    }
+  ]
+}

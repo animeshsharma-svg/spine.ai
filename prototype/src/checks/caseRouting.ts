@@ -1,0 +1,314 @@
+import { readFileSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { UI_FLOWS } from "../ui/uiFlowRunner.js";
+import { ALL_SUITES } from "./suites.js";
+import type { CatalogCase } from "./testCatalog.js";
+import { allCases } from "./testCatalog.js";
+import { loadCases } from "./caseLibrary.js";
+import { STEP_CODE } from "./apiAssertions.js";
+import { STEP_META, type StepKind } from "./journeyModel.js";
+
+/**
+ * How a written case reaches an actual runner — and, just as importantly, when
+ * it does not.
+ *
+ * The catalog has 648 cases and the two frameworks do not implement 648 things.
+ * Pretending otherwise would be the worst outcome available: a dashboard where
+ * every case shows a Run button, half of them quietly compile to a generic plan
+ * that proves nothing, and the pass rate becomes meaningless. So each case is
+ * routed to the most specific runner that genuinely exists for it, and a case
+ * with no runner says so.
+ *
+ * Order matters — most specific first:
+ *   ui-journey   a hand-written, healed journey covers it exactly
+ *   api-case     the API framework already has this case, by its own id
+ *   api-suite    a validation suite covers this section
+ *   ui-compile   no journey, but the compiler can build a plan from the prose
+ *   manual       the catalog itself says a person must do this
+ *   none         honestly unrunnable today
+ */
+const here = dirname(fileURLToPath(import.meta.url));
+const API_REGISTRY = join(here, "..", "..", "..", "procol test", "src", "flows", "eventsContract.ts");
+
+export type RouteKind =
+  | "ui-journey"
+  | "api-case"
+  | "api-library"
+  | "api-field"
+  | "ui-crosscheck"
+  | "api-section"
+  | "api-suite"
+  | "ui-compile"
+  | "manual"
+  | "none";
+
+export interface CaseRoute {
+  kind: RouteKind;
+  /** The journey key, BE- id or suite id this case runs as. */
+  target?: string;
+  /** Why this route, in one line, for the dashboard to show on hover. */
+  because: string;
+  /**
+   * Whether the case picker (/api/case-run) can run this one case on its own.
+   * A case can reach a real runner without that — see `runner`.
+   */
+  runnable: boolean;
+  /**
+   * Where the case really runs, in words, when that is not the case picker:
+   * the API case library (EDGE-…, VBU-…, the mined cases) runs from the API
+   * automation tree, and every field check (API-F…) runs on every API journey.
+   */
+  runner?: { where: "api-library" | "api-journey" | "ui-crosscheck"; id?: string; how: string };
+}
+
+const FLOW_KEYS = new Set(UI_FLOWS.map((f) => f.key));
+const SUITE_IDS = new Set(ALL_SUITES.map((s) => s.id));
+
+let apiCaseIds: Set<string> | null = null;
+
+/**
+ * The case ids the API framework actually implements, read from its own
+ * registry rather than kept as a second list here. A list maintained by hand
+ * would drift the first time someone adds a case there.
+ *
+ * Scoped to the `CASE_RUNNERS` object on purpose. The same file also holds a
+ * `SKIP_REASONS` map keyed by the same ids — counting those as implemented
+ * would claim a runner for every case the framework has explicitly declared it
+ * cannot run yet, which is the opposite of what that map means.
+ */
+function implementedApiCases(): Set<string> {
+  if (apiCaseIds) return apiCaseIds;
+  apiCaseIds = new Set();
+  if (!existsSync(API_REGISTRY)) return apiCaseIds;
+  try {
+    const src = readFileSync(API_REGISTRY, "utf8");
+    // Anchor on the DECLARATION. Plain "CASE_RUNNERS" first matches the file's
+    // own doc comment, which slices out a window containing no cases at all.
+    const start = src.indexOf("export const CASE_RUNNERS");
+    const end = start >= 0 ? src.indexOf("\nexport const", start + 1) : -1;
+    const registry = start >= 0 ? src.slice(start, end > 0 ? end : undefined) : "";
+    for (const m of registry.matchAll(/["'](BE-\d+\.\d+)["']\s*:/g)) apiCaseIds.add(m[1]);
+  } catch {
+    /* the API project may not be checked out — routing degrades, nothing breaks */
+  }
+  return apiCaseIds;
+}
+
+/**
+ * Catalog section → the API framework's own section that covers the same
+ * ground, mapped from the section comments in its `CASE_RUNNERS` registry
+ * (`1.x creation`, `3.x line items`, and so on).
+ *
+ * This is a WEAKER claim than `api-case` and is labelled as one: running BE-3.x
+ * exercises line items at the HTTP layer, but it is not running this specific
+ * written case. Offering it is still worth more than nothing — it is real
+ * traffic against the right endpoints — as long as nobody reads it as the case
+ * itself having passed.
+ */
+const SECTION_TO_BE_GROUP: Record<string, { group: number; what: string }> = {
+  "API-EG": { group: 1, what: "creating the draft event group" },
+  "API-STG": { group: 1, what: "stage creation" },
+  "API-PUB": { group: 2, what: "activation" },
+  "API-LC": { group: 9, what: "state transitions" },
+  "API-LI": { group: 3, what: "line items" },
+  "API-AUD": { group: 4, what: "audience and participants" },
+  "API-BID": { group: 5, what: "bids" },
+  "API-SUR": { group: 5, what: "bids" },
+  "API-AWD": { group: 6, what: "awarding" },
+  "API-CONV": { group: 7, what: "RFQ → Auction conversion" },
+  "API-PERM": { group: 8, what: "authorization" },
+};
+
+/** The implemented case ids in one of the framework's sections. */
+function beGroupCases(group: number): string[] {
+  return [...implementedApiCases()].filter((id) => id.startsWith(`BE-${group}.`));
+}
+
+/**
+ * The sections the browser step catalog can actually express.
+ *
+ * Derived from the steps the planner owns (create/compose/template/line items/
+ * sheet/schedule/invite/publish/bid/evaluate/award), which are all sourcing
+ * event operations. Anything outside this list compiles into a default events
+ * plan, which is not the case someone asked for.
+ */
+const COMPILABLE_SECTIONS = new Set([
+  "UI-EG",
+  "UI-STG",
+  "UI-LI",
+  "UI-TPL",
+  "UI-SCH",
+  "UI-VND",
+  "UI-PUB",
+  "UI-BID",
+  "UI-EVL",
+  "UI-AWD",
+  "UI-AUC",
+  "UI-CONV",
+]);
+
+/** Section code → the validation suite that covers it, where one does. */
+const SECTION_SUITES: Record<string, string> = {
+  "API-EG": "events.rfp_rfq",
+  "API-STG": "events.rfp_rfq",
+  "API-VAL": "events.rfp_rfq",
+};
+
+export function routeFor(c: CatalogCase): CaseRoute {
+  // 0 · the UI↔API cross-check cases run through procol-ui-tests/tests/crosscheck.spec.ts,
+  //     started from /api/crosscheck/start — not from the case picker, so `runnable`
+  //     stays false and `runner` says where they do run. UI-XCHK-060/061 are automate-later.
+  if (/^UI-XCHK-\d+/.test(c.id)) {
+    if (/automate-later/i.test(`${c.verdict} ${c.source}`)) {
+      return { kind: "none", because: "written for the UI↔API cross-check, not automated yet — automate later", runnable: false };
+    }
+    const how = "Runs in the UI↔API cross-check: it opens the event on screen and compares every value with the API.";
+    return { kind: "ui-crosscheck", target: c.id, because: "runs in the UI↔API cross-check (crosscheck.spec.ts)", runnable: false, runner: { where: "ui-crosscheck", id: c.id, how } };
+  }
+
+  // 1 · a built journey named in the trace line beats everything: it is
+  //     deterministic, healed, and needs no compile step.
+  const journey = c.refs.find((r) => FLOW_KEYS.has(r));
+  if (journey && c.layer === "ui") {
+    return { kind: "ui-journey", target: journey, because: `the "${journey}" journey covers this`, runnable: true };
+  }
+
+  // 2 · the API framework may already implement this exact case.
+  const be = c.refs.concat(c.source.match(/BE-\d+\.\d+/g) ?? []).find((r) => implementedApiCases().has(r));
+  if (be && c.layer === "api") {
+    return { kind: "api-case", target: be, because: `the API framework implements this as ${be}`, runnable: true };
+  }
+
+  // The API case library may run this exact case — by its own id, or by the
+  // library twin its trace names (API-XPUB-019 ↔ EDGE-PUB-019, VBU-…).
+  const libTwin = c.layer === "api" ? libraryTwin(c) : undefined;
+  const runner: CaseRoute["runner"] = libTwin
+    ? { where: "api-library", id: libTwin, how: "Runs from the API case library — tick its feature under API automation." }
+    : undefined;
+
+  if (c.verdict === "manual") {
+    return { kind: "manual", because: "the catalog marks this one for a person", runnable: false, ...(runner ? { runner } : {}) };
+  }
+
+  // 3 · the framework may cover this AREA without covering this case.
+  const area = SECTION_TO_BE_GROUP[c.group];
+  if (c.layer === "api" && area) {
+    const ids = beGroupCases(area.group);
+    if (ids.length) {
+      return {
+        kind: "api-section",
+        target: ids.join(","),
+        because: `no exact runner — the API framework covers ${area.what} as ${ids.length} case(s) (BE-${area.group}.x)`,
+        runnable: true,
+        ...(runner ? { runner } : {}),
+      };
+    }
+  }
+
+  // 4 · a validation suite covering the same ground is the last API answer.
+  const suite = SECTION_SUITES[c.group];
+  if (c.layer === "api" && suite && SUITE_IDS.has(suite)) {
+    return { kind: "api-suite", target: suite, because: `the "${suite}" validation suite covers this section`, runnable: true, ...(runner ? { runner } : {}) };
+  }
+
+  if (c.layer === "api") {
+    if (libTwin) {
+      return {
+        kind: "api-library",
+        target: libTwin,
+        because: `runs from the API case library as ${libTwin} — tick its feature under API automation`,
+        runnable: false,
+        runner,
+      };
+    }
+    // A field check runs against the live reply of its journey step, on every API journey.
+    const step = fieldCheckStep(c.group);
+    if (step) {
+      return {
+        kind: "api-field",
+        target: step,
+        because: `checked on every API journey, against the reply of “${STEP_META[step].title}”`,
+        runnable: false,
+        runner: { where: "api-journey", how: `Checked on every API journey run, against the reply of “${STEP_META[step].title}”.` },
+      };
+    }
+    // Request negatives (API-N<step>-…) are written from the journey's bodies but not wired to a runner yet.
+    if (requestNegativeStep(c.group)) {
+      return { kind: "none", because: "written from the journey's requests, not wired to a runner yet — automate later", runnable: false };
+    }
+  }
+
+  /**
+   * 4 · the compiler, but only where it can actually build a plan.
+   *
+   * It writes plans from a step catalog that covers sourcing events and
+   * nothing else: create an event, stages, template, line items, sheet,
+   * schedule, invite a vendor, publish, bid, evaluate, award. For a case about
+   * anything else — purchase orders, GRNs, invoices, bills, auth, settings —
+   * the model finds no usable steps and a default events journey gets
+   * substituted. Calling those "runnable" is what made 588 of 648 look ready
+   * when a fraction of that is, so they are counted honestly instead.
+   */
+  if (c.layer === "ui" && c.verdict !== "manual") {
+    if (COMPILABLE_SECTIONS.has(c.group)) {
+      return {
+        kind: "ui-compile",
+        because: "no journey covers this — the compiler builds a plan from the prose",
+        runnable: true,
+      };
+    }
+    return {
+      kind: "ui-compile",
+      because:
+        "the browser step catalog covers sourcing events only, so the compiler cannot build a plan " +
+        "for this area yet",
+      runnable: false,
+    };
+  }
+
+  return {
+    kind: "none",
+    because: c.layer === "api" ? "no API runner for this section yet" : "no runner for this case yet",
+    runnable: false,
+  };
+}
+
+let libIds: Set<string> | null = null;
+function libraryIds(): Set<string> {
+  return (libIds ??= new Set(loadCases().map((c) => c.id)));
+}
+function libraryTwin(c: CatalogCase): string | undefined {
+  const lib = libraryIds();
+  return lib.has(c.id) ? c.id : (c.refs.find((r) => lib.has(r)) ?? edgeTwin(c.id, lib));
+}
+function edgeTwin(id: string, lib: Set<string>): string | undefined {
+  const m = id.match(/^API-X([A-Z]+)-(\d{3})$/);
+  const t = m ? `EDGE-${m[1]}-${m[2]}` : undefined;
+  return t && lib.has(t) ? t : undefined;
+}
+const CODE_STEP = new Map(Object.entries(STEP_CODE).map(([k, v]) => [v, k as StepKind]));
+/** "API-FPUBLISH" → "publish" */
+function fieldCheckStep(group: string): StepKind | undefined {
+  const m = group.match(/^API-F([A-Z]+)$/);
+  return m ? CODE_STEP.get(m[1]) : undefined;
+}
+function requestNegativeStep(group: string): StepKind | undefined {
+  const m = group.match(/^API-N([A-Z]+)$/);
+  return m ? CODE_STEP.get(m[1]) : undefined;
+}
+
+/** Coverage, counted rather than claimed. */
+export function routingCoverage() {
+  const byKind: Record<string, number> = {};
+  let runnable = 0;
+  let reachesRunner = 0;
+  for (const c of allCases()) {
+    const r = routeFor(c);
+    byKind[r.kind] = (byKind[r.kind] ?? 0) + 1;
+    if (r.runnable) runnable += 1;
+    if (r.runnable || r.runner) reachesRunner += 1;
+  }
+  const total = allCases().length;
+  return { total, runnable, reachesRunner, unrunnable: total - runnable, byKind };
+}

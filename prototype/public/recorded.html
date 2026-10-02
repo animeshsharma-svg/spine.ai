@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Procol · Recorded Flows</title>
+<link rel="stylesheet" href="/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>" />
+<style>
+  main { display:block; max-width:1100px; margin:0 auto; padding:20px 24px 80px; }
+  .jhead { display:flex; align-items:baseline; gap:12px; margin:6px 0 6px; }
+  .jhead h1 { font-size:22px; margin:0; }
+  .jhead .sub { color:var(--ink-soft); font-size:13px; }
+  .jhead a { margin-left:auto; font-size:13px; }
+  .lead { color:var(--ink-soft); font-size:13px; margin:0 0 18px; line-height:1.55; max-width:760px; }
+  .picker { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+  select, .jbtn { font-size:13px; }
+  select { background:var(--panel); color:var(--ink); border:1px solid var(--card-line); border-radius:8px; padding:6px 10px; }
+  .jbtn { font-weight:600; color:#fff; background:var(--accent); border:none; border-radius:8px; padding:6px 13px; cursor:pointer; }
+  .jbtn.ghost { background:transparent; color:var(--accent); border:1px solid var(--card-line); }
+  .jbtn:disabled { opacity:.5; cursor:default; }
+  label.chk { font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .pending { font-size:12px; color:var(--warn,#e0a458); }
+  .summary { display:flex; gap:18px; flex-wrap:wrap; margin:6px 0 16px; font-size:12px; color:var(--ink-soft); }
+  .summary b { font-size:22px; color:var(--ink); font-family:var(--serif,inherit); display:block; }
+  .summary .good b { color:var(--good,#6bd39a); } .summary .bad b { color:var(--bad,#ff6b6b); }
+  .ccard { border:1px solid var(--card-line); background:var(--panel); border-radius:14px; padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
+  .ctop { display:flex; align-items:flex-start; gap:12px; cursor:pointer; }
+  .cid { font-family:var(--mono); font-size:11px; color:var(--ink-soft); background:var(--accent-soft); border-radius:7px; padding:3px 7px; flex:0 0 auto; }
+  .ctitle { font-size:15px; font-weight:640; }
+  .route { font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+  .cverdict { margin-left:auto; text-align:right; font-size:11px; white-space:nowrap; }
+  .pill { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; }
+  .pill.pass { background:rgba(107,211,154,.16); color:var(--good,#6bd39a); }
+  .pill.fail { background:rgba(255,107,107,.18); color:var(--bad,#ff6b6b); }
+  .pill.rec { background:rgba(230,180,80,.16); color:var(--warn,#e0a458); }
+  .cbody { display:none; margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
+  .ccard.open .cbody { display:block; }
+  .meta { font-size:12px; color:var(--ink-soft); line-height:1.6; margin-bottom:10px; }
+  .meta b { color:var(--ink); }
+  table.v { width:100%; border-collapse:collapse; font-size:12px; }
+  table.v th, table.v td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.v th { color:var(--ink-soft); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  table.v code { font-family:var(--mono); font-size:11px; }
+  .r { font-weight:700; white-space:nowrap; }
+  .r.passed { color:var(--good,#6bd39a); } .r.failed { color:var(--bad,#ff6b6b); }
+  .r.skipped { color:var(--ink-soft); } .r.recorded { color:var(--warn,#e0a458); }
+  .kind { font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); }
+  .ctx { font-size:11.5px; color:var(--ink-soft); margin-top:10px; }
+  .ctx code { font-family:var(--mono); }
+  #log { font-family:var(--mono); font-size:11px; color:var(--ink-soft); margin:10px 0; white-space:pre-wrap; min-height:16px; }
+  .empty { color:var(--ink-soft); font-size:13px; padding:20px 0; }
+</style>
+</head>
+<body>
+<main>
+  <div class="jhead">
+    <h1>📼 Recorded flows</h1>
+    <span class="sub">real API traffic → test cases with field validations</span>
+    <a href="/">← dashboard</a>
+  </div>
+  <p class="lead">
+    Do a flow once in the browser with recording on, and every <code>/api/*</code> call it fired is captured
+    (the access token is never written to disk). Here that recording becomes proper test cases with a
+    <b>Postman-style checklist</b> — each field the request sent, each field the response returned, and each value
+    that came back exactly as sent. <b>Replay reads live</b> to turn every check into a real ✅ / ❌ with a fresh token.
+    Mutations are shown from the capture and never fired against live data.
+  </p>
+
+  <div class="picker">
+    <select id="flow"></select>
+    <label class="chk"><input type="checkbox" id="replay" checked /> replay reads live</label>
+    <button class="jbtn" id="convert">Convert →</button>
+    <button class="jbtn ghost" id="load">Load saved</button>
+    <span class="pending" id="pending"></span>
+  </div>
+
+  <div id="log"></div>
+  <div class="summary" id="summary"></div>
+  <div id="cases"><p class="empty">Pick a recording and press Convert.</p></div>
+</main>
+
+<script src="/caseView.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c]));
+
+async function refreshList() {
+  const r = await fetch("/api/recorded-flows").then((x) => x.json());
+  const sel = $("#flow"); sel.innerHTML = "";
+  const all = [...new Set([...(r.recordings||[]), ...(r.converted||[])])].sort();
+  for (const n of all) {
+    const o = document.createElement("option");
+    o.value = n; o.textContent = n + ((r.converted||[]).includes(n) ? " ✓" : "");
+    sel.appendChild(o);
+  }
+  $("#pending").textContent = (r.pending||[]).length ? `${r.pending.length} not yet converted` : "";
+  return r;
+}
+
+function render(fc) {
+  const cases = fc.cases || [];
+  const totals = { passed:0, failed:0, checks:0 };
+  for (const c of cases) for (const v of (c.validations||[])) {
+    totals.checks++; if (v.state==="passed") totals.passed++; if (v.state==="failed") totals.failed++;
+  }
+  $("#summary").innerHTML = `
+    <div><b>${cases.length}</b> cases</div>
+    <div><b>${totals.checks}</b> field checks</div>
+    ${fc.replayed ? `<div class="good"><b>${totals.passed}</b> passed</div><div class="bad"><b>${totals.failed}</b> failed</div>` : `<div><b>${fc.context||0}</b> config calls skipped</div>`}
+  `;
+  const box = $("#cases");
+  if (!cases.length) { box.innerHTML = `<p class="empty">No meaningful calls in this recording (all config/boilerplate).</p>`; return; }
+  box.innerHTML = cases.map((c) => {
+    const st = { passed:0, failed:0 };
+    for (const v of (c.validations||[])) { if (v.state==="passed") st.passed++; if (v.state==="failed") st.failed++; }
+    const pill = fc.replayed && (st.passed||st.failed)
+      ? (st.failed ? `<span class="pill fail">❌ ${st.failed} failed</span>` : `<span class="pill pass">✅ ${st.passed} passed</span>`)
+      : `<span class="pill rec">📼 ${(c.validations||[]).length} checks</span>`;
+    const rows = (c.validations||[]).map((v,i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td><code>${esc(v.target)}</code><div class="kind">${esc(v.kind)}</div></td>
+        <td>${esc(v.assertion)}${v.state==="failed"&&v.actual!==undefined?` <span class="r failed">(got: ${esc(JSON.stringify(v.actual))})</span>`:""}</td>
+        <td class="r ${v.state}">${esc(v.state)}</td>
+      </tr>`).join("");
+    return `
+      <div class="ccard">
+        <div class="ctop" onclick="this.parentElement.classList.toggle('open')">
+          <span class="cid">${esc(c.id)}</span>
+          <div>
+            <div class="ctitle">${esc(CaseView.scrub(c.title))}</div>
+          </div>
+          <div class="cverdict">${pill}<div style="margin-top:4px;color:var(--ink-soft)">${esc(c.priority)}</div></div>
+        </div>
+        <div class="cbody">
+          <div class="meta">
+            <b>Why:</b> ${esc(CaseView.scrub(c.why))}<br/>
+            <b>Steps:</b> ${esc(CaseView.scrub(c.steps))}<br/>
+            <b>Expected:</b> ${esc(CaseView.scrub(c.expected))}
+          </div>
+          ${CaseView.detailsHtml([
+            { label: "Ref", value: c.id, kind: "code" },
+            { label: "Request", value: `${c.method} ${c.path}`, kind: "code" },
+            { label: "Status when recorded", value: String(c.recordedStatus ?? ""), kind: "code" },
+          ])}
+          <details class="cv-details"><summary>Field checks (${(c.validations||[]).length})</summary><table class="v"><thead><tr><th>#</th><th>Field / check</th><th>Assertion</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table></details>
+        </div>
+      </div>`;
+  }).join("");
+  if ((fc.contextCalls||[]).length) {
+    box.innerHTML += `<div class="ctx"><b>Config / boilerplate calls (not tested):</b><br/>` +
+      fc.contextCalls.map((c)=>`<code>${esc(c.method)} ${esc(c.path)} → ${esc(c.status)}</code>`).join("<br/>") + `</div>`;
+  }
+}
+
+async function loadSaved() {
+  const name = $("#flow").value;
+  const fc = await fetch("/api/recorded-flow?name="+encodeURIComponent(name)).then((x)=>x.json());
+  if (fc.error) { $("#log").textContent = fc.error; return; }
+  render(fc);
+}
+
+function convert() {
+  const name = $("#flow").value;
+  const replay = $("#replay").checked ? "1" : "0";
+  $("#log").textContent = "converting…";
+  $("#cases").innerHTML = ""; $("#summary").innerHTML = "";
+  const es = new EventSource(`/api/convert-flow?name=${encodeURIComponent(name)}&replay=${replay}`);
+  es.addEventListener("start", (e)=>{ const d=JSON.parse(e.data); $("#log").textContent = `${d.total} cases${d.replay?" · replaying reads live…":""}`; });
+  es.addEventListener("case", (e)=>{ const d=JSON.parse(e.data);
+    const tag = d.replayed ? `live ${d.liveStatus} ✅${d.passed} ❌${d.failed} ⏭️${d.skipped}` : `not replayed (${d.reason||""})`;
+    $("#log").textContent += `\n${d.id} ${d.method} ${d.path} → ${tag}`; });
+  es.addEventListener("error", (e)=>{ if(!e.data) return; $("#log").textContent += "\n⚠ "+JSON.parse(e.data).line; es.close(); });
+  es.addEventListener("done", async ()=>{ es.close(); await refreshList(); await loadSaved(); });
+  es.onerror = ()=>{ es.close(); };
+}
+
+$("#convert").onclick = convert;
+$("#load").onclick = loadSaved;
+refreshList();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+# Hand-written test cases.
+#
+# The 13 rules the schema declares (minimums, date bounds, cross-field
+# comparisons) are GENERATED automatically from config/clients/<id>.json —
+# do not repeat them here. This file is for what the schema cannot express:
+# business scenarios, edge cases, and regressions worth pinning.
+#
+# Each case:
+#   name        what it proves, in a sentence — this is the test title
+#   datasource  p2p_purchase_order or p2p_po_line_item
+#   expect      accept | reject   (what the platform should do)
+#   because     why the case exists — printed when it fails
+#   kind        positive | negative | edge   (defaults from `expect`)
+#   overrides   field name -> value; anything omitted is generated
+#   skip        set a reason to park a case without deleting it
+#
+# Values are written the human way — a dropdown by its label, a date as
+# YYYY-MM-DD — exactly as in config/po-input.json.
+
+cases:
+  # ---- positive: the shapes a real buyer actually creates ------------------
+  - name: a PO with only its mandatory fields is accepted
+    datasource: p2p_purchase_order
+    expect: accept
+    kind: positive
+    because: the leanest valid document must work, not just a fully populated one
+    overrides:
+      remark: ""
+
+  - name: a PO in a foreign currency is accepted
+    datasource: p2p_purchase_order
+    expect: accept
+    kind: positive
+    because: exchange_rate and currency travel together; non-INR must not be special-cased
+    overrides:
+      currency: USD
+      exchange_rate: 83.25
+
+  - name: a line item with a whole-number quantity and price is accepted
+    datasource: p2p_po_line_item
+    expect: accept
+    kind: positive
+    because: the ordinary case — proves base_amount computes from clean inputs
+    overrides:
+      quantity: 4
+      unit_price: 25
+
+  # ---- edge: legal but awkward inputs -------------------------------------
+  - name: a remark holding unicode and emoji survives the round trip
+    datasource: p2p_purchase_order
+    expect: accept
+    kind: edge
+    because: buyer notes are free text and regularly contain non-ASCII
+    overrides:
+      remark: "स्वचालित परीक्षण — vendor confirmed ✅ (ref 12/34)"
+
+  - name: a 1000-character remark is accepted
+    datasource: p2p_purchase_order
+    expect: accept
+    kind: edge
+    because: no max length is declared, so a long note must not silently truncate or 500
+    overrides:
+      remark: "AUTO long-text probe. Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium totam rem aperiam eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est qui dolorem ipsum quia dolor sit amet consectetur adipisci velit sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Finis."
+
+  - name: a quantity with more decimal places than the field declares is accepted or cleanly rejected
+    datasource: p2p_po_line_item
+    expect: accept
+    kind: edge
+    because: rounding behaviour must be defined; a 500 here would be a platform bug
+    overrides:
+      quantity: 1.005
+      unit_price: 33.333
+
+  - name: a very large unit price does not overflow the computed amount
+    datasource: p2p_po_line_item
+    expect: accept
+    kind: edge
+    because: base_amount is computed platform-side; precision loss would corrupt the total
+    overrides:
+      quantity: 1000
+      unit_price: 999999.99
+
+  - name: a zero discount percentage is accepted
+    datasource: p2p_po_line_item
+    expect: accept
+    kind: edge
+    because: zero is a real value, and must not be treated as absent
+    overrides:
+      discount_percentage: 0
+
+  # ---- negative: things the platform should refuse ------------------------
+  - name: a negative quantity is rejected
+    datasource: p2p_po_line_item
+    expect: reject
+    because: you cannot order a negative amount, whatever the schema says
+    overrides:
+      quantity: -5
+
+  - name: text in a numeric price field is rejected
+    datasource: p2p_po_line_item
+    expect: reject
+    because: type enforcement must happen server-side, not only in the UI
+    overrides:
+      unit_price: "not-a-number"
+
+  - name: a currency outside the client's own option list is rejected
+    datasource: p2p_purchase_order
+    expect: reject
+    because: the option list is per client; a value from another client must not be accepted
+    overrides:
+      currency: KLINGON_DOLLAR
+
+  - name: a script tag in a text field is stored inert, not executed or 500ed
+    datasource: p2p_purchase_order
+    expect: accept
+    kind: edge
+    because: buyer-supplied text reaches other users' browsers; it must round-trip as data
+    overrides:
+      remark: "<script>alert('AUTO xss probe')</script>"

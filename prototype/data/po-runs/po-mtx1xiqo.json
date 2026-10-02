@@ -1,0 +1,704 @@
+{
+  "runId": "po-mtx1xiqo",
+  "startedAt": "2026-09-11T14:28:45.216Z",
+  "endedAt": "2026-09-11T14:28:50.096Z",
+  "exitCode": 1,
+  "companyId": 900001,
+  "companyName": "Procol Sandbox Demo (PO)",
+  "report": {
+    "mode": "run",
+    "findings": [
+      {
+        "id": "expense-period-order-not-enforced",
+        "issueId": "D__002",
+        "title": "expense_period_end_date before start date is accepted",
+        "status": "confirmed",
+        "severity": "medium",
+        "devStatus": "OPEN",
+        "devEta": "",
+        "priority": "P1",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "PO",
+        "description": "expense_period_end_date before start date is accepted",
+        "detail": "The schema itself declares the rule end_date >= start_date, and the platform ignores it — the record is created with 200. A rule the schema publishes but does not enforce is worse than no rule, because callers trust it.",
+        "note": "",
+        "highlight": false,
+        "client": "procol_sandbox_demo",
+        "endpoint": "POST /api/fx_responses/create_row",
+        "evidence": "[negative] expense_period_end_date rejects a value before expense_period_start_date"
+      },
+      {
+        "id": "mandatory-currency-omittable",
+        "issueId": "D__003",
+        "title": "mandatory currency can be omitted through the API",
+        "status": "confirmed",
+        "severity": "medium",
+        "devStatus": "OPEN",
+        "devEta": "",
+        "priority": "P1",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "PO",
+        "description": "mandatory currency can be omitted through the API",
+        "detail": "currency is mandatory in the schema and cannot be cleared in the UI, which defaults it to INR. The API accepts a create with it absent. A UI/API divergence: the API permits a document the UI cannot produce.",
+        "note": "",
+        "highlight": false,
+        "client": "procol_sandbox_demo",
+        "endpoint": "POST /api/fx_responses/create_row",
+        "evidence": "rejects a create that omits a mandatory field"
+      },
+      {
+        "id": "proforma-linked-po-has-no-target",
+        "issueId": "D__004",
+        "title": "p2p_proforma_invoice.linked_po is a relation pointing at nothing",
+        "status": "confirmed",
+        "severity": "medium",
+        "devStatus": "TO BE PICKED",
+        "devEta": "",
+        "priority": "P1",
+        "blocker": false,
+        "devType": "CONFIG",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "Proforma invoice",
+        "description": "p2p_proforma_invoice.linked_po is a relation pointing at nothing",
+        "detail": "The field is declared data_type \"relational\" but its field_type carries no related_datasource_id, related_datasource_table or relation_id, so nothing can populate it. Confirmed against the live schema, so it is tenant configuration rather than stale local config. Needs tenant admin to fix.",
+        "note": "tenant configuration, not code — quarantined in tier 2 so it does not mask new drift",
+        "highlight": false,
+        "client": "procol_sandbox_demo",
+        "endpoint": "GET /api/flexi_datasources/{uuid}",
+        "evidence": "tier 1 + tier 2 'relation fields name a resolvable target' (quarantined as a known issue)"
+      },
+      {
+        "id": "vendor-pan-not-autofilled",
+        "issueId": "D__005",
+        "title": "vendor_pan never autofills — no PAN held against the vendor",
+        "status": "confirmed",
+        "severity": "low",
+        "devStatus": "OPEN",
+        "devEta": "",
+        "priority": "P2",
+        "blocker": false,
+        "devType": "DATA",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "PO",
+        "description": "vendor_pan never autofills — no PAN held against the vendor",
+        "detail": "vendor_pan is an external_relation reading companies.misc->>'pan'. After a create it stays empty because the vendor master data holds no PAN against the vendor name. A master-data gap rather than a resolution failure.",
+        "note": "fix is master data, not the field",
+        "highlight": false,
+        "client": "procol_sandbox_demo",
+        "endpoint": "POST /api/fx_responses/create_row",
+        "evidence": "the platform autofilled every derived field"
+      },
+      {
+        "id": "unknown-field-uuid-ignored",
+        "issueId": "D__008",
+        "title": "an unknown field_uuid is silently accepted and dropped",
+        "status": "confirmed",
+        "severity": "low",
+        "devStatus": "OPEN",
+        "devEta": "",
+        "priority": "P2",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "PO",
+        "description": "an unknown field_uuid is silently accepted and dropped",
+        "detail": "Posting a field_uuid that does not exist on the datasource returns 200 and the value is discarded without comment. A typo'd or stale uuid therefore looks like a successful write.",
+        "note": "",
+        "highlight": false,
+        "client": "procol_sandbox_demo",
+        "endpoint": "POST /api/fx_responses/create_row",
+        "evidence": "rejects an unknown field uuid"
+      },
+      {
+        "id": "app-version-changes-payload",
+        "issueId": "D__009",
+        "title": "omitting app-version silently returns a reduced payload",
+        "status": "confirmed",
+        "severity": "medium",
+        "devStatus": "TO BE DISCUSSED",
+        "devEta": "",
+        "priority": "P1",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "Approvals",
+        "description": "omitting app-version silently returns a reduced payload",
+        "detail": "The platform selects a response serializer from the app-version header. With no such header it answers 200 but strips every step and approver uuid, so a document cannot be approved and the cause is invisible — the call looks successful. Same effect on the approval-flows list, which switches between numeric ids and encoded uuids. The suite now always sends app-version.",
+        "note": "worked around in the suite by always sending app-version — decide whether the default should be the full payload",
+        "highlight": false,
+        "client": "both",
+        "endpoint": "GET /api/fx_responses/{uuid}/get_approvals",
+        "evidence": "measured: no header -> approver.uuid undefined; 9.4.349 -> uuid present"
+      },
+      {
+        "id": "duplicate-po-number",
+        "issueId": "D__011",
+        "title": "duplicate po_number is not rejected",
+        "status": "not-a-bug",
+        "severity": "none",
+        "devStatus": "NOT A BUG",
+        "devEta": "",
+        "priority": "P3",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "PO",
+        "description": "duplicate po_number is not rejected",
+        "detail": "Reported by an early version of the suite. po_number is non-editable and generated by the platform, so a duplicate can never be submitted and the test could never pass. The test was wrong, not the product.",
+        "note": "the test was wrong, not the product — kept so it is not re-filed as new",
+        "highlight": false,
+        "client": "procol_sandbox_demo",
+        "endpoint": "POST /api/fx_responses/create_row",
+        "evidence": "rejects a duplicate of a field marked unique"
+      }
+    ],
+    "generatedAt": "2026-09-11T14:28:50.072Z",
+    "startedAt": "2026-09-11T14:28:45.659Z",
+    "finishedAt": "2026-09-11T14:28:50.038Z",
+    "wallClockMs": 4379,
+    "environment": {
+      "clientId": "procol_sandbox_demo"
+    },
+    "clients": [
+      {
+        "clientId": "procol_sandbox_demo",
+        "modules": [
+          {
+            "moduleKey": "p2p_purchase_order",
+            "module": "PO",
+            "flows": [
+              {
+                "flowKey": "purchase-order.cli",
+                "flow": "purchase-order.cli",
+                "category": "purchase-order",
+                "cases": [
+                  {
+                    "test": {
+                      "id": "step-1",
+                      "title": "resolve header relations",
+                      "titlePath": [
+                        "resolve header relations"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "failed",
+                      "durationMs": 3558,
+                      "startedAt": "2026-09-11T14:28:45.659Z",
+                      "retries": 0,
+                      "errorMessage": "GET /api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}\nGET /api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}\nGET /api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}\nGET /api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}",
+                      "annotations": []
+                    },
+                    "client": "procol_sandbox_demo",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_purchase_order",
+                    "module": "PO",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 1,
+                        "timestamp": "2026-09-11T14:28:45.659Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 1418,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      },
+                      {
+                        "seq": 2,
+                        "timestamp": "2026-09-11T14:28:47.289Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 846,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      },
+                      {
+                        "seq": 3,
+                        "timestamp": "2026-09-11T14:28:48.137Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 683,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      },
+                      {
+                        "seq": 4,
+                        "timestamp": "2026-09-11T14:28:48.822Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 611,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      }
+                    ],
+                    "failedCalls": [
+                      {
+                        "seq": 1,
+                        "timestamp": "2026-09-11T14:28:45.659Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 1418,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      },
+                      {
+                        "seq": 2,
+                        "timestamp": "2026-09-11T14:28:47.289Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 846,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      },
+                      {
+                        "seq": 3,
+                        "timestamp": "2026-09-11T14:28:48.137Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 683,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      },
+                      {
+                        "seq": 4,
+                        "timestamp": "2026-09-11T14:28:48.822Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 611,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+                        "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+                      }
+                    ]
+                  },
+                  {
+                    "test": {
+                      "id": "step-2",
+                      "title": "create PO header",
+                      "titlePath": [
+                        "create PO header"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "failed",
+                      "durationMs": 595,
+                      "startedAt": "2026-09-11T14:28:49.435Z",
+                      "retries": 0,
+                      "errorMessage": "POST /api/fx_responses/create_row -> 422 {\"code\":754,\"message\":\"Datasource id is missing in input\"}",
+                      "annotations": []
+                    },
+                    "client": "procol_sandbox_demo",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_purchase_order",
+                    "module": "PO",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 5,
+                        "timestamp": "2026-09-11T14:28:49.435Z",
+                        "method": "POST",
+                        "uri": "/api/fx_responses/create_row",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 595,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "create PO header",
+                        "curl": "curl -i -X POST 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\" \\\n  -d '{\"datasource_uuid\":\"WGdEZ2s=\",\"responses\":[{\"field_uuid\":\"Y0RjRFpa\",\"value\":\"AUTO-SN-MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BaRFpa\",\"value\":\"AUTO Net Total Amount in words MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BERFpa\",\"value\":\"AUTO Note to Vendor - above T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BYRFpa\",\"value\":\"AUTO T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y05nRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y05RRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y1hjRFpa\",\"value\":1789136925},{\"field_uuid\":\"Y1hkRFpa\",\"value\":\"AUTO Intake Request Condition MTX1XJ2WU5\"},{\"field_uuid\":\"Y2RERFpa\",\"value\":\"0\"},{\"field_uuid\":\"Y2RYRFpa\",\"value\":\"1\"},{\"field_uuid\":\"Y1FrRFpa\",\"value\":\"AUTO manual run\"},{\"field_uuid\":\"Y1FORFpa\",\"value\":70.19},{\"field_uuid\":\"a2dwRFpa\",\"value\":\"AUTO Place of Supply MTX1XJ2WU5\"},{\"field_uuid\":\"a1paRFpa\",\"value\":\"auto+MTX1XJ2WU5@example.com\"},{\"field_uuid\":\"a2NnRFpa\",\"value\":\"0\"},{\"field_uuid\":\"a2NrRFpa\",\"value\":0},{\"field_uuid\":\"a2NORFpa\",\"value\":1796912925}]}'",
+                        "message": "{\"code\":754,\"message\":\"Datasource id is missing in input\"}"
+                      }
+                    ],
+                    "failedCalls": [
+                      {
+                        "seq": 5,
+                        "timestamp": "2026-09-11T14:28:49.435Z",
+                        "method": "POST",
+                        "uri": "/api/fx_responses/create_row",
+                        "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row",
+                        "status": 422,
+                        "statusText": "",
+                        "ok": false,
+                        "durationMs": 595,
+                        "clientId": "procol_sandbox_demo",
+                        "step": "create PO header",
+                        "curl": "curl -i -X POST 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\" \\\n  -d '{\"datasource_uuid\":\"WGdEZ2s=\",\"responses\":[{\"field_uuid\":\"Y0RjRFpa\",\"value\":\"AUTO-SN-MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BaRFpa\",\"value\":\"AUTO Net Total Amount in words MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BERFpa\",\"value\":\"AUTO Note to Vendor - above T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BYRFpa\",\"value\":\"AUTO T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y05nRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y05RRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y1hjRFpa\",\"value\":1789136925},{\"field_uuid\":\"Y1hkRFpa\",\"value\":\"AUTO Intake Request Condition MTX1XJ2WU5\"},{\"field_uuid\":\"Y2RERFpa\",\"value\":\"0\"},{\"field_uuid\":\"Y2RYRFpa\",\"value\":\"1\"},{\"field_uuid\":\"Y1FrRFpa\",\"value\":\"AUTO manual run\"},{\"field_uuid\":\"Y1FORFpa\",\"value\":70.19},{\"field_uuid\":\"a2dwRFpa\",\"value\":\"AUTO Place of Supply MTX1XJ2WU5\"},{\"field_uuid\":\"a1paRFpa\",\"value\":\"auto+MTX1XJ2WU5@example.com\"},{\"field_uuid\":\"a2NnRFpa\",\"value\":\"0\"},{\"field_uuid\":\"a2NrRFpa\",\"value\":0},{\"field_uuid\":\"a2NORFpa\",\"value\":1796912925}]}'",
+                        "message": "{\"code\":754,\"message\":\"Datasource id is missing in input\"}"
+                      }
+                    ]
+                  }
+                ],
+                "counts": {
+                  "positive": {
+                    "total": 2,
+                    "passed": 0,
+                    "failed": 2,
+                    "skipped": 0
+                  },
+                  "negative": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "edge": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  }
+                },
+                "callCount": 5,
+                "failedCallCount": 5,
+                "slowestCallMs": 1418
+              }
+            ],
+            "counts": {
+              "positive": {
+                "total": 2,
+                "passed": 0,
+                "failed": 2,
+                "skipped": 0
+              },
+              "negative": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "edge": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              }
+            },
+            "total": 2,
+            "passed": 0,
+            "failed": 2,
+            "skipped": 0,
+            "callCount": 5,
+            "failedCallCount": 5
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "test": {
+          "id": "step-1",
+          "title": "resolve header relations",
+          "titlePath": [
+            "resolve header relations"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "failed",
+          "durationMs": 3558,
+          "startedAt": "2026-09-11T14:28:45.659Z",
+          "retries": 0,
+          "errorMessage": "GET /api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}\nGET /api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}\nGET /api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}\nGET /api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1 -> 422 {\"code\":455,\"message\":\"You are not authorized to perform this action\"}",
+          "annotations": []
+        },
+        "client": "procol_sandbox_demo",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_purchase_order",
+        "module": "PO",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 1,
+            "timestamp": "2026-09-11T14:28:45.659Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 1418,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          },
+          {
+            "seq": 2,
+            "timestamp": "2026-09-11T14:28:47.289Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 846,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          },
+          {
+            "seq": 3,
+            "timestamp": "2026-09-11T14:28:48.137Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 683,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          },
+          {
+            "seq": 4,
+            "timestamp": "2026-09-11T14:28:48.822Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 611,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          }
+        ],
+        "failedCalls": [
+          {
+            "seq": 1,
+            "timestamp": "2026-09-11T14:28:45.659Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 1418,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WGdEZ2s%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          },
+          {
+            "seq": 2,
+            "timestamp": "2026-09-11T14:28:47.289Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 846,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WmdEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          },
+          {
+            "seq": 3,
+            "timestamp": "2026-09-11T14:28:48.137Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 683,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=Wk5EZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          },
+          {
+            "seq": 4,
+            "timestamp": "2026-09-11T14:28:48.822Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 611,
+            "clientId": "procol_sandbox_demo",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_views/records?datasource_uuid=WlFEZ2s%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\"",
+            "message": "{\"code\":455,\"message\":\"You are not authorized to perform this action\"}"
+          }
+        ]
+      },
+      {
+        "test": {
+          "id": "step-2",
+          "title": "create PO header",
+          "titlePath": [
+            "create PO header"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "failed",
+          "durationMs": 595,
+          "startedAt": "2026-09-11T14:28:49.435Z",
+          "retries": 0,
+          "errorMessage": "POST /api/fx_responses/create_row -> 422 {\"code\":754,\"message\":\"Datasource id is missing in input\"}",
+          "annotations": []
+        },
+        "client": "procol_sandbox_demo",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_purchase_order",
+        "module": "PO",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 5,
+            "timestamp": "2026-09-11T14:28:49.435Z",
+            "method": "POST",
+            "uri": "/api/fx_responses/create_row",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 595,
+            "clientId": "procol_sandbox_demo",
+            "step": "create PO header",
+            "curl": "curl -i -X POST 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\" \\\n  -d '{\"datasource_uuid\":\"WGdEZ2s=\",\"responses\":[{\"field_uuid\":\"Y0RjRFpa\",\"value\":\"AUTO-SN-MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BaRFpa\",\"value\":\"AUTO Net Total Amount in words MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BERFpa\",\"value\":\"AUTO Note to Vendor - above T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BYRFpa\",\"value\":\"AUTO T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y05nRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y05RRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y1hjRFpa\",\"value\":1789136925},{\"field_uuid\":\"Y1hkRFpa\",\"value\":\"AUTO Intake Request Condition MTX1XJ2WU5\"},{\"field_uuid\":\"Y2RERFpa\",\"value\":\"0\"},{\"field_uuid\":\"Y2RYRFpa\",\"value\":\"1\"},{\"field_uuid\":\"Y1FrRFpa\",\"value\":\"AUTO manual run\"},{\"field_uuid\":\"Y1FORFpa\",\"value\":70.19},{\"field_uuid\":\"a2dwRFpa\",\"value\":\"AUTO Place of Supply MTX1XJ2WU5\"},{\"field_uuid\":\"a1paRFpa\",\"value\":\"auto+MTX1XJ2WU5@example.com\"},{\"field_uuid\":\"a2NnRFpa\",\"value\":\"0\"},{\"field_uuid\":\"a2NrRFpa\",\"value\":0},{\"field_uuid\":\"a2NORFpa\",\"value\":1796912925}]}'",
+            "message": "{\"code\":754,\"message\":\"Datasource id is missing in input\"}"
+          }
+        ],
+        "failedCalls": [
+          {
+            "seq": 5,
+            "timestamp": "2026-09-11T14:28:49.435Z",
+            "method": "POST",
+            "uri": "/api/fx_responses/create_row",
+            "url": "https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row",
+            "status": 422,
+            "statusText": "",
+            "ok": false,
+            "durationMs": 595,
+            "clientId": "procol_sandbox_demo",
+            "step": "create PO header",
+            "curl": "curl -i -X POST 'https://procol-sandbox-demo-proco-internal-demo.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 9.4.349' \\\n  -H \"access-token: $PROCOL_TOKEN\" \\\n  -d '{\"datasource_uuid\":\"WGdEZ2s=\",\"responses\":[{\"field_uuid\":\"Y0RjRFpa\",\"value\":\"AUTO-SN-MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BaRFpa\",\"value\":\"AUTO Net Total Amount in words MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BERFpa\",\"value\":\"AUTO Note to Vendor - above T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y3BYRFpa\",\"value\":\"AUTO T & Cs MTX1XJ2WU5\"},{\"field_uuid\":\"Y05nRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y05RRFpa\",\"value\":1791728925},{\"field_uuid\":\"Y1hjRFpa\",\"value\":1789136925},{\"field_uuid\":\"Y1hkRFpa\",\"value\":\"AUTO Intake Request Condition MTX1XJ2WU5\"},{\"field_uuid\":\"Y2RERFpa\",\"value\":\"0\"},{\"field_uuid\":\"Y2RYRFpa\",\"value\":\"1\"},{\"field_uuid\":\"Y1FrRFpa\",\"value\":\"AUTO manual run\"},{\"field_uuid\":\"Y1FORFpa\",\"value\":70.19},{\"field_uuid\":\"a2dwRFpa\",\"value\":\"AUTO Place of Supply MTX1XJ2WU5\"},{\"field_uuid\":\"a1paRFpa\",\"value\":\"auto+MTX1XJ2WU5@example.com\"},{\"field_uuid\":\"a2NnRFpa\",\"value\":\"0\"},{\"field_uuid\":\"a2NrRFpa\",\"value\":0},{\"field_uuid\":\"a2NORFpa\",\"value\":1796912925}]}'",
+            "message": "{\"code\":754,\"message\":\"Datasource id is missing in input\"}"
+          }
+        ]
+      }
+    ],
+    "orphanCalls": [],
+    "totals": {
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "byKind": {
+        "positive": {
+          "total": 2,
+          "passed": 0,
+          "failed": 2,
+          "skipped": 0
+        },
+        "negative": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0
+        },
+        "edge": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "calls": 5,
+      "failedCalls": 5,
+      "p50Ms": 683,
+      "p95Ms": 1418,
+      "maxMs": 1418,
+      "totalApiMs": 4153
+    },
+    "notes": [
+      "This is a CLI run, not a test run: each row below is a step the script performed, and a step counts as passed when every call it made returned 2xx. No assertions were evaluated — run the suite for that."
+    ]
+  }
+}

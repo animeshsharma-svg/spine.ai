@@ -1,0 +1,109 @@
+{
+  "_readme": "What the next `npm run po` creates. ONE PO per run: one header + one line item per entry in lineItems below (3 entries = 1 PO with 3 lines), then submitted into its approval flow. EVERYTHING IS OPTIONAL: a field you leave out is generated automatically, exactly as an unattended test run would. Write values the way you'd say them — a dropdown by its label (\"USD\"), a date as \"2026-12-31\" — and they are converted to what the platform stores. Anything that cannot be converted is sent as given and the platform's own response is reported. Delete the header/lineItems blocks entirely for a fully generated PO.",
+  "_clients": {
+    "_note": "Set \"client\" below, or override per run: npm run po -- --client <id>. Only clients with a file in config/clients/ can run; add one with `npm run discover -- --client <id>`.",
+    "procol_sandbox_demo": "READY — 13 datasources, submits into the 'PO approvals' flow.",
+    "decathlon": "NOT ONBOARDED YET — host and uuids are known (from the HAR captures) but it has no config/clients/decathlon.json and no .env credentials, so `npm run po -- --client decathlon` will fail until it is discovered."
+  },
+  "client": "procol_sandbox_demo",
+  "_headerOptions": {
+    "_note": "Valid values for procol_sandbox_demo, read from its discovered schema. Other clients have their own lists — a value from the wrong client is rejected by the platform, which is exactly what the negative tests check.",
+    "currency": [
+      "INR",
+      "AED",
+      "AUD",
+      "BDT",
+      "BGN",
+      "CAD",
+      "CHF",
+      "CNY",
+      "EGP",
+      "EUR",
+      "GBP",
+      "HKD",
+      "IDR",
+      "JPY",
+      "LKR",
+      "SAR",
+      "SGD",
+      "USD"
+    ],
+    "payment_terms": [
+      "NET 15",
+      "NET 30",
+      "NET 45",
+      "NET 60",
+      "ADVANCE"
+    ],
+    "ldc_applicable": [
+      "Yes",
+      "No"
+    ],
+    "_currency_required": "currency is the only mandatory dropdown on the header.",
+    "_status": "status and approval_status are platform-managed — the suite never sends them, and neither should you."
+  },
+  "header": {
+    "currency": "INR",
+    "payment_terms": "NET 30",
+    "remark": "AUTO manual run"
+  },
+  "_lineItemFields": {
+    "_note": "Numeric fields you can set per line. quantity and unit_price drive the totals; base_amount, tax_amount and quantity_booked are computed by the platform and are never sent.",
+    "settable": [
+      "quantity",
+      "unit_price",
+      "discount_percentage",
+      "cgst",
+      "sgst",
+      "igst",
+      "tolerance_quantity"
+    ],
+    "_computed": [
+      "base_amount",
+      "tax_amount",
+      "taxable_value",
+      "quantity_booked"
+    ]
+  },
+  "lineItems": [
+    {
+      "quantity": 5,
+      "unit_price": 100.0
+    },
+    {
+      "quantity": 3,
+      "unit_price": 250.5
+    },
+    {
+      "quantity": 10,
+      "unit_price": 12.75
+    }
+  ],
+  "perClient": {
+    "_note": "Values only this client needs, merged over the shared header/lineItems above. Decathlon's PO has mandatory relations that cannot be generated or sampled: no existing PO on that account carries a vendor_gst, so there is nothing to copy.",
+    "decathlon": {
+      "header": {
+        "vendor_gst": "a1hYWlFw",
+        "state_code": "a1hnZE5k"
+      },
+      "_note": "gst_type is mandatory on a line item and marked readOnly, so the platform will not generate it and the API will not fill it — a PO created this way fails submit with \"GST Type is required\" until it is written down here. IGST or CGST/SGST.",
+      "lineItems": [
+        {
+          "quantity": 5,
+          "unit_price": 100.0,
+          "gst_type": "IGST"
+        },
+        {
+          "quantity": 3,
+          "unit_price": 250.5,
+          "gst_type": "IGST"
+        },
+        {
+          "quantity": 10,
+          "unit_price": 12.75,
+          "gst_type": "IGST"
+        }
+      ]
+    }
+  }
+}

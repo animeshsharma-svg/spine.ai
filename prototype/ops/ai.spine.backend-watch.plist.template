@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  spine.ai backend watch — a launchd TEMPLATE. Not installed by anything.
+  Fill the placeholders and install by hand (docs/CI.md, "Switching on the backend watch"):
+
+    __PROTOTYPE_DIR__   absolute path of prototype/
+    __NODE_BIN_DIR__    the folder `which node` prints, without /node
+    __LOG_DIR__         where launchd writes stdout/stderr
+    __FETCH__           0 = only look at the origin/main already on this Mac (safe default)
+                        1 = `git fetch` procol-backend first (updates remote refs only, never
+                            the working tree; needs your GitHub access to Procol-Tech/procol-backend)
+
+  Every hour. With no new commits it prints one line and exits. With new commits
+  it writes data/backend-watch/<date>-<from>-<to>.md and starts the targeted runs
+  (the "run" argument below — remove it to only plan them).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.spine.backend-watch</string>
+
+  <key>WorkingDirectory</key>
+  <string>__PROTOTYPE_DIR__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE_BIN_DIR__/npm</string>
+    <string>run</string>
+    <string>backend:watch</string>
+    <string>--</string>
+    <string>--run</string>
+    <string>--clients</string>
+    <string>198678</string>
+    <string>--max-runs</string>
+    <string>3</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__NODE_BIN_DIR__:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>BACKEND_WATCH_FETCH</key>
+    <string>__FETCH__</string>
+  </dict>
+
+  <key>StartInterval</key>
+  <integer>3600</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>5</integer>
+
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/backend-watch.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/backend-watch.err.log</string>
+</dict>
+</plist>
