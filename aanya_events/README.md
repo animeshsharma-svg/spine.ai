@@ -34,6 +34,8 @@ how many to use, or which ones by name.
 - `tests/04-surrogate.spec.ts`: 4.1–4.15, the buyer bids on a vendor's behalf
 - `tests/05-surrogate-negative.spec.ts`: 5.1.1–5.3.99, broken surrogate bids
 - `tests/06-latency.spec.ts`: 6.1–6.3, the same reads fired in parallel
+- `tests/07-vendor-bid.spec.ts`: 4.0a–4B.16, the vendor bids from the vendor portal
+- `tests/08-vendor-bid-negative.spec.ts`: 5B.1.1–5B.3.99, broken logins and bid sheets
 - `src/harness.ts`: one case = one test; the collection's `pm.test` lines become named checks; critical checks stop the publish flow
 - `src/reporter.ts` + `src/reportHtml.ts`: `reports/rfp-run.json` and `reports/rfp-report.html`
 
@@ -58,7 +60,8 @@ cases test which feature:
 | Sourcing events → Event validation | 3.0, 3.2.x create-event validation |
 | Sourcing events → Event configuration | 3.3.x stage validation — each case in the shape of the round being built; 3.3.25–3.3.37 are the RFQ price sheet's own rules |
 | Sourcing events → Invite vendors | 3.5.10–3.5.11 |
-| Bidding → Surrogate bid | 4.1–4.15 the surrogate bid, 5.x its validations — runs only when ticked |
+| Sourcing events → Surrogate bid | 4.1–4.15 the surrogate bid, 5.x its validations — runs only when ticked |
+| Sourcing events → Vendor bid (vendor portal) | 4.0a–4.0c pick the vendors, 4B.1–4B.16 each vendor logs in with its email + OTP and bids itself, 5B.x its validations — runs only when ticked |
 | Platform & config → API hardening | 3.1.x security, remaining 3.5.x, 6.x parallel latency |
 
 Tick features, then set the line items, the quantity (one for all, or `5,10`

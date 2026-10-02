@@ -20,6 +20,7 @@ import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
 import { needsEventFixture } from "./checks/eventsFixture.js";
 import { journeyPlan, journeyWalksFeature, STEP_META } from "./checks/journeyModel.js";
 import type { JourneyRecord, JourneyStepRecord } from "./checks/journeyModel.js";
+import { mergeFieldChecks } from "./report/journeyReport.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./checks/eventJourney.js";
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
 import { apiModulesFor, singleApiModule } from "../config/apiModules.js";
@@ -63,7 +64,7 @@ import { findCases, sections, caseById, caseAsProse, catalogStats } from "./chec
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { buildJourneys } from "./checks/journeys.js";
 import { buildCaseBook } from "./checks/caseBook.js";
-import { runApiCases } from "./checks/apiCaseRunner.js";
+import { runApiCases, matchApiCase, type ApiCaseOutcome } from "./checks/apiCaseRunner.js";
 import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 import { flowToCases, loadRecording } from "./checks/flowToCases.js";
 import { replayCase, disposeReplay } from "./checks/flowReplay.js";
@@ -73,6 +74,36 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(here, "..", "public");
 const DATA_DIR = join(here, "..", "data");
 const REC_DIR = join(here, "..", "..", "procol-ui-tests", "recordings");
+
+/**
+ * The live "Run" view and the static HTML report must read as the same test
+ * case, so both fold a field's presence/type/value checks into one row the
+ * same way — this reuses `journeyReport.ts`'s merge instead of redoing it in
+ * `app.js`. The browser's renderer only understands single id/title/expected/
+ * actual per row, so a merged group is flattened back into that shape.
+ */
+function stepForClient(step: JourneyStepRecord): JourneyStepRecord {
+  if (!step.assertions) return step;
+  const merged = mergeFieldChecks(step.assertions.results, step.kind);
+  return {
+    ...step,
+    assertions: {
+      ...step.assertions,
+      results: merged.map((m) => ({
+        id: m.ids.length > 1 ? `${m.ids[0]} (${m.ids.length} checks)` : m.ids[0],
+        path: m.path,
+        op: m.ops[0],
+        title: m.title,
+        expected: m.expected,
+        severity: m.severity,
+        pass: m.pass,
+        humanTitle: m.title,
+        humanExpected: m.expected,
+        humanActual: m.actual,
+      })),
+    },
+  };
+}
 
 /**
  * The base URL this request should talk to, when the reader has chosen one.
@@ -488,6 +519,109 @@ const server = createServer(async (req, res) => {
       return res.end();
     }
 
+    /**
+     * ── API: one free-text test case, matched to a real registered contract
+     * case and run for real (SSE) ──
+     *
+     * The chat box's "Run (API)" button. Unlike `/api/cases-run` above (a
+     * numbered list, replayed against scripted fixtures), this takes ONE
+     * instruction and either runs a real, already-automated contract case for
+     * real, or says plainly that nothing matched closely enough — it never
+     * guesses or fabricates a verdict for an instruction it cannot place.
+     */
+    if (path === "/api/run-case-api") {
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const text = url.searchParams.get("text") ?? "";
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const startedAt = Date.now();
+      const noMatchRow = (): CheckResult => ({
+        id: "API-NOMATCH",
+        flowId: "api.instruction",
+        module: "events",
+        scenario: text,
+        type: "functional",
+        category: "Functional",
+        priority: "P2",
+        severity: "low",
+        expected: "accept",
+        inconclusive: true,
+        layer: "api",
+        inputSummary: text,
+        httpStatus: null,
+        accepted: false,
+        message: "No registered contract case matched this instruction closely enough to run for real — try rephrasing it closer to how a test case is usually titled.",
+        durationMs: 0,
+        pass: false,
+        verdict: "no matching registered case — not run",
+      });
+      try {
+        if (!text.trim()) {
+          send("fatal", { message: "Type a test case first." });
+          return res.end();
+        }
+        const match = await matchApiCase(text);
+        if (!match) {
+          send("plan", { cases: 1, runnable: 0, skipped: [{ id: "API-NOMATCH", title: text, reason: "no registered case matched" }] });
+          send("check", { check: noMatchRow() });
+          send("done", { ok: true, total: 0 });
+          return res.end();
+        }
+        send("plan", { cases: 1, runnable: 1, skipped: [] });
+        const results: ApiCaseOutcome[] = [];
+        await runApiCases(
+          [match.id],
+          (r) => {
+            results.push(r);
+            const expected: CheckResult["expected"] = (r.expectedStatus ?? 200) >= 400 ? "reject" : "accept";
+            send("check", {
+              check: {
+                id: r.id,
+                flowId: "api.instruction",
+                module: r.area || "events",
+                scenario: `“${text}” → ${r.title}`,
+                type: "functional",
+                category: "Functional",
+                priority: "P1",
+                severity: r.severity ?? "medium",
+                expected,
+                layer: "api",
+                inputSummary: `${r.method ?? ""} ${r.path ?? ""}`.trim(),
+                request: r.method && r.path ? { method: r.method, path: r.path } : undefined,
+                httpStatus: r.httpStatus ?? null,
+                accepted: r.status === "passed",
+                message: r.status === "passed" ? null : (r.message ?? r.reason ?? "failed"),
+                durationMs: r.durationMs,
+                pass: r.status === "passed",
+                inconclusive: r.status === "skipped",
+                verdict: r.status === "passed" ? `matched registered case ${r.id} — passed` : r.status === "skipped" ? `matched ${r.id}, but skipped — ${r.reason}` : `matched ${r.id} — failed`,
+              } satisfies CheckResult,
+            });
+          },
+          (line) => send("line", { line }),
+        );
+        const savedRunId = newRunId();
+        saveRun({
+          id: savedRunId,
+          ts: new Date().toISOString(),
+          request: `API: ${text}`,
+          companyId: c,
+          companyName: null,
+          provider: providerLabel(),
+          durationMs: Date.now() - startedAt,
+          report: undefined,
+          events: [],
+          flowResults: [],
+          validationResults: [],
+          checkResults: results.map((r) => ({ id: r.id, title: r.title, status: r.status }) as any),
+        });
+        send("done", { ok: true, total: results.length, runId: savedRunId });
+      } catch (err: any) {
+        send("fatal", { message: err?.message ?? String(err) });
+      }
+      return res.end();
+    }
+
     // ── API: multi-company (company switcher) checks against the sandbox env ──
     if (path === "/api/multi-company") {
       const { runMultiCompanyChecks } = await import("./flows/multiCompanyChecks.js");
@@ -554,16 +688,26 @@ const server = createServer(async (req, res) => {
          * thing after publishing, so it moves to Sourcing events, straight
          * under "Publish event", and leaves Bidding so it is not listed twice.
          */
-        const MOVE = "bids.surrogate";
-        const moved = FEATURE_TREE.flatMap((g) => g.children).find((f) => f.id === MOVE);
+        const MOVE = ["bids.surrogate", "bids.place"];
+        const all = FEATURE_TREE.flatMap((g) => g.children);
+        const surrogate = all.find((f) => f.id === "bids.surrogate");
+        const place = all.find((f) => f.id === "bids.place");
         const tree = FEATURE_TREE.map((g) => {
-          if (g.id === "events" && moved) {
+          if (g.id === "events") {
             const kids = [...g.children];
             const at = kids.findIndex((f) => f.id === "events.publish");
-            kids.splice(at + 1, 0, { ...moved, what: "The buyer bids on the published RFP for an invited vendor — runs only when ticked." });
+            const bids = [
+              surrogate && { ...surrogate, what: "The buyer bids on the published RFP for an invited vendor — runs only when ticked." },
+              place && {
+                ...place,
+                label: "Vendor bid (vendor portal)",
+                what: "The vendor logs in to the portal with its email and OTP and bids on the published RFP itself — runs only when ticked.",
+              },
+            ].filter(Boolean) as typeof kids;
+            kids.splice(at + 1, 0, ...bids);
             return { ...g, children: kids };
           }
-          return { ...g, children: g.children.filter((f) => f.id !== MOVE) };
+          return { ...g, children: g.children.filter((f) => !MOVE.includes(f.id)) };
         });
         const groups = tree.map((g) => ({
           ...g,
@@ -580,7 +724,7 @@ const server = createServer(async (req, res) => {
           scope: null,
           totalCases: groups.reduce((n, g) => n + g.children.reduce((m, f) => m + (f.cases ?? 0), 0), 0),
           company: null,
-          suite: { id: suiteAccount.suite, ...rfpReady(), defaults: { lineItems: 2, quantities: "5", vendors: 3, surrogateBids: 1 }, journey: rfpJourney() },
+          suite: { id: suiteAccount.suite, ...rfpReady(), defaults: { lineItems: 2, quantities: "5", vendors: 3, surrogateBids: 1, vendorBids: 1 }, journey: rfpJourney() },
         });
       }
 
@@ -1173,11 +1317,11 @@ const server = createServer(async (req, res) => {
             baseURL: baseOverride(url),
             stageSeconds: Number(url.searchParams.get("stageSeconds")) || 45,
             buildVariationsEvent: false,
-            onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step, planned }),
+            onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step: stepForClient(step), planned }),
             onLine: (line: string) => send("line", { line }),
           });
           journey = walked.journey;
-          send("journey", { journey });
+          send("journey", { journey: { ...journey, steps: journey.steps.map(stepForClient) } });
           // The second event's ids are what `{{eventGroupUuid}}`, `{{tradeId}}`
           // and `{{lineItemUuid}}` resolve to in the cases that follow.
           const caseCtx = await caseCtxP;
@@ -2150,6 +2294,7 @@ const server = createServer(async (req, res) => {
         vendors: num("vendors"),
         // Only when the surrogate bid is part of this run.
         surrogateBids: features.includes("bids.surrogate") ? num("sbBids") : undefined,
+        vendorBids: features.includes("bids.place") ? num("vbBids") : undefined,
       };
       const problem = inputProblem(inputs);
       if (problem) return fail(problem);

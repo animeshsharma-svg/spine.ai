@@ -44,6 +44,26 @@ test("planned test case", async ({ page }) => {
   await collector.installToastRecorder();
   collector.start();
 
+  /**
+   * LIVE FRAMES FOR THE DASHBOARD'S SPLIT VIEW.
+   *
+   * This spec only ever runs through `runUiPlan` (see `test.skip` above), so
+   * there is exactly one caller and no reason to gate this behind a flag. A
+   * screenshot every 800ms, printed as a stdout line, rides the same pipe the
+   * step log already uses (`launch()` in uiFlowRunner.ts pumps every line back
+   * to the server) — no new transport, no CDP session, just one more line
+   * format the server recognises. Low quality JPEG keeps each line small
+   * enough that this stays "watch what's happening now", not a recording.
+   */
+  let frameTimer: ReturnType<typeof setInterval> | null = setInterval(async () => {
+    try {
+      const buf = await page.screenshot({ type: "jpeg", quality: 40 });
+      console.log(`[frame] ${buf.toString("base64")}`);
+    } catch {
+      // Mid-navigation or the page just closed — skip this tick, not fatal.
+    }
+  }, 800);
+
   // Record the flow's real /api/* calls when asked (UI_RECORD_FLOW=<name>) —
   // no headers, so the token never lands on disk. Piggybacks on the run.
   const recorder = process.env.UI_RECORD_FLOW ? new FlowRecorder(page) : null;
@@ -87,6 +107,10 @@ test("planned test case", async ({ page }) => {
   }
 
   watchdog.stop();
+  if (frameTimer) {
+    clearInterval(frameTimer);
+    frameTimer = null;
+  }
   if (recorder) {
     const file = recorder.save(process.env.UI_RECORD_FLOW!);
     console.log(`[record] captured ${recorder.snapshot().length} API call(s) → ${file}`);

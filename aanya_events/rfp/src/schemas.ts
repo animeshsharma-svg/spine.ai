@@ -342,6 +342,84 @@ export const SCHEMAS = {
   }),
   viewingSeen: T.obj({ seen: T.arr(T.obj({ uuid: T.str, user_name: T.str, last_seen_at: T.int, currently_viewing: T.bool }, ["uuid", "last_seen_at"])) }),
   objectAny: { type: "object" },
+  generateOtp: T.obj({ otp_sent: T.bool, is_user_exist: T.bool }, ["otp_sent"]),
+  bidCreate: T.obj({ bid_uuid: T.str }),
+  rfqQuote: T.obj(
+    {
+      sheet_uuid: T.str,
+      placed_at: T.int,
+      inline_data: { type: "object", minProperties: 1 },
+      global_data: { type: "object" },
+      participants: T.obj({ company: T.obj({ uuid: T.str }, ["uuid"]), bid_config: T.obj({ is_surrogate_bid: T.bool }, ["is_surrogate_bid"]) }, ["company", "bid_config"]),
+    },
+    ["sheet_uuid", "inline_data", "participants"],
+  ),
+  vendorTradeRfq: T.obj(
+    {
+      uuid: T.str,
+      status: T.str,
+      rfx_mode: T.str,
+      bid_count: T.int,
+      event_group_uuid: T.str,
+      current_status: T.str,
+      order_details: T.arr(
+        T.obj(
+          {
+            product: T.obj({ uuid: T.str, event_group_line_item_uuid: T.str, value: T.str }, ["uuid", "event_group_line_item_uuid"]),
+            creator_quantity: T.obj({ value: {} }, ["value"]),
+            participant_quantity: { type: "object" },
+            price: { type: "object" },
+          },
+          ["product", "creator_quantity", "participant_quantity", "price"],
+        ),
+      ),
+      sheets: T.obj(
+        { inline_components: T.obj({ widgets: T.arr(), product_additional_data: { type: "object" } }, ["widgets"]), global_price_components: T.obj({ widgets: T.arr() }, ["widgets"]) },
+        ["inline_components"],
+      ),
+      trade_config: { type: "object" },
+    },
+    ["uuid", "status", "rfx_mode", "order_details", "sheets", "bid_count"],
+  ),
+  verifyOtp: T.obj(
+    {
+      access_token: T.str,
+      user: T.obj(
+        { uuid: T.str, email: T.nstr, category: T.str, status: T.str, company: T.obj({ uuid: T.str, name: T.str, category: T.str }, ["uuid", "name"]) },
+        ["uuid", "category", "company"],
+      ),
+    },
+    ["access_token", "user"],
+  ),
+  serverTime: { type: ["object", "integer", "number", "string"] },
+  placedBidConfig: T.obj(
+    { companies: T.arr(T.obj({ uuid: T.str, name: T.str, status: T.str, vendor_status: T.str }, ["uuid", "name"])), default_delivery_type: T.nstr },
+    ["companies"],
+  ),
+  templateResponse: T.obj({ uuid: T.str, item_uuid: T.str, item_type: T.str, user_uuid: T.str, company_uuid: T.str, status: T.str, data: { type: ["object", "array"] } }),
+  vendorTrade: T.obj(
+    {
+      uuid: T.str,
+      ref_uuid: T.str,
+      status: T.str,
+      rfx_mode: T.str,
+      starting_from: T.int,
+      ending_at: T.int,
+      bid_count: T.int,
+      event_group_uuid: T.str,
+      sheets: T.obj({ forms: T.arr(T.obj({ uuid: T.str, name: T.str, page_uuids: T.arr(T.str), page_response_headers: T.arr(header) }, ["uuid", "name", "page_uuids", "page_response_headers"])) }, ["forms"]),
+      participants: { type: ["object", "array"] },
+    },
+    ["uuid", "status", "rfx_mode", "sheets", "bid_count"],
+  ),
+  vendorEventGroup: T.obj(
+    {
+      uuid: T.str,
+      status: T.str,
+      stages: T.arr(T.obj({ uuid: T.str, status: T.str, rfx_mode: T.str, is_bid_placed: T.bool, is_stage_locked: T.bool, starting_from: T.int, ending_at: T.int }, ["uuid", "status", "is_bid_placed"])),
+    },
+    ["uuid", "status", "stages"],
+  ),
   templateDetailRfq: T.obj(
     {
       uuid: T.str,

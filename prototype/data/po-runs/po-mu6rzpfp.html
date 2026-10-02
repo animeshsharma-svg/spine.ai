@@ -1,0 +1,1673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Procol API run report — decathlon</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb;
+  --plane: #f9f9f7;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --rule: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --good-ink: #006300;
+  --k-positive: #2a78d6;
+  --k-negative: #eb6834;
+  --k-edge: #1baf7a;
+  --code-bg: #f2f1ec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane: #0d0d0d;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --rule: #383835;
+    --border: rgba(255,255,255,0.10);
+    --good-ink: #0ca30c;
+    --k-positive: #3987e5;
+    --k-negative: #d95926;
+    --k-edge: #199e70;
+    --code-bg: #232322;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--ink);
+  font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 80px; }
+h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 17px; margin: 0 0 12px; letter-spacing: -0.01em; }
+h3 { font-size: 14px; margin: 0 0 8px; }
+h5 { font-size: 12px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.sub { color: var(--ink-2); margin: 0 0 24px; }
+.lede { color: var(--ink-2); margin: -4px 0 14px; }
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 0 0 20px;
+}
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; margin-bottom: 22px; }
+.tile { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--plane); }
+.tile-v { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.tile-l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+.tile.good .tile-v { color: var(--good-ink); }
+.tile.critical .tile-v { color: var(--critical); }
+.tile.serious .tile-v { color: var(--serious); }
+.tile.muted .tile-v { color: var(--muted); }
+.tile-link { cursor: pointer; transition: border-color .12s, transform .12s; }
+.tile-link:hover { border-color: var(--rule); transform: translateY(-1px); }
+.tile-link:focus-visible { outline: 2px solid var(--k-positive); outline-offset: 2px; }
+.tile-link .tile-l::after { content: " ↓"; opacity: .45; }
+tr.kind-row { cursor: pointer; }
+tr.kind-row:hover td, tr.kind-row:hover th { background: var(--plane); }
+tr.kind-row:focus-visible { outline: 2px solid var(--k-positive); outline-offset: -2px; }
+tr.is-slowest { background: color-mix(in srgb, var(--warning) 14%, transparent); }
+@keyframes flash { from { background: color-mix(in srgb, var(--k-positive) 30%, transparent); } }
+.flash { animation: flash 1.1s ease-out; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.single { display: grid; grid-template-columns: minmax(0, 560px); gap: 24px; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; }
+.kv th, .kv td { text-align: left; vertical-align: top; padding: 4px 10px 4px 0; font-weight: 400; }
+.kv th { color: var(--muted); white-space: nowrap; width: 1%; font-size: 12px; }
+.grid { font-size: 13px; }
+.grid th, .grid td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+.grid thead th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; border-bottom: 1px solid var(--rule); position: sticky; top: 0; background: var(--surface-1); }
+.grid.tight th, .grid.tight td { padding: 5px 10px; }
+.grid td.err { max-width: 420px; }
+.grid td.where { max-width: 300px; font-size: 12px; color: var(--ink-2); }
+.grid.failures td { padding: 6px 10px; line-height: 1.4; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.good-ink { color: var(--good-ink); }
+.crit-ink { color: var(--critical); }
+.scroll { overflow-x: auto; }
+.scroll.tall { max-height: 620px; overflow-y: auto; }
+code { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; overflow-x: auto; max-height: 340px; margin: 0; white-space: pre-wrap; word-break: break-word; }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 20px; white-space: nowrap; border: 1px solid transparent; }
+.pill.good { color: var(--good-ink); border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.pill.warning { color: var(--ink); border-color: var(--warning); background: color-mix(in srgb, var(--warning) 18%, transparent); }
+.pill.serious { color: var(--ink); border-color: var(--serious); background: color-mix(in srgb, var(--serious) 18%, transparent); }
+.pill.critical { color: var(--critical); border-color: var(--critical); background: color-mix(in srgb, var(--critical) 12%, transparent); }
+.pill.muted { color: var(--muted); border-color: var(--rule); }
+.kind { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; white-space: nowrap; color: #fff; }
+.k-positive { background: var(--k-positive); }
+.k-negative { background: var(--k-negative); }
+.k-edge { background: var(--k-edge); }
+.kchip { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; border: 1px solid var(--border); }
+.kchip.k-positive { color: #fff; background: var(--k-positive); }
+.kchip.k-negative { color: #fff; background: var(--k-negative); }
+.kchip.k-edge { color: #fff; background: var(--k-edge); }
+.kchip.empty { color: var(--muted); background: transparent; border-style: dashed; }
+.kchip.has-fail { outline: 2px solid var(--critical); outline-offset: 1px; }
+.method { display: inline-block; font: 600 11px/1.6 ui-monospace, Menlo, monospace; padding: 0 5px; border-radius: 3px; border: 1px solid var(--border); background: var(--code-bg); white-space: nowrap; }
+.client > h2 { margin: 28px 0 2px; font-size: 19px; }
+.baseurl { margin: 0 0 14px; }
+.flow { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; margin: 0 0 14px; overflow: hidden; }
+.flow-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--grid); background: var(--plane); }
+.flow-head h3 { margin: 0; font-size: 14px; }
+.flowkey { font-size: 11px; }
+.grow { flex: 1 1 auto; }
+.meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.time { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stamp { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+details.case { border-bottom: 1px solid var(--grid); }
+details.case:last-child { border-bottom: 0; }
+details.case > summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 16px; cursor: pointer; list-style: none; }
+details.case > summary::-webkit-details-marker { display: none; }
+details.case > summary:hover { background: var(--plane); }
+.case-title { font-weight: 500; }
+.case-body { padding: 4px 16px 18px 16px; border-top: 1px dashed var(--grid); }
+.calls-head { margin-top: 16px; }
+details.call { border: 1px solid var(--border); border-radius: 7px; margin: 6px 0; background: var(--plane); }
+details.call > summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 10px; cursor: pointer; list-style: none; }
+details.call > summary::-webkit-details-marker { display: none; }
+details.call[data-ok="0"] { border-color: var(--critical); }
+.idx { font-size: 11px; color: var(--muted); min-width: 16px; font-variant-numeric: tabular-nums; }
+.uri { flex: 1 1 260px; }
+.call-body { padding: 4px 12px 14px; }
+.facts { margin-bottom: 6px; }
+.msg-box { border: 1px solid var(--rule); background: var(--plane); border-radius: 7px; padding: 10px 12px; margin: 10px 0; }
+.msg-box .error-title { color: var(--ink-2); }
+.curl { margin: 10px 0 6px; }
+.curl-head { display: flex; align-items: center; gap: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
+.curl pre { margin: 0; max-height: 300px; }
+.curl-note { margin: 6px 0 0; font-size: 11px; color: var(--muted); }
+button.copy { font: inherit; font-size: 11px; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface-1); color: var(--ink-2); cursor: pointer; text-transform: none; letter-spacing: 0; }
+button.copy:hover { color: var(--ink); }
+.call-meta { margin: 8px 0 0; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.module { margin: 0 0 22px; }
+.module-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 2px 10px; border-bottom: 2px solid var(--rule); margin-bottom: 12px; }
+.module-head h3 { margin: 0; font-size: 16px; }
+details.coverage { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); margin: 0 0 14px; overflow: hidden; }
+details.coverage > summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px; cursor: pointer; list-style: none; background: var(--plane); }
+details.coverage > summary::-webkit-details-marker { display: none; }
+.cov-label { font-weight: 500; font-size: 13px; }
+table.cov td.case-name { font-weight: 500; }
+table.cov td.why { color: var(--ink-2); font-size: 12px; max-width: 380px; }
+.skip-why { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+table.cov tr[data-status="not-exercised"] td { background: color-mix(in srgb, var(--warning) 10%, transparent); }
+.error-box { border: 1px solid var(--critical); background: color-mix(in srgb, var(--critical) 8%, transparent); border-radius: 7px; padding: 10px 12px; margin: 10px 0; }
+.error-title { font-weight: 600; font-size: 12px; color: var(--critical); margin-bottom: 4px; }
+.error-msg { margin: 0; white-space: pre-wrap; word-break: break-word; }
+pre.error-msg { background: transparent; border: 0; padding: 0; max-height: 240px; }
+.skip-box { border: 1px solid var(--rule); border-radius: 7px; padding: 9px 12px; margin: 10px 0; color: var(--ink-2); }
+.none { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.count { font-size: 12px; color: var(--muted); font-weight: 400; }
+.notes { margin-top: 20px; border-top: 1px solid var(--grid); padding-top: 14px; }
+.notes ul { margin: 0; padding-left: 20px; color: var(--ink-2); }
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; }
+.filters input, .filters select { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface-1); color: var(--ink); }
+.filters input { min-width: 240px; }
+.showing { font-size: 12px; color: var(--muted); }
+.filters button { font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface-1); color: var(--ink); cursor: pointer; }
+.scope { margin: -8px 0 18px; padding: 9px 12px; border: 1px solid var(--rule); border-left: 3px solid var(--k-positive); border-radius: 6px; background: var(--plane); font-size: 13px; color: var(--ink-2); }
+.hidden { display: none !important; }
+/* The bug sheet keeps its own light palette on purpose: it mirrors a
+   spreadsheet, and a reader comparing the two should see the same colours. */
+
+.sheet-wrap { overflow-x: auto; border: 1px solid #c9c9c9; border-radius: 6px; background: #fff; }
+table.sheet { border-collapse: collapse; width: 100%; min-width: 1020px; background: #fff;
+  font-family: Arial, Helvetica, system-ui, sans-serif; font-size: 12px; color: #202124; }
+table.sheet th, table.sheet td { border: 1px solid #d7d7d7; padding: 7px 8px; vertical-align: middle; text-align: left; }
+table.sheet thead th { position: sticky; top: 0; z-index: 2; background: #4a86e8; color: #fff;
+  font-weight: 700; font-size: 12px; text-align: center; white-space: nowrap; }
+table.sheet tbody tr:hover td { background: #f3f7fd; }
+table.sheet td.c-id { font-weight: 600; white-space: nowrap; text-align: center; }
+table.sheet td.c-mid { text-align: center; white-space: nowrap; }
+table.sheet td.c-desc { min-width: 220px; }
+table.sheet td.c-comment, table.sheet td.c-note { color: #3c4043; min-width: 100px; font-size: 11.5px; }
+table.sheet td.tinted { background: #fce5cd; }
+table.sheet tbody tr.is-fixed td.c-id { color: #6b6b6b; }
+.chip { display: inline-block; border-radius: 999px; padding: 3px 12px; font-size: 11px;
+  font-weight: 700; line-height: 1.5; white-space: nowrap; }
+/* The sheet's own status colours, value for value. */
+.chip-fixed { background: #38761d; color: #fff; }
+.chip-open { background: #a02020; color: #fff; }
+.chip-tested { background: #cfe2f3; color: #0b4f6c; }
+.chip-deployed { background: #d0e0e3; color: #134f5c; }
+.chip-picked { background: #f4c7c3; color: #5c1a16; }
+.chip-todo { background: #1155cc; color: #fff; }
+.chip-discuss { background: #fce8b2; color: #5c4404; }
+.chip-notabug { background: #efefef; color: #5f6368; }
+.chip-later { background: #d9d2e9; color: #3d2c66; }
+.chip-dupe { background: #990000; color: #fff; }
+.chip-feature { background: #674ea7; color: #fff; }
+.chip-reopen { background: #7f4f10; color: #fff; }
+.chip-p0 { background: #a02020; color: #fff; }
+.chip-p1 { background: #f4c7c3; color: #5c1a16; }
+.chip-p2 { background: #fff2cc; color: #5c4404; }
+.chip-p3 { background: #efefef; color: #5f6368; }
+.chip-yes { background: #a02020; color: #fff; }
+.chip-no { background: #d9ead3; color: #274e13; }
+.chip-dev { background: #a61c00; color: #fff; }
+.desc-title { display: block; }
+.desc-detail { display: block; margin-top: 4px; color: #5f6368; font-size: 11px; line-height: 1.45; }
+.desc-meta { display: block; margin-top: 4px; font-size: 11px; color: #5f6368; }
+.desc-meta code { background: #f1f3f4; padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+details.desc-more { margin-top: 5px; }
+details.desc-more > summary { font-size: 11px; color: #1a73e8; cursor: pointer; list-style: none; width: fit-content; }
+details.desc-more > summary::-webkit-details-marker { display: none; }
+details.desc-more > summary::before { content: "▸ "; }
+details.desc-more[open] > summary::before { content: "▾ "; }
+details.desc-more > summary:hover { text-decoration: underline; }
+.verify { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.v-confirmed { color: #a02020; }
+.v-intermittent { color: #b06000; }
+.v-unconfirmed { color: #7a6a00; }
+.v-not-a-bug { color: #7a7a7a; }
+.sheet-legend { margin: 10px 0 0; font-size: 12px; color: #5f6368; }
+.bug-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
+.bug-filters input, .bug-filters select { font: inherit; font-size: 13px; padding: 5px 8px;
+  border: 1px solid #c9c9c9; border-radius: 6px; background: #fff; color: #202124; }
+.bug-filters input { min-width: 240px; }
+.bug-count { font-size: 12px; color: #5f6368; }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Procol API run report</h1>
+  <p class="sub">decathlon · generated 2026-09-18 15:18:40.685</p>
+  
+
+  
+<section class="card">
+  <h2>This run</h2>
+  <div class="tiles">
+    <div class="tile  tile-link" role="button" tabindex="0" data-action="filter:all" title="Show every case"><div class="tile-v">12</div><div class="tile-l">steps</div></div>
+    <div class="tile good tile-link" role="button" tabindex="0" data-action="filter:passed" title="Show only cases that passed"><div class="tile-v">12</div><div class="tile-l">passed</div></div>
+    <div class="tile "><div class="tile-v">0</div><div class="tile-l">failed</div></div>
+    
+    <div class="tile "><div class="tile-v">19</div><div class="tile-l">API calls</div></div>
+    <div class="tile "><div class="tile-v">0</div><div class="tile-l">non-2xx calls</div></div>
+    <div class="tile "><div class="tile-v">1.24s</div><div class="tile-l">p50 response</div></div>
+    <div class="tile "><div class="tile-v">4.79s</div><div class="tile-l">p95 response</div></div>
+    <div class="tile  tile-link" role="button" tabindex="0" data-action="goto:slowest" title="Jump to the slowest call"><div class="tile-v">4.79s</div><div class="tile-l">slowest call</div></div>
+  </div>
+  <div class="single">
+    
+    <div>
+      <h3>Environment</h3>
+      <table class="kv">
+        <tr><th>Client</th><td>decathlon</td></tr>
+        
+        
+        <tr><th>Run started</th><td>2026-09-18 15:18:13.842</td></tr>
+        <tr><th>Run finished</th><td>2026-09-18 15:18:40.632</td></tr>
+        <tr><th>Wall clock</th><td>26.79s</td></tr>
+        <tr><th>Time in API calls</th><td>26.50s</td></tr>
+        <tr><th>Report generated</th><td>2026-09-18 15:18:40.685</td></tr>
+        
+        <tr><th>Re-running a curl</th><td>Every call below prints as curl with the credential
+          held in <code>$PROCOL_TOKEN</code> — <code>export PROCOL_TOKEN=…</code> first. Tokens never reach the report.</td></tr>
+      </table>
+    </div>
+  </div>
+  
+  <div class="notes"><h3>Read this before trusting the numbers</h3><ul><li>This is a CLI run, not a test run: each row below is a step the script performed, and a step counts as passed when every call it made returned 2xx. No assertions were evaluated — run the suite for that.</li></ul></div>
+</section>
+  <section class="card" id="nonok"><h2>Non-2xx API calls</h2>
+      <p class="none">Every API call in this run returned 2xx.</p></section>
+
+  <div class="filters">
+    <input id="q" type="search" placeholder="Filter cases by name, module or flow…" aria-label="Filter cases">
+    <select id="fstatus" aria-label="Filter by status">
+      <option value="">Any status</option>
+      <option value="failed">Failed only</option>
+      <option value="passed">Passed only</option>
+      <option value="skipped">Not run only</option>
+    </select>
+    <select id="fmodule" aria-label="Filter by module">
+      <option value="">Any module</option>
+      <option value="Cost centre">Cost centre (1)</option><option value="Nature of expense">Nature of expense (3)</option><option value="Platform (not module-specific)">Platform (not module-specific) (2)</option><option value="PO">PO (2)</option><option value="PO line item">PO line item (3)</option><option value="state">state (1)</option>
+    </select>
+    <select id="fkind" aria-label="Filter by kind">
+      <option value="">Any kind</option>
+      <option value="positive">Positive</option>
+      <option value="negative">Negative</option>
+      <option value="edge">Edge</option>
+    </select>
+    <button id="expand" type="button">Expand failures</button>
+    <button id="collapse" type="button">Collapse all</button>
+    <span class="showing" id="showing"></span>
+  </div>
+
+  
+<section class="client">
+  <h2>decathlon</h2>
+  
+  
+<section class="module" data-module="Cost centre">
+  <header class="module-head">
+    <span class="pill good">all passed</span>
+    <h3>Cost centre</h3>
+    <code class="flowkey">p2p_cost_center</code>
+    <span class="grow"></span>
+    <span class="meta">1/1 run cases pass</span>
+    
+    <span class="meta">1 call</span>
+  </header>
+  
+  
+<section class="flow">
+  <header class="flow-head">
+    <span class="pill good">passed</span>
+    <h3>purchase-order.cli</h3>
+    
+    <span class="grow"></span>
+    
+    <span class="meta">1 call</span>
+    
+    <span class="time">slowest 1.55s</span>
+  </header>
+  
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="Cost centre"
+         data-search="resolve header relations cost centre p2p_cost_center purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">resolve header relations</span>
+    <span class="grow"></span>
+    <span class="meta">1 call</span>
+    
+    <span class="time">1.55s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>Cost centre <code>p2p_cost_center</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 1 call, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_views/records?datasource_uuid=WHBEWms%3D&amp;page=1&amp;per_page=1</code>
+    <span class="pill good">200</span>
+    <span class="time">1.55s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-1">Copy curl</button>
+      </div>
+      <pre id="curl-1">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WHBEWms%3D&amp;page=1&amp;per_page=1&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:13.842 · 1.55s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+</section>
+</section>
+<section class="module" data-module="Nature of expense">
+  <header class="module-head">
+    <span class="pill good">all passed</span>
+    <h3>Nature of expense</h3>
+    <code class="flowkey">p2p_nature_of_expense</code>
+    <span class="grow"></span>
+    <span class="meta">3/3 run cases pass</span>
+    
+    <span class="meta">6 calls</span>
+  </header>
+  
+  
+<section class="flow">
+  <header class="flow-head">
+    <span class="pill good">passed</span>
+    <h3>purchase-order.cli</h3>
+    
+    <span class="grow"></span>
+    
+    <span class="meta">6 calls</span>
+    
+    <span class="time">slowest 1.33s</span>
+  </header>
+  
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="Nature of expense"
+         data-search="line item 1: resolve relations nature of expense p2p_nature_of_expense purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">line item 1: resolve relations</span>
+    <span class="grow"></span>
+    <span class="meta">2 calls</span>
+    
+    <span class="time">1.67s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>Nature of expense <code>p2p_nature_of_expense</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 2 calls, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_views/records?datasource_uuid=WGREWms%3D&amp;page=1&amp;per_page=1</code>
+    <span class="pill good">200</span>
+    <span class="time">466ms</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-3">Copy curl</button>
+      </div>
+      <pre id="curl-3">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&amp;page=1&amp;per_page=1&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:20.416 · 466ms · decathlon</p>
+  </div>
+</details>
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">2</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_views/records?datasource_uuid=ZERrWlo%3D&amp;page=1&amp;per_page=50</code>
+    <span class="pill good">200</span>
+    <span class="time">1.21s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-4">Copy curl</button>
+      </div>
+      <pre id="curl-4">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&amp;page=1&amp;per_page=50&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:20.885 · 1.21s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="Nature of expense"
+         data-search="line item 2: resolve relations nature of expense p2p_nature_of_expense purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">line item 2: resolve relations</span>
+    <span class="grow"></span>
+    <span class="meta">2 calls</span>
+    
+    <span class="time">1.27s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>Nature of expense <code>p2p_nature_of_expense</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 2 calls, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_views/records?datasource_uuid=WGREWms%3D&amp;page=1&amp;per_page=1</code>
+    <span class="pill good">200</span>
+    <span class="time">365ms</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-6">Copy curl</button>
+      </div>
+      <pre id="curl-6">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&amp;page=1&amp;per_page=1&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:24.490 · 365ms · decathlon</p>
+  </div>
+</details>
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">2</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_views/records?datasource_uuid=ZERrWlo%3D&amp;page=1&amp;per_page=50</code>
+    <span class="pill good">200</span>
+    <span class="time">908ms</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-7">Copy curl</button>
+      </div>
+      <pre id="curl-7">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&amp;page=1&amp;per_page=50&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:24.856 · 908ms · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="Nature of expense"
+         data-search="line item 3: resolve relations nature of expense p2p_nature_of_expense purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">line item 3: resolve relations</span>
+    <span class="grow"></span>
+    <span class="meta">2 calls</span>
+    
+    <span class="time">2.26s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>Nature of expense <code>p2p_nature_of_expense</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 2 calls, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_views/records?datasource_uuid=WGREWms%3D&amp;page=1&amp;per_page=1</code>
+    <span class="pill good">200</span>
+    <span class="time">927ms</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-9">Copy curl</button>
+      </div>
+      <pre id="curl-9">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&amp;page=1&amp;per_page=1&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:27.597 · 927ms · decathlon</p>
+  </div>
+</details>
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">2</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_views/records?datasource_uuid=ZERrWlo%3D&amp;page=1&amp;per_page=50</code>
+    <span class="pill good">200</span>
+    <span class="time">1.33s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-10">Copy curl</button>
+      </div>
+      <pre id="curl-10">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&amp;page=1&amp;per_page=50&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:28.525 · 1.33s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+</section>
+</section>
+<section class="module" data-module="PO">
+  <header class="module-head">
+    <span class="pill good">all passed</span>
+    <h3>PO</h3>
+    <code class="flowkey">p2p_purchase_order</code>
+    <span class="grow"></span>
+    <span class="meta">2/2 run cases pass</span>
+    
+    <span class="meta">4 calls</span>
+  </header>
+  
+  
+<section class="flow">
+  <header class="flow-head">
+    <span class="pill good">passed</span>
+    <h3>purchase-order.cli</h3>
+    
+    <span class="grow"></span>
+    
+    <span class="meta">4 calls</span>
+    
+    <span class="time">slowest 4.79s</span>
+  </header>
+  
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="PO"
+         data-search="create po header po p2p_purchase_order purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">create PO header</span>
+    <span class="grow"></span>
+    <span class="meta">1 call</span>
+    
+    <span class="time">4.79s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>PO <code>p2p_purchase_order</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 1 call, as curl</h5>
+    
+<details class="call" data-ok="1" id="slowest">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-post">POST</span>
+    <code class="uri">/api/fx_responses/create_row</code>
+    <span class="pill good">200</span>
+    <span class="time">4.79s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-2">Copy curl</button>
+      </div>
+      <pre id="curl-2">curl -i -X POST &#39;https://sec-api.ag-ri.in/api/fx_responses/create_row&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;datasource_uuid&quot;:&quot;UWdrWlo=&quot;,&quot;responses&quot;:[{&quot;field_uuid&quot;:&quot;a2tacGNO&quot;,&quot;value&quot;:&quot;a1hnZE5k&quot;},{&quot;field_uuid&quot;:&quot;cGRka2dk&quot;,&quot;value&quot;:&quot;AUTO Buyer Billing Address MU6RZQ8B5J&quot;},{&quot;field_uuid&quot;:&quot;cGRja2dk&quot;,&quot;value&quot;:&quot;AUTO Buyer Shipping Address MU6RZQ8B5J&quot;},{&quot;field_uuid&quot;:&quot;cFpna2dk&quot;,&quot;value&quot;:&quot;a1hYWlFw&quot;},{&quot;field_uuid&quot;:&quot;ZGtRa1hw&quot;,&quot;value&quot;:&quot;AUTO PO Remark MU6RZQ8B5J&quot;},{&quot;field_uuid&quot;:&quot;cGtYa2dk&quot;,&quot;value&quot;:&quot;18-10-2026&quot;},{&quot;field_uuid&quot;:&quot;cERra2dk&quot;,&quot;value&quot;:1789724893},{&quot;field_uuid&quot;:&quot;Tmdra2dk&quot;,&quot;value&quot;:1792316893},{&quot;field_uuid&quot;:&quot;cGNka2dk&quot;,&quot;value&quot;:&quot;0&quot;},{&quot;field_uuid&quot;:&quot;ZE5na1hw&quot;,&quot;value&quot;:&quot;AUTO Legistify contract number MU6RZQ8B5&quot;},{&quot;field_uuid&quot;:&quot;ZE5ra1hw&quot;,&quot;value&quot;:1789724893},{&quot;field_uuid&quot;:&quot;RHBYRFpw&quot;,&quot;value&quot;:&quot;a2RYWk5Y&quot;}]}&#39;</pre>
+      <p class="curl-note">created record <code>UWtRa0RE</code></p>
+    </div>
+    <p class="call-meta">2026-09-18 15:18:15.626 · 4.79s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="PO"
+         data-search="submit for approval po p2p_purchase_order purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">submit for approval</span>
+    <span class="grow"></span>
+    <span class="meta">3 calls</span>
+    
+    <span class="time">3.02s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>PO <code>p2p_purchase_order</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 3 calls, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-patch">PATCH</span>
+    <code class="uri">/api/fx_responses/UWtRa0RE</code>
+    <span class="pill good">200</span>
+    <span class="time">598ms</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-13">Copy curl</button>
+      </div>
+      <pre id="curl-13">curl -i -X PATCH &#39;https://sec-api.ag-ri.in/api/fx_responses/UWtRa0RE&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;datasource_uuid&quot;:&quot;UWdrWlo=&quot;,&quot;responses&quot;:[]}&#39;</pre>
+      <p class="curl-note">created record <code>UWtRa0RE</code></p>
+    </div>
+    <p class="call-meta">2026-09-18 15:18:32.864 · 598ms · decathlon</p>
+  </div>
+</details>
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">2</span>
+    <span class="method m-patch">PATCH</span>
+    <code class="uri">/api/fx_responses/UWtRa0RE</code>
+    <span class="pill good">200</span>
+    <span class="time">881ms</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-14">Copy curl</button>
+      </div>
+      <pre id="curl-14">curl -i -X PATCH &#39;https://sec-api.ag-ri.in/api/fx_responses/UWtRa0RE&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;datasource_uuid&quot;:&quot;UWdrWlo=&quot;,&quot;responses&quot;:[{&quot;field_uuid&quot;:&quot;cGdYa2dk&quot;,&quot;value&quot;:2}]}&#39;</pre>
+      <p class="curl-note">created record <code>UWtRa0RE</code></p>
+    </div>
+    <p class="call-meta">2026-09-18 15:18:33.463 · 881ms · decathlon</p>
+  </div>
+</details>
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">3</span>
+    <span class="method m-post">POST</span>
+    <code class="uri">/api/approval_workflow/approval_requests</code>
+    <span class="pill good">200</span>
+    <span class="time">1.54s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-15">Copy curl</button>
+      </div>
+      <pre id="curl-15">curl -i -X POST &#39;https://sec-api.ag-ri.in/api/approval_workflow/approval_requests&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;approval_flow_uuid&quot;:&quot;Y1pacGM=&quot;,&quot;user_step_hash&quot;:{},&quot;remarks&quot;:&quot;AUTO MU6RZQ8B5J&quot;,&quot;attachments&quot;:[],&quot;resource_type&quot;:&quot;FxResponse&quot;,&quot;resource_uuid&quot;:&quot;UWtRa0RE&quot;}&#39;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:34.345 · 1.54s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+</section>
+</section>
+<section class="module" data-module="PO line item">
+  <header class="module-head">
+    <span class="pill good">all passed</span>
+    <h3>PO line item</h3>
+    <code class="flowkey">p2p_po_line_item</code>
+    <span class="grow"></span>
+    <span class="meta">3/3 run cases pass</span>
+    
+    <span class="meta">3 calls</span>
+  </header>
+  
+  
+<section class="flow">
+  <header class="flow-head">
+    <span class="pill good">passed</span>
+    <h3>purchase-order.cli</h3>
+    
+    <span class="grow"></span>
+    
+    <span class="meta">3 calls</span>
+    
+    <span class="time">slowest 2.39s</span>
+  </header>
+  
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="PO line item"
+         data-search="line item 1: create po line item p2p_po_line_item purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">line item 1: create</span>
+    <span class="grow"></span>
+    <span class="meta">1 call</span>
+    
+    <span class="time">2.39s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>PO line item <code>p2p_po_line_item</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 1 call, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-post">POST</span>
+    <code class="uri">/api/fx_responses/create_row</code>
+    <span class="pill good">200</span>
+    <span class="time">2.39s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-5">Copy curl</button>
+      </div>
+      <pre id="curl-5">curl -i -X POST &#39;https://sec-api.ag-ri.in/api/fx_responses/create_row&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;datasource_uuid&quot;:&quot;ZERrWlo=&quot;,&quot;responses&quot;:[{&quot;field_uuid&quot;:&quot;RGNOa2dk&quot;,&quot;value&quot;:89.86},{&quot;field_uuid&quot;:&quot;RGdwa2dk&quot;,&quot;value&quot;:&quot;AUTO Item Description MU6RZQ8B5J&quot;},{&quot;field_uuid&quot;:&quot;a1FOa2dk&quot;,&quot;value&quot;:32.7},{&quot;field_uuid&quot;:&quot;ZGNaa1hw&quot;,&quot;value&quot;:&quot;0&quot;},{&quot;field_uuid&quot;:&quot;RGNna2dk&quot;,&quot;value&quot;:5},{&quot;field_uuid&quot;:&quot;a2REa2dk&quot;,&quot;value&quot;:100},{&quot;field_uuid&quot;:&quot;TmtRcFFR&quot;,&quot;value&quot;:&quot;0&quot;},{&quot;field_uuid&quot;:&quot;RGNRa2dk&quot;,&quot;value&quot;:&quot;UWtRa0RE&quot;},{&quot;field_uuid&quot;:&quot;a1FkRE5j&quot;,&quot;value&quot;:&quot;WnBaWk5R&quot;},{&quot;field_uuid&quot;:&quot;RFpEa2dk&quot;,&quot;value&quot;:&quot;Z3BEZGs=&quot;}]}&#39;</pre>
+      <p class="curl-note">created record <code>UURja0RE</code></p>
+    </div>
+    <p class="call-meta">2026-09-18 15:18:22.094 · 2.39s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="PO line item"
+         data-search="line item 2: create po line item p2p_po_line_item purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">line item 2: create</span>
+    <span class="grow"></span>
+    <span class="meta">1 call</span>
+    
+    <span class="time">1.83s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>PO line item <code>p2p_po_line_item</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 1 call, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-post">POST</span>
+    <code class="uri">/api/fx_responses/create_row</code>
+    <span class="pill good">200</span>
+    <span class="time">1.83s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-8">Copy curl</button>
+      </div>
+      <pre id="curl-8">curl -i -X POST &#39;https://sec-api.ag-ri.in/api/fx_responses/create_row&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;datasource_uuid&quot;:&quot;ZERrWlo=&quot;,&quot;responses&quot;:[{&quot;field_uuid&quot;:&quot;RGNOa2dk&quot;,&quot;value&quot;:66.32},{&quot;field_uuid&quot;:&quot;RGdwa2dk&quot;,&quot;value&quot;:&quot;AUTO Item Description MU6RZQ8B5J&quot;},{&quot;field_uuid&quot;:&quot;a1FOa2dk&quot;,&quot;value&quot;:2.8},{&quot;field_uuid&quot;:&quot;ZGNaa1hw&quot;,&quot;value&quot;:&quot;0&quot;},{&quot;field_uuid&quot;:&quot;RGNna2dk&quot;,&quot;value&quot;:3},{&quot;field_uuid&quot;:&quot;a2REa2dk&quot;,&quot;value&quot;:250.5},{&quot;field_uuid&quot;:&quot;TmtRcFFR&quot;,&quot;value&quot;:&quot;0&quot;},{&quot;field_uuid&quot;:&quot;RGNRa2dk&quot;,&quot;value&quot;:&quot;UWtRa0RE&quot;},{&quot;field_uuid&quot;:&quot;a1FkRE5j&quot;,&quot;value&quot;:&quot;WnBaWk5R&quot;},{&quot;field_uuid&quot;:&quot;RFpEa2dk&quot;,&quot;value&quot;:&quot;Z3BEZGs=&quot;}]}&#39;</pre>
+      <p class="curl-note">created record <code>UURwa0RE</code></p>
+    </div>
+    <p class="call-meta">2026-09-18 15:18:25.766 · 1.83s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="PO line item"
+         data-search="line item 3: create po line item p2p_po_line_item purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">line item 3: create</span>
+    <span class="grow"></span>
+    <span class="meta">1 call</span>
+    
+    <span class="time">1.77s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>PO line item <code>p2p_po_line_item</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 1 call, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-post">POST</span>
+    <code class="uri">/api/fx_responses/create_row</code>
+    <span class="pill good">200</span>
+    <span class="time">1.77s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-11">Copy curl</button>
+      </div>
+      <pre id="curl-11">curl -i -X POST &#39;https://sec-api.ag-ri.in/api/fx_responses/create_row&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;datasource_uuid&quot;:&quot;ZERrWlo=&quot;,&quot;responses&quot;:[{&quot;field_uuid&quot;:&quot;RGNOa2dk&quot;,&quot;value&quot;:19.1},{&quot;field_uuid&quot;:&quot;RGdwa2dk&quot;,&quot;value&quot;:&quot;AUTO Item Description MU6RZQ8B5J&quot;},{&quot;field_uuid&quot;:&quot;a1FOa2dk&quot;,&quot;value&quot;:31.66},{&quot;field_uuid&quot;:&quot;ZGNaa1hw&quot;,&quot;value&quot;:&quot;0&quot;},{&quot;field_uuid&quot;:&quot;RGNna2dk&quot;,&quot;value&quot;:10},{&quot;field_uuid&quot;:&quot;a2REa2dk&quot;,&quot;value&quot;:12.75},{&quot;field_uuid&quot;:&quot;TmtRcFFR&quot;,&quot;value&quot;:&quot;0&quot;},{&quot;field_uuid&quot;:&quot;RGNRa2dk&quot;,&quot;value&quot;:&quot;UWtRa0RE&quot;},{&quot;field_uuid&quot;:&quot;a1FkRE5j&quot;,&quot;value&quot;:&quot;WnBaWk5R&quot;},{&quot;field_uuid&quot;:&quot;RFpEa2dk&quot;,&quot;value&quot;:&quot;Z3BEZGs=&quot;}]}&#39;</pre>
+      <p class="curl-note">created record <code>UURka0RE</code></p>
+    </div>
+    <p class="call-meta">2026-09-18 15:18:29.856 · 1.77s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+</section>
+</section>
+<section class="module" data-module="state">
+  <header class="module-head">
+    <span class="pill good">all passed</span>
+    <h3>state</h3>
+    <code class="flowkey">state</code>
+    <span class="grow"></span>
+    <span class="meta">1/1 run cases pass</span>
+    
+    <span class="meta">1 call</span>
+  </header>
+  
+  
+<section class="flow">
+  <header class="flow-head">
+    <span class="pill good">passed</span>
+    <h3>purchase-order.cli</h3>
+    
+    <span class="grow"></span>
+    
+    <span class="meta">1 call</span>
+    
+    <span class="time">slowest 1.52s</span>
+  </header>
+  
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="state"
+         data-search="read approval state state state purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">read approval state</span>
+    <span class="grow"></span>
+    <span class="meta">1 call</span>
+    
+    <span class="time">1.52s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>state <code>state</code></td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 1 call, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_responses/UWtRa0RE/get_approvals</code>
+    <span class="pill good">200</span>
+    <span class="time">1.52s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-16">Copy curl</button>
+      </div>
+      <pre id="curl-16">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_responses/UWtRa0RE/get_approvals&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:35.888 · 1.52s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+</section>
+</section>
+<section class="module" data-module="Platform (not module-specific)">
+  <header class="module-head">
+    <span class="pill good">all passed</span>
+    <h3>Platform (not module-specific)</h3>
+    
+    <span class="grow"></span>
+    <span class="meta">2/2 run cases pass</span>
+    
+    <span class="meta">4 calls</span>
+  </header>
+  
+  
+<section class="flow">
+  <header class="flow-head">
+    <span class="pill good">passed</span>
+    <h3>purchase-order.cli</h3>
+    
+    <span class="grow"></span>
+    
+    <span class="meta">4 calls</span>
+    
+    <span class="time">slowest 1.49s</span>
+  </header>
+  
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="Platform (not module-specific)"
+         data-search="verify approval flow platform (not module-specific)  purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">verify approval flow</span>
+    <span class="grow"></span>
+    <span class="meta">1 call</span>
+    
+    <span class="time">1.24s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>Platform (not module-specific)</td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 1 call, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/approval_workflow/approval_flows</code>
+    <span class="pill good">200</span>
+    <span class="time">1.24s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-12">Copy curl</button>
+      </div>
+      <pre id="curl-12">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/approval_workflow/approval_flows&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:31.626 · 1.24s · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+<details class="case" data-status="passed" data-kind="positive"
+         data-module="Platform (not module-specific)"
+         data-search="approve platform (not module-specific)  purchase-order.cli purchase-order.cli">
+  <summary>
+    <span class="pill good">✓ Passed</span>
+    
+    <span class="case-title">approve</span>
+    <span class="grow"></span>
+    <span class="meta">3 calls</span>
+    
+    <span class="time">3.19s</span>
+  </summary>
+  <div class="case-body">
+    <table class="kv facts">
+      <tr><th>Expected</th><td>the API to <strong>accept</strong> this request</td></tr>
+      
+      <tr><th>Module</th><td>Platform (not module-specific)</td></tr>
+      <tr><th>Flow</th><td>purchase-order.cli <code>purchase-order.cli</code></td></tr>
+      <tr><th>Spec</th><td><code>purchase-order.cli</code></td></tr>
+      
+    </table>
+    
+    
+    <h5 class="calls-head">Evidence — 3 calls, as curl</h5>
+    
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">1</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_responses/UWtRa0RE/get_approvals</code>
+    <span class="pill good">200</span>
+    <span class="time">1.49s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-17">Copy curl</button>
+      </div>
+      <pre id="curl-17">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_responses/UWtRa0RE/get_approvals&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:37.413 · 1.49s · decathlon</p>
+  </div>
+</details>
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">2</span>
+    <span class="method m-post">POST</span>
+    <code class="uri">/api/approval_workflow/approval_requests/resolve_approval</code>
+    <span class="pill good">200</span>
+    <span class="time">1.22s</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-18">Copy curl</button>
+      </div>
+      <pre id="curl-18">curl -i -X POST &#39;https://sec-api.ag-ri.in/api/approval_workflow/approval_requests/resolve_approval&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;content-type: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot; \
+  -d &#39;{&quot;approver_uuid&quot;:&quot;Y05YZGdr&quot;,&quot;resolution&quot;:&quot;accepted&quot;,&quot;remarks&quot;:&quot;AUTO approved MU6RZQ8B5J&quot;,&quot;attachments&quot;:[]}&#39;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:38.909 · 1.22s · decathlon</p>
+  </div>
+</details>
+<details class="call" data-ok="1">
+  <summary>
+    <span class="idx">3</span>
+    <span class="method m-get">GET</span>
+    <code class="uri">/api/fx_responses/UWtRa0RE/get_approvals</code>
+    <span class="pill good">200</span>
+    <span class="time">480ms</span>
+    
+  </summary>
+  <div class="call-body">
+    
+    <div class="curl">
+      <div class="curl-head">
+        <span>Reproduce</span>
+        <button class="copy" type="button" data-copy="curl-19">Copy curl</button>
+      </div>
+      <pre id="curl-19">curl -i -X GET &#39;https://sec-api.ag-ri.in/api/fx_responses/UWtRa0RE/get_approvals&#39; \
+  -H &#39;accept: application/json&#39; \
+  -H &#39;app-version: 20.0.0&#39; \
+  -H &quot;access-token: $PROCOL_TOKEN&quot;</pre>
+      
+    </div>
+    <p class="call-meta">2026-09-18 15:18:40.129 · 480ms · decathlon</p>
+  </div>
+</details>
+  </div>
+</details>
+</section>
+</section>
+</section>
+  
+<section class="card" id="bugs">
+  <h2>Bug report <span class="count">4 open</span></h2>
+  <p class="lede">4 findings for the account this run covered —
+  4 still open, 1 blocking, 1 at P0, 0 fixed.
+  Maintained in <code>config/findings.yaml</code>; the full sheet, with filters, is
+  <code>reports/bug-report.html</code>. <strong>Status</strong> is where the fix has got to;
+  the <strong>verification</strong> line under each description is how far the finding itself
+  was proven, so a confirmed defect and a one-off observation are never mistaken for each other.</p>
+  
+<div class="sheet-wrap">
+  <table class="sheet">
+    <thead><tr><th>Issue ID</th><th>Status</th><th>Dev ETA</th><th>Priority</th><th>Blocker</th><th>DEV TYPE</th><th>Dev Comment</th><th>Sprint Week</th><th>User Type</th><th>Module</th><th>Description</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr class=""
+          data-status="OPEN" data-priority="P0"
+          data-module="PO" data-blocker="yes"
+          data-verify="confirmed" data-search="d__006 a create with fields lands the po in &quot;released&quot;, skipping its whole lifecycle a create with fields lands the po in &quot;released&quot;, skipping its whole lifecycle the ui creates an empty record (responses: []) and patches fields in one at a time; that record comes back status &quot;0&quot; (draft). sending the same fields in a single create_row instead comes back status &quot;3&quot; (released) — the suite never sends status at all, it is in skipfields. so a populated create silently skips draft, in approval and submitted. a released po has nothing left to approve, which is the real cause of the bare 422 &quot;invalid approval&quot; on submit. not reproducible by hand: the ui cannot release a po at creation. po post /api/fx_responses/create_row ">
+        <td class="c-id">D__006</td>
+        <td class="c-mid"><span class="chip chip-open">OPEN</span></td>
+        <td class="c-mid">—</td>
+        <td class="c-mid"><span class="chip chip-p0">P0</span></td>
+        <td class="c-mid"><span class="chip chip-yes">YES</span></td>
+        <td class="c-mid"><span class="chip chip-dev">BE</span></td>
+        <td class="c-comment"></td>
+        <td class="c-mid">—</td>
+        <td>All users</td>
+        <td class="c-mid">PO</td>
+        <td class="c-desc tinted">
+          <strong class="desc-title">a create with fields lands the PO in &quot;Released&quot;, skipping its whole lifecycle</strong>
+          <span class="desc-meta">
+            <span class="verify v-confirmed">confirmed</span>
+             · <code>POST /api/fx_responses/create_row</code>
+             · decathlon
+          </span>
+          <details class="desc-more">
+                   <summary>what we found · how to reproduce</summary>
+                   <span class="desc-detail">The UI creates an empty record (responses: []) and PATCHes fields in one at a time; that record comes back status &quot;0&quot; (Draft). Sending the same fields in a single create_row instead comes back status &quot;3&quot; (Released) — the suite never sends status at all, it is in skipFields. So a populated create silently skips Draft, In Approval and Submitted. A released PO has nothing left to approve, which is the real cause of the bare 422 &quot;Invalid Approval&quot; on submit. Not reproducible by hand: the UI cannot release a PO at creation.</span>
+                   <span class="desc-detail">Repro: captured UI create_row (responses: 0) -&gt; status &quot;0&quot; Draft; `npm run po -- --client decathlon` create_row (12 fields, no status) -&gt; status &quot;3&quot; Released, record Z05kY2Rj</span>
+                 </details>
+        </td>
+        <td class="c-note">blocks the whole approval flow end to end; nothing downstream can be tested until it moves</td>
+      </tr>
+      <tr class=""
+          data-status="OPEN" data-priority="P1"
+          data-module="PO" data-blocker="no"
+          data-verify="confirmed" data-search="d__007 state_code is accepted then silently discarded state_code is accepted then silently discarded state_code is mandatory and was sent as a valid widget_data_mappings record uuid (&quot;a1hnze5k&quot;, the value existing pos carry). the create returns 200 and the field reads back absent. a mandatory field accepted and thrown away leaves the document permanently incomplete with no error to act on. po post /api/fx_responses/create_row ">
+        <td class="c-id">D__007</td>
+        <td class="c-mid"><span class="chip chip-open">OPEN</span></td>
+        <td class="c-mid">—</td>
+        <td class="c-mid"><span class="chip chip-p1">P1</span></td>
+        <td class="c-mid"><span class="chip chip-no">NO</span></td>
+        <td class="c-mid"><span class="chip chip-dev">BE</span></td>
+        <td class="c-comment"></td>
+        <td class="c-mid">—</td>
+        <td>All users</td>
+        <td class="c-mid">PO</td>
+        <td class="c-desc">
+          <strong class="desc-title">state_code is accepted then silently discarded</strong>
+          <span class="desc-meta">
+            <span class="verify v-confirmed">confirmed</span>
+             · <code>POST /api/fx_responses/create_row</code>
+             · decathlon
+          </span>
+          <details class="desc-more">
+                   <summary>what we found · how to reproduce</summary>
+                   <span class="desc-detail">state_code is mandatory and was sent as a valid widget_data_mappings record uuid (&quot;a1hnZE5k&quot;, the value existing POs carry). The create returns 200 and the field reads back absent. A mandatory field accepted and thrown away leaves the document permanently incomplete with no error to act on.</span>
+                   <span class="desc-detail">Repro: create payload for record Z05kY2Rj included state_code; field_responses has no value for it</span>
+                 </details>
+        </td>
+        <td class="c-note"></td>
+      </tr>
+      <tr class=""
+          data-status="TO BE DISCUSSED" data-priority="P1"
+          data-module="Approvals" data-blocker="no"
+          data-verify="confirmed" data-search="d__009 omitting app-version silently returns a reduced payload omitting app-version silently returns a reduced payload the platform selects a response serializer from the app-version header. with no such header it answers 200 but strips every step and approver uuid, so a document cannot be approved and the cause is invisible — the call looks successful. same effect on the approval-flows list, which switches between numeric ids and encoded uuids. the suite now always sends app-version. approvals get /api/fx_responses/{uuid}/get_approvals ">
+        <td class="c-id">D__009</td>
+        <td class="c-mid"><span class="chip chip-discuss">TO BE DISCUSSED</span></td>
+        <td class="c-mid">—</td>
+        <td class="c-mid"><span class="chip chip-p1">P1</span></td>
+        <td class="c-mid"><span class="chip chip-no">NO</span></td>
+        <td class="c-mid"><span class="chip chip-dev">BE</span></td>
+        <td class="c-comment"></td>
+        <td class="c-mid">—</td>
+        <td>All users</td>
+        <td class="c-mid">Approvals</td>
+        <td class="c-desc">
+          <strong class="desc-title">omitting app-version silently returns a reduced payload</strong>
+          <span class="desc-meta">
+            <span class="verify v-confirmed">confirmed</span>
+             · <code>GET /api/fx_responses/{uuid}/get_approvals</code>
+             · both
+          </span>
+          <details class="desc-more">
+                   <summary>what we found · how to reproduce</summary>
+                   <span class="desc-detail">The platform selects a response serializer from the app-version header. With no such header it answers 200 but strips every step and approver uuid, so a document cannot be approved and the cause is invisible — the call looks successful. Same effect on the approval-flows list, which switches between numeric ids and encoded uuids. The suite now always sends app-version.</span>
+                   <span class="desc-detail">Repro: measured: no header -&gt; approver.uuid undefined; 9.4.349 -&gt; uuid present</span>
+                 </details>
+        </td>
+        <td class="c-note">worked around in the suite by always sending app-version — decide whether the default should be the full payload</td>
+      </tr>
+      <tr class=""
+          data-status="TO BE DISCUSSED" data-priority="P1"
+          data-module="Approvals" data-blocker="no"
+          data-verify="confirmed" data-search="d__010 no way to ask which approval flow applies to a document no way to ask which approval flow applies to a document decathlon has 75 active p2p_create_po flows, every one conditional and several sharing the same name, so a flow cannot be identified by name. /approval_flows/applicable returns 570 &quot;approval flow not found&quot;. the only way to learn the applicable flow is to write to the record and read approval_applicable + approvals back off the response. approvals get /api/approval_workflow/approval_flows ">
+        <td class="c-id">D__010</td>
+        <td class="c-mid"><span class="chip chip-discuss">TO BE DISCUSSED</span></td>
+        <td class="c-mid">—</td>
+        <td class="c-mid"><span class="chip chip-p1">P1</span></td>
+        <td class="c-mid"><span class="chip chip-no">NO</span></td>
+        <td class="c-mid"><span class="chip chip-dev">BE</span></td>
+        <td class="c-comment"></td>
+        <td class="c-mid">—</td>
+        <td>All users</td>
+        <td class="c-mid">Approvals</td>
+        <td class="c-desc">
+          <strong class="desc-title">no way to ask which approval flow applies to a document</strong>
+          <span class="desc-meta">
+            <span class="verify v-confirmed">confirmed</span>
+             · <code>GET /api/approval_workflow/approval_flows</code>
+             · decathlon
+          </span>
+          <details class="desc-more">
+                   <summary>what we found · how to reproduce</summary>
+                   <span class="desc-detail">Decathlon has 75 active p2p_create_po flows, every one conditional and several sharing the same name, so a flow cannot be identified by name. /approval_flows/applicable returns 570 &quot;Approval Flow not found&quot;. The only way to learn the applicable flow is to write to the record and read approval_applicable + approvals back off the response.</span>
+                   <span class="desc-detail">Repro: probed live; traced through the captured UI session</span>
+                 </details>
+        </td>
+        <td class="c-note">API gap rather than a defect — raised as a request</td>
+      </tr></tbody>
+  </table>
+</div>
+</section>
+</div>
+<script>
+(function () {
+  var q = document.getElementById("q");
+  var fstatus = document.getElementById("fstatus");
+  var fkind = document.getElementById("fkind");
+  var fmodule = document.getElementById("fmodule");
+  var showing = document.getElementById("showing");
+  var cases = Array.prototype.slice.call(document.querySelectorAll("details.case"));
+
+  function apply() {
+    var text = q.value.trim().toLowerCase();
+    var status = fstatus.value;
+    var kind = fkind.value;
+    var module = fmodule.value;
+    var visible = 0;
+    cases.forEach(function (el) {
+      var s = el.getAttribute("data-status");
+      // "failed" in the filter covers timedOut too — both are red in the report.
+      var statusOk = !status
+        || (status === "failed" ? (s === "failed" || s === "timedOut") : s === status);
+      var kindOk = !kind || el.getAttribute("data-kind") === kind;
+      var moduleOk = !module || el.getAttribute("data-module") === module;
+      var textOk = !text || (el.getAttribute("data-search") || "").indexOf(text) !== -1;
+      var ok = statusOk && kindOk && moduleOk && textOk;
+      el.classList.toggle("hidden", !ok);
+      if (ok) visible++;
+    });
+
+    // Picking a module takes the whole page with it: the module's own sections,
+    // and the rows of the non-2xx table that belong to other modules. The stat
+    // tiles above still describe the whole run — they say "this run", and
+    // silently rewriting them under a filter would make the page lie.
+    Array.prototype.forEach.call(document.querySelectorAll("#nonok tr[data-module]"), function (tr) {
+      var m = tr.getAttribute("data-module");
+      tr.classList.toggle("hidden", Boolean(module) && m !== "" && m !== module);
+    });
+    showing.textContent = visible === cases.length
+      ? cases.length + " cases"
+      : "showing " + visible + " of " + cases.length + " cases";
+    // A flow whose every case is filtered out is itself hidden, so the page
+    // does not fill with empty flow headers.
+    Array.prototype.forEach.call(document.querySelectorAll("section.flow"), function (flow) {
+      var visible = flow.querySelectorAll("details.case:not(.hidden)").length;
+      flow.classList.toggle("hidden", visible === 0);
+    });
+    // A module whose every flow is filtered out goes too, and a client whose
+    // every module went with it — otherwise the page fills with empty headers.
+    Array.prototype.forEach.call(document.querySelectorAll("section.module"), function (mod) {
+      var live = mod.querySelectorAll("section.flow:not(.hidden)").length;
+      var wrongModule = Boolean(module) && mod.getAttribute("data-module") !== module;
+      mod.classList.toggle("hidden", wrongModule || live === 0);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("section.client"), function (client) {
+      var visible = client.querySelectorAll("section.module:not(.hidden)").length;
+      client.classList.toggle("hidden", visible === 0);
+    });
+  }
+
+  q.addEventListener("input", apply);
+  fstatus.addEventListener("change", apply);
+  fkind.addEventListener("change", apply);
+  fmodule.addEventListener("change", apply);
+
+  // A module can also be linked to: api-report.html#module=PO opens the report
+  // already narrowed, which is what the platform UI hands out when someone
+  // picks a module there.
+  var hash = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+  var wanted = /^module=/.test(hash) ? hash.slice("module=".length) : "";
+  if (wanted) {
+    for (var i = 0; i < fmodule.options.length; i++) {
+      if (fmodule.options[i].value.toLowerCase() === wanted.toLowerCase()) {
+        fmodule.value = fmodule.options[i].value;
+        break;
+      }
+    }
+  }
+  apply();
+
+  // ---- the stat tiles and kind rows are navigation -------------------------
+  // Each carries a data-action; a filter one drives the same controls a reader
+  // could set by hand, so the page never ends up in a state the filter row
+  // does not explain.
+  function flash(el) {
+    if (!el) return;
+    el.classList.remove("flash");
+    // Reading offsetWidth restarts the animation when the same target is
+    // clicked twice; without it the second click looks like nothing happened.
+    void el.offsetWidth;
+    el.classList.add("flash");
+  }
+
+  function scrollTo(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    flash(el);
+  }
+
+  function runAction(action) {
+    var parts = action.split(":");
+    var verb = parts[0];
+    var arg = parts[1];
+
+    if (verb === "filter" || verb === "kind") {
+      // One dimension at a time. Combining them lets a second click land on an
+      // empty page — click "failed" then "negative" and you may see nothing,
+      // which reads as broken rather than as an empty intersection.
+      q.value = "";
+      fmodule.value = "";
+      if (verb === "filter") {
+        fstatus.value = arg === "all" ? "" : arg;
+        fkind.value = "";
+      } else {
+        fkind.value = arg;
+        fstatus.value = "";
+      }
+      apply();
+      // Land on the first case that survived the filter, so a click always
+      // shows a result rather than leaving the reader at the top of the page.
+      var first = document.querySelector("details.case:not(.hidden)");
+      if (first) {
+        first.scrollIntoView({ behavior: "smooth", block: "center" });
+        flash(first);
+      } else {
+        document.querySelector(".filters").scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
+
+    if (verb === "goto") {
+      scrollTo(arg === "slowest" ? "slowest" : arg);
+      // The slowest call lives inside a collapsed case; open it so the row is
+      // actually visible when we arrive.
+      if (arg === "slowest") {
+        var row = document.getElementById("slowest");
+        if (row) {
+          var host = row.closest("details");
+          while (host) { host.open = true; host = host.parentElement && host.parentElement.closest("details"); }
+        }
+      }
+    }
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-action]"), function (el) {
+    el.addEventListener("click", function () { runAction(el.getAttribute("data-action")); });
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); runAction(el.getAttribute("data-action")); }
+    });
+  });
+
+  document.getElementById("expand").addEventListener("click", function () {
+    cases.forEach(function (el) {
+      var s = el.getAttribute("data-status");
+      if (s === "failed" || s === "timedOut") {
+        el.open = true;
+        Array.prototype.forEach.call(el.querySelectorAll('details.call[data-ok="0"]'), function (c) {
+          c.open = true;
+        });
+      }
+    });
+  });
+
+  document.getElementById("collapse").addEventListener("click", function () {
+    Array.prototype.forEach.call(document.querySelectorAll("details"), function (d) { d.open = false; });
+  });
+
+  // ---- copy a curl ---------------------------------------------------------
+  // The point of printing curl is that it gets re-run, and selecting a wrapped
+  // multi-line command by hand loses the trailing backslashes often enough to
+  // be worth a button. clipboard.writeText is unavailable on file:// in some
+  // browsers, so fall back to a selection-based copy rather than doing nothing.
+  Array.prototype.forEach.call(document.querySelectorAll("button.copy"), function (button) {
+    button.addEventListener("click", function () {
+      var target = document.getElementById(button.getAttribute("data-copy"));
+      if (!target) return;
+      var text = target.textContent || "";
+      var done = function () {
+        var label = button.textContent;
+        button.textContent = "Copied";
+        setTimeout(function () { button.textContent = label; }, 1200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { select(target); });
+      } else {
+        select(target);
+      }
+    });
+  });
+
+  function select(node) {
+    var range = document.createRange();
+    range.selectNodeContents(node);
+    var selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+})();
+
+(function () {
+  var q = document.getElementById("bq");
+  if (!q) return;
+  var status = document.getElementById("bstatus");
+  var priority = document.getElementById("bpriority");
+  var mod = document.getElementById("bmodule");
+  var blocker = document.getElementById("bblocker");
+  var count = document.getElementById("bcount");
+  var rows = Array.prototype.slice.call(document.querySelectorAll("table.sheet tbody tr"));
+
+  function apply() {
+    var text = q.value.trim().toLowerCase();
+    var shown = 0;
+    rows.forEach(function (tr) {
+      var ok = (!status.value || tr.getAttribute("data-status") === status.value)
+        && (!priority.value || tr.getAttribute("data-priority") === priority.value)
+        && (!mod.value || tr.getAttribute("data-module") === mod.value)
+        && (!blocker.value || tr.getAttribute("data-blocker") === blocker.value)
+        && (!text || (tr.getAttribute("data-search") || "").indexOf(text) !== -1);
+      tr.style.display = ok ? "" : "none";
+      if (ok) shown++;
+    });
+    count.textContent = shown + " of " + rows.length + " bugs";
+  }
+
+  [q, status, priority, mod, blocker].forEach(function (el) {
+    el.addEventListener("input", apply);
+    el.addEventListener("change", apply);
+  });
+
+  // bug-report.html#module=GRN opens filtered to that module. This is what the
+  // QA platform links to when someone ticks a feature there: the module is
+  // chosen once, in the UI, and the sheet arrives already narrowed.
+  var hash = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+  var wanted = /^module=/.test(hash) ? hash.slice("module=".length) : "";
+  if (wanted) {
+    for (var i = 0; i < mod.options.length; i++) {
+      if (mod.options[i].value.toLowerCase() === wanted.toLowerCase()) {
+        mod.value = mod.options[i].value;
+        break;
+      }
+    }
+  }
+  apply();
+})();
+
+</script>
+</body>
+</html>

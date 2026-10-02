@@ -174,10 +174,12 @@ export interface UiRunEvent {
   // indistinguishable from its own connection-failure event — the exact
   // collision that made "run error" appear after every normal, successful run
   // elsewhere in this codebase. Every consumer forwards e.type verbatim.
-  type: "start" | "log" | "done" | "run-error" | "queued";
+  type: "start" | "log" | "done" | "run-error" | "queued" | "frame";
   line?: string;
   command?: string;
   exitCode?: number;
+  /** base64 JPEG — a live preview frame for the dashboard's split view. */
+  frame?: string;
 }
 
 /**
@@ -217,25 +219,33 @@ function launch(
     if (stopped) return release();
     onStart();
     child = spawn("npx", args, { cwd, env, shell: false });
-    const pump = (buf: Buffer) => {
-      for (const raw of buf.toString().split("\n")) {
-        const line = stripAnsi ? raw.replace(ANSI, "").trimEnd() : raw;
-        if (line.trim()) emit({ type: "log", line });
-      }
-    };
     setSlotHeaded(args.includes("--headed"));
     setSlotProgress("starting the browser");
-    child.stdout?.on("data", (buf: Buffer) => {
-      // Mirror the run's own narration into the slot so the dashboard strip
-      // can say what a HEADLESS run is doing right now.
-      for (const raw of buf.toString().split("\n")) {
+    // A live frame line is a base64 JPEG — tens of KB, easily bigger than one
+    // pipe read, so a naive per-chunk split() would hand back a line sliced in
+    // half. Buffer across chunks and only split on complete lines.
+    let carry = "";
+    const onData = (buf: Buffer) => {
+      carry += buf.toString();
+      const lines = carry.split("\n");
+      carry = lines.pop() ?? "";
+      for (const raw of lines) {
+        const line = stripAnsi ? raw.replace(ANSI, "").trimEnd() : raw;
+        if (!line.trim()) continue;
+        if (line.startsWith("[frame] ")) {
+          emit({ type: "frame", frame: line.slice("[frame] ".length) });
+          continue;
+        }
+        // Mirror the run's own narration into the slot so the dashboard strip
+        // can say what a HEADLESS run is doing right now.
         const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow|po-to-bill)\] (.{0,80})/);
         if (m) setSlotProgress(m[3] ? `step ${m[1]}/${m[2]} — ${m[3].replace(/_/g, " ")}${m[4] ?? ""}` : m[2]);
         if (/showing the login/.test(raw)) setSlotProgress("logging in (visible)");
+        emit({ type: "log", line });
       }
-    });
-    child.stdout?.on("data", pump);
-    child.stderr?.on("data", pump);
+    };
+    child.stdout?.on("data", onData);
+    child.stderr?.on("data", onData);
     // "run-error", not "error" — see the UiRunEvent type above.
     child.on("error", (e) => emit({ type: "run-error", line: e.message }));
     child.on("close", (code) => {

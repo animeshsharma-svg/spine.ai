@@ -129,6 +129,38 @@ export interface RunState {
   sbResults?: Record<string, string>;
   sbPlaced?: boolean;
   sbPostBidCount?: number;
+  // ---- vendor bid ----
+  bidEg?: string;
+  bidTrade?: string;
+  bidStage?: { start: number; end: number; extra: number; total_bids: number; active_participants: number };
+  bidAlready?: string[];
+  bidInvitedUsers?: Array<{ company: string; email: string | null; name: string | null }>;
+  bidList?: Array<{ uuid: string; name: string; email: string; vendor_code: string; status: string; has_bid: boolean }>;
+  /** the vendors this run bids as, with their login and what each did */
+  vbVendors?: Array<{
+    uuid: string;
+    name: string;
+    email: string;
+    token?: string;
+    user?: string;
+    forms?: SbForm[];
+    sheet?: string;
+    sent?: Record<string, any>;
+    submitted?: boolean;
+    tradeBidCount?: number;
+    // RFQ price bid
+    rfqRows?: any[];
+    rfqPad?: Record<string, any>;
+    tradeCfg?: { over_qty?: boolean; fixed_qty?: boolean };
+    bid?: string;
+    plan?: Array<{ egli: string; name: string; qty: number; price: number; gst: number | null; total: number; creator_qty: number }>;
+    gross?: number;
+  }>;
+  /** rfp or rfq — the kind of round being bid on */
+  bidRfx?: string;
+  vbLoggedIn?: boolean;
+  vbSubmitted?: boolean;
+  vbPostBidCount?: number;
 }
 
 export interface SbForm {
@@ -176,5 +208,9 @@ export const NEEDS_REASON: Partial<Record<keyof RunState, string>> = {
   sbVendors: "no vendor was picked to bid for (step 4.3 did not complete)",
   sbPlaced: "the surrogate bid was not placed (step 4.5 did not complete)",
   rfqTemplate: "the RFQ template's widgets were not read (step 1.5 did not complete)",
+  bidTrade: "the event to bid on was not confirmed live (step 4.0a did not complete)",
+  vbVendors: "no vendor was picked to bid as (step 4.0c did not complete)",
+  vbLoggedIn: "no vendor could log in (step 4B.2 did not complete)",
+  vbSubmitted: "the vendor bid was not submitted (step 4B.9 did not complete)",
   rfqHubs: "no delivery location was found (step 1.5c did not complete)",
 };

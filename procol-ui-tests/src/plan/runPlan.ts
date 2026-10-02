@@ -431,9 +431,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.products = a.search
         ? Array.from({ length: count }, (_, i) => ({ searchText: String(a.search), quantity: String((i + 1) * 10) }))
         : buildProducts(count);
+      // An explicit quantity is typed exactly as given — including an invalid
+      // one (negative, non-numeric) — so a case can test the app's own
+      // validation rather than always getting the automation's safe default.
+      if (a.quantity !== undefined) {
+        const q = String(a.quantity);
+        s.products = s.products.map((p) => ({ ...p, quantity: q }));
+      }
       await s.create.addLineItems(s.products);
       s.lineItemsAdded = s.products.length;
-      return `${s.products.length} line item(s)`;
+      return `${s.products.length} line item(s)${a.quantity !== undefined ? ` (quantity: ${a.quantity})` : ""}`;
     }
     case "fill_sheet": {
       if (onSingleStage(s)) {
@@ -681,6 +688,12 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       results.push({ step: step.step, args: step.args, status: "skipped", ms: 0 });
       continue;
     }
+    // Proactive, not reactive: without this, a toast like "enable browser
+    // notifications" only gets dismissed after a click fails against it (or
+    // after the watchdog's 60s stuck timer), sitting on screen the whole
+    // time. Clearing it before every step is a ~400ms-debounced no-op when
+    // nothing is showing, so it costs nothing on the steps that don't need it.
+    await s.create.dismissDistractions().catch(() => false);
     try {
       const detail = await runStep(s, step);
       results.push({ step: step.step, args: step.args, status: "ok", detail, ms: Date.now() - started });

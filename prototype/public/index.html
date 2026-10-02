@@ -65,7 +65,7 @@
         <a class="nav-item" href="#/api" data-view="api"><span class="nav-ico">⚡</span><span>API automation</span></a>
         <a class="nav-item" href="#/ui" data-view="ui"><span class="nav-ico">🖥</span><span>UI automation</span></a>
         <a class="nav-item" href="#/journeys" data-view="journeys"><span class="nav-ico">🧭</span><span>Journeys</span></a>
-        <a class="nav-item" href="#/cases" data-view="cases"><span class="nav-ico">📚</span><span>Test cases</span></a>
+        <a class="nav-item" href="#/cases" data-view="cases"><span class="nav-ico">🗂</span><span>Test catalogue</span></a>
         <a class="nav-item" href="#/reports" data-view="reports"><span class="nav-ico">📊</span><span>Reports</span></a>
         <a class="nav-item" href="#/bugs" data-view="bugs"><span class="nav-ico">🐞</span><span>Bugs</span></a>
         <div class="nav-spacer"></div>
@@ -132,20 +132,16 @@
             <div class="rc-examples" id="rc-examples"></div>
           </div>
           <div class="row rc-actions">
-            <!-- One primary action for the box, and the test-case compiler
-                 beside it — it reads the same box, so it belongs here. The
-                 run buttons for the ready-made suites live in the drawers. -->
-            <button id="ai-btn" class="run-btn primary big-btn">🤖 Run my instruction</button>
-            <span class="rc-or">or</span>
-            <button id="plan-btn" class="run-btn small ghost">🧪 Compile this test case &amp; run it</button>
-            <button id="plan-dry" class="chip" title="Compile without running, to see the plan first">plan only</button>
-            <label class="tgl-flow" title="Headed only: log in visibly in this window first and slow the run to demo pace">
-              <input type="checkbox" id="plan-demo" /> demo pace + visible login
-            </label>
+            <!-- One instruction, three ways to run it for real, so a reader
+                 can tell whether a failure is the API, the UI, or both. -->
+            <button id="run-api-btn" class="run-btn small ghost">Run (API)</button>
+            <button id="run-ui-btn" class="run-btn small ghost">Run (UI)</button>
+            <button id="run-both-btn" class="run-btn primary big-btn">Run (Both)</button>
             <span id="status" class="run-status"></span>
           </div>
-          <p class="rc-foot">Whatever you ask for is planned, written as test cases and run as real requests —
-          it appears under <strong>Automation run</strong> below as it happens.</p>
+          <div id="api-instruct-result" class="api-result" hidden></div>
+          <p class="rc-foot">Whatever you ask for is matched or compiled and run as real requests —
+          API results appear above, UI results under <strong>Automation run</strong> below, as it happens.</p>
         </div>
         <div class="col-head">
           <h2>Automation run</h2>
@@ -168,8 +164,18 @@
           <a id="open-bug-sheet" class="run-btn small ghost" target="_blank" rel="noopener">🐞 Bug sheet</a>
         </div>
         <details id="skips" class="skips" hidden></details>
-        <div id="automation" class="automation">
-          <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
+        <!-- Steps on the left, the actual browser on the right, both updating
+             as the run happens — a headed Run (UI)/(Both) streams a live JPEG
+             here (see plan.spec.ts's "[frame]" lines) instead of only being
+             watchable in the separate native browser window. -->
+        <div class="run-split">
+          <div id="automation" class="automation">
+            <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
+          </div>
+          <div id="live-frame-panel" class="live-frame-panel" hidden>
+            <div class="live-frame-head">Live browser</div>
+            <img id="live-frame" alt="live browser preview" />
+          </div>
         </div>
 
         <!-- A journey, read as a journey. The raw Playwright output is still
@@ -180,60 +186,14 @@
           <div id="ui-console" class="ui-console"></div>
         </details>
 
-        <!-- The written catalog — pick cases by hand and run them -->
-        <div class="col-head" style="margin-top: 18px">
-          <h2>Test catalog</h2>
-          <span class="hint" id="cat-hint">648 written cases · tick the ones you want and run them</span>
-        </div>
-        <div class="cat-bar">
-          <div class="cat-tabs">
-            <button class="chip active" data-layer="">all</button>
-            <button class="chip" data-layer="ui">UI</button>
-            <button class="chip" data-layer="api">API</button>
-          </div>
-          <select id="cat-section" class="cat-select" title="Catalog section"><option value="">every section</option></select>
-          <select id="cat-priority" class="cat-select" title="Priority">
-            <option value="">any priority</option>
-            <option value="P0">P0</option>
-            <option value="P1">P1</option>
-            <option value="P2">P2</option>
-            <option value="P3">P3</option>
-          </select>
-          <select id="cat-verdict" class="cat-select" title="What the catalog says to do with it">
-            <option value="">any verdict</option>
-            <option value="automate">automate</option>
-            <option value="automate-later">automate-later</option>
-            <option value="manual">manual</option>
-          </select>
-          <input id="cat-q" class="kb-input" placeholder="search the catalog, e.g. savings column" />
-        </div>
-        <div class="cat-bar">
-          <button id="cat-run" class="run-btn small">▶ Run selected cases</button>
-          <button id="cat-stop" class="chip" title="Stop the run">■ stop</button>
-          <button id="cat-none" class="chip">clear</button>
-          <label class="tgl-flow" title="Tick to open the one visible Chromium window and watch the run — leave off for verification runs">
-            <input type="checkbox" id="cat-headed" /> watch it
-          </label>
-          <label class="tgl-flow" title="Headed only: log in visibly in the same window before the run, and slow every action so it can be followed by eye">
-            <input type="checkbox" id="cat-demo" /> demo pace + visible login
-          </label>
-          <label class="tgl-flow" title="Show Playwright's own output as well as the plain-language narration">
-            <input type="checkbox" id="cat-raw" /> raw log
-          </label>
-          <span id="cat-picked" class="cat-count"></span>
-        </div>
-        <div id="cat-list" class="cat-list">
-          <div class="loading">Loading the catalog…</div>
-        </div>
-        <div id="cat-run-out" class="cat-run-out" hidden></div>
 
         <div class="col-head">
           <h2>Agent reasoning</h2>
-          <span class="hint">live · 7 agents · critic can loop back</span>
+          <span class="hint">shown when you open an older saved run that has it</span>
         </div>
         <div id="timeline" class="timeline">
-          <div class="empty"><b>No reasoning yet</b>Seven agents plan, write, run and critique
-          the tests. Their reasoning streams here as they work, one card each.</div>
+          <div class="empty"><b>Nothing to show</b>A run's agent trace appears here when you
+          open it from history — the Run (API)/(UI)/(Both) buttons don't produce one.</div>
         </div>
           </div>
         </section>
@@ -282,14 +242,22 @@
               <!-- Only for an account whose tests are a suite of their own (the
                    RFP suite): it picks real products and needs to know how many
                    of each, and how many vendors to invite. -->
-              <label class="li-field" id="api-qty-field" hidden title="One quantity for every line item (5), or one per line item (5,10,2.5)">quantity
-                <input type="text" id="api-qty" value="5" inputmode="decimal" placeholder="5 or 5,10" size="9" />
-              </label>
+              <!-- One box per line item, or one for all with "same for all" ticked.
+                   #api-qty keeps the value the run sends: "5" or "5,10,2.5". -->
+              <span class="li-field qty-group" id="api-qty-field" hidden>
+                <span class="qty-label">quantity</span>
+                <label class="qty-same" title="Give every line item the same quantity"><input type="checkbox" id="api-qty-same" checked /> same for all</label>
+                <span id="api-qty-boxes" class="qty-boxes"></span>
+                <input type="hidden" id="api-qty" value="5" />
+              </span>
               <label class="li-field" id="api-vendors-field" hidden title="How many vendors the event is sent to">vendors
                 <input type="number" id="api-vendors" min="1" max="50" value="3" />
               </label>
               <label class="li-field" id="api-sb-field" hidden title="How many of the invited vendors the buyer places a surrogate bid for">surrogate bids
                 <input type="number" id="api-sb" min="1" max="50" value="1" />
+              </label>
+              <label class="li-field" id="api-vb-field" hidden title="How many invited vendors log in to the vendor portal and bid themselves">vendor bids
+                <input type="number" id="api-vb" min="1" max="50" value="1" />
               </label>
               <span class="li-note" id="api-li-note"></span>
             </div>
@@ -407,17 +375,68 @@
 
         <section class="view" id="view-cases" data-view="cases">
           <header class="view-head">
-            <h1>Test cases</h1>
-            <p>Every test case the platform has — written by hand, generated from the product workbook and the Notion knowledge base, and one per API field check — arranged by user journey, each with its expected result and the latest actual result from a real run.</p>
+            <h1>Test catalogue</h1>
+            <p>Run any test case individually. Every written case is here with a checkbox — tick one, or several, and press <b>Run selected cases</b>; each one runs on its own and reports as it goes. The test case book and the API case library are the other two tabs.</p>
           </header>
           <div class="view-body">
             <div class="cb-tabs" role="tablist">
-              <button type="button" class="cb-tab on" data-cbtab="book">📖 Test case book <span id="cb-tab-n"></span></button>
+              <button type="button" class="cb-tab on" data-cbtab="run">▶ Run test cases</button>
+              <button type="button" class="cb-tab" data-cbtab="book">📖 Test case book <span id="cb-tab-n"></span></button>
               <button type="button" class="cb-tab" data-cbtab="library">⚡ API case library</button>
             </div>
 
+            <!-- the runnable catalogue: tick cases and run them one by one -->
+            <div id="cb-pane-run" class="cb-pane">
+        <!-- The written catalog — pick cases by hand and run them -->
+        <div class="col-head">
+          <h2>Run any test case individually</h2>
+          <span class="hint" id="cat-hint">tick one case, or several, then press Run selected cases</span>
+        </div>
+        <div class="cat-bar">
+          <div class="cat-tabs">
+            <button class="chip active" data-layer="">all</button>
+            <button class="chip" data-layer="ui">UI</button>
+            <button class="chip" data-layer="api">API</button>
+          </div>
+          <select id="cat-section" class="cat-select" title="Catalog section"><option value="">every section</option></select>
+          <select id="cat-priority" class="cat-select" title="Priority">
+            <option value="">any priority</option>
+            <option value="P0">P0</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+          </select>
+          <select id="cat-verdict" class="cat-select" title="What the catalog says to do with it">
+            <option value="">any verdict</option>
+            <option value="automate">automate</option>
+            <option value="automate-later">automate-later</option>
+            <option value="manual">manual</option>
+          </select>
+          <input id="cat-q" class="kb-input" placeholder="search the catalog, e.g. savings column" />
+        </div>
+        <div class="cat-bar">
+          <button id="cat-run" class="run-btn small">▶ Run selected cases</button>
+          <button id="cat-stop" class="chip" title="Stop the run">■ stop</button>
+          <button id="cat-none" class="chip">clear</button>
+          <label class="tgl-flow" title="Tick to open the one visible Chromium window and watch the run — leave off for verification runs">
+            <input type="checkbox" id="cat-headed" /> watch it
+          </label>
+          <label class="tgl-flow" title="Headed only: log in visibly in the same window before the run, and slow every action so it can be followed by eye">
+            <input type="checkbox" id="cat-demo" /> demo pace + visible login
+          </label>
+          <label class="tgl-flow" title="Show Playwright's own output as well as the plain-language narration">
+            <input type="checkbox" id="cat-raw" /> raw log
+          </label>
+          <span id="cat-picked" class="cat-count"></span>
+        </div>
+        <div id="cat-list" class="cat-list">
+          <div class="loading">Loading the catalog…</div>
+        </div>
+        <div id="cat-run-out" class="cat-run-out" hidden></div>
+            </div>
+
             <!-- the case book: every written case by journey, expected vs actual -->
-            <div id="cb-pane-book" class="cb-pane">
+            <div id="cb-pane-book" class="cb-pane" hidden>
               <div class="cb-bar">
                 <input id="cb-search" class="cat-search" type="search" placeholder="Search test cases — id, title, expected result…" />
                 <select id="cb-journey" class="cat-select"><option value="">Every journey</option></select>

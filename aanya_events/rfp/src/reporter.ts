@@ -102,8 +102,9 @@ function ann(test: TestCase, result: TestResult, type: string): string | undefin
 
 /** Numeric sort for "1.10" after "1.9", "3.2.10" after "3.2.9". */
 const idPart = (x: string) => {
-  const m = x.match(/^(\d+)([a-z]?)$/);
-  return m ? Number(m[1]) + (m[2] ? (m[2].charCodeAt(0) - 96) / 100 : 0) : Number(x);
+  // "4B" sorts after "4" and before "5"; "5b" after "5".
+  const m = x.match(/^(\d+)([a-zA-Z]?)$/);
+  return m ? Number(m[1]) + (m[2] ? (m[2].toLowerCase().charCodeAt(0) - 96) / 100 : 0) : Number(x);
 };
 const byId = (a: string, b: string) => {
   const pa = a.split(".").map(idPart);
@@ -252,7 +253,7 @@ export default class RfpReporter implements Reporter {
       notRun: list.filter((c) => c.verdict === "not-run").length,
     });
     const byPart: ReportModel["byPart"] = {};
-    for (const p of ["publish", "verify", "negative", "surrogate"]) byPart[p] = tally(this.cases.filter((c) => c.part === p));
+    for (const p of ["publish", "verify", "negative", "surrogate", "vendor"]) byPart[p] = tally(this.cases.filter((c) => c.part === p));
     const allChecks = this.cases.flatMap((c) => c.checks);
 
     const sc = scenario();

@@ -545,8 +545,15 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
     if (HINT.freeText.test(k)) s -= 25;
     return s;
   };
+  // A login response carries the signed-in session plus the whole tenant's
+  // dashboard config (default units, currency settings, permissions...). The
+  // config is real data but nothing on the sign-in screen shows it, so field
+  // checks for a login step stay scoped to the session itself: the field's
+  // root key names the person or their company.
+  const sessionOnly = LOGIN_STEPS.has(step);
   const fields = [...stats.values()]
     .filter((s) => s.parents > 0 && !s.types.has("undefined"))
+    .filter((s) => !sessionOnly || SESSION_ROOT.has(s.path.split(/[.[]/)[0]))
     .sort((a, b) => score(b.path) - score(a.path) || a.path.localeCompare(b.path));
 
   // Echo: a scalar the request sent that comes back under the same key.
@@ -649,6 +656,10 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
  * budget; the event and bid calls, where the business data lives, get more.
  */
 export const STEP_CAP: Partial<Record<StepKind, number>> = { buyer_login: 20, vendor_login: 20, evaluator_login: 20 };
+
+/** Login steps whose field checks are scoped to the session itself (see `inferStep`). */
+const LOGIN_STEPS = new Set<StepKind>(["buyer_login", "vendor_login", "evaluator_login"]);
+const SESSION_ROOT = new Set(["user", "company"]);
 
 /**
  * Build the whole catalog. Ids are stable: an assertion keeps its id across

@@ -100,6 +100,21 @@ export const DEFAULTS = {
   surrogate_default_number: "1",
   surrogate_remarks: "",
   surrogate_skip_window_check: "false",
+  // ---- vendor bid (the vendor logs in to the portal and bids) ----
+  bid_vendor_uuids: "", // vendors to bid as (comma separated); empty = the first num_bids invited vendors without a bid
+  num_bids: "1",
+  vendor_app_key: "agribid_web_key",
+  vendor_app_secret: "agribid_web_secret",
+  vendor_app_version: "2.30.292",
+  vendor_otp: "567890", // UAT's fixed vendor OTP (as in the HAR)
+  vendor_emails: "{}", // {"<vendor company uuid>": "login@email"} overrides the vendor's own email
+  vendor_submit_all_forms: "true", // false = only the line-item forms (the console skips an untouched Vendor Assessment)
+  // ---- RFQ vendor bid (a price bid) ----
+  rfq_bid_prices: "100", // price per unit: "100" for all items, or "100,250" one per item
+  rfq_bid_quantities: "", // empty = the quantity asked for; "5,10" one per item
+  rfq_bid_gst: "", // empty = GST left blank (as in the HAR); "18" or "18,5" one per item
+  rfq_price_step_pct: "5", // vendor n bids price × (1 + n × step%) — so the first vendor is L1
+  bid_currency_code: "INR",
 } as const;
 
 export type ConfigKey = keyof typeof DEFAULTS;
@@ -207,11 +222,11 @@ export function runScope(): string[] {
  * The publish flow always runs: the verification reads the event it made,
  * and the negative cases reuse its products, vendors and template.
  */
-export type SuitePart = "publish" | "verify" | "negative" | "surrogate";
+export type SuitePart = "publish" | "verify" | "negative" | "surrogate" | "vendor";
 export function suiteParts(): Set<SuitePart> {
   const raw = (process.env.RFP_SUITES || "publish,verify,negative").split(",").map((s) => s.trim());
   const parts = new Set<SuitePart>(["publish"]);
-  for (const p of raw) if (p === "verify" || p === "negative" || p === "surrogate") parts.add(p);
+  for (const p of raw) if (p === "verify" || p === "negative" || p === "surrogate" || p === "vendor") parts.add(p);
   return parts;
 }
 

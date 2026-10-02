@@ -12,7 +12,9 @@ import {
   type StepVerdict,
   type VariationsEvent,
 } from "../checks/journeyModel.js";
+import type { StepAssertions } from "../checks/apiAssertions.js";
 import { redactSecrets } from "../checks/engine.js";
+import { fieldPhrase } from "../checks/humanize.js";
 import type { RunRecord } from "../runStore.js";
 import { toCurl } from "./curl.js";
 import { escapeHtml } from "./shared.js";
@@ -423,36 +425,109 @@ function renderStep(step: JourneyStepRecord, rows: CaseRow[], input: JourneySect
  * runner evaluated against the live reply (`apiAssertions.ts`), failures
  * first. The step's verdict is about the request; this is about the body.
  */
+/**
+ * One field can carry several checks (present, right type, exact value) that
+ * were all inferred from the same path — e.g. `exists` + `type_is` +
+ * `one_of` on `default_unit.price_unit`. Read separately they say the same
+ * thing three times ("it was there" / "it was text" / "it read 'QT'"), so
+ * this folds every check on the same path into one row: one presence-and-
+ * value line, one verdict (the group passes only if every check in it did).
+ * This is a display fold only — ids, results and severities underneath are
+ * untouched, so nothing downstream (case book, bug sheet) sees a difference.
+ */
+export type CheckRow = StepAssertions["results"][number];
+export type MergedRow = { ids: string[]; ops: CheckRow["op"][]; path: string; title: string; expected: string; actual: string; pass: boolean | null; severity: CheckRow["severity"] };
+
+const VALUE_OP_PRIORITY = ["one_of", "format", "equals_request", "equals_made", "gte", "non_empty"];
+
+const passthrough = (r: CheckRow): MergedRow => ({
+  ids: [r.id],
+  ops: [r.op],
+  path: r.path,
+  title: r.humanTitle ?? r.title,
+  expected: r.humanExpected ?? r.expected,
+  actual: r.humanActual ?? r.actual ?? "",
+  pass: r.pass,
+  severity: r.severity,
+});
+
+export function mergeFieldChecks(results: CheckRow[], step: StepKind): MergedRow[] {
+  // Whole-call checks (status/timing/well-formed body) share an empty path
+  // but are unrelated to each other — never fold them together.
+  const callChecks = results.filter((r) => !r.path);
+  const fieldChecks = results.filter((r) => r.path);
+  const byPath = new Map<string, CheckRow[]>();
+  const order: string[] = [];
+  for (const r of fieldChecks) {
+    if (!byPath.has(r.path)) {
+      byPath.set(r.path, []);
+      order.push(r.path);
+    }
+    byPath.get(r.path)!.push(r);
+  }
+  const merged = order.map((path): MergedRow => {
+    const group = byPath.get(path)!;
+    if (group.length === 1) return passthrough(group[0]);
+    const existsRow = group.find((r) => r.op === "exists");
+    const valueRow = VALUE_OP_PRIORITY.map((op) => group.find((r) => r.op === op)).find(Boolean);
+    const typeRow = group.find((r) => r.op === "type_is");
+    const lead = valueRow ?? typeRow ?? existsRow ?? group[0];
+    const field = fieldPhrase(path, step);
+    const F = field.charAt(0).toUpperCase() + field.slice(1);
+    const clauses: string[] = [];
+    if (existsRow && existsRow !== lead) clauses.push(existsRow.humanActual ?? existsRow.actual ?? "");
+    clauses.push(lead.humanActual ?? lead.actual ?? "");
+    const actual = [...new Set(clauses.filter(Boolean))].join(" ");
+    const pass = group.some((r) => r.pass === false) ? false : group.some((r) => r.pass === null) ? null : true;
+    return {
+      ids: group.map((r) => r.id),
+      ops: group.map((r) => r.op),
+      path,
+      title: `${F} is present and correct`,
+      expected: lead.humanExpected ?? lead.expected,
+      actual,
+      pass,
+      severity: (existsRow ?? lead).severity,
+    };
+  });
+  return [...callChecks.map(passthrough), ...merged];
+}
+
+function checksTable(rows: ReturnType<typeof mergeFieldChecks>): string {
+  const icon = (p: boolean | null) => (p === true ? "✓" : p === false ? "✗" : "–");
+  const cls = (p: boolean | null) => (p === true ? "ok" : p === false ? "bad" : "skip");
+  const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
+  const sorted = [...rows].sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
+  return `
+  <table class="jchecks-t">
+    <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
+    <tbody>${sorted
+      .map(
+        (r) =>
+          `<tr class="${cls(r.pass)}">` +
+          `<td title="${safe(`${r.ops.join("+")} ${r.path}`)}"><span class="jc-id">${safe(r.ids[0])}${r.ids.length > 1 ? ` (${r.ids.length} checks)` : ""}</span> ${safe(r.title)}</td>` +
+          `<td>${safe(r.expected)}</td>` +
+          `<td title="${safe(r.ids.map((id, i) => `${id}: ${r.ops[i]}`).join(" · "))}">${safe(r.actual)}</td>` +
+          `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
+      )
+      .join("")}</tbody>
+  </table>`;
+}
+
 function renderChecks(step: JourneyStepRecord): string {
   const a = step.assertions;
   if (!a || !a.total) return "";
-  const icon = (p: boolean | null) => (p === true ? "✓" : p === false ? "✗" : "–");
-  const cls = (p: boolean | null) => (p === true ? "ok" : p === false ? "bad" : "skip");
-  const rows = [...a.results].sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
+  const merged = mergeFieldChecks(a.results, step.kind);
   const head =
     `${a.passed} of ${a.total} field checks passed` +
     (a.failed ? ` · <b>${a.failed} failed</b>` : "") +
     (a.skipped ? ` · ${a.skipped} not checked` : "");
-  const word = (p: boolean | null) => (p === true ? "Passed" : p === false ? "Failed" : "Not checked");
   // Each check reads as a test case: what is tested, what should happen, what
   // did happen, and the result — in plain English. The engine's own terms stay
   // one click away (title attribute) for engineers.
   return `
 <details class="jchecks${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""}>
-  <summary><h5>Field checks on the response</h5> <span>${head}</span></summary>
-  <table class="jchecks-t">
-    <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
-    <tbody>${rows
-      .map(
-        (r) =>
-          `<tr class="${cls(r.pass)}">` +
-          `<td title="${safe(`${r.op} ${r.path}`)}"><span class="jc-id">${safe(r.id)}</span> ${safe(r.humanTitle ?? r.title)}</td>` +
-          `<td>${safe(r.humanExpected ?? r.expected)}</td>` +
-          `<td title="${safe(r.actual ?? "")}">${safe(r.humanActual ?? r.actual ?? "")}</td>` +
-          `<td class="jc-res">${icon(r.pass)} ${word(r.pass)}</td></tr>`,
-      )
-      .join("")}</tbody>
-  </table>
+  <summary><h5>Field checks on the response</h5> <span>${head}</span></summary>${checksTable(merged)}
 </details>`;
 }
 

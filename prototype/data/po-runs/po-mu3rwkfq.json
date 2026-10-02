@@ -1,0 +1,1717 @@
+{
+  "runId": "po-mu3rwkfq",
+  "startedAt": "2026-09-16T07:22:27.833Z",
+  "endedAt": "2026-09-16T07:23:52.686Z",
+  "exitCode": 0,
+  "companyId": 900002,
+  "companyName": "Decathlon (PO → Bill)",
+  "issues": [],
+  "report": {
+    "mode": "run",
+    "findings": [
+      {
+        "id": "populated-create-jumps-to-released",
+        "issueId": "D__006",
+        "title": "a create with fields lands the PO in \"Released\", skipping its whole lifecycle",
+        "status": "confirmed",
+        "severity": "high",
+        "devStatus": "OPEN",
+        "devEta": "",
+        "priority": "P0",
+        "blocker": true,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "PO",
+        "description": "a create with fields lands the PO in \"Released\", skipping its whole lifecycle",
+        "detail": "The UI creates an empty record (responses: []) and PATCHes fields in one at a time; that record comes back status \"0\" (Draft). Sending the same fields in a single create_row instead comes back status \"3\" (Released) — the suite never sends status at all, it is in skipFields. So a populated create silently skips Draft, In Approval and Submitted. A released PO has nothing left to approve, which is the real cause of the bare 422 \"Invalid Approval\" on submit. Not reproducible by hand: the UI cannot release a PO at creation.",
+        "note": "blocks the whole approval flow end to end; nothing downstream can be tested until it moves",
+        "highlight": true,
+        "client": "decathlon",
+        "endpoint": "POST /api/fx_responses/create_row",
+        "evidence": "captured UI create_row (responses: 0) -> status \"0\" Draft; `npm run po -- --client decathlon` create_row (12 fields, no status) -> status \"3\" Released, record Z05kY2Rj"
+      },
+      {
+        "id": "state-code-silently-dropped",
+        "issueId": "D__007",
+        "title": "state_code is accepted then silently discarded",
+        "status": "confirmed",
+        "severity": "medium",
+        "devStatus": "OPEN",
+        "devEta": "",
+        "priority": "P1",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "PO",
+        "description": "state_code is accepted then silently discarded",
+        "detail": "state_code is mandatory and was sent as a valid widget_data_mappings record uuid (\"a1hnZE5k\", the value existing POs carry). The create returns 200 and the field reads back absent. A mandatory field accepted and thrown away leaves the document permanently incomplete with no error to act on.",
+        "note": "",
+        "highlight": false,
+        "client": "decathlon",
+        "endpoint": "POST /api/fx_responses/create_row",
+        "evidence": "create payload for record Z05kY2Rj included state_code; field_responses has no value for it"
+      },
+      {
+        "id": "app-version-changes-payload",
+        "issueId": "D__009",
+        "title": "omitting app-version silently returns a reduced payload",
+        "status": "confirmed",
+        "severity": "medium",
+        "devStatus": "TO BE DISCUSSED",
+        "devEta": "",
+        "priority": "P1",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "Approvals",
+        "description": "omitting app-version silently returns a reduced payload",
+        "detail": "The platform selects a response serializer from the app-version header. With no such header it answers 200 but strips every step and approver uuid, so a document cannot be approved and the cause is invisible — the call looks successful. Same effect on the approval-flows list, which switches between numeric ids and encoded uuids. The suite now always sends app-version.",
+        "note": "worked around in the suite by always sending app-version — decide whether the default should be the full payload",
+        "highlight": false,
+        "client": "both",
+        "endpoint": "GET /api/fx_responses/{uuid}/get_approvals",
+        "evidence": "measured: no header -> approver.uuid undefined; 9.4.349 -> uuid present"
+      },
+      {
+        "id": "no-applicable-flow-endpoint",
+        "issueId": "D__010",
+        "title": "no way to ask which approval flow applies to a document",
+        "status": "confirmed",
+        "severity": "medium",
+        "devStatus": "TO BE DISCUSSED",
+        "devEta": "",
+        "priority": "P1",
+        "blocker": false,
+        "devType": "BE",
+        "devComment": "",
+        "sprintWeek": "",
+        "userType": "All users",
+        "module": "Approvals",
+        "description": "no way to ask which approval flow applies to a document",
+        "detail": "Decathlon has 75 active p2p_create_po flows, every one conditional and several sharing the same name, so a flow cannot be identified by name. /approval_flows/applicable returns 570 \"Approval Flow not found\". The only way to learn the applicable flow is to write to the record and read approval_applicable + approvals back off the response.",
+        "note": "API gap rather than a defect — raised as a request",
+        "highlight": false,
+        "client": "decathlon",
+        "endpoint": "GET /api/approval_workflow/approval_flows",
+        "evidence": "probed live; traced through the captured UI session"
+      }
+    ],
+    "generatedAt": "2026-09-16T07:23:52.665Z",
+    "startedAt": "2026-09-16T07:22:28.402Z",
+    "finishedAt": "2026-09-16T07:23:52.621Z",
+    "wallClockMs": 84219,
+    "environment": {
+      "clientId": "decathlon"
+    },
+    "clients": [
+      {
+        "clientId": "decathlon",
+        "modules": [
+          {
+            "moduleKey": "p2p_cost_center",
+            "module": "Cost centre",
+            "flows": [
+              {
+                "flowKey": "purchase-order.cli",
+                "flow": "purchase-order.cli",
+                "category": "purchase-order",
+                "cases": [
+                  {
+                    "test": {
+                      "id": "step-1",
+                      "title": "resolve header relations",
+                      "titlePath": [
+                        "resolve header relations"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 1329,
+                      "startedAt": "2026-09-16T07:22:28.402Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_cost_center",
+                    "module": "Cost centre",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 1,
+                        "timestamp": "2026-09-16T07:22:28.402Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WHBEWms%3D&page=1&per_page=1",
+                        "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WHBEWms%3D&page=1&per_page=1",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 1329,
+                        "clientId": "decathlon",
+                        "step": "resolve header relations",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WHBEWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      }
+                    ],
+                    "failedCalls": []
+                  }
+                ],
+                "counts": {
+                  "positive": {
+                    "total": 1,
+                    "passed": 1,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "negative": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "edge": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  }
+                },
+                "callCount": 1,
+                "failedCallCount": 0,
+                "slowestCallMs": 1329
+              }
+            ],
+            "counts": {
+              "positive": {
+                "total": 1,
+                "passed": 1,
+                "failed": 0,
+                "skipped": 0
+              },
+              "negative": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "edge": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              }
+            },
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "callCount": 1,
+            "failedCallCount": 0
+          },
+          {
+            "moduleKey": "p2p_nature_of_expense",
+            "module": "Nature of expense",
+            "flows": [
+              {
+                "flowKey": "purchase-order.cli",
+                "flow": "purchase-order.cli",
+                "category": "purchase-order",
+                "cases": [
+                  {
+                    "test": {
+                      "id": "step-3",
+                      "title": "line item 1: resolve relations",
+                      "titlePath": [
+                        "line item 1: resolve relations"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 7170,
+                      "startedAt": "2026-09-16T07:22:36.932Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_nature_of_expense",
+                    "module": "Nature of expense",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 3,
+                        "timestamp": "2026-09-16T07:22:36.932Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+                        "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 2115,
+                        "clientId": "decathlon",
+                        "step": "line item 1: resolve relations",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      },
+                      {
+                        "seq": 4,
+                        "timestamp": "2026-09-16T07:22:39.050Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+                        "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 5055,
+                        "clientId": "decathlon",
+                        "step": "line item 1: resolve relations",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      }
+                    ],
+                    "failedCalls": []
+                  },
+                  {
+                    "test": {
+                      "id": "step-5",
+                      "title": "line item 2: resolve relations",
+                      "titlePath": [
+                        "line item 2: resolve relations"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 6848,
+                      "startedAt": "2026-09-16T07:22:49.469Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_nature_of_expense",
+                    "module": "Nature of expense",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 6,
+                        "timestamp": "2026-09-16T07:22:49.469Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+                        "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 2534,
+                        "clientId": "decathlon",
+                        "step": "line item 2: resolve relations",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      },
+                      {
+                        "seq": 7,
+                        "timestamp": "2026-09-16T07:22:52.004Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+                        "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 4314,
+                        "clientId": "decathlon",
+                        "step": "line item 2: resolve relations",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      }
+                    ],
+                    "failedCalls": []
+                  },
+                  {
+                    "test": {
+                      "id": "step-7",
+                      "title": "line item 3: resolve relations",
+                      "titlePath": [
+                        "line item 3: resolve relations"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 7235,
+                      "startedAt": "2026-09-16T07:23:01.889Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_nature_of_expense",
+                    "module": "Nature of expense",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 9,
+                        "timestamp": "2026-09-16T07:23:01.889Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+                        "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 2719,
+                        "clientId": "decathlon",
+                        "step": "line item 3: resolve relations",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      },
+                      {
+                        "seq": 10,
+                        "timestamp": "2026-09-16T07:23:04.609Z",
+                        "method": "GET",
+                        "uri": "/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+                        "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 4516,
+                        "clientId": "decathlon",
+                        "step": "line item 3: resolve relations",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      }
+                    ],
+                    "failedCalls": []
+                  }
+                ],
+                "counts": {
+                  "positive": {
+                    "total": 3,
+                    "passed": 3,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "negative": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "edge": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  }
+                },
+                "callCount": 6,
+                "failedCallCount": 0,
+                "slowestCallMs": 5055
+              }
+            ],
+            "counts": {
+              "positive": {
+                "total": 3,
+                "passed": 3,
+                "failed": 0,
+                "skipped": 0
+              },
+              "negative": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "edge": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              }
+            },
+            "total": 3,
+            "passed": 3,
+            "failed": 0,
+            "skipped": 0,
+            "callCount": 6,
+            "failedCallCount": 0
+          },
+          {
+            "moduleKey": "p2p_purchase_order",
+            "module": "PO",
+            "flows": [
+              {
+                "flowKey": "purchase-order.cli",
+                "flow": "purchase-order.cli",
+                "category": "purchase-order",
+                "cases": [
+                  {
+                    "test": {
+                      "id": "step-2",
+                      "title": "create PO header",
+                      "titlePath": [
+                        "create PO header"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 6956,
+                      "startedAt": "2026-09-16T07:22:29.973Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_purchase_order",
+                    "module": "PO",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 2,
+                        "timestamp": "2026-09-16T07:22:29.973Z",
+                        "method": "POST",
+                        "uri": "/api/fx_responses/create_row",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 6956,
+                        "clientId": "decathlon",
+                        "step": "create PO header",
+                        "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"UWdrWlo=\",\"responses\":[{\"field_uuid\":\"a2tacGNO\",\"value\":\"a1hnZE5k\"},{\"field_uuid\":\"cGRka2dk\",\"value\":\"AUTO Buyer Billing Address MU3RWKVHPE\"},{\"field_uuid\":\"cGRja2dk\",\"value\":\"AUTO Buyer Shipping Address MU3RWKVHPE\"},{\"field_uuid\":\"cFpna2dk\",\"value\":\"a1hYWlFw\"},{\"field_uuid\":\"ZGtRa1hw\",\"value\":\"AUTO PO Remark MU3RWKVHPE\"},{\"field_uuid\":\"cGtYa2dk\",\"value\":\"16-10-2026\"},{\"field_uuid\":\"cERra2dk\",\"value\":1789543348},{\"field_uuid\":\"Tmdra2dk\",\"value\":1792135348},{\"field_uuid\":\"cGNka2dk\",\"value\":\"0\"},{\"field_uuid\":\"ZE5na1hw\",\"value\":\"AUTO Legistify contract number MU3RWKVHP\"},{\"field_uuid\":\"ZE5ra1hw\",\"value\":1789543348},{\"field_uuid\":\"RHBYRFpw\",\"value\":\"a2RYWk5Y\"}]}'",
+                        "recordUuid": "Wlhaa2tj"
+                      }
+                    ],
+                    "failedCalls": []
+                  },
+                  {
+                    "test": {
+                      "id": "step-10",
+                      "title": "submit for approval",
+                      "titlePath": [
+                        "submit for approval"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 17928,
+                      "startedAt": "2026-09-16T07:23:18.281Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_purchase_order",
+                    "module": "PO",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 13,
+                        "timestamp": "2026-09-16T07:23:18.281Z",
+                        "method": "PATCH",
+                        "uri": "/api/fx_responses/Wlhaa2tj",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 4852,
+                        "clientId": "decathlon",
+                        "step": "submit for approval",
+                        "curl": "curl -i -X PATCH 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"UWdrWlo=\",\"responses\":[]}'",
+                        "recordUuid": "Wlhaa2tj"
+                      },
+                      {
+                        "seq": 14,
+                        "timestamp": "2026-09-16T07:23:23.134Z",
+                        "method": "PATCH",
+                        "uri": "/api/fx_responses/Wlhaa2tj",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 6139,
+                        "clientId": "decathlon",
+                        "step": "submit for approval",
+                        "curl": "curl -i -X PATCH 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"UWdrWlo=\",\"responses\":[{\"field_uuid\":\"cGdYa2dk\",\"value\":2}]}'",
+                        "recordUuid": "Wlhaa2tj"
+                      },
+                      {
+                        "seq": 15,
+                        "timestamp": "2026-09-16T07:23:29.275Z",
+                        "method": "POST",
+                        "uri": "/api/approval_workflow/approval_requests",
+                        "url": "https://sec-api.ag-ri.in/api/approval_workflow/approval_requests",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 6937,
+                        "clientId": "decathlon",
+                        "step": "submit for approval",
+                        "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/approval_workflow/approval_requests' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"approval_flow_uuid\":\"Y1pacGM=\",\"user_step_hash\":{},\"remarks\":\"AUTO MU3RWKVHPE\",\"attachments\":[],\"resource_type\":\"FxResponse\",\"resource_uuid\":\"Wlhaa2tj\"}'"
+                      }
+                    ],
+                    "failedCalls": []
+                  }
+                ],
+                "counts": {
+                  "positive": {
+                    "total": 2,
+                    "passed": 2,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "negative": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "edge": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  }
+                },
+                "callCount": 4,
+                "failedCallCount": 0,
+                "slowestCallMs": 6956
+              }
+            ],
+            "counts": {
+              "positive": {
+                "total": 2,
+                "passed": 2,
+                "failed": 0,
+                "skipped": 0
+              },
+              "negative": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "edge": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              }
+            },
+            "total": 2,
+            "passed": 2,
+            "failed": 0,
+            "skipped": 0,
+            "callCount": 4,
+            "failedCallCount": 0
+          },
+          {
+            "moduleKey": "p2p_po_line_item",
+            "module": "PO line item",
+            "flows": [
+              {
+                "flowKey": "purchase-order.cli",
+                "flow": "purchase-order.cli",
+                "category": "purchase-order",
+                "cases": [
+                  {
+                    "test": {
+                      "id": "step-4",
+                      "title": "line item 1: create",
+                      "titlePath": [
+                        "line item 1: create"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 5359,
+                      "startedAt": "2026-09-16T07:22:44.108Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_po_line_item",
+                    "module": "PO line item",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 5,
+                        "timestamp": "2026-09-16T07:22:44.108Z",
+                        "method": "POST",
+                        "uri": "/api/fx_responses/create_row",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 5359,
+                        "clientId": "decathlon",
+                        "step": "line item 1: create",
+                        "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"ZERrWlo=\",\"responses\":[{\"field_uuid\":\"RGNOa2dk\",\"value\":21.02},{\"field_uuid\":\"RGdwa2dk\",\"value\":\"AUTO Item Description MU3RWKVHPE\"},{\"field_uuid\":\"a1FOa2dk\",\"value\":61.12},{\"field_uuid\":\"ZGNaa1hw\",\"value\":\"0\"},{\"field_uuid\":\"RGNna2dk\",\"value\":5},{\"field_uuid\":\"a2REa2dk\",\"value\":100},{\"field_uuid\":\"TmtRcFFR\",\"value\":\"0\"},{\"field_uuid\":\"RGNRa2dk\",\"value\":\"Wlhaa2tj\"},{\"field_uuid\":\"a1FkRE5j\",\"value\":\"WnBaWk5R\"},{\"field_uuid\":\"RFpEa2dk\",\"value\":\"RGdETk4=\"}]}'",
+                        "recordUuid": "WlhYa2tj"
+                      }
+                    ],
+                    "failedCalls": []
+                  },
+                  {
+                    "test": {
+                      "id": "step-6",
+                      "title": "line item 2: create",
+                      "titlePath": [
+                        "line item 2: create"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 5569,
+                      "startedAt": "2026-09-16T07:22:56.318Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_po_line_item",
+                    "module": "PO line item",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 8,
+                        "timestamp": "2026-09-16T07:22:56.318Z",
+                        "method": "POST",
+                        "uri": "/api/fx_responses/create_row",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 5569,
+                        "clientId": "decathlon",
+                        "step": "line item 2: create",
+                        "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"ZERrWlo=\",\"responses\":[{\"field_uuid\":\"RGNOa2dk\",\"value\":32.68},{\"field_uuid\":\"RGdwa2dk\",\"value\":\"AUTO Item Description MU3RWKVHPE\"},{\"field_uuid\":\"a1FOa2dk\",\"value\":34.72},{\"field_uuid\":\"ZGNaa1hw\",\"value\":\"0\"},{\"field_uuid\":\"RGNna2dk\",\"value\":3},{\"field_uuid\":\"a2REa2dk\",\"value\":250.5},{\"field_uuid\":\"TmtRcFFR\",\"value\":\"0\"},{\"field_uuid\":\"RGNRa2dk\",\"value\":\"Wlhaa2tj\"},{\"field_uuid\":\"a1FkRE5j\",\"value\":\"WnBaWk5R\"},{\"field_uuid\":\"RFpEa2dk\",\"value\":\"RGdETk4=\"}]}'",
+                        "recordUuid": "WmRra2tj"
+                      }
+                    ],
+                    "failedCalls": []
+                  },
+                  {
+                    "test": {
+                      "id": "step-8",
+                      "title": "line item 3: create",
+                      "titlePath": [
+                        "line item 3: create"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 5355,
+                      "startedAt": "2026-09-16T07:23:09.127Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "p2p_po_line_item",
+                    "module": "PO line item",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 11,
+                        "timestamp": "2026-09-16T07:23:09.127Z",
+                        "method": "POST",
+                        "uri": "/api/fx_responses/create_row",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 5355,
+                        "clientId": "decathlon",
+                        "step": "line item 3: create",
+                        "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"ZERrWlo=\",\"responses\":[{\"field_uuid\":\"RGNOa2dk\",\"value\":28.77},{\"field_uuid\":\"RGdwa2dk\",\"value\":\"AUTO Item Description MU3RWKVHPE\"},{\"field_uuid\":\"a1FOa2dk\",\"value\":5.51},{\"field_uuid\":\"ZGNaa1hw\",\"value\":\"0\"},{\"field_uuid\":\"RGNna2dk\",\"value\":10},{\"field_uuid\":\"a2REa2dk\",\"value\":12.75},{\"field_uuid\":\"TmtRcFFR\",\"value\":\"0\"},{\"field_uuid\":\"RGNRa2dk\",\"value\":\"Wlhaa2tj\"},{\"field_uuid\":\"a1FkRE5j\",\"value\":\"WnBaWk5R\"},{\"field_uuid\":\"RFpEa2dk\",\"value\":\"RGdETk4=\"}]}'",
+                        "recordUuid": "WmRRa2tj"
+                      }
+                    ],
+                    "failedCalls": []
+                  }
+                ],
+                "counts": {
+                  "positive": {
+                    "total": 3,
+                    "passed": 3,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "negative": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "edge": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  }
+                },
+                "callCount": 3,
+                "failedCallCount": 0,
+                "slowestCallMs": 5569
+              }
+            ],
+            "counts": {
+              "positive": {
+                "total": 3,
+                "passed": 3,
+                "failed": 0,
+                "skipped": 0
+              },
+              "negative": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "edge": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              }
+            },
+            "total": 3,
+            "passed": 3,
+            "failed": 0,
+            "skipped": 0,
+            "callCount": 3,
+            "failedCallCount": 0
+          },
+          {
+            "moduleKey": "state",
+            "module": "state",
+            "flows": [
+              {
+                "flowKey": "purchase-order.cli",
+                "flow": "purchase-order.cli",
+                "category": "purchase-order",
+                "cases": [
+                  {
+                    "test": {
+                      "id": "step-11",
+                      "title": "read approval state",
+                      "titlePath": [
+                        "read approval state"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 3479,
+                      "startedAt": "2026-09-16T07:23:36.213Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "moduleKey": "state",
+                    "module": "state",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 16,
+                        "timestamp": "2026-09-16T07:23:36.213Z",
+                        "method": "GET",
+                        "uri": "/api/fx_responses/Wlhaa2tj/get_approvals",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 3479,
+                        "clientId": "decathlon",
+                        "step": "read approval state",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      }
+                    ],
+                    "failedCalls": []
+                  }
+                ],
+                "counts": {
+                  "positive": {
+                    "total": 1,
+                    "passed": 1,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "negative": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "edge": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  }
+                },
+                "callCount": 1,
+                "failedCallCount": 0,
+                "slowestCallMs": 3479
+              }
+            ],
+            "counts": {
+              "positive": {
+                "total": 1,
+                "passed": 1,
+                "failed": 0,
+                "skipped": 0
+              },
+              "negative": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "edge": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              }
+            },
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "callCount": 1,
+            "failedCallCount": 0
+          },
+          {
+            "module": "Platform (not module-specific)",
+            "flows": [
+              {
+                "flowKey": "purchase-order.cli",
+                "flow": "purchase-order.cli",
+                "category": "purchase-order",
+                "cases": [
+                  {
+                    "test": {
+                      "id": "step-9",
+                      "title": "verify approval flow",
+                      "titlePath": [
+                        "verify approval flow"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 3793,
+                      "startedAt": "2026-09-16T07:23:14.484Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "module": "Platform (not module-specific)",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 12,
+                        "timestamp": "2026-09-16T07:23:14.484Z",
+                        "method": "GET",
+                        "uri": "/api/approval_workflow/approval_flows",
+                        "url": "https://sec-api.ag-ri.in/api/approval_workflow/approval_flows",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 3793,
+                        "clientId": "decathlon",
+                        "step": "verify approval flow",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/approval_workflow/approval_flows' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      }
+                    ],
+                    "failedCalls": []
+                  },
+                  {
+                    "test": {
+                      "id": "step-12",
+                      "title": "approve",
+                      "titlePath": [
+                        "approve"
+                      ],
+                      "file": "purchase-order.cli",
+                      "project": "run",
+                      "status": "passed",
+                      "durationMs": 12904,
+                      "startedAt": "2026-09-16T07:23:39.694Z",
+                      "retries": 0,
+                      "annotations": []
+                    },
+                    "client": "decathlon",
+                    "flowKey": "purchase-order.cli",
+                    "flow": "purchase-order.cli",
+                    "category": "purchase-order",
+                    "module": "Platform (not module-specific)",
+                    "kind": "positive",
+                    "expects": "accept",
+                    "calls": [
+                      {
+                        "seq": 17,
+                        "timestamp": "2026-09-16T07:23:39.694Z",
+                        "method": "GET",
+                        "uri": "/api/fx_responses/Wlhaa2tj/get_approvals",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 3521,
+                        "clientId": "decathlon",
+                        "step": "approve",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      },
+                      {
+                        "seq": 18,
+                        "timestamp": "2026-09-16T07:23:43.217Z",
+                        "method": "POST",
+                        "uri": "/api/approval_workflow/approval_requests/resolve_approval",
+                        "url": "https://sec-api.ag-ri.in/api/approval_workflow/approval_requests/resolve_approval",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 4545,
+                        "clientId": "decathlon",
+                        "step": "approve",
+                        "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/approval_workflow/approval_requests/resolve_approval' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"approver_uuid\":\"Y3BaZGda\",\"resolution\":\"accepted\",\"remarks\":\"AUTO approved MU3RWKVHPE\",\"attachments\":[]}'"
+                      },
+                      {
+                        "seq": 19,
+                        "timestamp": "2026-09-16T07:23:47.763Z",
+                        "method": "GET",
+                        "uri": "/api/fx_responses/Wlhaa2tj/get_approvals",
+                        "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals",
+                        "status": 200,
+                        "statusText": "",
+                        "ok": true,
+                        "durationMs": 4838,
+                        "clientId": "decathlon",
+                        "step": "approve",
+                        "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+                      }
+                    ],
+                    "failedCalls": []
+                  }
+                ],
+                "counts": {
+                  "positive": {
+                    "total": 2,
+                    "passed": 2,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "negative": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  },
+                  "edge": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0
+                  }
+                },
+                "callCount": 4,
+                "failedCallCount": 0,
+                "slowestCallMs": 4838
+              }
+            ],
+            "counts": {
+              "positive": {
+                "total": 2,
+                "passed": 2,
+                "failed": 0,
+                "skipped": 0
+              },
+              "negative": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "edge": {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              }
+            },
+            "total": 2,
+            "passed": 2,
+            "failed": 0,
+            "skipped": 0,
+            "callCount": 4,
+            "failedCallCount": 0
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "test": {
+          "id": "step-1",
+          "title": "resolve header relations",
+          "titlePath": [
+            "resolve header relations"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 1329,
+          "startedAt": "2026-09-16T07:22:28.402Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_cost_center",
+        "module": "Cost centre",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 1,
+            "timestamp": "2026-09-16T07:22:28.402Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WHBEWms%3D&page=1&per_page=1",
+            "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WHBEWms%3D&page=1&per_page=1",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 1329,
+            "clientId": "decathlon",
+            "step": "resolve header relations",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WHBEWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-2",
+          "title": "create PO header",
+          "titlePath": [
+            "create PO header"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 6956,
+          "startedAt": "2026-09-16T07:22:29.973Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_purchase_order",
+        "module": "PO",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 2,
+            "timestamp": "2026-09-16T07:22:29.973Z",
+            "method": "POST",
+            "uri": "/api/fx_responses/create_row",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 6956,
+            "clientId": "decathlon",
+            "step": "create PO header",
+            "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"UWdrWlo=\",\"responses\":[{\"field_uuid\":\"a2tacGNO\",\"value\":\"a1hnZE5k\"},{\"field_uuid\":\"cGRka2dk\",\"value\":\"AUTO Buyer Billing Address MU3RWKVHPE\"},{\"field_uuid\":\"cGRja2dk\",\"value\":\"AUTO Buyer Shipping Address MU3RWKVHPE\"},{\"field_uuid\":\"cFpna2dk\",\"value\":\"a1hYWlFw\"},{\"field_uuid\":\"ZGtRa1hw\",\"value\":\"AUTO PO Remark MU3RWKVHPE\"},{\"field_uuid\":\"cGtYa2dk\",\"value\":\"16-10-2026\"},{\"field_uuid\":\"cERra2dk\",\"value\":1789543348},{\"field_uuid\":\"Tmdra2dk\",\"value\":1792135348},{\"field_uuid\":\"cGNka2dk\",\"value\":\"0\"},{\"field_uuid\":\"ZE5na1hw\",\"value\":\"AUTO Legistify contract number MU3RWKVHP\"},{\"field_uuid\":\"ZE5ra1hw\",\"value\":1789543348},{\"field_uuid\":\"RHBYRFpw\",\"value\":\"a2RYWk5Y\"}]}'",
+            "recordUuid": "Wlhaa2tj"
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-3",
+          "title": "line item 1: resolve relations",
+          "titlePath": [
+            "line item 1: resolve relations"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 7170,
+          "startedAt": "2026-09-16T07:22:36.932Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_nature_of_expense",
+        "module": "Nature of expense",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 3,
+            "timestamp": "2026-09-16T07:22:36.932Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+            "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 2115,
+            "clientId": "decathlon",
+            "step": "line item 1: resolve relations",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          },
+          {
+            "seq": 4,
+            "timestamp": "2026-09-16T07:22:39.050Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+            "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 5055,
+            "clientId": "decathlon",
+            "step": "line item 1: resolve relations",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-4",
+          "title": "line item 1: create",
+          "titlePath": [
+            "line item 1: create"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 5359,
+          "startedAt": "2026-09-16T07:22:44.108Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_po_line_item",
+        "module": "PO line item",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 5,
+            "timestamp": "2026-09-16T07:22:44.108Z",
+            "method": "POST",
+            "uri": "/api/fx_responses/create_row",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 5359,
+            "clientId": "decathlon",
+            "step": "line item 1: create",
+            "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"ZERrWlo=\",\"responses\":[{\"field_uuid\":\"RGNOa2dk\",\"value\":21.02},{\"field_uuid\":\"RGdwa2dk\",\"value\":\"AUTO Item Description MU3RWKVHPE\"},{\"field_uuid\":\"a1FOa2dk\",\"value\":61.12},{\"field_uuid\":\"ZGNaa1hw\",\"value\":\"0\"},{\"field_uuid\":\"RGNna2dk\",\"value\":5},{\"field_uuid\":\"a2REa2dk\",\"value\":100},{\"field_uuid\":\"TmtRcFFR\",\"value\":\"0\"},{\"field_uuid\":\"RGNRa2dk\",\"value\":\"Wlhaa2tj\"},{\"field_uuid\":\"a1FkRE5j\",\"value\":\"WnBaWk5R\"},{\"field_uuid\":\"RFpEa2dk\",\"value\":\"RGdETk4=\"}]}'",
+            "recordUuid": "WlhYa2tj"
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-5",
+          "title": "line item 2: resolve relations",
+          "titlePath": [
+            "line item 2: resolve relations"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 6848,
+          "startedAt": "2026-09-16T07:22:49.469Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_nature_of_expense",
+        "module": "Nature of expense",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 6,
+            "timestamp": "2026-09-16T07:22:49.469Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+            "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 2534,
+            "clientId": "decathlon",
+            "step": "line item 2: resolve relations",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          },
+          {
+            "seq": 7,
+            "timestamp": "2026-09-16T07:22:52.004Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+            "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 4314,
+            "clientId": "decathlon",
+            "step": "line item 2: resolve relations",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-6",
+          "title": "line item 2: create",
+          "titlePath": [
+            "line item 2: create"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 5569,
+          "startedAt": "2026-09-16T07:22:56.318Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_po_line_item",
+        "module": "PO line item",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 8,
+            "timestamp": "2026-09-16T07:22:56.318Z",
+            "method": "POST",
+            "uri": "/api/fx_responses/create_row",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 5569,
+            "clientId": "decathlon",
+            "step": "line item 2: create",
+            "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"ZERrWlo=\",\"responses\":[{\"field_uuid\":\"RGNOa2dk\",\"value\":32.68},{\"field_uuid\":\"RGdwa2dk\",\"value\":\"AUTO Item Description MU3RWKVHPE\"},{\"field_uuid\":\"a1FOa2dk\",\"value\":34.72},{\"field_uuid\":\"ZGNaa1hw\",\"value\":\"0\"},{\"field_uuid\":\"RGNna2dk\",\"value\":3},{\"field_uuid\":\"a2REa2dk\",\"value\":250.5},{\"field_uuid\":\"TmtRcFFR\",\"value\":\"0\"},{\"field_uuid\":\"RGNRa2dk\",\"value\":\"Wlhaa2tj\"},{\"field_uuid\":\"a1FkRE5j\",\"value\":\"WnBaWk5R\"},{\"field_uuid\":\"RFpEa2dk\",\"value\":\"RGdETk4=\"}]}'",
+            "recordUuid": "WmRra2tj"
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-7",
+          "title": "line item 3: resolve relations",
+          "titlePath": [
+            "line item 3: resolve relations"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 7235,
+          "startedAt": "2026-09-16T07:23:01.889Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_nature_of_expense",
+        "module": "Nature of expense",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 9,
+            "timestamp": "2026-09-16T07:23:01.889Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+            "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 2719,
+            "clientId": "decathlon",
+            "step": "line item 3: resolve relations",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=WGREWms%3D&page=1&per_page=1' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          },
+          {
+            "seq": 10,
+            "timestamp": "2026-09-16T07:23:04.609Z",
+            "method": "GET",
+            "uri": "/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+            "url": "https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 4516,
+            "clientId": "decathlon",
+            "step": "line item 3: resolve relations",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_views/records?datasource_uuid=ZERrWlo%3D&page=1&per_page=50' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-8",
+          "title": "line item 3: create",
+          "titlePath": [
+            "line item 3: create"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 5355,
+          "startedAt": "2026-09-16T07:23:09.127Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_po_line_item",
+        "module": "PO line item",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 11,
+            "timestamp": "2026-09-16T07:23:09.127Z",
+            "method": "POST",
+            "uri": "/api/fx_responses/create_row",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/create_row",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 5355,
+            "clientId": "decathlon",
+            "step": "line item 3: create",
+            "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/fx_responses/create_row' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"ZERrWlo=\",\"responses\":[{\"field_uuid\":\"RGNOa2dk\",\"value\":28.77},{\"field_uuid\":\"RGdwa2dk\",\"value\":\"AUTO Item Description MU3RWKVHPE\"},{\"field_uuid\":\"a1FOa2dk\",\"value\":5.51},{\"field_uuid\":\"ZGNaa1hw\",\"value\":\"0\"},{\"field_uuid\":\"RGNna2dk\",\"value\":10},{\"field_uuid\":\"a2REa2dk\",\"value\":12.75},{\"field_uuid\":\"TmtRcFFR\",\"value\":\"0\"},{\"field_uuid\":\"RGNRa2dk\",\"value\":\"Wlhaa2tj\"},{\"field_uuid\":\"a1FkRE5j\",\"value\":\"WnBaWk5R\"},{\"field_uuid\":\"RFpEa2dk\",\"value\":\"RGdETk4=\"}]}'",
+            "recordUuid": "WmRRa2tj"
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-9",
+          "title": "verify approval flow",
+          "titlePath": [
+            "verify approval flow"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 3793,
+          "startedAt": "2026-09-16T07:23:14.484Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "module": "Platform (not module-specific)",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 12,
+            "timestamp": "2026-09-16T07:23:14.484Z",
+            "method": "GET",
+            "uri": "/api/approval_workflow/approval_flows",
+            "url": "https://sec-api.ag-ri.in/api/approval_workflow/approval_flows",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 3793,
+            "clientId": "decathlon",
+            "step": "verify approval flow",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/approval_workflow/approval_flows' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-10",
+          "title": "submit for approval",
+          "titlePath": [
+            "submit for approval"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 17928,
+          "startedAt": "2026-09-16T07:23:18.281Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "p2p_purchase_order",
+        "module": "PO",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 13,
+            "timestamp": "2026-09-16T07:23:18.281Z",
+            "method": "PATCH",
+            "uri": "/api/fx_responses/Wlhaa2tj",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 4852,
+            "clientId": "decathlon",
+            "step": "submit for approval",
+            "curl": "curl -i -X PATCH 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"UWdrWlo=\",\"responses\":[]}'",
+            "recordUuid": "Wlhaa2tj"
+          },
+          {
+            "seq": 14,
+            "timestamp": "2026-09-16T07:23:23.134Z",
+            "method": "PATCH",
+            "uri": "/api/fx_responses/Wlhaa2tj",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 6139,
+            "clientId": "decathlon",
+            "step": "submit for approval",
+            "curl": "curl -i -X PATCH 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"datasource_uuid\":\"UWdrWlo=\",\"responses\":[{\"field_uuid\":\"cGdYa2dk\",\"value\":2}]}'",
+            "recordUuid": "Wlhaa2tj"
+          },
+          {
+            "seq": 15,
+            "timestamp": "2026-09-16T07:23:29.275Z",
+            "method": "POST",
+            "uri": "/api/approval_workflow/approval_requests",
+            "url": "https://sec-api.ag-ri.in/api/approval_workflow/approval_requests",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 6937,
+            "clientId": "decathlon",
+            "step": "submit for approval",
+            "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/approval_workflow/approval_requests' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"approval_flow_uuid\":\"Y1pacGM=\",\"user_step_hash\":{},\"remarks\":\"AUTO MU3RWKVHPE\",\"attachments\":[],\"resource_type\":\"FxResponse\",\"resource_uuid\":\"Wlhaa2tj\"}'"
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-11",
+          "title": "read approval state",
+          "titlePath": [
+            "read approval state"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 3479,
+          "startedAt": "2026-09-16T07:23:36.213Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "moduleKey": "state",
+        "module": "state",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 16,
+            "timestamp": "2026-09-16T07:23:36.213Z",
+            "method": "GET",
+            "uri": "/api/fx_responses/Wlhaa2tj/get_approvals",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 3479,
+            "clientId": "decathlon",
+            "step": "read approval state",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          }
+        ],
+        "failedCalls": []
+      },
+      {
+        "test": {
+          "id": "step-12",
+          "title": "approve",
+          "titlePath": [
+            "approve"
+          ],
+          "file": "purchase-order.cli",
+          "project": "run",
+          "status": "passed",
+          "durationMs": 12904,
+          "startedAt": "2026-09-16T07:23:39.694Z",
+          "retries": 0,
+          "annotations": []
+        },
+        "client": "decathlon",
+        "flowKey": "purchase-order.cli",
+        "flow": "purchase-order.cli",
+        "category": "purchase-order",
+        "module": "Platform (not module-specific)",
+        "kind": "positive",
+        "expects": "accept",
+        "calls": [
+          {
+            "seq": 17,
+            "timestamp": "2026-09-16T07:23:39.694Z",
+            "method": "GET",
+            "uri": "/api/fx_responses/Wlhaa2tj/get_approvals",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 3521,
+            "clientId": "decathlon",
+            "step": "approve",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          },
+          {
+            "seq": 18,
+            "timestamp": "2026-09-16T07:23:43.217Z",
+            "method": "POST",
+            "uri": "/api/approval_workflow/approval_requests/resolve_approval",
+            "url": "https://sec-api.ag-ri.in/api/approval_workflow/approval_requests/resolve_approval",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 4545,
+            "clientId": "decathlon",
+            "step": "approve",
+            "curl": "curl -i -X POST 'https://sec-api.ag-ri.in/api/approval_workflow/approval_requests/resolve_approval' \\\n  -H 'accept: application/json' \\\n  -H 'content-type: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\" \\\n  -d '{\"approver_uuid\":\"Y3BaZGda\",\"resolution\":\"accepted\",\"remarks\":\"AUTO approved MU3RWKVHPE\",\"attachments\":[]}'"
+          },
+          {
+            "seq": 19,
+            "timestamp": "2026-09-16T07:23:47.763Z",
+            "method": "GET",
+            "uri": "/api/fx_responses/Wlhaa2tj/get_approvals",
+            "url": "https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals",
+            "status": 200,
+            "statusText": "",
+            "ok": true,
+            "durationMs": 4838,
+            "clientId": "decathlon",
+            "step": "approve",
+            "curl": "curl -i -X GET 'https://sec-api.ag-ri.in/api/fx_responses/Wlhaa2tj/get_approvals' \\\n  -H 'accept: application/json' \\\n  -H 'app-version: 20.0.0' \\\n  -H \"access-token: <redacted>\""
+          }
+        ],
+        "failedCalls": []
+      }
+    ],
+    "orphanCalls": [],
+    "totals": {
+      "tests": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "byKind": {
+        "positive": {
+          "total": 12,
+          "passed": 12,
+          "failed": 0,
+          "skipped": 0
+        },
+        "negative": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0
+        },
+        "edge": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "calls": 19,
+      "failedCalls": 0,
+      "p50Ms": 4545,
+      "p95Ms": 6956,
+      "maxMs": 6956,
+      "totalApiMs": 83925
+    },
+    "notes": [
+      "This is a CLI run, not a test run: each row below is a step the script performed, and a step counts as passed when every call it made returned 2xx. No assertions were evaluated — run the suite for that."
+    ]
+  }
+}

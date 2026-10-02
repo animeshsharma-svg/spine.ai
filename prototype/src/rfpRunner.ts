@@ -42,8 +42,9 @@ export function rfpFeatureCases(): Record<string, number> {
     if (!existsSync(path)) continue;
     // Cases are declared as `id: "1.2"` or through a helper, `reqCase("5.2.1", …)`.
     const src = readFileSync(path, "utf8");
-    for (const m of src.match(/\bid: "\d+(?:\.\d+)+[a-z]?"|(?:reqCase|typeCase|simpleRead|rfqOnly)\(\s*"\d+(?:\.\d+)+[a-z]?"/g) ?? []) {
-      ids.add(m.match(/\d+(?:\.\d+)+[a-z]?/)![0]);
+    // Ids are "1.2", "1.5b", "4B.1", "5B.3.10".
+    for (const m of src.match(/\bid: "\d+[A-Z]?(?:\.\d+[a-z]?)+"|(?:reqCase|typeCase|simpleRead|rfqOnly)\(\s*"\d+[A-Z]?(?:\.\d+[a-z]?)+"/g) ?? []) {
+      ids.add(m.match(/\d+[A-Z]?(?:\.\d+[a-z]?)+/)![0]);
     }
   }
   const out: Record<string, number> = {};
@@ -78,6 +79,8 @@ export interface RfpInputs {
   vendors?: number;
   /** how many invited vendors to place a surrogate bid for */
   surrogateBids?: number;
+  /** how many invited vendors log in to the portal and bid themselves */
+  vendorBids?: number;
 }
 
 /** What the run was asked for, checked before anything is spawned. Null when fine. */
@@ -87,6 +90,11 @@ export function inputProblem(i: RfpInputs): string | null {
   }
   if (i.vendors !== undefined && !(Number.isInteger(i.vendors) && i.vendors >= 1 && i.vendors <= 50)) {
     return "vendors must be a whole number from 1 to 50";
+  }
+  if (i.vendorBids !== undefined) {
+    if (!(Number.isInteger(i.vendorBids) && i.vendorBids >= 1)) return "vendor bids must be a whole number of at least 1";
+    const both = (i.vendorBids ?? 0) + (i.surrogateBids ?? 0);
+    if (both > (i.vendors ?? 3)) return `${both} bids in all but only ${i.vendors ?? 3} vendor(s) invited — each vendor bids once, so invite at least as many vendors as bids`;
   }
   if (i.surrogateBids !== undefined) {
     if (!(Number.isInteger(i.surrogateBids) && i.surrogateBids >= 1)) return "surrogate bids must be a whole number of at least 1";
@@ -171,6 +179,8 @@ export function runRfp(
   delete env.RFP_QUANTITIES;
   delete env.RFP_NUM_VENDORS;
   delete env.RFP_NUM_SURROGATE_BIDS;
+  delete env.RFP_NUM_BIDS;
+  if (inputs.vendorBids) env.RFP_NUM_BIDS = String(inputs.vendorBids);
   if (inputs.surrogateBids) env.RFP_NUM_SURROGATE_BIDS = String(inputs.surrogateBids);
   if (inputs.lineItems) env.RFP_NUM_LINE_ITEMS = String(inputs.lineItems);
   if (inputs.quantities) env.RFP_QUANTITIES = inputs.quantities.replace(/\s+/g, "");
