@@ -60,6 +60,11 @@ export function allCases(): CatalogCase[] {
   return cache!;
 }
 
+/** Forget the cached catalog (after `cases:import` rewrote data/test-cases.json). */
+export function reloadCatalog(): void {
+  cache = null;
+}
+
 /** One case by id, case-insensitively (`ui-cre-001` finds `UI-CRE-001`). */
 export function caseById(id: string): CatalogCase | null {
   const want = id.trim().toUpperCase();

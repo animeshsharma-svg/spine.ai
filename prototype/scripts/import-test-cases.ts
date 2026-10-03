@@ -75,6 +75,8 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
     const refs = [...trace.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
     // A support-ticket regression lives in the journey group its Trace names (`API-XBID` …).
     if (current.id.startsWith("HS-")) current.group = refs.find((r) => /^API-[A-Z]+$/.test(r)) ?? "HS";
+    // An approved assistant draft (api-assistant-approved.md) joins the group its Trace names.
+    if (current.id.startsWith("GEN-")) current.group = refs.find((r) => /^(API|UI)-[A-Z]+$/.test(r)) ?? "GEN";
     const setup = (buf.Setup ?? []).join(" ").replace(/\s+/g, " ").trim();
     cases.push({
       id: current.id,
@@ -114,7 +116,7 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
     // cases generated from the Modules & Features workbook.
     // HS-<ticketId>-N are the support-ticket regressions (hubspot-regressions.md);
     // their group is the journey group named in the Trace (see flush()).
-    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+-\d+|HS-\d+-\d+)\s*[—–-]\s*(.+)$/);
+    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+-\d+|HS-\d+-\d+|GEN-[A-Z]+-\d{3})\s*[—–-]\s*(.+)$/);
     if (head) {
       flush();
       current = {
