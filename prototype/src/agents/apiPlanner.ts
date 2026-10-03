@@ -1229,10 +1229,12 @@ const UI_WORDS = /\b(?:screen|page|button|click\w*|drawer|modal|popup|toast|tool
 const STATE_WORDS = /\bkeeps?\b|\bkept\b|\bretain\w*|\bpersist\w*|\bstill\b|\bafterwards?\b|\bread[- ]?back\b|\bunchanged\b|\bupdates?\b.*\bfor\b|\bshows?\b|\bsees?\b|\bstored\b|\bsaved\b|\bnot (?:changed|created)\b|\bnothing (?:is )?(?:created|changed)\b/;
 const OUT_OF_SCOPE = /\b(e-?mail(?:ed|s)?|notification|sms|whatsapp|pdf|excel|download|report|performance|load|concurren\w*|seconds? to load|purchase order|\bpo\b|invoice|grn|bulk upload|erp|sap)\b/;
 
-function polarityOf(t: string): Outcome | null {
+export function polarityOf(t: string): Outcome | null {
   const s = t.toLowerCase();
   if (/\b(500|5xx|crash\w*|server error|must not break|never breaks?)\b/.test(s)) return "no-5xx";
   if (/\b(cannot|can't|can not|not allowed|refus\w*|reject\w*|block\w*|prevent\w*|disallow\w*|is denied|fails?|error|invalid|must not|should not|isn't allowed|not be able)\b/.test(s)) return "reject";
+  // "check whether a vendor can bid…" is a question, not an expected outcome
+  if (/\b(whether|check if|verify if|see if|find out if)\b|\?/.test(s)) return null;
   if (/\b(can|succeeds?|accept\w*|allowed|works?|updates?|changes?|is saved|is created|shows?|reopens?|2xx|200)\b/.test(s)) return "accept";
   return null;
 }

@@ -606,6 +606,17 @@ describe("report wording", () => {
   });
 });
 
+describe("API planner: what a typed case expects", () => {
+  test("a question is not read as an expected outcome", async () => {
+    const { polarityOf } = await import("../src/agents/apiPlanner.js");
+    assert.equal(polarityOf("create an rfq event check whether a vendor can bid after submission time is over"), null);
+    assert.equal(polarityOf("Can a vendor bid after the deadline?"), null);
+    assert.equal(polarityOf("A vendor can bid before the deadline"), "accept");
+    assert.equal(polarityOf("A vendor cannot bid after the deadline"), "reject");
+    assert.equal(polarityOf("check whether a vendor is refused after the deadline"), "reject");
+  });
+});
+
 import "./hubspot-unit-tests.js"; // HubSpot stripper, leak check, classifier, case file
 
 import "./db-unit-tests.js"; // product tables: run mapping, case versions, redaction, bug sheet (database part skips without SPINE_DB_URL)
