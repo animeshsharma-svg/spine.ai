@@ -136,7 +136,23 @@ export class ScreenDriver {
     return this.read(key, "summary", [new RegExp(`^/api/event_groups/${id}$`), /\/get_line_items/, /\/get_audience/], openedAt);
   }
 
+  /**
+   * The comparison grid scrolls sideways and only draws the columns in view, so
+   * a third or fourth bidder sits off screen at 1366 px. The Responses screen is
+   * read in a window wide enough for four bidders (a person scrolling sees the
+   * same cells), then the window is put back.
+   */
   async responses(eventUuid: string, stageUuid: string, label: string): Promise<Visit> {
+    const before = this.page.viewportSize();
+    await this.page.setViewportSize({ width: 3200, height: before?.height ?? 900 }).catch(() => {});
+    try {
+      return await this.responsesInner(eventUuid, stageUuid, label);
+    } finally {
+      if (before) await this.page.setViewportSize(before).catch(() => {});
+    }
+  }
+
+  private async responsesInner(eventUuid: string, stageUuid: string, label: string): Promise<Visit> {
     const key = `responses@${label}`;
     this.cap.setScreen(key);
     const openedAt = new Date().toISOString();
@@ -161,6 +177,81 @@ export class ScreenDriver {
     const openedAt = new Date().toISOString();
     await this.page.goto(`${app()}/project/${eventUuid}/${stageUuid}?tab=order_info`, NAV);
     return this.read(key, "overview", [new RegExp(`/trade/${stageUuid}/event_summary`)], openedAt);
+  }
+
+  /**
+   * Any other screen: open `path` (relative to the console), file what arrives
+   * under `key`, wait for `routes` (bounded by `waitMs`, or until `stopWhen`
+   * says the screen has nothing to fetch), then read it.
+   */
+  async open(
+    key: string,
+    map: string,
+    path: string,
+    routes: RegExp[],
+    opts: { waitMs?: number; stopWhen?: () => Promise<boolean>; prepare?: () => Promise<string | void> } = {},
+  ): Promise<Visit> {
+    this.cap.setScreen(key);
+    const openedAt = new Date().toISOString();
+    await this.page.goto(`${app()}${path}`, NAV);
+    if (!opts.prepare) return this.read(key, map, routes, openedAt, opts.waitMs ?? 40_000, opts.stopWhen);
+    // A view-only control (a filter switch) is set once the data is in, then the screen is read.
+    const notArrived = await this.waitFor(key, routes, opts.waitMs ?? 40_000, opts.stopWhen);
+    await this.settle(key);
+    const said = await opts.prepare().catch((e: Error) => `could not set the view: ${e.message.split("\n")[0]}`);
+    if (said) console.log(`[crosscheck] ${key}: ${said}`);
+    const v = await this.read(key, map, [], openedAt, 0);
+    return { ...v, notArrived: [...notArrived, ...v.notArrived] };
+  }
+
+  /** A stage's sub-tab (`?tab=<tab>`), e.g. participants or analytics. */
+  async stageTab(eventUuid: string, stageUuid: string, tab: string, label: string, map: string, routes: RegExp[], prepare?: () => Promise<string | void>): Promise<Visit> {
+    return this.open(`${map}@${label}`, map, `/project/${eventUuid}/${stageUuid}?tab=${tab}`, routes, { prepare });
+  }
+
+  /**
+   * The stage's Participants tab lists EVERY vendor that deals in the product,
+   * ten a page; the stage's own vendors are found by turning on "Show only
+   * selected vendors" — a filter applied in the browser only
+   * (components/audienceList/audienceList.jsx:421-449, 620-627), so no data changes.
+   */
+  async participants(eventUuid: string, stageUuid: string, label: string): Promise<Visit> {
+    // Both calls (the stage's vendors and every vendor of the product) must be in
+    // before the switch is set: the list re-renders when the second one lands.
+    return this.stageTab(eventUuid, stageUuid, "audience", label, "audience", [/\/companies\/audience_for_product\?.*show_bidders=true/, /\/companies\/audience_for_product\?product_uuids=/], async () => {
+      const sw = this.page.getByText(/show only selected vendors/i).first().locator("xpath=following::button[contains(@class,'ant-switch')][1]");
+      if (!(await sw.count())) return "no \"Show only selected vendors\" switch on screen";
+      const isOn = async () => (await sw.getAttribute("aria-checked").catch(() => null)) === "true" || /ant-switch-checked/.test((await sw.getAttribute("class").catch(() => "")) ?? "");
+      // Bounded: four tries, a second apart; re-checked after a pause in case a re-render turned it off.
+      for (let i = 0; i < 4; i++) {
+        if (await isOn()) {
+          await this.page.waitForTimeout(1_200);
+          if (await isOn()) break;
+        }
+        await base(this.page).dismissDistractions().catch(() => {});
+        await sw.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {});
+        // A feedback card can sit over the switch; a dispatched click reaches it regardless.
+        if (i === 0) await sw.click({ timeout: 3_000 }).catch(() => sw.dispatchEvent("click"));
+        else await sw.dispatchEvent("click").catch(() => {});
+        await this.page.waitForTimeout(1_000);
+      }
+      const on = await isOn();
+      if (!on && process.env.CROSSCHECK_DEBUG === "1") {
+        const html = await sw.evaluate((e) => e.outerHTML.slice(0, 300)).catch((e: Error) => e.message);
+        const n = await this.page.locator("button.ant-switch").count();
+        console.log(`[crosscheck] switch debug: ${n} switches; target ${html}`);
+      }
+      return on ? "turned on \"Show only selected vendors\" (a browser-side filter)" : "the \"Show only selected vendors\" switch did not turn on";
+    });
+  }
+
+  /** The award proposal page, reached from Master QCS → Bid Selection Proposal. */
+  async proposal(eventUuid: string, proposalUuid: string): Promise<Visit> {
+    const id = proposalUuid.replace(/[+/=]/g, "\\$&");
+    return this.open(`proposal@${proposalUuid}`, "proposal", `/project/${eventUuid}/proposal/${proposalUuid}`, [
+      new RegExp(`^/api/proposal/${id}$`),
+      /\/api\/sheets\/details\?view_type=proposal_view/,
+    ]);
   }
 
   async qcs(eventUuid: string): Promise<Visit> {

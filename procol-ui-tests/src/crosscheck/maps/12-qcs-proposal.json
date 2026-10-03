@@ -1,0 +1,59 @@
+{
+  "screen": "qcs",
+  "title": "Master QCS (bid comparison)",
+  "howToOpen": "Open the event and click the Master QCS tab.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-03",
+    "fromDiscovery": "probeu-musegorw",
+    "note": "Second map for Master QCS (runs with 05-qcs.json): the award proposal's button and status tag. Current proposal = proposals[0] of GET /event_groups/:id (masterQcs.jsx:266-280); the tag reads PROPOSAL_STATUS_COPY, or PO_STATUS_COPY once selected (masterQcs.jsx:1013-1046)."
+  },
+  "sources": {
+    "event": {
+      "method": "GET",
+      "path": "^/api/event_groups/{eventUuid}$",
+      "fromEarlierScreen": true
+    }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-MQCS-001",
+      "title": "Master QCS shows the award proposal's button with the status the API gives the proposal",
+      "code": [
+        "components/masterQcs/masterQcs.jsx:266-280,1013-1046",
+        "views/projectDetails/constants.js:92-111"
+      ],
+      "fields": [
+        {
+          "key": "mqcs.proposal",
+          "label": "Proposal status",
+          "source": "event",
+          "value": "proposals[0].status",
+          "when": "proposals[0].status",
+          "format": "enum",
+          "scope": "label",
+          "screenLabel": "Bid Selection Proposal",
+          "display": {
+            "draft": [
+              "Draft"
+            ],
+            "requested": [
+              "Approval in Progress"
+            ],
+            "rejected": [
+              "Rejected"
+            ],
+            "selected": [
+              "PO generated",
+              "PO requested",
+              "PO not requested",
+              "PO failed"
+            ]
+          },
+          "code": "masterQcs.jsx:1031-1043; constants.js:92-97 (PROPOSAL_STATUS_COPY)",
+          "note": "A selected proposal shows the PO status instead (PO_STATUS_COPY, constants.js:106-111), so any PO status is accepted for it."
+        }
+      ]
+    }
+  ]
+}

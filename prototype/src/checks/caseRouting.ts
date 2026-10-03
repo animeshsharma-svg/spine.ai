@@ -452,7 +452,7 @@ export function routeFor(c: CatalogCase): CaseRoute {
   // 0 · the UI↔API cross-check cases run through procol-ui-tests/tests/crosscheck.spec.ts,
   //     started from /api/crosscheck/start — not from the case picker, so `runnable`
   //     stays false and `runner` says where they do run. UI-XCHK-060/061 are automate-later.
-  if (/^UI-XCHK-\d+/.test(c.id)) {
+  if (/^UI-XCHK-/.test(c.id)) {
     if (/automate-later/i.test(`${c.verdict} ${c.source}`)) {
       return { kind: "none", because: "written for the UI↔API cross-check, not automated yet — automate later", runnable: false, strength: "none", runsNow: false, resultIds: own };
     }

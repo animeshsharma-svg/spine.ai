@@ -1,0 +1,122 @@
+{
+  "screen": "overview",
+  "title": "stage's Overview tab",
+  "howToOpen": "Open the event, click the stage's tab, then the Overview sub-tab.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-03",
+    "fromDiscovery": "probeu-musegorw",
+    "note": "Second map for the Overview (runs with 04-overview.json on the same visit): the Product Sheet, every rank of the line-item Bidding Summary, and the stage's Location (which the console fills from the stage DESCRIPTION, eventDetails.jsx:1479-1490)."
+  },
+  "sources": {
+    "summary": {
+      "method": "GET",
+      "path": "^/api/trade/{stageUuid}/event_summary"
+    },
+    "schema": {
+      "method": "GET",
+      "path": "^/api/v1/trade/{stageUuid}/schema\\?response_type=template",
+      "fromEarlierScreen": true
+    },
+    "savings": {
+      "method": "GET",
+      "path": "^/api/v1/trade/{stageUuid}/aggregate_savings",
+      "fromEarlierScreen": true
+    }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-OVW-001",
+      "title": "The Product Sheet shows each line item's requested quantity, unit, delivery location and other buyer values as the API returns them",
+      "code": [
+        "views/orderDetails/eventDetails.jsx:1825-1913",
+        "redux/orders/selectors.js:5199-5233",
+        "components/sheet/sheet.jsx:953-957,1017-1027"
+      ],
+      "special": [
+        {
+          "kind": "product-sheet",
+          "label": "Product sheet",
+          "code": "selectors.js:5199-5233; sheet.jsx:953-957 (precision cell ?? widget ?? 2), 1017-1027 (comma + prefix/suffix)",
+          "params": {
+            "schema": "schema"
+          }
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-OVW-002",
+      "title": "The Bidding Summary lists every rank's vendor and quoted price, best first, as the API ranks them",
+      "code": [
+        "views/orderDetails/biddingSummary.jsx:23-84",
+        "redux/orders/selectors.js:7477-7575"
+      ],
+      "special": [
+        {
+          "kind": "bidding-summary",
+          "label": "Bidding Summary by rank",
+          "code": "biddingSummary.jsx:23-84 (column i = rank i); selectors.js:7477-7575 (cell = line_data.data.inline_data[tp][l_i][col], raw)",
+          "params": {
+            "source": "summary"
+          }
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-OVW-003",
+      "title": "Order Details show the stage's title and location (the stage description) as the API returns them",
+      "code": [
+        "views/orderDetails/eventDetails.jsx:1421-1490"
+      ],
+      "fields": [
+        {
+          "key": "ovw.location",
+          "label": "Location",
+          "source": "schema",
+          "value": "description",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "Location",
+          "code": "eventDetails.jsx:1479-1490 (Location ← description)"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-OVW-004",
+      "title": "When savings are compared on the whole lot, the Overview's Savings Summary shows the same savings the stage's Responses tab shows",
+      "code": [
+        "views/orderDetails/eventDetails.jsx:473-498,2262-2280",
+        "views/orderDetails/savingsInfo.jsx:17-22,140-197",
+        "redux/orders/selectors.js:1190-1210"
+      ],
+      "fields": [
+        {
+          "key": "ovw.lot.savings",
+          "label": "Savings amount (lot)",
+          "source": "savings",
+          "each": "savings[]",
+          "value": "savings_amount.value",
+          "format": "money",
+          "scope": "label",
+          "screenLabel": "Savings",
+          "when": "$schema:savings_configuration.savings_comparison_on=lot_based",
+          "code": "eventDetails.jsx:477-495 (lot mode: amount = first bidder's layers[0].savings_with_strategy); savingsInfo.jsx:17-22",
+          "note": "The Responses tab's savings strip shows aggregate_savings (savingsStrip.jsx:26-69). In lot mode the Overview card instead reads the first bidder's own savings record. When that record is empty the card shows '–' while the strip shows the amount: the two screens disagree for the same stage."
+        },
+        {
+          "key": "ovw.lot.percent",
+          "label": "Savings percentage (lot)",
+          "source": "savings",
+          "each": "savings[]",
+          "value": "savings_percent.value",
+          "format": "number",
+          "scope": "label",
+          "screenLabel": "{reference_strategy_key}",
+          "when": "$schema:savings_configuration.savings_comparison_on=lot_based",
+          "optional": true,
+          "code": "savingsInfo.jsx:24-48 (percent beside the strategy name)"
+        }
+      ]
+    }
+  ]
+}

@@ -116,13 +116,14 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
     // cases generated from the Modules & Features workbook.
     // HS-<ticketId>-N are the support-ticket regressions (hubspot-regressions.md);
     // their group is the journey group named in the Trace (see flush()).
-    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+-\d+|HS-\d+-\d+|GEN-[A-Z]+-\d{3})\s*[—–-]\s*(.+)$/);
+    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+(?:-[A-Z]+)?-\d+|HS-\d+-\d+|GEN-[A-Z]+-\d{3})\s*[—–-]\s*(.+)$/);
     if (head) {
       flush();
       current = {
         id: head[1],
         title: head[2].trim(),
-        group: head[1].replace(/-\d+$/, ""),
+        // UI-XCHK-<SCREEN>-NNN (the UI↔API cross-checks) all belong to the UI-XCHK group
+        group: head[1].startsWith("UI-XCHK-") ? "UI-XCHK" : head[1].replace(/-\d+$/, ""),
         section,
         sectionNo,
       };
@@ -152,7 +153,7 @@ const CASES_DIR = join(ROOT, "test-cases");
 const extra = (prefix: string) =>
   readdirSync(CASES_DIR).filter((f) => f.startsWith(prefix) && f.endsWith(".md")).sort().map((f) => join(CASES_DIR, f));
 // `ui-*.md`: generated UI-layer cases in the same format (e.g. the UI↔API cross-checks).
-const ui = [join(CASES_DIR, "events-ui.md"), ...extra("product-"), ...extra("ui-")].flatMap((f) => parse(f, "ui"));
+const ui = [join(CASES_DIR, "events-ui.md"), join(CASES_DIR, "events-ui-crosscheck.md"), ...extra("product-"), ...extra("ui-")].flatMap((f) => parse(f, "ui"));
 // `hubspot-*.md`: regression cases generated from support tickets (scripts/hubspot-ingest.ts), API layer.
 const api = [join(CASES_DIR, "events-api.md"), ...extra("api-"), ...extra("hubspot-")].flatMap((f) => parse(f, "api"));
 // `events-deep-*.md`: sourcing events in depth, one file per area, holding BOTH

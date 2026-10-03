@@ -1,0 +1,29 @@
+{
+  "screen": "pricetrends",
+  "title": "stage's Price Trends tab",
+  "howToOpen": "Open the event, click the pricing stage's tab, then the Price Trends sub-tab.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-03",
+    "fromDiscovery": "probeu-musekkmx",
+    "note": "components/priceTrendsHistory (table \"Price Trends Details\"), data from redux/priceTrends/index.js:25-75 (bid_closed_at × 1000, sorted newest first). Hidden for technical and BOQ stages (eventHeader.jsx:408-418). The deals listed are the client's PAST deals for the product (other events), so vendor names here can be real suppliers — read only."
+  },
+  "sources": {
+    "trends": { "method": "GET", "path": "^/api/trade/price_trends\\?" }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-TRND-001",
+      "title": "Price Trends Details lists every past deal the API returns with its price, quantity, location, vendor and closing time in India time",
+      "code": ["components/priceTrendsHistory/columns.jsx:12-58", "redux/priceTrends/index.js:25-75"],
+      "special": [
+        { "kind": "price-trend-rows", "label": "Past deals", "code": "columns.jsx:12-58; redux/priceTrends/index.js:25-75", "params": { "source": "trends" } }
+      ]
+    },
+    {
+      "case": "UI-XCHK-050",
+      "title": "No screen of the event looks fine while a request behind it failed, and none reports an error while its requests succeeded",
+      "special": [{ "kind": "api-vs-screen-errors", "label": "Errors agree" }]
+    }
+  ]
+}

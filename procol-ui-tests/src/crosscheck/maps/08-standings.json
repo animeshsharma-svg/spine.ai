@@ -1,0 +1,34 @@
+{
+  "screen": "standings",
+  "title": "stage's Responses grid — ranks and time left",
+  "howToOpen": "Open the event, click the pricing or auction stage's tab; the Responses sub-tab opens first.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-03",
+    "fromDiscovery": "probeu-musefkli (live auction)",
+    "note": "Runs on the same visit as the Responses map. There is no separate reverse-auction leaderboard for the buyer: the live view is the Responses grid kept fresh over the TradesChannel websocket (views/orderDetails/orderDetails.jsx:1344-1374). The ?tab=leaderboard view is the alternate-bidding leaderboard only (eventHeader.jsx:454-458)."
+  },
+  "sources": {
+    "schema": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/schema\\?response_type=template" },
+    "indicators": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/event_indicators" },
+    "quotes": { "method": "GET", "path": "^/api/v1/trade/{stageUuid}/quote_details/", "pick": "all" }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-RANK-001",
+      "title": "Each bidder's rank badge and each line's Rank cell show the rank the API (event indicators) gives",
+      "code": ["redux/orders/selectors.js:5681-5690,5912-5941", "components/dataGrid/formatters/comparisonHeaderFormatter.jsx:111-124,592-595", "components/dataGrid/formatters/cellRankFormatter.jsx:12-21"],
+      "special": [
+        { "kind": "auction-standings", "label": "Ranks", "code": "selectors.js:5681-5690 (badge rank = event_indicators global rank when auction_identifiers has rank, else layers[].rank); 5912-5941 (inline rank from event_indicators inline[trade_product_uuid]); comparisonHeaderFormatter.jsx:592-595 (badge shown only if !is_alternate_bidding_allowed && rank && (auction_closing_mode==='lot' || show_rank_on_lot))", "params": { "schema": "schema", "indicators": "indicators", "quotes": "quotes" } }
+      ]
+    },
+    {
+      "case": "UI-XCHK-RANK-002",
+      "title": "While a stage is live, the header timer shows the time left to the API's closing time",
+      "code": ["views/orderDetails/helpers.js:720-756", "views/orderDetails/timer.jsx:20-29,118-128"],
+      "special": [
+        { "kind": "stage-countdown", "label": "Time left", "code": "helpers.js:720-756 (getOrderTimerRange: live → ending_at, buffer → extra_closing_time); timer.jsx:20-29", "params": { "source": "schema", "slackSeconds": 15 } }
+      ]
+    }
+  ]
+}

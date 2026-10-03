@@ -1,0 +1,139 @@
+{
+  "screen": "technical",
+  "title": "technical stage's Responses (evaluation) grid",
+  "howToOpen": "Open the event, click the technical (RFP) stage's tab; the Responses sub-tab opens first.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-03",
+    "fromDiscovery": "probeu-musebagu",
+    "note": "BidsSection → RfiQuotes (views/orderDetails/bidsSection/bidsSection.jsx:116-131). Questions are rows written \"<name> - <description>\" (redux/orders/selectors.js:1510-1515); one column per vendor (schema layers). Section headers carry the item code, quantity, section status and evaluator (components/dataGrid/formatters/comparisonSectionHeaderFormatter.jsx)."
+  },
+  "sources": {
+    "schema": {
+      "method": "GET",
+      "path": "^/api/v1/trade/{stageUuid}/schema\\?response_type=template"
+    },
+    "quotes": {
+      "method": "GET",
+      "path": "^/api/v1/trade/{stageUuid}/quote_details/",
+      "pick": "all"
+    }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-TECH-001",
+      "title": "Every vendor that responded to the technical stage has a column, with the time its response was submitted",
+      "code": [
+        "components/dataGrid/formatters/comparisonHeaderFormatter.jsx:698-700,1324-1350"
+      ],
+      "fields": [
+        {
+          "key": "tech.vendor",
+          "label": "Vendor column",
+          "source": "schema",
+          "each": "layers[]",
+          "value": "label",
+          "format": "text",
+          "scope": "page",
+          "code": "comparisonHeaderFormatter.jsx:1324-1350 (layers[].label)"
+        },
+        {
+          "key": "tech.placed",
+          "label": "Submitted at",
+          "source": "quotes",
+          "value": "placed_at || created_at",
+          "format": "datetime",
+          "scope": "label",
+          "screenLabel": "{participants.company.name}",
+          "stageTime": true,
+          "code": "redux/orders/selectors.js:1540-1545 (RFP: vendorData.placedAt from quote_details placed_at); comparisonHeaderFormatter.jsx:698-700 (appFormatDate DATE_TIME); stage time shifted by the console clock difference, utils/index.js:756-762"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-TECH-002",
+      "title": "Each section of the technical sheet shows the line item's code and quantity, its evaluation result and its evaluator as the API returns them",
+      "code": [
+        "redux/orders/selectors.js:1697-1715",
+        "components/dataGrid/formatters/comparisonSectionHeaderFormatter.jsx:97-100,107,304,322,389-405,435-447",
+        "components/dataGrid/constants.js:74-79"
+      ],
+      "fields": [
+        {
+          "key": "tech.form.code",
+          "label": "Item code",
+          "source": "schema",
+          "each": "sheets.forms[]",
+          "value": "material_code",
+          "format": "text",
+          "scope": "page",
+          "code": "selectors.js:1702; comparisonSectionHeaderFormatter.jsx:304 (\"Item Code: {materialCode}\")"
+        },
+        {
+          "key": "tech.form.qty",
+          "label": "Quantity",
+          "source": "schema",
+          "each": "sheets.forms[]",
+          "value": "quantity",
+          "format": "text",
+          "scope": "page",
+          "code": "selectors.js:1712; comparisonSectionHeaderFormatter.jsx:322 (\"Quantity: {quantity}\", raw)"
+        },
+        {
+          "key": "tech.form.status",
+          "label": "Section evaluation result",
+          "source": "schema",
+          "each": "sheets.forms[]",
+          "value": "proposals_hash_array[-1].status",
+          "format": "enum",
+          "scope": "page",
+          "display": {
+            "requested": [
+              "TR In Approval"
+            ],
+            "selected": [
+              "TR Submitted"
+            ],
+            "rejected": [
+              "TR Rejected"
+            ],
+            "reevaluated": [
+              "Re-evaluation requested"
+            ]
+          },
+          "code": "comparisonSectionHeaderFormatter.jsx:389-405 (tag = PROPOSAL_STATUS[last proposal of the section].status, shown only when evaluation is allowed on the screen); dataGrid/constants.js:74-79",
+          "note": "Reviewed 2026-10-04: the tag is the section's latest evaluation proposal status, not forms[].evaluation_status (an earlier mapping used the latter and reported a false disagreement on Demo Account 2, where the section had no proposal yet)."
+        },
+        {
+          "key": "tech.form.evaluator",
+          "label": "Evaluator",
+          "source": "schema",
+          "each": "sheets.forms[]",
+          "value": "evaluators[0].name",
+          "format": "text",
+          "scope": "page",
+          "code": "comparisonSectionHeaderFormatter.jsx:107,435-447 (\"Evaluator: {name}\")"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-TECH-003",
+      "title": "Every answer and evaluation score a vendor gave is shown on its question's row, in that vendor's column",
+      "code": [
+        "redux/orders/selectors.js:1510-1515,1590-1640",
+        "components/dataGrid/formatters/cellEvaluationFormatter.jsx:186-232"
+      ],
+      "special": [
+        {
+          "kind": "technical-answers",
+          "label": "Answers",
+          "code": "selectors.js:1510-1515 (question = name - description), 1590-1640 (answer = rfi_response.value; score = evaluation_score.value)",
+          "params": {
+            "schema": "schema",
+            "quotes": "quotes"
+          }
+        }
+      ]
+    }
+  ]
+}
