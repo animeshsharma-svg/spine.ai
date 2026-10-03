@@ -32,6 +32,8 @@ export interface StepSpec {
   purpose: string;
   args?: Record<string, string>;
   assertion?: boolean;
+  /** A screen-neutral generic step (procol-ui-tests/src/plan/generic). */
+  generic?: boolean;
 }
 
 export interface PlanStep {
@@ -65,7 +67,14 @@ export interface CompileResult {
   gaps: string[];
 }
 
-function loadCatalog(): { steps: StepSpec[]; names: string[] } {
+interface Catalog {
+  steps: StepSpec[];
+  names: string[];
+  /** Labels the product is known to render, by screen (from its source + live finds). */
+  labels?: Record<string, string[]>;
+}
+
+function loadCatalog(): Catalog {
   if (!existsSync(CATALOG_PATH)) {
     throw new Error(
       `the step vocabulary is missing at ${CATALOG_PATH} — run ` +
@@ -75,7 +84,7 @@ function loadCatalog(): { steps: StepSpec[]; names: string[] } {
   return JSON.parse(readFileSync(CATALOG_PATH, "utf8"));
 }
 
-function catalogForPrompt(steps: StepSpec[]): string {
+function renderSteps(steps: StepSpec[]): string {
   return steps
     .map((s) => {
       const args = s.args
@@ -84,6 +93,37 @@ function catalogForPrompt(steps: StepSpec[]): string {
       return `- ${s.name}${s.assertion ? " [assertion]" : ""}: ${s.purpose}${args}`;
     })
     .join("\n");
+}
+
+function catalogForPrompt(steps: StepSpec[]): string {
+  const domain = steps.filter((s) => !s.generic);
+  const generic = steps.filter((s) => s.generic);
+  return generic.length
+    ? `DOMAIN STEPS (prefer these — they know the product's flows):\n${renderSteps(domain)}\n\nGENERIC STEPS (read / verify / navigate / act on any screen by what it shows — use when no domain step fits):\n${renderSteps(generic)}`
+    : renderSteps(domain);
+}
+
+/** The known labels, compact, for the prompt. */
+function labelsForPrompt(labels: Record<string, string[]> | undefined): string {
+  if (!labels || !Object.keys(labels).length) return "";
+  return Object.entries(labels)
+    .map(([screen, list]) => `- ${screen}: ${list.map((l) => l.replace(/^(button|tab|menuitem):/, "$1 ")).join(" · ")}`)
+    .join("\n");
+}
+
+const lc = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Is a label known to exist in the product (source or seen live)? */
+export function labelIsKnown(word: string, labels: Record<string, string[]> | undefined): boolean {
+  // "button Add Bid" / 'tab "Responses"' — the role word is not part of the label.
+  const t = lc(word.replace(/^role\s+\w+\s+name\s+/i, "").replace(/^(button|link|tab|menu ?item|checkbox|switch|radio|textbox|combobox|row|heading|dialog|option|tooltip)\s+/i, ""));
+  if (t.length < 2 || !labels) return false;
+  // Entries may carry a usage hint in brackets — it is not part of the label.
+  const all = Object.values(labels).flat().map((l) => lc(l.replace(/\s*\[[^\]]*\]$/, "").replace(/^(button|tab|menuitem):/, "")));
+  // The executor matches by substring, so a word INSIDE a real label finds it.
+  // A word LONGER than any label finds nothing (and an absence check on it
+  // would pass falsely) — unless the extra is only a count ("Items 0").
+  return all.some((k) => k === t || (t.length >= 3 && k.includes(t)) || (t.startsWith(k) && /^[\s\d]*$/.test(t.slice(k.length))));
 }
 
 /**
@@ -143,6 +183,23 @@ NEGATIVE TESTS — when the case says the app SHOULD REFUSE something:
 - Assertions go immediately after the step they check.
 `.trim();
 
+/**
+ * How to use the generic steps. Written for the model; every rule is also
+ * enforced deterministically in lintPlan or the coverage check below, because
+ * "mostly follows the prompt" is not a property a test runner can have.
+ */
+const GENERIC_RULES = `
+GENERIC STEPS — reading, verifying, navigating and acting on any screen:
+- PREFER A DOMAIN STEP whenever one exists for the thing (open_create, open_event, open_events_list, select_template, add_line_items, publish, expect_publish_blocked, expect_disabled, expect_event_status, open_participants, open_master_qcs …). Generic steps are for what no domain step can say: a tooltip, a count, a field's value, a message, a tab with no step, whether a control is present or absent, a click on a control with no step.
+- Name elements EXACTLY as the screen does. Use a label from KNOWN LABELS when one fits. A label you invent is a GUESS: if you must use one, list it in cannotExpress as "unconfirmed label: <label>" and set coverage "partial".
+- Controls: role + name (button / tab / menuitem / switch / checkbox / radio). Fields: label (or placeholder). Messages and plain words: text.
+- ABSENCE ("X does not render", "zero Add Bid controls", "no price drawer"): expect_visible{visible:false}, expect_text{present:false} or expect_count{count:0} — only with a KNOWN label, and only after navigating to the screen where X would appear (the step waits for that screen to be ready before it believes an absence).
+- NEGATIVE TESTS (the case says the app must REFUSE / BLOCK / NOT ALLOW something): leave the enabling step out and mark it skip{step, reason}; then assert the block — expect_publish_blocked{because} for a refused publish, attempt{step, args, because} for any other refused action (attempt passes only on visible evidence: a message, a disabled control, or with expect:"nothing_opens" no drawer/dialog opening). Several refusals in one case = several skip → block pairs in order; put the left-out step back after its block before testing the next. NEVER use skip in a case that expects success.
+- A message the case quotes ("Please add participants to proceed!") belongs in expect_message{kind, text} or in the block step's because.
+- Tooltip: expect_message{kind:"tooltip", on:"<control>", text}. Before/after comparisons: remember{key, target} … expect_remembered{key, same}.
+- Procol is never changed: no step changes a company or tenant SETTING. switch_company only to a QA tenant the case names by id (198678, 32461, 47053). A case that needs a setting flipped, an API payload, a status code or a network request inspected cannot be tested on screen — list it in cannotExpress.
+`.trim();
+
 const SYSTEM = `You compile QA test cases into runnable plans for Procol, a B2B procurement product.
 
 Reply with ONLY a JSON object, no prose and no code fence:
@@ -195,6 +252,90 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(why);
   };
 
+  // ── generic steps ─────────────────────────────────────────────────────────
+  //
+  // 1. A generic step that names a screen or action a DOMAIN step owns is
+  //    rewritten to the domain step: the domain step carries the waits and
+  //    proofs that screen needs, and the screen decision below keys on it.
+  const GO_TO_DOMAIN: Record<string, (a: Record<string, unknown>) => PlanStep> = {
+    events_list: () => ({ step: "open_events_list" }),
+    list: () => ({ step: "open_events_list" }),
+    event: (a) => ({ step: "open_event", args: Object.fromEntries(Object.entries(a).filter(([k]) => k === "title" || k === "id")) }),
+    master_qcs: () => ({ step: "open_master_qcs" }),
+    qcs: () => ({ step: "open_master_qcs" }),
+    participants: () => ({ step: "open_participants" }),
+  };
+  for (let i = 0; i < steps.length; i++) {
+    const st = steps[i];
+    if (st.step === "go_to") {
+      const screen = String(st.args?.screen ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+      const to = GO_TO_DOMAIN[screen];
+      if (to) {
+        steps[i] = { ...to(st.args ?? {}), note: st.note };
+        repairs.push(`go_to ${screen} → ${steps[i].step} — a domain step owns that screen`);
+      }
+    }
+    if (st.step === "attempt" && String(st.args?.step ?? "") === "publish") {
+      const inner = (st.args?.args ?? {}) as Record<string, unknown>;
+      const because = st.args?.because ?? inner.because;
+      steps[i] = { step: "expect_publish_blocked", args: because ? { because } : {}, note: st.note };
+      repairs.push("attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)");
+    }
+  }
+  // 2. attempt / skip must name a step that exists (and not each other).
+  let knownNames: string[] = [];
+  try {
+    knownNames = loadCatalog().names;
+  } catch {
+    /* no catalog: leave nested names unchecked */
+  }
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const st = steps[i];
+    if (st.step !== "attempt" && st.step !== "skip") continue;
+    const inner = String(st.args?.step ?? "");
+    if (!inner || inner === "attempt" || inner === "skip" || (knownNames.length && !knownNames.includes(inner))) {
+      steps.splice(i, 1);
+      repairs.push(`dropped ${st.step}{${inner || "?"}} — it must name a real step to ${st.step === "skip" ? "leave out" : "try"}`);
+    }
+  }
+  // 3. skip is for NEGATIVE cases only. A skip in a case that expects
+  //    success would let the compiler quietly drop a step it found hard.
+  const NEGATIVE_CASE = /\b(without|no|not|never|blank|empty|missing|skip(ped)?|omit(ted)?|refus\w*|reject\w*|block\w*|prevent\w*|cannot|can't|disallow\w*|disabled|inert|enforc\w*|required|mandatory|error|attempt\w*|try(ing)?|until)\b/i;
+  const skipped = new Set<string>();
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const st = steps[i];
+    if (st.step !== "skip") continue;
+    const inner = String(st.args?.step ?? "");
+    if (!NEGATIVE_CASE.test(testCase)) {
+      steps.splice(i, 1);
+      repairs.push(`dropped skip{${inner}} — the case does not expect a refusal, so nothing may be left out`);
+      continue;
+    }
+    skipped.add(inner);
+  }
+  // 4. Each skip must be followed by an assertion of the block, and the
+  //    skipped step must really be absent until then.
+  const BLOCK_ASSERTS = ["expect_publish_blocked", "attempt", "expect_error", "expect_message", "expect_disabled"];
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i].step !== "skip") continue;
+    const inner = String(steps[i].args?.step ?? "");
+    let j = steps.findIndex((st, k) => k > i && BLOCK_ASSERTS.includes(st.step));
+    if (j < 0) {
+      steps.push({ step: "expect_publish_blocked", note: `skip{${inner}} needs the block asserted` });
+      j = steps.length - 1;
+      repairs.push(`added expect_publish_blocked — skip{${inner}} leaves a mandatory step out, so the plan must assert the app blocks it`);
+    }
+    for (let k = j - 1; k > i; k--) {
+      if (steps[k].step === inner) {
+        steps.splice(k, 1);
+        j--;
+        repairs.push(`removed ${inner} between its skip and the block assertion — it is deliberately left out there`);
+      }
+    }
+  }
+  /** Present, or deliberately left out by a skip — either way, not to be repaired in. */
+  const accounted = (name: string) => has(name) || skipped.has(name);
+
   // ── which screen is this test about? ──────────────────────────────────────
   //
   // Every repair below assumes the create screen. That assumption was wrong
@@ -240,6 +381,12 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
     return { plan: { ...plan, steps }, repairs };
   }
+  // A plan that starts by NAVIGATING (go_to a path/tab, switch_company) and
+  // builds nothing is about an existing screen; the create repairs below
+  // would bolt open_create + set_title onto it.
+  if (steps.length && ["go_to", "switch_company"].includes(steps[0].step) && !steps.some((s) => HEAVY_CREATE.includes(s.step)) && !has("open_create")) {
+    return { plan: { ...plan, steps }, repairs };
+  }
   const isListTest =
     steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
   if (isListTest) {
@@ -251,7 +398,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       steps.unshift(open);
       repairs.push("moved open_events_list to the front — the steps before it had no list on screen");
     }
-    if (!["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list", "expect_event_status"].some(has)) {
+    if (!["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list", "expect_event_status", "expect_text", "expect_visible", "expect_count", "expect_value", "expect_message"].some(has)) {
       steps.push({ step: "expect_events_list" });
       repairs.push("added expect_events_list — opening the list without asserting it rendered tests nothing");
     }
@@ -357,7 +504,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
    * (On this tenant the product audience adds vendors from the line items on
    * its own, which the step reports; that is the product's answer, not ours.)
    */
-  if (has("expect_publish_blocked")) {
+  if (has("expect_publish_blocked") && !skipped.size) {
     const OMISSIONS: Array<[RegExp, string, string]> = [
       [/\b(no|without|missing|blank|empty)\s+(a\s+)?title\b/i, "set_title", "a title"],
       [/\b(no|without|missing)\s+(a\s+)?template\b/i, "select_template", "a template"],
@@ -543,12 +690,12 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // the draft the one thing the screen demands before saving it.
   // Measured twice: disabled with a title alone, and STILL disabled with a
   // template and Items 0. A draft needs a line item before the app keeps it.
-  if (has("save_draft")) {
-    if (!has("select_template")) {
+  if (has("save_draft") && !skipped.size) {
+    if (!accounted("select_template")) {
       steps.splice(indexOf("save_draft"), 0, { step: "select_template" });
       repairs.push("added select_template before save_draft — the app disables Save as draft until a template is chosen");
     }
-    if (!has("add_line_items")) {
+    if (!accounted("add_line_items")) {
       steps.splice(indexOf("save_draft"), 0, { step: "add_line_items", args: { count: 1 } });
       repairs.push("added add_line_items before save_draft — Save as draft stays disabled at Items 0");
     }
@@ -556,14 +703,14 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
 
   // A nameless event is refused at publish, and the title is also how a human
   // finds the event afterwards.
-  if (!has("set_title")) {
+  if (!accounted("set_title")) {
     const after = Math.max(indexOf("open_create"), indexOf("compose_stages"));
     steps.splice(after + 1, 0, { step: "set_title" });
     repairs.push("added set_title — publishing without a title is refused");
   }
 
   // The Items drawer is inert until a template exists.
-  if (has("add_line_items") && !has("select_template")) {
+  if (has("add_line_items") && !accounted("select_template")) {
     insertBefore("add_line_items", { step: "select_template" }, "added select_template — the Items drawer stays inert without one");
   }
 
@@ -573,7 +720,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
 
   // A plan asserting publish is BLOCKED is deliberately incomplete — repairing
   // it into a valid event would remove the precondition under test.
-  const submits = (has("publish") || has("save_draft")) && !has("expect_publish_blocked");
+  const submits = (has("publish") || has("save_draft")) && !has("expect_publish_blocked") && !skipped.size;
   if (stages.length > 1 && submits) {
     // Every stage needs configuring on its OWN tab: template, sheet,
     // questionnaires and evaluator all act on whichever tab is showing. A
@@ -618,15 +765,15 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   }
 
   if (stages.length <= 1 && submits) {
-    if (wantsTrade && has("add_line_items") && !has("fill_sheet")) {
+    if (wantsTrade && has("add_line_items") && !accounted("fill_sheet")) {
       const at = indexOf("expect_line_items") >= 0 ? indexOf("expect_line_items") + 1 : indexOf("add_line_items") + 1;
       steps.splice(at, 0, { step: "fill_sheet" });
       repairs.push("added fill_sheet — a pricing stage will not publish with an unfilled sheet");
     }
-    if (wantsTechnical && !has("fill_questionnaires")) {
+    if (wantsTechnical && !accounted("fill_questionnaires")) {
       insertBefore("publish", { step: "fill_questionnaires" }, "added fill_questionnaires — a technical stage will not publish with empty questionnaires");
     }
-    if (wantsTechnical && !has("assign_evaluator")) {
+    if (wantsTechnical && !accounted("assign_evaluator")) {
       insertBefore("publish", { step: "assign_evaluator" }, "added assign_evaluator — a technical stage needs one");
     }
   }
@@ -646,10 +793,10 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
    * The vocabulary could always say it. The linter would not let it through.
    */
   if (has("publish") && submits) {
-    if (!has("set_schedule")) insertBefore("publish", { step: "set_schedule" }, "added set_schedule — the schedule is displayed but not committed until saved");
+    if (!accounted("set_schedule")) insertBefore("publish", { step: "set_schedule" }, "added set_schedule — the schedule is displayed but not committed until saved");
     // …unless the plan expects the publish to be REFUSED: a case about
     // publishing with no participants must not be handed participants.
-    if (!has("invite_vendor") && !has("expect_publish_blocked")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
+    if (!accounted("invite_vendor") && !has("expect_publish_blocked")) insertBefore("publish", { step: "invite_vendor" }, "added invite_vendor — an event with no participants cannot be bid on");
   }
 
   // Bidding needs something to bid on, and the vendor portal needs to know
@@ -739,8 +886,94 @@ export function resolveCaseId(input: string): { text: string; id: string } | nul
   return null;
 }
 
-export async function compileTestCase(testCase: string, moduleHint = "events"): Promise<CompileResult> {
-  const catalog = loadCatalog();
+export interface CompileOptions {
+  /** Compile without writing the vocabulary-gap ledger (measurement runs). */
+  dryRun?: boolean;
+  /** LLM tier; production compiles use "reason". Measurement may use "fast" (cost rule). */
+  tier?: "reason" | "fast";
+  /**
+   * Withhold the generic steps, their rules and the known labels — the
+   * compiler as it was before them. Used only to measure the before/after.
+   */
+  withholdGeneric?: boolean;
+}
+
+/**
+ * Generic steps whose element names are checked against the known labels.
+ * expect_disabled / expect_enabled name a control the same way, so they are
+ * held to the same standard.
+ */
+const LABELLED_STEPS = new Set(["click", "hover", "fill", "select", "toggle", "upload", "expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "remember", "attempt", "expect_disabled", "expect_enabled"]);
+
+/** Is this step an ABSENCE check (passes when something is not there)? */
+function isAbsenceCheck(st: PlanStep): boolean {
+  const a = st.args ?? {};
+  const f = (v: unknown) => v === false || /^(false|no|0)$/i.test(String(v));
+  if (st.step === "expect_visible" && a.visible !== undefined && f(a.visible)) return true;
+  if (st.step === "expect_text" && a.present !== undefined && f(a.present)) return true;
+  if (st.step === "expect_count" && (Number(a.count) === 0 || Number(a.max) === 0) && (a.count !== undefined || a.max !== undefined)) return true;
+  return false;
+}
+
+/**
+ * The words a generic step uses to find its element — what must be a real
+ * label for the plan to be more than a guess.
+ */
+function stepLabelWords(st: PlanStep): string[] {
+  const a = (st.step === "attempt" ? { ...((st.args?.args as Record<string, unknown>) ?? {}) } : { ...(st.args ?? {}) }) as Record<string, unknown>;
+  const out: string[] = [];
+  const take = (o: Record<string, unknown>) => {
+    for (const k of ["name", "label", "text", "placeholder", "control", "on"]) if (typeof o[k] === "string" && o[k]) out.push(String(o[k]));
+    if (typeof o.target === "string" && o.target) out.push(o.target);
+    if (o.target && typeof o.target === "object") take(o.target as Record<string, unknown>);
+    if (o.on && typeof o.on === "object") take(o.on as Record<string, unknown>);
+  };
+  take(a);
+  // A message's expected text is the case's claim, judged separately below.
+  if (st.step === "expect_message" && typeof a.text === "string") out.splice(out.indexOf(a.text), 1);
+  return out;
+}
+
+/**
+ * COVERAGE HONESTY for generic steps.
+ *
+ * A generic step names an element. If that name is neither a label the
+ * product is known to render (its source, or a live find) nor words the case
+ * itself uses, the compiler GUESSED it — and a plan built on a guess is not
+ * full coverage. An ABSENCE check is stricter still: a misspelt name is always
+ * absent, so it must use a known label, not merely the case's own words.
+ */
+export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record<string, string[]> | undefined): string[] {
+  const caseText = lc(testCase);
+  // The plan's own data — the titles it gives or opens — is not a label guess:
+  // finding "UI-BOQ-001 Draft Once" in the list is finding our own event.
+  const ownData = steps
+    .filter((st) => ["set_title", "open_event", "expect_event_in_list", "expect_event_status"].includes(st.step) && typeof st.args?.title === "string")
+    .map((st) => lc(String(st.args!.title)))
+    .filter((t) => t.length >= 3);
+  const isOwn = (w: string) => lc(w).length >= 3 && ownData.some((t) => t.includes(lc(w)) || lc(w).includes(t));
+  const inCase = (w: string) => lc(w).length >= 3 && caseText.includes(lc(w));
+  const out: string[] = [];
+  for (const st of steps) {
+    if (!LABELLED_STEPS.has(st.step)) continue;
+    const absence = isAbsenceCheck(st);
+    for (const w of stepLabelWords(st)) {
+      if (labelIsKnown(w, labels) || isOwn(w)) continue;
+      if (absence) out.push(`unconfirmed label "${w}" in an absence check (${st.step}) — a name the product does not use is always absent, so this proves nothing until the label is confirmed`);
+      else if (!inCase(w)) out.push(`unconfirmed label "${w}" (${st.step}) — not among the labels known from the app nor in the case`);
+    }
+    if (st.step === "expect_message" && typeof st.args?.text === "string" && !labelIsKnown(st.args.text, labels) && !inCase(st.args.text)) {
+      out.push(`expected message "${st.args.text}" is neither a known product message nor quoted by the case`);
+    }
+  }
+  return [...new Set(out)];
+}
+
+export async function compileTestCase(testCase: string, moduleHint = "events", opts: CompileOptions = {}): Promise<CompileResult> {
+  const full = loadCatalog();
+  const catalog: Catalog = opts.withholdGeneric
+    ? { steps: full.steps.filter((s) => !s.generic), names: full.steps.filter((s) => !s.generic).map((s) => s.name) }
+    : full;
   const warnings: string[] = [];
   /** The catalog id this came from, when it did — the gap ledger keys on it. */
   let resolvedId: string | null = null;
@@ -781,9 +1014,12 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     };
   }
 
+  const knownLabels = labelsForPrompt(catalog.labels);
   const prompt = [
     `STEP CATALOG:\n${catalogForPrompt(catalog.steps)}`,
     DOMAIN_RULES,
+    opts.withholdGeneric ? "" : GENERIC_RULES,
+    knownLabels ? `KNOWN LABELS (exact strings the product renders, by screen — from its source and from live runs):\n${knownLabels}` : "",
     expectations.length ? `WHAT THE RULES SAY ABOUT THIS AREA:\n${expectations.map((e) => `- ${e}`).join("\n")}` : "",
     experience.length ? `WHAT HAS BROKEN HERE BEFORE (worth asserting):\n${experience.map((e) => `- ${e}`).join("\n")}` : "",
     `TEST CASE:\n${testCase}`,
@@ -802,7 +1038,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
       raw = await chat([{ role: "system", content: SYSTEM }, { role: "user", content: prompt }], {
         // The compiler is where a wrong answer becomes a wrong run — it gets the
         // strongest model the gateway has, at that model's price.
-        tier: "reason",
+        tier: opts.tier ?? "reason",
         temperature: 0,
         // Generous: a plan is ~600 tokens of JSON, and the model needs headroom
         // for its reasoning pass before it writes any of it.
@@ -864,7 +1100,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     if (parsed.coverage === "none" || declaredGaps.length) {
       const gaps = declaredGaps.length ? declaredGaps : ["what this case checks has no step in the vocabulary"];
       warnings.push(`cannot test this case yet — no step can observe: ${gaps.join("; ")}`);
-      recordVocabularyGaps(resolvedId ?? testCase.match(/^\s*((?:UI|API|FE|BE)-[A-Z]*-?[\w.]+)/)?.[1] ?? testCase.slice(0, 80), gaps);
+      if (!opts.dryRun) recordVocabularyGaps(resolvedId ?? testCase.match(/^\s*((?:UI|API|FE|BE)-[A-Z]*-?[\w.]+)/)?.[1] ?? testCase.slice(0, 80), gaps);
       return {
         plan: { title: String(parsed.title ?? testCase.slice(0, 60)), steps: [] },
         reasoning: String(parsed.reasoning ?? "The case's subject has no step in the vocabulary."),
@@ -882,24 +1118,41 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
   const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
   warnings.push(...linted.repairs);
 
-  const gaps = declaredGaps;
+  // The model's own "unconfirmed label" notes are label guesses, not missing
+  // steps: they are judged with the deterministic label check below.
+  const modelGuesses = declaredGaps.filter((g) => /^unconfirmed label/i.test(g));
+  const gaps = declaredGaps.filter((g) => !/^unconfirmed label/i.test(g));
   let coverage: CompileResult["coverage"] =
     parsed.coverage === "none" ? "none" : parsed.coverage === "partial" || gaps.length ? "partial" : "full";
   // A model that lists gaps but claims full coverage is contradicting itself;
   // the gaps are the more specific claim, so they win.
   if (coverage === "full" && gaps.length) coverage = "partial";
+  // A generic step built on a guessed label is not full coverage, whatever
+  // the model says — checked against the labels known from the app.
+  const guesses = opts.withholdGeneric ? [] : labelGuesses(linted.plan.steps, testCase, catalog.labels);
+  if (guesses.length) {
+    if (coverage === "full") coverage = "partial";
+    warnings.push(...guesses.map((g) => `coverage partial: ${g}`));
+  } else if (modelGuesses.length && coverage === "partial" && !gaps.length && parsed.coverage !== "none") {
+    // The model worried about a label that turns out to be known: full.
+    coverage = "full";
+    warnings.push(`the model was unsure of ${modelGuesses.length} label(s) that are known from the app — coverage full`);
+  }
+  const allGaps = [...gaps, ...guesses];
   if (coverage !== "full") {
     warnings.push(
       coverage === "none"
-        ? `cannot test this case yet — no step can observe: ${gaps.join("; ") || "its subject"}`
-        : `can only test part of this — no step for: ${gaps.join("; ")}`,
+        ? `cannot test this case yet — no step can observe: ${allGaps.join("; ") || "its subject"}`
+        : `can only test part of this — ${gaps.length ? `no step for: ${gaps.join("; ")}` : "a generic step relies on a label not yet confirmed from the app"}`,
     );
   }
   // The ledger is keyed by case id whenever there is one — the dashboard hands
   // over the case's prose, which begins with its id — and reconciled on every
   // compile, so a gap that has since been built disappears from the list.
   const ledgerKey = resolvedId ?? testCase.match(/^\s*((?:UI|API|FE|BE)-[A-Z]*-?[\w.]+)/)?.[1] ?? testCase.slice(0, 80);
-  recordVocabularyGaps(ledgerKey, coverage === "full" ? [] : gaps.length ? gaps : ["(unspecified)"]);
+  // The ledger lists missing STEPS; an unconfirmed label is not one (it is
+  // fixed by confirming the label on screen), so only the model's gaps go there.
+  if (!opts.dryRun) recordVocabularyGaps(ledgerKey, coverage === "full" ? [] : gaps.length ? gaps : guesses.length ? [] : ["(unspecified)"]);
 
   return {
     plan: linted.plan,
@@ -908,6 +1161,6 @@ export async function compileTestCase(testCase: string, moduleHint = "events"): 
     source: "llm",
     warnings,
     coverage,
-    gaps,
+    gaps: allGaps,
   };
 }
