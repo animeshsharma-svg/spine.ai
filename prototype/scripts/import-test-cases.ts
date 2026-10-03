@@ -116,7 +116,7 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
     // cases generated from the Modules & Features workbook.
     // HS-<ticketId>-N are the support-ticket regressions (hubspot-regressions.md);
     // their group is the journey group named in the Trace (see flush()).
-    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+(?:-[A-Z]+)?-\d+|HS-\d+-\d+|GEN-[A-Z]+-\d{3})\s*[—–-]\s*(.+)$/);
+    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+(?:-[A-Z]+)?-\d+|EVI-[A-Z]+-\d+|HS-\d+-\d+|GEN-[A-Z]+-\d{3})\s*[—–-]\s*(.+)$/);
     if (head) {
       flush();
       current = {
@@ -158,7 +158,8 @@ const ui = [join(CASES_DIR, "events-ui.md"), join(CASES_DIR, "events-ui-crossche
 const api = [join(CASES_DIR, "events-api.md"), ...extra("api-"), ...extra("hubspot-")].flatMap((f) => parse(f, "api"));
 // `events-deep-*.md`: sourcing events in depth, one file per area, holding BOTH
 // screen (UI-XD…) and API (API-XD…) cases — the layer is read off each id.
-const deep = extra("events-deep-").flatMap((f) =>
+// `events-integrity.md`: the bid-number checks (EVI-…), recomputed by src/integrity/.
+const deep = [...extra("events-deep-"), ...extra("events-integrity")].flatMap((f) =>
   parse(f, "api").map((c) => (c.id.startsWith("UI-") ? { ...c, layer: "ui" as const } : c)),
 );
 const all = [...ui, ...api, ...deep];

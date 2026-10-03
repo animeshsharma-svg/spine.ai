@@ -620,3 +620,4 @@ describe("API planner: what a typed case expects", () => {
 import "./hubspot-unit-tests.js"; // HubSpot stripper, leak check, classifier, case file
 
 import "./db-unit-tests.js"; // product tables: run mapping, case versions, redaction, bug sheet (database part skips without SPINE_DB_URL)
+import "./integrity-unit-tests.js"; // bid-number calculator: exact decimals, template formulas, ranks, savings, invariants

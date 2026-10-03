@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T19:00:01.408Z",
+  "generatedAt": "2026-10-03T19:12:14.291Z",
   "cases": [
     {
       "id": "UI-ENV-001",
@@ -112017,6 +112017,1191 @@
         "procol-client-dashboard/src/views/orderDetails/orderDetails.jsx:345; procol-client-dashboard/src/views/orderDetails/auctionIndicators.jsx:37,64"
       ],
       "source": "P2 · manual · `procol-client-dashboard/src/views/orderDetails/orderDetails.jsx:345; procol-client-dashboard/src/views/orderDetails/auctionIndicators.jsx:37,64`"
+    },
+    {
+      "id": "EVI-LINE-001",
+      "layer": "api",
+      "group": "EVI-LINE",
+      "section": "Line figures — what each quoted line is worth",
+      "sectionNo": 1,
+      "title": "A quote is stored exactly as the vendor entered it",
+      "why": "Every later figure is built on the stored price, quantity and tax rate. If one digit changes on the way in, every total, rank and saving after it is wrong.",
+      "setup": "A fresh RFQ on the default buy template with QA vendors invited; the vendor's quote has fractional quantities, a 4-place price and different GST rates per line.",
+      "steps": "1. The vendor opens a bid, prices every line and submits. 2. The buyer opens the comparison.",
+      "expected": "Every unit price, quantity and GST rate on the comparison reads back exactly as entered (only formatting may differ, e.g. \"18\" vs \"18.0\").",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-ECHO: stored values equal the submitted ones as exact decimals.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-ECHO",
+        "app/controllers/concerns/trade_template_helper.rb:5622-5652"
+      ],
+      "source": "P0 · automate · scenarios S1–S6 · `INV-ECHO` · `app/controllers/concerns/trade_template_helper.rb:5622-5652`"
+    },
+    {
+      "id": "EVI-LINE-002",
+      "layer": "api",
+      "group": "EVI-LINE",
+      "section": "Line figures — what each quoted line is worth",
+      "sectionNo": 1,
+      "title": "Line total = unit price × quantity, plus GST on it",
+      "why": "The line total is what the buyer compares and later pays; it must follow the template's formula to the paisa.",
+      "setup": "Default buy template: line total = price × quantity + price × quantity × GST / 100.",
+      "steps": "1. A vendor quotes ₹123.4567/KG for 7.5 KG at 18 % GST. 2. Read the bid's line totals.",
+      "expected": "123.4567 × 7.5 × 1.18 = ₹1,092.5918 (to the company's places), on the bid record and in the comparison.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-LINE: `bid_products[].price_breakup.total_landed_amount` equals the calculator's value within one unit of the last place.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-LINE",
+        "app/models/bid_trade_product.rb:184-198, 302-320"
+      ],
+      "source": "P0 · automate · S1 · `INV-LINE` · `app/models/bid_trade_product.rb:184-198, 302-320`"
+    },
+    {
+      "id": "EVI-LINE-003",
+      "layer": "api",
+      "group": "EVI-LINE",
+      "section": "Line figures — what each quoted line is worth",
+      "sectionNo": 1,
+      "title": "Fractional and very large quantities do not lose precision",
+      "why": "Bulk buys (250,000 KG; 999,999.999 KG) and fractional ones (0.5 KG) are where float drift and rounding show up first.",
+      "setup": "Lines of 0.5, 250000 and 999999.999 KG.",
+      "steps": "Quote each line and read the line totals and the bid total.",
+      "expected": "Each total equals the exact product of price, quantity and (1 + GST) to the shown places; nothing is truncated or turned into scientific notation.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-LINE, INV-BID.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-LINE",
+        "app/models/bid_trade_product.rb:323-333"
+      ],
+      "source": "P0 · automate · S1 · `INV-LINE` · `app/models/bid_trade_product.rb:323-333`"
+    },
+    {
+      "id": "EVI-LINE-004",
+      "layer": "api",
+      "group": "EVI-LINE",
+      "section": "Line figures — what each quoted line is worth",
+      "sectionNo": 1,
+      "title": "Prices with many decimals and tiny prices total correctly",
+      "why": "Unit prices like ₹0.3333/KG over thousands of KG produce long decimals; rounding each step would move the total.",
+      "setup": "A line at ₹0.3333 × 1234.567 KG at 5 % GST.",
+      "steps": "Quote and read the line total.",
+      "expected": "₹432.055240155 stored; shown as ₹432.0552 at 4 places (₹432.06 at 2).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-LINE.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-LINE",
+        "app/models/bid_trade_product.rb:382-405"
+      ],
+      "source": "P1 · automate · S1 · `INV-LINE` · `app/models/bid_trade_product.rb:382-405`"
+    },
+    {
+      "id": "EVI-LINE-005",
+      "layer": "api",
+      "group": "EVI-LINE",
+      "section": "Line figures — what each quoted line is worth",
+      "sectionNo": 1,
+      "title": "A ₹0 unit price is not a quote and never becomes L1",
+      "why": "A zero left in a cell must not make a vendor the cheapest bidder or create a free order line.",
+      "setup": "Two vendors; vendor 1 enters ₹0 on line 1.",
+      "steps": "1. Vendor 1 submits with ₹0 on line 1. 2. Read L1 on line 1.",
+      "expected": "Either the bid is refused, or line 1 is left unquoted for vendor 1; L1 on line 1 is the other vendor's ₹50.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "PROBE-ZERO: no `l1_prices` entry with price 0.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "PROBE-ZERO",
+        "app/controllers/concerns/trade_template_helper.rb:5839 (lines with price ≤ 0 are skipped)"
+      ],
+      "source": "P0 · automate · S5 · `PROBE-ZERO` · `app/controllers/concerns/trade_template_helper.rb:5839 (lines with price ≤ 0 are skipped)`"
+    },
+    {
+      "id": "EVI-LINE-006",
+      "layer": "api",
+      "group": "EVI-LINE",
+      "section": "Line figures — what each quoted line is worth",
+      "sectionNo": 1,
+      "title": "The smallest price the screen allows is a real quote",
+      "why": "₹0.0001 (or ₹0.01 at 2 places) is legal; it must total, rank and save correctly, not be dropped as zero.",
+      "setup": "Vendor 1 quotes the smallest price at the company's places on line 2.",
+      "steps": "Read the line total, L1 and line savings for line 2.",
+      "expected": "Line total = price × quantity × 1.18; vendor 1 is L1 on line 2; savings against the reference are computed from that price.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-LINE, INV-L1, INV-BEST, INV-SAV-LINE.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-L1",
+        "app/controllers/concerns/trade_template_helper.rb:377-387"
+      ],
+      "source": "P1 · automate · S5 · `INV-L1` · `app/controllers/concerns/trade_template_helper.rb:377-387`"
+    },
+    {
+      "id": "EVI-LINE-007",
+      "layer": "api",
+      "group": "EVI-LINE",
+      "section": "Line figures — what each quoted line is worth",
+      "sectionNo": 1,
+      "title": "Many lines in one bid all total correctly",
+      "why": "Large RFQs (50+ lines) are where a per-line rounding habit adds up to a visible error in the bid total.",
+      "setup": "An RFQ with 60 lines, mixed quantities and GST slabs, two vendors.",
+      "steps": "Both vendors quote every line; read the bid totals.",
+      "expected": "Each bid total equals the sum of the exact line totals (not the sum of rounded line totals) to the shown places.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BID, INV-LINE on every line.",
+      "priority": "P2",
+      "verdict": "automate-later",
+      "refs": [
+        "INV-BID",
+        "app/models/bid.rb:1138-1171"
+      ],
+      "source": "P2 · automate-later · `INV-BID` · `app/models/bid.rb:1138-1171`"
+    },
+    {
+      "id": "EVI-TAX-001",
+      "layer": "api",
+      "group": "EVI-TAX",
+      "section": "Tax",
+      "sectionNo": 2,
+      "title": "Every GST slab (0, 5, 12, 18, 28 %) is applied to the right line",
+      "why": "Mixed-tax RFQs are normal; a slab applied to the wrong line or a 0 % read as blank changes the comparison.",
+      "setup": "Lines quoted at 0, 5, 12, 18 and 28 % across three vendors.",
+      "steps": "Read every line total.",
+      "expected": "Each line total = price × quantity × (1 + its own GST / 100).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-LINE.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-LINE",
+        "app/models/bid_trade_product.rb:302-320"
+      ],
+      "source": "P0 · automate · S1, S4 · `INV-LINE` · `app/models/bid_trade_product.rb:302-320`"
+    },
+    {
+      "id": "EVI-TAX-002",
+      "layer": "api",
+      "group": "EVI-TAX",
+      "section": "Tax",
+      "sectionNo": 2,
+      "title": "GST per unit and landed cost per unit in the price breakup",
+      "why": "The per-unit landed cost feeds the comparison report's \"net price\" and the orders' final price.",
+      "setup": "Any line with a GST rate and no freight or discount.",
+      "steps": "Read the bid's price breakup.",
+      "expected": "GST per unit = price × GST / 100; landed cost per unit = price + that GST.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BREAKUP on `bid_products[].price_breakup.gst_tax_amount` and `.landed_cost`.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-BREAKUP",
+        "app/models/bid_trade_product.rb:134-139, 287-294"
+      ],
+      "source": "P1 · automate · S1 · `INV-BREAKUP` · `app/models/bid_trade_product.rb:134-139, 287-294`"
+    },
+    {
+      "id": "EVI-TAX-003",
+      "layer": "api",
+      "group": "EVI-TAX",
+      "section": "Tax",
+      "sectionNo": 2,
+      "title": "Tax charged on the bid total after discount and charges",
+      "why": "Many templates tax the sub total (after discount, including freight); taxing the wrong base over- or under-states every bid.",
+      "setup": "A stage whose bid-level formulas are: discount = Σ lines × discount %; sub total = Σ lines − discount + freight + other charges; tax = sub total × tax %; total = sub total + tax.",
+      "steps": "Three vendors bid with different discount, freight, other charges and tax (12, 18, 28 %).",
+      "expected": "Discount, sub total, tax and total equal the calculator's values for each vendor.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BID on every bid-level formula.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-BID",
+        "app/models/bid.rb:1099-1171, 1193-1203"
+      ],
+      "source": "P0 · automate · S2 · `INV-BID` · `app/models/bid.rb:1099-1171, 1193-1203`"
+    },
+    {
+      "id": "EVI-CHG-001",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "Bid-level charges and discount are stored as entered",
+      "why": "Freight, other charges and discount are typed once per bid; they must not be lost when the lines are saved.",
+      "setup": "S2 stage (charges, discount, tax on the total).",
+      "steps": "A vendor submits freight ₹500, other charges 0, discount 0 %, tax 18 %.",
+      "expected": "The comparison shows exactly those inputs for that vendor.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-ECHO on the bid-level inputs.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-ECHO",
+        "app/controllers/concerns/trade_template_helper.rb:5566-5581"
+      ],
+      "source": "P1 · automate · S2 · `INV-ECHO` · `app/controllers/concerns/trade_template_helper.rb:5566-5581`"
+    },
+    {
+      "id": "EVI-CHG-002",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "Line totals without line tax on a charges template",
+      "why": "When tax is charged on the total, the line must not also carry tax.",
+      "setup": "S2 stage, line total = price × quantity.",
+      "steps": "Read each line total.",
+      "expected": "Line total = price × quantity exactly.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-LINE.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-LINE"
+      ],
+      "source": "P1 · automate · S2 · `INV-LINE`"
+    },
+    {
+      "id": "EVI-CHG-003",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "The discount amount is taken from the line sum",
+      "why": "A 7.5 % discount must be 7.5 % of the goods value, not of the taxed or freighted value.",
+      "setup": "S2; vendor 2 offers 7.5 %.",
+      "steps": "Read the discount figure.",
+      "expected": "(415.5 × 12.25 + 2050 × 3) × 7.5 % = ₹842.990625.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BID on the discount formula.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-BID"
+      ],
+      "source": "P1 · automate · S2 · `INV-BID`"
+    },
+    {
+      "id": "EVI-CHG-004",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "The sub total = lines − discount + freight + other charges",
+      "why": "The sub total is the taxable base; every charge and the discount must land in it once.",
+      "setup": "S2; vendor 3 has a 2.25 % discount, ₹1,250.40 freight and ₹99.99 other charges.",
+      "steps": "Read the sub total.",
+      "expected": "The calculator's sub total to the shown places.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BID.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-BID"
+      ],
+      "source": "P1 · automate · S2 · `INV-BID`"
+    },
+    {
+      "id": "EVI-CHG-005",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "A bid's total is the same in every place on a charges template",
+      "why": "The comparison, the quote view and the bid record must not disagree once charges are involved.",
+      "setup": "S2 bids.",
+      "steps": "Read the total from the stage, the quote details and the bid record (gross total, landed amount, rank price).",
+      "expected": "One figure everywhere.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SAME.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-SAME",
+        "app/models/bid.rb:1037-1040"
+      ],
+      "source": "P0 · automate · S2 · `INV-SAME` · `app/models/bid.rb:1037-1040`"
+    },
+    {
+      "id": "EVI-CHG-006",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "\"Amount\" is the goods value before tax and charges",
+      "why": "The bid record's amount is used as the pre-tax value in reports; it must exclude tax, freight and discount.",
+      "setup": "S2 bids.",
+      "steps": "Read the bid record's amount.",
+      "expected": "Σ unit price × quantity.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-AMOUNT.",
+      "priority": "P2",
+      "verdict": "automate",
+      "refs": [
+        "INV-AMOUNT",
+        "app/models/bid.rb:1050-1053"
+      ],
+      "source": "P2 · automate · S2 · `INV-AMOUNT` · `app/models/bid.rb:1050-1053`"
+    },
+    {
+      "id": "EVI-CHG-007",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "No NaN, Infinity or negative totals with charges and discounts",
+      "why": "Impossible numbers on a comparison sheet destroy trust and can sort first.",
+      "setup": "S2 bids.",
+      "steps": "Scan every figure the buyer reads.",
+      "expected": "None.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SANE.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-SANE"
+      ],
+      "source": "P1 · automate · S2 · `INV-SANE`"
+    },
+    {
+      "id": "EVI-CHG-008",
+      "layer": "api",
+      "group": "EVI-CHG",
+      "section": "Charges and discounts together",
+      "sectionNo": 3,
+      "title": "A discount above 100 % cannot make a bid total negative",
+      "why": "A negative total would rank as the best bid. The percentage widget is free text on the vendor side.",
+      "setup": "S2 stage with a fourth QA vendor invited.",
+      "steps": "Vendor 4 submits a 150 % discount.",
+      "expected": "Refused; or, if accepted, the total is never negative and never ranks best.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "PROBE-NEG.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "PROBE-NEG",
+        "app/controllers/api/bids_controller.rb:555-560 (discount 0–100 is checked only on the old bid paths, not on the sheet / v1 path)"
+      ],
+      "source": "P0 · automate · S2 · `PROBE-NEG` · `app/controllers/api/bids_controller.rb:555-560 (discount 0–100 is checked only on the old bid paths, not on the sheet / v1 path)`"
+    },
+    {
+      "id": "EVI-TOT-001",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "Bid total = the template's total formula over the lines",
+      "why": "The bid total is what the buyer ranks on (ranking widget \"gross total\").",
+      "setup": "Default template: total = Σ line totals.",
+      "steps": "Read each vendor's total on the comparison.",
+      "expected": "The calculator's total to the shown places.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BID.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-BID",
+        "app/models/bid.rb:1099-1171"
+      ],
+      "source": "P0 · automate · S1, S4, S5, S6 · `INV-BID` · `app/models/bid.rb:1099-1171`"
+    },
+    {
+      "id": "EVI-TOT-002",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "The bid total is the same on the comparison, the quote and the bid record",
+      "why": "A buyer who opens a quote must see the same total as on the comparison.",
+      "setup": "Any bids.",
+      "steps": "Read the total from six places.",
+      "expected": "One figure.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SAME.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-SAME"
+      ],
+      "source": "P0 · automate · S1 · `INV-SAME`"
+    },
+    {
+      "id": "EVI-TOT-003",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "The pre-tax amount equals Σ price × quantity",
+      "why": "See EVI-CHG-006; on the default template it is the base of the GST total.",
+      "setup": "Any bids.",
+      "steps": "Read the bid record's amount.",
+      "expected": "Σ unit price × quantity.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-AMOUNT.",
+      "priority": "P2",
+      "verdict": "automate",
+      "refs": [
+        "INV-AMOUNT"
+      ],
+      "source": "P2 · automate · S1 · `INV-AMOUNT`"
+    },
+    {
+      "id": "EVI-TOT-004",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "The bid count matches the bids listed",
+      "why": "\"3 bids\" on the card must mean three live bids on the sheet.",
+      "setup": "Any stage with bids (vendor and surrogate).",
+      "steps": "Compare the stage's bid count with the bids listed.",
+      "expected": "Equal.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-COUNT.",
+      "priority": "P2",
+      "verdict": "automate",
+      "refs": [
+        "INV-COUNT"
+      ],
+      "source": "P2 · automate · S1 · `INV-COUNT`"
+    },
+    {
+      "id": "EVI-TOT-005",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "No impossible numbers on the comparison",
+      "why": "NaN / Infinity / negative totals must never reach a buyer.",
+      "setup": "Any bids.",
+      "steps": "Scan the stage, comparison, indicators, savings and L1 reads.",
+      "expected": "None.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SANE.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-SANE"
+      ],
+      "source": "P1 · automate · S1 · `INV-SANE`"
+    },
+    {
+      "id": "EVI-TOT-006",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "A vendor's app that sends wrong totals cannot change the figures",
+      "why": "The vendor's browser computes totals and sends them. If the server trusted them, a vendor could claim ₹1 and rank first.",
+      "setup": "A fresh RFQ; vendor 1's request carries ₹1 as every line total and as the bid total, with real prices and quantities.",
+      "steps": "1. Vendor 1 submits. 2. The buyer reads the totals.",
+      "expected": "Every total is recomputed from price and quantity; ₹1 appears nowhere.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-LINE, INV-BID, INV-SAME on the tampered bid.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-BID",
+        "app/models/bid.rb:1105-1107 (\"Rejecting the formula values sent by frontend\")"
+      ],
+      "source": "P0 · automate · S3 · `INV-BID` · `app/models/bid.rb:1105-1107 (\"Rejecting the formula values sent by frontend\")`"
+    },
+    {
+      "id": "EVI-TOT-007",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "Wrong totals sent by a vendor cannot make it L1",
+      "why": "Follows EVI-TOT-006: the ranking must use the recomputed total.",
+      "setup": "As EVI-TOT-006; vendor 2 is cheaper.",
+      "steps": "Read best bidder, L1 and best total.",
+      "expected": "Vendor 2 is best; the best total is vendor 2's recomputed total.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BEST, INV-L1.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-BEST"
+      ],
+      "source": "P0 · automate · S3 · `INV-BEST`"
+    },
+    {
+      "id": "EVI-TOT-008",
+      "layer": "api",
+      "group": "EVI-TOT",
+      "section": "Bid totals",
+      "sectionNo": 4,
+      "title": "A draft bid's total is not used for any decision",
+      "why": "Draft bids skip recomputation and keep the client's total; the price-change approval check reads it.",
+      "setup": "A non-RFQ stage with price-change approval required; a vendor saves a draft with a wrong total, then submits a revision.",
+      "steps": "Observe whether approval is triggered by the real or the claimed change.",
+      "expected": "The approval decision uses the recomputed total.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "Approval raised (or not) matches the recomputed price change.",
+      "priority": "P1",
+      "verdict": "manual",
+      "refs": [
+        "app/models/bid.rb:948, 1231; app/helpers/api/v1/bids_controller_helper.rb:420; app/controllers/concerns/bids_controller_helper.rb:2679-2681"
+      ],
+      "source": "P1 · manual · `app/models/bid.rb:948, 1231; app/helpers/api/v1/bids_controller_helper.rb:420; app/controllers/concerns/bids_controller_helper.rb:2679-2681`"
+    },
+    {
+      "id": "EVI-RANK-001",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "L1 price per line is the lowest unit price",
+      "why": "L1 drives award recommendations and savings.",
+      "setup": "Three vendors, five lines.",
+      "steps": "Read L1 prices per line.",
+      "expected": "The lowest unit price among live bids, with that bid's line total.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-L1.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-L1",
+        "app/controllers/concerns/trade_template_helper.rb:377-387, 413-446"
+      ],
+      "source": "P0 · automate · S1 · `INV-L1` · `app/controllers/concerns/trade_template_helper.rb:377-387, 413-446`"
+    },
+    {
+      "id": "EVI-RANK-002",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "The L1 data names the lowest-price quote and its quantity",
+      "why": "L1 data is used to pre-fill counter offers and awards.",
+      "setup": "As EVI-RANK-001.",
+      "steps": "Read L1 data per line.",
+      "expected": "The lowest unit price and that quote's quantity.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-L1DATA.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-L1DATA",
+        "app/controllers/concerns/trade_template_helper.rb:389-411"
+      ],
+      "source": "P1 · automate · S1 · `INV-L1DATA` · `app/controllers/concerns/trade_template_helper.rb:389-411`"
+    },
+    {
+      "id": "EVI-RANK-003",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "A tie at the lowest price: L1 shows that price, whichever vendor",
+      "why": "Tied prices are common in RFQs; the shown price must be the tie price.",
+      "setup": "Lines where two or three vendors quote the same unit price.",
+      "steps": "Read L1 per line.",
+      "expected": "The tie price, with one of the tied vendors' line totals.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-L1.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-L1"
+      ],
+      "source": "P1 · automate · S1, S4 · `INV-L1`"
+    },
+    {
+      "id": "EVI-RANK-004",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "Every tied vendor is marked best bidder",
+      "why": "Marking only one tied vendor best hides an equal offer.",
+      "setup": "As EVI-RANK-003.",
+      "steps": "Read best-bidder flags per line.",
+      "expected": "All tied vendors best; nobody else.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BEST.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-BEST",
+        "app/services/sourcing_engine/auction_indicators_service.rb:149"
+      ],
+      "source": "P1 · automate · S1, S4 · `INV-BEST` · `app/services/sourcing_engine/auction_indicators_service.rb:149`"
+    },
+    {
+      "id": "EVI-RANK-005",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "Ranks follow the dense-rank rule, a tie at the best moving everyone down",
+      "why": "Procol shows tied leaders as rank 2 (nobody rank 1); the shown ranks must follow that rule consistently.",
+      "setup": "Ranks visible on the stage.",
+      "steps": "Read shown ranks.",
+      "expected": "Dense rank over the ranking figure; with a tie at the best, every rank +1.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-RANK.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-RANK",
+        "app/models/concerns/bid_rank_helper.rb:208-221; app/services/event_indicators/concerns/rank_calculator.rb:22-31"
+      ],
+      "source": "P1 · automate · S1, S4 · `INV-RANK` · `app/models/concerns/bid_rank_helper.rb:208-221; app/services/event_indicators/concerns/rank_calculator.rb:22-31`"
+    },
+    {
+      "id": "EVI-RANK-006",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "Best bid total and ranks on a charges template use the full total",
+      "why": "With discounts and charges the cheapest goods value may not be the cheapest bid.",
+      "setup": "S2 bids.",
+      "steps": "Read the best bid total and ranks.",
+      "expected": "The lowest calculated total (after discount, charges and tax).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BEST, INV-RANK.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-BEST"
+      ],
+      "source": "P0 · automate · S2 · `INV-BEST`"
+    },
+    {
+      "id": "EVI-RANK-007",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "Line L1 on a charges template is still the lowest unit price",
+      "why": "Line L1 is per unit; bid-level charges must not leak into it.",
+      "setup": "S2 bids.",
+      "steps": "Read L1 per line.",
+      "expected": "The lowest unit price per line.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-L1, INV-L1DATA.",
+      "priority": "P2",
+      "verdict": "automate",
+      "refs": [
+        "INV-L1"
+      ],
+      "source": "P2 · automate · S2 · `INV-L1`"
+    },
+    {
+      "id": "EVI-RANK-008",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "A lower price with a higher tax: screen L1 and report \"best net price\" may differ",
+      "why": "Procol has three L1 definitions: lowest unit price (screen L1), lowest ranking score, and lowest net price after tax (Excel). A buyer must know which one each shows.",
+      "setup": "Line 2: vendor A ₹100 at 28 % (₹128 after tax), vendor B ₹105 at 5 % (₹110.25), vendor C ₹104 at 18 %.",
+      "steps": "Read screen L1 for line 2 and the report's best net price.",
+      "expected": "Screen L1 = ₹100 (vendor A, unit price basis); report best net price = ₹110.25 (vendor B).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-L1 + REPORT-L1.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-L1",
+        "app/controllers/concerns/trade_template_helper.rb:377-387; app/services/reporting_engine/concerns/report_data_generator.rb:1089-1110"
+      ],
+      "source": "P1 · automate · S4 · `INV-L1` · `app/controllers/concerns/trade_template_helper.rb:377-387; app/services/reporting_engine/concerns/report_data_generator.rb:1089-1110`"
+    },
+    {
+      "id": "EVI-RANK-009",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "Rank auction: overall ranks on the bid total",
+      "why": "In a rank auction the rank IS what vendors bid against.",
+      "setup": "A rank auction with three vendors at ₹101.25, ₹99.50, ₹100 per unit.",
+      "steps": "Read the buyer's ranks and best total.",
+      "expected": "99.50 → 1, 100 → 2, 101.25 → 3; best total = vendor 2's total.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-RANK, INV-BEST.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-RANK"
+      ],
+      "source": "P0 · automate · S6 · `INV-RANK`"
+    },
+    {
+      "id": "EVI-RANK-010",
+      "layer": "api",
+      "group": "EVI-RANK",
+      "section": "L1, best bidder and ranks",
+      "sectionNo": 5,
+      "title": "Each vendor sees its own correct rank in a rank auction",
+      "why": "A vendor shown the wrong rank bids against a phantom.",
+      "setup": "As EVI-RANK-009.",
+      "steps": "Each vendor reads the stage.",
+      "expected": "Its own rank by the same rule.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "VENDOR-RANK.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "VENDOR-RANK"
+      ],
+      "source": "P0 · automate · S6 · `VENDOR-RANK`"
+    },
+    {
+      "id": "EVI-SAV-001",
+      "layer": "api",
+      "group": "EVI-SAV",
+      "section": "Savings",
+      "sectionNo": 6,
+      "title": "Line savings = reference − best unit price",
+      "why": "Savings are reported to management; each line's must be exact.",
+      "setup": "PROCOL DEMO fills a last-purchase-price reference per line.",
+      "steps": "Read best line-wise savings and each quote's savings.",
+      "expected": "Reference − unit price per unit (shown truncated to 4 places), % = amount ÷ reference × 100 (2 places).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SAV-LINE.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-SAV-LINE",
+        "app/models/concerns/savings_configuration_helpers/savings_calculator.rb:53-72; app/controllers/concerns/utils.rb:623-627"
+      ],
+      "source": "P0 · automate · S1 · `INV-SAV-LINE` · `app/models/concerns/savings_configuration_helpers/savings_calculator.rb:53-72; app/controllers/concerns/utils.rb:623-627`"
+    },
+    {
+      "id": "EVI-SAV-002",
+      "layer": "api",
+      "group": "EVI-SAV",
+      "section": "Savings",
+      "sectionNo": 6,
+      "title": "Each vendor's own line savings in the quote view",
+      "why": "The quote view shows savings per vendor; it must use that vendor's price.",
+      "setup": "As EVI-SAV-001.",
+      "steps": "Open each vendor's quote.",
+      "expected": "Reference − that vendor's unit price.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SAV-LINE (quote details).",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-SAV-LINE"
+      ],
+      "source": "P1 · automate · S1 · `INV-SAV-LINE`"
+    },
+    {
+      "id": "EVI-SAV-003",
+      "layer": "api",
+      "group": "EVI-SAV",
+      "section": "Savings",
+      "sectionNo": 6,
+      "title": "Total savings = Σ line savings × quantity over Σ reference × quantity",
+      "why": "The savings card is the headline number for the event.",
+      "setup": "As EVI-SAV-001.",
+      "steps": "Read aggregate savings.",
+      "expected": "The calculator's amount, reference and % (2 places).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SAV-AGG.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-SAV-AGG",
+        "app/controllers/concerns/trade_template_helper.rb:262-318, 449-526"
+      ],
+      "source": "P0 · automate · S1 · `INV-SAV-AGG` · `app/controllers/concerns/trade_template_helper.rb:262-318, 449-526`"
+    },
+    {
+      "id": "EVI-SAV-004",
+      "layer": "api",
+      "group": "EVI-SAV",
+      "section": "Savings",
+      "sectionNo": 6,
+      "title": "The stage page and the savings card show the same saving",
+      "why": "Two screens, one number.",
+      "setup": "As EVI-SAV-001.",
+      "steps": "Compare the stage's aggregate savings with the savings card.",
+      "expected": "Same amount and %, allowing for the places each shows (today the stage shows 4 places, the card 2).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SAV-AGG (two places).",
+      "priority": "P2",
+      "verdict": "automate",
+      "refs": [
+        "INV-SAV-AGG"
+      ],
+      "source": "P2 · automate · S1 · `INV-SAV-AGG`"
+    },
+    {
+      "id": "EVI-SAV-005",
+      "layer": "api",
+      "group": "EVI-SAV",
+      "section": "Savings",
+      "sectionNo": 6,
+      "title": "Savings and every figure stay the same after the close",
+      "why": "The savings worker recomputes and stores savings 5 s after the close; the stored copy feeds reports.",
+      "setup": "S1 with a 6-minute window.",
+      "steps": "Re-run every check after the close.",
+      "expected": "All agree.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "AFTER-CLOSE.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "AFTER-CLOSE",
+        "app/controllers/api/trade_controller.rb:692; app/workers/savings_calculator_worker.rb:25-48"
+      ],
+      "source": "P1 · automate · S1 · `AFTER-CLOSE` · `app/controllers/api/trade_controller.rb:692; app/workers/savings_calculator_worker.rb:25-48`"
+    },
+    {
+      "id": "EVI-SAV-006",
+      "layer": "api",
+      "group": "EVI-SAV",
+      "section": "Savings",
+      "sectionNo": 6,
+      "title": "Savings with a tiny best price do not overflow or show NaN",
+      "why": "A near-zero price makes savings ≈ 100 %; it must stay a number.",
+      "setup": "S5 (smallest price on line 2).",
+      "steps": "Read line and total savings.",
+      "expected": "Exact amounts; % below or equal to 100; no NaN / Infinity.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SAV-LINE, INV-SAV-AGG, INV-SANE.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-SAV-LINE"
+      ],
+      "source": "P1 · automate · S5 · `INV-SAV-LINE`"
+    },
+    {
+      "id": "EVI-SAV-007",
+      "layer": "api",
+      "group": "EVI-SAV",
+      "section": "Savings",
+      "sectionNo": 6,
+      "title": "A zero savings reference shows no percentage, not \"Infinity %\"",
+      "why": "amount ÷ 0 in Ruby floats is Infinity, rounded and sent as text.",
+      "setup": "A budget reference of 0 on a line (needs the savings configuration edited on the stage).",
+      "steps": "Read savings.",
+      "expected": "No percentage (blank), never \"Infinity\" / \"NaN\".",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-SANE.",
+      "priority": "P1",
+      "verdict": "automate-later",
+      "refs": [
+        "app/controllers/concerns/utils.rb:907-911"
+      ],
+      "source": "P1 · automate-later · `app/controllers/concerns/utils.rb:907-911`"
+    },
+    {
+      "id": "EVI-PREC-001",
+      "layer": "api",
+      "group": "EVI-PREC",
+      "section": "Decimal places and currency",
+      "sectionNo": 7,
+      "title": "Money columns use the company's decimal places",
+      "why": "PROCOL DEMO shows 4 places, Demo Account 2 shows 2; the same template must follow each company.",
+      "setup": "A fresh stage on each client.",
+      "steps": "Read the stage's widget precision and the company's setting.",
+      "expected": "Price, GST and line total at the company's places.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "PRECISION.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "PRECISION",
+        "app/controllers/concerns/trade_template_helper.rb:1816-1829"
+      ],
+      "source": "P1 · automate · S1 · `PRECISION` · `app/controllers/concerns/trade_template_helper.rb:1816-1829`"
+    },
+    {
+      "id": "EVI-CUR-001",
+      "layer": "api",
+      "group": "EVI-CUR",
+      "section": "Decimal places and currency",
+      "sectionNo": 7,
+      "title": "A foreign-currency bid is converted to base at the stage's rate",
+      "why": "Comparing a USD bid with an INR bid needs the rate the buyer set; base = amount × rate.",
+      "setup": "A client with multi-currency enabled; stage rates INR 1, USD 83.25; one vendor bids in USD.",
+      "steps": "Read the comparison in base currency.",
+      "expected": "Every USD figure × 83.25, rounded only for display.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "`toBase()` of the calculator vs the comparison.",
+      "priority": "P1",
+      "verdict": "manual",
+      "refs": [
+        "app/controllers/concerns/utils.rb:257-261; app/models/bid_trade_product.rb:344-380"
+      ],
+      "source": "P1 · manual · `app/controllers/concerns/utils.rb:257-261; app/models/bid_trade_product.rb:344-380` (neither QA client has multi-currency on)"
+    },
+    {
+      "id": "EVI-CUR-002",
+      "layer": "api",
+      "group": "EVI-CUR",
+      "section": "Decimal places and currency",
+      "sectionNo": 7,
+      "title": "Multi-currency line totals are rounded per line before the sum",
+      "why": "The single-currency path does not round; the two paths can disagree by a few paise on many-line bids.",
+      "setup": "As EVI-CUR-001 with 60 lines.",
+      "steps": "Compare Σ rounded line totals with the bid total.",
+      "expected": "The bid total equals the exact sum (to the shown places).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-BID.",
+      "priority": "P2",
+      "verdict": "manual",
+      "refs": [
+        "app/models/bid_trade_product.rb:379"
+      ],
+      "source": "P2 · manual · `app/models/bid_trade_product.rb:379`"
+    },
+    {
+      "id": "EVI-CUR-003",
+      "layer": "api",
+      "group": "EVI-CUR",
+      "section": "Decimal places and currency",
+      "sectionNo": 7,
+      "title": "Exchange rates cannot change once bids are in",
+      "why": "Changing the rate after bidding re-ranks bids silently.",
+      "setup": "Multi-currency stage with a bid.",
+      "steps": "Try to change the rate.",
+      "expected": "Refused.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "422.",
+      "priority": "P1",
+      "verdict": "manual",
+      "refs": [
+        "app/controllers/api/v1/trade_controller.rb:1466-1496"
+      ],
+      "source": "P1 · manual · `app/controllers/api/v1/trade_controller.rb:1466-1496`"
+    },
+    {
+      "id": "EVI-AWD-001",
+      "layer": "api",
+      "group": "EVI-AWD",
+      "section": "Award values",
+      "sectionNo": 8,
+      "title": "Award value per vendor = awarded quantity × that vendor's unit price",
+      "why": "The award proposal is what gets approved and ordered.",
+      "setup": "A split award (covered live by the round-3 deep-dig scenarios S1/S3).",
+      "steps": "Read the proposal values.",
+      "expected": "The calculator's `awardTotals()`.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "proposal_values vs awardTotals.",
+      "priority": "P0",
+      "verdict": "automate-later",
+      "refs": [
+        "app/helpers/api/proposal_helper.rb:974-1121"
+      ],
+      "source": "P0 · automate-later · `app/helpers/api/proposal_helper.rb:974-1121`"
+    },
+    {
+      "id": "EVI-AWD-002",
+      "layer": "api",
+      "group": "EVI-AWD",
+      "section": "Award values",
+      "sectionNo": 8,
+      "title": "A tied L1 vendor's award counts as L1",
+      "why": "The rank shift on ties makes every tied vendor \"not L1\", moving their award into \"non-L1\".",
+      "setup": "Two vendors tied at the best price; award one of them.",
+      "steps": "Read total_l1_proposal / total_non_l1_proposal.",
+      "expected": "The awarded line counts as L1.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "proposal_values.",
+      "priority": "P1",
+      "verdict": "automate-later",
+      "refs": [
+        "app/helpers/api/proposal_helper.rb:984-1001; app/models/concerns/bid_trade_product_rank_helper.rb:270"
+      ],
+      "source": "P1 · automate-later · `app/helpers/api/proposal_helper.rb:984-1001; app/models/concerns/bid_trade_product_rank_helper.rb:270`"
+    },
+    {
+      "id": "EVI-ISO-001",
+      "layer": "api",
+      "group": "EVI-ISO",
+      "section": "What vendors can see",
+      "sectionNo": 9,
+      "title": "A vendor's own views carry no competitor's prices or company ids",
+      "why": "On a sealed RFQ a vendor who sees rivals' prices can undercut by a rupee; this breaks the tender.",
+      "setup": "Three QA vendors bid on a fresh RFQ.",
+      "steps": "Each vendor reads the stage and its page data through its own app.",
+      "expected": "Nothing of another vendor: no name, company id, unit price, line total or bid total.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-ISOLATION.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-ISOLATION",
+        "app/models/bid_trade_product.rb:121-131; app/controllers/concerns/trade_template_helper.rb:722-761"
+      ],
+      "source": "P0 · automate · S1, S3–S5 · `INV-ISOLATION` · `app/models/bid_trade_product.rb:121-131; app/controllers/concerns/trade_template_helper.rb:722-761`"
+    },
+    {
+      "id": "EVI-ISO-002",
+      "layer": "api",
+      "group": "EVI-ISO",
+      "section": "What vendors can see",
+      "sectionNo": 9,
+      "title": "Isolation holds on a charges template",
+      "why": "Same as EVI-ISO-001, with bid-level charges also private.",
+      "setup": "S2.",
+      "steps": "As EVI-ISO-001.",
+      "expected": "Nothing of another vendor.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-ISOLATION.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-ISOLATION"
+      ],
+      "source": "P0 · automate · S2 · `INV-ISOLATION`"
+    },
+    {
+      "id": "EVI-ISO-003",
+      "layer": "api",
+      "group": "EVI-ISO",
+      "section": "What vendors can see",
+      "sectionNo": 9,
+      "title": "Isolation in a rank auction (only the vendor's own rank)",
+      "why": "Rank auctions may show rank, never prices.",
+      "setup": "S6.",
+      "steps": "As EVI-ISO-001.",
+      "expected": "Own rank only.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-ISOLATION.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-ISOLATION"
+      ],
+      "source": "P0 · automate · S6 · `INV-ISOLATION`"
+    },
+    {
+      "id": "EVI-REP-001",
+      "layer": "api",
+      "group": "EVI-REP",
+      "section": "Reports",
+      "sectionNo": 10,
+      "title": "The comparison report (Excel) shows the same figures as the screen",
+      "why": "Buyers forward the Excel to approvers; it must match the screen.",
+      "setup": "S1 bids.",
+      "steps": "Download the RFQ comparison report and read each vendor's block.",
+      "expected": "Each vendor's unit prices, line totals and bid total are present.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-REPORT.",
+      "priority": "P0",
+      "verdict": "automate",
+      "refs": [
+        "INV-REPORT",
+        "app/controllers/api/reports_controller.rb:105-152"
+      ],
+      "source": "P0 · automate · S1 · `INV-REPORT` · `app/controllers/api/reports_controller.rb:105-152`"
+    },
+    {
+      "id": "EVI-REP-002",
+      "layer": "api",
+      "group": "EVI-REP",
+      "section": "Reports",
+      "sectionNo": 10,
+      "title": "The report after the close matches the screen after the close",
+      "why": "Reports read the stored savings copy; it must equal the live one.",
+      "setup": "S1 after the close.",
+      "steps": "As EVI-REP-001.",
+      "expected": "Same.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "AFTER-CLOSE + INV-REPORT.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "AFTER-CLOSE"
+      ],
+      "source": "P1 · automate · S1 · `AFTER-CLOSE`"
+    },
+    {
+      "id": "EVI-REP-003",
+      "layer": "api",
+      "group": "EVI-REP",
+      "section": "Reports",
+      "sectionNo": 10,
+      "title": "The report on a charges template carries the bid totals",
+      "why": "Charges and tax on the total must reach the Excel.",
+      "setup": "S2.",
+      "steps": "As EVI-REP-001.",
+      "expected": "Same totals.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "INV-REPORT.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "INV-REPORT"
+      ],
+      "source": "P1 · automate · S2 · `INV-REPORT`"
+    },
+    {
+      "id": "EVI-REP-004",
+      "layer": "api",
+      "group": "EVI-REP",
+      "section": "Reports",
+      "sectionNo": 10,
+      "title": "The report's best net price is the cheapest price after tax",
+      "why": "See EVI-RANK-008.",
+      "setup": "S4.",
+      "steps": "Read \"Best Net Price\" for line 2.",
+      "expected": "₹110.25.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "REPORT-L1.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "REPORT-L1"
+      ],
+      "source": "P1 · automate · S4 · `REPORT-L1`"
+    },
+    {
+      "id": "EVI-REP-005",
+      "layer": "api",
+      "group": "EVI-REP",
+      "section": "Reports",
+      "sectionNo": 10,
+      "title": "An unknown report type is refused, not a server crash",
+      "why": "An untyped 500 is always a defect.",
+      "setup": "A stage with bids.",
+      "steps": "Ask for the comparison report with report type \"excel_report\".",
+      "expected": "HTTP 422 with a message, never 500.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "Status.",
+      "priority": "P3",
+      "verdict": "manual",
+      "refs": [
+        "app/models/report.rb:24 (report_type enum has no excel value); app/controllers/concerns/reports_controller_helper.rb (save_report_and_get_id)"
+      ],
+      "source": "P3 · manual · `app/models/report.rb:24 (report_type enum has no excel value); app/controllers/concerns/reports_controller_helper.rb (save_report_and_get_id)`"
+    },
+    {
+      "id": "EVI-REP-006",
+      "layer": "api",
+      "group": "EVI-REP",
+      "section": "Reports",
+      "sectionNo": 10,
+      "title": "PDF reports",
+      "why": "Event detailed / summary PDFs carry the same figures.",
+      "setup": "Any closed stage.",
+      "steps": "Download the PDF.",
+      "expected": "Same figures as the screen.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "Not automated: no reliable PDF text extraction in the repo.",
+      "priority": "P2",
+      "verdict": "manual",
+      "refs": [],
+      "source": "P2 · manual"
     }
   ]
 }
