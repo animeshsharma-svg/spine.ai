@@ -154,6 +154,13 @@ export interface JourneyRunResult {
    * case runner calls this to move the remaining cases onto a fresh copy.
    */
   rebuildForCases?: () => Promise<{ eventGroupUuid: string; tradeId?: string; lineItemUuid: string } | undefined>;
+  /**
+   * Every bid number on the journey's pricing round, recomputed independently
+   * (src/integrity/invariants.ts checkEventIntegrity): totals, tax, ranks, L1,
+   * savings, and that the vendor sees no other vendor's prices. Read-only. A
+   * failed check is a FINDING to re-confirm on a fresh event, never a step failure.
+   */
+  integrity?: unknown;
 }
 
 // ── the sibling framework, loaded once ─────────────────────────────────────
@@ -2418,6 +2425,26 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     }
   }
 
+  // Recompute every bid number on the pricing round while the vendor's session
+  // is still open (it lets the check confirm the vendor sees no competitor's
+  // prices). Read-only GETs through the app-guarded sender; bounded; never throws.
+  let integrity: unknown;
+  const pricingTrade = tradeOf(j.event, "pricing");
+  if (pricingTrade && j.made.bidUuid && process.env.SPINE_JOURNEY_INTEGRITY !== "0") {
+    try {
+      const { checkEventIntegrity } = await import("../integrity/invariants.js");
+      const vendors = j.actors.vendorApi && j.vendorCompanyUuid ? [{ label: "the vendor", companyUuid: j.vendorCompanyUuid, api: j.actors.vendorApi }] : [];
+      const [rep] = await withWatchdog(
+        checkEventIntegrity({ tradeUuid: pricingTrade }, { buyer: j.client.ctx.buyerApi, vendors }, { onLine: opts.onLine }),
+        90_000,
+        "checking the bid numbers",
+      );
+      integrity = rep;
+    } catch (e) {
+      opts.onLine?.(`the bid numbers could not be checked: ${clean(e instanceof Error ? e.message : String(e))}`);
+    }
+  }
+
   // The vendor's and evaluator's clients are this run's own; the buyer's
   // belongs to the server and outlives the journey.
   await withWatchdog(Promise.resolve(j.actors.vendorApi?.dispose?.()), 10_000, "closing the vendor session").catch(() => {});
@@ -2459,6 +2486,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     journey: record(j.steps, j.made, j.waitedMs, variationsEvent, resilience, j.event.title),
     ...(forCases ? { forCases } : {}),
     ...(rebuildForCases ? { rebuildForCases } : {}),
+    ...(integrity ? { integrity } : {}),
   };
 }
 

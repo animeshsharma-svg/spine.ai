@@ -479,6 +479,16 @@ const JOURNEYS: JourneyDef[] = [
     apiGroups: ["API-XDLST"],
     spine: ["open_events_list", "search_and_filter", "export_list", "clone_event", "change_owner"],
   },
+  {
+    id: "deep-bid-numbers",
+    title: "Every bid number is right",
+    persona: "Buyer and vendors",
+    goal: "Every figure Procol computes from bids — line totals, tax, charges, discounts, bid totals, ranks, L1, savings, precision, currency and the comparison report — matches an independent recalculation from what the vendors actually quoted, and no vendor ever sees another vendor's prices.",
+    order: 43,
+    uiGroups: [],
+    apiGroups: ["EVI-LINE", "EVI-TAX", "EVI-CHG", "EVI-TOT", "EVI-RANK", "EVI-SAV", "EVI-PREC", "EVI-CUR", "EVI-AWD", "EVI-ISO", "EVI-REP"],
+    spine: ["vendor_bids", "bid_totals", "ranking", "savings", "comparison_report"],
+  },
 ];
 
 /**
