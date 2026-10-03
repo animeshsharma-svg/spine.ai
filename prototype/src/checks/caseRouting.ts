@@ -9,6 +9,7 @@ import { loadCases, heldCases, unrunnableReason, type TestCaseRecord } from "./c
 import { STEP_CODE } from "./apiAssertions.js";
 import { gate } from "./dynamicChecks.js";
 import { STEP_META, type StepKind } from "./journeyModel.js";
+import { hasStoredFullPlan, storedApiPlan } from "./compiledPlans.js";
 
 /**
  * How a written case reaches an actual runner — and, just as importantly, when
@@ -419,6 +420,20 @@ const LIB_HOW = "Runs from the API case library — tick its feature under API a
 /** The API-plan route, offered only when the API test compiler is installed. */
 function apiPlanRoute(c: CatalogCase, why: string, ids: string[]): CaseRoute | null {
   if (!apiPlannerInstalled()) return null;
+  // Compiled once (fast tier), validated in code and stored: it runs without
+  // a model, so it runs today (data/compiled-plans/api, compiledPlans.ts).
+  if (hasStoredFullPlan(c.id)) {
+    const sp = storedApiPlan(c.id)!;
+    return {
+      kind: "api-plan",
+      because: `${why} — a plan compiled from its prose is stored and validated (${sp.meta.endpoints.length} request${sp.meta.endpoints.length === 1 ? "" : "s"}), so it runs without the AI`,
+      runnable: false,
+      strength: "compile",
+      runsNow: true,
+      runner: { where: "api-plan", id: c.id, how: "Runs its stored, validated API plan (scripts/run-all-runnable.ts --plans, or /api/api-plan/run)." },
+      resultIds: ids,
+    };
+  }
   return {
     kind: "api-plan",
     because: `${why} — the API test compiler can turn this case's prose into requests`,

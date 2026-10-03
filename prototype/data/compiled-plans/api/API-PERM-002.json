@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-PERM-002",
+  "title": "`GET /api/event_groups/:id` requires read *and* a visible stage",
+  "compiledAt": "2026-10-03T09:46:17.506Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "testing a specific user without stage visibility relies on the library case EDGE-PUB-085 which models owner restriction rather than custom stage visibility roles directly"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer reads the event.",
+    "The buyer sends the request that reads the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that “status” is present."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error. Read back afterwards: “status” is present."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-002",
+  "title": "`GET /api/event_groups/:id` requires read *and* a visible stage",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_event",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-085",
+    "decisive": true,
+    "ifRefused": "pass"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

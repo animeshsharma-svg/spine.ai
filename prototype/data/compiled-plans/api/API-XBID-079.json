@@ -1,0 +1,52 @@
+{
+ "meta": {
+  "caseId": "API-XBID-079",
+  "title": "A vendor cannot submit another company's bid",
+  "compiledAt": "2026-10-03T09:49:55.864Z",
+  "planVersion": 1,
+  "source": "library-case",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the buyer send PATCH /v1/bids/{{bidUuid}}, but the buyer's web-console session may not call PATCH /v1/bids/:id (bids#update is not on that app's list in config/app_auth_config.yml)",
+   "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-079",
+  "title": "A vendor cannot submit another company's bid",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-BID-079",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

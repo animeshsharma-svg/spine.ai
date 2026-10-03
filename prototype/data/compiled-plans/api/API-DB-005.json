@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "caseId": "API-DB-005",
+  "title": "A published stage has a bidding-time schedule row with a non-null end time",
+  "compiledAt": "2026-10-03T09:47:02.319Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan verifies that the pricing round exposes non-null start and end times, but cannot directly verify the presence of a separate trade_schedules bidding-time row."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "As the buyer, read the pricing round and check that “starting from” is not null; “ending at” is not null."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “starting from” is not null; “ending at” is not null."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-DB-005",
+  "title": "A published stage has a bidding-time schedule row with a non-null end time",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "starting_from",
+      "op": "not_equals",
+      "value": null
+     },
+     {
+      "path": "ending_at",
+      "op": "not_equals",
+      "value": null
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

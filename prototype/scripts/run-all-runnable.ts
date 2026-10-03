@@ -9,6 +9,10 @@
  *     --types rfq_only,rfp_rfq   limit the event types
  *     --no-be            skip the API framework's BE- cases
  *     --summary <file>   also write the pass's summary (batches, re-checks) as JSON
+ *     --cases A,B,C      only these library case ids (also ones no catalog case routes to)
+ *     --never-recheck    record first results as they are (default: every new failure is re-run alone)
+ *     --plans            ALSO run the stored, validated API plans (data/compiled-plans/api, full coverage);
+ *     --plans-only       ONLY those (each builds its own fresh record; a failure is re-checked on a second one)
  *
  * What it runs: every catalog case whose route (src/checks/caseRouting.ts) is
  * an exact or same-request API runner — the case library (EDGE-…, the written
@@ -45,8 +49,13 @@ import {
   resolveActor,
   configRequirementOf,
   idsFromReply,
+  orderForSharedCopy,
   type TestCaseRecord,
 } from "../src/checks/caseLibrary.js";
+import { disposeVendorSession } from "../src/checks/actors.js";
+import { allStoredApiPlans, storedPlanProblems } from "../src/checks/compiledPlans.js";
+import { validatePlan } from "../src/agents/apiPlanner.js";
+import { runApiPlan } from "../src/checks/apiPlanRunner.js";
 import { openClientContext } from "../src/executor.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "../src/checks/eventJourney.js";
 import { journeyPlan, EVENT_TYPES, type EventType } from "../src/checks/journeyModel.js";
@@ -87,7 +96,15 @@ const BATCH = Math.max(5, Number(arg("batch")) || 40);
 const ONLY_NEVER = arg("only") === "never-run";
 const TYPES = (arg("types") ?? "").split(",").map((s) => s.trim()).filter(Boolean) as EventType[];
 const NO_BE = flag("no-be");
+const ONLY_CASES = new Set((arg("cases") ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+/** A run never builds more than this many own copies (cases that must not share one). */
+const MAX_OWN_COPIES = Number(arg("max-own-copies")) || 60;
 const T0 = Date.now();
+const WITH_PLANS = flag("plans") || flag("plans-only");
+const PLANS_ONLY = flag("plans-only");
+const NEVER_RECHECK = flag("never-recheck");
+/** re-check every failure on a fresh copy, not only the ones this client has not seen fail before */
+const RECHECK_ALL = flag("recheck-all");
 const left = () => BUDGET_MS - (Date.now() - T0);
 const log = (s: string) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${s}`);
 
@@ -144,6 +161,12 @@ for (const c of allCases()) {
     beTargets.set(r.target, [...(beTargets.get(r.target) ?? []), c.id]);
   }
 }
+// Asked for by id: run them even when no catalog case routes to them.
+for (const id of ONLY_CASES) {
+  const lc = lib.get(id);
+  if (lc && !lc.bulk && !libTargets.has(id)) libTargets.set(id, { lc, catalog: [] });
+}
+if (ONLY_CASES.size) for (const id of [...libTargets.keys()]) if (!ONLY_CASES.has(id)) libTargets.delete(id);
 const everRan = (id: string) => (history.get(id)?.runs ?? 0) > 0;
 const failedBefore = (id: string) => (history.get(id)?.fail ?? 0) > 0;
 
@@ -157,13 +180,18 @@ for (const { lc } of libTargets.values()) {
 // Never-run first inside each type; the order inside each part is the library's.
 for (const [t, list] of byType) byType.set(t, [...list.filter((c) => !everRan(c.id)), ...list.filter((c) => everRan(c.id))]);
 
-const beIds = NO_BE ? [] : [...beTargets.keys()].filter((id) => !ONLY_NEVER || !everRan(id));
+const beIds = NO_BE || ONLY_CASES.size || PLANS_ONLY ? [] : [...beTargets.keys()].filter((id) => !ONLY_NEVER || !everRan(id));
 
 log(`client ${COMPANY} · ${libTargets.size} library case(s) and ${beTargets.size} BE case(s) route here exactly`);
 for (const [t, list] of byType) {
   log(`  ${t.padEnd(11)} ${String(list.length).padStart(4)} case(s), ${list.filter((c) => !everRan(c.id)).length} never run on this client`);
 }
 log(`  BE cases    ${String(beIds.length).padStart(4)}, ${beIds.filter((id) => !everRan(id)).length} never run on this client`);
+const storedPlans = WITH_PLANS
+  ? allStoredApiPlans().filter((sp) => sp.meta.validated && sp.meta.coverage === "full" && (!ONLY_CASES.size || ONLY_CASES.has(sp.meta.caseId)))
+  : [];
+if (WITH_PLANS) log(`  stored API plans (full, validated): ${storedPlans.length}`);
+if (PLANS_ONLY) byType.clear();
 if (DRY) {
   await closeSpineDb();
   process.exit(0);
@@ -278,7 +306,9 @@ try {
         break;
       }
       const chunk = allowed.slice(i, i + BATCH);
-      const ordered = [...chunk.filter((c) => !destructive(c)), ...chunk.filter(destructive)];
+      // Buyer cases, then the vendor's (a bid changes what later buyer cases
+      // see), then the destructive ones; own-copy cases are unaffected.
+      const ordered = orderForSharedCopy(chunk, destructive);
       const bStart = Date.now();
       // A fresh copy per batch (the journey's own copy for the first one).
       if (rebuildSession !== client) {
@@ -305,16 +335,32 @@ try {
       const built = buildChecksFromCases(client, ordered, ctx as any, actor);
       const results: CheckResult[] = [];
       let rebuilds = 0;
+      let ownCopies = 0;
       let authFails = 0;
       let dead = false;
       const runAll = async (checks: any[]) => {
         for (let k = 0; k < checks.length; k++) {
           if (left() < 60_000) break;
           const chk = checks[k];
+          // A case that changes the copy in a way the next case would inherit
+          // gets a fresh copy of its own; the shared one stays as it was.
+          let ranOn = sandbox;
+          if (chk.ownCopy && sandbox) {
+            const own = ownCopies < MAX_OWN_COPIES ? await bounded(rebuild(), 180_000, "building a copy for one case", undefined) : undefined;
+            if (!own) {
+              skipped.push({ id: chk.id, title: chk.scenario, reason: `needs a fresh copy of its own (${chk.ownCopy}) and ${ownCopies >= MAX_OWN_COPIES ? `this pass already built ${MAX_OWN_COPIES}` : "one could not be built"} — not run, rather than run on a shared copy` });
+              continue;
+            }
+            ownCopies += 1;
+            retarget([chk], sandbox, own);
+            ranOn = own;
+          }
           const res = await runCheck(client, chk, harvest);
           (res as any).__check = chk;
+          (res as any).__sandbox = ranOn;
           results.push(res);
-          authFails = res.httpStatus === 401 ? authFails + 1 : 0;
+          // The vendor's 401s say nothing about the buyer's session.
+          if (chk.actor !== "vendor") authFails = res.httpStatus === 401 ? authFails + 1 : 0;
           if (authFails >= 3) {
             // Three refusals in a row is either a dead session or endpoints that
             // want the vendor's token (the bids API refuses the buyer's). Ask.
@@ -347,7 +393,7 @@ try {
           }
           // Crash or end-of-life on the shared copy → the rest move to a fresh one.
           const m = String(chk.request?.method ?? "GET").toUpperCase();
-          if (m !== "GET" && sandbox && touches(chk, sandbox) && rebuilds < 15) {
+          if (m !== "GET" && !chk.ownCopy && sandbox && touches(chk, sandbox) && rebuilds < 15) {
             const crashed = (res.httpStatus ?? 0) >= 500;
             const ended = !crashed && (res.httpStatus ?? 0) >= 200 && (res.httpStatus ?? 0) < 300 &&
               (ENDS_LIFE.test(JSON.stringify(chk.request?.body ?? {})) || /withdraw|cancel|force_?(end|close)|close_trade|revert/i.test(String(chk.request?.path ?? "")));
@@ -375,16 +421,19 @@ try {
 
       // 3 · a NEW failure is a bug only if it fails again on its own fresh copy.
       for (const res of results) {
-        if (res.pass || res.inconclusive || failedBefore(res.id) || left() < 60_000) continue;
+        if (res.pass || res.inconclusive || (!RECHECK_ALL && failedBefore(res.id)) || NEVER_RECHECK || left() < 60_000) continue;
         const chk = (res as any).__check;
+        const ranOn: Sandbox | undefined = (res as any).__sandbox;
         const fresh = await bounded(rebuild(), 180_000, "building a fresh copy for a re-check", undefined);
-        if (!fresh || !sandbox) {
+        if (!fresh || !ranOn) {
           summary.verified.push({ id: res.id, reproduced: null, note: "no fresh copy could be built to re-check it" });
           continue;
         }
-        const solo = { ...chk };
-        retarget([solo], sandbox, fresh);
-        const again = await runCheck(client, solo);
+        // The check itself is moved: its sender reads the request it carries
+        // when it runs, so a shallow copy of it would still go to the old
+        // event. (It did, until 2026-10-03 — re-checks ran on the first copy.)
+        retarget([chk], ranOn, fresh);
+        const again = await runCheck(client, chk);
         const reproduced = !again.pass && !again.inconclusive;
         summary.verified.push({ id: res.id, reproduced, first: res.verdict, fresh: again.verdict, status: [res.httpStatus, again.httpStatus] });
         if (!reproduced) {
@@ -397,7 +446,10 @@ try {
         }
         log(`   re-checked ${res.id} on a fresh copy: ${reproduced ? "FAILED AGAIN (real)" : "did not fail again"}`);
       }
-      for (const r of results) delete (r as any).__check;
+      for (const r of results) {
+        delete (r as any).__check;
+        delete (r as any).__sandbox;
+      }
 
       const p = results.filter((r) => r.pass && !r.inconclusive).length;
       const f = results.filter((r) => !r.pass && !r.inconclusive).length;
@@ -424,6 +476,33 @@ try {
       if (dead) break;
     }
     if (summary.stopped) break;
+  }
+
+  // ── stored API plans: validated again, then each on its own fresh record
+  if (!summary.stopped && storedPlans.length) {
+    log(`── stored API plans: ${storedPlans.length}`);
+    for (const sp of storedPlans) {
+      if (left() < 15 * 60_000) {
+        summary.stopped = "budget reached in the stored API plans";
+        break;
+      }
+      const v = await validatePlan(sp.plan);
+      if (!v.ok) {
+        summary.batches.push({ eventType: "api-plan", id: sp.meta.caseId, ran: 0, note: `stored plan no longer validates: ${v.errors.join("; ")}` });
+        log(`   ${sp.meta.caseId}: not run — the stored plan no longer validates (${v.errors.join("; ").slice(0, 160)})`);
+        continue;
+      }
+      const problems = await storedPlanProblems(v.plan, sp.meta.title);
+      if (problems.length) {
+        summary.batches.push({ eventType: "api-plan", id: sp.meta.caseId, ran: 0, note: problems.join("; ") });
+        log(`   ${sp.meta.caseId}: not run — ${problems.join("; ").slice(0, 200)}`);
+        continue;
+      }
+      const r = await runApiPlan({ ...v.plan, caseId: sp.meta.caseId }, { companyId: COMPANY, client, confirm: true, save: true, onLine: () => {} });
+      summary.batches.push({ eventType: "api-plan", id: sp.meta.caseId, verdict: r.verdict, confirmed: r.confirmed ?? null, reason: r.reason.slice(0, 300) });
+      if (r.confirmation) summary.verified.push({ id: sp.meta.caseId, reproduced: !!r.confirmed, first: "failed", fresh: r.confirmation.verdict });
+      log(`   ${sp.meta.caseId}: ${r.verdict} — ${r.reason.slice(0, 220)}`);
+    }
   }
 
   // ── the API framework's BE- cases, in process, on its own fixtures
@@ -464,8 +543,12 @@ try {
   summary.stopped = `stopped by an error: ${(e as Error).message}`;
   log(summary.stopped);
 } finally {
+  await disposeVendorSession(client);
   await client?.dispose?.().catch?.(() => {});
-  for (const old of stale) await old?.dispose?.().catch?.(() => {});
+  for (const old of stale) {
+    await disposeVendorSession(old);
+    await old?.dispose?.().catch?.(() => {});
+  }
 }
 
 summary.finishedAt = new Date().toISOString();

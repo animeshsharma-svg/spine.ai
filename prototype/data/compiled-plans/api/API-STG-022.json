@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-STG-022",
+  "title": "A draft stage links to an existing draft event group",
+  "compiledAt": "2026-10-03T09:43:46.776Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan verifies the stage is linked to the draft event group, but cannot check the underlying HTTP response status or a generic stage type."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event.",
+    "As the buyer, read the pricing round and check that “event group uuid” equals {{eventGroupUuid}}."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “event group uuid” equals {{eventGroupUuid}}."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-STG-022",
+  "title": "A draft stage links to an existing draft event group",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "event_group_uuid",
+      "op": "equals",
+      "value": "{{eventGroupUuid}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "caseId": "API-DB-001",
+  "title": "A created event group exists as a row",
+  "compiledAt": "2026-10-03T09:46:58.311Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "verifying that exactly one event_groups row exists is not expressible with the available read-back fields",
+   "verifying the caller's company and user on the event row is not expressible with the available read-back fields"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer creates a draft event with the title set to “QA_Platform_Event_…”, with the status set to “draft”, with the product uuid set to “…”, with the product quality uuid set to “…”, with the value 10, with the unitSymbol set to “Nos”.",
+    "As the buyer, read the event and check that “status” equals draft."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” equals draft."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-DB-001",
+  "title": "A created event group exists as a row",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "create_draft",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "title",
+      "set": "QA_Platform_Event_{{stamp}}",
+      "add": true
+     },
+     {
+      "path": "status",
+      "set": "draft"
+     },
+     {
+      "path": "line_items[0].product_uuid",
+      "set": "{{productUuid}}"
+     },
+     {
+      "path": "line_items[0].product_quality_uuid",
+      "set": "{{productQualityUuid}}"
+     },
+     {
+      "path": "line_items[0].quantity.value",
+      "set": 10
+     },
+     {
+      "path": "line_items[0].quantity.unitSymbol",
+      "set": "Nos"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

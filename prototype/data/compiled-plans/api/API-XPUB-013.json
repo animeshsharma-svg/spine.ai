@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "caseId": "API-XPUB-013",
+  "title": "Publishing an RFP that ends after its RFQ is refused with 712",
+  "compiledAt": "2026-10-03T09:49:59.791Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not verify that no stage was modified before the rejection."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that “status” equals draft."
+   ],
+   "expected": "The app refuses the step the case is about with “RFP duration exceeds RFQ end time. Please adjust.”, and never with a server error. Read back afterwards: “status” equals draft."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XPUB-013",
+  "title": "Publishing an RFP that ends after its RFQ is refused with 712",
+  "setup": {
+   "recipe": "draft_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-013",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "712",
+   "message": "RFP duration exceeds RFQ end time. Please adjust."
+  }
+ }
+}

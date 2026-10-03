@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-XBID-037",
+  "title": "A different user cannot submit another user's draft response without edit access",
+  "compiledAt": "2026-10-03T09:49:55.858Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /template_responses",
+   "PATCH /template_responses/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor starts a technical response on the RFP round.",
+    "The buyer sends the technical response call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-037",
+  "title": "A different user cannot submit another user's draft response without edit access",
+  "setup": {
+   "recipe": "published_rfp_rfq"
+  },
+  "act": [
+   {
+    "op": "start_tech_response",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-BID-037",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

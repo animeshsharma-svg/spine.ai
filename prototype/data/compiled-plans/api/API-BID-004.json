@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "API-BID-004",
+  "title": "A bid with no products is refused on submission",
+  "compiledAt": "2026-10-03T09:44:34.937Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the buyer send PATCH /v1/bids/{{bidUuid}}, but the buyer's web-console session may not call PATCH /v1/bids/:id (bids#update is not on that app's list in config/app_auth_config.yml)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round with the trade request uuid set to “…”, with the company uuid set to “…”.",
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Model error”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-BID-004",
+  "title": "A bid with no products is refused on submission",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "change": [
+     {
+      "path": "trade_request_uuid",
+      "set": "{{tradeId}}"
+     },
+     {
+      "path": "company_uuid",
+      "set": "{{vendorUuid}}"
+     }
+    ]
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-BID-073",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "8",
+   "message": "Model error"
+  }
+ }
+}

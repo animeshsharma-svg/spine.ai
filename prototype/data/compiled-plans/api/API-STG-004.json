@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "API-STG-004",
+  "title": "A technical (RFP) stage is created without trade products",
+  "compiledAt": "2026-10-03T09:43:13.932Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The evaluator cannot be specified with the available fields."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a technical (RFP) round to the event with no data.",
+    "As the buyer, read the event and check that “stages › rfx mode” contains rfp."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “stages › rfx mode” contains rfp."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-STG-004",
+  "title": "A technical (RFP) stage is created without trade products",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfp_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "data",
+      "set": [],
+      "add": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages[*].rfx_mode",
+      "op": "contains",
+      "value": "rfp"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

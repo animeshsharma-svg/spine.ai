@@ -1,0 +1,1109 @@
+{
+ "updatedAt": "2026-10-03T11:44:24.610Z",
+ "planVersion": 1,
+ "cases": {
+  "API-AUTH-001": {
+   "coverage": "partial",
+   "title": "OTP login returns a usable session for a buyer",
+   "source": "llm-fast",
+   "why": [
+    "OTP generation endpoint and request fields are not available",
+    "OTP verification endpoint, code field, and session/token response are not available",
+    "The plan assumes a buyer is already signed in and only checks that a subsequent call is accepted",
+    "the part about “email” is outside what an API plan on a sourcing event checks"
+   ],
+   "endpoints": [
+    "GET /orders"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:42:23.722Z"
+  },
+  "API-AUTH-004": {
+   "coverage": "none",
+   "title": "An expired or absent token is refused everywhere",
+   "source": "llm-fast",
+   "why": [
+    "Expired or absent credentials, including corrupted tokens, cannot be represented by the available operations or setup recipes."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:42:23.913Z"
+  },
+  "API-EG-007": {
+   "coverage": "partial",
+   "title": "A caller without trade create-record permission is refused",
+   "source": "llm-fast",
+   "why": [
+    "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+    "cannot express the caller's missing trade:create_record permission in the vocabulary"
+   ],
+   "endpoints": [
+    "POST /event_groups"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:42:29.074Z"
+  },
+  "API-STG-001": {
+   "coverage": "full",
+   "title": "An RFQ stage is created against a draft event group",
+   "source": "llm-fast",
+   "why": [],
+   "endpoints": [
+    "POST /trade/template_input",
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:42:41.050Z"
+  },
+  "API-STG-002": {
+   "coverage": "partial",
+   "title": "An auction stage is created with a rank strategy",
+   "source": "llm-fast",
+   "why": [
+    "Setting specific auction configuration options like auction_config: rank directly in add_rfq_round is not supported by the available body fields."
+   ],
+   "endpoints": [
+    "POST /trade/template_input",
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:42:58.880Z"
+  },
+  "API-STG-004": {
+   "coverage": "partial",
+   "title": "A technical (RFP) stage is created without trade products",
+   "source": "llm-fast",
+   "why": [
+    "The evaluator cannot be specified with the available fields."
+   ],
+   "endpoints": [
+    "POST /trade/template_input",
+    "GET /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:43:13.932Z"
+  },
+  "API-STG-014": {
+   "coverage": "partial",
+   "title": "A stage always gets a bidding-time schedule row",
+   "source": "llm-fast",
+   "why": [
+    "No direct read of TradeSchedule family; verification relies on round fields that map to the schedule."
+   ],
+   "endpoints": [
+    "POST /trade/template_input",
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:43:19.710Z"
+  },
+  "API-STG-015": {
+   "coverage": "full",
+   "title": "A stage created with no bid_end_time fails at creation, not later",
+   "source": "llm-fast",
+   "why": [],
+   "endpoints": [
+    "POST /trade/template_input"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:43:31.344Z"
+  },
+  "API-STG-019": {
+   "coverage": "none",
+   "title": "A non-eRFX stage created with status active goes live directly",
+   "source": "llm-fast",
+   "why": [
+    "Creating a non-eRFX stage with status active directly via POST without an event group is outside the sourcing-event vocabulary (events and stages require recipes starting from an event group or draft event)."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:43:43.287Z"
+  },
+  "API-STG-022": {
+   "coverage": "partial",
+   "title": "A draft stage links to an existing draft event group",
+   "source": "llm-fast",
+   "why": [
+    "The plan verifies the stage is linked to the draft event group, but cannot check the underlying HTTP response status or a generic stage type."
+   ],
+   "endpoints": [
+    "POST /trade/template_input",
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:43:46.776Z"
+  },
+  "API-PUB-002": {
+   "coverage": "partial",
+   "title": "Activation must never answer with an untyped 500",
+   "source": "llm-fast",
+   "why": [
+    "The plan cannot verify that a failure uses render_error_json with both code and message fields.",
+    "The plan cannot capture or assert the full response body and request payload.",
+    "what the screen shows (an API plan checks the data, not the page)"
+   ],
+   "endpoints": [
+    "PATCH /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:43:50.129Z"
+  },
+  "API-PUB-003": {
+   "coverage": "partial",
+   "title": "Activation of a stage with no bidding-time schedule fails cleanly",
+   "source": "llm-fast",
+   "why": [
+    "The setup cannot remove or omit the pricing round's TradeSchedule.",
+    "The plan cannot check the refusal message or assert that the response contains both code and message."
+   ],
+   "endpoints": [
+    "PATCH /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:43:53.967Z"
+  },
+  "API-PUB-013": {
+   "coverage": "partial",
+   "title": "A caller without update permission is refused",
+   "source": "llm-fast",
+   "why": [
+    "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+    "The available setup does not create a caller in neither branch; EDGE-PUB-016 covers a vendor caller without event update permission instead."
+   ],
+   "endpoints": [
+    "PATCH /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:01.867Z"
+  },
+  "API-LI-008": {
+   "coverage": "partial",
+   "title": "A string quantity is refused, not coerced",
+   "source": "llm-fast",
+   "why": [
+    "The specified PATCH operation cannot be expressed; API-EG-016 covers the equivalent string quantity rejection during draft creation."
+   ],
+   "endpoints": [
+    "POST /event_groups"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:17.518Z"
+  },
+  "API-TECH-001": {
+   "coverage": "partial",
+   "title": "A vendor starts a technical response",
+   "source": "library-case",
+   "why": [
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /template_responses"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:17.522Z"
+  },
+  "API-TECH-002": {
+   "coverage": "partial",
+   "title": "The technical trade exposes its forms and pages",
+   "source": "library-case",
+   "why": [
+    "what the screen shows (an API plan checks the data, not the page)"
+   ],
+   "endpoints": [
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:17.523Z"
+  },
+  "API-TECH-003": {
+   "coverage": "partial",
+   "title": "Answers are saved to the line-item form",
+   "source": "library-case",
+   "why": [
+    "it does not read the record back to confirm what was kept or shown",
+    "what the screen shows (an API plan checks the data, not the page)"
+   ],
+   "endpoints": [
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:17.524Z"
+  },
+  "API-BID-001": {
+   "coverage": "partial",
+   "title": "An eligible vendor creates a bid",
+   "source": "library-case",
+   "why": [
+    "the plan has the buyer send POST /v1/bids, but the buyer's web-console session may not call POST /v1/bids (bids#create is not on that app's list in config/app_auth_config.yml)",
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /v1/bids"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:17.525Z"
+  },
+  "API-BID-002": {
+   "coverage": "partial",
+   "title": "Bid products carry the price and quantity per line item",
+   "source": "library-case",
+   "why": [
+    "the plan has the buyer send POST /v1/bids/{{bidUuid}}/create_bid_products, but the buyer's web-console session may not call POST /v1/bids/:id/create_bid_products (bids#create_bid_trade_products is not on that app's list in config/app_auth_config.yml)",
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /v1/bids/:id/create_bid_products"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:17.525Z"
+  },
+  "API-BID-003": {
+   "coverage": "partial",
+   "title": "The bid is submitted and the total is what was offered",
+   "source": "library-case",
+   "why": [
+    "the plan has the buyer send PATCH /v1/bids/{{bidUuid}}, but the buyer's web-console session may not call PATCH /v1/bids/:id (bids#update is not on that app's list in config/app_auth_config.yml)",
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "PATCH /v1/bids/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:17.526Z"
+  },
+  "API-BID-004": {
+   "coverage": "partial",
+   "title": "A bid with no products is refused on submission",
+   "source": "llm-fast",
+   "why": [
+    "the plan has the buyer send PATCH /v1/bids/{{bidUuid}}, but the buyer's web-console session may not call PATCH /v1/bids/:id (bids#update is not on that app's list in config/app_auth_config.yml)"
+   ],
+   "endpoints": [
+    "POST /v1/bids",
+    "PATCH /v1/bids/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:34.937Z"
+  },
+  "API-BID-005": {
+   "coverage": "partial",
+   "title": "A bid outside the window is refused",
+   "source": "llm-fast",
+   "why": [
+    "bid on an Upcoming stage (requires an upcoming/draft RFQ setup with a future start time, which is not available in the single-recipe setup vocabulary)"
+   ],
+   "endpoints": [
+    "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products",
+    "PATCH /v1/bids/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:46.838Z"
+  },
+  "API-BID-015": {
+   "coverage": "partial",
+   "title": "A negative price is refused",
+   "source": "llm-fast",
+   "why": [
+    "the plan has the buyer send POST /v1/bids/{{bidUuid}}/create_bid_products, but the buyer's web-console session may not call POST /v1/bids/:id/create_bid_products (bids#create_bid_trade_products is not on that app's list in config/app_auth_config.yml)",
+    "The library case submits price -5 rather than the requested price -100."
+   ],
+   "endpoints": [
+    "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:44:55.711Z"
+  },
+  "API-BID-021": {
+   "coverage": "partial",
+   "title": "A non-numeric price is refused, not coerced",
+   "source": "llm-fast",
+   "why": [
+    "the plan has the buyer send POST /v1/bids/{{bidUuid}}/create_bid_products, but the buyer's web-console session may not call POST /v1/bids/:id/create_bid_products (bids#create_bid_trade_products is not on that app's list in config/app_auth_config.yml)",
+    "The available library case guarantees no 5xx and allows either success or a typed 4xx, so an exact refusal status and error response cannot be checked."
+   ],
+   "endpoints": [
+    "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:07.682Z"
+  },
+  "API-BID-025": {
+   "coverage": "partial",
+   "title": "Revising a bid replaces the price and keeps history",
+   "source": "library-case",
+   "why": [
+    "the plan has the buyer send POST /v1/bids, but the buyer's web-console session may not call POST /v1/bids (bids#create is not on that app's list in config/app_auth_config.yml)",
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”",
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "POST /v1/bids"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:07.685Z"
+  },
+  "API-BID-030": {
+   "coverage": "none",
+   "title": "A vendor cannot read another vendor's bid",
+   "source": "llm-fast",
+   "why": [
+    "reading a specific bid by another vendor's bid ID is outside the sourcing-event vocabulary"
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:45:16.180Z"
+  },
+  "API-SUR-001": {
+   "coverage": "partial",
+   "title": "A buyer places a surrogate RFQ bid for a vendor",
+   "source": "library-case",
+   "why": [
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /bids/template_input"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:16.181Z"
+  },
+  "API-CONV-001": {
+   "coverage": "partial",
+   "title": "An active RFQ converts to an auction",
+   "source": "llm-fast",
+   "why": [
+    "cannot directly read back the newly created auction trade id as a child of the RFQ"
+   ],
+   "endpoints": [
+    "POST /trade/move_to_auction"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:21.545Z"
+  },
+  "API-AWD-001": {
+   "coverage": "partial",
+   "title": "A proposal is created for an eligible company",
+   "source": "library-case",
+   "why": [
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /proposal"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:21.546Z"
+  },
+  "API-AWD-002": {
+   "coverage": "partial",
+   "title": "An award response allocates a line item to a vendor",
+   "source": "library-case",
+   "why": [
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /proposal/:id/add_response"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:21.546Z"
+  },
+  "API-AWD-005": {
+   "coverage": "partial",
+   "title": "Submitting the proposal moves it to requested and blocks further awarding",
+   "source": "llm-fast",
+   "why": [
+    "approval flow uuid submission step parameter is outside vocabulary",
+    "second proposal creation block is partially represented via submission rejection library case"
+   ],
+   "endpoints": [
+    "POST /proposal",
+    "POST /proposal/:id/submit"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:43.341Z"
+  },
+  "API-AWD-009": {
+   "coverage": "full",
+   "title": "A caller from another company cannot add a response",
+   "source": "llm-fast",
+   "why": [],
+   "endpoints": [
+    "POST /proposal",
+    "GET /proposal/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:55.076Z"
+  },
+  "API-AWD-021": {
+   "coverage": "partial",
+   "title": "The full chain runs end to end",
+   "source": "library-case",
+   "why": [
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /proposal"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:45:55.078Z"
+  },
+  "API-PERM-001": {
+   "coverage": "partial",
+   "title": "`GET /api/event_groups` requires trade read permission",
+   "source": "llm-fast",
+   "why": [
+    "the plan has the vendor send GET /orders, but the supplier app may not call GET /orders (it is not on agribid_website's list in config/app_auth_config.yml)",
+    "the case reads as “it is refused”, but the plan checks “it is accepted”"
+   ],
+   "endpoints": [
+    "GET /orders"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:46:05.506Z"
+  },
+  "API-PERM-002": {
+   "coverage": "partial",
+   "title": "`GET /api/event_groups/:id` requires read *and* a visible stage",
+   "source": "llm-fast",
+   "why": [
+    "testing a specific user without stage visibility relies on the library case EDGE-PUB-085 which models owner restriction rather than custom stage visibility roles directly"
+   ],
+   "endpoints": [
+    "GET /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:46:17.506Z"
+  },
+  "API-PERM-003": {
+   "coverage": "none",
+   "title": "`POST /api/event_groups` requires trade create permission",
+   "source": "llm-fast",
+   "why": [
+    "checking permission checks for POST /api/event_groups is outside the sourcing-event vocabulary"
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:46:29.304Z"
+  },
+  "API-VAL-001": {
+   "coverage": "none",
+   "title": "Every required parameter is enforced on every write endpoint",
+   "source": "llm-fast",
+   "why": [
+    "The vocabulary has no operation or body-field control for omitting required parameters from create/update, round-create, bid-create, or proposal-create writes.",
+    "The vocabulary does not provide a generic assertion for HTTP 422 with code 2 across each write endpoint.",
+    "The complete matrix of every required parameter on every write endpoint cannot be expressed."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:46:32.970Z"
+  },
+  "API-VAL-003": {
+   "coverage": "full",
+   "title": "A malformed body type is refused, not coerced",
+   "source": "llm-fast",
+   "why": [],
+   "endpoints": [
+    "POST /event_groups"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:46:37.955Z"
+  },
+  "API-VAL-005": {
+   "coverage": "none",
+   "title": "A fabricated uuid is refused with a not-found code",
+   "source": "llm-fast",
+   "why": [
+    "The vocabulary has no operation for supplying fabricated UUIDs to event-group, trade, bid, or proposal show/update requests.",
+    "There are no bid-show or proposal-show operations, and no not-found assertion code is provided for these requests."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:46:41.366Z"
+  },
+  "API-DB-001": {
+   "coverage": "partial",
+   "title": "A created event group exists as a row",
+   "source": "llm-fast",
+   "why": [
+    "verifying that exactly one event_groups row exists is not expressible with the available read-back fields",
+    "verifying the caller's company and user on the event row is not expressible with the available read-back fields"
+   ],
+   "endpoints": [
+    "POST /event_groups",
+    "GET /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:46:58.311Z"
+  },
+  "API-DB-005": {
+   "coverage": "partial",
+   "title": "A published stage has a bidding-time schedule row with a non-null end time",
+   "source": "llm-fast",
+   "why": [
+    "The plan verifies that the pricing round exposes non-null start and end times, but cannot directly verify the presence of a separate trade_schedules bidding-time row."
+   ],
+   "endpoints": [
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:47:02.319Z"
+  },
+  "API-DB-007": {
+   "coverage": "partial",
+   "title": "A submitted bid and its products are persisted with the right prices",
+   "source": "llm-fast",
+   "why": [
+    "Verification of each product row's price matching the submitted price specifically is not expressible with the available read fields"
+   ],
+   "endpoints": [
+    "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products",
+    "GET /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:47:19.740Z"
+  },
+  "API-DB-010": {
+   "coverage": "none",
+   "title": "Nothing is written when a create or activation is refused",
+   "source": "llm-fast",
+   "why": [
+    "The five refusal paths and their required invalid inputs are not specified.",
+    "No supported assertion or token compares relevant row counts before and after a refused operation.",
+    "The relevant row resource is not identified."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:47:23.017Z"
+  },
+  "API-NFR-006": {
+   "coverage": "none",
+   "title": "Errors follow one shape across the module",
+   "source": "llm-fast",
+   "why": [
+    "The vocabulary does not provide twenty refusal operations or a way to collect responses across cases.",
+    "Error response fields for numeric codes and human messages are not available as readable assertion paths.",
+    "The supplied library cases do not cover twenty distinct refusals."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:47:26.604Z"
+  },
+  "API-XMAT-052": {
+   "coverage": "partial",
+   "title": "After converting an RFQ to an auction the vendor bids in the auction before the award",
+   "source": "llm-fast",
+   "why": [
+    "The library case EDGE-DAUC-032 is used for conversion to auction rather than a dedicated conversion operation",
+    "Detailed award breakdown fields per line item are not fully verified"
+   ],
+   "endpoints": [
+    "POST /v1/bids",
+    "POST /v1/bids/:id/create_bid_products",
+    "PATCH /v1/bids/:id",
+    "POST /trade/move_to_auction",
+    "POST /proposal",
+    "POST /proposal/:id/add_response",
+    "GET /trade/:id",
+    "GET /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:47:49.384Z"
+  },
+  "API-XAWD-014": {
+   "coverage": "none",
+   "title": "Every score is refused when the RFP carries no label mapping",
+   "source": "llm-fast",
+   "why": [
+    "act 1: library case EDGE-AWD-014 needs {{evalFormUuid}}, which setup \"closed_rfp_rfq_with_tech_response\" does not provide",
+    "evalFormUuid and evaluation submission without library cases are not supported by the core sourcing-event operations vocabulary"
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:48:05.304Z"
+  },
+  "API-XAWD-018": {
+   "coverage": "none",
+   "title": "Scoring before the technical round closes is refused",
+   "source": "llm-fast",
+   "why": [
+    "act 1: library case EDGE-AWD-018 needs {{evalFormUuid}}, which setup \"published_rfp_rfq\" does not provide",
+    "The evaluation request requires {{evalFormUuid}}, but no setup recipe or operation provides that token."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:48:11.390Z"
+  },
+  "API-XAWD-021": {
+   "coverage": "none",
+   "title": "A vendor cannot score itself",
+   "source": "llm-fast",
+   "why": [
+    "act 2: library case EDGE-AWD-021 needs {{evalFormUuid}}, which setup \"published_rfp_rfq\" does not provide",
+    "The setup recipes do not provide evalFormUuid required for evaluation library cases."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:48:28.587Z"
+  },
+  "API-XAWD-037": {
+   "coverage": "none",
+   "title": "Re-evaluation cannot be requested while vendors are still responding",
+   "source": "none",
+   "why": [
+    "act 1: library case EDGE-AWD-037 needs {{evalFormUuid}}, which setup \"rfp_rfq_with_tech_response\" does not provide",
+    "no valid API plan could be compiled from the words"
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:48:34.716Z"
+  },
+  "API-XAWD-038": {
+   "coverage": "none",
+   "title": "Re-evaluation cannot be requested after the evaluation window",
+   "source": "llm-fast",
+   "why": [
+    "act 1: library case EDGE-AWD-038 needs {{evalFormUuid}}, which setup \"closed_rfp_rfq_with_tech_response\" does not provide",
+    "The re-evaluation request requires {{rfpTradeId}} and {{evalFormUuid}}, but no setup recipe provides {{evalFormUuid}}; no available operation can express this request without that token."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:48:41.099Z"
+  },
+  "API-XAWD-041": {
+   "coverage": "partial",
+   "title": "Re-evaluation of a form you cannot see is refused",
+   "source": "library-case",
+   "why": [
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "PATCH /v1/trade/:id/request_tr_reevaluation"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:48:41.100Z"
+  },
+  "API-XAWD-042": {
+   "coverage": "none",
+   "title": "Re-evaluation of an item whose TR is not submitted is refused",
+   "source": "none",
+   "why": [
+    "act 1: library case EDGE-AWD-042 needs {{evalFormUuid}}, which setup \"published_rfp_rfq\" does not provide",
+    "no valid API plan could be compiled from the words"
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:48:56.574Z"
+  },
+  "API-XAWD-046": {
+   "coverage": "none",
+   "title": "Only the asked evaluator can accept a re-evaluation",
+   "source": "llm-fast",
+   "why": [
+    "act 1: library case EDGE-AWD-046 needs {{evalFormUuid}}, which setup \"closed_rfp_rfq_with_tech_response\" does not provide",
+    "evalFormUuid and user identity mapping for evaluator B vs buyer A rely on sandbox library state not fully exposed in setup recipes"
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.681Z"
+  },
+  "API-XAWD-051": {
+   "coverage": "partial",
+   "title": "A vendor cannot read the award proposal",
+   "source": "library-case",
+   "why": [
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "GET /proposal/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.682Z"
+  },
+  "API-XAWD-053": {
+   "coverage": "partial",
+   "title": "A counter offer on a non-existent bid does not crash",
+   "source": "library-case",
+   "why": [
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   ],
+   "endpoints": [
+    "POST /additional_request/raise_additional_request"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.685Z"
+  },
+  "API-XAWD-055": {
+   "coverage": "partial",
+   "title": "A second counter offer while one is pending is refused",
+   "source": "library-case",
+   "why": [
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "POST /additional_request/raise_additional_request"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.687Z"
+  },
+  "API-XAWD-060": {
+   "coverage": "partial",
+   "title": "A zero counter price answers success without raising anything",
+   "source": "library-case",
+   "why": [
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /additional_request/raise_additional_request"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.688Z"
+  },
+  "API-XAWD-062": {
+   "coverage": "partial",
+   "title": "Countering above the vendor's price depends on the reversal setting",
+   "source": "library-case",
+   "why": [
+    "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug",
+    "the case reads as “it is refused”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "POST /additional_request/raise_additional_request"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.689Z"
+  },
+  "API-XAWD-070": {
+   "coverage": "partial",
+   "title": "A bulk counter offer with no event does not crash",
+   "source": "library-case",
+   "why": [
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   ],
+   "endpoints": [
+    "POST /additional_request/raise_bulk_counter_offer"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.690Z"
+  },
+  "API-XAWD-072": {
+   "coverage": "partial",
+   "title": "A vendor cannot send a bulk counter offer",
+   "source": "library-case",
+   "why": [
+    "the plan has the vendor send POST /additional_request/raise_bulk_counter_offer, but the supplier app may not call POST /additional_request/raise_bulk_counter_offer (it is not on agribid_website's list in config/app_auth_config.yml)",
+    "what the screen shows (an API plan checks the data, not the page)"
+   ],
+   "endpoints": [
+    "POST /additional_request/raise_bulk_counter_offer"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.691Z"
+  },
+  "API-XAWD-080": {
+   "coverage": "partial",
+   "title": "An unpublished RFQ cannot be converted",
+   "source": "library-case",
+   "why": [
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "POST /trade/move_to_auction"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:20.692Z"
+  },
+  "API-XAWD-100": {
+   "coverage": "partial",
+   "title": "A vendor who never bid cannot be awarded",
+   "source": "llm-fast",
+   "why": [
+    "verify that proposals.responses_hash is unchanged after the rejected add_response",
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "POST /proposal",
+    "POST /proposal/:id/add_response"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:26.902Z"
+  },
+  "API-XAWD-114": {
+   "coverage": "partial",
+   "title": "A line item marked Regret cannot be awarded",
+   "source": "library-case",
+   "why": [
+    "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug"
+   ],
+   "endpoints": [
+    "POST /proposal/:id/add_response"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:26.903Z"
+  },
+  "API-XAWD-124": {
+   "coverage": "full",
+   "title": "Submitting without a flow when approval is configured is refused",
+   "source": "llm-fast",
+   "why": [],
+   "endpoints": [
+    "POST /proposal",
+    "POST /proposal/:id/submit"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:39.000Z"
+  },
+  "API-XAWD-135": {
+   "coverage": "partial",
+   "title": "PO forms need every line awarded when partial line awarding is disallowed",
+   "source": "library-case",
+   "why": [
+    "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug",
+    "the part about “po” is outside what an API plan on a sourcing event checks"
+   ],
+   "endpoints": [
+    "POST /proposal/:id/create_po_form"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:39.002Z"
+  },
+  "API-XBID-032": {
+   "coverage": "partial",
+   "title": "A vendor cannot start a technical response in another vendor's name",
+   "source": "library-case",
+   "why": [
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   ],
+   "endpoints": [
+    "POST /template_responses"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:39.003Z"
+  },
+  "API-XBID-036": {
+   "coverage": "partial",
+   "title": "Submitting a technical response with a required answer blank is refused",
+   "source": "library-case",
+   "why": [
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)",
+    "what the screen shows (an API plan checks the data, not the page)"
+   ],
+   "endpoints": [
+    "PATCH /template_responses/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:39.004Z"
+  },
+  "API-XBID-037": {
+   "coverage": "full",
+   "title": "A different user cannot submit another user's draft response without edit access",
+   "source": "llm-fast",
+   "why": [],
+   "endpoints": [
+    "POST /template_responses",
+    "PATCH /template_responses/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:55.858Z"
+  },
+  "API-XBID-069": {
+   "coverage": "partial",
+   "title": "A vendor cannot price a bid belonging to another company",
+   "source": "library-case",
+   "why": [
+    "the plan has the buyer send POST /v1/bids/{{bidUuid}}/create_bid_products, but the buyer's web-console session may not call POST /v1/bids/:id/create_bid_products (bids#create_bid_trade_products is not on that app's list in config/app_auth_config.yml)",
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   ],
+   "endpoints": [
+    "POST /v1/bids/:id/create_bid_products"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:55.863Z"
+  },
+  "API-XBID-079": {
+   "coverage": "partial",
+   "title": "A vendor cannot submit another company's bid",
+   "source": "library-case",
+   "why": [
+    "the plan has the buyer send PATCH /v1/bids/{{bidUuid}}, but the buyer's web-console session may not call PATCH /v1/bids/:id (bids#update is not on that app's list in config/app_auth_config.yml)",
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   ],
+   "endpoints": [
+    "PATCH /v1/bids/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:55.864Z"
+  },
+  "API-XPUB-013": {
+   "coverage": "partial",
+   "title": "Publishing an RFP that ends after its RFQ is refused with 712",
+   "source": "llm-fast",
+   "why": [
+    "The plan does not verify that no stage was modified before the rejection."
+   ],
+   "endpoints": [
+    "PATCH /event_groups/:id",
+    "GET /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:59.791Z"
+  },
+  "API-XPUB-056": {
+   "coverage": "partial",
+   "title": "A vendor cannot reject another participant",
+   "source": "library-case",
+   "why": [
+    "the plan has the vendor send PATCH /event_groups/{{eventGroupUuid}}/reject_participant, but the supplier app may not call PATCH /event_groups/:id/reject_participant (it is not on agribid_website's list in config/app_auth_config.yml)",
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "PATCH /event_groups/:id/reject_participant"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:49:59.793Z"
+  },
+  "API-XPUB-061": {
+   "coverage": "partial",
+   "title": "Extending an expired stage without reopen permission is refused with 496",
+   "source": "llm-fast",
+   "why": [
+    "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen"
+   ],
+   "endpoints": [
+    "PATCH /trade/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:50:12.045Z"
+  },
+  "API-XPUB-083": {
+   "coverage": "partial",
+   "title": "An uninvited vendor cannot read the event",
+   "source": "library-case",
+   "why": [
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "GET /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:50:12.047Z"
+  },
+  "API-XPUB-085": {
+   "coverage": "partial",
+   "title": "With restrict_event_visibility_to_owner, a non-owner buyer is refused",
+   "source": "library-case",
+   "why": [
+    "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+    "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug"
+   ],
+   "endpoints": [
+    "GET /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:50:12.048Z"
+  },
+  "API-XPUB-092": {
+   "coverage": "partial",
+   "title": "A vendor cannot change the event's owner",
+   "source": "llm-fast",
+   "why": [
+    "change_ownership endpoint uses raw library request rather than native op",
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "POST /event_groups/:id/change_ownership"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:50:24.179Z"
+  },
+  "API-XPUB-095": {
+   "coverage": "none",
+   "title": "When the current owner is deactivated, ownership can go to any active user anywhere",
+   "source": "llm-fast",
+   "why": [
+    "No available operation or library case expresses change_ownership, deactivating the current owner's UserCompanyMapping, selecting a foreign active user, or asserting ownership refusal."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:50:26.645Z"
+  },
+  "API-XPUB-104": {
+   "coverage": "partial",
+   "title": "The original event can no longer be edited once an amendment exists",
+   "source": "library-case",
+   "why": [
+    "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   ],
+   "endpoints": [
+    "PATCH /event_groups/:id"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:50:26.650Z"
+  },
+  "API-XDBOQ-001": {
+   "coverage": "partial",
+   "title": "A BOQ project with real line items is still refused when BOQ is switched off",
+   "source": "library-case",
+   "why": [
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "endpoints": [
+    "POST /event_groups"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:50:26.654Z"
+  },
+  "API-XDLOT-032": {
+   "coverage": "none",
+   "title": "Smart lots cannot be regenerated after a lot is published",
+   "source": "llm-fast",
+   "why": [
+    "reset_to_smart_lots endpoint is not defined in the provided operations vocabulary, and no library case matches the expected 422 error code 815 for a lot already published."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:50:31.678Z"
+  },
+  "API-XDLOT-041": {
+   "coverage": "none",
+   "title": "The same item in two new lots in one request is not refused",
+   "source": "llm-fast",
+   "why": [
+    "The create_new_lot operation and lot payload are not available.",
+    "The setup recipes create at most one line item and cannot represent items A and B or existing lots."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:50:34.208Z"
+  },
+  "API-XDLST-045": {
+   "coverage": "partial",
+   "title": "Card refresh returns other companies' events when given their ids",
+   "source": "llm-fast",
+   "why": [
+    "Cannot send raw foreign event ids 1–5 because no matching operation or library case is available.",
+    "Cannot verify that cards contain no other companies' titles, ref ids, creator names, or company fields because the card response fields are not available.",
+    "The available library case uses a bogus UUID rather than foreign event ids.",
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”"
+   ],
+   "endpoints": [
+    "GET /event_groups/update_cards"
+   ],
+   "usd": 0,
+   "at": "2026-10-03T09:50:37.949Z"
+  },
+  "API-XDQCS-076": {
+   "coverage": "none",
+   "title": "A client buyer cannot download vendor bidding logs",
+   "source": "llm-fast",
+   "why": [
+    "Downloading vendor bidding logs via GET /v1/trade/{{pricingTradeUuid}}/trade_history is not expressible with the available operations, fields, recipes, tokens, or library cases."
+   ],
+   "endpoints": [],
+   "usd": 0,
+   "at": "2026-10-03T09:50:40.998Z"
+  }
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-XAWD-100",
+  "title": "A vendor who never bid cannot be awarded",
+  "compiledAt": "2026-10-03T09:49:26.902Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "verify that proposals.responses_hash is unchanged after the rejected add_response",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Awarded vendor is not present in the latest stage”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XAWD-100",
+  "title": "A vendor who never bid cannot be awarded",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-AWD-100",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "826",
+   "message": "Awarded vendor is not present in the latest stage"
+  }
+ }
+}

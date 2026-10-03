@@ -1,0 +1,79 @@
+{
+ "meta": {
+  "caseId": "API-STG-014",
+  "title": "A stage always gets a bidding-time schedule row",
+  "compiledAt": "2026-10-03T09:43:19.710Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "No direct read of TradeSchedule family; verification relies on round fields that map to the schedule."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with the bid start time moved later, with the bid end time moved later.",
+    "As the buyer, read the pricing round and check that “starting from” equals {{now}}; “ending at” equals {{now+600}}."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “starting from” equals {{now}}; “ending at” equals {{now+600}}."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-STG-014",
+  "title": "A stage always gets a bidding-time schedule row",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.bid_start_time",
+      "set": "{{now}}"
+     },
+     {
+      "path": "configurations.bid_end_time",
+      "set": "{{now+600}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "starting_from",
+      "op": "equals",
+      "value": "{{now}}"
+     },
+     {
+      "path": "ending_at",
+      "op": "equals",
+      "value": "{{now+600}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}
