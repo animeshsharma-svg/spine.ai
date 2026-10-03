@@ -14,6 +14,10 @@ import { generateEventTitle } from "../helpers/data.js";
 import { buildProducts } from "../master/params.js";
 import { WidgetConfig } from "../helpers/inlineSheet.js";
 import { PlanStep, TestPlan } from "./steps.js";
+import { runGenericStep } from "./generic/run.js";
+import { toastMark } from "./generic/messages.js";
+import type { Target } from "./generic/find.js";
+import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
 
 /**
  * THE PLAN EXECUTOR — runs a compiled test case.
@@ -33,6 +37,8 @@ export interface StepResult {
   args?: Record<string, unknown>;
   status: "ok" | "failed" | "skipped";
   detail?: string;
+  /** For generic steps: which locator strategy found the element (role+name, label, text, healer…). */
+  strategy?: string;
   ms: number;
 }
 
@@ -69,6 +75,13 @@ interface RunState {
   closed?: boolean;
   /** Whether the vendor accepted the counter offer in this plan. */
   counterOfferAccepted?: boolean;
+  /** remember{} values for expect_remembered (generic steps). */
+  memory: Record<string, { target: Target; text: string }>;
+  /** Toast-journal marks: before the previous step, and before this one. */
+  prevMark: number;
+  curMark: number;
+  /** The locator strategy the last generic step reported. */
+  lastStrategy?: string;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -100,6 +113,14 @@ function onSingleStage(s: RunState): boolean {
 
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
+  // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
+  // its inner step back through this function, so a domain step can be tried
+  // as a negative ("attempt publish") with the same healed code.
+  const generic = await runGenericStep(s, step, (inner) => runStep(s, inner));
+  if (generic) {
+    s.lastStrategy = generic.strategy;
+    return generic.detail;
+  }
   switch (step.step) {
     case "open_events_list": {
       await s.events.goto();
@@ -163,7 +184,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "expect_disabled":
     case "expect_enabled": {
-      const control = String(a.control ?? "").trim();
+      const control = String(a.control ?? a.label ?? a.name ?? a.text ?? "").trim();
       if (!control) throw new Error(`${step.step} needs a "control" — the visible text of the button, menu item or tab`);
       const want = new RegExp(control.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       // Some controls are named by their CONTENT, not their purpose: the
@@ -221,7 +242,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `the menu offers ${offered.length ? offered.join(", ") : "no menu (direct create)"}`;
     }
     case "expect_url_contains": {
-      const text = String(a.text ?? "");
+      const text = String(a.text ?? a.contains ?? "");
       if (!text) throw new Error('expect_url_contains needs a "text"');
       const url = s.page.url();
       if (!url.includes(text)) throw new Error(`URL is ${url} — does not contain "${text}"`);
@@ -512,7 +533,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return "the bid is submitted";
     case "invite_vendor": {
       if (onSingleStage(s)) {
-        const names = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
+        const asked = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
+        // Only QA test vendors may be named (real suppliers are never invited).
+        const qa = await qaVendorNames();
+        const names = allowRealVendors() ? asked : asked.filter((n) => isQaVendorName(n, qa));
         const added: string[] = [];
         for (const n of names) if (await s.single.addParticipant(n)) added.push(n);
         if (!added.length) await s.single.inviteVendor();
@@ -619,7 +643,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (!refusal && !published) await p.waitForTimeout(500);
       }
       if (refusal) {
-        if (a.because) expect(refusal).toContain(String(a.because));
+        // Say WHAT the app said when it is not what the case expects — a bare
+        // "expect(received).toContain(expected)" hid the one fact that matters
+        // (the product checks participants before the template, so a publish
+        // with neither is refused for participants).
+        const n = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        if (a.because && !n(refusal).includes(n(String(a.because)))) {
+          throw new Error(`publishing was blocked, but for a different reason — the app said "${refusal}"; the case expects "${a.because}"`);
+        }
         return `blocked: ${refusal}`;
       }
       if (published) {
@@ -667,6 +698,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     bidSubmitted: false,
     surrogateBids: [],
     awarded: false,
+    memory: {},
+    prevMark: 0,
+    curMark: 0,
   };
 
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)`);
@@ -682,8 +716,11 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       continue;
     }
     try {
+      s.prevMark = s.curMark;
+      s.curMark = await toastMark(s.page);
+      s.lastStrategy = undefined;
       const detail = await runStep(s, step);
-      results.push({ step: step.step, args: step.args, status: "ok", detail, ms: Date.now() - started });
+      results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
     } catch (err) {
       // Keep the first line AND the locator Playwright names in its call log.
