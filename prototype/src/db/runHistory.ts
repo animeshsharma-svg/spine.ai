@@ -10,6 +10,8 @@
 import type pg from "pg";
 import type { RunRecord } from "../runStore.js";
 import { spineDb } from "./spineDb.js";
+import { mapRunRecord, writeLedgerRun } from "./runLedger.js";
+import { defaultContext, enterService } from "./tenant.js";
 
 type Row = {
   kind: "case" | "journey-step" | "field-check";
@@ -79,7 +81,34 @@ export function resultRows(rec: RunRecord): Row[] {
   return rows;
 }
 
-async function writeRun(db: pg.Pool, rec: RunRecord): Promise<number> {
+/**
+ * The same run into the product tables (011–013), in the caller's transaction
+ * but behind a savepoint: if this part fails, the older copy above still
+ * commits exactly as before and the failure is only logged (npm run
+ * db:backfill or db:reconcile -- --fix picks the run up again).
+ */
+async function writeLedger(client: pg.PoolClient, rec: RunRecord, basis: "recorded" | "backfilled"): Promise<void> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await client.query("SAVEPOINT ledger");
+    try {
+      await enterService(client, basis === "recorded" ? "run writer" : "import-runs");
+      const ctx = await defaultContext(client);
+      const run = mapRunRecord(rec, { envTrigger: basis === "recorded" ? process.env.SPINE_TRIGGER : null });
+      await writeLedgerRun(client, ctx, run, { basis, force: basis === "recorded" });
+      await client.query("RELEASE SAVEPOINT ledger");
+      return;
+    } catch (e) {
+      await client.query("ROLLBACK TO SAVEPOINT ledger").catch(() => {});
+      await client.query("RELEASE SAVEPOINT ledger").catch(() => {});
+      // two saves of one catalog case racing for the same new version number: once more
+      if ((e as { code?: string }).code === "23505" && attempt === 1) continue;
+      console.warn(`[spine-db] run ${rec.id} not copied to the product tables: ${(e as Error).message}`);
+      return;
+    }
+  }
+}
+
+async function writeRun(db: pg.Pool, rec: RunRecord, basis: "recorded" | "backfilled" = "recorded"): Promise<number> {
   const rows = resultRows(rec);
   const client = await db.connect();
   try {
@@ -120,6 +149,7 @@ async function writeRun(db: pg.Pool, rec: RunRecord): Promise<number> {
         values,
       );
     }
+    await writeLedger(client, rec, basis);
     await client.query("COMMIT");
     return rows.length;
   } catch (e) {
@@ -145,7 +175,7 @@ export async function importRuns(recs: RunRecord[]): Promise<{ runs: number; res
   const db = await spineDb();
   if (!db) throw new Error("SPINE_DB_URL is not set, or Postgres is not running.");
   let results = 0;
-  for (const r of recs) results += await writeRun(db, r);
+  for (const r of recs) results += await writeRun(db, r, "backfilled");
   return { runs: recs.length, results };
 }
 

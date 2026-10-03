@@ -337,6 +337,6 @@ const spent = usageReport().totalUsd - before;
 console.log(JSON.stringify(summary, null, 1));
 const n = (k: string) => summary.filter((s) => s.verdict === k).length;
 log(`done in ${Math.round((Date.now() - T0) / 60000)} min — ${n("passed")} passed, ${n("failed")} failed, ${n("to confirm")} failed twice and wait for a person to confirm, ${n("couldn't tell")} couldn't tell, ${summary.filter((s) => s.ran === false).length} not run · model spend $${spent.toFixed(3)} (fast tier)`);
-await new Promise((r) => setTimeout(r, 3000));
+await (await import("../src/runStore.js")).whenRunsSaved();
 await closeSpineDb();
 process.exit(0);

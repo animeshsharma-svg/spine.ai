@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { recordLedger } from "./db/ledgerWriter.js";
+import { mapPoRun } from "./db/runLedger.js";
 
 /**
  * WHAT A PO RUN DID, KEPT PER RUN.
@@ -49,8 +51,11 @@ export interface PoRunRecord {
 export function savePoRun(record: PoRunRecord): void {
   try {
     mkdirSync(PO_RUN_DIR, { recursive: true });
-    writeFileSync(join(PO_RUN_DIR, `${record.runId}.json`), JSON.stringify(record, null, 2));
+    const text = JSON.stringify(record, null, 2);
+    writeFileSync(join(PO_RUN_DIR, `${record.runId}.json`), text);
     prune();
+    // a copy in spine.ai's database (best-effort, in the background; it outlives the pruning above)
+    void recordLedger(() => mapPoRun(record, text));
   } catch {
     // A run that cannot be filed must still be a run that happened.
   }

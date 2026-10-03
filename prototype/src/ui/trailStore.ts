@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { JourneyStep } from "./journeySteps.js";
+import { recordLedger } from "../db/ledgerWriter.js";
+import { mapTrail } from "../db/runLedger.js";
 
 /**
  * WHAT A JOURNEY DID, KEPT.
@@ -38,8 +40,11 @@ const KEPT = 60;
 export function saveTrail(record: JourneyTrailRecord): void {
   try {
     mkdirSync(TRAIL_DIR, { recursive: true });
-    writeFileSync(join(TRAIL_DIR, `${record.runId}.json`), JSON.stringify(record, null, 2));
+    const text = JSON.stringify(record, null, 2);
+    writeFileSync(join(TRAIL_DIR, `${record.runId}.json`), text);
     prune();
+    // a copy in spine.ai's database (best-effort, in the background; it outlives the pruning above)
+    void recordLedger(() => mapTrail(record, text));
   } catch {
     // A trail that cannot be written must never change a run's verdict.
   }

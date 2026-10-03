@@ -564,7 +564,7 @@ if (sumFile) {
 console.log(JSON.stringify({ batches: summary.batches, verified: summary.verified, stopped: summary.stopped }, null, 1));
 log(`done in ${summary.minutes} min${summary.stopped ? ` — ${summary.stopped}` : ""}`);
 log(`re-checked ${summary.verified.length} new failure(s): ${summary.verified.filter((v: any) => v.reproduced).length} failed again, ${summary.verified.filter((v: any) => v.reproduced === false).length} did not`);
-// Let the background database copies of the saved runs land before closing.
-await new Promise((r) => setTimeout(r, 4000));
+// Let the background database copies of the saved runs land before closing (bounded).
+await (await import("../src/runStore.js")).whenRunsSaved();
 await closeSpineDb();
 process.exit(0);

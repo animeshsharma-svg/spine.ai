@@ -584,7 +584,7 @@ async function dailyHistory(days: string[], companyId?: number): Promise<DailyHi
     const cases = new Map<string, { pass: number; fail: number; inconclusive: number }>();
     const r1 = await db.query(
       `SELECT (created_at AT TIME ZONE 'Asia/Kolkata')::date::text AS day, verdict, count(*)::int AS n
-         FROM results WHERE kind = 'case' AND created_at >= ($1::date - interval '1 day') ${co}
+         FROM results WHERE kind = 'case' AND case_id NOT LIKE '%·%' AND created_at >= ($1::date - interval '1 day') ${co}
         GROUP BY 1, 2`,
       params,
     );
@@ -631,8 +631,10 @@ async function trustTotals(companyId?: number, sinceDays = 30) {
   const co = companyId ? "AND company_id = $2" : "";
   try {
     const v = await db.query(
+      // A compiled plan's sub-steps (`<id>·act1`) are kept as rows of their own
+      // but are not cases: counting them inflated the denominator (db:reconcile).
       `SELECT verdict, count(*)::int AS n FROM results
-        WHERE kind = 'case' AND created_at >= now() - ($1 || ' days')::interval ${co} GROUP BY 1`,
+        WHERE kind = 'case' AND case_id NOT LIKE '%·%' AND created_at >= now() - ($1 || ' days')::interval ${co} GROUP BY 1`,
       params,
     );
     const t = { pass: 0, fail: 0, inconclusive: 0 };
@@ -647,7 +649,7 @@ async function trustTotals(companyId?: number, sinceDays = 30) {
                 count(*) FILTER (WHERE verdict IN ('pass','worked')) AS p,
                 count(*) FILTER (WHERE verdict IN ('fail','broken','refused')) AS x
            FROM results
-          WHERE kind IN ('case','field-check') AND verdict IN ('pass','worked','fail','broken','refused')
+          WHERE kind IN ('case','field-check') AND case_id NOT LIKE '%·%' AND verdict IN ('pass','worked','fail','broken','refused')
             AND created_at >= now() - ($1 || ' days')::interval ${co}
           GROUP BY 1, 2 HAVING count(*) >= 2) s`,
       params,
