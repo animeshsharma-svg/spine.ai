@@ -73,7 +73,36 @@ export interface FieldAssertion {
   samples: number;
   /** The same check written as a tester would write it (`humanize.ts`). */
   human?: HumanCase;
+  /**
+   * equals_request only: a path in the SAME response whose value, when set,
+   * is what the server stores instead of what was sent — a documented company
+   * setting, not a lost value. See SERVER_OVERRIDES.
+   */
+  overriddenBy?: { path: string; source: string };
+  /**
+   * Set when the check turned out to assert something the app does not
+   * promise (learned from one client's data). The id is kept so its history
+   * stays readable; it is no longer judged, and says why.
+   */
+  retired?: string;
 }
+
+/**
+ * Echoes the server deliberately does not keep.
+ *
+ * A column's precision is replaced by the stage's `widget_precision` whenever
+ * the company sets one (procol-backend app/controllers/concerns/
+ * trade_template_helper.rb:1816-1829). PROCOL DEMO's is 4 — the same 4 the
+ * journey sends — so "comes back as sent" passed there by coincidence and
+ * failed on every run for Demo Account 2, whose setting is 2.
+ */
+export const SERVER_OVERRIDES: Array<{ pathEnds: string; overriddenBy: string; source: string }> = [
+  {
+    pathEnds: "configuration.precision",
+    overriddenBy: "trade_config.widget_precision",
+    source: "trade_template_helper.rb:1816-1829 — the company's widget precision replaces every column's",
+  },
+];
 
 export interface AssertionResult {
   id: string;
@@ -321,7 +350,12 @@ function judge(a: FieldAssertion, ctx: { data: unknown; status: number; ms: numb
       return r(bad === undefined, bad === undefined ? show(nums[0]) : show(bad), { seen: nums[0], bad });
     }
     case "equals_request": {
-      const want = getAt(ctx.body, a.ref ?? "");
+      let want = getAt(ctx.body, a.ref ?? "");
+      // A documented server-side replacement wins over what was sent.
+      if (a.overriddenBy) {
+        const o = getAt(ctx.data, a.overriddenBy.path);
+        if (o !== MISSING && o !== undefined && o !== null && !Array.isArray(o)) want = o;
+      }
       if (want === MISSING || want === undefined || Array.isArray(want))
         return r(null, "this run's request did not carry that field", { reason: "this run's request did not include that field" });
       const same = (v: unknown) => JSON.stringify(v) === JSON.stringify(want);
@@ -382,7 +416,7 @@ export function evaluateStepAssertions(
   // about the success body, so only the status check is meaningful there.
   const list = rec.verdict === "worked" ? entry.assertions : entry.assertions.filter((a) => a.op === "status_2xx");
   const ctx = { data, status: rec.status ?? 0, ms: rec.ms ?? 0, body: rec.call.body, made };
-  const results = list.map((a) => judge(a, ctx));
+  const results = list.filter((a) => !a.retired).map((a) => judge(a, ctx));
   return {
     total: results.length,
     passed: results.filter((x) => x.pass === true).length,
@@ -515,6 +549,9 @@ const humanPath = (p: string) => `\`${p}\``;
  * drowning the report: ids, statuses, names, money and times are asserted
  * before anything else, and free text is never typed beyond "is a string".
  */
+/** The lowest response-time limit a field check is given (see inferStep). */
+export const LATENCY_FLOOR_MS = 10_000;
+
 export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): Omit<FieldAssertion, "id">[] {
   const endpoint = endpointOf(samples[0].method, samples[0].path);
   const n = samples.length;
@@ -524,7 +561,12 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
   const oks = samples.filter((s) => s.status >= 200 && s.status < 300);
   push({ path: "", op: "status_2xx", title: "The request succeeds", expected: "HTTP 2xx", why: "Every later check reads a success body; a refusal here is the headline, not a field detail.", severity: "critical" });
   const maxMs = Math.max(...samples.map((s) => s.ms || 0));
-  const budget = Math.min(30_000, Math.max(5_000, Math.ceil((maxMs * 3) / 1000) * 1000));
+  // Floor 10 s: across 1,560 timed journey calls on UAT (2026-09-02 → 10-03)
+  // single answers of 5.2–5.4 s turned up on light, sub-second calls (sign-in,
+  // opening a bid) with nothing wrong — the shared environment under load. A
+  // 5 s floor learned from ~11 samples made those one-offs read as slowdowns
+  // and flip the check. 10 s still flags any call several times its normal time.
+  const budget = Math.min(30_000, Math.max(LATENCY_FLOOR_MS, Math.ceil((maxMs * 3) / 1000) * 1000));
   push({ path: "", op: "max_ms", value: budget, title: `Answers within ${budget / 1000} s`, expected: `≤ ${budget} ms (slowest observed: ${maxMs} ms)`, why: "A regression that makes a core call several times slower is a defect even when the body is right.", severity: "minor" });
 
   const bodies = oks.map((s) => s.response).filter((b) => b !== null && b !== undefined && !(typeof b === "object" && (b as any).note && (b as any).keys));
@@ -569,7 +611,22 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
             return matches(resolveAll(s.response, f.path).filter((x) => x !== MISSING), want);
           });
           if (holds) {
-            echoes.push({ step, endpoint, samples: n, path: f.path, op: "equals_request", ref: reqPath, title: `${humanPath(f.path)} comes back exactly as sent`, expected: `equals the request's ${humanPath(reqPath)}`, why: "The server stored what the buyer sent — the core promise of a create or update, and what a Postman test on the echo proves.", severity: "critical" });
+            const ov = SERVER_OVERRIDES.find((x) => f.path.endsWith(x.pathEnds));
+            echoes.push({
+              step,
+              endpoint,
+              samples: n,
+              path: f.path,
+              op: "equals_request",
+              ref: reqPath,
+              title: `${humanPath(f.path)} comes back exactly as sent`,
+              expected: ov
+                ? `equals the request's ${humanPath(reqPath)} — or the company's ${humanPath(ov.overriddenBy)} when it has one`
+                : `equals the request's ${humanPath(reqPath)}`,
+              why: "The server stored what the buyer sent — the core promise of a create or update, and what a Postman test on the echo proves.",
+              severity: "critical",
+              ...(ov ? { overriddenBy: { path: ov.overriddenBy, source: ov.source } } : {}),
+            });
             break;
           }
         }

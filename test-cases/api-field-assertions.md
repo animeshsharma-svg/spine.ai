@@ -1148,12 +1148,12 @@ Step `add_stage_pricing` (buyer) · Postman: event create › Template Pricing �
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 16 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `add_stage_pricing`
 
-#### API-FPRICESTG-002 — Add the pricing round answers within 9 seconds
+#### API-FPRICESTG-002 — Add the pricing round answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Add the pricing round".
 - **Steps.** 1. As the buyer, do “Add the pricing round” in the API journey (`POST /trade/template_input`). 2. Time the answer.
-- **Expected.** The app answers within 9 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 9000`, learned from 16 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 16 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `add_stage_pricing`
 
 #### API-FPRICESTG-003 — Add the pricing round returns readable data
@@ -1212,14 +1212,13 @@ Step `add_stage_pricing` (buyer) · Postman: event create › Template Pricing �
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `equals_request sheets.global_price_components.widgets[*].configuration.mode_type ← widgets.global_price_components[0].configuration.mode_type`, learned from 16 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `add_stage_pricing`
 
-#### API-FPRICESTG-006 — Each column's column's settings' decimal precision is saved exactly as sent
-- **Why it matters.** The server stored what the buyer sent — the core promise of a create or update, and what a Postman test on the echo proves.
+#### API-FPRICESTG-006 — Each price column's decimal precision is saved as sent, or as the company's setting
+- **Why it matters.** The server stored what the buyer sent — the core promise of a create or update, and what a Postman test on the echo proves. One deliberate exception: when the company has its own decimal-precision setting, the app replaces every column's precision with it — PROCOL DEMO's setting is 4, Demo Account 2's is 2.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Add the pricing round".
-- **Steps.** 1. As the buyer, do “Add the pricing round” in the API journey (`POST /trade/template_input`), noting the value sent for it. 2. Compare each column's column's settings' decimal precision in the app's response with what was sent.
-- **Expected.** Each column's column's settings' decimal precision is exactly what the buyer sent.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `equals_request sheets.global_price_components.widgets[*].configuration.precision ← widgets.global_price_components[0].configuration.precision`, learned from 16 real response(s).
+- **Steps.** 1. As the buyer, do “Add the pricing round” in the API journey (`POST /trade/template_input`), noting the precision sent for the price columns. 2. Read the company's decimal-precision setting in the same reply. 3. Compare each price column's precision in the reply.
+- **Expected.** Each price column has the precision the buyer sent — or, when the company has its own decimal-precision setting, that setting.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `equals_request sheets.global_price_components.widgets[*].configuration.precision ← widgets.global_price_components[0].configuration.precision` (or `trade_config.widget_precision` when set — procol-backend trade_template_helper.rb:1816-1829), learned from 16 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `add_stage_pricing`
-
 #### API-FPRICESTG-007 — The price's column's settings' prefix is saved exactly as sent
 - **Why it matters.** The server stored what the buyer sent — the core promise of a create or update, and what a Postman test on the echo proves.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Add the pricing round".
@@ -2620,12 +2619,12 @@ Step `vendor_open_pricing` (vendor) · Postman: vendor technical and bid › tra
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 11 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `vendor_open_pricing`
 
-#### API-FVPRICE-002 — Open the pricing round as the vendor answers within 5 seconds
+#### API-FVPRICE-002 — Open the pricing round as the vendor answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Open the pricing round as the vendor".
 - **Steps.** 1. As the vendor, do “Open the pricing round as the vendor” in the API journey (`GET /trade/:id`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 11 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 11 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `vendor_open_pricing`
 
 #### API-FVPRICE-003 — Open the pricing round as the vendor returns readable data
@@ -3104,12 +3103,12 @@ Step `vendor_open_technical` (vendor) · Postman: vendor technical and bid › g
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 15 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `vendor_open_technical`
 
-#### API-FVTECH-002 — Open the technical round as the vendor answers within 9 seconds
+#### API-FVTECH-002 — Open the technical round as the vendor answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (Technical / RFP only, Technical + RFQ, Technical + Auction), at the step "Open the technical round as the vendor".
 - **Steps.** 1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Time the answer.
-- **Expected.** The app answers within 9 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 9000`, learned from 15 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 15 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `vendor_open_technical`
 
 #### API-FVTECH-003 — Open the technical round as the vendor returns readable data
@@ -3784,12 +3783,12 @@ Step `tech_answer` (vendor) · Postman: vendor technical and bid › Fill Techni
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 15 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `tech_answer`
 
-#### API-FTANSWER-002 — Answer the technical form answers within 5 seconds
+#### API-FTANSWER-002 — Answer the technical form answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (Technical / RFP only, Technical + RFQ, Technical + Auction), at the step "Answer the technical form".
 - **Steps.** 1. As the vendor, do “Answer the technical form” in the API journey (`PUT /template_responses/:id/create_page_responses`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 15 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 15 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `tech_answer`
 
 #### API-FTANSWER-003 — Answer the technical form returns readable data
@@ -4040,12 +4039,12 @@ Step `bid_create` (vendor) · Postman: vendor technical and bid › create bid �
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 11 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `bid_create`
 
-#### API-FBIDNEW-002 — Open a bid on the pricing round answers within 5 seconds
+#### API-FBIDNEW-002 — Open a bid on the pricing round answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Open a bid on the pricing round".
 - **Steps.** 1. As the vendor, do “Open a bid on the pricing round” in the API journey (`POST /v1/bids`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 11 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 11 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `bid_create`
 
 #### API-FBIDNEW-003 — Open a bid on the pricing round returns readable data
@@ -4084,12 +4083,12 @@ Step `bid_products` (vendor) · Postman: vendor technical and bid › create bid
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 11 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `bid_products`
 
-#### API-FBIDPRICE-002 — Price the line item answers within 5 seconds
+#### API-FBIDPRICE-002 — Price the line item answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Price the line item".
 - **Steps.** 1. As the vendor, do “Price the line item” in the API journey (`POST /v1/bids/:id/create_bid_products`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 11 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 11 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `bid_products`
 
 #### API-FBIDPRICE-003 — Price the line item returns readable data
@@ -4128,12 +4127,12 @@ Step `bid_submit` (vendor) · Postman: vendor technical and bid › submit bid �
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 11 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `bid_submit`
 
-#### API-FBIDSUB-002 — Submit the bid answers within 5 seconds
+#### API-FBIDSUB-002 — Submit the bid answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A vendor walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Submit the bid".
 - **Steps.** 1. As the vendor, do “Submit the bid” in the API journey (`PATCH /v1/bids/:id`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 11 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 11 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `bid_submit`
 
 #### API-FBIDSUB-003 — Submit the bid returns readable data
@@ -4172,12 +4171,12 @@ Step `surrogate_tech` (buyer) · Postman: F3_surrogate_bid › technical · seen
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 1 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `surrogate_tech`
 
-#### API-FSURTECH-002 — Enter the vendor's technical response on their behalf answers within 5 seconds
+#### API-FSURTECH-002 — Enter the vendor's technical response on their behalf answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (Technical + RFQ), at the step "Enter the vendor's technical response on their behalf".
 - **Steps.** 1. As the buyer, do “Enter the vendor's technical response on their behalf” in the API journey (`POST /template_responses/create_surrogate_response`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 1 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 1 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `surrogate_tech`
 
 #### API-FSURTECH-003 — Enter the vendor's technical response on their behalf returns readable data
@@ -4216,12 +4215,12 @@ Step `surrogate_rfq` (buyer) · Postman: F3_surrogate_bid › rfq · seen in: RF
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 4 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `surrogate_rfq`
 
-#### API-FSURRFQ-002 — Enter the vendor's price on their behalf answers within 5 seconds
+#### API-FSURRFQ-002 — Enter the vendor's price on their behalf answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ), at the step "Enter the vendor's price on their behalf".
 - **Steps.** 1. As the buyer, do “Enter the vendor's price on their behalf” in the API journey (`POST /bids/template_input`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 4 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 4 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `surrogate_rfq`
 
 #### API-FSURRFQ-003 — Enter the vendor's price on their behalf returns readable data
@@ -4700,12 +4699,12 @@ Step `counter_offer` (buyer) · Postman: F4_Counter Offer · seen in: RFQ only �
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 4 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `counter_offer`
 
-#### API-FCOUNTER-002 — Counter the vendor's price answers within 5 seconds
+#### API-FCOUNTER-002 — Counter the vendor's price answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only), at the step "Counter the vendor's price".
 - **Steps.** 1. As the buyer, do “Counter the vendor's price” in the API journey (`POST /additional_request/raise_additional_request`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 4 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 4 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `counter_offer`
 
 #### API-FCOUNTER-003 — Counter the vendor's price returns readable data
@@ -4744,12 +4743,12 @@ Step `convert_auction` (buyer) · Postman: F5_convert to auction · seen in: RFQ
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 4 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `convert_auction`
 
-#### API-FCONVERT-002 — Convert the pricing round into a live auction answers within 5 seconds
+#### API-FCONVERT-002 — Convert the pricing round into a live auction answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only), at the step "Convert the pricing round into a live auction".
 - **Steps.** 1. As the buyer, do “Convert the pricing round into a live auction” in the API journey (`POST /trade/move_to_auction`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 4 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 4 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `convert_auction`
 
 #### API-FCONVERT-003 — Convert the pricing round into a live auction returns readable data
@@ -5732,12 +5731,12 @@ Step `eval_score` (evaluator) · Postman: evaluation › create evaluations · s
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 10 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `eval_score`
 
-#### API-FESCORE-002 — Score the vendor's technical response answers within 7 seconds
+#### API-FESCORE-002 — Score the vendor's technical response answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A evaluator walking the API journey (Technical / RFP only, Technical + RFQ, Technical + Auction), at the step "Score the vendor's technical response".
 - **Steps.** 1. As the evaluator, do “Score the vendor's technical response” in the API journey (`POST /evaluations`). 2. Time the answer.
-- **Expected.** The app answers within 7 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 7000`, learned from 10 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 10 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `eval_score`
 
 #### API-FESCORE-003 — Score the vendor's technical response returns readable data
@@ -5776,12 +5775,12 @@ Step `eval_submit` (evaluator) · Postman: evaluation › submit evaluation · s
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 5 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `eval_submit`
 
-#### API-FESUBMIT-002 — Submit the evaluation answers within 8 seconds
+#### API-FESUBMIT-002 — Submit the evaluation answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A evaluator walking the API journey (Technical / RFP only, Technical + Auction, Technical + RFQ), at the step "Submit the evaluation".
 - **Steps.** 1. As the evaluator, do “Submit the evaluation” in the API journey (`PATCH /evaluations/submit`). 2. Time the answer.
-- **Expected.** The app answers within 8 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 8000`, learned from 5 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 5 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `eval_submit`
 
 #### API-FESUBMIT-003 — Submit the evaluation returns readable data
@@ -6260,12 +6259,12 @@ Step `award_proposal` (buyer) · Postman: Awarding › create proposal · seen i
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 15 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `award_proposal`
 
-#### API-FAWDPROP-002 — Open an award proposal answers within 9 seconds
+#### API-FAWDPROP-002 — Open an award proposal answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Open an award proposal".
 - **Steps.** 1. As the buyer, do “Open an award proposal” in the API journey (`POST /proposal`). 2. Time the answer.
-- **Expected.** The app answers within 9 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 9000`, learned from 15 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 15 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `award_proposal`
 
 #### API-FAWDPROP-003 — Open an award proposal returns readable data
@@ -7228,12 +7227,12 @@ Step `award_workflow` (buyer) · Postman: Awarding › get approval flows · see
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 15 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `award_workflow`
 
-#### API-FAWDFLOW-002 — Read the approval workflow for the award answers within 7 seconds
+#### API-FAWDFLOW-002 — Read the approval workflow for the award answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Read the approval workflow for the award".
 - **Steps.** 1. As the buyer, do “Read the approval workflow for the award” in the API journey (`GET /proposal/:id/approval_workflows`). 2. Time the answer.
-- **Expected.** The app answers within 7 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 7000`, learned from 15 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 15 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `award_workflow`
 
 #### API-FAWDFLOW-003 — Read the approval workflow for the award returns readable data
@@ -7644,14 +7643,13 @@ Step `award_workflow` (buyer) · Postman: Awarding › get approval flows · see
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `type_is [*].approval_type.key ["string"]`, learned from 15 real response(s).
 - **Trace.** P1 · automate · `apiAssertions.ts` · `award_workflow`
 
-#### API-FAWDFLOW-059 — Each 's event's settings' 'stop expiry during approval' setting is returned
-- **Why it matters.** It was present in all 15 real response(s); a client reading it would break if it vanished.
+#### API-FAWDFLOW-059 — (retired) Each approval flow's "stop expiry during approval" setting is returned
+- **Why it matters.** Retired: the app does not promise this setting on every approval flow. A flow without it is treated as "off", and only some ways of creating a flow write it — Demo Account 2 has such a flow, so the check failed there on every run while PROCOL DEMO passed. Where the setting is present, API-FAWDFLOW-060 still checks that it is a yes/no value.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Read the approval workflow for the award".
-- **Steps.** 1. As the buyer, do “Read the approval workflow for the award” in the API journey (`GET /proposal/:id/approval_workflows`). 2. Look at each 's event's settings' 'stop expiry during approval' setting in the app's response.
-- **Expected.** The response includes each 's event's settings' 'stop expiry during approval' setting.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `exists [*].config.stop_expiry_in_approval`, learned from 15 real response(s).
-- **Trace.** P1 · automate · `apiAssertions.ts` · `award_workflow`
-
+- **Steps.** 1. As the buyer, do “Read the approval workflow for the award” in the API journey (`GET /proposal/:id/approval_workflows`). 2. Look at each approval flow's "stop expiry during approval" setting in the app's response.
+- **Expected.** Not checked any more: a flow may leave the setting out, and that means "off".
+- **Oracle.** Retired 2026-10-03 — `exists [*].config.stop_expiry_in_approval` was learned from 15 PROCOL DEMO responses only; procol-backend reads the key with `dig` and a missing key as false (approval_request.rb:155, approval_step_helper.rb:6, approval_request_view.rb:820), and only tr_matrix/approval_creation_service.rb:79 and the bulk-upload params write it.
+- **Trace.** P1 · manual · `apiAssertions.ts` · `award_workflow`
 #### API-FAWDFLOW-060 — Each 's event's settings' 'stop expiry during approval' setting is a yes/no value
 - **Why it matters.** A type change (a number turning into a string, an object into an array) breaks every consumer silently.
 - **Setup.** A buyer walking the API journey (RFQ only, Technical + RFQ, Technical + Auction), at the step "Read the approval workflow for the award".
@@ -8196,12 +8194,12 @@ Step `version` (buyer) · Postman: F2_versioning · seen in: RFQ only · 4 sampl
 - **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `status_2xx`, learned from 4 real response(s).
 - **Trace.** P0 · automate · `apiAssertions.ts` · `version`
 
-#### API-FVERSION-002 — Issue a new version of the event answers within 5 seconds
+#### API-FVERSION-002 — Issue a new version of the event answers within 10 seconds
 - **Why it matters.** A regression that makes a core call several times slower is a defect even when the body is right.
 - **Setup.** A buyer walking the API journey (RFQ only), at the step "Issue a new version of the event".
 - **Steps.** 1. As the buyer, do “Issue a new version of the event” in the API journey (`POST /item_versions`). 2. Time the answer.
-- **Expected.** The app answers within 5 seconds.
-- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 5000`, learned from 4 real response(s).
+- **Expected.** The app answers within 10 seconds.
+- **Oracle.** Checked automatically on every API journey run; the report shows what actually came back. Engine check: `max_ms 10000`, learned from 4 real response(s).
 - **Trace.** P2 · automate · `apiAssertions.ts` · `version`
 
 #### API-FVERSION-003 — Issue a new version of the event returns readable data

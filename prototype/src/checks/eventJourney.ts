@@ -620,6 +620,31 @@ async function otpLogin(j: Journey, identity: any, idBody: Record<string, unknow
   }
 }
 
+/**
+ * Re-read the buyer's newest web-console session from Procol's database
+ * (SELECT only) and put it into the SAME client object, so everything holding
+ * that client — the cases after the journey included — uses it. Returns
+ * undefined when it was renewed, else why it could not be.
+ */
+async function renewBuyerSession(j: Journey): Promise<string | undefined> {
+  if (!j.s.resolveClient || j.companyId === undefined) return "the database is not reachable from here";
+  const api = j.client.ctx.buyerApi as { tokens?: unknown } | undefined;
+  if (!api || typeof api !== "object" || !("tokens" in api)) return "the buyer client cannot take a new session";
+  try {
+    const resolved = await withWatchdog(j.s.resolveClient(j.companyId), 30_000, "re-reading the buyer's session");
+    if (!resolved?.buyer) return "the database has no session for this company's buyer";
+    const fresh = await j.s.clientFromSession(resolved.buyer, { app: "console", companyId: j.companyId, baseURL: j.baseURL });
+    try {
+      api.tokens = (fresh as { tokens?: unknown }).tokens;
+    } finally {
+      await fresh.dispose?.().catch?.(() => {});
+    }
+    return undefined;
+  } catch (e) {
+    return clean(e instanceof Error ? e.message : String(e));
+  }
+}
+
 // ── the steps ──────────────────────────────────────────────────────────────
 
 const buyerLogin: StepSpec = {
@@ -628,7 +653,23 @@ const buyerLogin: StepSpec = {
   expected: (j) =>
     `The app accepts the buyer's existing web-console session for ${j.company} (read from the database, so no one-time code is sent) and answers with the dashboard configuration.`,
   run: async (j) => {
-    const { call, reply } = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.dashboardConfiguration());
+    let { call, reply } = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.dashboardConfiguration());
+    // The session can be signed out between the client being opened and this
+    // step (every 401 the app renders marks the session in_active —
+    // json_helpers.rb:31-35 — so one wrong-app call anywhere ends it). Read
+    // the newest session from the database once and try again; say so.
+    let renewed: string | undefined;
+    let firstTry: JourneyCall | undefined;
+    if (reply.status === 401) {
+      const why = await renewBuyerSession(j);
+      if (why === undefined) {
+        const first = call;
+        ({ call, reply } = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.dashboardConfiguration()));
+        renewed = `The first try was refused as signed out (HTTP 401); the newest session was read from the database again and the second try ${reply.ok ? "was accepted" : "was refused too"}.`;
+        if (!reply.ok) return { call, alsoCalled: [first], reply, hint: `${renewed} Someone from ${j.company} must sign into the web console so a fresh session exists; then run this again.` };
+        firstTry = first;
+      }
+    }
     if (!reply.ok) {
       return { call, reply, hint: `Someone from ${j.company} must sign into the web console so a fresh session exists; then run this again.` };
     }
@@ -639,8 +680,9 @@ const buyerLogin: StepSpec = {
     j.actors.buyer = true;
     return {
       call,
+      ...(firstTry ? { alsoCalled: [firstTry] } : {}),
       reply,
-      actual: `Using ${name ? `${name}'s` : "the buyer's"} web-console session for ${j.company} — the app accepted it${role ? ` (role: ${role})` : ""}.`,
+      actual: `Using ${name ? `${name}'s` : "the buyer's"} web-console session for ${j.company} — the app accepted it${role ? ` (role: ${role})` : ""}.${renewed ? ` ${renewed}` : ""}`,
       produced: user.uuid ? { buyerUserUuid: String(user.uuid) } : undefined,
     };
   },
@@ -1692,7 +1734,35 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
   } catch (e) {
     fired = { reply: { status: 0, ok: false, data: null, errorMessage: e instanceof Error ? e.message : String(e), ms: Date.now() - t } };
   }
+  // SIGNED OUT UNDER THE JOURNEY'S FEET. Any 401 the app renders with this
+  // session — from ANY run sharing it, e.g. a buyer-session call to a
+  // vendor-only API — marks it in_active (json_helpers.rb:31-35), and the
+  // next buyer step answers "Authentication failed". Seen live 2026-10-03
+  // 17:05: another run's 401 at :05 signed this journey out at :22, between
+  // step 1 and step 2. That refusal comes from authenticate_accessor, before
+  // the action runs, so nothing was applied: read the newest session once and
+  // send the step again. The first try stays on the record.
+  let signedOut: string | undefined;
+  if (
+    STEP_META[spec.kind].actor === "buyer" &&
+    spec.kind !== "buyer_login" &&
+    fired.reply?.status === 401 &&
+    /authentication failed/i.test(String(fired.reply.errorMessage ?? ""))
+  ) {
+    const why = await renewBuyerSession(j);
+    if (why === undefined) {
+      const first = fired;
+      try {
+        fired = await spec.run(j, ev);
+      } catch (e) {
+        fired = { reply: { status: 0, ok: false, data: null, errorMessage: e instanceof Error ? e.message : String(e), ms: Date.now() - t } };
+      }
+      fired = { ...fired, alsoCalled: [...(first.call ? [first.call] : []), ...(first.alsoCalled ?? []), ...(fired.alsoCalled ?? [])] };
+      signedOut = `The first try was refused as signed out (HTTP 401 “Authentication failed”) — the buyer's session had been ended elsewhere; the newest session was read from the database again and the step was sent once more.`;
+    } else signedOut = `The buyer's session had been ended elsewhere (HTTP 401 “Authentication failed”) and could not be renewed: ${why}.`;
+  }
   finish(rec, fired);
+  if (signedOut) rec.actual = `${rec.actual ?? ""} ${signedOut}`.trim();
   // Keep the body for the report and the catalog build, then run the
   // field-level checks against the FULL live reply (not the trimmed copy),
   // with the ids the earlier steps produced for the cross-step checks.

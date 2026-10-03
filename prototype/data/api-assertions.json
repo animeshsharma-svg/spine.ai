@@ -1525,18 +1525,18 @@
           "id": "API-FPRICESTG-002",
           "path": "",
           "op": "max_ms",
-          "value": 9000,
-          "title": "Answers within 9 s",
-          "expected": "≤ 9000 ms (slowest observed: 2706 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 2706 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "add_stage_pricing",
           "endpoint": "POST /trade/template_input",
           "samples": 16,
           "human": {
-            "title": "Add the pricing round answers within 9 seconds",
+            "title": "Add the pricing round answers within 10 seconds",
             "steps": "1. As the buyer, do “Add the pricing round” in the API journey (`POST /trade/template_input`). 2. Time the answer.",
-            "expected": "The app answers within 9 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -1673,13 +1673,17 @@
           "op": "equals_request",
           "ref": "widgets.global_price_components[0].configuration.precision",
           "title": "`sheets.global_price_components.widgets[*].configuration.precision` comes back exactly as sent",
-          "expected": "equals the request's `widgets.global_price_components[0].configuration.precision`",
+          "expected": "equals the request's `widgets.global_price_components[0].configuration.precision` — or the company's `trade_config.widget_precision` when it has one",
           "why": "The server stored what the buyer sent — the core promise of a create or update, and what a Postman test on the echo proves.",
           "severity": "critical",
           "human": {
-            "title": "Each column's column's settings' decimal precision is saved exactly as sent",
-            "steps": "1. As the buyer, do “Add the pricing round” in the API journey (`POST /trade/template_input`), noting the value sent for it. 2. Compare each column's column's settings' decimal precision in the app's response with what was sent.",
-            "expected": "Each column's column's settings' decimal precision is exactly what the buyer sent."
+            "title": "Each price column's decimal precision is saved as sent, or as the company's setting",
+            "steps": "1. As the buyer, do “Add the pricing round” in the API journey (`POST /trade/template_input`), noting the precision sent for the price columns. 2. Read the company's decimal-precision setting in the same reply. 3. Compare each price column's precision in the reply.",
+            "expected": "Each price column has the precision the buyer sent — or, when the company has its own decimal-precision setting, that setting (the app replaces every column's precision with it)."
+          },
+          "overriddenBy": {
+            "path": "trade_config.widget_precision",
+            "source": "trade_template_helper.rb:1816-1829 — the company's widget precision replaces every column's"
           }
         },
         {
@@ -4900,18 +4904,18 @@
           "id": "API-FVPRICE-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 966 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 966 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "vendor_open_pricing",
           "endpoint": "GET /trade/:id",
           "samples": 11,
           "human": {
-            "title": "Open the pricing round as the vendor answers within 5 seconds",
+            "title": "Open the pricing round as the vendor answers within 10 seconds",
             "steps": "1. As the vendor, do “Open the pricing round as the vendor” in the API journey (`GET /trade/:id`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -6026,18 +6030,18 @@
           "id": "API-FBIDNEW-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 747 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 747 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "bid_create",
           "endpoint": "POST /v1/bids",
           "samples": 11,
           "human": {
-            "title": "Open a bid on the pricing round answers within 5 seconds",
+            "title": "Open a bid on the pricing round answers within 10 seconds",
             "steps": "1. As the vendor, do “Open a bid on the pricing round” in the API journey (`POST /v1/bids`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -6120,18 +6124,18 @@
           "id": "API-FBIDPRICE-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 539 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 539 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "bid_products",
           "endpoint": "POST /v1/bids/:id/create_bid_products",
           "samples": 11,
           "human": {
-            "title": "Price the line item answers within 5 seconds",
+            "title": "Price the line item answers within 10 seconds",
             "steps": "1. As the vendor, do “Price the line item” in the API journey (`POST /v1/bids/:id/create_bid_products`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -6216,18 +6220,18 @@
           "id": "API-FBIDSUB-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 879 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 879 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "bid_submit",
           "endpoint": "PATCH /v1/bids/:id",
           "samples": 11,
           "human": {
-            "title": "Submit the bid answers within 5 seconds",
+            "title": "Submit the bid answers within 10 seconds",
             "steps": "1. As the vendor, do “Submit the bid” in the API journey (`PATCH /v1/bids/:id`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -6312,18 +6316,18 @@
           "id": "API-FCOUNTER-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 587 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 587 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "counter_offer",
           "endpoint": "POST /additional_request/raise_additional_request",
           "samples": 4,
           "human": {
-            "title": "Counter the vendor's price answers within 5 seconds",
+            "title": "Counter the vendor's price answers within 10 seconds",
             "steps": "1. As the buyer, do “Counter the vendor's price” in the API journey (`POST /additional_request/raise_additional_request`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -6408,18 +6412,18 @@
           "id": "API-FCONVERT-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 1042 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 1042 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "convert_auction",
           "endpoint": "POST /trade/move_to_auction",
           "samples": 4,
           "human": {
-            "title": "Convert the pricing round into a live auction answers within 5 seconds",
+            "title": "Convert the pricing round into a live auction answers within 10 seconds",
             "steps": "1. As the buyer, do “Convert the pricing round into a live auction” in the API journey (`POST /trade/move_to_auction`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -7522,18 +7526,18 @@
           "id": "API-FAWDPROP-002",
           "path": "",
           "op": "max_ms",
-          "value": 9000,
-          "title": "Answers within 9 s",
-          "expected": "≤ 9000 ms (slowest observed: 2762 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 2762 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "award_proposal",
           "endpoint": "POST /proposal",
           "samples": 15,
           "human": {
-            "title": "Open an award proposal answers within 9 seconds",
+            "title": "Open an award proposal answers within 10 seconds",
             "steps": "1. As the buyer, do “Open an award proposal” in the API journey (`POST /proposal`). 2. Time the answer.",
-            "expected": "The app answers within 9 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -9717,18 +9721,18 @@
           "id": "API-FAWDFLOW-002",
           "path": "",
           "op": "max_ms",
-          "value": 7000,
-          "title": "Answers within 7 s",
-          "expected": "≤ 7000 ms (slowest observed: 2254 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 2254 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "award_workflow",
           "endpoint": "GET /proposal/:id/approval_workflows",
           "samples": 15,
           "human": {
-            "title": "Read the approval workflow for the award answers within 7 seconds",
+            "title": "Read the approval workflow for the award answers within 10 seconds",
             "steps": "1. As the buyer, do “Read the approval workflow for the award” in the API journey (`GET /proposal/:id/approval_workflows`). 2. Time the answer.",
-            "expected": "The app answers within 7 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -10683,7 +10687,8 @@
             "title": "Each 's event's settings' 'stop expiry during approval' setting is returned",
             "steps": "1. As the buyer, do “Read the approval workflow for the award” in the API journey (`GET /proposal/:id/approval_workflows`). 2. Look at each 's event's settings' 'stop expiry during approval' setting in the app's response.",
             "expected": "The response includes each 's event's settings' 'stop expiry during approval' setting."
-          }
+          },
+          "retired": "Wrong expectation, learned from PROCOL DEMO only: the app does not promise this key. It reads config.stop_expiry_in_approval with dig() and treats a missing key as false (approval_request.rb:155, approval_step_helper.rb:6, approval_request_view.rb:820 COALESCE(…, false)); only some creation paths write it (tr_matrix/approval_creation_service.rb:79). Demo Account 2 has a flow without it. When present, API-FAWDFLOW-060 still checks it is true/false."
         },
         {
           "id": "API-FAWDFLOW-060",
@@ -11920,18 +11925,18 @@
           "id": "API-FVERSION-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 1075 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 1075 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "version",
           "endpoint": "POST /item_versions",
           "samples": 4,
           "human": {
-            "title": "Issue a new version of the event answers within 5 seconds",
+            "title": "Issue a new version of the event answers within 10 seconds",
             "steps": "1. As the buyer, do “Issue a new version of the event” in the API journey (`POST /item_versions`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -13254,18 +13259,18 @@
           "id": "API-FVTECH-002",
           "path": "",
           "op": "max_ms",
-          "value": 9000,
-          "title": "Answers within 9 s",
-          "expected": "≤ 9000 ms (slowest observed: 2912 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 2912 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "vendor_open_technical",
           "endpoint": "GET /trade/:id",
           "samples": 15,
           "human": {
-            "title": "Open the technical round as the vendor answers within 9 seconds",
+            "title": "Open the technical round as the vendor answers within 10 seconds",
             "steps": "1. As the vendor, do “Open the technical round as the vendor” in the API journey (`GET /trade/:id`). 2. Time the answer.",
-            "expected": "The app answers within 9 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -14821,18 +14826,18 @@
           "id": "API-FTANSWER-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 1316 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 1316 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "tech_answer",
           "endpoint": "PUT /template_responses/:id/create_page_responses",
           "samples": 15,
           "human": {
-            "title": "Answer the technical form answers within 5 seconds",
+            "title": "Answer the technical form answers within 10 seconds",
             "steps": "1. As the vendor, do “Answer the technical form” in the API journey (`PUT /template_responses/:id/create_page_responses`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -16562,18 +16567,18 @@
           "id": "API-FESCORE-002",
           "path": "",
           "op": "max_ms",
-          "value": 7000,
-          "title": "Answers within 7 s",
-          "expected": "≤ 7000 ms (slowest observed: 2085 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 2085 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "eval_score",
           "endpoint": "POST /evaluations",
           "samples": 10,
           "human": {
-            "title": "Score the vendor's technical response answers within 7 seconds",
+            "title": "Score the vendor's technical response answers within 10 seconds",
             "steps": "1. As the evaluator, do “Score the vendor's technical response” in the API journey (`POST /evaluations`). 2. Time the answer.",
-            "expected": "The app answers within 7 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -16658,18 +16663,18 @@
           "id": "API-FESUBMIT-002",
           "path": "",
           "op": "max_ms",
-          "value": 8000,
-          "title": "Answers within 8 s",
-          "expected": "≤ 8000 ms (slowest observed: 2508 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 2508 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "eval_submit",
           "endpoint": "PATCH /evaluations/submit",
           "samples": 5,
           "human": {
-            "title": "Submit the evaluation answers within 8 seconds",
+            "title": "Submit the evaluation answers within 10 seconds",
             "steps": "1. As the evaluator, do “Submit the evaluation” in the API journey (`PATCH /evaluations/submit`). 2. Time the answer.",
-            "expected": "The app answers within 8 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -17758,18 +17763,18 @@
           "id": "API-FSURRFQ-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 906 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 906 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "surrogate_rfq",
           "endpoint": "POST /bids/template_input",
           "samples": 4,
           "human": {
-            "title": "Enter the vendor's price on their behalf answers within 5 seconds",
+            "title": "Enter the vendor's price on their behalf answers within 10 seconds",
             "steps": "1. As the buyer, do “Enter the vendor's price on their behalf” in the API journey (`POST /bids/template_input`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
@@ -18874,18 +18879,18 @@
           "id": "API-FSURTECH-002",
           "path": "",
           "op": "max_ms",
-          "value": 5000,
-          "title": "Answers within 5 s",
-          "expected": "≤ 5000 ms (slowest observed: 524 ms)",
+          "value": 10000,
+          "title": "Answers within 10 s",
+          "expected": "≤ 10000 ms (slowest observed: 524 ms)",
           "why": "A regression that makes a core call several times slower is a defect even when the body is right.",
           "severity": "minor",
           "step": "surrogate_tech",
           "endpoint": "POST /template_responses/create_surrogate_response",
           "samples": 1,
           "human": {
-            "title": "Enter the vendor's technical response on their behalf answers within 5 seconds",
+            "title": "Enter the vendor's technical response on their behalf answers within 10 seconds",
             "steps": "1. As the buyer, do “Enter the vendor's technical response on their behalf” in the API journey (`POST /template_responses/create_surrogate_response`). 2. Time the answer.",
-            "expected": "The app answers within 5 seconds."
+            "expected": "The app answers within 10 seconds."
           }
         },
         {
