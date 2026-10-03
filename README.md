@@ -22,12 +22,12 @@ reports every result as a plain-language test case with the evidence behind it.
 | **Edge and negative cases** | ~950 runnable cases that each change one thing in a working request; the shared test event is rebuilt whenever a case breaks it, so no case is judged on another's damage. |
 | **API test compiler** | A test case (typed or written) becomes setup → actions → read-back checks, run on its own fresh event; a failure counts only if it repeats on a second fresh event. |
 | **Bidding scenarios** | 15 scenarios with several QA vendors bidding through their own logins, surrogate bids, late bids, extensions, the RFP-before-RFQ rule, evaluation completeness, dynamic closing, awards. |
-| **UI ↔ API cross-check** | Compares what the backend sent each screen with what the screen shows (5 event screens), normalising numbers, currency, dates and units. |
+| **UI ↔ API cross-check** | Compares what the backend sent each screen with what the screen shows (12 event screens), normalising numbers, currency, dates and units. |
 | **Assistant** | A test case typed in plain language (Hinglish included) is matched to the catalog and run, or — if it is new — turned into a gated automation and saved as a draft for review. |
 | **CI/CD** | Offline checks on every push (GitHub Actions); a nightly live regression and a backend-change watcher (local, opt-in). |
 
-The catalog holds **5,439 written test cases in 42 journeys** (`test-cases/*.md`), every one placed in a
-journey. So far the platform has found **56 verified product defects** (`docs/bugs/`) — each reproduced on a
+The catalog holds **5,457 written test cases in 42 journeys** (`test-cases/*.md`), every one placed in a
+journey. So far the platform has found **59 verified product defects** (`docs/bugs/`) — each reproduced on a
 fresh test event before it was reported.
 
 ## How a verdict is reached
@@ -120,7 +120,7 @@ QA test vendors. Nothing deletes or changes real data, and Procol's database is 
 
 | | Today |
 |---|---|
-| Verified product defects found | 56 (1 critical, 11 high) — each reproduced on a fresh test event |
+| Verified product defects found | 59 (1 critical, 11 high) — each reproduced on a fresh test event |
 | Typed test case → right existing case (rules + model) | 97% top-1 · new cases detected 100% |
 | Instruction → right journey | 95.1% |
 | Written case → runnable browser plan | 92.7% |
