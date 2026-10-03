@@ -1,0 +1,1140 @@
+[
+  {
+    "id": "EDGE-DAPR-008",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_empty_for_fresh_stage",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage: published, bid window open, no bids. Caller is the buyer who owns it.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/get_approvals as the owning buyer.",
+      "2. Check the reply is an array."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/get_approvals",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty array (or one create-trade request when the company holds stages for approval). Never 5xx. Api::V1::TradeController#get_approvals (app/controllers/api/v1/trade_controller.rb:941-961).",
+    "rationale": "The stage approval panel calls this on every event page; a crash blanks the page."
+  },
+  {
+    "id": "EDGE-DAPR-009",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_unknown_stage_is_not_found",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "None beyond a buyer session.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/get_approvals (stage id 999999999)."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/get_approvals",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' because TradeRequest.find_by_id returns nil (app/controllers/api/v1/trade_controller.rb:944-945).",
+    "rationale": "A well-formed id with no row must be a clean not-found."
+  },
+  {
+    "id": "EDGE-DAPR-010",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_undecodable_id_is_code_2",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None beyond a buyer session.",
+    "steps": [
+      "1. GET /v1/trade/WrongUuid1=/get_approvals."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/WrongUuid1=/get_approvals",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters': the uuid decodes to nil and hits the blank check before the lookup (app/controllers/api/v1/trade_controller.rb:942-943).",
+    "rationale": "Documents guard order: undecodable is code 2, missing row is code 4."
+  },
+  {
+    "id": "EDGE-DAPR-011",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_malformed_filters_must_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/get_approvals?filters=QA_Platform_not_json."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/get_approvals?filters=QA_Platform_not_json",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be 200 (filters ignored) or 422. Today CommonFunctions.parse_filters swallows the JSON error and returns nil (lib/common_functions.rb:83-95), create_filter_params leaves the filters nil (app/controllers/concerns/trade_controller_filter_helper.rb:555-574), and the RFQ branch reads the vendor_ids filter on nil (app/controllers/concerns/trade_controller_helper.rb:5412) so the reply is HTTP 500.",
+    "rationale": "DEFECT-IN-WAITING: one bad query parameter takes down the approval panel."
+  },
+  {
+    "id": "EDGE-DAPR-012",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_two_approval_types_must_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage.",
+    "steps": [
+      "1. GET the stage approvals filtered by approval_type close_trade and surrogate_bid_create together (URL-encoded JSON)."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/get_approvals?filters=%7B%22approval_type%22%3A%5B%22close_trade%22%2C%22surrogate_bid_create%22%5D%7D",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be 200 listing either type. Today the filter is bound with an equals placeholder, an array of two keys expands to a comma list and PostgreSQL rejects the SQL, so HTTP 500 (app/controllers/concerns/trade_controller_helper.rb:5419-5420).",
+    "rationale": "DEFECT-IN-WAITING: the multi-select approval-type filter breaks as soon as two types are picked."
+  },
+  {
+    "id": "EDGE-DAPR-013",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_approval_type_as_text_must_not_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage.",
+    "steps": [
+      "1. GET the stage approvals with approval_type sent as a single string."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/get_approvals?filters=%7B%22approval_type%22%3A%22close_trade%22%7D",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be 200 or 422. Today the code calls map on the string value, NoMethodError, HTTP 500 (app/controllers/concerns/trade_controller_helper.rb:5419).",
+    "rationale": "Wrong type in a filter must be rejected, not crash."
+  },
+  {
+    "id": "EDGE-DAPR-014",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_unknown_approval_type_is_empty",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage.",
+    "steps": [
+      "1. GET the stage approvals filtered by an invented approval type."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/get_approvals?filters=%7B%22approval_type%22%3A%5B%22QA_Platform_unknown%22%5D%7D",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200: unknown keys map to nil, the bid-approval filter matches nothing; stage creation approvals are still returned because the filter applies to bid approvals only (app/controllers/concerns/trade_controller_helper.rb:5419-5423). Never 5xx.",
+    "rationale": "Pins how unknown filter values behave."
+  },
+  {
+    "id": "EDGE-DAPR-015",
+    "feature": "award.approval",
+    "title": "QA_Platform_award_approval_not_on_pricing_stage_timeline",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{pricingTradeUuid}} is the journey closed RFQ with one submitted bid and an award proposal.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/get_approvals.",
+      "2. Check no element has approval_key_attribute close_event_group."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/get_approvals",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; award (proposal) approvals live on the event, so no element has approval_key_attribute close_event_group; only creation or bid-selection approvals appear (app/controllers/concerns/trade_controller_helper.rb:5393-5431). Never 5xx.",
+    "rationale": "Mixing award approvals into the stage timeline would double-count them."
+  },
+  {
+    "id": "EDGE-DAPR-016",
+    "feature": "events.publish",
+    "title": "QA_Platform_technical_round_approval_timeline_does_not_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{rfpTradeId}} is the sandbox technical (RFP) round; only present on an RFP plus RFQ run.",
+    "steps": [
+      "1. GET /v1/trade/{{rfpTradeId}}/get_approvals."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{rfpTradeId}}/get_approvals",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty array (no evaluation submitted yet) from the RFP branch that reads proposals running in approval (app/controllers/concerns/trade_controller_helper.rb:5394-5398). Never 5xx.",
+    "rationale": "Different code path for technical rounds must also be safe when empty."
+  },
+  {
+    "id": "EDGE-DAPR-018",
+    "feature": "events.publish",
+    "title": "QA_Platform_stage_approval_timeline_vendor_filter_accepted",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage; {{vendorUuid}} is read only.",
+    "steps": [
+      "1. GET the stage approvals filtered by one vendor uuid (URL-encoded JSON)."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/get_approvals?filters=%7B%22vendor_uuids%22%3A%5B%22{{vendorUuid}}%22%5D%7D",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty array on the sandbox; vendor_uuids is decoded into vendor_ids and narrows bid approvals (app/controllers/concerns/trade_controller_helper.rb:5411-5412). Never 5xx.",
+    "rationale": "The vendor filter of the approval panel must work with a decoded uuid."
+  },
+  {
+    "id": "EDGE-DAPR-019",
+    "feature": "award.approval",
+    "title": "QA_Platform_event_award_timeline_empty_without_award",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} is the sandbox event: published, no proposals.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_approvals."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_approvals",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty array (app/controllers/api/event_groups_controller.rb:654-684). Never 5xx.",
+    "rationale": "Feeds the award approvals side panel."
+  },
+  {
+    "id": "EDGE-DAPR-020",
+    "feature": "award.approval",
+    "title": "QA_Platform_event_award_timeline_unknown_event_is_code_2",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None beyond a buyer session.",
+    "steps": [
+      "1. GET /event_groups/Z2dnWmdaUWtnZw==/get_approvals (event id 999999999)."
+    ],
+    "method": "GET",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/get_approvals",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters': the event lookup returns nil before authorize (app/controllers/api/event_groups_controller.rb:656-657). Note this endpoint answers 2, the stage endpoint answers 4.",
+    "rationale": "Clients mapping codes to messages must know the difference."
+  },
+  {
+    "id": "EDGE-DAPR-021",
+    "feature": "award.approval",
+    "title": "QA_Platform_event_award_timeline_undecodable_event_is_code_2",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None beyond a buyer session.",
+    "steps": [
+      "1. GET /event_groups/WrongUuid1=/get_approvals."
+    ],
+    "method": "GET",
+    "path": "/event_groups/WrongUuid1=/get_approvals",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/event_groups_controller.rb:655-657).",
+    "rationale": "A nil id must match nothing."
+  },
+  {
+    "id": "EDGE-DAPR-022",
+    "feature": "award.approval",
+    "title": "QA_Platform_event_award_timeline_hostile_lot_no_is_safe",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} is the sandbox event.",
+    "steps": [
+      "1. GET the award timeline with an SQL-like lot_no value (URL-encoded)."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_approvals?lot_no=%27%20OR%20%271%27%3D%271",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty array: lot_no is bound as a parameter in the Proposal lot_no scope (app/models/proposal.rb:44). Never 5xx.",
+    "rationale": "Lot number reaches SQL; it must stay a bound value."
+  },
+  {
+    "id": "EDGE-DAPR-023",
+    "feature": "award.approval",
+    "title": "QA_Platform_stage_uuid_used_as_event_uuid_never_crashes",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox stage uuid, deliberately sent where an event uuid belongs.",
+    "steps": [
+      "1. GET /event_groups/{{tradeId}}/get_approvals.",
+      "2. If 200, check every element belongs to the caller company."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{tradeId}}/get_approvals",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Uuids are untyped: the stage id is looked up as an event id. Acceptable: 200 for an own event or none found, 422 code 2 when no event has that id, 422 code 455 for another company event (app/controllers/api/event_groups_controller.rb:655-658, app/policies/event_group_policy.rb:72-74). Never 5xx.",
+    "rationale": "Id-space confusion must never leak or crash."
+  },
+  {
+    "id": "EDGE-DAPR-026",
+    "feature": "award.approval",
+    "title": "QA_Platform_bid_close_flows_for_missing_bid_must_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage. The bid id decodes to 999999999 (no such bid).",
+    "steps": [
+      "1. POST /v1/trade/{{tradeId}}/close_bid/approval_workflows with a bid uuid that does not exist and empty PO details."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/close_bid/approval_workflows",
+    "body": {
+      "bid_uuid": "Z2dnWmdaUWtnZw==",
+      "po_details": {
+        "lot": {},
+        "line": {}
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 4. Today the transform_bid_products before_action finds the stage from the bid when no trade_request_id is sent and calls trade_request on nil, NoMethodError, HTTP 500 (app/controllers/concerns/trade_template_helper.rb:5548-5551, before_action at app/controllers/api/v1/trade_controller.rb:26). Read-only endpoint: nothing is written.",
+    "rationale": "DEFECT-IN-WAITING: a stale bid link crashes the approval-flow lookup of Select Bid."
+  },
+  {
+    "id": "EDGE-DAPR-027",
+    "feature": "award.approval",
+    "title": "QA_Platform_bid_close_flows_without_usable_bid_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage owned by the caller, window open.",
+    "steps": [
+      "1. POST /v1/trade/{{tradeId}}/close_bid/approval_workflows with an undecodable bid uuid."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/close_bid/approval_workflows",
+    "body": {
+      "bid_uuid": "WrongUuid1=",
+      "po_details": {
+        "lot": {},
+        "line": {}
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 4 (no active bid with that id) or code 101 (the stage only allows closing in the extra closing time); no flows listed (app/controllers/api/v1/trade_controller.rb:919-934, app/controllers/concerns/trade_controller_helper.rb:3222-3236).",
+    "rationale": "With nil bid the before_action falls back to the stage and the action refuses."
+  },
+  {
+    "id": "EDGE-DAPR-028",
+    "feature": "award.approval",
+    "title": "QA_Platform_bid_close_flows_unknown_stage_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None beyond a buyer session.",
+    "steps": [
+      "1. POST /v1/trade/Z2dnWmdaUWtnZw==/close_bid/approval_workflows with no bid."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/close_bid/approval_workflows",
+    "body": {
+      "po_details": {
+        "lot": {},
+        "line": {}
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' from the before_action stage lookup (app/controllers/concerns/trade_template_helper.rb:5552-5555).",
+    "rationale": "Unknown stage is a clean not-found."
+  },
+  {
+    "id": "EDGE-DAPR-031",
+    "feature": "award.approval",
+    "title": "QA_Platform_close_bid_missing_bid_must_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage. The bid id decodes to 999999999 (no such bid), so nothing can be closed.",
+    "steps": [
+      "1. POST /v1/trade/{{tradeId}}/close_bid with a bid uuid that does not exist."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/close_bid",
+    "body": {
+      "bid_uuid": "Z2dnWmdaUWtnZw==",
+      "remarks": "QA_Platform_close_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 4. Today HTTP 500 from the same before_action as the flow lookup (app/controllers/concerns/trade_template_helper.rb:5548-5551). The sandbox stays active with no selected bid.",
+    "rationale": "DEFECT-IN-WAITING on the Select Bid write endpoint."
+  },
+  {
+    "id": "EDGE-DAPR-032",
+    "feature": "award.approval",
+    "title": "QA_Platform_close_bid_without_bid_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage.",
+    "steps": [
+      "1. POST /v1/trade/{{tradeId}}/close_bid with remarks only."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/close_bid",
+    "body": {
+      "remarks": "QA_Platform_close_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found': the bid lookup returns nil before any permission or approval check (app/controllers/concerns/trade_controller_helper.rb:4672-4695). Stage unchanged.",
+    "rationale": "Nothing to approve or close without a bid."
+  },
+  {
+    "id": "EDGE-DAPR-043",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_surrogate_flows_without_stage_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Buyer session.",
+    "steps": [
+      "1. GET /bids/approval_workflows_for_surrogate_bid_create with no stage."
+    ],
+    "method": "GET",
+    "path": "/bids/approval_workflows_for_surrogate_bid_create",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 2 (Insufficient parameters), or code 455 when the caller lacks approval-flow read permission, which is checked first (app/controllers/api/bids_controller.rb:87-90, app/policies/bid_policy.rb:49-51).",
+    "rationale": "The surrogate approval drawer depends on this lookup."
+  },
+  {
+    "id": "EDGE-DAPR-044",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_surrogate_flows_for_sandbox_stage",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ stage of the caller company.",
+    "steps": [
+      "1. GET the surrogate approval flows for {{tradeId}}."
+    ],
+    "method": "GET",
+    "path": "/bids/approval_workflows_for_surrogate_bid_create?trade_request_uuid={{tradeId}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an array of TEAM flows for surrogate bid creation, or 422 code 10 when the stage forbids surrogate bids, or 455 without approval-flow read permission (app/controllers/api/bids_controller.rb:87-101, app/controllers/concerns/bids_controller_helper.rb:2775-2779). Never 5xx.",
+    "rationale": "An empty or failed list makes the dashboard skip approval for surrogate bids."
+  },
+  {
+    "id": "EDGE-DAPR-045",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_surrogate_flows_unknown_stage_must_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Caller has approval-flow read permission (otherwise 455 comes first).",
+    "steps": [
+      "1. GET the surrogate approval flows for stage id 999999999."
+    ],
+    "method": "GET",
+    "path": "/bids/approval_workflows_for_surrogate_bid_create?trade_request_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 4. Today the nil stage is passed to is_surrogate_bidding_and_is_allowed, which calls current_status on nil, HTTP 500 (app/controllers/api/bids_controller.rb:92-96, app/controllers/concerns/bids_controller_helper.rb:2130-2131).",
+    "rationale": "DEFECT-IN-WAITING: when this crashes the dashboard posts the surrogate bid without approval."
+  },
+  {
+    "id": "EDGE-DAPR-046",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_surrogate_flows_undecodable_stage_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Buyer session.",
+    "steps": [
+      "1. GET the surrogate approval flows with an undecodable stage uuid."
+    ],
+    "method": "GET",
+    "path": "/bids/approval_workflows_for_surrogate_bid_create?trade_request_uuid=WrongUuid1=",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 2 (the uuid decodes to nil and hits the blank check) or code 455 without approval-flow read permission (app/controllers/api/bids_controller.rb:89-90).",
+    "rationale": "Guard order for undecodable ids."
+  },
+  {
+    "id": "EDGE-DAPR-052",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_bid_get_approvals_route_has_no_action",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{bidUuid}} is the journey submitted bid.",
+    "steps": [
+      "1. GET /bids/{{bidUuid}}/get_approvals."
+    ],
+    "method": "GET",
+    "path": "/bids/{{bidUuid}}/get_approvals",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 404: the route exists (config/routes.rb:319) but BidsController defines no get_approvals action, so Rails answers action not found before any callback. Never 5xx, never data.",
+    "rationale": "Documents a dead route the dashboard app is allowed to call."
+  },
+  {
+    "id": "EDGE-DAPR-053",
+    "feature": "award.approval",
+    "title": "QA_Platform_award_flows_listed_for_non_draft_proposal",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{proposalUuid}} is the journey award proposal created by the run buyer; the buyer is not on an evaluating team (that answers 204 with no body).",
+    "steps": [
+      "1. GET /proposal/{{proposalUuid}}/approval_workflows.",
+      "2. If {{approvalFlowUuid}} was used, check it is listed."
+    ],
+    "method": "GET",
+    "path": "/proposal/{{proposalUuid}}/approval_workflows",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with the applicable award flows (team flows if any team flow triggers, else company flows); the lookup checks the creator but not the status (app/controllers/api/proposal_controller.rb:69-77, app/helpers/api/proposal_approval_helper.rb:45-63). Never 5xx.",
+    "rationale": "A non-empty list does not mean the proposal can still be submitted."
+  },
+  {
+    "id": "EDGE-DAPR-054",
+    "feature": "award.approval",
+    "title": "QA_Platform_award_flows_unknown_proposal_not_found",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is not on an evaluating team (that answers 204 first).",
+    "steps": [
+      "1. GET /proposal/Z2dnWmdaUWtnZw==/approval_workflows."
+    ],
+    "method": "GET",
+    "path": "/proposal/Z2dnWmdaUWtnZw==/approval_workflows",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' (app/controllers/api/proposal_controller.rb:72-73).",
+    "rationale": "Clean not-found for a stale proposal link."
+  },
+  {
+    "id": "EDGE-DAPR-055",
+    "feature": "award.approval",
+    "title": "QA_Platform_award_flows_undecodable_proposal_not_found",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is not on an evaluating team.",
+    "steps": [
+      "1. GET /proposal/WrongUuid1=/approval_workflows."
+    ],
+    "method": "GET",
+    "path": "/proposal/WrongUuid1=/approval_workflows",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found': nil id with the creator scope matches nothing (app/controllers/api/proposal_controller.rb:72-73).",
+    "rationale": "Undecodable id must not match any proposal."
+  },
+  {
+    "id": "EDGE-DAPR-056",
+    "feature": "award.approval",
+    "title": "QA_Platform_proposal_readback_shows_approval_state",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{proposalUuid}} is the journey award proposal.",
+    "steps": [
+      "1. GET /proposal/{{proposalUuid}}.",
+      "2. Compare status with the journey award_submit outcome."
+    ],
+    "method": "GET",
+    "path": "/proposal/{{proposalUuid}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; status is requested when it went to approval, selected when awarded directly, draft when never submitted (app/controllers/api/proposal_controller.rb:14-43). Never 5xx.",
+    "rationale": "Read-back oracle for every award approval case."
+  },
+  {
+    "id": "EDGE-DAPR-066",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_resolve_without_resolution_is_734",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Bogus approver id only (decodes to 999999999); no real approval is touched.",
+    "steps": [
+      "1. POST resolve_approval with an approver uuid and no resolution."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "approver_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 734 'Invalid resolution value. Please choose either Approve or Reject.' from the verify_resolution_params before_action, which runs before the approver check (app/controllers/api/approval_workflow/approval_requests_controller.rb:6-8, 256-263).",
+    "rationale": "Guard order: a missing resolution answers 734 even when other fields are also wrong."
+  },
+  {
+    "id": "EDGE-DAPR-067",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_resolve_with_button_label_is_734",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Bogus approver id only.",
+    "steps": [
+      "1. POST resolve_approval with resolution approve."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "approver_uuid": "Z2dnWmdaUWtnZw==",
+      "resolution": "approve",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 734 'Invalid resolution value. Please choose either Approve or Reject.' (app/controllers/api/approval_workflow/approval_requests_controller.rb:259).",
+    "rationale": "Only accepted and not_accepted are valid."
+  },
+  {
+    "id": "EDGE-DAPR-068",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_resolve_with_resolution_list_is_734",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Bogus approver id only.",
+    "steps": [
+      "1. POST resolve_approval with resolution sent as an array."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "approver_uuid": "Z2dnWmdaUWtnZw==",
+      "resolution": [
+        "accepted"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 734 'Invalid resolution value. Please choose either Approve or Reject.' (app/controllers/api/approval_workflow/approval_requests_controller.rb:259).",
+    "rationale": "Wrong type must not be coerced into accepted."
+  },
+  {
+    "id": "EDGE-DAPR-069",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_approve_without_approver_is_code_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Buyer session.",
+    "steps": [
+      "1. POST resolve_approval with resolution accepted and no approver."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "resolution": "accepted",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/approval_workflow/approval_requests_controller.rb:133-137).",
+    "rationale": "Nothing to resolve without an approver."
+  },
+  {
+    "id": "EDGE-DAPR-070",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_reject_without_remarks_is_code_2",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Bogus approver id only.",
+    "steps": [
+      "1. POST resolve_approval with resolution not_accepted and no remarks."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "approver_uuid": "Z2dnWmdaUWtnZw==",
+      "resolution": "not_accepted"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' from the before_action, before the approver lookup (app/controllers/api/approval_workflow/approval_requests_controller.rb:260-262).",
+    "rationale": "A rejection must carry a reason; enforced by the backend."
+  },
+  {
+    "id": "EDGE-DAPR-071",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_reject_with_blank_remarks_is_code_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Bogus approver id only.",
+    "steps": [
+      "1. POST resolve_approval with resolution not_accepted and remarks of spaces only."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "approver_uuid": "Z2dnWmdaUWtnZw==",
+      "resolution": "not_accepted",
+      "remarks": "   "
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' because blank remarks count as missing (app/controllers/api/approval_workflow/approval_requests_controller.rb:260-262).",
+    "rationale": "Whitespace is not a reason."
+  },
+  {
+    "id": "EDGE-DAPR-072",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_approve_unknown_approver_is_not_found",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Bogus approver id only (999999999); also covers the force-resolve path, which adds nothing for a missing row.",
+    "steps": [
+      "1. POST resolve_approval accepted for approver 999999999."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "approver_uuid": "Z2dnWmdaUWtnZw==",
+      "resolution": "accepted",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found': approve returns nil for a missing approver row and resolve_approval_process raises 4 (app/models/approval_workflow/is_approver_methods.rb:23-26, app/controllers/concerns/approval_workflow_controller_helpers/approval_request_controller_helper.rb:13-14).",
+    "rationale": "Cannot approve something that does not exist or is not yours."
+  },
+  {
+    "id": "EDGE-DAPR-073",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_approve_undecodable_approver_is_code_2",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. POST resolve_approval accepted with an undecodable approver uuid."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/resolve_approval",
+    "body": {
+      "approver_uuid": "WrongUuid1=",
+      "resolution": "accepted",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters': the approver uuid decodes to nil (app/controllers/api/approval_workflow/approval_requests_controller.rb:137).",
+    "rationale": "Nil after decoding must not resolve any approver."
+  },
+  {
+    "id": "EDGE-DAPR-084",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_bulk_resolve_bogus_approvers_refused_whole",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Bogus approver ids only.",
+    "steps": [
+      "1. POST bulk_resolve accepted for two approvers that do not exist."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/bulk_resolve",
+    "body": {
+      "approver_uuids": [
+        "Z2dnWmdaUWtnZw==",
+        "WrongUuid1="
+      ],
+      "resolution": "accepted",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' for the first missing approver; the transaction resolves nothing (app/controllers/api/approval_workflow/approval_requests_controller.rb:153-175).",
+    "rationale": "Bulk must be all-or-nothing."
+  },
+  {
+    "id": "EDGE-DAPR-085",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_bulk_resolve_ids_as_text_must_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "None. The ids key is not a uuid key, so the string is passed through untouched.",
+    "steps": [
+      "1. POST bulk_resolve not_accepted with approver_ids sent as one string."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/bulk_resolve",
+    "body": {
+      "approver_ids": "QA_Platform_{{stamp}}",
+      "resolution": "not_accepted",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 2. Today approver_ids.each on a String raises NoMethodError; the rescue only maps numeric messages and re-raises, so HTTP 500 (app/controllers/api/approval_workflow/approval_requests_controller.rb:158-172).",
+    "rationale": "DEFECT-IN-WAITING: wrong type crashes the bulk decision endpoint."
+  },
+  {
+    "id": "EDGE-DAPR-086",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_bulk_resolve_empty_selection_is_code_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. POST bulk_resolve accepted with an empty approver list."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/bulk_resolve",
+    "body": {
+      "approver_uuids": [],
+      "resolution": "accepted",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/approval_workflow/approval_requests_controller.rb:158).",
+    "rationale": "The dashboard sends an empty list when no selected row needs the caller."
+  },
+  {
+    "id": "EDGE-DAPR-087",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_bulk_resolve_invented_resolution_is_734",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Bogus approver id only.",
+    "steps": [
+      "1. POST bulk_resolve with resolution approved."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/bulk_resolve",
+    "body": {
+      "approver_uuids": [
+        "Z2dnWmdaUWtnZw=="
+      ],
+      "resolution": "approved",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 734 'Invalid resolution value. Please choose either Approve or Reject.' (app/controllers/api/approval_workflow/approval_requests_controller.rb:256-259).",
+    "rationale": "Same resolution guard as single resolve."
+  },
+  {
+    "id": "EDGE-DAPR-088",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_withdraw_unknown_request_not_found",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Bogus request id only.",
+    "steps": [
+      "1. POST withdraw_approval for request 999999999."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/Z2dnWmdaUWtnZw==/withdraw_approval",
+    "body": {
+      "remarks": "QA_Platform_withdraw_{{stamp}}",
+      "attachments": []
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found': the lookup is scoped to pending requests raised by the caller (app/controllers/api/approval_workflow/approval_requests_controller.rb:177-179).",
+    "rationale": "Withdraw must never touch a request that is not yours and pending."
+  },
+  {
+    "id": "EDGE-DAPR-089",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_withdraw_undecodable_request_not_found",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. POST withdraw_approval with an undecodable id."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests/WrongUuid1=/withdraw_approval",
+    "body": {
+      "remarks": "QA_Platform_withdraw_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' (app/controllers/api/approval_workflow/approval_requests_controller.rb:178-179).",
+    "rationale": "Nil id must match nothing."
+  },
+  {
+    "id": "EDGE-DAPR-092",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_pending_inbox_answers_on_both_engines",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Buyer session.",
+    "steps": [
+      "1. GET /approval_workflow/approval_requests/get_pending_approvals."
+    ],
+    "method": "GET",
+    "path": "/approval_workflow/approval_requests/get_pending_approvals",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "On approval flow version v2: HTTP 200 with pending_tasks; on v1: 422 code 101 (app/controllers/api/approval_workflow/approval_requests_controller.rb:115-130). Never 5xx.",
+    "rationale": "Feeds the approvals drawer."
+  },
+  {
+    "id": "EDGE-DAPR-093",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_step_details_unknown_request_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. GET approval_steps_details for request 999999999."
+    ],
+    "method": "GET",
+    "path": "/approval_workflow/approval_requests/Z2dnWmdaUWtnZw==/approval_steps_details",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "On v2: HTTP 422 code 4 (request not in the company flows); on v1: 422 code 455 because the policy needs v2 (app/controllers/api/approval_workflow/approval_requests_controller.rb:200-204, app/policies/approval_workflow/approval_request_policy.rb:19-21).",
+    "rationale": "Edit-approvers drawer must not expose other requests."
+  },
+  {
+    "id": "EDGE-DAPR-094",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_approver_search_without_query_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. GET search_approvers with no query."
+    ],
+    "method": "GET",
+    "path": "/approval_workflow/approval_requests/Z2dnWmdaUWtnZw==/search_approvers",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "On v2: HTTP 422 code 2 (query blank, checked before the request lookup); on v1: 422 code 455 (app/controllers/api/approval_workflow/approval_requests_controller.rb:227-230).",
+    "rationale": "An empty search must not list the whole company."
+  },
+  {
+    "id": "EDGE-DAPR-095",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_approvals_list_without_format_must_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Company on approval flow version v2 (on v1 the policy answers 455 first).",
+    "steps": [
+      "1. GET /approval_workflow/approval_requests?view_type=approver with no file_format."
+    ],
+    "method": "GET",
+    "path": "/approval_workflow/approval_requests?view_type=approver",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should default to json or answer 422. Today generate_response raises Invalid view format for a nil format, HTTP 500 (app/controllers/api/approval_workflow/approval_requests_controller.rb:44-57, app/services/base_view_service.rb:10-21).",
+    "rationale": "DEFECT-IN-WAITING: an optional parameter is mandatory by crash."
+  },
+  {
+    "id": "EDGE-DAPR-096",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_approvals_list_invented_tab_swallows_error",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Company on approval flow version v2.",
+    "steps": [
+      "1. GET /approval_workflow/approval_requests with an invented view_type and file_format json."
+    ],
+    "method": "GET",
+    "path": "/approval_workflow/approval_requests?view_type=QA_Platform_bogus&file_format=json",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422 code 2. Today the view service returns an error hash that handle_json drops, so the reply is HTTP 200 with null approvals (app/services/approval_requests/view_service.rb:49-52, 116-128). Never 5xx.",
+    "rationale": "A silent empty inbox hides the error from the client."
+  },
+  {
+    "id": "EDGE-DAPR-097",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_add_approvers_empty_list_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Bogus request id only.",
+    "steps": [
+      "1. PATCH approval request 999999999 with an empty additional_steps list."
+    ],
+    "method": "PATCH",
+    "path": "/approval_workflow/approval_requests/Z2dnWmdaUWtnZw==",
+    "body": {
+      "additional_steps": [],
+      "is_step_modified": false
+    },
+    "expected": "reject",
+    "expectedResult": "On v2: HTTP 422 code 2 (additional_steps blank); on v1: 422 code 455 (app/controllers/api/approval_workflow/approval_requests_controller.rb:59-65).",
+    "rationale": "Adding approvers needs at least one step."
+  },
+  {
+    "id": "EDGE-DAPR-098",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_add_approvers_unknown_request_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Bogus request id only; the approver named is the run own buyer.",
+    "steps": [
+      "1. PATCH approval request 999999999 adding a step with the run buyer as approver."
+    ],
+    "method": "PATCH",
+    "path": "/approval_workflow/approval_requests/Z2dnWmdaUWtnZw==",
+    "body": {
+      "additional_steps": [
+        {
+          "order": 0,
+          "approvers": [
+            {
+              "uuid": "{{buyerUserUuid}}"
+            }
+          ]
+        }
+      ],
+      "is_step_modified": false
+    },
+    "expected": "reject",
+    "expectedResult": "On v2: HTTP 422 code 4 (request not among the company flows, checked before any step is built); on v1: 422 code 455 (app/controllers/api/approval_workflow/approval_requests_controller.rb:67-69).",
+    "rationale": "Unknown request must be refused before modification."
+  },
+  {
+    "id": "EDGE-DAPR-103",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_start_approval_with_nothing_is_code_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. POST /approval_workflow/approval_requests with an empty body."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/approval_workflow/approval_requests_controller.rb:10-11, 265-269). This endpoint has no policy check, so these guards are the only protection.",
+    "rationale": "Parameter guards on an unprotected write endpoint."
+  },
+  {
+    "id": "EDGE-DAPR-104",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_start_approval_unknown_record_type_is_888",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None; record and flow ids are bogus.",
+    "steps": [
+      "1. POST approval_requests with an invented resource_type."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests",
+    "body": {
+      "resource_type": "QA_Platform_unknown_{{stamp}}",
+      "resource_uuid": "Z2dnWmdaUWtnZw==",
+      "approval_flow_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 888 'Invalid Parameters': the type is not a model with approvals (app/controllers/api/approval_workflow/approval_requests_controller.rb:12-14).",
+    "rationale": "Only approvable record types may be named."
+  },
+  {
+    "id": "EDGE-DAPR-105",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_start_approval_unknown_stage_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None; record and flow ids are bogus.",
+    "steps": [
+      "1. POST approval_requests for trade_request 999999999."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests",
+    "body": {
+      "resource_type": "trade_request",
+      "resource_uuid": "Z2dnWmdaUWtnZw==",
+      "approval_flow_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 4 (record not found) or code 888 if the approvable model list was not loaded (app/controllers/api/approval_workflow/approval_requests_controller.rb:16-17).",
+    "rationale": "Not-found guard on the record."
+  },
+  {
+    "id": "EDGE-DAPR-106",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_start_approval_on_sandbox_with_unknown_flow_is_523",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox stage of the caller company; the flow id decodes to 999999999 (no such flow).",
+    "steps": [
+      "1. POST approval_requests for the sandbox stage with flow 999999999.",
+      "2. GET /v1/trade/{{tradeId}}/get_approvals stays empty."
+    ],
+    "method": "POST",
+    "path": "/approval_workflow/approval_requests",
+    "body": {
+      "resource_type": "trade_request",
+      "resource_uuid": "{{tradeId}}",
+      "approval_flow_uuid": "Z2dnWmdaUWtnZw==",
+      "remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 523 'Invalid Approval': valid_approval_flow returns false for an unknown flow (app/controllers/api/approval_workflow/approval_requests_controller.rb:19-20, 271-288); a second guard inside the transaction would also refuse. The stage is unchanged.",
+    "rationale": "The flow must be one that applies to this record and initiator."
+  },
+  {
+    "id": "EDGE-DAPR-108",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_read_unknown_approval_flow_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. GET /approval_workflow/approval_flows/Z2dnWmdaUWtnZw==."
+    ],
+    "method": "GET",
+    "path": "/approval_workflow/approval_flows/Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 570 (Approval Flow not found), or code 455 when the caller lacks approval-flow read permission, which is checked first (app/controllers/api/approval_workflow/approval_flows_controller.rb:5-6, 142-145).",
+    "rationale": "Flow details page must answer a clean not-found."
+  },
+  {
+    "id": "EDGE-DAPR-109",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_approval_types_on_offer_are_readable",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Buyer session.",
+    "steps": [
+      "1. GET /approval_workflow/approval_flows/trigger_conditions.",
+      "2. Check approvals_types."
+    ],
+    "method": "GET",
+    "path": "/approval_workflow/approval_flows/trigger_conditions",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with approvals_types including create_trade and close_trade when the trade module is on; close_event_group and technical_evaluation only when rfx projects are enabled for the company (app/helpers/approval_workflow/approval_flow_helper.rb:188-202). 455 without approval-flow read permission. Never 5xx.",
+    "rationale": "Which approval types a company can configure decides which event approvals can exist."
+  },
+  {
+    "id": "EDGE-DAPR-110",
+    "feature": "platform.approvals",
+    "title": "QA_Platform_read_unknown_delegation_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "None.",
+    "steps": [
+      "1. GET /delegations/Z2dnWmdaUWtnZw==."
+    ],
+    "method": "GET",
+    "path": "/delegations/Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 404 with error code 679 (\"Delegation not found\"): the lookup runs before the policy (app/controllers/api/delegations_controller.rb:6-11). The runner reads no message from a 404 reply to a read, so only the refusal itself is checked.",
+    "rationale": "Delegation drawer loads by id."
+  }
+]

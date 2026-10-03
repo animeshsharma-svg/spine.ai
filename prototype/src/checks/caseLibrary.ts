@@ -49,6 +49,13 @@ const KNOWN_PLACEHOLDERS = new Set([
   // Also produced by the journey (eventJourney.ts `produced`), passed through as-is:
   // the vendor's technical response and its form/page, the quoted line, the award flow.
   "templateResponseUuid", "techFormUuid", "techPageUuid", "tradeProductUuid", "approvalFlowUuid",
+  // The journey's OWN event (closed, one submitted bid, an award proposal) — the
+  // sandbox has none of that — and the run's own buyer user. Set by the steps
+  // named in eventJourney.ts `produced`: pricing/technical stage,
+  // the converted auction (auction.convert runs),
+  // the item version (versioning runs), the surrogate bid (surrogate runs).
+  "pricingTradeUuid", "technicalTradeUuid", "auctionTradeUuid", "versionUuid",
+  "surrogateBidUuid", "buyerUserUuid",
   // Vendor bulk upload: the fixture's base64, loaded by the bulk runner.
   "vbuSheet",
 ]);
@@ -489,12 +496,22 @@ export async function resolveCaseContext(
     if (Array.isArray(items) && items[0]) ctx.prItemId = firstId(items[0]);
   }
 
-  // A vendor company this buyer actually deals with.
-  const vList = vendors?.companies ?? vendors?.data ?? [];
-  const vendor = Array.isArray(vList) ? vList[0] : undefined;
-  if (vendor) {
-    ctx.vendorUuid = vendor.uuid;
-    ctx.vendorCompanyId = vendor.id ?? vendor.company_id;
+  // The vendor every case addresses is the client's QA TEST vendor — never a
+  // real supplier. This used to be the first company in the buyer's vendor
+  // list, which put a real supplier into test events whenever a case sent
+  // {{vendorUuid}} (an invite list, an auction audience …) — 3,000+ uses.
+  // No QA vendor → the token stays unresolved and those cases are skipped
+  // with a reason. A real vendor only with SPINE_ALLOW_REAL_VENDORS=1.
+  const qaVendor = client.ctx.vendor?.uuid ? client.ctx.vendor : undefined;
+  if (qaVendor && !client.ctx.noQaVendor) {
+    ctx.vendorUuid = qaVendor.uuid;
+  } else if (process.env.SPINE_ALLOW_REAL_VENDORS === "1") {
+    const vList = vendors?.companies ?? vendors?.data ?? [];
+    const vendor = Array.isArray(vList) ? vList[0] : undefined;
+    if (vendor) {
+      ctx.vendorUuid = vendor.uuid;
+      ctx.vendorCompanyId = vendor.id ?? vendor.company_id;
+    }
   }
 
   // A category and a family (families are what products hang off).

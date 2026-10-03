@@ -1,0 +1,925 @@
+[
+  {
+    "id": "EDGE-DNEG-001",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_unreadable_bid_id_is_not_found",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. 'WrongUuid1=' is a well-formed string that ParamsAuth decodes to nil (item_uuid -> item_id = nil).",
+    "steps": [
+      "1. POST raise_additional_request exactly as the journey does, but with item_uuid 'WrongUuid1='.",
+      "2. Read the reply."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "WrongUuid1=",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_dneg_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found'. With item_id nil the before_action cannot take the bid branch (app/controllers/concerns/trade_template_helper.rb:5548), falls back to TradeRequest.find_by(id: nil) and returns 4 (app/controllers/concerns/trade_template_helper.rb:5551-5555, rendered at app/controllers/concerns/trade_template_helper.rb:5596-5597). Nothing is created. Contrast EDGE-AWD-053: an id that decodes to a number crashes instead.",
+    "rationale": "Pins the nil-decoding branch of the counter-offer before_action; a regression here would either crash or let the action run with no bid."
+  },
+  {
+    "id": "EDGE-DNEG-002",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_price_sheet_as_object_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey's own pricing round {{pricingTradeUuid}} is closed and holds the QA vendor's submitted bid {{bidUuid}}; {{tradeProductUuid}} is the line the vendor priced. The request is answered by the before_action transform_bid_products, which runs before any bid-state check, so the outcome does not depend on whether the award left the bid active or selected.",
+    "steps": [
+      "1. POST raise_additional_request with sheets.inline_components.data sent as an object keyed '0' instead of a list of rows."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "0": {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          }
+        }
+      },
+      "remarks": "QA_Platform_dneg_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 422 (code 2). Today get_line_item rows are iterated with data.each, an ActionController::Parameters yields [key, row] pairs, and item[:creator_quantity] on that pair raises TypeError (app/controllers/concerns/trade_template_helper.rb:5616-5617) -> HTTP 500. Nothing is written (the crash is in the before_action).",
+    "rationale": "DEFECT-IN-WAITING: the shape of the price sheet is never validated before it is indexed."
+  },
+  {
+    "id": "EDGE-DNEG-003",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_row_without_creator_quantity_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey's own pricing round {{pricingTradeUuid}} is closed and holds the QA vendor's submitted bid {{bidUuid}}; {{tradeProductUuid}} is the line the vendor priced. The request is answered by the before_action transform_bid_products, which runs before any bid-state check, so the outcome does not depend on whether the award left the bid active or selected.",
+    "steps": [
+      "1. POST raise_additional_request with one row that has price and product but no creator_quantity block."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_dneg_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 422. Today get_bid_products_array reads item[:creator_quantity][:configuration][:suffix] for every row before anything else (app/controllers/concerns/trade_template_helper.rb:5617) -> NoMethodError on nil -> HTTP 500. Distinct from EDGE-AWD-066 (missing product), which fails later in get_line_item_object.",
+    "rationale": "The unit is taken from the buyer's quantity block of the row; a client that sends only the changed columns crashes the request."
+  },
+  {
+    "id": "EDGE-DNEG-004",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_row_as_plain_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey's own pricing round {{pricingTradeUuid}} is closed and holds the QA vendor's submitted bid {{bidUuid}}; {{tradeProductUuid}} is the line the vendor priced. The request is answered by the before_action transform_bid_products, which runs before any bid-state check, so the outcome does not depend on whether the award left the bid active or selected.",
+    "steps": [
+      "1. POST raise_additional_request whose data list holds a plain string instead of a row object."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            "QA_Platform_row_{{stamp}}"
+          ]
+        }
+      },
+      "remarks": "QA_Platform_dneg_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 422. Today \"...\"[:creator_quantity] raises TypeError (app/controllers/concerns/trade_template_helper.rb:5617) -> HTTP 500.",
+    "rationale": "Type confusion inside the price sheet; one bad element must not take down the request."
+  },
+  {
+    "id": "EDGE-DNEG-005",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_with_company_uuid_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey's own pricing round {{pricingTradeUuid}} is closed and holds the QA vendor's submitted bid {{bidUuid}}; {{tradeProductUuid}} is the line the vendor priced. The request is answered by the before_action transform_bid_products, which runs before any bid-state check, so the outcome does not depend on whether the award left the bid active or selected. The body additionally carries company_uuid (any well-formed value; Z2dnWmdaUWtnZw== decodes to 999999999).",
+    "steps": [
+      "1. POST the journey's counter-offer body plus \"company_uuid\": \"Z2dnWmdaUWtnZw==\"."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_dneg_{{stamp}}",
+      "company_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 422 or the company key must be ignored. Today ParamsAuth turns company_uuid into company_id, the transform then indexes the data LIST with that id as a string (data['999999999'], app/controllers/concerns/trade_template_helper.rb:5521-5526) -> TypeError -> HTTP 500. The same transform is shared with the close-bid flow, which sends data keyed by company.",
+    "rationale": "A field the shared transform understands for one flow (data keyed by vendor) crashes the counter-offer flow, which sends a list."
+  },
+  {
+    "id": "EDGE-DNEG-006",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_global_fields_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey's own pricing round {{pricingTradeUuid}} is closed and holds the QA vendor's submitted bid {{bidUuid}}; {{tradeProductUuid}} is the line the vendor priced. The request is answered by the before_action transform_bid_products, which runs before any bid-state check, so the outcome does not depend on whether the award left the bid active or selected.",
+    "steps": [
+      "1. POST the journey's counter-offer body with sheets.global_price_components.global_data = \"QA_Platform_x\"."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          ]
+        },
+        "global_price_components": {
+          "global_data": "QA_Platform_x_{{stamp}}"
+        }
+      },
+      "remarks": "QA_Platform_dneg_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 422. Today the transform calls global_data.key?(...) for every global widget and then global_data[:trade_credit_discount] (app/controllers/concerns/trade_template_helper.rb:5567-5582) on a String -> NoMethodError/TypeError -> HTTP 500.",
+    "rationale": "Global (header) fields are negotiable in a counter offer; their container is never type-checked."
+  },
+  {
+    "id": "EDGE-DNEG-007",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_sheets_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey's own pricing round {{pricingTradeUuid}} is closed and holds the QA vendor's submitted bid {{bidUuid}}; {{tradeProductUuid}} is the line the vendor priced. The request is answered by the before_action transform_bid_products, which runs before any bid-state check, so the outcome does not depend on whether the award left the bid active or selected.",
+    "steps": [
+      "1. POST raise_additional_request with \"sheets\": \"QA_Platform_x\" (text instead of an object)."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_additional_request",
+    "body": {
+      "item_uuid": "{{bidUuid}}",
+      "item_type": "counter_offer_for_bid",
+      "sheets": "QA_Platform_x_{{stamp}}",
+      "remarks": "QA_Platform_dneg_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 422. Today params[:sheets][:inline_components] on a String raises TypeError (app/controllers/concerns/trade_template_helper.rb:5524) -> HTTP 500.",
+    "rationale": "The very first read of the request body is unguarded."
+  },
+  {
+    "id": "EDGE-DNEG-031",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_bulk_counter_offer_unknown_event_is_not_found",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. Z2dnWmdaUWtnZw== is a well-formed uuid for id 999999999 (no such round).",
+    "steps": [
+      "1. POST raise_bulk_counter_offer exactly as the dashboard sends it, with trade_request_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_bulk_counter_offer",
+    "body": {
+      "trade_request_uuid": "Z2dnWmdaUWtnZw==",
+      "change_type": "counter_offer_for_bid",
+      "is_bulk_counter_offer": true,
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_bulk_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' from the before_action (app/controllers/concerns/trade_template_helper.rb:5551-5555). No counter offer is raised. ('WrongUuid1=' takes the same branch.)",
+    "rationale": "The bulk action itself has no nil guard (TradeRequest.find_by_id(nil).bids, app/controllers/api/additional_requests_controller.rb:39-40); the before_action is the only stop."
+  },
+  {
+    "id": "EDGE-DNEG-032",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_bulk_counter_offer_with_unknown_bid_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox pricing round (open, no bids). The body also names a bid (item_type + item_uuid) that does not exist.",
+    "steps": [
+      "1. POST raise_bulk_counter_offer for {{tradeId}} that also carries item_type counter_offer_for_bid and item_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_bulk_counter_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "change_type": "counter_offer_for_bid",
+      "is_bulk_counter_offer": true,
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_bulk_{{stamp}}",
+      "item_type": "counter_offer_for_bid",
+      "item_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 4. Today the shared transform prefers the bid branch whenever item_type is counter_offer_for_bid and an item id is present, and calls Bid.find_by_id(999999999).trade_request on nil (app/controllers/concerns/trade_template_helper.rb:5548-5550) -> HTTP 500, even though a valid event was named.",
+    "rationale": "Same unguarded dereference as EDGE-AWD-053, reachable from the bulk route too; the event id in the body is ignored."
+  },
+  {
+    "id": "EDGE-DNEG-033",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_bulk_counter_offer_sheet_as_object_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox pricing round (open, no bids).",
+    "steps": [
+      "1. POST raise_bulk_counter_offer for {{tradeId}} with sheets.inline_components.data sent as an object instead of a list."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_bulk_counter_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "change_type": "counter_offer_for_bid",
+      "is_bulk_counter_offer": true,
+      "sheets": {
+        "inline_components": {
+          "data": {
+            "0": {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          }
+        }
+      },
+      "remarks": "QA_Platform_bulk_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 422. Today the transform iterates the object as [key, row] pairs and crashes (app/controllers/concerns/trade_template_helper.rb:5616-5617) -> HTTP 500, before the action looks for bids.",
+    "rationale": "Bulk counter offers share the unguarded sheet transform."
+  },
+  {
+    "id": "EDGE-DNEG-034",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_bulk_counter_offer_with_no_bids_answers_success",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox pricing round: published, bid window still open, NO bids. (If an earlier case in the run placed an active bid on the sandbox, that bid — a QA vendor's — would receive the counter offer.)",
+    "steps": [
+      "1. POST raise_bulk_counter_offer for {{tradeId}} with one priced row, exactly as the dashboard's Bulk Counter Offer sends it.",
+      "2. Read the reply; then read the round and confirm no vendor shows a pending counter offer."
+    ],
+    "method": "POST",
+    "path": "/additional_request/raise_bulk_counter_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "change_type": "counter_offer_for_bid",
+      "is_bulk_counter_offer": true,
+      "sheets": {
+        "inline_components": {
+          "data": [
+            {
+              "status": {
+                "value": "active",
+                "key": "status"
+              },
+              "creator_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "creator_quantity"
+              },
+              "participant_quantity": {
+                "value": "50",
+                "configuration": {
+                  "unit_type": "KG",
+                  "suffix": "KG"
+                },
+                "key": "participant_quantity"
+              },
+              "price": {
+                "value": 150,
+                "key": "price"
+              },
+              "product": {
+                "value": "product",
+                "trade_product_uuid": "{{tradeProductUuid}}",
+                "unit_type": "KG",
+                "key": "product"
+              }
+            }
+          ]
+        }
+      },
+      "remarks": "QA_Platform_bulk_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today HTTP 200 {success: true} with nothing raised: the action counters only bids in status active and silently skips when there are none (app/controllers/api/additional_requests_controller.rb:38-55). Expected product behaviour: a refusal saying there is no vendor to counter. Must never be 5xx.",
+    "rationale": "A 'success' answer for a bulk counter offer that reached nobody misleads the buyer; the dashboard hides the action below two bids (eventHeader.jsx:795-803) but the API does not."
+  },
+  {
+    "id": "EDGE-DNEG-041",
+    "feature": "negotiation.vendor_response",
+    "title": "QA_Platform_resolve_counter_offer_with_empty_body_is_not_found",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer; no request ids at all.",
+    "steps": [
+      "1. PATCH resolve_additional_request with {}."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/resolve_additional_request",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found': no ids -> where(id: []) is empty -> verify returns 4 (app/controllers/api/additional_requests_controller.rb:145-152), rendered at app/controllers/api/additional_requests_controller.rb:70.",
+    "rationale": "Baseline for the resolve endpoint: an empty answer must be refused, never treated as 'nothing to do, success'."
+  },
+  {
+    "id": "EDGE-DNEG-042",
+    "feature": "negotiation.vendor_response",
+    "title": "QA_Platform_resolve_counter_offer_requests_as_object_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer. The request list is sent as a single object (a common client mistake) with a ghost id.",
+    "steps": [
+      "1. PATCH resolve_additional_request with requests = {\"uuid\": \"Z2dnWmdaUWtnZw==\", \"resolution\": \"accepted\"} (an object, not a list)."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/resolve_additional_request",
+    "body": {
+      "item_type": "counter_offer_for_bid",
+      "requests": {
+        "uuid": "Z2dnWmdaUWtnZw==",
+        "resolution": "accepted"
+      },
+      "resolution_remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2. Today requests.pluck(:id) is called on an ActionController::Parameters, which has no pluck (app/controllers/api/additional_requests_controller.rb:63-64) -> NoMethodError -> HTTP 500 before any lookup.",
+    "rationale": "DEFECT-IN-WAITING: the shape of the vendor's answer is never checked."
+  },
+  {
+    "id": "EDGE-DNEG-043",
+    "feature": "negotiation.vendor_response",
+    "title": "QA_Platform_resolve_counter_offer_requests_as_numbers_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. requests is a list of bare numbers instead of objects.",
+    "steps": [
+      "1. PATCH resolve_additional_request with requests = [999999999]."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/resolve_additional_request",
+    "body": {
+      "item_type": "counter_offer_for_bid",
+      "requests": [
+        999999999
+      ],
+      "resolution": "accepted"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. Today [999999999].pluck(:id) evaluates 999999999[:id] -> TypeError (app/controllers/api/additional_requests_controller.rb:64) -> HTTP 500. (Sending the same numbers under request_ids is the supported form and answers 4.)",
+    "rationale": "Two accepted shapes (requests vs request_ids) and no validation of either."
+  },
+  {
+    "id": "EDGE-DNEG-044",
+    "feature": "negotiation.vendor_response",
+    "title": "QA_Platform_resolve_counter_offer_dashboard_shape_unknown_id_not_found",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. Body in exactly the dashboard's shape (requests: [{uuid, resolution}]) with a uuid that decodes to 999999999.",
+    "steps": [
+      "1. PATCH resolve_additional_request with item_type counter_offer_for_bid, requests [{uuid: Z2dnWmdaUWtnZw==, resolution: accepted}]."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/resolve_additional_request",
+    "body": {
+      "item_type": "counter_offer_for_bid",
+      "requests": [
+        {
+          "uuid": "Z2dnWmdaUWtnZw==",
+          "resolution": "accepted"
+        }
+      ],
+      "resolution_remarks": "QA_Platform_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' — ParamsAuth turns each uuid into id, the lookup is status active + resolution requested (app/controllers/api/additional_requests_controller.rb:146) and finds nothing. Nothing changes.",
+    "rationale": "Pins the real client shape (redux/pendingTasks/api.js:15-20) so a change in uuid decoding inside the list is caught."
+  },
+  {
+    "id": "EDGE-DNEG-055",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_revoke_counter_offer_requests_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. PATCH revoke_additional_requests with requests = \"QA_Platform_x\" (text)."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {
+      "requests": "QA_Platform_x_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2. Today requests.pluck(:id) on a String (app/controllers/api/additional_requests_controller.rb:95-96) -> NoMethodError -> HTTP 500. Complements EDGE-AWD-073 (requests missing).",
+    "rationale": "DEFECT-IN-WAITING: revoke trusts the body shape completely."
+  },
+  {
+    "id": "EDGE-DNEG-056",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_revoke_counter_offer_requests_as_numbers_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. PATCH revoke_additional_requests with requests = [999999999]."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {
+      "requests": [
+        999999999
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. Today 999999999[:id] inside pluck raises TypeError (app/controllers/api/additional_requests_controller.rb:96) -> HTTP 500.",
+    "rationale": "Bare ids are a natural client mistake; the revoke action has no request_ids alternative to fall back on."
+  },
+  {
+    "id": "EDGE-DNEG-057",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_revoke_counter_offer_dashboard_shape_unknown_id_not_found",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. Body in exactly the dashboard's shape (requests: [{uuid, status: revoke}], no item_type).",
+    "steps": [
+      "1. PATCH revoke_additional_requests with requests [{uuid: Z2dnWmdaUWtnZw==, status: revoke}]."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {
+      "requests": [
+        {
+          "uuid": "Z2dnWmdaUWtnZw==",
+          "status": "revoke"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' — the lookup is status active + resolution requested (app/controllers/api/additional_requests_controller.rb:181-185). Nothing is revoked.",
+    "rationale": "Pins the client shape the Revoke Counter Offer button sends (redux/pendingTasks/actions.js:169-187)."
+  },
+  {
+    "id": "EDGE-DNEG-058",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_revoke_counter_offer_empty_list_is_not_found",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. PATCH revoke_additional_requests with requests = []."
+    ],
+    "method": "PATCH",
+    "path": "/additional_request/revoke_additional_requests",
+    "body": {
+      "requests": []
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' (app/controllers/api/additional_requests_controller.rb:181-185, rendered at app/controllers/api/additional_requests_controller.rb:103). Must not be a silent success.",
+    "rationale": "An empty revoke must not answer success; the dashboard sends [] when a vendor's request ids are missing (actions.js:175-180)."
+  },
+  {
+    "id": "EDGE-DNEG-064",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_log_for_unknown_request_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer. Z2dnWmdaUWtnZw== decodes to 999999999: no counter offer has that id or parent id.",
+    "steps": [
+      "1. GET the counter-offer log (counter_offer_details) for Z2dnWmdaUWtnZw==."
+    ],
+    "method": "GET",
+    "path": "/v1/additional_requests/Z2dnWmdaUWtnZw==/counter_offer_details",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 4. Today the relation is empty, additional_requests.first is nil and nil.get_grouping_key raises NoMethodError (app/controllers/api/v1/additional_requests_controller.rb:156-157) -> HTTP 500, before any authorisation.",
+    "rationale": "DEFECT-IN-WAITING: the counter-offer log screen crashes for a stale or mistyped id; there is no not-found branch at all."
+  },
+  {
+    "id": "EDGE-DNEG-065",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_counter_offer_log_for_unreadable_id_must_not_pick_a_random_request",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer. 'WrongUuid1=' decodes to nil, so params[:id] is nil.",
+    "steps": [
+      "1. GET counter_offer_details for 'WrongUuid1='.",
+      "2. Read the reply and note which event (if any) it describes."
+    ],
+    "method": "GET",
+    "path": "/v1/additional_requests/WrongUuid1=/counter_offer_details",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 4. Today where(id: nil).or(where(parent_id: nil)) (app/controllers/api/v1/additional_requests_controller.rb:156) matches EVERY top-level active/revoked additional request in the database; .first picks the oldest one (any company, any kind), Bid.find(its grouping key) loads an arbitrary bid (app/controllers/api/v1/additional_requests_controller.rb:157) and only then authorize/is_allowed_to_view refuse it (455 or 101, app/controllers/api/v1/additional_requests_controller.rb:159-162) — or Bid.find raises not-found (404). Never 5xx; a 200 would mean another request's counter-offer sheet was returned.",
+    "rationale": "A nil id turns 'this request' into 'any request'; the tenant check is the only thing between the buyer and someone else's negotiation.",
+    "notRunnable": "it sends an id that decodes to nothing, and the counter-offer log then matches every top-level counter offer in the database (v1/additional_requests_controller.rb:156); today it crashes (HTTP 500, verified live 2026-10-03), but the moment the crash is fixed without the scope it would copy another company's counter offer into our logs. Check it by hand with two test companies you control."
+  },
+  {
+    "id": "EDGE-DNEG-066",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_quote_details_shows_counter_offer_history_after_award",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The journey's closed pricing round {{pricingTradeUuid}} with the QA vendor's bid {{bidUuid}}; when the run ticked negotiation.counter_offer the journey raised a counter offer that nobody answered, and the award submit then revoked it.",
+    "steps": [
+      "1. GET the vendor's quote details for {{bidUuid}} on {{pricingTradeUuid}} as the buyer.",
+      "2. Look at participants[...].counter_offer_additional_requests."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/quote_details/{{bidUuid}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. Read-back oracle: the bid's counter_offer_additional_requests lists the journey's counter offer with resolution 'revoke' (void is shown as revoke, app/controllers/concerns/trade_controller_helper.rb:5595-5610) — the award submit auto-revokes pending counter offers (app/helpers/api/proposal_helper.rb:168-169, 252-268). Never 5xx.",
+    "rationale": "Proves where the buyer can see that an unanswered counter offer was dropped at award time and the award used the original price."
+  },
+  {
+    "id": "EDGE-DNEG-067",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_pending_tasks_list_never_contains_counter_offers",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer (PROCOL DEMO).",
+    "steps": [
+      "1. GET the buyer's pending tasks (older approval workflows).",
+      "2. Check every task's approval_key_attribute."
+    ],
+    "method": "GET",
+    "path": "/v1/additional_requests/pending_tasks",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with pending_tasks; only approval kinds (event creation, surrogate bid, bid selection) appear — counter offers are filtered out by change_type (app/controllers/api/v1/additional_requests_controller.rb:10-12). Never 5xx (requested_by / item are dereferenced without nil checks, app/controllers/api/v1/additional_requests_controller.rb:19, 32-33).",
+    "rationale": "The pending-task list is where approvers act; a counter offer leaking into it would offer the buyer an approve button for the vendor's decision."
+  },
+  {
+    "id": "EDGE-DNEG-077",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_ai_counter_offer_without_line_ids_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; {{tradeId}} is the sandbox pricing round. The crash below is reached only when PROCOL DEMO's workspace has the Smart Suggest (AI counter offer) feature in its AI feature list; otherwise the policy answers 455 first (app/policies/ask_ai_chat_policy.rb:26-28), which also passes.",
+    "steps": [
+      "1. POST ask_ai_chats/counter_offer for {{tradeId}} with vendor_uuid and trade_schedule_phase but no trade_product_uuids."
+    ],
+    "method": "POST",
+    "path": "/ask_ai_chats/counter_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "vendor_uuid": "Z2dnWmdaUWtnZw==",
+      "trade_schedule_phase": "live"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2 (or 455 when the feature is off). Today get_counter_offer_data runs, then trade_product_ids.map on nil (app/controllers/concerns/ask_ai_chats_controller_helper.rb:1672-1676) -> NoMethodError -> HTTP 500, before the AI service is called.",
+    "rationale": "Smart Suggest's backend has no parameter validation at all."
+  },
+  {
+    "id": "EDGE-DNEG-078",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_ai_counter_offer_with_empty_line_list_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; {{tradeId}} is the sandbox pricing round. The crash below is reached only when PROCOL DEMO's workspace has the Smart Suggest (AI counter offer) feature in its AI feature list; otherwise the policy answers 455 first (app/policies/ask_ai_chat_policy.rb:26-28), which also passes.",
+    "steps": [
+      "1. POST ask_ai_chats/counter_offer for {{tradeId}} with trade_product_uuids = []."
+    ],
+    "method": "POST",
+    "path": "/ask_ai_chats/counter_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "vendor_uuid": "Z2dnWmdaUWtnZw==",
+      "trade_product_uuids": [],
+      "trade_schedule_phase": "live"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2. Today the metadata SQL is built as 'WHERE ip.id IN ()' (app/controllers/concerns/ask_ai_chats_controller_helper.rb:1676-1678, 1720-1744) -> PG syntax error -> StatementInvalid is re-raised (app/controllers/concerns/conditional_api_caching.rb:93-97) -> HTTP 500, before the AI call.",
+    "rationale": "An empty selection (the drawer with every row filtered out) produces invalid SQL."
+  },
+  {
+    "id": "EDGE-DNEG-079",
+    "feature": "negotiation.counter_offer",
+    "title": "QA_Platform_ai_counter_offer_for_unknown_event_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer. Z2dnWmdaUWtnZw== decodes to a round id that does not exist.",
+    "steps": [
+      "1. POST ask_ai_chats/counter_offer with trade_request_uuid Z2dnWmdaUWtnZw== and trade_product_uuids [{{tradeProductUuid}}]."
+    ],
+    "method": "POST",
+    "path": "/ask_ai_chats/counter_offer",
+    "body": {
+      "trade_request_uuid": "Z2dnWmdaUWtnZw==",
+      "vendor_uuid": "Z2dnWmdaUWtnZw==",
+      "trade_product_uuids": [
+        "{{tradeProductUuid}}"
+      ],
+      "trade_schedule_phase": "live"
+    },
+    "expected": "reject",
+    "expectedResult": "Non-2xx, not 5xx: TradeRequest.find raises RecordNotFound -> 404 (app/controllers/concerns/ask_ai_chats_controller_helper.rb:1691), or 455 (You are not authorized to perform this action) when the workspace lacks the Smart Suggest AI feature. The AI service is never called.",
+    "rationale": "Pins that an unknown event is refused before any prices are sent to the AI service."
+  }
+]

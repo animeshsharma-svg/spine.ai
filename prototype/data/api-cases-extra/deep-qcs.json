@@ -1,0 +1,1316 @@
+[
+  {
+    "id": "EDGE-DQCS-001",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_aggregate_savings_unknown_stage",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer of the run's client; the path id decodes to 999999999, which has no trade_requests row.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/aggregate_savings.",
+      "2. Expect 422 code 4 and no savings payload."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/aggregate_savings",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' from TradeController#aggregate_savings (app/controllers/api/v1/trade_controller.rb:563) - find_by_id returns nil for id 999999999 and the action stops before authorize.",
+    "rationale": "Bogus-id guard on the savings read; a regression would dereference nil in the policy or in savings_configuration and 500."
+  },
+  {
+    "id": "EDGE-DQCS-002",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_aggregate_savings_undecodable_id",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id is an undecodable uuid (decodes to nil).",
+    "steps": [
+      "1. GET /v1/trade/WrongUuid1=/aggregate_savings.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/WrongUuid1=/aggregate_savings",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - the id decodes to nil, find_by_id(nil) is nil and app/controllers/api/v1/trade_controller.rb:563 answers before authorize.",
+    "rationale": "Guards the nil-id path: the sibling action alternate_bidding_leader_board authorizes nil and crashes, this one must not."
+  },
+  {
+    "id": "EDGE-DQCS-003",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_aggregate_savings_closed_rfq_without_savings_config",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey RFQ is closed with one submitted bid and was created without a savings configuration.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/aggregate_savings.",
+      "2. Expect 200; savings null or a list of custom savings."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/aggregate_savings",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with savings null (no savings configuration on the journey RFQ and custom savings off), or a list of custom savings when the client uses custom savings. Never 5xx. app/controllers/api/v1/trade_controller.rb:567-571, app/models/model_helpers/trade_request_model_helper.rb:668.",
+    "rationale": "Exercises the no-configuration branch on a stage that has real bids and a proposal; nil configuration must short-circuit cleanly."
+  },
+  {
+    "id": "EDGE-DQCS-004",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_aggregate_savings_live_rfq_no_bids",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox RFQ is live with an open bid window and no bids.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/aggregate_savings.",
+      "2. Expect 200 (savings null) or 422 code 577, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/aggregate_savings",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Either 200 with savings null, or 422 code 577 when event masking applies to the caller. Never 5xx. app/controllers/api/v1/trade_controller.rb:567-568.",
+    "rationale": "The live, no-bid state is where best-amount lookups return nil; the read must stay safe."
+  },
+  {
+    "id": "EDGE-DQCS-005",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_aggregate_savings_on_rfp_stage",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "rfp_rfq run; the technical stage of the sandbox event exists.",
+    "steps": [
+      "1. GET /v1/trade/{{rfpTradeId}}/aggregate_savings.",
+      "2. Expect 200 savings null."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{rfpTradeId}}/aggregate_savings",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with savings null - RFP stages carry no savings configuration (app/controllers/api/v1/trade_controller.rb:568). Never 5xx.",
+    "rationale": "Wrong stage type for a price endpoint; must degrade to empty."
+  },
+  {
+    "id": "EDGE-DQCS-010",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_line_savings_unknown_stage",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/best_line_wise_savings.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/best_line_wise_savings",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' (app/controllers/api/v1/trade_controller.rb:576) - find_by_id returns nil before the policy runs.",
+    "rationale": "Bogus-id guard on the per-line savings read."
+  },
+  {
+    "id": "EDGE-DQCS-011",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_line_savings_closed_rfq_without_savings_config",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey RFQ is closed with one submitted bid and no savings configuration.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/best_line_wise_savings.",
+      "2. Expect 200."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/best_line_wise_savings",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty object when the stage has no savings configuration (app/controllers/api/v1/trade_controller.rb:583-587), or a map keyed by line uuid when custom savings are on. Never 5xx.",
+    "rationale": "No-configuration branch with real bids present."
+  },
+  {
+    "id": "EDGE-DQCS-017",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_l1_data_unknown_stage",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/l1_data_for_event.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/l1_data_for_event",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' (app/controllers/api/v1/trade_controller.rb:552) - find_by_id nil, answered before authorize.",
+    "rationale": "Bogus-id guard on the L1 read used by bulk counter offers."
+  },
+  {
+    "id": "EDGE-DQCS-018",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_l1_data_live_rfq_no_bids",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox RFQ is live with no bids.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/l1_data_for_event.",
+      "2. Expect 200 and an empty object."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/l1_data_for_event",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty object - no participant scores yet (app/controllers/concerns/trade_template_helper.rb:391). Never 5xx.",
+    "rationale": "Empty-state boundary of the L1 read."
+  },
+  {
+    "id": "EDGE-DQCS-019",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_l1_data_after_award_no_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey RFQ is closed with one bid and a submitted award proposal (approved directly when no approval flow applies).",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/l1_data_for_event.",
+      "2. Expect 200, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/l1_data_for_event",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 (L1 line values or an empty object). Must not 5xx. Suspected crash: app/controllers/concerns/trade_template_helper.rb:396 loads bid lines with status active/requested only, then app/controllers/concerns/trade_template_helper.rb:402 calls select on nil when the L1 vendor line is selected (awarded).",
+    "rationale": "Status filter mismatch between ranking (active, selected, requested) and the L1 line lookup (active, requested) - a nil dereference after award."
+  },
+  {
+    "id": "EDGE-DQCS-021",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_schema_l1_prices_no_bids",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox RFQ is live with no bids.",
+    "steps": [
+      "1. GET the sandbox schema with l1_prices=true.",
+      "2. Expect 200 with empty l1_prices maps."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/schema?response_type=template&additional_fields=order_details&l1_prices=true",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 and l1_prices with empty lot_based and line_item_based maps (app/controllers/concerns/trade_template_helper.rb:416). Never 5xx.",
+    "rationale": "Empty-state boundary of the L1 prices block used to seed auctions."
+  },
+  {
+    "id": "EDGE-DQCS-022",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_schema_l1_prices_false_still_computed",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey RFQ is closed with one submitted bid.",
+    "steps": [
+      "1. GET the journey schema with l1_prices=false.",
+      "2. Expect 200; note whether l1_prices is present."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/schema?response_type=template&additional_fields=order_details&l1_prices=false",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200, never 5xx. Note: l1_prices is computed for any non-empty value (app/controllers/api/v1/trade_controller.rb:439), so the block is present even for false.",
+    "rationale": "Truthy-string parameter parsing on a price-revealing flag."
+  },
+  {
+    "id": "EDGE-DQCS-028",
+    "feature": "auction.rank",
+    "title": "QA_Platform_event_indicators_on_rfp_stage",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "rfp_rfq run; the sandbox technical stage exists.",
+    "steps": [
+      "1. GET /v1/trade/{{rfpTradeId}}/event_indicators.",
+      "2. Expect 200, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{rfpTradeId}}/event_indicators",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with auction_identifiers and a data map without prices. Never 5xx. app/controllers/api/v1/trade_controller.rb:531-547.",
+    "rationale": "Wrong stage type for a rank endpoint the dashboard nevertheless calls (rfx_mode is not rfi)."
+  },
+  {
+    "id": "EDGE-DQCS-029",
+    "feature": "auction.rank",
+    "title": "QA_Platform_event_indicators_live_no_bids",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox RFQ is live with no bids.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/event_indicators.",
+      "2. Expect 200."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/event_indicators",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty auction_identifiers_data map (no ranked bids), or an empty body when masking applies. Never 5xx. app/services/sourcing_engine/auction_indicators_service.rb:24-34.",
+    "rationale": "No-bid boundary of the indicators service."
+  },
+  {
+    "id": "EDGE-DQCS-030",
+    "feature": "auction.rank",
+    "title": "QA_Platform_event_indicators_single_bid_is_best",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey RFQ is closed with exactly one submitted bid.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/event_indicators.",
+      "2. Expect 200; one vendor, best_bidder true per line."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/event_indicators",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; auction_identifiers_data has one vendor key and that vendor is best_bidder on every line (rank 1 when ranks are shown). Never 5xx. app/services/sourcing_engine/auction_indicators_service.rb:131-160.",
+    "rationale": "Base oracle for L1 marking on a closed stage with real data."
+  },
+  {
+    "id": "EDGE-DQCS-031",
+    "feature": "auction.rank",
+    "title": "QA_Platform_event_indicators_undecodable_id",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id decodes to nil.",
+    "steps": [
+      "1. GET /v1/trade/WrongUuid1=/event_indicators.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/WrongUuid1=/event_indicators",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - the id decodes to nil and validate_event returns 4 (app/controllers/concerns/trade_controller_helper.rb:2215).",
+    "rationale": "Nil-decode path of the indicators read (complements AUC-RANK-003 which uses a substituted id)."
+  },
+  {
+    "id": "EDGE-DQCS-037",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_rejected_bids_unknown_stage",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/rejected_bids.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/rejected_bids",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - find_by nil then validate_event returns 4 (app/controllers/api/v1/trade_controller.rb:600-602).",
+    "rationale": "Bogus-id guard on the rejected-bids read."
+  },
+  {
+    "id": "EDGE-DQCS-038",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_rejected_bids_none",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey RFQ is closed with one active bid; no bid was rejected.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/rejected_bids.",
+      "2. Expect 200 and an empty object."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/rejected_bids",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty object - no bid on the journey RFQ has status rejected (app/controllers/api/v1/trade_controller.rb:605-619). Never 5xx.",
+    "rationale": "Empty-state boundary of the rejected-bids read."
+  },
+  {
+    "id": "EDGE-DQCS-039",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_bidder_remarks_unknown_stage",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/bidder_remarks.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/bidder_remarks",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' (app/controllers/api/v1/trade_controller.rb:624-627).",
+    "rationale": "Bogus-id guard on the remarks read."
+  },
+  {
+    "id": "EDGE-DQCS-040",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_bidder_remarks_closed_rfq",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey RFQ is closed with one submitted bid.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/bidder_remarks.",
+      "2. Expect 200 and an array."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/bidder_remarks",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an array (empty unless the vendor typed remarks); draft and in_active bids are excluded (app/controllers/api/v1/trade_controller.rb:630). Never 5xx.",
+    "rationale": "Happy-path read with the remarks filter on a stage with a real bid."
+  },
+  {
+    "id": "EDGE-DQCS-044",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_quote_details_paging_without_tabs",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey RFQ is a non-BOQ event (no tabs) and is closed with bid {{bidUuid}}.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/quote_details/{{bidUuid}}?tab=0&page=1.",
+      "2. Expect 200, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/quote_details/{{bidUuid}}?tab=0&page=1",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with the quote (tab and page ignored on a non-BOQ event). Must not 5xx. Suspected crash: app/controllers/concerns/trade_controller_helper.rb:6341 indexes trade.tabs, which is nil on non-BOQ events; the event-group version of the helper guards blank tabs.",
+    "rationale": "Unguarded nil index in the paging helper; only BOQ clients send tab/page, so non-BOQ coverage is missing."
+  },
+  {
+    "id": "EDGE-DQCS-045",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_quote_details_unknown_bid",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey RFQ is closed; the quote id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/quote_details/Z2dnWmdaUWtnZw==.",
+      "2. Expect 422 code 32."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/quote_details/Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 32 'Bid not found' - no BidTrade row links bid 999999999 to the stage (app/controllers/api/v1/trade_controller.rb:731-732).",
+    "rationale": "Bogus quote id on the vendor-quote read."
+  },
+  {
+    "id": "EDGE-DQCS-046",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_quote_details_bid_from_other_stage",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "The journey bid {{bidUuid}} exists on the journey RFQ; {{tradeId}} is the separate sandbox RFQ.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/quote_details/{{bidUuid}}.",
+      "2. Expect 422 code 32."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/quote_details/{{bidUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 32 'Bid not found' - the BidTrade lookup is scoped by bid id and trade_request id (app/controllers/api/v1/trade_controller.rb:731), and the journey bid is not on the sandbox stage.",
+    "rationale": "Cross-stage object reference: a bid must only be readable through its own stage."
+  },
+  {
+    "id": "EDGE-DQCS-047",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_quote_details_bid_id_on_rfp_stage",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "rfp_rfq run; the sandbox technical stage exists; {{bidUuid}} is an RFQ bid from the journey event.",
+    "steps": [
+      "1. GET /v1/trade/{{rfpTradeId}}/quote_details/{{bidUuid}}.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{rfpTradeId}}/quote_details/{{bidUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - on an RFP stage the quote id is looked up as a template response of that stage (app/controllers/api/v1/trade_controller.rb:666-667).",
+    "rationale": "Wrong stage type for the quote id; ids from different tables must not be confused."
+  },
+  {
+    "id": "EDGE-DQCS-048",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_quote_details_without_additional_requests",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey RFQ is closed with bid {{bidUuid}}.",
+    "steps": [
+      "1. GET the journey quote with additional_request_bid_required=false.",
+      "2. Expect 200."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/quote_details/{{bidUuid}}?additional_request_bid_required=false",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with sheet_uuid equal to the bid uuid and inline_data for the quoted line (app/controllers/api/v1/trade_controller.rb:789-799). Never 5xx.",
+    "rationale": "Parameter branch of the quote read on real data."
+  },
+  {
+    "id": "EDGE-DQCS-049",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_quote_summary_without_tabs",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox RFQ is a non-BOQ event (no tabs).",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/quote_summary/Z2dnWmdaUWtnZw==.",
+      "2. Expect 422 code 101."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/quote_summary/Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 101 'You are not allowed to perform this action' - trade.tabs is blank on a non-BOQ stage (app/controllers/api/v1/trade_controller.rb:813), checked before the bid lookup.",
+    "rationale": "Guard order: the tab check answers before the bogus bid id matters.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"quote_summary\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DQCS-053",
+    "feature": "auction.rank",
+    "title": "QA_Platform_leader_board_unknown_stage",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/alternate_bidding_leader_board.",
+      "2. Expect a 4xx, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/alternate_bidding_leader_board",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "A 4xx (expected 422 code 4). Must not 5xx. Suspected crash: app/controllers/api/v1/trade_controller.rb:867-868 calls authorize on a nil trade before validate_event; Pundit raises NotDefinedError, which ApiAuth does not rescue.",
+    "rationale": "Wrong guard order: authorize(nil) before the existence check."
+  },
+  {
+    "id": "EDGE-DQCS-054",
+    "feature": "auction.rank",
+    "title": "QA_Platform_leader_board_undecodable_id",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id decodes to nil.",
+    "steps": [
+      "1. GET /v1/trade/WrongUuid1=/alternate_bidding_leader_board.",
+      "2. Expect a 4xx, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/WrongUuid1=/alternate_bidding_leader_board",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "A 4xx. Must not 5xx. The id decodes to nil, find_by_id(nil) is nil and authorize nil raises Pundit NotDefinedError (app/controllers/api/v1/trade_controller.rb:867-868).",
+    "rationale": "Nil-decode variant of the authorize(nil) crash."
+  },
+  {
+    "id": "EDGE-DQCS-055",
+    "feature": "auction.rank",
+    "title": "QA_Platform_leader_board_alternate_bidding_off",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox RFQ has is_alternate_bidding_allowed OFF.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/alternate_bidding_leader_board.",
+      "2. Expect 422 code 101."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/alternate_bidding_leader_board",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 101 'You are not allowed to perform this action' - the stage does not allow alternate bidding (app/controllers/api/v1/trade_controller.rb:871).",
+    "rationale": "Feature-off gate on the leader board."
+  },
+  {
+    "id": "EDGE-DQCS-058",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_bid_visibility_users_when_not_locked",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "lock_bid_by_default is OFF for the client, so the sandbox RFQ does not lock bids.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/get_users_for_bid_visibility.",
+      "2. Expect 422 code 10."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/get_users_for_bid_visibility",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 10 'You are not allowed to use this functionality' - the stage does not lock bids (app/controllers/api/v1/trade_controller.rb:1304).",
+    "rationale": "Feature gate in front of a list of finance users with emails."
+  },
+  {
+    "id": "EDGE-DQCS-059",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_bid_visibility_users_unknown_stage",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/get_users_for_bid_visibility.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/get_users_for_bid_visibility",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - no active stage with that id in the caller workspace (app/controllers/api/v1/trade_controller.rb:1300-1301).",
+    "rationale": "Bogus-id guard on the unlock-flow read."
+  },
+  {
+    "id": "EDGE-DQCS-060",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_unlock_otp_without_user",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer; sandbox RFQ.",
+    "steps": [
+      "1. POST /v1/trade/{{tradeId}}/send_otp_for_unlocking_bids with an empty body.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/send_otp_for_unlocking_bids",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - user_id is blank (app/controllers/api/v1/trade_controller.rb:1250-1252); nothing is sent.",
+    "rationale": "Missing-field guard in front of an OTP send."
+  },
+  {
+    "id": "EDGE-DQCS-061",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_unlock_otp_to_non_finance_user",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "lock_bid_by_default is OFF; the target user is the run's own buyer.",
+    "steps": [
+      "1. POST send_otp_for_unlocking_bids naming the run's own buyer.",
+      "2. Expect 422 code 10; no OTP."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/send_otp_for_unlocking_bids",
+    "body": {
+      "user_uuid": "{{buyerUserUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 10 'You are not allowed to use this functionality' - the run buyer is not a finance user (app/controllers/api/v1/trade_controller.rb:1255) and the stage does not lock bids (app/controllers/api/v1/trade_controller.rb:1260); either guard gives 10.",
+    "rationale": "Role gate on who may receive the unlock OTP."
+  },
+  {
+    "id": "EDGE-DQCS-062",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_unlock_otp_unknown_user",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the user uuid decodes to 999999999.",
+    "steps": [
+      "1. POST send_otp_for_unlocking_bids with a bogus user_uuid.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/send_otp_for_unlocking_bids",
+    "body": {
+      "user_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - no active user 999999999 (app/controllers/api/v1/trade_controller.rb:1253-1254).",
+    "rationale": "Bogus recipient on the OTP send."
+  },
+  {
+    "id": "EDGE-DQCS-063",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_unlock_verify_without_otp",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Authenticated buyer; sandbox RFQ.",
+    "steps": [
+      "1. POST verify_otp_for_unlocking_bids without otp.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/verify_otp_for_unlocking_bids",
+    "body": {
+      "user_uuid": "{{buyerUserUuid}}",
+      "bid_visibility": "everyone"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - otp is blank (app/controllers/api/v1/trade_controller.rb:1276-1278); visibility is not updated.",
+    "rationale": "Missing OTP must never unlock sealed bids."
+  },
+  {
+    "id": "EDGE-DQCS-064",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_unlock_verify_wrong_otp",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "lock_bid_by_default is OFF; the target user is the run's own buyer.",
+    "steps": [
+      "1. POST verify_otp_for_unlocking_bids with otp 000000.",
+      "2. Expect 422 code 10; nothing changes."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/verify_otp_for_unlocking_bids",
+    "body": {
+      "user_uuid": "{{buyerUserUuid}}",
+      "otp": "000000",
+      "bid_visibility": "everyone"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 10 'You are not allowed to use this functionality' - the run buyer is not a finance user and the stage does not lock bids (app/controllers/api/v1/trade_controller.rb:1280,1285). Visibility is never updated.",
+    "rationale": "A wrong OTP must never reach update_bid_visibility."
+  },
+  {
+    "id": "EDGE-DQCS-071",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_bid_template_unknown_company",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox RFQ is live (status active); the company uuid decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/download_event_details?company_uuid=Z2dnWmdaUWtnZw==.",
+      "2. Expect a 4xx, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/download_event_details?company_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "A 4xx (company not found). Must not 5xx. Suspected crash: app/controllers/api/v1/trade_controller.rb:1051 passes Company.find_by(id: 999999999) = nil as current_workspace and the Excel service dereferences it in its constructor (app/services/procol_excel/trade_request_details_service.rb:26). The crash happens before any Report row is written.",
+    "rationale": "Unvalidated id parameter dereferenced in a service constructor."
+  },
+  {
+    "id": "EDGE-DQCS-072",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_bid_template_undecodable_id",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id decodes to nil.",
+    "steps": [
+      "1. GET /v1/trade/WrongUuid1=/download_event_details.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/WrongUuid1=/download_event_details",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - the id decodes to nil and app/controllers/api/v1/trade_controller.rb:1042 refuses it.",
+    "rationale": "Nil-id guard on the template download."
+  },
+  {
+    "id": "EDGE-DQCS-073",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_bid_template_unknown_stage",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/download_event_details.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/download_event_details",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - no active or draft stage with id 999999999 (app/controllers/api/v1/trade_controller.rb:1043-1044).",
+    "rationale": "Bogus-id guard on the template download."
+  },
+  {
+    "id": "EDGE-DQCS-074",
+    "feature": "bids.surrogate",
+    "title": "QA_Platform_bid_template_closed_rfq",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey RFQ is past its bid end with one bid and a submitted proposal.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/download_event_details.",
+      "2. Expect 200 or 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/download_event_details",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with excel_url while the stage status is active, or 422 code 4 when it is closed (app/controllers/api/v1/trade_controller.rb:1043-1044). Never 5xx. On success one Report and one ReportDownloadLog row are written for the run buyer.",
+    "rationale": "State boundary of the template download after close/award."
+  },
+  {
+    "id": "EDGE-DQCS-076",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_vendor_logs_refused_for_client_buyer",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "The caller is the run's client buyer (not a Procol employee); the journey RFQ is closed.",
+    "steps": [
+      "1. GET /v1/trade/{{pricingTradeUuid}}/trade_history.",
+      "2. Expect 422 code 455 and no fileUrl."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{pricingTradeUuid}}/trade_history",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 455 'You are not authorized to perform this action' - trade_history? allows Procol employees only (app/policies/trade_request_policy.rb:204-206), rescued by api_auth.rb:117.",
+    "rationale": "Employee-only export must refuse client users.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"trade_history\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DQCS-077",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_vendor_logs_unknown_stage",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated client buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/trade_history.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/trade_history",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - validate_event runs before the employee-only authorize (app/controllers/api/v1/trade_controller.rb:1414-1418).",
+    "rationale": "Guard order pin: existence check precedes the permission check.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"trade_history\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DQCS-078",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_comparison_export_empty_request",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. POST /reports/download_report with an empty body.",
+      "2. Expect 422 code 2; no report generated."
+    ],
+    "method": "POST",
+    "path": "/reports/download_report",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - item_type and item_id are both missing (app/controllers/api/reports_controller.rb:108-109).",
+    "rationale": "Missing-field guard on the export endpoint."
+  },
+  {
+    "id": "EDGE-DQCS-079",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_export_undecodable_event",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the item uuid decodes to nil.",
+    "steps": [
+      "1. POST /reports/download_report for an event_group with item_uuid WrongUuid1=.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "POST",
+    "path": "/reports/download_report",
+    "body": {
+      "item_type": "event_group",
+      "item_uuid": "WrongUuid1=",
+      "report_category": "master_qcs_report",
+      "lot_no": "",
+      "column_selection": []
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - item_uuid decodes to a nil item_id (app/controllers/api/reports_controller.rb:108-109).",
+    "rationale": "Nil-decode guard on the master QCS export body the dashboard sends."
+  },
+  {
+    "id": "EDGE-DQCS-080",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_export_unsupported_item_type",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer; sandbox RFQ.",
+    "steps": [
+      "1. POST /reports/download_report with item_type order.",
+      "2. Expect a 4xx; a 204 is the defect."
+    ],
+    "method": "POST",
+    "path": "/reports/download_report",
+    "body": {
+      "item_type": "order",
+      "item_uuid": "{{tradeId}}",
+      "report_category": "master_qcs_report"
+    },
+    "expected": "reject",
+    "expectedResult": "Expected a 4xx (Insufficient or Invalid Parameters). Today the action renders nothing for an item_type outside the supported list (app/controllers/api/reports_controller.rb:114) and Rails answers 204 No Content - a silent success.",
+    "rationale": "Unsupported enum value falls through without a response."
+  },
+  {
+    "id": "EDGE-DQCS-081",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_export_unknown_event",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the item uuid decodes to 999999999.",
+    "steps": [
+      "1. POST /reports/download_report for event_group 999999999.",
+      "2. Expect 404."
+    ],
+    "method": "POST",
+    "path": "/reports/download_report",
+    "body": {
+      "item_type": "event_group",
+      "item_uuid": "Z2dnWmdaUWtnZw==",
+      "report_category": "master_qcs_report",
+      "lot_no": "",
+      "column_selection": []
+    },
+    "expected": "reject",
+    "expectedResult": "A 4xx (404 from ActiveRecord RecordNotFound raised by find at app/controllers/api/reports_controller.rb:124). Never 5xx; no report is generated.",
+    "rationale": "Bogus id on the export: find raises; must map to 404, not 500."
+  },
+  {
+    "id": "EDGE-DQCS-083",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_regenerate_empty_list_policy_first",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The caller is the run's client buyer, not a Procol employee on the regeneration allow-list.",
+    "steps": [
+      "1. POST /event_groups/regenerate_master_qcs with an empty event_group_uuids list.",
+      "2. Expect 422 code 455 (not code 2)."
+    ],
+    "method": "POST",
+    "path": "/event_groups/regenerate_master_qcs",
+    "body": {
+      "event_group_uuids": []
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 455 'You are not authorized to perform this action' - authorize EventGroup runs before the blank-list check (app/controllers/api/event_groups_controller.rb:1041-1045; app/policies/event_group_policy.rb:92-97).",
+    "rationale": "Guard-order pin for the regeneration endpoint.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"regenerate_master_qcs\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DQCS-084",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_regenerate_over_cap_policy_first",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The caller is the run's client buyer, not on the regeneration allow-list.",
+    "steps": [
+      "1. POST regenerate_master_qcs with the sandbox event group uuid repeated 11 times.",
+      "2. Expect 422 code 455, not 843."
+    ],
+    "method": "POST",
+    "path": "/event_groups/regenerate_master_qcs",
+    "body": {
+      "event_group_uuids": [
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}",
+        "{{eventGroupUuid}}"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 455 'You are not authorized to perform this action' - the policy answers before the 10-id cap (app/controllers/api/event_groups_controller.rb:1041,1047).",
+    "rationale": "Guard-order pin: permission before size cap.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"regenerate_master_qcs\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DQCS-086",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_schema_without_view_type",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; sandbox event group.",
+    "steps": [
+      "1. GET /sheets/schema with only event_group_uuid.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/sheets/schema?event_group_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - validate_params before_action (app/controllers/api/sheets_controller.rb:189).",
+    "rationale": "Missing view type on the Master QCS read."
+  },
+  {
+    "id": "EDGE-DQCS-087",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_schema_unknown_event",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the event group uuid decodes to 999999999.",
+    "steps": [
+      "1. GET /sheets/schema?view_type=summary_view with a bogus event_group_uuid.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/sheets/schema?view_type=summary_view&event_group_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 4 'Request not found' - no active or withdrawn event group 999999999 (app/controllers/api/sheets_controller.rb:174-175).",
+    "rationale": "Bogus-id guard on the Master QCS schema."
+  },
+  {
+    "id": "EDGE-DQCS-088",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_schema_live_no_bids",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox event is active with a live RFQ and no bids.",
+    "steps": [
+      "1. GET the sandbox Master QCS summary schema.",
+      "2. Expect 200 (or 204), never 5xx."
+    ],
+    "method": "GET",
+    "path": "/sheets/schema?view_type=summary_view&event_group_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with sheets, layers and page_size (no bid layers yet), or an empty 204 when masking applies (app/controllers/api/sheets_controller.rb:16). Never 5xx.",
+    "rationale": "Empty-state Master QCS read."
+  },
+  {
+    "id": "EDGE-DQCS-089",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_schema_unknown_view_type",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer; sandbox event group.",
+    "steps": [
+      "1. GET /sheets/schema with view_type qa_bogus_view.",
+      "2. Expect a 4xx; a 200 with only page_size is the defect."
+    ],
+    "method": "GET",
+    "path": "/sheets/schema?view_type=qa_bogus_view&event_group_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Expected a 4xx (code 888 Invalid Parameters exists at app/controllers/api/sheets_controller.rb:181 for exactly this). Today no branch matches (app/controllers/api/sheets_controller.rb:12,31,50) and the action answers 200 with only page_size.",
+    "rationale": "Invalid enum accepted silently."
+  },
+  {
+    "id": "EDGE-DQCS-090",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_details_unknown_view_type",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer; sandbox event group.",
+    "steps": [
+      "1. GET /sheets/details with view_type qa_bogus_view.",
+      "2. Expect a 4xx; a 204 is the defect."
+    ],
+    "method": "GET",
+    "path": "/sheets/details?view_type=qa_bogus_view&event_group_uuid={{eventGroupUuid}}&layer_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Expected a 4xx. Today none of the view_type branches match (app/controllers/api/sheets_controller.rb:78,121,145), nothing is rendered and Rails answers 204 No Content.",
+    "rationale": "Action with no fallback render."
+  },
+  {
+    "id": "EDGE-DQCS-091",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_schema_unknown_lot",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Sandbox event without lots.",
+    "steps": [
+      "1. GET the sandbox Master QCS schema with lot_no 999.",
+      "2. Expect no 5xx (204 today)."
+    ],
+    "method": "GET",
+    "path": "/sheets/schema?view_type=summary_view&event_group_uuid={{eventGroupUuid}}&lot_no=999",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Never 5xx. Today the unknown lot has no stage, masking is reported true and the masked branch returns before render (app/controllers/api/sheets_controller.rb:16), so the answer is 204 No Content.",
+    "rationale": "Unknown lot reaches the masking precedence quirk; must at least not crash."
+  },
+  {
+    "id": "EDGE-DQCS-092",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_po_view_unknown_proposal",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the proposal uuid decodes to 999999999.",
+    "steps": [
+      "1. GET /sheets/schema?view_type=po with a bogus proposal_uuid.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/sheets/schema?view_type=po&proposal_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - no proposal 999999999 (app/controllers/api/sheets_controller.rb:177-178).",
+    "rationale": "Bogus proposal on the PO view."
+  },
+  {
+    "id": "EDGE-DQCS-093",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_details_paging_without_tabs",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Sandbox event, non-BOQ (no tabs).",
+    "steps": [
+      "1. GET /sheets/details with tab=0 and page=1 on the sandbox event.",
+      "2. Expect no 5xx."
+    ],
+    "method": "GET",
+    "path": "/sheets/details?view_type=summary_view&event_group_uuid={{eventGroupUuid}}&layer_uuid=Z2dnWmdaUWtnZw==&tab=0&page=1",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 (or 204 when masked). Never 5xx - set_pagination_for_event_group_line_items returns early when the event has no tabs (app/controllers/concerns/event_group_controller_helper.rb:209).",
+    "rationale": "Contrast with the stage-level helper that lacks the blank-tabs guard."
+  },
+  {
+    "id": "EDGE-DQCS-094",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_schema_foreign_proposal",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{proposalUuid}} belongs to the journey event; {{eventGroupUuid}} is the separate sandbox event.",
+    "steps": [
+      "1. GET the sandbox awarding_view schema with the journey proposal uuid.",
+      "2. Expect no 5xx; note whether the foreign proposal changes the grid."
+    ],
+    "method": "GET",
+    "path": "/sheets/schema?view_type=awarding_view&event_group_uuid={{eventGroupUuid}}&proposal_uuid={{proposalUuid}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Never 5xx. The proposal is found by id and company only (app/controllers/api/sheets_controller.rb:18), not by event group, so a proposal from the journey event is accepted for the sandbox event; the response must not crash on the mismatch.",
+    "rationale": "Cross-event object reference in the Master QCS read."
+  },
+  {
+    "id": "EDGE-DQCS-096",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_template_unknown",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the template id decodes to 999999999.",
+    "steps": [
+      "1. GET /mqcs_report_templates/Z2dnWmdaUWtnZw==.",
+      "2. Expect a 4xx."
+    ],
+    "method": "GET",
+    "path": "/mqcs_report_templates/Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "A 4xx: set_template finds no active MQCS template 999999999 for the company and answers error code 2 (app/controllers/api/report_templates_controller.rb:70-76). If the web app is not configured for this controller the refusal is app_error_auth_failed instead.",
+    "rationale": "Bogus id on the MQCS template read."
+  },
+  {
+    "id": "EDGE-DQCS-097",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_mqcs_template_availability",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. GET /mqcs_report_templates/check_availability.",
+      "2. Expect 200."
+    ],
+    "method": "GET",
+    "path": "/mqcs_report_templates/check_availability",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with template_available, template_id and template_name for the caller company (app/controllers/api/report_templates_controller.rb:53-64). Never 5xx.",
+    "rationale": "Read used by the Master QCS export to choose a layout."
+  },
+  {
+    "id": "EDGE-DQCS-098",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_on_single_currency_stage",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox RFQ has no currency configuration (single-currency stage).",
+    "steps": [
+      "1. PATCH /v1/trade/{{tradeId}}/currency_exchange_rates with a negative USD rate.",
+      "2. Expect 422 code 879."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        {
+          "USD": "-5"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 879 'Multi-currency is not configured for this trade request.' (app/controllers/api/v1/trade_controller.rb:1472). Every later branch also refuses this body (negative rate gives 878), so nothing is saved.",
+    "rationale": "Feature-off guard on the rate update."
+  },
+  {
+    "id": "EDGE-DQCS-099",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_after_bids",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The journey RFQ is closed with one bid.",
+    "steps": [
+      "1. PATCH currency_exchange_rates on the journey RFQ.",
+      "2. Expect 422 (879 or 877)."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{pricingTradeUuid}}/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        {
+          "USD": "-5"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 879 (single-currency stage, app/controllers/api/v1/trade_controller.rb:1472) or 877 (bids already placed, app/controllers/api/v1/trade_controller.rb:1473). Either way nothing is saved; the negative rate would also be refused (878).",
+    "rationale": "State guard: rates are frozen once bidding has data."
+  },
+  {
+    "id": "EDGE-DQCS-102",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_stage_read_unknown_history_bid",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox RFQ is live; the bid uuid decodes to 999999999.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}?last_valid_bid_for_bid_uuid=Z2dnWmdaUWtnZw==.",
+      "2. Expect a 4xx, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}?last_valid_bid_for_bid_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "A 4xx (expected 422 code 32). Must not 5xx. Suspected crash: app/controllers/api/trade_controller.rb:1112 finds no bid 999999999 on the stage and app/controllers/api/trade_controller.rb:1113 calls status on nil.",
+    "rationale": "Nil dereference on an optional query parameter of the stage read."
+  },
+  {
+    "id": "EDGE-DQCS-103",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_stage_read_non_numeric_history_bid",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox RFQ is live.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}?last_valid_bid_for_bid_id=abc.",
+      "2. Expect a 4xx, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}?last_valid_bid_for_bid_id=abc",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "A 4xx. Must not 5xx. The raw id abc matches no bid, bid is nil and app/controllers/api/trade_controller.rb:1113 calls status on it.",
+    "rationale": "Wrong-type value on the raw form of the bid-history parameter."
+  },
+  {
+    "id": "EDGE-DQCS-104",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_stage_read_history_for_real_bid",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The journey RFQ is closed with bid {{bidUuid}}.",
+    "steps": [
+      "1. GET /trade/{{pricingTradeUuid}}?last_valid_bid_for_bid_uuid={{bidUuid}}.",
+      "2. Expect 200."
+    ],
+    "method": "GET",
+    "path": "/trade/{{pricingTradeUuid}}?last_valid_bid_for_bid_uuid={{bidUuid}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with the stage and the vendor layer built from all bids of that vendor (app/controllers/api/trade_controller.rb:1111-1115). Never 5xx.",
+    "rationale": "Happy path of the bid-history parameter on real data."
+  },
+  {
+    "id": "EDGE-DQCS-105",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_auction_report_unknown_stage",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; the path id decodes to 999999999.",
+    "steps": [
+      "1. GET /trade/Z2dnWmdaUWtnZw==/auction_report.",
+      "2. Expect a 4xx, never 5xx."
+    ],
+    "method": "GET",
+    "path": "/trade/Z2dnWmdaUWtnZw==/auction_report",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "A 4xx. Must not 5xx. Suspected crash: app/controllers/api/trade_controller.rb:1627-1628 wraps a nil find_by in T.must, which raises TypeError.",
+    "rationale": "Sorbet T.must used as a not-found check."
+  },
+  {
+    "id": "EDGE-DQCS-106",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_event_summary_zero_rank_limit",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer; sandbox RFQ.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}/event_summary?rank_limit=0.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}/event_summary?rank_limit=0",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with error code 2 'Insufficient parameters' - rank_limit must be positive (app/controllers/api/trade_controller.rb:1714-1715).",
+    "rationale": "Lower boundary of rank_limit."
+  }
+]

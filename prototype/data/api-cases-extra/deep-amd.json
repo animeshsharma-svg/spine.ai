@@ -1,0 +1,972 @@
+[
+  {
+    "id": "EDGE-DAMD-001",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_item_type_lowercase_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Nothing is versioned by this case.",
+    "steps": [
+      "1. POST /item_versions with item_uuid {{eventGroupUuid}} and item_type \"eventgroup\" (lower case).",
+      "2. Read the sandbox back: is_latest_version must still be true."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "eventgroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — ALLOWED_ITEM_TYPES is the exact list %w(EventGroup) and the check runs before any lookup (app/controllers/api/item_versions_controller.rb:3, 9-11). No item_versions row, no replica event.",
+    "rationale": "The allow-list is case-sensitive; a lenient fix (downcase/classify) would also widen the constantize at line 13."
+  },
+  {
+    "id": "EDGE-DAMD-002",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_item_type_as_array_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Nothing is versioned by this case.",
+    "steps": [
+      "1. POST /item_versions with item_type sent as the array [\"EventGroup\"]."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": [
+        "EventGroup"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — an Array is not blank but ALLOWED_ITEM_TYPES.exclude?([..]) is true (app/controllers/api/item_versions_controller.rb:9-11). Must never reach `item_type.constantize` (line 13), which would raise on an Array.",
+    "rationale": "Wrong JSON type on the one field that is fed to constantize."
+  },
+  {
+    "id": "EDGE-DAMD-003",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_undecodable_item_uuid_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer. WrongUuid1= decodes to nil in ParamsAuth#check_for_uuid.",
+    "steps": [
+      "1. POST /item_versions with item_uuid \"WrongUuid1=\" and item_type EventGroup."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "WrongUuid1=",
+      "item_type": "EventGroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — item_uuid is rewritten to item_id = nil (app/controllers/concerns/params_auth.rb:57-80), so item_id.blank? is true (app/controllers/api/item_versions_controller.rb:9-10).",
+    "rationale": "A garbled id must be a parameter error, not an 'event not found' or a crash."
+  },
+  {
+    "id": "EDGE-DAMD-004",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_nonexistent_event_888",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. Z2dnWmdaUWtnZw== decodes to id 999999999 (no such event group).",
+    "steps": [
+      "1. POST /item_versions with item_uuid Z2dnWmdaUWtnZw== and item_type EventGroup."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_uuid": "Z2dnWmdaUWtnZw==",
+      "item_type": "EventGroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 888 'Invalid Parameters' — EventGroup.find_by(id: 999999999) is nil and `item.blank?` answers 888 before the policy (app/controllers/api/item_versions_controller.rb:13-16). Note the code is the same one used for 'not live' and 'not latest', so the client cannot tell the three apart.",
+    "rationale": "Well-formed id of a record that does not exist."
+  },
+  {
+    "id": "EDGE-DAMD-005",
+    "feature": "events.versioning",
+    "title": "QA_Platform_version_raw_item_id_not_numeric_888",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer. A raw item_id (not item_uuid) is NOT decoded by ParamsAuth — only keys containing 'uuid' are.",
+    "steps": [
+      "1. POST /item_versions with item_id \"QA_Platform_abc_{{stamp}}\" (text) and item_type EventGroup."
+    ],
+    "method": "POST",
+    "path": "/item_versions",
+    "body": {
+      "item_id": "QA_Platform_abc_{{stamp}}",
+      "item_type": "EventGroup"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 888 'Invalid Parameters' — find_by(id: <text>) casts to no row (app/controllers/api/item_versions_controller.rb:13-15). Must not be a 500 from a type-cast error.",
+    "rationale": "The controller accepts a raw item_id as well as item_uuid; a raw id bypasses uuid decoding entirely, so its type handling matters."
+  },
+  {
+    "id": "EDGE-DAMD-034",
+    "feature": "events.versioning",
+    "title": "QA_Platform_live_line_item_quantity_edit_bypasses_amendment",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Run it last: it changes the sandbox's line item.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with only line_items: the existing line item (by uuid) with quantity 7.",
+      "2. GET /event_groups/{{eventGroupUuid}}/get_line_items and GET /trade/{{tradeId}} and compare the quantities."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "uuid": "{{lineItemUuid}}",
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "KG",
+            "value": 7
+          }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (a published event's quantities change only through a new version with an amendment remark). Today: HTTP 200 — status is nil and line_items is present, so update_event_group_data takes the execute branch (app/controllers/concerns/event_group_controller_helper.rb:33-35) and create_line_items rewrites the meta/precomputed data of the line item in place (app/services/event_groups/update_service.rb:95-140). The trade product of the stage is NOT touched, so the event line item and the RFQ line vendors quote against now disagree; no remark, no event_revise_notification (that fires only for an amendment draft, event_group_controller_helper.rb:2632-2637).",
+    "rationale": "The core amendment bypass: a buyer can change what is being bought on a live event with no version, no remark and no vendor notice."
+  },
+  {
+    "id": "EDGE-DAMD-035",
+    "feature": "events.versioning",
+    "title": "QA_Platform_live_line_item_negative_quantity_stored",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Run it last: it changes the sandbox's line item.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the existing line item and quantity -5."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "uuid": "{{lineItemUuid}}",
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "KG",
+            "value": -5
+          }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be 422. Today 200: get_details_for_event_group_line_items only flags 0/nil as rate-only and never rejects a negative value (app/controllers/concerns/trade_controller_helper.rb:6303-6318) and EventGroupLineItem has no validations (app/models/event_group_line_item.rb), so -5 is stored on a live event.",
+    "rationale": "Negative boundary on the live-edit path (the create path is covered by EDGE-CRT; this is the LIVE state)."
+  },
+  {
+    "id": "EDGE-DAMD-036",
+    "feature": "events.versioning",
+    "title": "QA_Platform_live_delete_only_line_item_711",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. The sandbox has exactly ONE active line item (the journey's create_draft makes one).",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with line_items: [{uuid: the line item, status: \"deleted\"}]."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "uuid": "{{lineItemUuid}}",
+          "status": "deleted"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 711 'You cannot delete this line item from the project' — update_line_items refuses when the only active line item is deleted (app/services/event_groups/update_service.rb:171-176). The line item stays active.",
+    "rationale": "Removing the last thing being bought from a live event must be refused (withdraw is the path for that)."
+  },
+  {
+    "id": "EDGE-DAMD-037",
+    "feature": "events.versioning",
+    "title": "QA_Platform_live_line_item_unknown_product_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Z2dnWmdaUWtnZw== decodes to a product id that does not exist.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with the existing line item but product_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "uuid": "{{lineItemUuid}}",
+          "product_uuid": "Z2dnWmdaUWtnZw==",
+          "quantity": {
+            "unitSymbol": "KG",
+            "value": 5
+          }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 422. get_details_for_event_group_line_items does product_by_id[...] then `product.id` with no nil check (app/controllers/concerns/trade_controller_helper.rb:6299-6300) → NoMethodError → 500, and the 8-second event lock taken by lock_transaction is not released because after_action does not run (app/controllers/api/event_groups_controller.rb:20, 1513-1520).",
+    "rationale": "Unknown id on the live line-item edit path crashes instead of refusing."
+  },
+  {
+    "id": "EDGE-DAMD-038",
+    "feature": "events.versioning",
+    "title": "QA_Platform_live_add_line_item_without_stage_line",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Run it last: it adds a second line item to the sandbox.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with line_items = [existing line item, a NEW line item (no uuid) of 3 units].",
+      "2. GET /event_groups/{{eventGroupUuid}}/get_line_items (2 items) vs GET /trade/{{tradeId}} (still 1 quotable line)."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "uuid": "{{lineItemUuid}}",
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "KG",
+            "value": 5
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "KG",
+            "value": 3
+          }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused on a live event (or routed through a version). Today 200: create_line_items inserts a new EventGroupLineItem with the event's status 'active' (app/services/event_groups/update_service.rb:110-148) but no TradeProduct is created on the live RFQ, so vendors cannot quote the new line and awarding sees a line nobody bid on.",
+    "rationale": "Adding scope to a live event silently, with no vendor notice and no stage line."
+  },
+  {
+    "id": "EDGE-DAMD-039",
+    "feature": "events.config",
+    "title": "QA_Platform_live_title_rides_along_with_config",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with a new title and description plus config {show_reference_id: false}.",
+      "2. GET /event_groups/{{eventGroupUuid}}: the title changed."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "title": "QA_Platform_LiveRetitle_{{stamp}}",
+      "description": "QA_Platform_live_desc_{{stamp}}",
+      "config": {
+        "show_reference_id": false
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today 200 and the title/description change on the live event: a non-empty config sends the request into execute (app/controllers/concerns/event_group_controller_helper.rb:33), which assigns title, description and merges config with no state check (app/services/event_groups/update_service.rb:47-54). The same title alone is a silent no-op (EDGE-CRT-020), so whether a live rename happens depends on an unrelated key being present. No remark, no notification.",
+    "rationale": "Live renames are allowed or ignored by accident, not by rule."
+  },
+  {
+    "id": "EDGE-DAMD-040",
+    "feature": "events.terms",
+    "title": "QA_Platform_live_event_terms_replaced_silently",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Run it last: it replaces the sandbox event's terms.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with config {show_reference_id: false} and terms_and_conditions {clauses: [one new clause], attachments: []}.",
+      "2. GET /event_groups/{{eventGroupUuid}}: terms_and_conditions shows only the new clause."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "config": {
+        "show_reference_id": false
+      },
+      "terms_and_conditions": {
+        "clauses": [
+          "QA_Platform_live_clause_{{stamp}}"
+        ],
+        "attachments": []
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should require an amendment (or at least notify invited vendors). Today 200: execute replaces the event-level terms with TermsAndConditions.new(...) on the live event (app/services/event_groups/update_service.rb:80-82); no remark, no email, no push, and vendors' earlier T&C acceptances are not reset.",
+    "rationale": "Vendors are held to terms they never saw."
+  },
+  {
+    "id": "EDGE-DAMD-041",
+    "feature": "events.terms",
+    "title": "QA_Platform_live_event_terms_unknown_key_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with config {show_reference_id: false} and terms_and_conditions carrying an extra key."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "config": {
+        "show_reference_id": false
+      },
+      "terms_and_conditions": {
+        "clauses": [],
+        "attachments": [],
+        "QA_Platform_extra": 1
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. On a LIVE event the terms are built only in execute: TermsAndConditions.new(**hash.symbolize_keys) (app/services/event_groups/update_service.rb:80-81) raises ArgumentError for the unknown keyword (app/poro_classes/terms_and_conditions.rb:34) → 500. (EDGE-PUB-021 sends the same key with status active + draft stage ids, which on a live event takes the publish-new-stage branch and never builds the terms — so that case cannot reach this line.)",
+    "rationale": "Reaches the T&C constructor through the path a live event actually uses."
+  },
+  {
+    "id": "EDGE-DAMD-042",
+    "feature": "events.config",
+    "title": "QA_Platform_live_config_flips_event_to_boq",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Run it last: it changes how the sandbox treats line-item edits.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with config {boq_based_rfx: true}.",
+      "2. GET /event_groups/{{eventGroupUuid}}: config.boq_based_rfx is now true."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "config": {
+        "boq_based_rfx": true
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (event type is fixed at publish). Today 200: config is merged key-by-key with no allow-list except four scheduling keys (app/services/event_groups/update_service.rb:50-54); boq_based_rfx? then reads true (app/models/event_group.rb:937), and the next line-item edit deletes every line item not in the request (update_service.rb:164-166).",
+    "rationale": "A free-form config merge lets a live event change type mid-bidding."
+  },
+  {
+    "id": "EDGE-DAMD-043",
+    "feature": "events.terms",
+    "title": "QA_Platform_live_stage_terms_replaced_push_only",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Run it last: it replaces the stage's terms.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with terms_and_conditions [one new plain-text clause].",
+      "2. GET /trade/{{tradeId}}: the clause is there; tnc_popup_accepted for vendors is unchanged."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "terms_and_conditions": [
+        "QA_Platform_amended_clause_{{stamp}}"
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today 200 (no bids yet, so the \"bids received and closed\" guard at app/controllers/api/trade_controller.rb:715-717 does not fire): PersistedArrayBuilder keeps the string clause (app/services/terms_and_conditions/persisted_array_builder.rb:10), send_notification_on_trade_update queues only a push 'update_trade_notification' (trade_controller.rb:722; app/models/trade_request.rb:2423-2428). No email, no remark, and misc.tnc_popup_acceptances is not cleared (trade_request.rb:3048-3063), so a vendor who accepted the old terms is shown as having accepted the new ones.",
+    "rationale": "Terms change on a live stage without re-acceptance."
+  },
+  {
+    "id": "EDGE-DAMD-044",
+    "feature": "events.terms",
+    "title": "QA_Platform_live_stage_terms_cleared",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Run it last: it removes the stage's terms.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with terms_and_conditions []."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "terms_and_conditions": []
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today 200: [] is not nil, so the terms branch runs and stores an empty list (app/controllers/api/trade_controller.rb:714-722) — every clause, including mandatory ones, disappears from a live stage with only a push notification. Expect at least a remark requirement.",
+    "rationale": "Empty-list boundary on the live T&C edit."
+  },
+  {
+    "id": "EDGE-DAMD-045",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_reschedule_started_stage_258",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. The stage's bid_start_time is in the past (it is live).",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with bid_start_time and bid_end_time far in the future (the reschedule body)."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "bid_start_time": 4102444800,
+      "bid_end_time": 4102448400
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 258 'You cannot re-schedule this event!' — the reschedule branch refuses once bid_start_time < now (app/controllers/api/trade_controller.rb:605-606). Schedules unchanged. (The dashboard offers Reschedule only for upcoming events, eventHeader.jsx:696-704.)",
+    "rationale": "Moving the start of a running stage would reopen/close bidding under vendors."
+  },
+  {
+    "id": "EDGE-DAMD-046",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_end_time_type_unknown_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with end_time_type \"QA_Platform_bogus\" and end_time far in the future."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "end_time_type": "QA_Platform_bogus",
+      "end_time": 4102444800
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — end_time_type must be request_for_best_price or request_for_cost_break_down (app/controllers/api/trade_controller.rb:442-443; app/models/trade_schedule.rb:69). time_extension_blocked? runs first but is false with no proposals (trade_controller.rb:438-440).",
+    "rationale": "Invalid enum on the live end-time edit."
+  },
+  {
+    "id": "EDGE-DAMD-047",
+    "feature": "events.extend_deadline",
+    "title": "QA_Platform_delivery_schedule_unknown_id_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Delivery schedule id 999999999 does not exist.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with delivery_schedules [{id: 999999999, delivery_by: far future}] and nothing else."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "delivery_schedules": [
+        {
+          "id": 999999999,
+          "delivery_by": 4102444800
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. The non-reschedule path looks the schedule up with an UNSCOPED DeliverySchedule.where(id: ...).last and assigns to it with no nil check (app/controllers/api/trade_controller.rb:759-765) → NoMethodError → 500. (The reschedule path at line 625-627 scopes to the stage and answers code 15.)",
+    "rationale": "Unknown id crashes; the same unscoped lookup is a cross-tenant write when the id exists (see API-XDAMD-052)."
+  },
+  {
+    "id": "EDGE-DAMD-048",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_stage_rename_no_remark",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}} with title \"QA_Platform_LiveStage_{{stamp}}\"."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}",
+    "body": {
+      "title": "QA_Platform_LiveStage_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Today 200: the title branch runs for any non-draft stage and returns early (app/controllers/api/trade_controller.rb:504-509; trade_controller_helper.rb:1408-1428). For a sheet stage with one product the description is overwritten with the delivery location name; for a non-sheet single-product stage the title is silently replaced by the product name. No remark, no notification.",
+    "rationale": "Baseline for the closed-stage rename (EDGE-DAMD-053)."
+  },
+  {
+    "id": "EDGE-DAMD-053",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_rename_closed_awarded_stage_allowed",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{pricingTradeUuid}} is the journey's own pricing stage: bid window closed, one submitted bid from the QA vendor, an award proposal submitted. rfx_project_enabled is OFF (when ON the stage answers 769 first because a proposal is requested/selected). The run did not issue a version of the journey's event (if it did, every write answers 101 first).",
+    "steps": [
+      "1. PATCH /trade/{{pricingTradeUuid}} with title \"QA_Platform_ClosedStage_{{stamp}}\".",
+      "2. GET /trade/{{pricingTradeUuid}}: the title changed."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{pricingTradeUuid}}",
+    "body": {
+      "title": "QA_Platform_ClosedStage_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (a closed stage with a submitted award is a record). Today 200: the title branch sits BEFORE the status allow-list (app/controllers/api/trade_controller.rb:504-509 vs 590-594), so a closed, bid-on, awarded stage can be renamed. Answers 769 instead when rfx_project_enabled is ON, 101 if the journey's event was versioned.",
+    "rationale": "Closed events must be immutable; this edit path skips the state check entirely."
+  },
+  {
+    "id": "EDGE-DAMD-054",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_terms_on_closed_stage_with_bid_4",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{pricingTradeUuid}} is the journey's own pricing stage: bid window closed, one submitted bid from the QA vendor, an award proposal submitted. rfx_project_enabled is OFF (when ON the stage answers 769 first because a proposal is requested/selected). The run did not issue a version of the journey's event (if it did, every write answers 101 first).",
+    "steps": [
+      "1. PATCH /trade/{{pricingTradeUuid}} with terms_and_conditions [one new clause]."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{pricingTradeUuid}}",
+    "body": {
+      "terms_and_conditions": [
+        "QA_Platform_late_clause_{{stamp}}"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 4 'Request not found' — a stage that has bids and whose bid_end_time has passed refuses T&C edits (app/controllers/api/trade_controller.rb:714-717); if the stage status is already 'closed' the status allow-list answers the same code 4 earlier (line 590-594). Alternatives: 769 (rfx_project_enabled ON), 101 (event versioned).",
+    "rationale": "Terms must not change after vendors have bid and the window has closed."
+  },
+  {
+    "id": "EDGE-DAMD-055",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_configurations_on_closed_stage_with_bid_4",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{pricingTradeUuid}} is the journey's own pricing stage: bid window closed, one submitted bid from the QA vendor, an award proposal submitted. rfx_project_enabled is OFF (when ON the stage answers 769 first because a proposal is requested/selected). The run did not issue a version of the journey's event (if it did, every write answers 101 first).",
+    "steps": [
+      "1. PATCH /trade/{{pricingTradeUuid}} with configurations {QA_Platform_marker: true}."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{pricingTradeUuid}}",
+    "body": {
+      "configurations": {
+        "QA_Platform_marker": true
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 4 'Request not found' — configurations edits are refused once bids exist and the window closed (app/controllers/api/trade_controller.rb:723-726). Same alternatives as EDGE-DAMD-054.",
+    "rationale": "Stage configuration is frozen after close."
+  },
+  {
+    "id": "EDGE-DAMD-056",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_line_edit_on_closed_stage_4",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{pricingTradeUuid}} is the journey's own pricing stage: bid window closed, one submitted bid from the QA vendor, an award proposal submitted. rfx_project_enabled is OFF (when ON the stage answers 769 first because a proposal is requested/selected). The run did not issue a version of the journey's event (if it did, every write answers 101 first).",
+    "steps": [
+      "1. PATCH /trade/{{pricingTradeUuid}} with trade_products [{id: 999999999, validations: {default: {ceil_price: 1}}}]."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{pricingTradeUuid}}",
+    "body": {
+      "trade_products": [
+        {
+          "id": 999999999,
+          "validations": {
+            "default": {
+              "ceil_price": 1
+            }
+          }
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 4 'Request not found' — set_product_details_after_edit refuses any line edit on a non-BOQ stage whose bid_end_time has passed (app/controllers/concerns/trade_controller_helper.rb:329-333, called from app/controllers/api/trade_controller.rb:711-713). The id 999999999 matches no line, so nothing could change even if the guard regressed.",
+    "rationale": "Quantities, specs and price caps of a closed stage must not change under the bids already received."
+  },
+  {
+    "id": "EDGE-DAMD-057",
+    "feature": "events.config",
+    "title": "QA_Platform_update_widgets_as_buyer_455",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. The run's buyer is not a Procol employee (users.company_id is not procol_employee_company_id). The sandbox RFQ has widgets.",
+    "steps": [
+      "1. PATCH /v1/trade/{{tradeId}}/widgets with operations [{operation: \"QA_Platform_noop\", widget_type: \"inline_components\"}]."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/widgets",
+    "body": {
+      "operations": [
+        {
+          "operation": "QA_Platform_noop",
+          "widget_type": "inline_components"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 (You are not authorized to perform this action) — update_widgets? is Procol-employee only (app/policies/trade_request_policy.rb:208-210) and authorize runs inside validate_widget_update_params before the operations are read (app/controllers/api/v1/trade_controller.rb:1635-1647). If the stage had no widgets the answer would be 891 first (line 1640). Even past the policy, the bogus operation is refused by WidgetUpdateService (VALID_OPERATIONS).",
+    "rationale": "Rewriting the columns vendors quote against is a support-only action."
+  },
+  {
+    "id": "EDGE-DAMD-059",
+    "feature": "events.terms",
+    "title": "QA_Platform_buyer_cannot_accept_vendor_tnc_101",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. The run's buyer user is not also mapped as a vendor of PROCOL DEMO.",
+    "steps": [
+      "1. PATCH /v1/trade/{{tradeId}}/accept_auction_tnc with an empty body, as the buyer."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/accept_auction_tnc",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' — the policy lets the owning company through (app/policies/trade_request_policy.rb:68-72), but no technical response of the buyer and no audience company the buyer can act for is found, so company_id is blank (app/controllers/api/v1/trade_controller.rb:903-913). misc.tnc_popup_acceptances unchanged.",
+    "rationale": "A buyer must not be able to record a vendor's acceptance of terms.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"accept_auction_tnc\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DAMD-061",
+    "feature": "erfx.stages",
+    "title": "QA_Platform_add_stage_referring_rfq_2001",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Needs the company setting is_add_new_stage_allowed ON (when OFF the answer is 1127 first).",
+    "steps": [
+      "1. POST /v1/trade/{{tradeId}}/add_new_stage_in_live_event with event_group_uuid {{eventGroupUuid}}."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/add_new_stage_in_live_event",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2001 'New stage cannot be added unless the referring stage is an RFP' — validate_referring_trade_is_rfp (app/services/add_new_stage/validate_service.rb:37-43). No new stage. (The rfq? branch of CreateService, app/services/add_new_stage/create_service.rb:18-19, is therefore unreachable.)",
+    "rationale": "Only an RFP-only live event can grow an RFQ stage.",
+    "notRunnable": "needs the company setting \"add a new stage to a live event\" (is_add_new_stage_allowed) switched ON. It is OFF on PROCOL DEMO — verified live 2026-10-03, every try answered 1127 \"Adding a new stage to a live event is not enabled for this company\" — and the runner cannot read this setting (it is not in the dashboard configuration), so here the rule behind it can never be reached. Run it on a client with the setting on."
+  },
+  {
+    "id": "EDGE-DAMD-062",
+    "feature": "erfx.stages",
+    "title": "QA_Platform_add_stage_without_event_533",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. POST /v1/trade/{{tradeId}}/add_new_stage_in_live_event with an empty body."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{tradeId}}/add_new_stage_in_live_event",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 'Project does not exist.' — EventGroup.active.find_by(id: nil, company_id: workspace) is nil (app/controllers/api/v1/trade_controller.rb:1123-1124). Independent of is_add_new_stage_allowed.",
+    "rationale": "Missing parent event id."
+  },
+  {
+    "id": "EDGE-DAMD-063",
+    "feature": "erfx.stages",
+    "title": "QA_Platform_add_stage_cross_event_2000",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "is_add_new_stage_allowed is ON (else 1127). {{pricingTradeUuid}} is the JOURNEY's stage; {{eventGroupUuid}} is the SANDBOX event — two different events of the same company.",
+    "steps": [
+      "1. POST /v1/trade/{{pricingTradeUuid}}/add_new_stage_in_live_event with event_group_uuid {{eventGroupUuid}}."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{pricingTradeUuid}}/add_new_stage_in_live_event",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2000 'Trade request and event group are not linked' — validate_trade_request_event_group_link (app/services/add_new_stage/validate_service.rb:29-35). Neither event changes.",
+    "rationale": "Grafting a stage of one event onto another event.",
+    "notRunnable": "needs the company setting \"add a new stage to a live event\" (is_add_new_stage_allowed) switched ON. It is OFF on PROCOL DEMO — verified live 2026-10-03, every try answered 1127 \"Adding a new stage to a live event is not enabled for this company\" — and the runner cannot read this setting (it is not in the dashboard configuration), so here the rule behind it can never be reached. Run it on a client with the setting on."
+  },
+  {
+    "id": "EDGE-DAMD-064",
+    "feature": "erfx.stages",
+    "title": "QA_Platform_add_stage_to_rfp_rfq_event_1129",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "rfp_rfq run: the sandbox has an RFP stage {{rfpTradeId}} and an RFQ stage. is_add_new_stage_allowed is ON (else 1127).",
+    "steps": [
+      "1. POST /v1/trade/{{rfpTradeId}}/add_new_stage_in_live_event with event_group_uuid {{eventGroupUuid}}."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/{{rfpTradeId}}/add_new_stage_in_live_event",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 1129 'New stage cannot be added to an RFP and RFQ event' (app/services/add_new_stage/validate_service.rb:54-59).",
+    "rationale": "The event already has both stage types.",
+    "notRunnable": "needs the company setting \"add a new stage to a live event\" (is_add_new_stage_allowed) switched ON. It is OFF on PROCOL DEMO — verified live 2026-10-03, every try answered 1127 \"Adding a new stage to a live event is not enabled for this company\" — and the runner cannot read this setting (it is not in the dashboard configuration), so here the rule behind it can never be reached. Run it on a client with the setting on."
+  },
+  {
+    "id": "EDGE-DAMD-065",
+    "feature": "erfx.stages",
+    "title": "QA_Platform_add_stage_unknown_stage_95",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer; Z2dnWmdaUWtnZw== decodes to a stage id that does not exist.",
+    "steps": [
+      "1. POST /v1/trade/Z2dnWmdaUWtnZw==/add_new_stage_in_live_event with event_group_uuid {{eventGroupUuid}}."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/add_new_stage_in_live_event",
+    "body": {
+      "event_group_uuid": "{{eventGroupUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 95 'Trade Request not found' — the stage lookup is scoped to the caller's workspace and runs before the policy (app/controllers/api/v1/trade_controller.rb:1120-1121).",
+    "rationale": "Unknown referring stage; the reply names the missing stage, which is the anticipated outcome here."
+  },
+  {
+    "id": "EDGE-DAMD-066",
+    "feature": "events.versioning",
+    "title": "QA_Platform_read_version_fields_of_unversioned_event",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. Nothing has versioned the sandbox yet.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}.",
+      "2. Check is_latest_version, item_versions, is_amendment_draft, amendment_remarks and config.can_create_new_version."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with is_latest_version true (app/serializers/event_group/show_serializer.rb:282-284), item_versions [] (all_versions returns [] when no version chain exists, app/models/versioning/methods.rb:37-42), is_amendment_draft null (non-draft, methods.rb:97-98), amendment_remarks.remarks null (methods.rb:114-123) and config.can_create_new_version true only when is_event_versioning_enabled is on and the caller shares a team with the owner or is super admin (app/models/event_group.rb:1091-1107).",
+    "rationale": "The read-back oracle every amendment case compares against."
+  },
+  {
+    "id": "EDGE-DAMD-067",
+    "feature": "events.versioning",
+    "title": "QA_Platform_read_line_items_of_live_event",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_line_items."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_line_items",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 listing the one active line item and its quantity. Run after EDGE-DAMD-034/038 (they run last) this read shows the live edits that the stage's trade products do not carry.",
+    "rationale": "Read-back oracle for the live line-item edits."
+  },
+  {
+    "id": "EDGE-DAMD-068",
+    "feature": "events.terms",
+    "title": "QA_Platform_read_stage_terms_and_acceptance",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}.",
+      "2. Check terms_and_conditions, is_tnc_popup_enabled and tnc_popup_accepted."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. is_tnc_popup_enabled follows the company's tnc_popup config for rfq (app/models/trade_request.rb:3035-3042); tnc_popup_accepted reads misc.tnc_popup_acceptances for the caller's companies (trade_request.rb:3060-3063; app/serializers/trade_serializer.rb:59-69).",
+    "rationale": "Read-back oracle for the T&C amendment cases."
+  },
+  {
+    "id": "EDGE-DAMD-069",
+    "feature": "events.versioning",
+    "title": "QA_Platform_get_lots_unknown_event_raises_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. Z2dnWmdaUWtnZw== decodes to an event id that does not exist.",
+    "steps": [
+      "1. GET /event_groups/Z2dnWmdaUWtnZw==/get_lots."
+    ],
+    "method": "GET",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/get_lots",
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2. get_lots calls `event_group.latest?` BEFORE its blank check (app/controllers/api/event_groups_controller.rb:894-896), so a missing event is nil.latest? → NoMethodError → 500.",
+    "rationale": "The version guard was inserted above the not-found guard."
+  },
+  {
+    "id": "EDGE-DAMD-070",
+    "feature": "events.versioning",
+    "title": "QA_Platform_get_lots_without_stage_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_lots with no trade_request_uuid."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_lots",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — the event is live and latest, the read policy passes, and no RFQ stage id was given (app/controllers/api/event_groups_controller.rb:893-899).",
+    "rationale": "Positive control for EDGE-DAMD-069: same endpoint, existing event, readable refusal."
+  },
+  {
+    "id": "EDGE-DAMD-071",
+    "feature": "events.versioning",
+    "title": "QA_Platform_save_draft_lots_unknown_event_raises_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. Z2dnWmdaUWtnZw== is not an event; nothing can be written.",
+    "steps": [
+      "1. PATCH /event_groups/Z2dnWmdaUWtnZw==/save_draft_lots with a minimal lots hash."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/save_draft_lots",
+    "body": {
+      "lots": {
+        "1": {
+          "old_trade_product_ids": []
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422. save_draft_lots checks `!event_group.latest?` before `event_group.blank?` (app/controllers/api/event_groups_controller.rb:925-929) → nil.latest? → 500.",
+    "rationale": "Same guard-order defect on a write endpoint."
+  },
+  {
+    "id": "EDGE-DAMD-072",
+    "feature": "events.versioning",
+    "title": "QA_Platform_reset_smart_lots_unknown_event_raises_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Authenticated buyer. Both ids decode to records that do not exist; nothing can be written.",
+    "steps": [
+      "1. PATCH /event_groups/Z2dnWmdaUWtnZw==/reset_to_smart_lots with trade_request_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/reset_to_smart_lots",
+    "body": {
+      "trade_request_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be 422 code 2. Both ids are present so the blank check passes, then EventGroup.active.find_by(...) is nil and `!event_group.latest?` runs before the nil check (app/controllers/api/event_groups_controller.rb:908-916) → 500.",
+    "rationale": "Third endpoint with the latest?-before-nil ordering."
+  },
+  {
+    "id": "EDGE-DAMD-073",
+    "feature": "platform.audit",
+    "title": "QA_Platform_trade_history_buyer_455",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals. The run's buyer is not a Procol employee (users.company_id is not procol_employee_company_id).",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/trade_history."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/trade_history",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 'You are not authorized to perform this action' — the stage is found in the buyer's workspace and validate_event passes, then trade_history? allows Procol employees only (app/controllers/api/v1/trade_controller.rb:1412-1418; app/policies/trade_request_policy.rb:204-206).",
+    "rationale": "The bid-history export is support-only; a buyer-facing audit of changes is not available here.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"trade_history\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DAMD-074",
+    "feature": "platform.audit",
+    "title": "QA_Platform_versions_log_of_own_stage",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. GET /versions_log/all?entity_type=TradeRequest&entity_uuid={{tradeId}}&count=50.",
+      "2. Read the change list (column, [old, new]) and the user who made each change."
+    ],
+    "method": "GET",
+    "path": "/versions_log/all?entity_type=TradeRequest&entity_uuid={{tradeId}}&count=50",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 {versions: [...]} newest first, each with type (create/update), changes [{column, changes:[old,new]}] and user (app/controllers/api/versions_log_controller.rb:4-16; app/views/api/versions_log/_version.json.jbuilder; app/models/version.rb:59-66). This is the audit trail for live-stage edits (terms, end time, title).",
+    "rationale": "Audit-trail read-back for the amendment cases."
+  },
+  {
+    "id": "EDGE-DAMD-075",
+    "feature": "platform.audit",
+    "title": "QA_Platform_versions_log_without_entity_id_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Authenticated buyer.",
+    "steps": [
+      "1. GET /versions_log/all?entity_type=TradeRequest (no entity id)."
+    ],
+    "method": "GET",
+    "path": "/versions_log/all?entity_type=TradeRequest",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' (app/controllers/api/versions_log_controller.rb:9-10).",
+    "rationale": "Missing-parameter baseline."
+  },
+  {
+    "id": "EDGE-DAMD-076",
+    "feature": "platform.audit",
+    "title": "QA_Platform_versions_log_event_group_not_allowed_5",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. GET /versions_log/all?entity_type=EventGroup&entity_uuid={{eventGroupUuid}}."
+    ],
+    "method": "GET",
+    "path": "/versions_log/all?entity_type=EventGroup&entity_uuid={{eventGroupUuid}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 5 'Not authorized' — is_valid_item_type? allows only Company, User, Team, TradeRequest, Bid, BuyerSellerCompanyMapping (app/controllers/api/versions_log_controller.rb:11, 20-22). Event-level and line-item edits (Version.bulk_record_for on EventGroupLineItem, app/services/event_groups/update_service.rb:139, 147) therefore have no readable audit trail through this API.",
+    "rationale": "Documents the audit gap for live event and line-item amendments."
+  },
+  {
+    "id": "EDGE-DAMD-077",
+    "feature": "platform.audit",
+    "title": "QA_Platform_versions_log_negative_paging",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. GET /versions_log/all?entity_type=TradeRequest&entity_uuid={{tradeId}}&count=-5&offset=-10."
+    ],
+    "method": "GET",
+    "path": "/versions_log/all?entity_type=TradeRequest&entity_uuid={{tradeId}}&count=-5&offset=-10",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200: count <= 0 falls back to 20 and offset <= 0 is ignored (app/controllers/api/versions_log_controller.rb:8, 13). Must not 5xx.",
+    "rationale": "Negative paging values."
+  },
+  {
+    "id": "EDGE-DAMD-078",
+    "feature": "platform.audit",
+    "title": "QA_Platform_versions_log_unbounded_count",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event ({{eventGroupUuid}}) is published, its single RFQ stage {{tradeId}} is open, one line item, no bids, no proposals.",
+    "steps": [
+      "1. GET /versions_log/all?entity_type=TradeRequest&entity_uuid={{tradeId}}&count=1000000."
+    ],
+    "method": "GET",
+    "path": "/versions_log/all?entity_type=TradeRequest&entity_uuid={{tradeId}}&count=1000000",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 today with limit(1000000) — there is no upper bound on count (app/controllers/api/versions_log_controller.rb:8, 14). A page cap would be expected; at minimum the read must not time out into a 5xx.",
+    "rationale": "Unbounded page size on an audit table that grows with every edit."
+  }
+]
