@@ -279,7 +279,8 @@ function renderVerdict(verdicts, passed) {
     card.appendChild(el("p", null, esc(v.title)));
     card.appendChild(el("p", null, esc(v.rationale)));
     for (const e of v.evidence ?? []) card.appendChild(el("code", null, esc(e)));
-    if (v.seenBefore) card.appendChild(el("p", null, `Seen ${v.seenBefore}× before — this is a known issue, not a new one.`));
+    if (v.knownBug) card.appendChild(el("p", null, `Already on the bug sheet as ${esc(v.knownBug)} — not a new bug.`));
+    else if (v.seenBefore) card.appendChild(el("p", null, `Seen ${v.seenBefore}× before — this is a known issue, not a new one.`));
     box.appendChild(card);
   }
 }
