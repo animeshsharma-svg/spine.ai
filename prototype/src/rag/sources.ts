@@ -373,7 +373,8 @@ async function knownBugChunks(notes: string[]): Promise<Chunk[]> {
       source: src,
       kind: "known-bug",
       module: moduleOf(r.Area),
-      labels: [id, r.Severity, r.Kind, r.Area, ...String(r["Client(s) where found"]).split(";").map((x) => x.trim())].filter(Boolean),
+      // "Test cases" lists the case ids that show the bug — an exact key for "is this already reported?"
+      labels: [id, r.Severity, r.Kind, r.Area, ...String(r["Client(s) where found"]).split(";").map((x) => x.trim()), ...String(r["Test cases"] ?? "").split(/[,\s]+/).map((x) => x.trim())].filter(Boolean),
       text: redact(
         `Known Procol bug ${id} (${r.Severity}, ${r.Kind}) — ${r.Area}: ${oneLine(r.Bug)}. ${oneLine(r["What goes wrong"])} ` +
           `How to see it: ${oneLine(r["How to see it"])} Should: ${oneLine(r["What should happen"])} Actually: ${oneLine(r["What actually happens"])} ` +
