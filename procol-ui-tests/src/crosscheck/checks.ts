@@ -53,6 +53,33 @@ export interface ItemResult {
   /** Technical detail: source route + JSON path. */
   source?: string;
   optional?: boolean;
+  /** The dashboard code (file:line) that says the screen shows this field this way. */
+  code?: string;
+  /** The raw API value and the raw screen text, before normalisation — the evidence. */
+  raw?: { api?: unknown; screen?: string };
+}
+
+/** A Lexical rich-text JSON message → the plain text its read-only editor renders. */
+export function lexicalText(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  let doc: unknown;
+  try {
+    doc = JSON.parse(v);
+  } catch {
+    return v;
+  }
+  const out: string[] = [];
+  const walk = (n: any) => {
+    if (!n || typeof n !== "object") return;
+    if (typeof n.text === "string") out.push(n.text);
+    if (Array.isArray(n.children)) {
+      n.children.forEach(walk);
+      if (n.type === "paragraph") out.push(" ");
+    }
+    if (n.root) walk(n.root);
+  };
+  walk(doc);
+  return out.join("").replace(/\s+/g, " ").trim();
 }
 
 const EMPTY = (v: unknown) =>
@@ -73,9 +100,13 @@ function scopeFor(snap: ScreenSnapshot, f0: FieldSpec, anchor: string | undefine
   if (f.scope === "label") {
     const labels = labelSegments(snap, f.screenLabel ?? f.label);
     if (!labels.length) return [{ located: false, segs: [], text: "", where: `next to the label "${f.screenLabel ?? f.label}"` }];
-    return labels.map((l) => {
+    // The value sits below the label (stacked) or right of it on its line; both are tried.
+    return labels.flatMap((l) => {
       const segs = besideLabel(snap, l);
-      return { located: true, segs, text: segs.map((s) => s.text).join(" "), where: `next to the label "${l.text}"` };
+      const right = lineOf(snap, l).filter((s) => s !== l && s.box.x >= l.box.x + l.box.w - 4 && s.box.x - (l.box.x + l.box.w) < 360).sort((a, b) => a.box.x - b.box.x).slice(0, 4);
+      const out = [{ located: true, segs, text: segs.map((s) => s.text).join(" "), where: `next to the label "${l.text}"` }];
+      if (right.length && right.some((r) => !segs.includes(r))) out.push({ located: true, segs: right, text: right.map((s) => s.text).join(" "), where: `right of the label "${l.text}"` });
+      return out;
     });
   }
   if (!anchor) return [{ located: false, segs: [], text: "", where: "(no anchor value in the API)" }];
@@ -209,6 +240,14 @@ export function spellApi(f: Pick<FieldSpec, "format">, v: unknown, other?: unkno
 }
 
 function readItemValue(path: string, item: unknown, sources: Record<string, ResolvedSource>, vars: Vars): unknown {
+  // "a || b": the first that has a value — the console's own `a ?? b`.
+  if (path.includes("||")) {
+    for (const p of path.split("||").map((x) => x.trim())) {
+      const v = readItemValue(p, item, sources, vars);
+      if (v !== undefined && v !== null && v !== "") return v;
+    }
+    return undefined;
+  }
   const ext = path.match(/^\$([a-zA-Z0-9_]+):(.*)$/);
   if (ext) {
     const body = sources[ext[1]]?.chosen?.body;
@@ -227,7 +266,7 @@ export function checkField(
 ): ItemResult[] {
   const src = sources[f.source];
   const where = src?.chosen ? `${src.chosen.method} ${src.chosen.route}` : f.source;
-  const base = { case: caseId, screen, key: f.key, field: f.label, optional: f.optional };
+  const base = { case: caseId, screen, key: f.key, field: f.label, optional: f.optional, code: f.code };
   if (!src?.chosen) {
     const failed = src?.responses.find((r) => !r.ok);
     return [
@@ -242,12 +281,20 @@ export function checkField(
       },
     ];
   }
-  const body = src.chosen.body;
-  const items: unknown[] = f.each ? getAll(body, fill(f.each, vars)) : [body];
+  const bodies = src.all ? src.responses.filter((r) => r.ok && r.body !== null).map((r) => r.body) : [src.chosen.body];
+  const items: unknown[] = bodies.flatMap((body) => (f.each ? getAll(body, fill(f.each, vars)) : [body]));
   const out: ItemResult[] = [];
   for (const item of items) {
-    if (f.when && !readItemValue(f.when, item, sources, vars)) continue;
-    const value = readItemValue(f.value, item, sources, vars);
+    if (f.when) {
+      // "path" = only when truthy; "path=value" = only when it equals value.
+      // "path!=value" = only when it differs from value.
+      const neg = f.when.includes("!=");
+      const [wp, wv] = f.when.split(neg ? "!=" : "=");
+      const got = readItemValue(wp, item, sources, vars);
+      if (wv === undefined ? !got : neg ? String(got) === wv : String(got) !== wv) continue;
+    }
+    const rawValue = readItemValue(f.value, item, sources, vars);
+    const value = f.transform === "lexical-text" ? lexicalText(rawValue) : rawValue;
     const other = f.other ? readItemValue(f.other, item, sources, vars) : undefined;
     const anchor = f.anchor ? readItemValue(f.anchor, item, sources, vars) : undefined;
     const itemName = anchor !== undefined && anchor !== null ? String(anchor) : undefined;
@@ -266,6 +313,7 @@ export function checkField(
       how,
       scope,
       source: `${where} → ${f.each ? f.each + " → " : ""}${f.value}`,
+      raw: { api: rawValue, screen: shown },
     });
     if (EMPTY(value) || (f.format === "ratio" && EMPTY(other))) {
       out.push(res("skipped", "—", "the API has no value to show", f.scope));
@@ -280,8 +328,14 @@ export function checkField(
     }
     let first: Compared | null = null;
     let hit: { c: Compared; s: (typeof located)[number] } | null = null;
+    const skew = Number(vars.clockSkewMs ?? 0);
+    const shifted = f.stageTime && skew && toInstant(value) !== null ? toInstant(value)! + skew : null;
     for (const s of located) {
-      const c = compareValue(f, value, other, s, precision);
+      let c = compareValue(f, value, other, s, precision);
+      if (!c.ok && shifted !== null) {
+        const c2 = compareValue(f, shifted, other, s, precision);
+        if (c2.ok) c = { ...c2, how: `${c2.how}, after the console's clock adjustment of ${Math.round(skew / 1000)} s` };
+      }
       first ??= c;
       if (c.ok) {
         hit = { c, s };

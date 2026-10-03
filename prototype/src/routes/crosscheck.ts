@@ -57,7 +57,7 @@ export const handle: RouteHandler = async (ctx) => {
       ctx.json({ error: "companyId and event (database id or the app's event id) are required" }, 400);
       return true;
     }
-    const cases = Array.isArray(b.cases) ? b.cases.map(String).filter((c: string) => /^UI-XCHK-\d{3}$/i.test(c)) : undefined;
+    const cases = Array.isArray(b.cases) ? b.cases.map(String).filter((c: string) => /^UI-XCHK-(?:[A-Z]+-)?\d{3}$/i.test(c)) : undefined;
     const st = startCrossRun({ companyId, event, cases, headed: b.headed === true });
     ctx.json(st);
     return true;

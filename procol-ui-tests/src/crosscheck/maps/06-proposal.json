@@ -1,0 +1,359 @@
+{
+  "screen": "proposal",
+  "title": "award proposal page",
+  "howToOpen": "Open the event, click the Master QCS tab, then \"Bid Selection Proposal\" (or open the proposal from Approvals).",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-03",
+    "fromDiscovery": "probeu-musebagu, probeu-musegorw",
+    "note": "Component views/projectProposal/projectProposal.jsx (dashboard snapshot 2026-08-11). The proposal's totals are shown exactly as the API sends them (strings such as \"₹ 2,925\"), so they are compared as numbers. The deployed console also shows Letter of Award columns that the snapshot does not have — not mapped."
+  },
+  "sources": {
+    "proposal": {
+      "method": "GET",
+      "path": "^/api/proposal/{proposalUuid}$"
+    },
+    "pschema": {
+      "method": "GET",
+      "path": "^/api/sheets/schema\\?view_type=proposal_view"
+    },
+    "pdetails": {
+      "method": "GET",
+      "path": "^/api/sheets/details\\?view_type=proposal_view",
+      "pick": "last"
+    },
+    "audience": {
+      "method": "GET",
+      "path": "^/api/event_groups/{eventUuid}/get_audience"
+    }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-PROP-001",
+      "title": "The proposal's Overview shows the selected line items, total, L1 and non-L1 proposal values the API computed",
+      "code": [
+        "views/projectProposal/projectProposal.jsx:1020-1038",
+        "models/project/projectTransforms.js:782-792"
+      ],
+      "fields": [
+        {
+          "key": "prop.items",
+          "label": "Selected line items",
+          "source": "proposal",
+          "value": "proposal_values.total_awarded_line_items",
+          "other": "$pschema:order_details.length",
+          "format": "ratio",
+          "scope": "label",
+          "screenLabel": "Tot. selected line items",
+          "code": "projectProposal.jsx:1020-1023 (`${totalAwarded}/${data.length}`)"
+        },
+        {
+          "key": "prop.total",
+          "label": "Total proposal value",
+          "source": "proposal",
+          "value": "proposal_values.total_proposal_value",
+          "format": "money",
+          "scope": "label",
+          "screenLabel": "Tot. Proposal Value",
+          "code": "projectProposal.jsx:1025-1028; projectTransforms.js:782-783"
+        },
+        {
+          "key": "prop.l1",
+          "label": "L1 proposal value",
+          "source": "proposal",
+          "value": "proposal_values.total_l1_proposal",
+          "format": "money",
+          "scope": "label",
+          "screenLabel": "Tot. L1 Proposal Value",
+          "code": "projectProposal.jsx:1030-1033; projectTransforms.js:784-785"
+        },
+        {
+          "key": "prop.nonl1",
+          "label": "Non-L1 proposal value",
+          "source": "proposal",
+          "value": "proposal_values.total_non_l1_proposal",
+          "format": "money",
+          "scope": "label",
+          "screenLabel": "Tot. Non L1 Proposal Value",
+          "code": "projectProposal.jsx:1035-1038; projectTransforms.js:786-787"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-PROP-002",
+      "title": "The proposal names the event's RFX number, who recommended it, and its approval workflow and conditions as the API returns them",
+      "code": [
+        "views/projectProposal/projectProposal.jsx:127-183",
+        "views/projectProposal/projectProposal.jsx:1048-1087"
+      ],
+      "fields": [
+        {
+          "key": "prop.rfx",
+          "label": "RFX number",
+          "source": "proposal",
+          "value": "proposal_values.project_ref_id",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "RFX No",
+          "code": "projectProposal.jsx:325-327,1048-1062; projectTransforms.js:767-770"
+        },
+        {
+          "key": "prop.by",
+          "label": "Recommended by",
+          "source": "proposal",
+          "value": "user.display_name",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "Proposal Recommended By",
+          "code": "projectProposal.jsx:1064-1067"
+        },
+        {
+          "key": "prop.workflow",
+          "label": "Approval workflow name",
+          "source": "proposal",
+          "value": "approval_name",
+          "format": "text",
+          "scope": "label",
+          "screenLabel": "Approval Workflow Name",
+          "code": "projectProposal.jsx:1069-1074; projectTransforms.js:761-765"
+        }
+      ],
+      "special": [
+        {
+          "kind": "approval-conditions",
+          "label": "Approval workflow conditions",
+          "code": "projectProposal.jsx:127-183,1076-1087",
+          "params": {
+            "source": "proposal",
+            "path": "approval_conditions",
+            "label": "Approval Workflow Conditions"
+          }
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-PROP-003",
+      "title": "The Allocation Summary lists every awarded vendor with the items selected and total amount the API returns",
+      "code": [
+        "views/projectProposal/allocationColumns.js:1-42",
+        "views/projectProposal/projectProposal.jsx:297-307,1091-1110"
+      ],
+      "fields": [
+        {
+          "key": "prop.alloc.items",
+          "label": "Items selected",
+          "source": "proposal",
+          "each": "vendor_wise_information[]",
+          "value": "total_line_items",
+          "anchor": "company_name",
+          "format": "count",
+          "scope": "cell",
+          "code": "allocationColumns.js:8-11 (raw or \"-\")",
+          "screenLabel": "Total Items selected"
+        },
+        {
+          "key": "prop.alloc.l1count",
+          "label": "L1 items selected",
+          "source": "proposal",
+          "each": "vendor_wise_information[]",
+          "value": "l1_count",
+          "anchor": "company_name",
+          "format": "count",
+          "scope": "cell",
+          "code": "allocationColumns.js:13-16",
+          "screenLabel": "L1 Items selected"
+        },
+        {
+          "key": "prop.alloc.amount",
+          "label": "Total amount",
+          "source": "proposal",
+          "each": "vendor_wise_information[]",
+          "value": "total_amount",
+          "anchor": "company_name",
+          "format": "money",
+          "scope": "cell",
+          "code": "allocationColumns.js:23-26 (raw string)",
+          "screenLabel": "Total Amount"
+        },
+        {
+          "key": "prop.alloc.l1amount",
+          "label": "L1 amount",
+          "source": "proposal",
+          "each": "vendor_wise_information[]",
+          "value": "l1_amount",
+          "anchor": "company_name",
+          "format": "money",
+          "scope": "cell",
+          "code": "allocationColumns.js:28-31",
+          "screenLabel": "L1 Amount"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-PROP-004",
+      "title": "The Note for Approval shows the note the buyer wrote, as the API stores it",
+      "code": [
+        "views/projectProposal/projectProposal.jsx:1112-1147"
+      ],
+      "fields": [
+        {
+          "key": "prop.note",
+          "label": "Note for approval",
+          "source": "proposal",
+          "value": "remarks.message",
+          "transform": "lexical-text",
+          "format": "text",
+          "scope": "page",
+          "code": "projectProposal.jsx:1119-1130 (Lexical JSON rendered read-only, else plain text)",
+          "note": "Located anywhere on the page: the note is a free-text panel body with no label beside it."
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-PROP-005",
+      "title": "The proposal's Participants panel lists every invited vendor, numbered 1, 2, 3 …, with each stage's bid status",
+      "code": [
+        "views/projectProposal/projectProposal.jsx:1175",
+        "views/projectDetails/components/participantsTable.jsx:152-241"
+      ],
+      "counts": [
+        {
+          "key": "prop.vendors.count",
+          "label": "Participants",
+          "source": "audience",
+          "value": "count",
+          "rowsOf": "vendors[].name"
+        }
+      ],
+      "special": [
+        {
+          "kind": "serial-numbers",
+          "label": "S No. column",
+          "code": "participantsTable.jsx:153-155 ((currentPage - 1) * 20 + index + 1); projectProposal.jsx:1175 renders <ParticipantsTable projectId={projectId} /> with no currentPage",
+          "params": {
+            "source": "audience",
+            "rowsOf": "vendors[].name",
+            "header": "S No."
+          }
+        }
+      ],
+      "fields": [
+        {
+          "key": "prop.vendor.location",
+          "label": "Vendor location",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "location",
+          "anchor": "name",
+          "format": "text",
+          "scope": "cell",
+          "screenLabel": "Location",
+          "code": "participantsTable.jsx:189-195"
+        },
+        {
+          "key": "prop.vendor.type",
+          "label": "Invitation type",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "scope",
+          "anchor": "name",
+          "format": "enum",
+          "scope": "cell",
+          "screenLabel": "Type",
+          "display": {
+            "added_by_creator": [
+              "Invited"
+            ],
+            "suggested": [
+              "Suggested"
+            ]
+          },
+          "code": "participantsTable.jsx:196-209 (suggested→Suggested, added_by_creator→Invited, else Self Registered)"
+        },
+        {
+          "key": "prop.vendor.stage1",
+          "label": "Bid status in the first stage",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "$audience:stages[0].vendors.{uuid}",
+          "anchor": "name",
+          "format": "enum",
+          "scope": "cell",
+          "screenLabel": "{stage0Title}",
+          "display": {
+            "bid_placed": [
+              "Bid placed"
+            ],
+            "invited": [
+              "Not Participated"
+            ],
+            "not_invited": [
+              "Not invited"
+            ],
+            "rejected": [
+              "Rejected"
+            ]
+          },
+          "code": "participantsTable.jsx:230-241 (invited→Not Participated, else humanize)"
+        },
+        {
+          "key": "prop.vendor.stage2",
+          "label": "Bid status in the second stage",
+          "source": "audience",
+          "each": "vendors[]",
+          "value": "$audience:stages[1].vendors.{uuid}",
+          "anchor": "name",
+          "format": "enum",
+          "scope": "cell",
+          "screenLabel": "{stage1Title}",
+          "display": {
+            "bid_placed": [
+              "Bid placed"
+            ],
+            "invited": [
+              "Not Participated"
+            ],
+            "not_invited": [
+              "Not invited"
+            ],
+            "rejected": [
+              "Rejected"
+            ]
+          },
+          "code": "participantsTable.jsx:230-241"
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-PROP-006",
+      "title": "The proposal's Order Allocation shows each awarded vendor's offered and awarded quantity, rates and totals as the API returns them",
+      "code": [
+        "views/projectProposal/projectProposal.jsx:1178-1190",
+        "models/project/projectTransforms.js:445-575",
+        "components/dataGrid/formatters/cellValueFormatter.jsx:52-91"
+      ],
+      "special": [
+        {
+          "kind": "qcs-cells",
+          "label": "Order allocation cells",
+          "code": "projectTransforms.js:445-575; cellValueFormatter.jsx:52-91",
+          "params": {
+            "schema": "pschema",
+            "details": "pdetails",
+            "below": "Order Allocation"
+          }
+        }
+      ]
+    },
+    {
+      "case": "UI-XCHK-050",
+      "title": "No screen of the event looks fine while a request behind it failed, and none reports an error while its requests succeeded",
+      "special": [
+        {
+          "kind": "api-vs-screen-errors",
+          "label": "Errors agree"
+        }
+      ]
+    }
+  ]
+}

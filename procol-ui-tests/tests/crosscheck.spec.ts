@@ -33,9 +33,14 @@ import { MAPS_DIR } from "../src/crosscheck/fieldMap.js";
  *   CROSSCHECK_EVENT   event id (database id or the app's id, e.g. UWtaY3BO)
  *   CROSSCHECK_CREATE  1 = create + publish a QA_Platform_XCHK_… RFQ first (UI_LINE_ITEMS honoured)
  *   CROSSCHECK_CASES   comma list of UI-XCHK ids to run (default: all)
- *   CROSSCHECK_SCREENS comma list of list,summary,responses,overview,qcs (default: all)
+ *   CROSSCHECK_SCREENS comma list of list,summary,responses,overview,qcs,participants,pricetrends,proposal (default: all)
  *   CROSSCHECK_STRICT  1 = fail the Playwright test when any case fails (default: report only)
  */
+
+// Dates on every screen are formatted in the BROWSER's timezone (no tz library in
+// the console: client-dashboard vite.config.js:58-75, utils/index.js:1270-1375).
+// Pin it, so a run means the same thing on any machine.
+test.use({ timezoneId: "Asia/Kolkata", locale: "en-IN" });
 
 const eventArg = process.env.CROSSCHECK_EVENT?.trim();
 const create = process.env.CROSSCHECK_CREATE === "1";
@@ -43,8 +48,8 @@ test.skip(!eventArg && !create, "set CROSSCHECK_EVENT=<id> or CROSSCHECK_CREATE=
 
 /** Cases the catalog holds that this spec cannot run yet, said out loud in every result. */
 const NOT_RUN = [
-  { case: "UI-XCHK-060", title: "The vendor's view of the event shows the title, line items, quantities and closing time the buyer's API returns", reason: "needs a vendor sign-in; the only configured vendor login sends an email OTP to a real address, which the platform must not do" },
-  { case: "UI-XCHK-061", title: "The vendor's bid form offers exactly the fields of the stage's template, with the buyer's quantities and units", reason: "needs a vendor sign-in (same reason as UI-XCHK-060)" },
+  { case: "UI-XCHK-060", title: "The vendor's view of the event shows the title, line items, quantities and closing time the buyer's API returns", reason: "not run: the vendor portal is a separate app whose code is not in this workspace, so what its screens are supposed to show cannot be confirmed from code (QA test vendors can sign in, but a disagreement could not be told apart from a design choice)" },
+  { case: "UI-XCHK-061", title: "The vendor's bid form offers exactly the fields of the stage's template, with the buyer's quantities and units", reason: "not run (same reason as UI-XCHK-060)" },
 ];
 
 test.afterAll(async () => {
@@ -59,7 +64,7 @@ test("UI ↔ API cross-check of an event's screens", async ({ page }) => {
   const companyId = COMPANY_ID ? Number(COMPANY_ID) : null;
   const notes: string[] = [];
   const wantCases = process.env.CROSSCHECK_CASES ? new Set(process.env.CROSSCHECK_CASES.split(",").map((s) => s.trim().toUpperCase())) : undefined;
-  const wantScreens = new Set((process.env.CROSSCHECK_SCREENS ?? "list,summary,responses,overview,qcs").split(",").map((s) => s.trim()));
+  const wantScreens = new Set((process.env.CROSSCHECK_SCREENS ?? "list,summary,responses,overview,qcs,participants,pricetrends,proposal").split(",").map((s) => s.trim()));
 
   if (companyId) await loginAsCompany(page, companyId);
   const collector = new EvidenceCollector(page, "crosscheck");
@@ -83,21 +88,31 @@ test("UI ↔ API cross-check of an event's screens", async ({ page }) => {
   }
 
   const maps = loadMaps();
-  const mapFor = (name: string) => maps.find((m) => m.screen === name);
+  // Several maps can read the same screen (a second batch of checks, or the
+  // technical / standings checks that read the Responses visit too).
+  const mapsFor = (name: string) => maps.filter((m) => m.screen === name);
   const titles = new Map(maps.flatMap((m) => m.groups.map((g) => [g.case, g.title] as const)));
   const visits: Visit[] = [];
   const results: CaseResult[] = [];
   const discovered: Record<string, DiscoveredField[]> = {};
 
-  const check = (v: Visit, vars: Vars, screenTitle?: string) => {
+  /** The console's clock adjustment: browser clock minus the server's (redux/user/actions.js:321-330). */
+  const clockSkew = (): number | undefined => {
+    const r = cap.responses.find((x) => /\/server_current_time/.test(x.path) && x.ok && x.body);
+    const t = Number((r?.body as { server_time?: number } | undefined)?.server_time);
+    return r && t ? Date.parse(r.at) - t * 1000 : undefined;
+  };
+
+  const check = (v: Visit, vars: Vars, screenTitle?: string, extra: string[] = []) => {
     visits.push(v);
-    const map = mapFor(v.map);
-    if (!map) return;
-    const rs = runScreen(map, v.key, v.snapshot, cap.responses, vars, v.toasts, { cases: wantCases, screenshot: v.screenshot, screenTitle });
-    results.push(...rs);
+    const withSkew: Vars = { ...vars, clockSkewMs: clockSkew() };
+    for (const map of [v.map, ...extra].flatMap(mapsFor)) {
+      const rs = runScreen(map, v.key, v.snapshot, cap.responses, withSkew, v.toasts, { cases: wantCases, screenshot: v.screenshot, screenTitle: screenTitle ?? map.title });
+      results.push(...rs);
+      for (const r of rs) console.log(`[crosscheck] ${r.case} on ${v.key}: ${r.verdict.toUpperCase()} — ${r.reason}`);
+      for (const f of rs.flatMap((r) => r.findings)) console.log(`[crosscheck]   ✗ ${f.title}`);
+    }
     discovered[v.key] = discover(v.snapshot, cap.forScreen(v.key));
-    for (const r of rs) console.log(`[crosscheck] ${r.case} on ${v.key}: ${r.verdict.toUpperCase()} — ${r.reason}`);
-    for (const f of rs.flatMap((r) => r.findings)) console.log(`[crosscheck]   ✗ ${f.title}`);
   };
 
   // Summary first: it is where the event's title and stages come from.
@@ -124,12 +139,24 @@ test("UI ↔ API cross-check of an event's screens", async ({ page }) => {
     const label = String(st.ref_id ?? st.title);
     const svars = { ...vars, stageUuid: String(st.uuid), stageTitle: String(st.title ?? "") };
     const stageName = `${String(st.title ?? "").trim() || label} (${label})`;
-    if (wantScreens.has("responses")) check(await drive.responses(eventUuid, String(st.uuid), label), svars, `${stageName} Responses grid`);
+    const technical = ["rfp", "rfi"].includes(String(st.rfx_mode));
+    if (wantScreens.has("responses"))
+      check(await drive.responses(eventUuid, String(st.uuid), label), svars, `${stageName} Responses grid`, technical ? ["technical"] : ["standings"]);
     if (wantScreens.has("overview")) check(await drive.overview(eventUuid, String(st.uuid), label), svars, `${stageName} Overview tab`);
+    if (wantScreens.has("participants"))
+      check(await drive.participants(eventUuid, String(st.uuid), label), svars, `${stageName} Participants tab`);
+    // Price Trends is hidden for technical and BOQ stages (eventHeader.jsx:408-418).
+    if (wantScreens.has("pricetrends") && !technical && !ev.config?.boq_based_rfx)
+      check(await drive.stageTab(eventUuid, String(st.uuid), "history", label, "pricetrends", [/\/trade\/price_trends\?/]), svars, `${stageName} Price Trends tab`);
   }
   if (wantScreens.has("qcs")) {
     if (ev.hide_master_qcs) notes.push("Master QCS is hidden for this event (hide_master_qcs), so it was not checked");
     else check(await drive.qcs(eventUuid), vars);
+  }
+  if (wantScreens.has("proposal")) {
+    const proposals = ((ev.proposals ?? []) as Array<Record<string, any>>).filter((p) => p?.uuid);
+    if (!proposals.length) notes.push("the event has no award proposal yet, so the proposal page was not checked");
+    for (const p of proposals.slice(0, 2)) check(await drive.proposal(eventUuid, String(p.uuid)), { ...vars, proposalUuid: String(p.uuid) }, `award proposal page`);
   }
 
   cap.stop();

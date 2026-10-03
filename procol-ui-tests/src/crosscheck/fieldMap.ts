@@ -75,6 +75,20 @@ export interface FieldSpec {
   optional?: boolean;
   /** Why this field is mapped the way it is — shown in Details. */
   note?: string;
+  /**
+   * How the API value is turned into what the screen renders before comparing:
+   * "lexical-text" — a rich-text (Lexical JSON) message → its plain text, as the
+   * console's read-only RichTextEditor renders it.
+   */
+  transform?: "lexical-text";
+  /**
+   * A stage time: the console adds localStorage.timeDiff (browser clock minus
+   * the server's) before formatting (adjustForClient, utils/index.js:756-762),
+   * so the shifted instant is accepted too. The run measures the difference.
+   */
+  stageTime?: boolean;
+  /** Where in the dashboard's code this mapping comes from (file:line), shown in Details. */
+  code?: string;
 }
 
 export interface CountSpec {
@@ -98,19 +112,31 @@ export type SpecialKind =
   | "stage-status"
   | "sheet-widgets"
   | "qcs-cells"
-  | "api-vs-screen-errors";
+  | "api-vs-screen-errors"
+  | "serial-numbers"
+  | "approval-conditions"
+  | "technical-answers"
+  | "auction-standings"
+  | "stage-countdown"
+  | "price-trend-rows"
+  | "bidding-summary"
+  | "product-sheet";
 
 export interface SpecialSpec {
   kind: SpecialKind;
   label: string;
+  /** Where in the dashboard's code the rule comes from (file:line). */
+  code?: string;
   /** Free-form parameters the special check documents itself. */
   params?: Record<string, unknown>;
 }
 
 export interface CheckGroup {
-  /** The catalog case this group IS: UI-XCHK-NNN. */
+  /** The catalog case this group IS: UI-XCHK-NNN or UI-XCHK-<SCREEN>-NNN. */
   case: string;
   title: string;
+  /** Where in the dashboard's code the screen's behaviour for this case is defined (file:line). */
+  code?: string[];
   fields?: FieldSpec[];
   counts?: CountSpec[];
   special?: SpecialSpec[];
@@ -168,12 +194,12 @@ type Step = { prop: string } | { all: true } | { index: number } | { where: [str
 
 function parse(path: string): Step[] {
   const steps: Step[] = [];
-  const re = /([^.[\]]+)|\[(\]|\d+\]|[^=\]]+=[^\]]*\])/g;
+  const re = /([^.[\]]+)|\[(\]|-?\d+\]|[^=\]]+=[^\]]*\])/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(path))) {
     if (m[1] !== undefined) steps.push({ prop: m[1] });
     else if (m[2] === "]") steps.push({ all: true });
-    else if (/^\d+\]$/.test(m[2])) steps.push({ index: Number(m[2].slice(0, -1)) });
+    else if (/^-?\d+\]$/.test(m[2])) steps.push({ index: Number(m[2].slice(0, -1)) });
     else {
       const [k, v] = m[2].slice(0, -1).split("=");
       steps.push({ where: [k, v] });
@@ -195,7 +221,7 @@ export function getAll(root: unknown, path: string): unknown[] {
         if (Array.isArray(c)) next.push(...c);
         else if (typeof c === "object") next.push(...Object.values(c as object));
       } else if ("index" in st) {
-        if (Array.isArray(c)) next.push(c[st.index]);
+        if (Array.isArray(c)) next.push(st.index < 0 ? c[c.length + st.index] : c[st.index]);
       } else {
         const [k, v] = st.where;
         if (Array.isArray(c)) next.push(...c.filter((e) => String(get(e, k)) === v));
@@ -218,6 +244,8 @@ export interface ResolvedSource {
   chosen?: CapturedResponse;
   /** True when it came from an earlier screen (the call was not repeated here). */
   borrowed?: boolean;
+  /** pick "all": fields iterate over every successful response, not only the chosen one. */
+  all?: boolean;
 }
 
 export function resolveSources(
@@ -238,7 +266,7 @@ export function resolveSources(
     }
     const ok = rs.filter((r) => r.ok && r.body !== null);
     const chosen = spec.pick === "first" ? ok[0] : ok[ok.length - 1];
-    out[name] = { name, responses: rs, chosen, borrowed };
+    out[name] = { name, responses: rs, chosen, borrowed, all: spec.pick === "all" };
   }
   return out;
 }

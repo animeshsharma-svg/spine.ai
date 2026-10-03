@@ -139,6 +139,8 @@ export interface JourneyRunOptions {
   journeyBudgetMs?: number;
   /** TESTING ONLY: a shorter watchdog for request steps (default BOUNDS.stepMs) */
   stepBoundMs?: number;
+  /** The event title's prefix (default "API_Journey"); e.g. "QA_Platform_XCHK" for the UI cross-check's events. */
+  titlePrefix?: string;
 }
 
 export interface JourneyRunResult {
@@ -2266,7 +2268,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
   const stageSeconds = opts.stageSeconds && opts.stageSeconds > 0 ? Math.floor(opts.stageSeconds) : 45;
-  const title = `API_Journey_${TITLE_TAG[plan.eventType]}_${Date.now()}`;
+  const title = `${opts.titlePrefix ?? "API_Journey"}_${TITLE_TAG[plan.eventType]}_${Date.now()}`;
   const planned = plan.steps.length;
   const budgetMs = opts.journeyBudgetMs && opts.journeyBudgetMs > 0 ? opts.journeyBudgetMs : BOUNDS.journeyMs;
 
