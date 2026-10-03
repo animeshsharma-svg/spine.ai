@@ -18,6 +18,7 @@
  *   GET /api/assistant/match?q=…[&llm=0]   → the matcher's answer only, as JSON (nothing runs)
  *   GET /api/assistant/drafts              → drafts the assistant has written, newest first
  *   GET /api/assistant/turns               → recent turns (typed text, decision, answer)
+ *   POST /api/assistant/drafts/review      → approve or reject a draft (draftReview.ts)
  */
 import type { RouteHandler } from "./index.js";
 import { runAssistant } from "../agents/assistant.js";
@@ -34,6 +35,18 @@ export const handle: RouteHandler = async (ctx) => {
 
   if (ctx.path === "/api/assistant/drafts") {
     ctx.json({ drafts: await listDrafts(Number(sp.get("limit")) || 50) });
+    return true;
+  }
+  // A person approves or rejects a draft (src/agents/draftReview.ts).
+  if (ctx.path === "/api/assistant/drafts/review") {
+    if (ctx.req.method !== "POST") {
+      ctx.json({ error: "POST { id, decision: approve|reject, automationCovers?, note? }" }, 405);
+      return true;
+    }
+    const b = await ctx.body();
+    const { reviewDraft } = await import("../agents/draftReview.js");
+    const r = await reviewDraft({ id: b.id, decision: b.decision, automationCovers: b.automationCovers === true, note: b.note, reviewer: b.reviewer });
+    ctx.json(r, r.ok ? 200 : 400);
     return true;
   }
   if (ctx.path === "/api/assistant/turns") {
