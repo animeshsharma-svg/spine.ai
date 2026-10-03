@@ -27,8 +27,8 @@ reports every result as a plain-language test case with the evidence behind it.
 | **Assistant** | A test case typed in plain language (Hinglish included) is matched to the catalog and run, or — if it is new — turned into a gated automation and saved as a draft for review. |
 | **CI/CD** | Offline checks on every push (GitHub Actions); a nightly live regression and a backend-change watcher (local, opt-in). |
 
-The catalog holds **5,515 written test cases in 43 journeys** (`test-cases/*.md`), every one placed in a
-journey. So far the platform has found **62 verified product defects** (`docs/bugs/`) — each reproduced on a
+The catalog holds **5,581 written test cases in 48 journeys** (`test-cases/*.md`), every one placed in a
+journey. So far the platform has found **68 verified product defects** (`docs/bugs/`) — each reproduced on a
 fresh test event before it was reported.
 
 ## How a verdict is reached
@@ -121,7 +121,7 @@ QA test vendors. Nothing deletes or changes real data, and Procol's database is 
 
 | | Today |
 |---|---|
-| Verified product defects found | 62 (2 critical, 12 high) — each reproduced on a fresh test event |
+| Verified product defects found | 68 (2 critical, 15 high) — each reproduced on a fresh test event |
 | Typed test case → right existing case (rules + model) | 97% top-1 · new cases detected 100% |
 | Instruction → right journey | 95.1% |
 | Written case → runnable browser plan | 92.7% |
