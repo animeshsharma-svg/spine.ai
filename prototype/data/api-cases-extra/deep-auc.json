@@ -1,0 +1,3299 @@
+[
+  {
+    "id": "EDGE-DAUC-001",
+    "feature": "auction.serial_bidding",
+    "title": "QA_Platform_convert_with_unknown_auction_type_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with configurations.auction_config = \"serial_bidding\" (not a member of the auction_config enum).",
+      "2. Observe the status code."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "serial_bidding",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a clean 4xx. Today it is expected to crash: no guard before RfqToAuction::CreateService reads auction_config (trade_controller.rb:963-999 only special-cases dutch/knockout), and change_rfq_info assigns it straight to the enum (app/services/rfq_to_auction/create_service.rb:231) — Rails 7.0 raises ArgumentError \"'serial_bidding' is not a valid auction_config\", which is not a CustomException, is re-raised (create_service.rb:99-103) and is not rescued by ApiController → HTTP 500. The transaction rolls back, so the sandbox RFQ is untouched.",
+    "rationale": "Valid types are rank, price, rank_and_price, traffic_light, knockout, dutch, book_building (trade_request.rb:166). 'Serial bidding' is a staggered line-item mode, not a type; a client that sends it (or 'english', or 'Rank') gets an untyped 500 instead of a validation error."
+  },
+  {
+    "id": "EDGE-DAUC-002",
+    "feature": "auction.rank",
+    "title": "QA_Platform_convert_without_auction_type_silently_becomes_rank",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with configurations.auction_config = null.",
+      "2. Read the error."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": null,
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 125 'Delivery location not found' — i.e. the request got all the way to creating the line items: a missing auction type is not refused; set_configurations_for_trade defaults it to rank (trade_controller_helper.rb:3521, 3534). If a guard for a missing type is ever added the message changes and this case reports 'rejected for a different reason' — update it then.",
+    "rationale": "Documents that the conversion endpoint never asks which auction the buyer wanted; a client bug that drops the field silently produces a rank auction."
+  },
+  {
+    "id": "EDGE-DAUC-003",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_into_book_building_passes_the_configuration_step",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with configurations.auction_config = \"book_building\".",
+      "2. Read the error."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "book_building",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 with code 125 'Delivery location not found' — book_building is accepted by the conversion (it only forces line_item_based closing, trade_controller_helper.rb:3349-3353) and the request is stopped only by the bogus delivery location. The dashboard never offers book building on conversion (constants/index.js:110-118 has no tab for it), so the API accepts a type the product does not support here.",
+    "rationale": "The create path refuses book_building inside a basket (474, trade_controller.rb:142-144) but the conversion has no allow-list of types at all."
+  },
+  {
+    "id": "EDGE-DAUC-007",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_unknown_stage_is_refused_95",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A well-formed but non-existent stage uuid (id 999999999). Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction with trade_request_uuid = Z2dnWmdaUWtnZw== and an otherwise valid body."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "Z2dnWmdaUWtnZw==",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 95 'Trade Request not found' — TradeRequest.active.where(id: 999999999) is blank (app/controllers/api/trade_controller.rb:965-969). Nothing created.",
+    "rationale": "The correctly-keyed version of the not-found case: the older AUC-CONV-001 sends trade_request_id, which ParamsAuth never decodes, so it cannot tell a missing stage from a mis-keyed one."
+  },
+  {
+    "id": "EDGE-DAUC-008",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_without_any_stage_id_is_refused_95",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "No stage id at all in the body. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction with the valid body minus trade_request_uuid."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 95 'Trade Request not found' — params['trade_request_id'] is nil, where(id: nil) is empty (trade_controller.rb:965-969). There is no 'insufficient parameters' guard for the one mandatory field.",
+    "rationale": "A missing mandatory field should be a 2/insufficient-parameters answer; today it masquerades as not-found, which hides client bugs."
+  },
+  {
+    "id": "EDGE-DAUC-009",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_the_journey_rfq_a_second_time_is_refused",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). The body also carries the bogus delivery location so a regressed guard still cannot create a second auction.",
+    "steps": [
+      "1. POST /trade/move_to_auction with trade_request_uuid = {{pricingTradeUuid}} (already converted by the journey).",
+      "2. Read the refusal."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{pricingTradeUuid}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "Refused with HTTP 422. Expected code 94 (An auction has already been made for this event.) from TradeRequest.where(parent_id:).not_cancelled_or_withdrawn.exists? (trade_controller.rb:973); if the award closed the RFQ first, code 95 (Trade Request not found, trade_controller.rb:965-969) is equally correct. Never a second child auction.",
+    "rationale": "Two auctions hanging off one RFQ would split the vendors' bids and break 'latest stage' awarding (826)."
+  },
+  {
+    "id": "EDGE-DAUC-010",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_the_auction_itself_is_refused",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). The body carries the bogus delivery location as a backstop.",
+    "steps": [
+      "1. POST /trade/move_to_auction with trade_request_uuid = {{auctionTradeUuid}} (the auction, not the RFQ)."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{auctionTradeUuid}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "Refused with HTTP 422: code 93 (Trade is already of auction type, trade_controller.rb:979) while the auction is still status active, or code 95 (Trade Request not found) once the award has closed it. Never a nested auction.",
+    "rationale": "The older AUC-CONV-002 covers this but keys the id as trade_request_id (never decoded), so it always gets 95; this is the correctly-keyed version."
+  },
+  {
+    "id": "EDGE-DAUC-012",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_knockout_start_price_is_not_checked_when_the_rfq_has_no_bids",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ (no bids) as a knockout: bulk_price 999999999, price_difference 10, time_difference 60.",
+      "2. Read the error."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 999999999,
+        "price_difference": 10,
+        "time_difference": 60,
+        "is_auction_on_base_price": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 125 'Delivery location not found' — the start price is never compared with anything: validate_start_and_end_price returns nil when the RFQ has no ranked bids (trade_controller_helper.rb:5811), and the knockout block only checks > 0 (3452-3454). The request is stopped only by the bogus delivery location.",
+    "rationale": "The 966 'start price above L1' guard silently disappears for an RFQ with no quotes; a typo of extra zeros produces a knockout that starts at a crore."
+  },
+  {
+    "id": "EDGE-DAUC-017",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_without_configurations_says_order_not_active",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with a valid data row but NO configurations block."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 33 'Order not active' — transform_trade_product finds no params[:id] and no configurations and returns 33 (app/controllers/concerns/trade_template_helper.rb:1418-1432). The stage IS active; the message is misleading.",
+    "rationale": "A missing settings block is reported as 'Order not active', sending the buyer (and support) to look at the wrong thing."
+  },
+  {
+    "id": "EDGE-DAUC-018",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_with_an_empty_data_row_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with data = [{}, <valid row>] (an empty first row)."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {},
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 2
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx (574 'Unit cannot be blank' would be right). Expected to crash today: with no creator_quantity the code falls back to item[:product][:unit_type] and item[:product] is nil → NoMethodError → HTTP 500 (trade_template_helper.rb:1393-1394). Nothing is written. (The valid second row carries the bogus delivery location, so if the empty row were ever dropped by param parsing the request still stops at 125.)",
+    "rationale": "The unit check assumes every row has a product hash; one malformed row from a client turns into a 500."
+  },
+  {
+    "id": "EDGE-DAUC-019",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_with_data_as_an_object_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with data sent as one object instead of an array."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": {
+        "product": {
+          "key": "product",
+          "value": "product",
+          "uuid": "{{productUuid}}",
+          "event_group_line_item_uuid": "{{lineItemUuid}}",
+          "configuration": {}
+        },
+        "creator_quantity": {
+          "key": "creator_quantity",
+          "value": 10,
+          "postfix": "KG",
+          "configuration": {
+            "suffix": "KG"
+          }
+        },
+        "buyer_hub": {
+          "key": "buyer_hub",
+          "value": "location",
+          "uuid": "Z2dnWmdaUWtnZw==",
+          "configuration": {}
+        },
+        "variant": {
+          "uuid": "{{productQualityUuid}}",
+          "configuration": {}
+        },
+        "order": 1
+      },
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: params[:data].each walks the object's key/value pairs, each pair is an Array, and Array#[](:creator_quantity) raises TypeError → HTTP 500 (trade_template_helper.rb:1389-1394). Nothing is written.",
+    "rationale": "No type check on data before iterating it."
+  },
+  {
+    "id": "EDGE-DAUC-020",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_with_data_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with data = \"QA_Platform_{{stamp}}\"."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": "QA_Platform_{{stamp}}",
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: a non-blank String passes `present?` and String has no #each → NoMethodError → HTTP 500 (trade_template_helper.rb:1389-1392). Nothing is written.",
+    "rationale": "No type check on data before iterating it."
+  },
+  {
+    "id": "EDGE-DAUC-021",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_row_without_variant_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with the valid row minus its variant object."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: the unit checks pass (KG exists), then the row hash reads item[:variant][:id] on nil → NoMethodError → HTTP 500 (trade_template_helper.rb:1469). Nothing is written.",
+    "rationale": "Earlier library cases (EDGE-AWD-083/084) dropped the variant too but were stopped by the unit check first, so this crash was never reached."
+  },
+  {
+    "id": "EDGE-DAUC-022",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_row_without_quantity_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with a row that has no creator_quantity but carries product.unit_type = \"KG\"."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "unit_type": "KG",
+            "configuration": {}
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: the unit comes from product.unit_type so the unit checks pass, then item[:creator_quantity][:value] reads nil → NoMethodError → HTTP 500 (trade_template_helper.rb:1465). Nothing is written.",
+    "rationale": "Quantity is mandatory for an auction line but nothing checks it is there."
+  },
+  {
+    "id": "EDGE-DAUC-023",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_with_two_unknown_units_lists_both",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with two rows whose units are QA_PLATFORM_U1 and QA_PLATFORM_U2."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "QA_PLATFORM_U1",
+            "configuration": {
+              "suffix": "QA_PLATFORM_U1"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        },
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "QA_PLATFORM_U2",
+            "configuration": {
+              "suffix": "QA_PLATFORM_U2"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 2
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 495 with the plural message 'The units qa_platform_u1, qa_platform_u2 are not present' (trade_template_helper.rb:1408-1415; units are lower-cased at 1396). Nothing is written.",
+    "rationale": "EDGE-AWD-084 covers the singular branch; this pins the plural branch and the lower-casing the buyer sees."
+  },
+  {
+    "id": "EDGE-DAUC-024",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_with_configurations_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with configurations = \"rank\"."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": "rank",
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: the sandbox RFQ closes line-item-wise, so the 503 guard evaluates params.dig(:configurations, 'auction_closing_mode') on a String → TypeError (trade_controller.rb:981); on a lot-based RFQ transform_config would instead call String#to_unsafe_h (trade_template_helper.rb:1623). Either way HTTP 500, nothing written.",
+    "rationale": "The settings block is never type-checked."
+  },
+  {
+    "id": "EDGE-DAUC-025",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_single_item_rfq_with_fast_bidding_is_refused_798",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the one-line sandbox RFQ with configurations.fast_bidding_mode_enabled = true."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "fast_bidding_mode_enabled": true
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 798 'CBD mode requires at least two active line items' — fewer than two active/closed trade products (trade_controller.rb:995-999). Nothing created.",
+    "rationale": "AUC-INC-004 intends this but sends trade_request_id (never decoded) and so only ever sees 95; this is the correctly-keyed version."
+  },
+  {
+    "id": "EDGE-DAUC-026",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_without_an_end_time_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. No bid_start_time/bid_end_time anywhere in the body. The crash expected here happens inside the CreateService transaction, so it is rolled back.",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with configurations minus bid_start_time and bid_end_time."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx (an auction needs an end). Expected to crash today: set_trade_schedules passes end_time nil (trade_controller_helper.rb:508) and create_trade_schedule compares the copied RFQ closed_at with nil → ArgumentError → HTTP 500 (trade_controller_helper.rb:1997-2001). Rolled back; nothing created.",
+    "rationale": "No presence check on the auction's own window before it is used."
+  },
+  {
+    "id": "EDGE-DAUC-027",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_with_end_before_start_reaches_line_item_creation",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with bid_start_time 2100-01-01 01:00 and bid_end_time 2100-01-01 00:00 (end one hour BEFORE start)."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102448400,
+        "bid_end_time": 4102444800,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 125 'Delivery location not found' — the inverted window passes every check (set_trade_schedules only runs the RFP-vs-RFQ comparison, which is skipped for rfq_then_auction, trade_controller_helper.rb:500-533, 643-675) and only the bogus delivery location stops it. Correct behaviour would be a time-validation error (507-style) before that.",
+    "rationale": "Sharper oracle than EDGE-AWD-088 (which only asks for no-5xx): proves the auction with end<start would have been created."
+  },
+  {
+    "id": "EDGE-DAUC-028",
+    "feature": "auction.convert",
+    "title": "QA_Platform_convert_into_an_auction_that_already_ended_reaches_line_item_creation",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with bid_start_time 2000-01-01 00:00 and bid_end_time 2000-01-01 01:00."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 946684800,
+        "bid_end_time": 946688400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 125 'Delivery location not found' — a window entirely in the past is not refused; only the bogus delivery location stops the request (trade_controller_helper.rb:500-533). Without it the RFQ would be closed (create_service.rb:212-217) and replaced by an auction that is already over.",
+    "rationale": "Converting closes the RFQ immediately; pairing that with a dead auction leaves vendors no round at all."
+  },
+  {
+    "id": "EDGE-DAUC-029",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_extension_on_but_no_trigger_window_is_refused_501",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with is_dynamic_closing_time_allowed true and last_n_minutes_for_time_extension null."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "rank_based",
+        "time_extension_value": 2,
+        "rank_limit_for_time_extension": 3,
+        "last_n_minutes_for_time_extension": null
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 501 'Invalid Trigger Time for Dynamic Time Extension' (trade_controller_helper.rb:3317-3320, inside RfqToAuction::CreateService, rolled back). Nothing created.",
+    "rationale": "The runnable twin of STG-063 (which is on template_input and cannot run): the same rule must hold on the conversion path."
+  },
+  {
+    "id": "EDGE-DAUC-030",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_zero_minute_trigger_is_refused_501",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with extension on and last_n_minutes_for_time_extension 0."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "rank_based",
+        "time_extension_value": 2,
+        "rank_limit_for_time_extension": 3,
+        "last_n_minutes_for_time_extension": 0
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 501 'Invalid Trigger Time for Dynamic Time Extension' — 0 < 1 (trade_controller_helper.rb:3317). Nothing created.",
+    "rationale": "Zero would make the extension window empty; the floor of 1 minute must hold."
+  },
+  {
+    "id": "EDGE-DAUC-031",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_trigger_longer_than_half_the_window_is_refused_501",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. The auction window is placed in the past (2000-01-01) so 'half of the remaining time' is negative.",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with extension on, last_n_minutes_for_time_extension 600 and bid_end_time 2000-01-01 01:00."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 946684800,
+        "bid_end_time": 946688400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "rank_based",
+        "time_extension_value": 2,
+        "rank_limit_for_time_extension": 3,
+        "last_n_minutes_for_time_extension": 600
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 501 'Invalid Trigger Time for Dynamic Time Extension' — less_than_half_of_trade_end_time(bid_end_time, 600) is false (trade_controller_helper.rb:3317-3318, 6259-6268). Nothing created.",
+    "rationale": "The half-window rule is the only time check the conversion runs on its own window."
+  },
+  {
+    "id": "EDGE-DAUC-032",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_trigger_sent_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with extension on and last_n_minutes_for_time_extension \"5\" (a string)."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "rank_based",
+        "time_extension_value": 2,
+        "rank_limit_for_time_extension": 3,
+        "last_n_minutes_for_time_extension": "5"
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx or an accepted number. Expected to crash today: \"5\" < 1 raises ArgumentError (comparison of String with 1) → HTTP 500 (trade_controller_helper.rb:3317), rolled back. Nothing created.",
+    "rationale": "Runnable twin of STG-066 (template_input, held out). Form-encoded clients send strings."
+  },
+  {
+    "id": "EDGE-DAUC-033",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_extension_flag_false_as_text_is_treated_as_on",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with is_dynamic_closing_time_allowed = \"false\" (string) and no trigger window."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": "false",
+        "last_n_minutes_for_time_extension": null
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 501 'Invalid Trigger Time for Dynamic Time Extension' — the string \"false\" is truthy in Ruby, so the extension is treated as switched on (trade_controller_helper.rb:3311, 3317). Nothing created.",
+    "rationale": "A client that serialises booleans as text switches extension ON when it meant OFF."
+  },
+  {
+    "id": "EDGE-DAUC-034",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_one_minute_trigger_passes_the_extension_check",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. The auction window is far in the future (2100) so the half-window rule holds.",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with extension on, trigger 1 minute, extend by 2 minutes, rank limit 3."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "rank_based",
+        "time_extension_value": 2,
+        "rank_limit_for_time_extension": 3,
+        "last_n_minutes_for_time_extension": 1
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 125 'Delivery location not found' — proves the 1-minute trigger (the documented minimum) passed the extension check (trade_controller_helper.rb:3317) and the request reached line-item creation. A 501 here is a regression.",
+    "rationale": "Boundary pair with EDGE-DAUC-030: 0 refused, 1 accepted."
+  },
+  {
+    "id": "EDGE-DAUC-035",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_negative_extension_length_is_stored_unchecked",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with extension on, trigger 1 minute and time_extension_value -5."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "rank_based",
+        "time_extension_value": -5,
+        "rank_limit_for_time_extension": 3,
+        "last_n_minutes_for_time_extension": 1
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 125 'Delivery location not found' — time_extension_value is copied into config with no check (trade_controller_helper.rb:3376); only the bogus delivery location stops it. In a live auction a last-minute bid would then move the end time BACK five minutes (bid.rb:2264-2282).",
+    "rationale": "A negative extension turns anti-sniping into an early close."
+  },
+  {
+    "id": "EDGE-DAUC-036",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_text_rank_limit_is_stored_unchecked",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with extension on (price based), trigger 1 minute and rank_limit_for_time_extension \"top\"."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "price_based",
+        "time_extension_value": 2,
+        "rank_limit_for_time_extension": "top",
+        "last_n_minutes_for_time_extension": 1
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 125 'Delivery location not found' — rank_limit_for_time_extension is stored as given (trade_controller_helper.rb:3321, 3378). In the live auction the price-based check compares an Integer rank with it (bid.rb:452) and would raise on the vendor's last-minute bid.",
+    "rationale": "The bad value is accepted at set-up and only blows up during the auction's final minutes."
+  },
+  {
+    "id": "EDGE-DAUC-037",
+    "feature": "auction.dynamic_extension",
+    "title": "QA_Platform_convert_with_unknown_extension_strategy_is_stored_unchecked",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ with extension on, trigger 1 minute and dynamic_closing_time_strategy \"qa_platform_strategy\"."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "is_dynamic_closing_time_allowed": true,
+        "dynamic_closing_time_strategy": "qa_platform_strategy",
+        "time_extension_value": 2,
+        "rank_limit_for_time_extension": 3,
+        "last_n_minutes_for_time_extension": 1
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 125 'Delivery location not found' — the strategy is stored as given (model_helpers/trade_request_model_helper.rb:501-503). In the live auction neither the rank_based nor the price_based branch matches (bid.rb:399-406), so the extension the buyer switched on never fires.",
+    "rationale": "Silent loss of anti-sniping protection."
+  },
+  {
+    "id": "EDGE-DAUC-038",
+    "feature": "auction.traffic_light",
+    "title": "QA_Platform_convert_to_traffic_light_without_ranges_is_refused_269",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a lot-based traffic_light auction with no traffic_light_ranges."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "traffic_light",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "traffic_light_config": "price"
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 269 'You have not provided valid traffic light ranges.' (trade_controller_helper.rb:3436-3441, rolled back).",
+    "rationale": "Without bounds every vendor's colour is undefined."
+  },
+  {
+    "id": "EDGE-DAUC-039",
+    "feature": "auction.traffic_light",
+    "title": "QA_Platform_convert_to_traffic_light_with_equal_bounds_is_refused_although_the_ui_allows_it",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a lot-based traffic_light buy auction with lower_bound = upper_bound = 100."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "traffic_light",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "traffic_light_config": "price",
+        "traffic_light_ranges": {
+          "lower_bound": 100,
+          "upper_bound": 100
+        }
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 269 'You have not provided valid traffic light ranges.' — the backend needs lower < upper for buy (trade_controller_helper.rb:3167-3170, 3444) while the dashboard only blocks lower > upper (auctionConfiguration.jsx:681-686), so the screen lets the buyer submit equal bounds and the server refuses them.",
+    "rationale": "UI/API disagreement on an inclusive vs exclusive bound — the buyer sees a server error for input the form accepted."
+  },
+  {
+    "id": "EDGE-DAUC-040",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_convert_to_knockout_with_start_price_zero_is_refused_106",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a knockout with bulk_price 0, price_difference 10, time_difference 60."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 0,
+        "price_difference": 10,
+        "time_difference": 60
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 106 'Please enter a valid price' (trade_controller_helper.rb:3452-3454). Nothing created.",
+    "rationale": "Runnable conversion twin of STG-044."
+  },
+  {
+    "id": "EDGE-DAUC-041",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_convert_to_knockout_with_29_second_rounds_is_refused_248",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a knockout with bulk_price 1000, price_difference 10, time_difference 29."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 1000,
+        "price_difference": 10,
+        "time_difference": 29
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 248 'Time difference cannot be less than 30 seconds' (trade_controller_helper.rb:3455-3457). Nothing created.",
+    "rationale": "Boundary of the 30-second round floor; the dashboard sends minutes×60 (redux/orders/helpers.js:1152) so 0.5 min is the smallest it can send."
+  },
+  {
+    "id": "EDGE-DAUC-042",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_convert_to_knockout_with_round_length_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a knockout with time_difference \"60\" (a string)."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 1000,
+        "price_difference": 10,
+        "time_difference": "60"
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: \"60\" < 30 raises ArgumentError → HTTP 500 (trade_controller_helper.rb:3455), rolled back.",
+    "rationale": "Runnable conversion twin of STG-047."
+  },
+  {
+    "id": "EDGE-DAUC-043",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_convert_to_knockout_without_price_step_is_refused_237",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a knockout with bulk_price 1000 and time_difference 60 but no price_difference."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 1000,
+        "time_difference": 60
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 237 'Please enter all the required entries for creating the auction.' (trade_controller_helper.rb:3458-3460). Nothing created.",
+    "rationale": "Without a step the rounds never move the price."
+  },
+  {
+    "id": "EDGE-DAUC-044",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_convert_to_knockout_with_round_longer_than_window_is_refused_238",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. Window = 2100-01-01 00:00 to 00:01 (60 s).",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a knockout with bulk_price 1000, price_difference 10, time_difference 120 and a 60-second window."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102444860,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 1000,
+        "price_difference": 10,
+        "time_difference": 120
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 238 'Time difference cannot be greater than auction time.' — start + 120 > end (trade_controller_helper.rb:3461-3462). Nothing created.",
+    "rationale": "A round longer than the auction means the second price is never offered."
+  },
+  {
+    "id": "EDGE-DAUC-045",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_convert_to_knockout_without_end_time_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a valid knockout (1000 / 10 / 60) with no bid_start_time and no bid_end_time."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "knockout",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 1000,
+        "price_difference": 10,
+        "time_difference": 60
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: (now + 60) > nil raises ArgumentError (comparison of Integer with nil) → HTTP 500 (trade_controller_helper.rb:3461-3462), rolled back.",
+    "rationale": "The knockout block reads the end time before anything checks it exists."
+  },
+  {
+    "id": "EDGE-DAUC-046",
+    "feature": "auction.dutch",
+    "title": "QA_Platform_convert_to_dutch_with_start_above_end_on_buy_is_refused_with_inverted_wording",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a buy dutch auction with bulk_price 1000, end_price 500, price_difference 10, time_difference 60."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "dutch",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 1000,
+        "end_price": 500,
+        "price_difference": 10,
+        "time_difference": 60
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 242 'Start Price cannot be less than End Price' (trade_controller_helper.rb:3492-3493). The rule fires because the start is GREATER than the end, so the wording tells the buyer the opposite of what is wrong (241 has the mirror problem for sell).",
+    "rationale": "Runnable twin of STG-051 that also pins the message; a buyer reading it will lower the start price and hit the same error."
+  },
+  {
+    "id": "EDGE-DAUC-047",
+    "feature": "auction.dutch",
+    "title": "QA_Platform_convert_to_dutch_with_step_bigger_than_range_is_refused_243",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The single data row deliberately names a delivery location that does not exist (buyer_hub uuid Z2dnWmdaUWtnZw==, id 999999999) and the audience list is empty, so even if the guard under test regressed the conversion is still refused later, inside the same transaction, with 125 'Delivery location not found' (trade_controller_helper.rb:855) and rolled back — nothing is created and nobody is invited. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a buy dutch auction 100 → 200 with price_difference 500."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "dutch",
+        "auction_closing_mode": "lot_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "bulk_price": 100,
+        "end_price": 200,
+        "price_difference": 500,
+        "time_difference": 60
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 243 'Invalid Tick Size' — 500 > (200 − 100) (trade_controller_helper.rb:3494). Nothing created.",
+    "rationale": "Runnable conversion twin of STG-052."
+  },
+  {
+    "id": "EDGE-DAUC-048",
+    "feature": "auction.serial_bidding",
+    "title": "QA_Platform_convert_serial_row_outside_the_window_is_refused_507",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a serial (staggered, line-item) auction 2100-01-01 00:00–01:00 whose only row starts at 23:40 the evening before."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1,
+          "start_time": {
+            "value": 4102440000
+          },
+          "end_time": {
+            "value": 4102446000
+          }
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "line_item_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "staggered": true
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 507 'Invalid Time Input' — the row starts before the auction (trade_template_helper.rb:1520-1522, 1689, 1699-1705). Nothing written.",
+    "rationale": "Each serial item must fit inside the event window."
+  },
+  {
+    "id": "EDGE-DAUC-049",
+    "feature": "auction.serial_bidding",
+    "title": "QA_Platform_convert_serial_row_without_times_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before RfqToAuction::CreateService runs, so nothing is written. ",
+    "steps": [
+      "1. POST /trade/move_to_auction on the sandbox RFQ as a serial (staggered, line-item) auction whose row carries no start_time/end_time."
+    ],
+    "method": "POST",
+    "path": "/trade/move_to_auction",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "data": [
+        {
+          "product": {
+            "key": "product",
+            "value": "product",
+            "uuid": "{{productUuid}}",
+            "event_group_line_item_uuid": "{{lineItemUuid}}",
+            "configuration": {}
+          },
+          "creator_quantity": {
+            "key": "creator_quantity",
+            "value": 10,
+            "postfix": "KG",
+            "configuration": {
+              "suffix": "KG"
+            }
+          },
+          "buyer_hub": {
+            "key": "buyer_hub",
+            "value": "location",
+            "uuid": "Z2dnWmdaUWtnZw==",
+            "configuration": {}
+          },
+          "variant": {
+            "uuid": "{{productQualityUuid}}",
+            "configuration": {}
+          },
+          "order": 1
+        }
+      ],
+      "configurations": {
+        "stage_no": 1,
+        "order_type": "buy",
+        "rfx_mode": "rfq_then_auction",
+        "auction_config": "rank",
+        "auction_closing_mode": "line_item_based",
+        "is_alternate_bidding_allowed": false,
+        "is_english_auction_enabled": false,
+        "bid_start_time": 4102444800,
+        "bid_end_time": 4102448400,
+        "title": "QA_Platform_Auction_{{stamp}}",
+        "closing_mode": "single",
+        "is_basket_auction": false,
+        "staggered": true
+      },
+      "status": "active",
+      "audience_company_uuids": [],
+      "creation_flow_type": "quick_flow",
+      "use_rfq_quotes_as_bids": false,
+      "allow_tna_vendors_to_bid": true,
+      "transfer_weights": false
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx (507). Expected to crash today: valid_time_entries calls Time.at(nil) → TypeError → HTTP 500 (trade_template_helper.rb:1684-1689, 1701). Nothing written.",
+    "rationale": "Serial bidding rows are not checked for their own times before use."
+  },
+  {
+    "id": "EDGE-DAUC-051",
+    "feature": "auction.convert",
+    "title": "QA_Platform_read_back_the_converted_auction",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). ",
+    "steps": [
+      "1. GET /trade/{{auctionTradeUuid}}.",
+      "2. Check rfx_mode, current status, parent link and stage number."
+    ],
+    "method": "GET",
+    "path": "/trade/{{auctionTradeUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. The stage reads as an rfq_then_auction / auctioning stage with auction_config rank, one stage number after the RFQ, linked to the RFQ as its parent (create_service.rb:226-235) and with the RFQ quote carried over as the QA vendor's bid (create_service.rb:168-186). Never a 5xx.",
+    "rationale": "The read-back oracle for every conversion case above."
+  },
+  {
+    "id": "EDGE-DAUC-052",
+    "feature": "auction.convert",
+    "title": "QA_Platform_read_back_the_rfq_after_conversion",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). ",
+    "steps": [
+      "1. GET /trade/{{pricingTradeUuid}}.",
+      "2. Check that it is closed for bidding and flagged as converted."
+    ],
+    "method": "GET",
+    "path": "/trade/{{pricingTradeUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. The RFQ's bidding schedule ends at the moment of conversion and misc.is_rfq_converted_to_auction is true (create_service.rb:212-217); its status stays active (only MarkEventClosedWorker closes it, mark_event_closed_worker.rb:5-15). Never a 5xx.",
+    "rationale": "Proves conversion closes the RFQ window immediately, even if the RFQ was still running."
+  },
+  {
+    "id": "EDGE-DAUC-083",
+    "feature": "auction.knockout",
+    "title": "QA_Platform_accept_knockout_offer_on_a_non_knockout_stage_is_refused_95",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The sandbox is an RFQ (auction_config defaults to rank), so it is not a running knockout. Refused at the first lookup; nothing written.",
+    "steps": [
+      "1. POST /bids/accept_knockout_offer with trade_request_uuid = {{tradeId}} and accepted_round_no 1."
+    ],
+    "method": "POST",
+    "path": "/bids/accept_knockout_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "accepted_round_no": 1
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 95 'Trade Request not found' — TradeRequest.active.currently_running.find_by(id:, auction_config: 'knockout') is nil (app/controllers/concerns/bids_controller_helper.rb:818-820). Nothing written.",
+    "rationale": "The accept endpoints have no Pundit check at all (app/controllers/api/bids_controller.rb:199-233); the stage lookup is the first line of defence.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"accept_automated_knockout_offer\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DAUC-084",
+    "feature": "auction.dutch",
+    "title": "QA_Platform_accept_dutch_offer_on_a_non_dutch_stage_is_refused_95",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The sandbox is an RFQ, not a running dutch auction. Refused at the first lookup; nothing written.",
+    "steps": [
+      "1. POST /bids/accept_dutch_offer with trade_request_uuid = {{tradeId}}, accepted_round_no 1 and participant_quantity 10."
+    ],
+    "method": "POST",
+    "path": "/bids/accept_dutch_offer",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "accepted_round_no": 1,
+      "participant_quantity": 10
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 95 'Trade Request not found' (bids_controller_helper.rb:818-820). Nothing written — a dutch acceptance would otherwise create AND close a bid in one call (bids_controller.rb:255-262).",
+    "rationale": "Dutch acceptance is the most destructive single call in the auction family; its first guard must hold.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"accept_automated_dutch_offer\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DAUC-088",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_auction_report_for_unknown_stage_must_not_500",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A well-formed but non-existent stage uuid (id 999999999). Read-only.",
+    "steps": [
+      "1. GET /trade/Z2dnWmdaUWtnZw==/auction_report."
+    ],
+    "method": "GET",
+    "path": "/trade/Z2dnWmdaUWtnZw==/auction_report",
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx (4 'Request not found'). Expected to crash today: auction_report_data does TradeRequest.find_by → nil, then T.must(nil) raises TypeError (sorbet-runtime is loaded) → HTTP 500 (app/controllers/api/trade_controller.rb:1626-1628). Same for WrongUuid1= (decodes to nil).",
+    "rationale": "The sibling reports (detailed_report, event_summary) return 4 for the same input; this one 500s."
+  },
+  {
+    "id": "EDGE-DAUC-089",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_auction_report_for_the_live_sandbox_rfq",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Read-only.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}/auction_report on the open RFQ with no bids."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}/auction_report",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with trade_products (one KG line), type, an empty prices_graph_data and available_data_options [price, total_amount] (trade_controller.rb:1625-1665). The policy only needs read permission + same company (trade_request_policy.rb:92-98); there is no 'auction ended' check on this endpoint (unlike the show_auction_report flag, v1/trade_controller.rb:302-306).",
+    "rationale": "Pins that the report endpoint works (and is reachable) on a non-auction, still-running stage."
+  },
+  {
+    "id": "EDGE-DAUC-090",
+    "feature": "auction.convert",
+    "title": "QA_Platform_auction_report_for_the_closed_auction",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). Read-only.",
+    "steps": [
+      "1. GET /trade/{{auctionTradeUuid}}/auction_report."
+    ],
+    "method": "GET",
+    "path": "/trade/{{auctionTradeUuid}}/auction_report",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with the auction's line, prices_graph_data containing the QA vendor's carried-over and auction bids, and trade_bid_end_time equal to the auction's end (trade_controller.rb:1625-1665). Never a 5xx.",
+    "rationale": "The buyer's post-auction analytics must render for a converted auction."
+  },
+  {
+    "id": "EDGE-DAUC-091",
+    "feature": "auction.rank",
+    "title": "QA_Platform_bidding_summary_with_rank_limit_zero_is_refused_2",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Read-only.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}/event_summary?rank_limit=0."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}/event_summary?rank_limit=0",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 'Insufficient parameters' — rank_limit <= 0 (app/controllers/api/trade_controller.rb:1713-1716).",
+    "rationale": "The dashboard never sends < 1 (ordersService.js:372-378) but the API must still guard it."
+  },
+  {
+    "id": "EDGE-DAUC-092",
+    "feature": "auction.rank",
+    "title": "QA_Platform_bidding_summary_with_text_rank_limit_is_refused_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Read-only.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}/event_summary?rank_limit=top."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}/event_summary?rank_limit=top",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 'Insufficient parameters' — \"top\".to_i is 0 (trade_controller.rb:1713-1716).",
+    "rationale": "Pins the coercion: text is refused, not treated as 'all vendors'."
+  },
+  {
+    "id": "EDGE-DAUC-093",
+    "feature": "auction.rank",
+    "title": "QA_Platform_bidding_summary_for_unknown_stage_is_refused_4",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A well-formed but non-existent stage uuid. Read-only.",
+    "steps": [
+      "1. GET /trade/Z2dnWmdaUWtnZw==/event_summary."
+    ],
+    "method": "GET",
+    "path": "/trade/Z2dnWmdaUWtnZw==/event_summary",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' (trade_controller.rb:1711-1712).",
+    "rationale": "Contrast with EDGE-DAUC-088: the same input on auction_report 500s."
+  },
+  {
+    "id": "EDGE-DAUC-094",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_detailed_report_for_unknown_stage_is_refused_4",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A well-formed but non-existent stage uuid. Read-only.",
+    "steps": [
+      "1. GET /trade/Z2dnWmdaUWtnZw==/detailed_report."
+    ],
+    "method": "GET",
+    "path": "/trade/Z2dnWmdaUWtnZw==/detailed_report",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' (trade_controller.rb:1669-1671).",
+    "rationale": "Guard parity across the report family."
+  },
+  {
+    "id": "EDGE-DAUC-095",
+    "feature": "auction.convert",
+    "title": "QA_Platform_detailed_report_for_the_closed_auction",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). Read-only.",
+    "steps": [
+      "1. GET /trade/{{auctionTradeUuid}}/detailed_report."
+    ],
+    "method": "GET",
+    "path": "/trade/{{auctionTradeUuid}}/detailed_report",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200: audience_count ≥ 1, the QA vendor listed under participating vendors, top-3 graph data and bidding logs (trade_controller.rb:1668-1707). Never a 5xx.",
+    "rationale": "The report a buyer downloads after an auction."
+  },
+  {
+    "id": "EDGE-DAUC-096",
+    "feature": "auction.rank",
+    "title": "QA_Platform_l1_data_for_unknown_stage_is_refused_4",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A well-formed but non-existent stage uuid. Read-only.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/l1_data_for_event."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/l1_data_for_event",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' (app/controllers/api/v1/trade_controller.rb:549-552).",
+    "rationale": "L1 data is the most sensitive read in an auction; its not-found path must be clean."
+  },
+  {
+    "id": "EDGE-DAUC-097",
+    "feature": "auction.convert",
+    "title": "QA_Platform_rank_indicators_for_the_closed_auction",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). Read-only.",
+    "steps": [
+      "1. GET /v1/trade/{{auctionTradeUuid}}/event_indicators."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{auctionTradeUuid}}/event_indicators",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with auction_identifiers and auction_identifiers_data (v1/trade_controller.rb:531-547); for a rank auction the rank indicator is present (trade_request.rb:654-670). {} only if event masking is on for the caller.",
+    "rationale": "The data behind the buyer's live rank/colour cards (layerDetails.jsx:516-558)."
+  },
+  {
+    "id": "EDGE-DAUC-098",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_leader_board_for_unknown_stage_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A well-formed but non-existent stage uuid. Read-only.",
+    "steps": [
+      "1. GET /v1/trade/Z2dnWmdaUWtnZw==/alternate_bidding_leader_board."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/alternate_bidding_leader_board",
+    "expected": "no-5xx",
+    "expectedResult": "Must be a 4xx. Expected to crash today: the action calls authorize(nil) before validate_event (v1/trade_controller.rb:866-869); Pundit 2.4 cannot find a NilClassPolicy and raises Pundit::NotDefinedError, which ApiAuth does not rescue (only NotAuthorizedError, api_auth.rb:16) → HTTP 500.",
+    "rationale": "authorize-before-nil-check; every sibling read checks for nil first."
+  },
+  {
+    "id": "EDGE-DAUC-099",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_leader_board_on_a_non_alternate_stage_is_refused_101",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. is_alternate_bidding_allowed is false on the sandbox. Read-only.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/alternate_bidding_leader_board."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/alternate_bidding_leader_board",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 'You are not allowed to perform this action' — the stage is not alternate bidding (v1/trade_controller.rb:871; model_helpers/trade_request_model_helper.rb:870-873).",
+    "rationale": "The leader board must only exist for alternate-bidding events."
+  },
+  {
+    "id": "EDGE-DAUC-100",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_participated_auctions_for_a_buyer_is_empty",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Read-only. The caller is the run's buyer (no vendor bids from the buyer's company).",
+    "steps": [
+      "1. GET /v1/trade/get_participated_auctions."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/get_participated_auctions",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with participated_auctions: [] — the list only holds running stages where the caller's companies have an active/requested bid, and never knockout or dutch (app/controllers/concerns/trade_controller_helper.rb:144-154). Never a 5xx.",
+    "rationale": "A buyer must never see other buyers' running auctions through the vendor feed.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"get_participated_auctions\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DAUC-102",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_accept_auction_terms_on_unknown_stage_is_refused_4",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A well-formed but non-existent stage uuid. Refused before any write.",
+    "steps": [
+      "1. PATCH /v1/trade/Z2dnWmdaUWtnZw==/accept_auction_tnc with an empty body."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/accept_auction_tnc",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 4 'Request not found' (app/controllers/api/v1/trade_controller.rb:899-901).",
+    "rationale": "Guard of the only write a vendor makes before bidding.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"accept_auction_tnc\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DAUC-103",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_accept_auction_terms_by_the_buyer_is_refused_101",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. The sandbox has no technical responses and the buyer's company is not in its audience. Refused before the write.",
+    "steps": [
+      "1. PATCH /v1/trade/{{tradeId}}/accept_auction_tnc as the buyer."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/accept_auction_tnc",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 101 'You are not allowed to perform this action' — the buyer passes the policy (super_admin/own company, trade_request_policy.rb:68-72) but no participant company can be resolved for them (v1/trade_controller.rb:903-913). misc.tnc_popup_acceptances is unchanged.",
+    "rationale": "Only a participant can accept the auction terms on behalf of their company.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"accept_auction_tnc\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DAUC-105",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_remove_audience_without_a_list_is_refused_2",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{tradeId}} is the sandbox RFQ: published (status active), bid window still open, one line item in KG, closing mode line_item_based, no bids, never converted. rfx_project_enabled is ON for PROCOL DEMO. Refused before any change to the audience.",
+    "steps": [
+      "1. PATCH /v1/trade/remove_audience?id={{tradeId}} with only update_remarks."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/remove_audience?id={{tradeId}}",
+    "body": {
+      "update_remarks": "QA_Platform_remove_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 2 'Insufficient parameters' (app/controllers/api/v1/trade_controller.rb:55-57).",
+    "rationale": "EDGE-PUB covers the add side and the 512 branches; this is the remove side's empty-list guard."
+  },
+  {
+    "id": "EDGE-DAUC-106",
+    "feature": "auction.convert",
+    "title": "QA_Platform_add_audience_to_a_finished_auction_is_not_refused_for_being_finished",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Runs only when auction.convert is ticked: {{pricingTradeUuid}} is the journey's RFQ that the journey converted into {{auctionTradeUuid}} (a CLOSED auction with one QA-vendor bid, awarded from). No vendor list is sent, so nothing can be added.",
+    "steps": [
+      "1. PATCH /v1/trade/add_audience?id={{auctionTradeUuid}} with only update_remarks."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/add_audience?id={{auctionTradeUuid}}",
+    "body": {
+      "update_remarks": "QA_Platform_add_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Refused with HTTP 422. Today the refusal is code 2 (Insufficient parameters, v1/trade_controller.rb:38-40) while the auction is still status active — i.e. every other gate passed and there is no check that the auction has ended (v1/trade_controller.rb:28-44); code 95 only once the award has closed it. Record which one.",
+    "rationale": "Vendors can be added to an auction after it ended, which re-opens nothing but notifies them of a dead event."
+  }
+]

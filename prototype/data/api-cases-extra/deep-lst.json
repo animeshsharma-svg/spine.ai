@@ -1,0 +1,1318 @@
+[
+  {
+    "id": "EDGE-DLST-001",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_list_baseline",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab.",
+    "steps": [
+      "1. GET /event_groups with no parameters.",
+      "2. Check the four keys and that the sandbox card is listed."
+    ],
+    "method": "GET",
+    "path": "/event_groups",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 {event_groups[≤10], cursor, updated_projects_present, event_group_count}; the sandbox card is present (EventGroupsController#index, event_groups_controller.rb:290-329).",
+    "rationale": "Baseline read for the Live tab; every other list case is a variation of it."
+  },
+  {
+    "id": "EDGE-DLST-002",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_list_garbage_cursor",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab.",
+    "steps": [
+      "1. GET /event_groups?latest_cursor=abc."
+    ],
+    "method": "GET",
+    "path": "/event_groups?latest_cursor=abc",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with an empty page; filter_eg_for_pagination compares id < 'abc' which Arel casts to 0 (trade_controller_helper.rb:2392-2407).",
+    "rationale": "Cursor values come from the client and reach a WHERE clause."
+  },
+  {
+    "id": "EDGE-DLST-003",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_list_hostile_sort",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab.",
+    "steps": [
+      "1. GET /event_groups with sort_by='title;DROP TABLE event_groups' and sort_direction=sideways."
+    ],
+    "method": "GET",
+    "path": "/event_groups?sort_by=title%3BDROP%20TABLE%20event_groups&sort_direction=sideways",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 sorted by id desc — validate_sort_field / apply_sorting only accept id, created_at, updated_at, latest_stage_time (trade_controller_helper.rb:6807-6820; event_group.rb:96-108,216-218).",
+    "rationale": "Column names built from params are a classic injection point."
+  },
+  {
+    "id": "EDGE-DLST-004",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_list_multi_sort_ignored",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab.",
+    "steps": [
+      "1. GET /event_groups?sort_by=created_at,id&sort_direction=asc,desc.",
+      "2. Compare the order with the baseline."
+    ],
+    "method": "GET",
+    "path": "/event_groups?sort_by=created_at%2Cid&sort_direction=asc%2Cdesc",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 sorted by id desc: \"created_at,id\" is not an allowed column so validate_sort_field returns 'id' (trade_controller_helper.rb:6807-6811); the dashboard sends the comma-joined form (useOrdersListViewModel.js:199-200).",
+    "rationale": "Pins the silent fallback the FE relies on."
+  },
+  {
+    "id": "EDGE-DLST-005",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_list_unparsable_filters_and_search",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab.",
+    "steps": [
+      "1. GET /event_groups?filters=notjson&search=notjson."
+    ],
+    "method": "GET",
+    "path": "/event_groups?filters=notjson&search=notjson",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. CommonFunctions.parse_filters returns nil on bad JSON (common_functions.rb:83-96); create_filter_params then raises on JSON.parse(search) and its rescue leaves @filters nil (event_groups_controller.rb:1578-1609); apply_all_filters → filter_on_date dereferences nil (trade_controller_filter_helper.rb:199-201) → 500.",
+    "rationale": "Two malformed list parameters are enough to crash the most-used screen."
+  },
+  {
+    "id": "EDGE-DLST-006",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_list_date_range_hides_running_events",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab. Bid window still open.",
+    "steps": [
+      "1. GET /event_groups with filters {starting_from: 2024-01-01, ending_at: 2100-01-01}.",
+      "2. Look for the sandbox card and compare event_group_count with the unfiltered call."
+    ],
+    "method": "GET",
+    "path": "/event_groups?filters=%7B%22starting_from%22%3A1704067200%2C%22ending_at%22%3A4102444800%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. Expected the sandbox to be listed; the code clamps ending_at to now (event_groups_controller.rb:1583-1585) and filters trade_requests.closed_at <= now (trade_controller_filter_helper.rb:219-226), so running stages drop out. Manual oracle: sandbox card absent = defect.",
+    "rationale": "Date filters on the Live tab use the history semantics (closed_at) instead of 'created/updated in range'."
+  },
+  {
+    "id": "EDGE-DLST-007",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_live_list_stage_filter_bidding",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab.",
+    "steps": [
+      "1. GET /event_groups with filters {stage_status: [\"bidding\"]}.",
+      "2. Confirm the sandbox card is listed."
+    ],
+    "method": "GET",
+    "path": "/event_groups?filters=%7B%22stage_status%22%3A%5B%22bidding%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with the sandbox present; 'bidding' maps to rfp/rfq/auction_in_progress (pr_event_statuses_helper.rb:250-253) and filter_on_stage_statuses keeps groups with a stage currently in bidding time (trade_controller_filter_helper.rb:528-552).",
+    "rationale": "Positive control for the Live stage radio."
+  },
+  {
+    "id": "EDGE-DLST-008",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_baseline_excludes_open_sandbox",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history.",
+      "2. Check the date groups and that the sandbox is not listed."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 {event_groups:[{date,data}], event_group_count, last_updated_at}; buyers only see groups with closed_at set (trade_controller_helper.rb:6012-6013) and status active/withdrawn (event_group.rb:147).",
+    "rationale": "Baseline for every History variation."
+  },
+  {
+    "id": "EDGE-DLST-009",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_statuses_as_text_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {statuses: \"1\"}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22statuses%22%3A%221%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. filter_on_statuses calls statuses.include?(2) on a String (trade_controller_filter_helper.rb:241-252) → TypeError.",
+    "rationale": "Unvalidated filter type reaches Ruby code that assumes an Array."
+  },
+  {
+    "id": "EDGE-DLST-010",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_min_quantity_array_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {min_quantity: [5]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22min_quantity%22%3A%5B5%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. filter_on_quantity calls min_quantity.to_f on an Array (trade_controller_filter_helper.rb:294-300).",
+    "rationale": "Type assumption on a numeric filter."
+  },
+  {
+    "id": "EDGE-DLST-011",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_user_id_array_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {user_id: [1]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22user_id%22%3A%5B1%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. filter_on_created_by calls @filters['user_id'].to_i on an Array (trade_controller_filter_helper.rb:231-239).",
+    "rationale": "Type assumption on an id filter."
+  },
+  {
+    "id": "EDGE-DLST-012",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_team_ids_objects_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {team_ids: [{id: 1}]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22team_ids%22%3A%5B%7B%22id%22%3A1%7D%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. filter_on_teams runs team_ids.map(&:to_i) on Hash elements (trade_controller_filter_helper.rb:335-340); the 'guard' itself raises.",
+    "rationale": "The array guard used by five filters raises on non-scalar elements."
+  },
+  {
+    "id": "EDGE-DLST-013",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_starting_from_out_of_range",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {starting_from: 99999999999999}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22starting_from%22%3A99999999999999%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. filter_on_date sends Time.at(99999999999999) to Postgres (trade_controller_filter_helper.rb:199-218); StatementInvalid is re-raised by ConditionalApiCaching (conditional_api_caching.rb:40-41).",
+    "rationale": "Unbounded epoch input reaches a timestamp comparison."
+  },
+  {
+    "id": "EDGE-DLST-014",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_search_param_array_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history?search=[1] (no filters)."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?search=%5B1%5D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. With filters absent create_filter_params sets @filters = JSON.parse(search) = [1] (event_groups_controller.rb:1604-1606); get_data_for_history_page indexes it with 'ending_at' (trade_controller_helper.rb:41-47).",
+    "rationale": "Legacy parameter replaces the filter hash with any JSON type."
+  },
+  {
+    "id": "EDGE-DLST-015",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_search_param_string_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history?search=\"x\" (no filters)."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?search=%22x%22",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. @filters = 'x' (event_groups_controller.rb:1604-1606); get_data_for_history_page assigns @filters['ending_at'] on a String (trade_controller_helper.rb:41-43) → IndexError.",
+    "rationale": "Second JSON type that breaks the same line."
+  },
+  {
+    "id": "EDGE-DLST-016",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_unparsable_filters_ignored",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history?filters=notjson.",
+      "2. Compare event_group_count with the baseline."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=notjson",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 unfiltered: parse_filters returns nil and create_filter_params falls back to {} (common_functions.rb:83-96; event_groups_controller.rb:1604-1606).",
+    "rationale": "Documents the silent-drop behaviour."
+  },
+  {
+    "id": "EDGE-DLST-017",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_garbage_last_updated_at",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history?last_updated_at=abc."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?last_updated_at=abc",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 empty page: 'abc'.to_i = 0 and the page is closed_at < Time.at(0) (trade_controller_helper.rb:54,5995-6003).",
+    "rationale": "Pagination token from the client goes straight into a time bound."
+  },
+  {
+    "id": "EDGE-DLST-018",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_withdrawn_bucket",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {stage_status: [\"withdrawn\"]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22stage_status%22%3A%5B%22withdrawn%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with only groups that have an in_active/withdrawn stage (trade_controller_filter_helper.rb:528-536).",
+    "rationale": "Positive control for the History radio."
+  },
+  {
+    "id": "EDGE-DLST-019",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_unknown_stage_bucket",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {stage_status: [\"not_a_bucket\"]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22stage_status%22%3A%5B%22not_a_bucket%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 unfiltered: set_stage_statuses_filter maps unknown keys to nil and compacts them away (event_groups_controller.rb:1611-1617), so filter_on_stage_statuses returns early (trade_controller_filter_helper.rb:528-531).",
+    "rationale": "Fail-open filter behaviour."
+  },
+  {
+    "id": "EDGE-DLST-020",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_unknown_event_status",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {event_statuses: [\"not_a_status\"]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22event_statuses%22%3A%5B%22not_a_status%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 unfiltered: set_event_statuses_filter keeps only statuses allowed for the role (event_groups_controller.rb:1619-1630).",
+    "rationale": "Role-scoped status list; fail-open on unknown values."
+  },
+  {
+    "id": "EDGE-DLST-021",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_stage_type_auction",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {stage_type: [\"auction\"]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22stage_type%22%3A%5B%22auction%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; stage_type 'auction' becomes rfx_mode [auction, rfq_then_auction] (event_groups_controller.rb:1586-1592).",
+    "rationale": "Positive control for the stage-type filter."
+  },
+  {
+    "id": "EDGE-DLST-022",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_creator_undecodable",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {creator_uuids: [\"WrongUuid1=\"]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22creator_uuids%22%3A%5B%22WrongUuid1%3D%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 empty: parse_filters decodes creator_uuids → creator_ids [nil] (params_auth.rb:70-84) and filter_requests_by_creator_ids keeps only groups created by nil (trade_controller_helper.rb:6033-6043).",
+    "rationale": "Fail-closed check for an id filter."
+  },
+  {
+    "id": "EDGE-DLST-023",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_history_bogus_auction_strategy",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/history with filters {auction_strategy: \"bogus\"}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22auction_strategy%22%3A%22bogus%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx; filter_on_auction_strategy passes the raw value to where(auction_config:) (trade_controller_filter_helper.rb:161-166).",
+    "rationale": "Unvalidated enum filter."
+  },
+  {
+    "id": "EDGE-DLST-025",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_drafts_baseline",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/draft.",
+      "2. Check the response keys and each card's creator."
+    ],
+    "method": "GET",
+    "path": "/event_groups/draft",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 {event_groups:[{date,data}], event_group_count, last_updated_at}; non-admin callers only get their own drafts (trade_controller_helper.rb:6113-6116).",
+    "rationale": "Baseline for the Drafts tab."
+  },
+  {
+    "id": "EDGE-DLST-026",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_drafts_listing_view_pr_only",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/draft?listing_view=true."
+    ],
+    "method": "GET",
+    "path": "/event_groups/draft?listing_view=true",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; with listing_view == 'true' event groups without purchase_requests are dropped (event_groups_controller.rb:350-352).",
+    "rationale": "Pins the PR-linking variant of the Drafts list."
+  },
+  {
+    "id": "EDGE-DLST-027",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_drafts_statuses_as_text_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/draft with filters {statuses: \"1\"}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/draft?filters=%7B%22statuses%22%3A%221%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500; get_filtered_trade_requests_relation → apply_all_filters → filter_on_statuses (trade_controller_filter_helper.rb:241-252).",
+    "rationale": "Same defect, second screen."
+  },
+  {
+    "id": "EDGE-DLST-030",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_percent_wildcard",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history with filters {title: \"%\"}.",
+      "2. Compare event_group_count with the baseline."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22title%22%3A%22%25%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. Expected only literal-% titles; filter_on_title builds '%' + title + '%' without escaping wildcards (trade_controller_filter_helper.rb:492-504), so every event matches.",
+    "rationale": "Unescaped LIKE wildcards in user search."
+  },
+  {
+    "id": "EDGE-DLST-031",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_sql_like_text",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history with filters {title: \"' OR 1=1 --\"}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22title%22%3A%22%27%20OR%201%3D1%20--%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with no matches; the title is a bound :query parameter (trade_controller_filter_helper.rb:492-504).",
+    "rationale": "Injection regression guard on the main search box."
+  },
+  {
+    "id": "EDGE-DLST-032",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_unicode",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history with a unicode title filter."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22title%22%3A%22%CE%A9%E2%89%88%C3%A7%E2%88%9A%20%E4%B8%AD%E6%96%87%20%F0%9F%98%80%20%C3%B1%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; ILIKE on UTF-8 text (trade_controller_filter_helper.rb:492-504).",
+    "rationale": "Multi-byte input through query string → JSON → ILIKE."
+  },
+  {
+    "id": "EDGE-DLST-033",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_2000_chars",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history with a 2,000-character title filter."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22title%22%3A%22QA_Platform_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with no matches; no length validation exists (trade_controller_filter_helper.rb:492-504).",
+    "rationale": "Unbounded user text in a LIKE pattern."
+  },
+  {
+    "id": "EDGE-DLST-034",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_script_tags",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history with filters {title: \"<script>alert(1)</script>\"}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22title%22%3A%22%3Cscript%3Ealert%281%29%3C%2Fscript%3E%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; sanitize_input_params strips HTML from every string param, including the filters JSON (params_auth.rb:18-42).",
+    "rationale": "Markup in a JSON-in-query parameter."
+  },
+  {
+    "id": "EDGE-DLST-035",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_prefix_positive",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history with filters {title: \"QA_Platform_\"}.",
+      "2. Check every card matches."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22title%22%3A%22QA_Platform_%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with only matching cards (trade_controller_filter_helper.rb:492-504).",
+    "rationale": "Positive control for search."
+  },
+  {
+    "id": "EDGE-DLST-036",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_title_array",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history with filters {title: [\"a\",\"b\"]}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?filters=%7B%22title%22%3A%5B%22a%22%2C%22b%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; the Array is interpolated as text into the LIKE pattern (trade_controller_filter_helper.rb:492-496).",
+    "rationale": "Wrong JSON type for the search text."
+  },
+  {
+    "id": "EDGE-DLST-037",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_search_legacy_param",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. Company has closed QA_Platform_ events in History.",
+    "steps": [
+      "1. GET /event_groups/history?search={\"title\":\"QA_Platform_\"}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/history?search=%7B%22title%22%3A%22QA_Platform_%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 filtered by title; with no filters the search JSON becomes @filters (event_groups_controller.rb:1604-1606).",
+    "rationale": "Back-compat channel for search."
+  },
+  {
+    "id": "EDGE-DLST-038",
+    "feature": "events.config",
+    "title": "QA_Platform_tab_counts_enabled",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. event_groups_tab_counts_enabled is ON.",
+    "steps": [
+      "1. GET /event_groups/tab_counts.",
+      "2. Check three entries with numeric item_count."
+    ],
+    "method": "GET",
+    "path": "/event_groups/tab_counts",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with live/draft/history counts (event_groups_controller.rb:778-824).",
+    "rationale": "Baseline for the badges."
+  },
+  {
+    "id": "EDGE-DLST-039",
+    "feature": "events.config",
+    "title": "QA_Platform_tab_counts_disabled_nulls",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. event_groups_tab_counts_enabled is OFF.",
+    "steps": [
+      "1. GET /event_groups/tab_counts.",
+      "2. Check all three item_count values are null."
+    ],
+    "method": "GET",
+    "path": "/event_groups/tab_counts",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 {data:[{key:'live',item_count:null},…]} — early return when the config is off (event_groups_controller.rb:781-789).",
+    "rationale": "Config-gated shape."
+  },
+  {
+    "id": "EDGE-DLST-040",
+    "feature": "events.config",
+    "title": "QA_Platform_tab_counts_cache_ignores_filters",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. event_groups_tab_counts_enabled is ON.",
+    "steps": [
+      "1. GET /event_groups/tab_counts with filters {title: \"QA_Platform_no_match_<stamp>\"}.",
+      "2. GET /event_groups/tab_counts with no filters.",
+      "3. Compare both with GET /event_groups event_group_count."
+    ],
+    "method": "GET",
+    "path": "/event_groups/tab_counts?filters=%7B%22title%22%3A%22QA_Platform_no_match_{{stamp}}%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. Cache key is user+company only (event_group.rb:161-163; event_groups_controller.rb:791-793), so the filter is either ignored (warm cache) or poisons the next 30 minutes (cold cache). Manual oracle.",
+    "rationale": "Cache key does not include the request's filters."
+  },
+  {
+    "id": "EDGE-DLST-043",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_update_cards_requires_ids",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/update_cards with no parameters."
+    ],
+    "method": "GET",
+    "path": "/event_groups/update_cards",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — stale_eg_ids blank (event_groups_controller.rb:731).",
+    "rationale": "Required-parameter guard."
+  },
+  {
+    "id": "EDGE-DLST-044",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_update_cards_scalar_ids_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/update_cards?stale_eg_ids=5."
+    ],
+    "method": "GET",
+    "path": "/event_groups/update_cards?stale_eg_ids=5",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500: EventGroup.where(id: stale_eg_ids.uniq) on a String (event_groups_controller.rb:750).",
+    "rationale": "Type assumption on a query parameter.",
+    "notRunnable": "it asks the cards endpoint for raw event id 5, which belongs to whichever company owns it; if the missing company scope (event_groups_controller.rb:750) is real, the run would copy another customer's event title and owner into our logs. Check it by hand with two test companies you control."
+  },
+  {
+    "id": "EDGE-DLST-045",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_update_cards_cross_tenant_ids",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/update_cards with stale_eg_ids[] = 1,2,3,4,5.",
+      "2. Inspect each returned card's company."
+    ],
+    "method": "GET",
+    "path": "/event_groups/update_cards?stale_eg_ids%5B%5D=1&stale_eg_ids%5B%5D=2&stale_eg_ids%5B%5D=3&stale_eg_ids%5B%5D=4&stale_eg_ids%5B%5D=5",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 expected with zero foreign cards. updated_egs = EventGroup.where(id: stale_eg_ids.uniq) is not scoped to Current.workspace (event_groups_controller.rb:750) and CardSerializer exposes title/ref_uuid/user.name/company (card_serializer.rb:1-24). Manual oracle: any card whose company is not PROCOL DEMO = cross-tenant leak.",
+    "rationale": "Unscoped lookup by client-supplied ids — read-only, but leaks other tenants' data.",
+    "notRunnable": "it asks the cards endpoint for raw event ids 1–5, which belong to other companies; if the missing company scope (event_groups_controller.rb:750) is real, the run would copy other customers' event titles, reference ids and owner names into our logs. Check it by hand with two test companies you control."
+  },
+  {
+    "id": "EDGE-DLST-046",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_update_cards_bogus_uuid",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/update_cards?stale_eg_uuids=Z2dnWmdaUWtnZw==."
+    ],
+    "method": "GET",
+    "path": "/event_groups/update_cards?stale_eg_uuids=Z2dnWmdaUWtnZw%3D%3D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with no cards; stale_eg_uuids is decoded to [999999999] (params_auth.rb:70-74).",
+    "rationale": "Bogus-id control."
+  },
+  {
+    "id": "EDGE-DLST-047",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_update_cards_garbage_newest_cursor",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/update_cards for the sandbox with newest_cursor=abc and sort_by=created_at."
+    ],
+    "method": "GET",
+    "path": "/event_groups/update_cards?stale_eg_uuids={{eventGroupUuid}}&newest_cursor=abc&sort_by=created_at",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with the sandbox card; created_at > 'abc' casts to NULL and matches nothing (event_groups_controller.rb:733-748).",
+    "rationale": "Cursor robustness + positive refresh."
+  },
+  {
+    "id": "EDGE-DLST-048",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_filter_options_baseline",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/filter_options."
+    ],
+    "method": "GET",
+    "path": "/event_groups/filter_options",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 sorted option groups (event_group_controller_helper.rb:456-495).",
+    "rationale": "Baseline for the filter panel."
+  },
+  {
+    "id": "EDGE-DLST-049",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_filter_options_company_id_ignored_for_buyer",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/filter_options?company_id=1.",
+      "2. Compare with the baseline."
+    ],
+    "method": "GET",
+    "path": "/event_groups/filter_options?company_id=1",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with own options; set_company_id uses Current.workspace for buyers (event_groups_controller.rb:1528-1535).",
+    "rationale": "Tenant override via parameter must be ignored."
+  },
+  {
+    "id": "EDGE-DLST-050",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_open_tenders_refused_for_buyer",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. GET /event_groups/all as the buyer."
+    ],
+    "method": "GET",
+    "path": "/event_groups/all",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 455 'You are not authorized to perform this action' — EventGroupPolicy#all? requires user.category != 'buyer' (event_group_policy.rb:33-35).",
+    "rationale": "Wrong-actor guard on the vendor feed.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"all\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DLST-051",
+    "feature": "events.config",
+    "title": "QA_Platform_recurring_ignores_filters",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. scheduled_events_enabled is ON.",
+    "steps": [
+      "1. GET /event_groups/scheduled with filters {title: \"QA_Platform_no_match\"}.",
+      "2. Compare with the unfiltered call."
+    ],
+    "method": "GET",
+    "path": "/event_groups/scheduled?filters=%7B%22title%22%3A%22QA_Platform_no_match%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with every template — the scheduled action never reads params (event_groups_controller.rb:374-412). Manual oracle.",
+    "rationale": "UI search box wired to an endpoint that ignores it."
+  },
+  {
+    "id": "EDGE-DLST-054",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_export_requires_dates",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. is_download_bulk_report_disabled_for_members is OFF (it is off on PROCOL DEMO).",
+    "steps": [
+      "1. GET /reports/download_bulk_report?report_category=auction_bids_comparison_report (no filters)."
+    ],
+    "method": "GET",
+    "path": "/reports/download_bulk_report?report_category=auction_bids_comparison_report",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — starting_from and ending_at must both be present (reports_controller.rb:162-164), checked after the policy (trade read) and the members-disabled config (…:158-161).",
+    "rationale": "Bounded export guard."
+  },
+  {
+    "id": "EDGE-DLST-055",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_export_requires_end_date",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. is_download_bulk_report_disabled_for_members is OFF (it is off on PROCOL DEMO).",
+    "steps": [
+      "1. GET /reports/download_bulk_report with filters {starting_from} only."
+    ],
+    "method": "GET",
+    "path": "/reports/download_bulk_report?report_category=auction_bids_comparison_report&filters=%7B%22starting_from%22%3A1727740800%7D",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' (reports_controller.rb:162-164).",
+    "rationale": "Half-open range guard."
+  },
+  {
+    "id": "EDGE-DLST-056",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_export_unparsable_filters_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. is_download_bulk_report_disabled_for_members is OFF (it is off on PROCOL DEMO).",
+    "steps": [
+      "1. GET /reports/download_bulk_report?report_category=auction_bids_comparison_report&filters=notjson."
+    ],
+    "method": "GET",
+    "path": "/reports/download_bulk_report?report_category=auction_bids_comparison_report&filters=notjson",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. TradeControllerFilterHelper#create_filter_params leaves @filters nil (trade_controller_filter_helper.rb:555-575); before_action set_order_type_filter dereferences it (…:577-580; reports_controller.rb:18-19).",
+    "rationale": "Crash in a before_action, ahead of every guard."
+  },
+  {
+    "id": "EDGE-DLST-057",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_export_product_ids_text_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. is_download_bulk_report_disabled_for_members is OFF (it is off on PROCOL DEMO).",
+    "steps": [
+      "1. GET /reports/download_bulk_report with filters {product_ids: \"5\", starting_from} (no ending_at)."
+    ],
+    "method": "GET",
+    "path": "/reports/download_bulk_report?report_category=auction_bids_comparison_report&filters=%7B%22product_ids%22%3A%225%22%2C%22starting_from%22%3A1727740800%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. set_product_and_delivery_zone_maps_to_filter calls product_ids.each on a String (trade_controller_filter_helper.rb:607-625). If fixed, the missing ending_at answers 422 code 2, so nothing is ever queued.",
+    "rationale": "Before-action type assumption; safe either way."
+  },
+  {
+    "id": "EDGE-DLST-061",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_unknown_event_533",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer (creator of the sandbox).",
+    "steps": [
+      "1. POST /event_groups/Z2dnWmdaUWtnZw==/create_clone with {}."
+    ],
+    "method": "POST",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/create_clone",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 'Project does not exist.' — EventGroup.find_by(id: 999999999) is nil (event_groups_controller.rb:106-107).",
+    "rationale": "Not-found guard before authorize."
+  },
+  {
+    "id": "EDGE-DLST-062",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_undecodable_id_533",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer (creator of the sandbox).",
+    "steps": [
+      "1. POST /event_groups/WrongUuid1=/create_clone with {}."
+    ],
+    "method": "POST",
+    "path": "/event_groups/WrongUuid1=/create_clone",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 'Project does not exist.' — check_for_uuid turns the id into nil (params_auth.rb:57-67).",
+    "rationale": "Undecodable id path."
+  },
+  {
+    "id": "EDGE-DLST-063",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_clone_get_not_routed",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer (creator of the sandbox).",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/create_clone."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/create_clone",
+    "expected": "reject",
+    "expectedResult": "HTTP 404 — only POST :id/create_clone is routed (config/routes.rb:699); no GET route matches two segments.",
+    "rationale": "State-changing action must not be reachable by GET."
+  },
+  {
+    "id": "EDGE-DLST-064",
+    "feature": "events.config",
+    "title": "QA_Platform_clone_when_feature_off",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Signed in as the run's buyer (creator of the sandbox). allowed_to_clone_project is OFF. Sandbox active, not created from a PR.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}} and note config.allowed_to_clone_project (false).",
+      "2. POST /event_groups/{{eventGroupUuid}}/create_clone with {}.",
+      "3. GET /event_groups/draft."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/create_clone",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused to match the UI; today 200 {event_group_uuid}. allowed_to_clone_project is read only for the UI config (event_group_controller_helper.rb:534,565); create_clone? and the action never check it (event_group_policy.rb:46-50; event_groups_controller.rb:105-128).",
+    "rationale": "UI-only feature gates are not gates."
+  },
+  {
+    "id": "EDGE-DLST-065",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_show_clone_and_owner_flags",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The sandbox event is published (active, bid window open) and still on the Live tab.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}.",
+      "2. Read config.allowed_to_clone_project and config.is_allowed_to_change_ownership."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; flags computed by event_group_controller_helper.rb:563-565 and is_allowed_to_change_ownership? (…:604-614).",
+    "rationale": "Read-back oracle for the two menu items."
+  },
+  {
+    "id": "EDGE-DLST-077",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_to_self",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/change_ownership with new_owner_uuid = the run's buyer."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "{{buyerUserUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — validate_new_owner returns 2 when current_owner.id == new_owner.id (trade_controller_helper.rb:5948-5952). Lookup (…controller.rb:1090) and policy (owner) pass first.",
+    "rationale": "Self-transfer guard; the only fully safe 'happy-ish' path."
+  },
+  {
+    "id": "EDGE-DLST-078",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_unknown_user",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. POST change_ownership with new_owner_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — User.active.find_by(id: 999999999) is nil (event_groups_controller.rb:1093-1095).",
+    "rationale": "Unknown target."
+  },
+  {
+    "id": "EDGE-DLST-079",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_undecodable_user",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. POST change_ownership with new_owner_uuid WrongUuid1=."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": "WrongUuid1="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — the uuid decodes to nil (params_auth.rb:70-74).",
+    "rationale": "Undecodable target."
+  },
+  {
+    "id": "EDGE-DLST-080",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_null_user",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. POST change_ownership with new_owner_uuid null."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": null
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — decode_data(nil) is nil (encrypt_decrypt.rb:59-60).",
+    "rationale": "Null target."
+  },
+  {
+    "id": "EDGE-DLST-081",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_raw_id_bypass",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. POST change_ownership with new_owner_id 999999999 (no uuid)."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_id": 999999999
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — params[:new_owner_id] is used as-is (event_groups_controller.rb:1093); no such user.",
+    "rationale": "Internal ids accepted from the client."
+  },
+  {
+    "id": "EDGE-DLST-082",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_uuid_as_list",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. POST change_ownership with new_owner_uuid [\"<own uuid>\"]."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "body": {
+      "new_owner_uuid": [
+        "{{buyerUserUuid}}"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — decode_data(Array) Base64-decodes the printed list, giving the caller's id (self) or nil (encrypt_decrypt.rb:59-73).",
+    "rationale": "Wrong JSON type for a uuid."
+  },
+  {
+    "id": "EDGE-DLST-083",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_unknown_event",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. POST /event_groups/Z2dnWmdaUWtnZw==/change_ownership with the run's own buyer."
+    ],
+    "method": "POST",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/change_ownership",
+    "body": {
+      "new_owner_uuid": "{{buyerUserUuid}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 'Project does not exist.' — find_by(id:, company_id: Current.workspace.id) is nil (event_groups_controller.rb:1090-1091).",
+    "rationale": "Not-found guard."
+  },
+  {
+    "id": "EDGE-DLST-084",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_change_owner_get_not_routed",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/change_ownership."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/change_ownership",
+    "expected": "reject",
+    "expectedResult": "HTTP 404 — only POST :id/change_ownership is routed (config/routes.rb:708).",
+    "rationale": "State-changing action must not be reachable by GET."
+  },
+  {
+    "id": "EDGE-DLST-085",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_team_buyers_baseline",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/team_buyers.",
+      "2. Check the caller is not listed."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/team_buyers",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 [{user_id, user_name}] — active team co-members minus owner and planners (event_groups_controller.rb:1065-1087).",
+    "rationale": "Read-back for the picker; consistent with validate_new_owner."
+  },
+  {
+    "id": "EDGE-DLST-086",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_team_buyers_unknown_event",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer, who created (owns) the sandbox.",
+    "steps": [
+      "1. GET /event_groups/Z2dnWmdaUWtnZw==/team_buyers."
+    ],
+    "method": "GET",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/team_buyers",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 533 'Project does not exist.' (event_groups_controller.rb:1066-1067).",
+    "rationale": "Not-found guard."
+  },
+  {
+    "id": "EDGE-DLST-104",
+    "feature": "po.release",
+    "title": "QA_Platform_po_list_baseline",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The user may read POs.",
+    "steps": [
+      "1. GET /orders."
+    ],
+    "method": "GET",
+    "path": "/orders",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with data + counters; scoped to buyer_company_id = workspace (search_query_po.rb:32-33).",
+    "rationale": "Baseline; also documents that /orders is POs, not events."
+  },
+  {
+    "id": "EDGE-DLST-105",
+    "feature": "po.release",
+    "title": "QA_Platform_po_list_product_ids_text_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The user may read POs.",
+    "steps": [
+      "1. GET /orders with filters {product_ids: [\"abc\"]}."
+    ],
+    "method": "GET",
+    "path": "/orders?filters=%7B%22product_ids%22%3A%5B%22abc%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. Order.product compares ::bigint with the raw array (order.rb:191) → PG::InvalidTextRepresentation.",
+    "rationale": "Unvalidated ids reach a SQL cast."
+  },
+  {
+    "id": "EDGE-DLST-106",
+    "feature": "po.release",
+    "title": "QA_Platform_po_list_buyer_hub_ids_text_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The user may read POs.",
+    "steps": [
+      "1. GET /orders with filters {buyer_hub_ids: [\"abc\"]}."
+    ],
+    "method": "GET",
+    "path": "/orders?filters=%7B%22buyer_hub_ids%22%3A%5B%22abc%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 500. Order.buyer_hub casts (order_items.location->>'id')::bigint against text (order.rb:192).",
+    "rationale": "Same cast, second scope."
+  },
+  {
+    "id": "EDGE-DLST-107",
+    "feature": "po.release",
+    "title": "QA_Platform_po_list_percent_query",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The user may read POs.",
+    "steps": [
+      "1. GET /orders?query=%."
+    ],
+    "method": "GET",
+    "path": "/orders?query=%25",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200; po_query uses ILIKE '%' + query + '%' without escaping (order.rb:188).",
+    "rationale": "Unescaped wildcard in search."
+  },
+  {
+    "id": "EDGE-DLST-108",
+    "feature": "po.release",
+    "title": "QA_Platform_po_list_negative_page",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The user may read POs.",
+    "steps": [
+      "1. GET /orders?page=-5."
+    ],
+    "method": "GET",
+    "path": "/orders?page=-5",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 page 1; paginate keeps 1 unless page.to_i > 0 (orders_controller.rb:527-530).",
+    "rationale": "Pagination clamp."
+  },
+  {
+    "id": "EDGE-DLST-109",
+    "feature": "po.release",
+    "title": "QA_Platform_po_list_text_date_range",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO. The user may read POs.",
+    "steps": [
+      "1. GET /orders with filters {created_at: {from: \"abc\", to: \"xyz\"}}."
+    ],
+    "method": "GET",
+    "path": "/orders?filters=%7B%22created_at%22%3A%7B%22from%22%3A%22abc%22%2C%22to%22%3A%22xyz%22%7D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 empty; Order.created_at uses Time.at(from.to_i)..Time.at(to.to_i) = epoch 0 (order.rb:185).",
+    "rationale": "Text dates coerced to epoch."
+  },
+  {
+    "id": "EDGE-DLST-110",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_event_search_requires_items",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. POST /event_groups/search with {}."
+    ],
+    "method": "POST",
+    "path": "/event_groups/search",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — purchase_request_item_ids blank (event_groups_controller.rb:843-845).",
+    "rationale": "Required list."
+  },
+  {
+    "id": "EDGE-DLST-111",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_event_search_items_not_list",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. POST /event_groups/search with purchase_request_item_ids \"abc\"."
+    ],
+    "method": "POST",
+    "path": "/event_groups/search",
+    "body": {
+      "purchase_request_item_ids": "abc"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — !purchase_request_item_ids.is_a?(Array) (event_groups_controller.rb:843-845).",
+    "rationale": "Type guard."
+  },
+  {
+    "id": "EDGE-DLST-112",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_event_search_unknown_items_834",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Signed in as the run's buyer on PROCOL DEMO.",
+    "steps": [
+      "1. POST /event_groups/search with purchase_request_item_uuids [Z2dnWmdaUWtnZw==]."
+    ],
+    "method": "POST",
+    "path": "/event_groups/search",
+    "body": {
+      "purchase_request_item_uuids": [
+        "Z2dnWmdaUWtnZw=="
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 834 'Purchase request item has no product' — validate_purchase_request_items finds no rows (event_group_controller_helper.rb:2970-2978).",
+    "rationale": "Pins the code; the message is misleading."
+  }
+]

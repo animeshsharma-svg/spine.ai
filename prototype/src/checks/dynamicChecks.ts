@@ -55,7 +55,8 @@ const ALLOW: AllowRule[] = [
   { method: "POST", re: /^\/event_groups$/, what: "create a draft event" },
   { method: "POST", re: /^\/trade\/template_input(\?|$)/, what: "add a stage to an event" },
   { method: "POST", re: /^\/trade\/move_to_auction$/, what: "convert a stage to auction" },
-  { method: "POST", re: /^\/v1\/trade\/add_audience(\?|$)/, what: "invite vendors to a stage" },
+  // The route is PATCH (procol-backend config/routes.rb: patch 'add_audience'); a POST entry never matched.
+  { method: "PATCH", re: /^\/v1\/trade\/add_audience(\?|$)/, what: "invite vendors to a stage" },
   { method: "POST", re: /^\/template_responses(\/[^/]+\/create_page_responses)?$/, what: "technical response" },
   { method: "POST", re: /^\/template_responses\/create_surrogate_response$/, what: "surrogate technical response" },
   { method: "POST", re: /^\/bids\/template_input$/, what: "surrogate RFQ bid" },
@@ -127,6 +128,54 @@ const ALLOW_CURATED: AllowRule[] = [
   // upload: QA_Platform_ names, qa_…@example.com or no contact, skip onboarding.
   { method: "POST", re: /^\/invitations\/send_invite$/, what: "single-vendor invite (QA test vendors)" },
 ];
+
+/**
+ * EXTRA endpoints for the "sourcing events in depth" cases ONLY
+ * (data/api-cases-extra/deep-*.json, ids EDGE-D<AREA>-NNN).
+ *
+ * Scoped by case id, not opened to the whole curated library, on purpose:
+ * each deep case on these paths was written against the backend source AND
+ * run live on a fresh test event before it was kept. Older cases on some of
+ * the same paths (EDGE-PUB change_ownership/create_clone, EDGE-AWD counter
+ * offers) have not had that live pass, so they stay held until someone does
+ * it — opening the path for them would put unreviewed verdicts in every run.
+ *
+ * Every write here acts on the run's own sandbox event, the journey's own
+ * event, the run's own buyer user, or a bogus id that cannot resolve.
+ */
+const ALLOW_DEEP: AllowRule[] = [
+  // ── reads ──
+  { method: "GET", re: /^\/event_groups(\?|$)/, what: "the events list" },
+  { method: "POST", re: /^\/event_groups\/search$/, what: "event lookup (read)" },
+  { method: "GET", re: /^\/proposal\/[^/]+(\/[a-z_]+)?(\?|$)/, what: "read an award proposal" },
+  { method: "GET", re: /^\/trade\/[^/]+\/[a-z_]+(\?|$)/, what: "read a stage's reports" },
+  { method: "GET", re: /^\/v1\/trade\/[^/]+\/[a-z_0-9]+(\/[^/?]+)?(\?|$)/, what: "read a stage's comparison data" },
+  { method: "GET", re: /^\/v1\/trade\/new_request_config(\?|$)/, what: "stage configuration" },
+  { method: "GET", re: /^\/v1\/additional_requests\/([^/]+\/counter_offer_details|pending_tasks)(\?|$)/, what: "counter-offer reads" },
+  { method: "GET", re: /^\/sheets\/(schema|details)(\?|$)/, what: "Master QCS sheet reads" },
+  { method: "GET", re: /^\/mqcs_report_templates(\/[^/?]+)?(\?|$)/, what: "Master QCS report templates" },
+  { method: "GET", re: /^\/versions_log\/all(\?|$)/, what: "change history" },
+  { method: "GET", re: /^\/approval_workflow\/(approval_requests|approval_flows)(\/[^?]*)?(\?|$)/, what: "approval reads" },
+  { method: "GET", re: /^\/delegations\/[^/?]+(\?|$)/, what: "read a delegation" },
+  { method: "GET", re: /^\/bids\/([^/]+\/get_approvals|approval_workflows_for_surrogate_bid_create)(\?|$)/, what: "bid approval reads" },
+  { method: "GET", re: /^\/reports\/download_bulk_report(\?|$)/, what: "events-list export (refusals only: no date range)" },
+  // ── writes: sandbox / journey event / own user / bogus ids only (see each case) ──
+  { method: "POST", re: /^\/additional_request\/(raise_additional_request|raise_bulk_counter_offer)$/, what: "counter offer on the journey's QA-vendor bid" },
+  { method: "PATCH", re: /^\/additional_request\/(resolve_additional_request|revoke_additional_requests)$/, what: "counter offer resolve/revoke (bogus ids)" },
+  { method: "POST", re: /^\/ask_ai_chats\/counter_offer$/, what: "counter-offer suggestion (sandbox)" },
+  { method: "POST", re: /^\/event_groups\/[^/]+\/(create_clone|change_ownership)$/, what: "clone the sandbox / hand it to self or a bogus user" },
+  { method: "PATCH", re: /^\/event_groups\/[^/]+\/(save_draft_lots|reset_to_smart_lots)(\?|$)/, what: "sandbox lot plan" },
+  { method: "POST", re: /^\/trade\/create_new_lot$/, what: "split a lot (sandbox / bogus)" },
+  { method: "PATCH", re: /^\/trade\/[^/]+(\/staggered_time)?$/, what: "edit a stage (sandbox / journey / bogus)" },
+  { method: "PATCH", re: /^\/v1\/trade\/[^/]+\/(currency_exchange_rates|widgets)$/, what: "stage rates / widgets (sandbox / bogus)" },
+  { method: "PATCH", re: /^\/v1\/trade\/(add_audience|remove_audience)(\?|$)/, what: "live audience with no vendor list" },
+  { method: "POST", re: /^\/v1\/trade\/[^/]+\/(add_new_stage_in_live_event|close_bid|close_bid\/approval_workflows|send_otp_for_unlocking_bids|verify_otp_for_unlocking_bids|upload_bid_excel)$/, what: "stage actions (sandbox / bogus)" },
+  { method: "POST", re: /^\/reports\/download_report$/, what: "report download (refused bodies)" },
+  { method: "POST", re: /^\/templates\/product_sheet_params$/, what: "sheet upload (no file / bogus template)" },
+  { method: "POST", re: /^\/approval_workflow\/approval_requests(\/(resolve_approval|bulk_resolve|[^/]+\/withdraw_approval))?$/, what: "approval actions (bogus ids only)" },
+  { method: "PATCH", re: /^\/approval_workflow\/approval_requests\/[^/]+$/, what: "approval update (bogus id)" },
+];
+const DEEP_CASE = /^EDGE-D[A-Z]+-\d{3}$/;
 
 /** The endpoint menu the LLM is shown — kept in sync with ALLOW above. */
 const ENDPOINT_MENU = `
@@ -423,7 +472,7 @@ export function gate(
   if (typeof path !== "string" || !path.startsWith("/"))
     return { check: null, reason: "path is missing or not absolute" };
 
-  const allowed = curated ? [...ALLOW, ...ALLOW_CURATED] : ALLOW;
+  const allowed = curated ? [...ALLOW, ...ALLOW_CURATED, ...(DEEP_CASE.test(id) ? ALLOW_DEEP : [])] : ALLOW;
   const rule = allowed.find((r) => r.method === method && r.re.test(path));
   if (!rule) return { check: null, reason: `${method} ${path} is not on the allowlist` };
 

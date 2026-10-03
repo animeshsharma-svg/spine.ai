@@ -1,0 +1,935 @@
+[
+  {
+    "id": "EDGE-DLOT-001",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_get_lots_without_trade_request_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_lots with no trade_request_uuid.",
+      "2. Read the status and error."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_lots",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — TradeRequest.where(id: nil, rfx_mode: :rfq).last is nil (app/controllers/api/event_groups_controller.rb:898-899) after the event-group, latest? and show? checks pass. Nothing is written.",
+    "rationale": "trade_request_id is the only way the service knows which round to split; a missing id must be a typed refusal."
+  },
+  {
+    "id": "EDGE-DLOT-002",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_get_lots_on_technical_round_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. RFP+RFQ run: {{rfpTradeId}} is the sandbox's technical (RFP) round.",
+    "steps": [
+      "1. GET get_lots with trade_request_uuid = the technical round."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_lots?trade_request_uuid={{rfpTradeId}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — TradeRequest.where(id:, rfx_mode: :rfq) excludes the RFP round (app/controllers/api/event_groups_controller.rb:898-899).",
+    "rationale": "Lot splitting is defined for RFQ rounds only; the rfx_mode filter is the only thing stopping a technical round."
+  },
+  {
+    "id": "EDGE-DLOT-003",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_get_lots_with_undecodable_trade_uuid_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer.",
+    "steps": [
+      "1. GET get_lots with trade_request_uuid=WrongUuid1= (decodes to nil)."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_lots?trade_request_uuid=WrongUuid1=",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — ParamsAuth turns the bad uuid into trade_request_id nil (app/controllers/concerns/params_auth.rb:74-75) and the RFQ lookup is empty (app/controllers/api/event_groups_controller.rb:898-899).",
+    "rationale": "Undecodable ids must fail closed."
+  },
+  {
+    "id": "EDGE-DLOT-004",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_get_lots_unknown_event_group_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Event id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. GET /event_groups/Z2dnWmdaUWtnZw==/get_lots?trade_request_uuid={{tradeId}}.",
+      "2. Expect a typed 4xx."
+    ],
+    "method": "GET",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/get_lots?trade_request_uuid={{tradeId}}",
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. Today EventGroup...find_by returns nil and `render_error_json(101) && return if !event_group.latest?` (app/controllers/api/event_groups_controller.rb:895) calls latest? on nil before the blank check (app/controllers/api/event_groups_controller.rb:896) → NoMethodError → 500.",
+    "rationale": "Guard order bug: the nil check sits one line too late."
+  },
+  {
+    "id": "EDGE-DLOT-005",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_get_lots_undecodable_event_id_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer.",
+    "steps": [
+      "1. GET /event_groups/WrongUuid1=/get_lots?trade_request_uuid={{tradeId}}."
+    ],
+    "method": "GET",
+    "path": "/event_groups/WrongUuid1=/get_lots?trade_request_uuid={{tradeId}}",
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. check_for_uuid decodes the path id to nil (app/controllers/concerns/params_auth.rb:61-62), find_by(id: nil) is nil and latest? is called on it (app/controllers/api/event_groups_controller.rb:895) → 500 today.",
+    "rationale": "A garbage path id must never crash."
+  },
+  {
+    "id": "EDGE-DLOT-006",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_get_lots_with_other_events_rfq_is_refused",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. {{pricingTradeUuid}} is the JOURNEY's own RFQ stage (bid window over, one submitted bid from the QA vendor, an award proposal created and submitted); {{tradeProductUuid}} is that stage's quoted line. Run it last (a missing guard writes draft smart lots onto the journey event).",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_lots?trade_request_uuid={{pricingTradeUuid}}.",
+      "2. Expect a refusal; a 200 listing the journey's line item is the defect."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_lots?trade_request_uuid={{pricingTradeUuid}}",
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. Today the RFQ is found by id and rfx_mode only (app/controllers/api/event_groups_controller.rb:898) and LotSplittingService works on the event that owns that RFQ (app/services/lots/lot_splitting_service.rb:10-11), saving smart lots there (app/services/lots/lot_splitting_service.rb:31-33) → 200 with the other event lots. If the journey stage is no longer active the service's find raises RecordNotFound (404) — also a refusal.",
+    "rationale": "Compare reset_to_smart_lots, which adds event_group_id and company_id to the same lookup (app/controllers/api/event_groups_controller.rb:913)."
+  },
+  {
+    "id": "EDGE-DLOT-007",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_get_lots_on_live_rfq_builds_smart_lots",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. The event has no lots yet. Run it last: the GET saves draft smart lots on the sandbox.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_lots?trade_request_uuid={{tradeId}}.",
+      "2. Expect 200 with lot_state.mode smart_lots."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_lots?trade_request_uuid={{tradeId}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200, lot_state.mode 'smart_lots', five draft lots (one holding the line, four empty) — generate_lots appends empty lots (app/services/lots/lot_splitting_service.rb:248-273) and get_lots persists them (app/services/lots/lot_splitting_service.rb:31-33). Must not 500 on a round with no bids.",
+    "rationale": "Happy path of the read the drawer makes; also documents that this GET writes."
+  },
+  {
+    "id": "EDGE-DLOT-008",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_report_list_after_opening_lots_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Draft smart lots were saved by the previous get_lots case. Run it last.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_all_attachments.",
+      "2. Expect no 5xx; record the report names."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_all_attachments",
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. generate_event_group_report_names branches on lot_config.present? and skips non-active lots (app/controllers/api/event_groups_controller.rb:1189-1199), so a draft-only lot plan drops the master QCS entry — record whether 'QCS-Purchase' is listed.",
+    "rationale": "Side effect of a GET that writes: only published lots should switch an event into lot mode."
+  },
+  {
+    "id": "EDGE-DLOT-014",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_without_lots_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Refused before any write.",
+    "steps": [
+      "1. PATCH save_draft_lots with {}."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — params['lots'].blank? (app/controllers/api/event_groups_controller.rb:932) after the event, latest? and show? checks. Nothing saved.",
+    "rationale": "Missing payload must fail closed."
+  },
+  {
+    "id": "EDGE-DLOT-015",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_lot_without_items_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Refused before any write.",
+    "steps": [
+      "1. PATCH save_draft_lots with one lot that has a title but no item list."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "description": ""
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — no old_trade_product_ids anywhere, so first_tp_id is blank (app/controllers/api/event_groups_controller.rb:933-934). Nothing saved.",
+    "rationale": "The RFQ is inferred from the items; no items, no RFQ."
+  },
+  {
+    "id": "EDGE-DLOT-016",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_unknown_line_item_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Refused before any write.",
+    "steps": [
+      "1. PATCH save_draft_lots with old_trade_product_uuids = [Z2dnWmdaUWtnZw==]."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "Z2dnWmdaUWtnZw=="
+          ]
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — the uuid decodes to 999999999, TradeProduct.where(id:).pick(:trade_request_id) is nil (app/controllers/api/event_groups_controller.rb:935-936). Nothing saved.",
+    "rationale": "Ghost line items must not enter the plan."
+  },
+  {
+    "id": "EDGE-DLOT-017",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_lots_as_array_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Crashes or refuses before any write.",
+    "steps": [
+      "1. PATCH save_draft_lots with lots as a JSON array."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {
+      "lots": [
+        {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "Z2dnWmdaUWtnZw=="
+          ]
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. Today `lots.values` (app/controllers/api/event_groups_controller.rb:933) on an Array raises NoMethodError → 500. No type check on params['lots'].",
+    "rationale": "Wrong container type is the most common client mistake; it must be a 4xx."
+  },
+  {
+    "id": "EDGE-DLOT-018",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_lots_as_text_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Crashes or refuses before any write.",
+    "steps": [
+      "1. PATCH save_draft_lots with lots as a string."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {
+      "lots": "QA_Platform_lot_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. Today `\"...\".values` (app/controllers/api/event_groups_controller.rb:933) raises NoMethodError → 500.",
+    "rationale": "Scalar where a map is expected."
+  },
+  {
+    "id": "EDGE-DLOT-019",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_unknown_event_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. The event id does not exist; nothing can be written.",
+    "steps": [
+      "1. PATCH /event_groups/Z2dnWmdaUWtnZw==/save_draft_lots."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/save_draft_lots",
+    "body": {
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "Z2dnWmdaUWtnZw=="
+          ]
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. EventGroup.active.find_by returns nil and latest? is called on it (app/controllers/api/event_groups_controller.rb:928) before the blank check (app/controllers/api/event_groups_controller.rb:929) → 500 today.",
+    "rationale": "Guard order: nil check must come first."
+  },
+  {
+    "id": "EDGE-DLOT-020",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_null_item_list_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. {{pricingTradeUuid}} is the JOURNEY's own RFQ stage (bid window over, one submitted bid from the QA vendor, an award proposal created and submitted); {{tradeProductUuid}} is that stage's quoted line. The crash (if any) happens in validation, before event_group.save!.",
+    "steps": [
+      "1. PATCH save_draft_lots: lot 1 = [journey line], lot 2 = {old_trade_product_ids: null}.",
+      "2. Expect a typed 4xx."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "{{tradeProductUuid}}"
+          ]
+        },
+        "2": {
+          "lot_title": "QA_Platform_lot2_{{stamp}}",
+          "old_trade_product_ids": null
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422. lot 2's list is copied as nil (app/controllers/api/event_groups_controller.rb:944) and validate_lot_config runs `ids.count { }` on it (app/controllers/api/event_groups_controller.rb:969-970) → NoMethodError → 500 today. Code 2 instead if the journey stage is not active (app/controllers/api/event_groups_controller.rb:937-938).",
+    "rationale": "Per-lot lists are never type-checked; only the first id is."
+  },
+  {
+    "id": "EDGE-DLOT-021",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_with_other_events_item_is_refused",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. {{pricingTradeUuid}} is the JOURNEY's own RFQ stage (bid window over, one submitted bid from the QA vendor, an award proposal created and submitted); {{tradeProductUuid}} is that stage's quoted line. Run it last: a missing guard overwrites the sandbox's lot plan.",
+    "steps": [
+      "1. PATCH sandbox save_draft_lots with lot 1 = the journey's quoted line.",
+      "2. Expect a refusal; 200 is the defect."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "{{tradeProductUuid}}"
+          ]
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. Today the RFQ comes from the item (app/controllers/api/event_groups_controller.rb:935-938) with no check that its event_group_id is the URL's event; the count check compares against that other RFQ (app/controllers/api/event_groups_controller.rb:965-974), so the plan saves on the sandbox (app/controllers/api/event_groups_controller.rb:958) → 200. (Code 2 if the journey stage is no longer active.)",
+    "rationale": "Only the event in the URL is authorised; the items must belong to it."
+  },
+  {
+    "id": "EDGE-DLOT-022",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_save_draft_lots_duplicate_item_across_lots_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. {{pricingTradeUuid}} is the JOURNEY's own RFQ stage (bid window over, one submitted bid from the QA vendor, an award proposal created and submitted); {{tradeProductUuid}} is that stage's quoted line. Refused in validation, before save.",
+    "steps": [
+      "1. PATCH save_draft_lots with the same line in lot 1 and lot 2."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/save_draft_lots",
+    "body": {
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "{{tradeProductUuid}}"
+          ]
+        },
+        "2": {
+          "lot_title": "QA_Platform_lot2_{{stamp}}",
+          "old_trade_product_uuids": [
+            "{{tradeProductUuid}}"
+          ]
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 code 842 (\"Unable to save lots\") — validate_lot_config counts each id per lot, so a duplicate makes the total 2 against 1 RFQ line (app/controllers/api/event_groups_controller.rb:968-974). Code 2 if the journey's stage is no longer active (app/controllers/api/event_groups_controller.rb:937-938).",
+    "rationale": "The count check is the only duplicate guard on the draft path."
+  },
+  {
+    "id": "EDGE-DLOT-028",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_reset_smart_lots_without_trade_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Refused before any lookup or write.",
+    "steps": [
+      "1. PATCH reset_to_smart_lots without trade_request_uuid."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reset_to_smart_lots",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — trade_request_id.blank? (app/controllers/api/event_groups_controller.rb:908-909). Nothing written.",
+    "rationale": "The id check comes first on this endpoint (unlike get_lots)."
+  },
+  {
+    "id": "EDGE-DLOT-029",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_reset_smart_lots_unknown_event_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Event id does not exist; nothing can be written.",
+    "steps": [
+      "1. PATCH /event_groups/Z2dnWmdaUWtnZw==/reset_to_smart_lots?trade_request_uuid={{tradeId}}."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/reset_to_smart_lots?trade_request_uuid={{tradeId}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Should be HTTP 422 code 2. EventGroup.active.find_by(..., company_id:) is nil and `!event_group.latest?` (app/controllers/api/event_groups_controller.rb:912) runs before `event_group.blank?` (app/controllers/api/event_groups_controller.rb:914) → 500 today.",
+    "rationale": "Same guard-order slip as get_lots/save_draft_lots."
+  },
+  {
+    "id": "EDGE-DLOT-030",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_reset_smart_lots_with_other_events_rfq_is_refused",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. {{pricingTradeUuid}} is the JOURNEY's own RFQ stage (bid window over, one submitted bid from the QA vendor, an award proposal created and submitted); {{tradeProductUuid}} is that stage's quoted line. Refused before any write.",
+    "steps": [
+      "1. PATCH sandbox reset_to_smart_lots with the journey's RFQ."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reset_to_smart_lots?trade_request_uuid={{pricingTradeUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — TradeRequest.active.find_by(id:, rfx_mode: :rfq, event_group_id:, company_id:) is nil for a round of another event (app/controllers/api/event_groups_controller.rb:913-916). Nothing written.",
+    "rationale": "Regression guard for the one lot endpoint that scopes correctly."
+  },
+  {
+    "id": "EDGE-DLOT-031",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_reset_smart_lots_on_sandbox_rebuilds_plan",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Run it last: rewrites the sandbox's draft lot plan (sandbox only).",
+    "steps": [
+      "1. PATCH reset_to_smart_lots on the sandbox with its own RFQ."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}/reset_to_smart_lots?trade_request_uuid={{tradeId}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200, lot_state.mode 'smart_lots'. reset_smart_lots clears lot_config and calls get_lots (app/services/lots/lot_splitting_service.rb:78-84). Must not 5xx.",
+    "rationale": "Happy path of the reset."
+  },
+  {
+    "id": "EDGE-DLOT-034",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_create_new_lot_during_bidding_is_refused",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. If the guard were missing the split would act on the sandbox only (QA vendor notified).",
+    "steps": [
+      "1. POST /trade/create_new_lot on the live sandbox RFQ.",
+      "2. Expect 740."
+    ],
+    "method": "POST",
+    "path": "/trade/create_new_lot",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "Z2dnWmdaUWtnZw=="
+          ],
+          "status": "active"
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 740 'RFQ event cannot be converted to lots as it is still live.' — old_trade.live? is true inside the bid window (app/controllers/api/trade_controller.rb:1824). Nothing created.",
+    "rationale": "Core timing rule of lot splitting; the spec asserts the same message."
+  },
+  {
+    "id": "EDGE-DLOT-035",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_create_new_lot_without_trade_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Refused before any write.",
+    "steps": [
+      "1. POST /trade/create_new_lot with lots but no trade_request_uuid."
+    ],
+    "method": "POST",
+    "path": "/trade/create_new_lot",
+    "body": {
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "Z2dnWmdaUWtnZw=="
+          ],
+          "status": "active"
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 95 'Trade Request not found' — TradeRequest.active.where(id: nil, rfx_mode: 1) is empty (app/controllers/api/trade_controller.rb:1821-1822).",
+    "rationale": "Missing id must be a typed refusal."
+  },
+  {
+    "id": "EDGE-DLOT-036",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_create_new_lot_unknown_trade_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Refused before any write.",
+    "steps": [
+      "1. POST /trade/create_new_lot with trade_request_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "POST",
+    "path": "/trade/create_new_lot",
+    "body": {
+      "trade_request_uuid": "Z2dnWmdaUWtnZw==",
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "Z2dnWmdaUWtnZw=="
+          ],
+          "status": "active"
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 95 'Trade Request not found' (app/controllers/api/trade_controller.rb:1821-1822).",
+    "rationale": "Bogus id fails closed."
+  },
+  {
+    "id": "EDGE-DLOT-037",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_create_new_lot_on_technical_round_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. RFP+RFQ run: {{rfpTradeId}} is the sandbox's technical round. Refused before any write.",
+    "steps": [
+      "1. POST /trade/create_new_lot with the technical round."
+    ],
+    "method": "POST",
+    "path": "/trade/create_new_lot",
+    "body": {
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "lots": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "old_trade_product_uuids": [
+            "Z2dnWmdaUWtnZw=="
+          ],
+          "status": "active"
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 95 'Trade Request not found' — the lookup is filtered to rfx_mode 1 (rfq) (app/controllers/api/trade_controller.rb:1821).",
+    "rationale": "rfx_mode filter regression guard."
+  },
+  {
+    "id": "EDGE-DLOT-060",
+    "feature": "auction.serial_bidding",
+    "title": "QA_Platform_staggered_time_on_non_staggered_round_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. The sandbox RFQ closes per line item but is not staggered. Refused before any write.",
+    "steps": [
+      "1. PATCH /trade/{{tradeId}}/staggered_time with empty trade_products_time."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/staggered_time",
+    "body": {
+      "trade_products_time": {}
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' — is_staggered_on_line(config) is false without config['staggered'] (app/controllers/api/trade_controller.rb:1412; app/controllers/concerns/trade_template_helper.rb:1626-1630).",
+    "rationale": "Only staggered rounds have per-line times."
+  },
+  {
+    "id": "EDGE-DLOT-061",
+    "feature": "auction.serial_bidding",
+    "title": "QA_Platform_staggered_time_unknown_trade_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Bogus id; nothing can be written.",
+    "steps": [
+      "1. PATCH /trade/Z2dnWmdaUWtnZw==/staggered_time."
+    ],
+    "method": "PATCH",
+    "path": "/trade/Z2dnWmdaUWtnZw==/staggered_time",
+    "body": {
+      "trade_products_time": {}
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' (app/controllers/api/trade_controller.rb:1410-1411).",
+    "rationale": "Bogus id."
+  },
+  {
+    "id": "EDGE-DLOT-067",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_on_single_currency_round_are_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. The journey sends currency_configuration null, so the sandbox RFQ has no currency table unless its pricing template carries one. The currency code is made up so nothing can be written either way.",
+    "steps": [
+      "1. PATCH /v1/trade/{{tradeId}}/currency_exchange_rates with one made-up currency."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        {
+          "QA_Platform_XYZ": 83.5
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 879 'Multi-currency is not configured for this trade request.' — currency_configuration is nil (app/controllers/api/v1/trade_controller.rb:1472). (Code 2 if the template supplied a table: the code is not an allowed currency, app/controllers/api/v1/trade_controller.rb:1485.)",
+    "rationale": "Rates only exist on multi-currency rounds."
+  },
+  {
+    "id": "EDGE-DLOT-068",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_unknown_trade_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Bogus id; nothing can be written.",
+    "steps": [
+      "1. PATCH /v1/trade/Z2dnWmdaUWtnZw==/currency_exchange_rates."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        {
+          "USD": 83.5
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' — TradeRequest.active.find_by(id: 999999999) is nil (app/controllers/api/v1/trade_controller.rb:1467-1468).",
+    "rationale": "Bogus id."
+  },
+  {
+    "id": "EDGE-DLOT-069",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_undecodable_trade_is_refused",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Undecodable id; nothing can be written.",
+    "steps": [
+      "1. PATCH /v1/trade/WrongUuid1=/currency_exchange_rates."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/WrongUuid1=/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        {
+          "USD": 83.5
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' — path id decodes to nil (app/controllers/concerns/params_auth.rb:61-62), find_by(id: nil) is nil (app/controllers/api/v1/trade_controller.rb:1467-1468).",
+    "rationale": "Undecodable id."
+  },
+  {
+    "id": "EDGE-DLOT-070",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_after_a_bid_are_refused",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "{{pricingTradeUuid}} is the JOURNEY's own RFQ stage (bid window over, one submitted bid from the QA vendor, an award proposal created and submitted); {{tradeProductUuid}} is that stage's quoted line. Refused before any write (877 with a currency table, 879 without).",
+    "steps": [
+      "1. PATCH /v1/trade/{{pricingTradeUuid}}/currency_exchange_rates.",
+      "2. Expect a refusal."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{pricingTradeUuid}}/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        {
+          "QA_Platform_XYZ": 1
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 — code 877 (\"Exchange rates cannot be updated after bids have been placed.\") when the round has a currency table and an active/requested bid (app/controllers/api/v1/trade_controller.rb:1473); 879 when it has none (app/controllers/api/v1/trade_controller.rb:1472); 4 if the stage is no longer active.",
+    "rationale": "Rates are frozen once anyone has bid."
+  },
+  {
+    "id": "EDGE-DLOT-071",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_as_object_are_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Refused before any write (879 without a currency table, 2 with one).",
+    "steps": [
+      "1. PATCH currency_exchange_rates with currency_rates as an object."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+    "body": {
+      "currency_rates": {
+        "USD": 83.5
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422 — 879 when the round has no currency table (app/controllers/api/v1/trade_controller.rb:1472), otherwise code 2 because currency_rates is not an Array (app/controllers/api/v1/trade_controller.rb:1476-1477).",
+    "rationale": "Container type check."
+  },
+  {
+    "id": "EDGE-DLOT-072",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rate_with_thousands_separator_must_not_500",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Crash (if any) happens before trade_request.save; 879 on a round with no currency table.",
+    "steps": [
+      "1. PATCH currency_exchange_rates with USD = '1,000'."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        {
+          "USD": "1,000"
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. '1,000'.to_f = 1.0 passes `rate.to_f > 0` (app/controllers/api/v1/trade_controller.rb:1487) but BigDecimal('1,000') raises ArgumentError (app/controllers/api/v1/trade_controller.rb:1491) → 500 on a multi-currency round. Expected 878. On the sandbox: 879.",
+    "rationale": "Validation and storage parse the number differently."
+  },
+  {
+    "id": "EDGE-DLOT-073",
+    "feature": "events.config",
+    "title": "QA_Platform_exchange_rates_list_of_codes_must_not_500",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Crash (if any) happens before any write; 879 without a currency table.",
+    "steps": [
+      "1. PATCH currency_exchange_rates with currency_rates = ['USD']."
+    ],
+    "method": "PATCH",
+    "path": "/v1/trade/{{tradeId}}/currency_exchange_rates",
+    "body": {
+      "currency_rates": [
+        "USD"
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Elements are not type-checked before `flat_map(&:to_unsafe_h)` (app/controllers/api/v1/trade_controller.rb:1480) → NoMethodError on a multi-currency round.",
+    "rationale": "Element type check missing."
+  },
+  {
+    "id": "EDGE-DLOT-085",
+    "feature": "events.validation",
+    "title": "QA_Platform_draft_line_item_currency_is_ignored",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Buyer session; catalog product and quality. Creates one new QA_Platform_ draft event.",
+    "steps": [
+      "1. POST /event_groups with a line-level currency.",
+      "2. Expect 200."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DLOT_currency_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          },
+          "currency": {
+            "code": "USD",
+            "symbol": "$"
+          }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 — EventGroups::CreateService copies the whole line hash into meta_data (app/services/event_groups/create_service.rb:57); no currency field is read on create.",
+    "rationale": "Unknown fields must be tolerated, not 500."
+  },
+  {
+    "id": "EDGE-DLOT-086",
+    "feature": "events.validation",
+    "title": "QA_Platform_event_config_cannot_create_lots_or_currencies",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Buyer session. Creates one new QA_Platform_ draft event.",
+    "steps": [
+      "1. POST /event_groups with lot/currency keys inside config."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DLOT_config_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          }
+        }
+      ],
+      "config": {
+        "lot_config": {
+          "1": {
+            "lot_title": "QA_Platform_lot_{{stamp}}",
+            "status": "active",
+            "stage_ids": [
+              999999999
+            ]
+          }
+        },
+        "currency_configuration": {
+          "base_currency": {
+            "code": "USD"
+          },
+          "currency_mode": "multiple_currencies"
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 — config is stored verbatim (app/services/event_groups/create_service.rb:40); lot_config is a separate column never set from config.",
+    "rationale": "Mass-assignment check for the lot plan."
+  },
+  {
+    "id": "EDGE-DLOT-087",
+    "feature": "events.validation",
+    "title": "QA_Platform_draft_line_item_lot_no_creates_no_lot",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Buyer session. Creates one new QA_Platform_ draft event.",
+    "steps": [
+      "1. POST /event_groups with lot_no on the line."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DLOT_lotno_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          },
+          "lot_no": "2"
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; lot_no only lands in the line's meta_data (app/services/event_groups/create_service.rb:57).",
+    "rationale": "Unknown field tolerated; no lot side effect."
+  },
+  {
+    "id": "EDGE-DLOT-088",
+    "feature": "events.awarding_rule",
+    "title": "QA_Platform_event_update_cannot_mass_assign_lot_config",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. The body changes nothing the update reads.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with only lot_config.",
+      "2. GET get_lots: no active lot."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "lot_config": {
+        "1": {
+          "lot_title": "QA_Platform_lot_{{stamp}}",
+          "status": "active",
+          "stage_ids": [
+            999999999
+          ]
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx; update_event_group_data passes only named params to EventGroups::UpdateService (app/controllers/concerns/event_group_controller_helper.rb:21-27) and none of its branches run for this body; lot_config is untouched.",
+    "rationale": "Mass-assignment guard for lots."
+  },
+  {
+    "id": "EDGE-DLOT-089",
+    "feature": "events.config",
+    "title": "QA_Platform_read_round_currency_and_lot_settings",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "{{eventGroupUuid}} / {{tradeId}} are the run's SANDBOX: a published (status active) event with one RFQ stage, 30-minute bid window still open, the QA vendor invited, no bids, no proposals. Caller is the run's QA buyer. Read only.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}?response_type=template."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}?response_type=template",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with trade_config.is_lot_creation_enabled and read_only_mode (app/serializers/trade_template_serializer.rb:121, 131); currency_configuration null on the sandbox.",
+    "rationale": "Read-back oracle for the lot and currency cases."
+  }
+]

@@ -1,0 +1,5492 @@
+[
+  {
+    "id": "EDGE-DBOQ-001",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_boq_flag_with_real_line_items_still_refused_when_boq_is_off",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "boq_in_erfx_allowed is OFF for this workspace (Company#boq_in_erfx_allowed? is false: the switch is not set or no active BOQ template exists). A product and variant from the catalog.",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx true AND one valid catalog line item.",
+      "2. Expect 422 code 101; no event group is created."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_001_{{stamp}}",
+      "config": {
+        "boq_based_rfx": true
+      },
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          }
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 101 'You are not allowed to perform this action' — the BOQ gate (render_error_json(101) unless Current.workspace.boq_in_erfx_allowed?) runs before the line-item check, so sending real line items does not get a BOQ project past it (app/controllers/api/event_groups_controller.rb:28-30). No event_groups row is written.",
+    "rationale": "The UI only offers 'BOQ based RFX Project' when the flag is on; a hand-made request with line items must not slip a BOQ project into a workspace that has not bought it."
+  },
+  {
+    "id": "EDGE-DBOQ-002",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_empty_string_boq_flag_is_read_as_boq_on",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "boq_in_erfx_allowed is OFF for this workspace (Company#boq_in_erfx_allowed? is false: the switch is not set or no active BOQ template exists).",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx \"\" (empty string) and no line_items.",
+      "2. Expect a 4xx (101 today), never a 2xx and never a 5xx."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_002_{{stamp}}",
+      "config": {
+        "boq_based_rfx": ""
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422. Today: code 101 \"You are not allowed to perform this action\" — params.dig(\"config\",\"boq_based_rfx\") || false keeps \"\" (an empty string is truthy in Ruby), so the request is treated as a BOQ create and hits the gate (event_groups_controller.rb:28-30). If the flag were coerced to a boolean the answer would be code 2 \"Insufficient parameters\" (no line items, :31-32). Either 4xx is acceptable; nothing is created.",
+    "rationale": "Documents the truthiness coercion of the BOQ flag: an empty value is not 'off'."
+  },
+  {
+    "id": "EDGE-DBOQ-003",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_empty_object_boq_flag_is_read_as_boq_on",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "boq_in_erfx_allowed is OFF for this workspace (Company#boq_in_erfx_allowed? is false: the switch is not set or no active BOQ template exists).",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx {} (an empty JSON object) and no line_items.",
+      "2. Expect a 4xx, never a 2xx and never a 5xx."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_003_{{stamp}}",
+      "config": {
+        "boq_based_rfx": {}
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422. Today code 101 — an empty Parameters object is truthy, so the BOQ gate answers (event_groups_controller.rb:28-30); with a boolean coercion it would be code 2 (no line items). Nothing is created.",
+    "rationale": "Wrong-type flag values must never be stored as a half-BOQ project."
+  },
+  {
+    "id": "EDGE-DBOQ-004",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_null_boq_flag_without_line_items_is_insufficient_parameters",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A buyer session on the company under test (any boq_in_erfx_allowed state).",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx null and no line_items.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_004_{{stamp}}",
+      "config": {
+        "boq_based_rfx": null
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — nil || false makes it an ordinary create, and an ordinary create needs line items (event_groups_controller.rb:28-32). Nothing is created.",
+    "rationale": "Only a BOQ project may start empty; a null flag must not open that door."
+  },
+  {
+    "id": "EDGE-DBOQ-005",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_false_boq_flag_without_line_items_is_insufficient_parameters",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A buyer session on the company under test (any boq_in_erfx_allowed state).",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx false and no line_items.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_005_{{stamp}}",
+      "config": {
+        "boq_based_rfx": false
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — boq_based_rfx false is an ordinary create and line_items is blank (event_groups_controller.rb:28-32). Nothing is created.",
+    "rationale": "Explicit 'not BOQ' must keep the line-items requirement."
+  },
+  {
+    "id": "EDGE-DBOQ-006",
+    "feature": "events.boq",
+    "title": "QA_Platform_dboq_boq_project_with_null_line_items_starts_empty",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "boq_in_erfx_allowed is ON for this workspace (Company#boq_in_erfx_allowed? is true: the switch is set and the company has an active BOQ template, type t-boq).",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx true and line_items null.",
+      "2. Expect 200: a draft BOQ project with no line items (event_group_line_item_ids empty)."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_006_{{stamp}}",
+      "config": {
+        "boq_based_rfx": true
+      },
+      "line_items": null
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 — a blank line_items on a BOQ create becomes [] (event_groups_controller.rb:37-41) and CreateService#create_line_items returns [] early for a BOQ project (app/services/event_groups/create_service.rb:48-50). The reply\"s config.boq_based_rfx is true and it lists no line items.",
+    "rationale": "This is exactly what the dashboard sends when the buyer opens a BOQ project (projectCreation.jsx:3085-3093): the BOQ lines arrive later from the sheet upload."
+  },
+  {
+    "id": "EDGE-DBOQ-007",
+    "feature": "events.boq",
+    "title": "QA_Platform_dboq_boq_project_with_empty_string_line_items_starts_empty",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "boq_in_erfx_allowed is ON for this workspace (Company#boq_in_erfx_allowed? is true: the switch is set and the company has an active BOQ template, type t-boq).",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx true and line_items \"\".",
+      "2. Expect 200 with no line items."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_007_{{stamp}}",
+      "config": {
+        "boq_based_rfx": true
+      },
+      "line_items": ""
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 — \"\" is blank, so line_items becomes [] (event_groups_controller.rb:37-41; create_service.rb:48-50). No line items are created.",
+    "rationale": "An empty string must behave like 'no lines yet', not crash the typed CreateService (line_items: T::Array[Hash])."
+  },
+  {
+    "id": "EDGE-DBOQ-008",
+    "feature": "events.boq",
+    "title": "QA_Platform_dboq_boq_project_seeded_with_one_catalog_line_gets_serial_1",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "boq_in_erfx_allowed is ON for this workspace (Company#boq_in_erfx_allowed? is true: the switch is set and the company has an active BOQ template, type t-boq). A product and variant from the catalog.",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx true and one catalog line item (quantity 10 Nos).",
+      "2. Expect 200 with exactly one event_group_line_item id; the line's serial number is 1."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_008_{{stamp}}",
+      "config": {
+        "boq_based_rfx": true
+      },
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 — a BOQ create that does carry lines goes through the same get_details_for_event_group_line_items path as an ordinary event (trade_controller_helper.rb:6290-6334) and each line gets serial_number index+1 (create_service.rb:52-60). Reply: config.boq_based_rfx true, one line item id.",
+    "rationale": "BOQ projects created from a PR or a clone arrive with lines; the BOQ flag must not drop them."
+  },
+  {
+    "id": "EDGE-DBOQ-009",
+    "feature": "events.boq",
+    "title": "QA_Platform_dboq_boq_project_with_two_lines_numbers_them_1_and_2",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "boq_in_erfx_allowed is ON for this workspace (Company#boq_in_erfx_allowed? is true: the switch is set and the company has an active BOQ template, type t-boq). A product and variant from the catalog.",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx true and two line items for the same product (10 and 20 Nos).",
+      "2. Expect 200 with two line item ids, serial numbers 1 and 2 in request order."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_009_{{stamp}}",
+      "config": {
+        "boq_based_rfx": true
+      },
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 20
+          }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with two ids — serial_number = index + 1 in request order (create_service.rb:52-60); the same product twice is allowed (BOQ lines are free text in practice).",
+    "rationale": "Serial numbers are what the BOQ grid shows next to each line; a regression that reorders them breaks every vendor's quote mapping."
+  },
+  {
+    "id": "EDGE-DBOQ-010",
+    "feature": "events.boq",
+    "title": "QA_Platform_dboq_zero_quantity_boq_line_is_kept_as_rate_only",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "boq_in_erfx_allowed is ON for this workspace (Company#boq_in_erfx_allowed? is true: the switch is set and the company has an active BOQ template, type t-boq). A product and variant from the catalog.",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx true and one line item with quantity value 0.",
+      "2. Expect 200; the stored line is rate-only."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_010_{{stamp}}",
+      "config": {
+        "boq_based_rfx": true
+      },
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 0
+          }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 — quantity 0 is not refused; the line is stored with is_rate_only true (trade_controller_helper.rb:6319-6321). Rate-only lines then add 0 to tab totals and 0 to the loading factor.",
+    "rationale": "BOQs routinely carry 'rate only' items (provisional sums); refusing or silently dropping them would break the sheet."
+  },
+  {
+    "id": "EDGE-DBOQ-011",
+    "feature": "events.boq",
+    "title": "QA_Platform_dboq_exactly_500_boq_lines_the_default_cap_are_accepted",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "boq_in_erfx_allowed is ON for this workspace (Company#boq_in_erfx_allowed? is true: the switch is set and the company has an active BOQ template, type t-boq). allowed_maximum_line_items is the default {boq: 500, non_boq: 65}. A product and variant from the catalog.",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx true and 500 catalog line items (quantities 1..500).",
+      "2. Expect 200 with 500 line item ids, serial numbers 1..500."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_011_{{stamp}}",
+      "config": {
+        "boq_based_rfx": true
+      },
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 2
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 3
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 4
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 5
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 6
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 7
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 8
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 9
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 11
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 12
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 13
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 14
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 15
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 16
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 17
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 18
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 19
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 20
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 21
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 22
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 23
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 24
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 25
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 26
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 27
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 28
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 29
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 30
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 31
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 32
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 33
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 34
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 35
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 36
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 37
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 38
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 39
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 40
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 41
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 42
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 43
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 44
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 45
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 46
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 47
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 48
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 49
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 50
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 51
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 52
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 53
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 54
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 55
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 56
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 57
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 58
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 59
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 60
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 61
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 62
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 63
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 64
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 65
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 66
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 67
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 68
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 69
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 70
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 71
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 72
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 73
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 74
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 75
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 76
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 77
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 78
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 79
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 80
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 81
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 82
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 83
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 84
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 85
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 86
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 87
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 88
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 89
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 90
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 91
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 92
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 93
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 94
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 95
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 96
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 97
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 98
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 99
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 100
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 101
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 102
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 103
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 104
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 105
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 106
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 107
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 108
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 109
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 110
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 111
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 112
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 113
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 114
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 115
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 116
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 117
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 118
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 119
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 120
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 121
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 122
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 123
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 124
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 125
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 126
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 127
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 128
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 129
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 130
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 131
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 132
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 133
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 134
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 135
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 136
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 137
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 138
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 139
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 140
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 141
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 142
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 143
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 144
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 145
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 146
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 147
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 148
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 149
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 150
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 151
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 152
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 153
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 154
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 155
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 156
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 157
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 158
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 159
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 160
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 161
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 162
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 163
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 164
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 165
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 166
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 167
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 168
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 169
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 170
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 171
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 172
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 173
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 174
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 175
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 176
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 177
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 178
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 179
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 180
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 181
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 182
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 183
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 184
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 185
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 186
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 187
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 188
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 189
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 190
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 191
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 192
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 193
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 194
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 195
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 196
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 197
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 198
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 199
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 200
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 201
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 202
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 203
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 204
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 205
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 206
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 207
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 208
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 209
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 210
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 211
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 212
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 213
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 214
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 215
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 216
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 217
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 218
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 219
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 220
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 221
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 222
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 223
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 224
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 225
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 226
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 227
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 228
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 229
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 230
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 231
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 232
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 233
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 234
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 235
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 236
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 237
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 238
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 239
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 240
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 241
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 242
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 243
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 244
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 245
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 246
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 247
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 248
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 249
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 250
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 251
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 252
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 253
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 254
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 255
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 256
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 257
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 258
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 259
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 260
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 261
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 262
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 263
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 264
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 265
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 266
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 267
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 268
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 269
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 270
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 271
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 272
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 273
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 274
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 275
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 276
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 277
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 278
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 279
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 280
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 281
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 282
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 283
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 284
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 285
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 286
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 287
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 288
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 289
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 290
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 291
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 292
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 293
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 294
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 295
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 296
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 297
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 298
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 299
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 300
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 301
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 302
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 303
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 304
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 305
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 306
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 307
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 308
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 309
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 310
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 311
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 312
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 313
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 314
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 315
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 316
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 317
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 318
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 319
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 320
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 321
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 322
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 323
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 324
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 325
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 326
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 327
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 328
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 329
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 330
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 331
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 332
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 333
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 334
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 335
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 336
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 337
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 338
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 339
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 340
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 341
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 342
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 343
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 344
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 345
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 346
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 347
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 348
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 349
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 350
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 351
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 352
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 353
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 354
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 355
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 356
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 357
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 358
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 359
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 360
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 361
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 362
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 363
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 364
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 365
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 366
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 367
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 368
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 369
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 370
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 371
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 372
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 373
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 374
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 375
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 376
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 377
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 378
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 379
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 380
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 381
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 382
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 383
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 384
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 385
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 386
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 387
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 388
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 389
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 390
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 391
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 392
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 393
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 394
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 395
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 396
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 397
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 398
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 399
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 400
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 401
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 402
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 403
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 404
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 405
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 406
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 407
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 408
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 409
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 410
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 411
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 412
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 413
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 414
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 415
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 416
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 417
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 418
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 419
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 420
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 421
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 422
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 423
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 424
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 425
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 426
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 427
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 428
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 429
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 430
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 431
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 432
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 433
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 434
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 435
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 436
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 437
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 438
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 439
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 440
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 441
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 442
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 443
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 444
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 445
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 446
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 447
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 448
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 449
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 450
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 451
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 452
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 453
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 454
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 455
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 456
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 457
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 458
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 459
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 460
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 461
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 462
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 463
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 464
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 465
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 466
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 467
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 468
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 469
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 470
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 471
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 472
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 473
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 474
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 475
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 476
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 477
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 478
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 479
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 480
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 481
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 482
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 483
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 484
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 485
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 486
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 487
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 488
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 489
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 490
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 491
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 492
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 493
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 494
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 495
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 496
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 497
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 498
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 499
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 500
+          }
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with 500 ids — the server enforces no line cap at all (allowed_maximum_line_items is only read for the dashboard, app/controllers/api/v1/users_controller.rb:593,732); the lines are bulk-imported in one statement (EventGroupLineItem.import, create_service.rb:62). Must answer well inside the request timeout.",
+    "rationale": "Exactly at the default BOQ cap (db/migrate/20250305075906_add_custom_maximum_line_items_allowed_config.rb). #15339 made this size performant; a slow or failed create here is a performance regression."
+  },
+  {
+    "id": "EDGE-DBOQ-012",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_66_lines_on_an_ordinary_create_are_not_capped_by_the_server",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A buyer session on the company under test; the dashboard's non-BOQ line limit is the default 65. A product and variant from the catalog.",
+    "steps": [
+      "1. POST /event_groups as an ordinary draft (no BOQ flag) with 66 catalog line items — one over the dashboard's non-BOQ limit.",
+      "2. Expect no 5xx. Today: 200 with 66 line item ids (the limit lives only in the dashboard)."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_012_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 2
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 3
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 4
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 5
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 6
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 7
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 8
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 9
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 11
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 12
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 13
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 14
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 15
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 16
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 17
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 18
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 19
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 20
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 21
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 22
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 23
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 24
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 25
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 26
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 27
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 28
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 29
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 30
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 31
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 32
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 33
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 34
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 35
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 36
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 37
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 38
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 39
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 40
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 41
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 42
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 43
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 44
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 45
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 46
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 47
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 48
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 49
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 50
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 51
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 52
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 53
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 54
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 55
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 56
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 57
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 58
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 59
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 60
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 61
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 62
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 63
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 64
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 65
+          }
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 66
+          }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Today HTTP 200 with 66 ids: the 65-line limit is checked only in the dashboard (src/redux/user/selectors.js:346-360, src/views/projectCreation/helpers.js:369-374); event_groups_controller#create has no count check. A 4xx would mean a server cap was added.",
+    "rationale": "Records that the line cap is a UI rule: anything that bypasses the dashboard (API, integrations, PR conversion) can exceed it."
+  },
+  {
+    "id": "EDGE-DBOQ-013",
+    "feature": "events.boq",
+    "title": "QA_Platform_dboq_empty_object_boq_flag_is_stored_as_a_truthy_non_boolean",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "boq_in_erfx_allowed is ON for this workspace (Company#boq_in_erfx_allowed? is true: the switch is set and the company has an active BOQ template, type t-boq).",
+    "steps": [
+      "1. POST /event_groups as a draft with config.boq_based_rfx {} and no line_items.",
+      "2. Expect no 5xx. Today: 200 — a project whose boq_based_rfx is the object {}, which every later check treats as BOQ."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DBOQ_013_{{stamp}}",
+      "config": {
+        "boq_based_rfx": {}
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Today HTTP 200: {} is truthy at event_groups_controller.rb:28, the raw config is stored as sent (create_service.rb:40) and EventGroup#boq_based_rfx? returns {} (app/models/event_group.rb:936-938) — the dashboard reads it as a JS object (truthy) too.",
+    "rationale": "A non-boolean flag stored in config is read differently by every consumer; it should be coerced or refused."
+  },
+  {
+    "id": "EDGE-DBOQ-027",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_deleting_the_only_line_item_of_a_live_event_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with line_items [{uuid: {{lineItemUuid}}, status: \"deleted\"}].",
+      "2. Expect 422 code 711; the line item is still active (GET /event_groups/{{eventGroupUuid}}/get_line_items count 1)."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "uuid": "{{lineItemUuid}}",
+          "status": "deleted"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 711 'You cannot delete this line item from the project' — one row in the request and one active line on the event trips the guard (app/services/event_groups/update_service.rb:174-175) before anything is deleted; the transaction rolls back (event_group_controller_helper.rb:28-36).",
+    "rationale": "An event without line items cannot be bid on or awarded. If the guard ever fails this case deletes the sandbox's only line — run it after the read cases."
+  },
+  {
+    "id": "EDGE-DBOQ-028",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_deleting_a_line_item_that_does_not_exist_is_answered_as_711",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with line_items [{uuid: \"WrongUuid1=\", status: \"deleted\"}].",
+      "2. Expect 422 code 711 (not a 'not found'), and nothing changes."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "uuid": "WrongUuid1=",
+          "status": "deleted"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 711 'You cannot delete this line item from the project' — the guard compares the NUMBER of request rows (1) with the number of active lines (1) and never checks that the row names a line of this event (update_service.rb:172-175); the undecodable uuid becomes id nil (params_auth.rb:66-71).",
+    "rationale": "Shows the guard is about counts, not identity — the root of the bypass in API-XDBOQ-029 and the IDOR in API-XDBOQ-030/031."
+  },
+  {
+    "id": "EDGE-DBOQ-032",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_line_items_sent_as_plain_text_on_patch_is_a_4xx_not_a_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with line_items set to a plain string.",
+      "2. Expect a 4xx; nothing changes. Today the update service calls .select on the string (500)."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": "QA_Platform_not_a_list_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. Today: params[:line_items].present? sends the string into UpdateService#execute, and create_line_items calls @line_items.select (app/services/event_groups/update_service.rb:97) → NoMethodError → HTTP 500. Expected: 422 code 2. The transaction rolls back, so the sandbox is unchanged.",
+    "rationale": "The BOQ re-upload and line edits both go through this request; malformed input must be refused, not crash."
+  },
+  {
+    "id": "EDGE-DBOQ-033",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_a_patch_line_item_with_an_unknown_product_is_a_4xx_not_a_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer. A variant uuid from the catalog.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with one new line item whose product_uuid decodes to a non-existent product (Z2dnWmdaUWtnZw==).",
+      "2. Expect a 4xx (80 'Product not found' or 2); nothing is added. Today: 500."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {
+          "product_uuid": "Z2dnWmdaUWtnZw==",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          }
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. Today: get_details_for_event_group_line_items looks the product up among active products, gets nil and calls product.id (app/controllers/concerns/trade_controller_helper.rb:6298-6300) → NoMethodError → HTTP 500; the transaction rolls back.",
+    "rationale": "A deactivated product on a re-uploaded or edited sheet would take down the whole save instead of naming the bad row."
+  },
+  {
+    "id": "EDGE-DBOQ-034",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_a_patch_line_item_that_is_an_empty_object_is_a_4xx_not_a_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with line_items [{}].",
+      "2. Expect a 4xx; nothing changes. Today: 500."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "line_items": [
+        {}
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. Today: the empty row has no status (so it is not a deletion), no product_id, and product.id is called on nil (trade_controller_helper.rb:6298-6300) → HTTP 500.",
+    "rationale": "Empty rows are what a spreadsheet with trailing blank lines produces."
+  },
+  {
+    "id": "EDGE-DBOQ-035",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_linking_a_purchase_request_that_does_not_exist_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with purchase_request_uuid Z2dnWmdaUWtnZw== (decodes to id 999999999).",
+      "2. Expect 422 code 101; nothing is linked."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "purchase_request_uuid": "Z2dnWmdaUWtnZw=="
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 101 'You are not allowed to perform this action' — the uuid is decoded to purchase_request_id (params_auth.rb:66-71) and looked up in PurchaseRequest.active.boq of this workspace (app/controllers/concerns/event_group_controller_helper.rb:2579-2590), before authorize. No mapping is created.",
+    "rationale": "Only an active BOQ PR of this workspace may feed a BOQ project."
+  },
+  {
+    "id": "EDGE-DBOQ-036",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_an_undecodable_purchase_request_uuid_is_silently_ignored",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with purchase_request_uuid \"WrongUuid1=\" and nothing else.",
+      "2. Expect no 5xx. Today: 200 and no change — the bad id is dropped instead of refused."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "purchase_request_uuid": "WrongUuid1="
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Today HTTP 200: WrongUuid1= decodes to nil, params[:purchase_request_id].present? is false so the PR check is skipped (event_group_controller_helper.rb:2584), and with no status/line_items/config nothing is updated (event_group_controller_helper.rb:28-36). Expected ideally: 422, since the client asked for a link that was not made.",
+    "rationale": "A dashboard that believes the PR got linked will show wrong PR quantities; a silent 200 hides that."
+  },
+  {
+    "id": "EDGE-DBOQ-037",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_a_non_numeric_purchase_request_id_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with purchase_request_id \"abc\".",
+      "2. Expect 422 code 101."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "purchase_request_id": "abc"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 101 'You are not allowed to perform this action' — \"abc\" is present, the integer cast matches no row of PurchaseRequest.active.boq (event_group_controller_helper.rb:2584-2587).",
+    "rationale": "Raw ids bypass ParamsAuth decoding; they must still be scoped and validated."
+  },
+  {
+    "id": "EDGE-DBOQ-038",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_linking_the_workspaces_first_purchase_request_is_refused_unless_it_is_a_boq_pr",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}: published (active), one pricing stage with an open window, exactly ONE active line item {{lineItemUuid}}, no bids, no proposals; the caller is its buyer. {{prId}} is the client's first purchase request (REAL record; usually a material PR). The request writes nothing to it.",
+    "steps": [
+      "1. PATCH /event_groups/{{eventGroupUuid}} with purchase_request_uuid {{prId}} and nothing else.",
+      "2. Expect no 5xx: 422 code 101 when that PR is not an active BOQ PR; 200 with no change when it is (the sandbox is not a BOQ project, so no mapping is made)."
+    ],
+    "method": "PATCH",
+    "path": "/event_groups/{{eventGroupUuid}}",
+    "body": {
+      "purchase_request_uuid": "{{prId}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. A material/service PR → 422 code 101 \"You are not allowed to perform this action\" (PurchaseRequest.active.boq scope, event_group_controller_helper.rb:2585). A BOQ PR → 200 and map_purchase_request_to_event_group skips the mapping because the sandbox is not boq_based_rfx (event_group_controller_helper.rb:2640-2641).",
+    "rationale": "Linking a material PR to a BOQ project would double-count PR quantities."
+  },
+  {
+    "id": "EDGE-DBOQ-042",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_listing_boq_templates_returns_default_and_saved",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates?type_identifier=boq&hide_onboarding_v2_templates=true (what the BOQ template picker sends).",
+      "2. Expect 200 with {default: [...], saved: [...]} (either may be empty)."
+    ],
+    "method": "GET",
+    "path": "/templates?type_identifier=boq&hide_onboarding_v2_templates=true",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with default and saved arrays filtered to type t-boq (app/controllers/api/templates_controller.rb:107-143; app/helpers/templates_helper.rb:4-50). When boq_in_erfx_allowed is ON, at least one active BOQ template exists for the company (company.rb:1096-1103), though \"saved\" only lists the ones this user may see.",
+    "rationale": "This is the list the dashboard's BOQ project template picker shows (templateSelection.jsx:444-446)."
+  },
+  {
+    "id": "EDGE-DBOQ-043",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_the_internal_t_boq_identifier_is_not_accepted_as_a_filter",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates?type_identifier=t-boq.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/templates?type_identifier=t-boq",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — type_identifier must be a plain name from Template::TEMPLATE_FOR_TYPES (templates_controller.rb:118-120; app/models/template.rb:58-61); the stored form 't-boq' is not one.",
+    "rationale": "Clients mixing the stored and the public identifier get a clear refusal instead of an empty list."
+  },
+  {
+    "id": "EDGE-DBOQ-044",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_an_upper_case_boq_type_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates?type_identifier=BOQ.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/templates?type_identifier=BOQ",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — the membership test is case-sensitive (templates_controller.rb:119).",
+    "rationale": "Guards the exact-match contract the dashboard relies on."
+  },
+  {
+    "id": "EDGE-DBOQ-045",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_a_plain_text_exclude_list_is_a_4xx_not_a_json_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates?type_identifier=trade&exclude_type_identifiers=boq (plain text, not JSON).",
+      "2. Expect a 4xx. Today: JSON.parse raises and the server answers 500."
+    ],
+    "method": "GET",
+    "path": "/templates?type_identifier=trade&exclude_type_identifiers=boq",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. Today: a String exclude_type_identifiers is passed straight to JSON.parse (templates_controller.rb:113-115); \"boq\" is not JSON, JSON::ParserError is not rescued anywhere in the API controllers → HTTP 500. Expected: 422 code 2.",
+    "rationale": "The eRFX template picker excludes BOQ templates from ordinary projects (templateSelection.jsx:126-131); any client that sends the list un-encoded crashes the picker."
+  },
+  {
+    "id": "EDGE-DBOQ-046",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_excluding_boq_while_asking_for_boq_returns_empty_lists",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates?type_identifier=boq&exclude_type_identifiers=[\"boq\"].",
+      "2. Expect 200 with default [] and saved []."
+    ],
+    "method": "GET",
+    "path": "/templates?type_identifier=boq&exclude_type_identifiers=%5B%22boq%22%5D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with both lists empty — every t-boq template is filtered back out by filter_out_exclude_type_identifier (templates_helper.rb:52-57).",
+    "rationale": "Contradictory filters must give an empty, well-formed answer."
+  },
+  {
+    "id": "EDGE-DBOQ-047",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_excluding_the_internal_t_boq_identifier_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates?type_identifier=boq&exclude_type_identifiers=[\"t-boq\"].",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/templates?type_identifier=boq&exclude_type_identifiers=%5B%22t-boq%22%5D",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — every exclude entry must be in Template::TEMPLATE_FOR_TYPES (templates_controller.rb:121-123).",
+    "rationale": "Same contract as API-XDBOQ-043, on the exclude list."
+  },
+  {
+    "id": "EDGE-DBOQ-048",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_an_exclude_list_sent_as_an_object_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates?type_identifier=boq&exclude_type_identifiers={\"boq\":1}.",
+      "2. Expect 422 code 2."
+    ],
+    "method": "GET",
+    "path": "/templates?type_identifier=boq&exclude_type_identifiers=%7B%22boq%22%3A1%7D",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — Array({\"boq\"=>1}) is [[\"boq\",1]], which is not a type name (templates_controller.rb:116,121-123).",
+    "rationale": "Wrong JSON shapes must be refused, not half-applied."
+  },
+  {
+    "id": "EDGE-DBOQ-050",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_downloading_the_boq_sheet_of_a_template_that_does_not_exist_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates/excel_template/Z2dnWmdaUWtnZw==?sheet_type=boq_items_sheet (id 999999999, no such template).",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/templates/excel_template/Z2dnWmdaUWtnZw==?sheet_type=boq_items_sheet",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' — Template.get_authorized_template_with_id finds no active template (app/models/template.rb:117-121), called from templates_controller.rb:177-179 before any sheet is built.",
+    "rationale": "The 'Download Template' button in the BOQ upload modal (uploadExcelModal.jsx:139-147) must fail cleanly for a deleted template."
+  },
+  {
+    "id": "EDGE-DBOQ-051",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_downloading_the_boq_sheet_with_an_undecodable_template_id_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /templates/excel_template/WrongUuid1=?sheet_type=boq_items_sheet.",
+      "2. Expect 422 code 4."
+    ],
+    "method": "GET",
+    "path": "/templates/excel_template/WrongUuid1=?sheet_type=boq_items_sheet",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' — the id decodes to nil (params_auth.rb:57-62) and a blank id is refused first (app/models/template.rb:118-120).",
+    "rationale": "Undecodable ids must not reach the Excel builder."
+  },
+  {
+    "id": "EDGE-DBOQ-054",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_uploading_a_boq_sheet_without_the_file_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A buyer session on the company under test. NOT on the default allowlist — the request is refused on its first line, before the template lookup, the upload log or any parsing.",
+    "steps": [
+      "1. POST /templates/product_sheet_params with template_uuid, excel_type multistage and sheet_type boq_items_sheet, but no excel_data.",
+      "2. Expect 422 code 2; nothing is parsed or stored."
+    ],
+    "method": "POST",
+    "path": "/templates/product_sheet_params",
+    "body": {
+      "template_uuid": "Z2dnWmdaUWtnZw==",
+      "excel_type": "multistage",
+      "sheet_type": "boq_items_sheet"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' — render_error_json(2) if excel_data.nil? is the first statement of product_sheet_params (app/controllers/api/templates_controller.rb:215-217).",
+    "rationale": "This is the BOQ 'Upload Sheet' call (src/redux/orders/actions.js:2049-2066); a missing file must be refused before the BOQ parser creates units or free-text products."
+  },
+  {
+    "id": "EDGE-DBOQ-055",
+    "feature": "events.templates",
+    "title": "QA_Platform_dboq_uploading_a_boq_sheet_against_a_template_that_does_not_exist_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test. NOT on the default allowlist — refused at the template lookup, before save_upload_excel_log and before any parsing or master-data insert.",
+    "steps": [
+      "1. POST /templates/product_sheet_params with a tiny base64 excel_data and template_uuid Z2dnWmdaUWtnZw== (no such template).",
+      "2. Expect 422 code 4; no upload log, no parsing."
+    ],
+    "method": "POST",
+    "path": "/templates/product_sheet_params",
+    "body": {
+      "template_uuid": "Z2dnWmdaUWtnZw==",
+      "excel_data": "UUFfUGxhdGZvcm1fbm90X2FuX2V4Y2Vs",
+      "excel_type": "multistage",
+      "sheet_type": "boq_items_sheet"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' — fetch_template_by_id → Template.get_authorized_template_with_id returns 4 for a missing template (templates_controller.rb:219-220; app/models/template.rb:117-121), before save_upload_excel_log (:229).",
+    "rationale": "A stale template id in the BOQ upload must not reach the parser."
+  },
+  {
+    "id": "EDGE-DBOQ-073",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_reading_the_line_items_of_a_project_that_does_not_exist_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test.",
+    "steps": [
+      "1. GET /event_groups/Z2dnWmdaUWtnZw==/get_line_items.",
+      "2. Expect 422 code 533."
+    ],
+    "method": "GET",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/get_line_items",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 533 'Project does not exist.' — get_line_items looks the event up by status and id before authorize (app/controllers/api/event_groups_controller.rb:466-471).",
+    "rationale": "The line-item read is the oracle for every BOQ upload/replace case; it must fail cleanly on a bad id."
+  },
+  {
+    "id": "EDGE-DBOQ-074",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_a_negative_page_on_the_line_items_read_is_clamped_to_page_1",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event {{eventGroupUuid}} (one line item).",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_line_items?page=-3.",
+      "2. Expect 200 with page 1: the sandbox's one line item, total_pages 1."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_line_items?page=-3",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 — paginate clamps with [1, page.to_i].max (event_groups_controller.rb:1703-1705), so -3 reads page 1; count 1, total_pages 1. (If hide_line_items_from_project_details_vendor_side is on the reply is {} for everyone — :472-473.)",
+    "rationale": "Large BOQ projects are paged; a bad page number must not error or return someone else's slice."
+  },
+  {
+    "id": "EDGE-DBOQ-075",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_a_search_filter_that_is_a_json_list_is_a_4xx_not_a_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_line_items?search=[1] (valid JSON, but a list).",
+      "2. Expect 200 (ignored) or a 4xx. Today: 500."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_line_items?search=%5B1%5D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. Today: with no \"filters\", create_filter_params sets @filters = JSON.parse(search) = [1] (event_groups_controller.rb:1603-1604), and get_filtered_eglis does @filters[\"category_ids\"] on an Array (:1551) → TypeError → HTTP 500.",
+    "rationale": "Search on the project's line-item list is user-typed; its JSON shape must be validated."
+  },
+  {
+    "id": "EDGE-DBOQ-076",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_malformed_filters_and_search_together_are_a_4xx_not_a_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}}.",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/get_line_items?filters=notjson&search=notjson.",
+      "2. Expect 200 (filters ignored) or a 4xx. Today: 500."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/get_line_items?filters=notjson&search=notjson",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. Today: CommonFunctions.parse_filters swallows the bad \"filters\" and returns nil (lib/common_functions.rb:83-96), the else-branch JSON.parse(search) raises and is rescued (event_groups_controller.rb:1603-1608), leaving @filters nil; get_filtered_eglis then calls nil[\"category_ids\"] (:1551) → NoMethodError → HTTP 500.",
+    "rationale": "The rescue in create_filter_params hides the parse error but leaves the request in a state that crashes later."
+  },
+  {
+    "id": "EDGE-DBOQ-077",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_the_tab_summary_of_an_ordinary_stage_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox stage {{tradeId}} (an ordinary RFQ stage, no tabs). NOT on the default allowlist (two path segments after the id) — a read.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/quote_summary/Z2dnWmdaUWtnZw==.",
+      "2. Expect 422 code 101."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/quote_summary/Z2dnWmdaUWtnZw==",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 101 'You are not allowed to perform this action' — quote_summary serves BOQ tab totals only; after validate_event it answers 101 when trade.tabs is blank (app/controllers/api/v1/trade_controller.rb:806-813).",
+    "rationale": "Confirms the BOQ-only endpoint refuses ordinary stages instead of computing empty or wrong totals.",
+    "notRunnable": "the web console app is not enabled for this action (config/app_auth_config.yml → client_admin_dashboard has no \"quote_summary\"), so the buyer's console session gets 401 \"This app is not authorized to use this API\" — and every 401 marks that session logged out (json_helpers.rb check_session_validity), which would end the run for every case after it. It needs the app this endpoint is enabled for (the vendor/mobile client)."
+  },
+  {
+    "id": "EDGE-DBOQ-078",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_asking_for_a_tab_page_on_an_ordinary_stage_is_a_4xx_not_a_crash",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox stage {{tradeId}} (an ordinary RFQ stage: misc.tabs is empty). NOT on the default allowlist (two path segments after the id) — a read.",
+    "steps": [
+      "1. GET /v1/trade/{{tradeId}}/quote_details/Z2dnWmdaUWtnZw==?tab=1&page=1.",
+      "2. Expect a 4xx (4 for the missing quote, or the tab params ignored). Today: 500."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/{{tradeId}}/quote_details/Z2dnWmdaUWtnZw==?tab=1&page=1",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. Today: quote_details calls set_pagination_for_line_items before looking the quote up (app/controllers/api/v1/trade_controller.rb:643-651); with no tabs, trade.tabs[1] || trade.tabs.first is nil and nil[\"range\"] raises (app/controllers/concerns/trade_controller_helper.rb:6337-6342) → HTTP 500. The event-group twin of this helper has \"return if tabs.blank?\" (event_group_controller_helper.rb:208-209); this one does not.",
+    "rationale": "The dashboard sends tab&page whenever it pages a sheet (src/redux/orders/api.js:78-87); a stage that loses its tabs, or a client that sends them for every stage, crashes the quote view."
+  },
+  {
+    "id": "EDGE-DBOQ-079",
+    "feature": "events.validation",
+    "title": "QA_Platform_dboq_a_line_range_filter_with_a_text_bound_is_a_4xx_not_a_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox stage {{tradeId}}.",
+    "steps": [
+      "1. GET /trade/{{tradeId}}?filters={\"range\":{\"from\":\"a\",\"to\":1}}.",
+      "2. Expect 200 (range ignored) or a 4xx, never a 5xx."
+    ],
+    "method": "GET",
+    "path": "/trade/{{tradeId}}?filters=%7B%22range%22%3A%7B%22from%22%3A%22a%22%2C%22to%22%3A1%7D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. The \"range\" filter is the BOQ tab window; it is taken from client filters unchecked and used as @filters[\"range\"][\"from\"]..@filters[\"range\"][\"to\"] (app/controllers/concerns/trade_template_helper.rb:668). A Range of \"a\"..1 raises ArgumentError when the sheet data path is taken → HTTP 500.",
+    "rationale": "Client-supplied ranges should be validated as integers; today they reach Ruby's Range constructor raw."
+  },
+  {
+    "id": "EDGE-DBOQ-082",
+    "feature": "events.config",
+    "title": "QA_Platform_dboq_boq_project_defaults_force_lot_based_evaluation_even_for_the_string_false",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session with trade create permission. NOT on the default allowlist (GET /v1/trade/<x> with no segment) — a read.",
+    "steps": [
+      "1. GET /v1/trade/new_request_config?filters={\"for_boq_based_project\":\"false\"}.",
+      "2. Expect 200. Today the defaults come back with rfp_evaluation_mode lot_based, as for a BOQ project."
+    ],
+    "method": "GET",
+    "path": "/v1/trade/new_request_config?filters=%7B%22for_boq_based_project%22%3A%22false%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. Observation: for_boq_based_project is read with plain truthiness (app/controllers/api/v1/trade_controller.rb:132-152 → get_default_trade_configs, trade_controller_helper.rb:5576-5578), so the STRING \"false\" still forces default_rfp_evaluation_mode \"lot_based\". Compare with the same call without the filter (workspace default).",
+    "rationale": "The dashboard sends this filter for BOQ projects (src/redux/orders/actions.js:424-425); a client that sends 'false' gets BOQ defaults."
+  },
+  {
+    "id": "EDGE-DBOQ-083",
+    "feature": "bids.place",
+    "title": "QA_Platform_dboq_uploading_a_bid_sheet_for_a_stage_that_does_not_exist_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A buyer session on the company under test. NOT on the default allowlist — refused at the active-stage lookup, before the S3 upload and the Report row.",
+    "steps": [
+      "1. POST /v1/trade/Z2dnWmdaUWtnZw==/upload_bid_excel with a tiny base64 excel_data and excel_type bid.",
+      "2. Expect 422 code 4; no Report row, no S3 object."
+    ],
+    "method": "POST",
+    "path": "/v1/trade/Z2dnWmdaUWtnZw==/upload_bid_excel",
+    "body": {
+      "excel_data": "UUFfUGxhdGZvcm1fbm90X2FuX2V4Y2Vs",
+      "excel_type": "bid"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 4 'Request not found' — TradeRequest.active.find_by_id finds nothing (app/controllers/api/v1/trade_controller.rb:1065-1069), before authorize, the S3 upload and Report.save! (:1071-1073).",
+    "rationale": "Bid-sheet upload is how BOQ bids are filled (addBidDrawer.jsx:600-603); a stale stage id must be refused before anything is stored."
+  }
+]

@@ -1,0 +1,1885 @@
+[
+  {
+    "id": "EDGE-DPRE-001",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_lines_cannot_be_pulled_into_a_published_event",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record). {{prItemId}} is a REAL PR line; the request is refused before any write.",
+    "steps": [
+      "1. POST /event_groups/{{eventGroupUuid}}/pri_to_draft_project with the exact body the PR screen's 'Add Items' button sends (status draft, quantity 1 Nos, product, quality, pr_line_item_uuid = a real PR line).",
+      "2. Read the status code and error.",
+      "3. GET /purchase_requests/{{prId}} - the line's open quantity is unchanged."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
+    "body": {
+      "line_items": [
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "{{prItemId}}"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters'. The controller only looks for the target among DRAFT events of the workspace (EventGroup.draft.where(id:, company_id:)) and the sandbox is active, so the lookup is nil and the blank guard fires (app/controllers/api/event_groups_controller.rb:1009-1011) before EventGroups::PrToErfxService is even constructed. No line item, PR mapping or draft-quantity reservation is written.",
+    "rationale": "Adding PR lines is only defined for drafts; a live event must never silently grow new PR-backed lines (vendors would be bidding on a sheet that changed under them, and the PR would show quantity reserved by an event that never asked for it). Also shows the existing PR-EVT-005 cannot reach the 557 rung it claims - the draft guard answers first."
+  },
+  {
+    "id": "EDGE-DPRE-002",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pull_into_unknown_event_is_refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A well-formed uuid that decodes to event id 999999999 (no such row). Caller is the QA buyer. PR reference is also bogus, so nothing real is touched even if a guard regressed.",
+    "steps": [
+      "1. POST /event_groups/Z2dnWmdaUWtnZw==/pri_to_draft_project with a valid-shaped line.",
+      "2. Read the status code and error."
+    ],
+    "method": "POST",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/pri_to_draft_project",
+    "body": {
+      "line_items": [
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' - ParamsAuth#check_for_uuid decodes the path id to 999999999, the draft lookup returns nil and the blank guard fires (app/controllers/api/event_groups_controller.rb:1009-1011). Not a 404 and not a 500.",
+    "rationale": "A missing event must give the same typed refusal as a non-draft one; a 404/500 here would mean the guard order changed and the service is being constructed with a nil event_group (pr_to_erfx_service.rb:13 calls @event_group.company)."
+  },
+  {
+    "id": "EDGE-DPRE-003",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pull_by_raw_numeric_event_id_is_refused",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer. Path carries a raw integer id instead of a uuid; PR reference is bogus.",
+    "steps": [
+      "1. POST /event_groups/999999999/pri_to_draft_project with a valid-shaped line.",
+      "2. Read the status code and error."
+    ],
+    "method": "POST",
+    "path": "/event_groups/999999999/pri_to_draft_project",
+    "body": {
+      "line_items": [
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters'. An integer-looking id skips uuid decoding unless the uuid-enabled version flag is set (params_auth.rb:60-63); either way the lookup is scoped to company_id = Current.workspace.id and status draft, so a raw id of another tenant's draft is indistinguishable from a missing one (app/controllers/api/event_groups_controller.rb:1009-1011).",
+    "rationale": "Raw ids are the classic IDOR probe. The answer must not differ between 'exists elsewhere' and 'does not exist', and must never reach the service."
+  },
+  {
+    "id": "EDGE-DPRE-004",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pull_with_line_items_as_object_is_refused_not_crashed",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record).",
+    "steps": [
+      "1. POST to the sandbox's pri_to_draft_project with line_items sent as a JSON object instead of an array.",
+      "2. Read the status code and error."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
+    "body": {
+      "line_items": {
+        "first": {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/event_groups_controller.rb:1009-1011). Note for a DRAFT target the same body would reach EventGroups::PrToErfxService.new, whose constructor calls @line_items_data.pluck(:pr_line_item_id) OUTSIDE the service's rescue (pr_to_erfx_service.rb:12,96) - ActionController::Parameters has no pluck, so that path would 500; this case pins that the published-event guard still answers first.",
+    "rationale": "Type confusion on the main array. Guards the guard order: any refactor that moves the service construction above the draft lookup turns this into an untyped 500."
+  },
+  {
+    "id": "EDGE-DPRE-005",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pull_with_line_items_as_string_is_refused_not_crashed",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record).",
+    "steps": [
+      "1. POST to the sandbox's pri_to_draft_project with line_items set to a plain string.",
+      "2. Read the status code and error."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
+    "body": {
+      "line_items": "QA_Platform_not_a_list_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/event_groups_controller.rb:1009-1011); the string is non-blank so only the draft lookup stops it. On a draft target String#pluck would raise NoMethodError before the service's begin/rescue (pr_to_erfx_service.rb:96) - an untyped 500.",
+    "rationale": "Second shape of the same type confusion; cheap insurance that the refusal stays typed."
+  },
+  {
+    "id": "EDGE-DPRE-006",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pull_with_line_items_of_strings_is_refused_not_crashed",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record).",
+    "steps": [
+      "1. POST to the sandbox's pri_to_draft_project with line_items = an array of two strings.",
+      "2. Read the status code and error."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
+    "body": {
+      "line_items": [
+        "QA_Platform_a_{{stamp}}",
+        "QA_Platform_b_{{stamp}}"
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/event_groups_controller.rb:1009-1011). On a draft target Array#pluck would call String#[](:pr_line_item_id) and raise TypeError in the constructor (pr_to_erfx_service.rb:96) - outside the rescue, so a 500.",
+    "rationale": "Element-level type confusion; the constructor-time pluck is unguarded, so the published/unknown-event refusal is the only thing standing between this body and a crash."
+  },
+  {
+    "id": "EDGE-DPRE-007",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pull_cannot_rehome_a_live_events_own_line",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record). {{lineItemUuid}} is one of the sandbox's own (active) line items.",
+    "steps": [
+      "1. POST to the sandbox's pri_to_draft_project with one line that carries uuid = {{lineItemUuid}} (an existing live line) plus a bogus PR reference.",
+      "2. Read the status code and error.",
+      "3. GET /event_groups/{{eventGroupUuid}}/get_line_items - the line is still there, still active."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
+    "body": {
+      "line_items": [
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw==",
+          "uuid": "{{lineItemUuid}}"
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/event_groups_controller.rb:1009-1011). Context: on a DRAFT target, EventGroups::UpdateService#create_line_items looks the sent id up with EventGroupLineItem.where(id: ...) WITHOUT scoping to the target event (update_service.rb:99,111-113) and then rewrites that row's event_group and status - so the draft guard is what keeps a live line from being moved here. Nothing may change on the sandbox.",
+    "rationale": "Probes the most dangerous field in this body (line uuid). If the draft guard ever regressed, a buyer could pull a running event's line - including another tenant's - into their own draft."
+  },
+  {
+    "id": "EDGE-DPRE-008",
+    "feature": "pr.partial_selection",
+    "title": "QA_Platform_negative_quantity_on_published_event_is_refused",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record).",
+    "steps": [
+      "1. POST to the sandbox's pri_to_draft_project with quantity.value = -5 on a PR line.",
+      "2. Read the status code and error."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
+    "body": {
+      "line_items": [
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": -5
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/event_groups_controller.rb:1009-1011). Context: on a draft, validate_purchase_request_items_data only checks adding_quantity > max_allowed (event_group_controller_helper.rb:85-86), so -5 would pass validation - see API-XDPRE-027.",
+    "rationale": "Documents that negative quantities are only stopped here by the state guard, not by any quantity rule."
+  },
+  {
+    "id": "EDGE-DPRE-009",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_large_batch_into_published_event_is_refused_cheaply",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record).",
+    "steps": [
+      "1. POST to the sandbox's pri_to_draft_project with 100 lines (all bogus PR references).",
+      "2. Read the status code, error and response time."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/pri_to_draft_project",
+    "body": {
+      "line_items": [
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 1
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 2
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 3
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 4
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 5
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 6
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 7
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 8
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 9
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 11
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 12
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 13
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 14
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 15
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 16
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 17
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 18
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 19
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 20
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 21
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 22
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 23
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 24
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 25
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 26
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 27
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 28
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 29
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 30
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 31
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 32
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 33
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 34
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 35
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 36
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 37
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 38
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 39
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 40
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 41
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 42
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 43
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 44
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 45
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 46
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 47
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 48
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 49
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 50
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 51
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 52
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 53
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 54
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 55
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 56
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 57
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 58
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 59
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 60
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 61
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 62
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 63
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 64
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 65
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 66
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 67
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 68
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 69
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 70
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 71
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 72
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 73
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 74
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 75
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 76
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 77
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 78
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 79
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 80
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 81
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 82
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 83
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 84
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 85
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 86
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 87
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 88
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 89
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 90
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 91
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 92
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 93
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 94
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 95
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 96
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 97
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 98
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 99
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "status": "draft",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 100
+          },
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' quickly (app/controllers/api/event_groups_controller.rb:1009-1011) - no per-line work happens before the draft lookup. There is no line-count cap anywhere on this endpoint (unlike partial_close's 20).",
+    "rationale": "A large cart must still be refused in constant time on a non-draft; also records that the endpoint has no batch-size limit."
+  },
+  {
+    "id": "EDGE-DPRE-010",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_purchase_cart_params_refused_for_published_event",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The sandbox event {{eventGroupUuid}} is PUBLISHED (status active, bid window open, no bids). Caller is the run's QA buyer (has trade create_record).",
+    "steps": [
+      "1. GET /event_groups/{{eventGroupUuid}}/purchase_cart_params.",
+      "2. Read the status code and error."
+    ],
+    "method": "GET",
+    "path": "/event_groups/{{eventGroupUuid}}/purchase_cart_params",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' - the same draft-only lookup (EventGroup.draft.where(id:, company_id:)) as pri_to_draft_project (app/controllers/api/event_groups_controller.rb:1022-1027). No data returned.",
+    "rationale": "The cart-params read is the companion of 'Add to draft'; it must agree that a live event is not a cart."
+  },
+  {
+    "id": "EDGE-DPRE-011",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_purchase_cart_params_refused_for_unknown_event",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A well-formed uuid for event id 999999999 (no such row).",
+    "steps": [
+      "1. GET /event_groups/Z2dnWmdaUWtnZw==/purchase_cart_params.",
+      "2. Read the status code and error."
+    ],
+    "method": "GET",
+    "path": "/event_groups/Z2dnWmdaUWtnZw==/purchase_cart_params",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' (app/controllers/api/event_groups_controller.rb:1024-1026); authorize is never reached so no 455/500.",
+    "rationale": "Unknown id must not leak existence or crash the Pundit call with a nil record."
+  },
+  {
+    "id": "EDGE-DPRE-012",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_draft_picker_listing_view_reads_cleanly",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /event_groups/draft?listing_view=true (the call the 'Add to Draft Project' picker makes).",
+      "2. Assert no 5xx; every listed event group is a draft that already has a purchase request linked."
+    ],
+    "method": "GET",
+    "path": "/event_groups/draft?listing_view=true",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. With listing_view=true the action keeps only drafts whose purchase_requests association is present (app/controllers/api/event_groups_controller.rb:350-352), so a draft created without PR lines - or one whose PR lines have not been mapped yet - never shows in the picker. Never a 5xx.",
+    "rationale": "This list decides which drafts a buyer can add PR lines to; a crash here blocks the whole Add-to-draft flow."
+  },
+  {
+    "id": "EDGE-DPRE-051",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_create_with_nonexistent_pr_line_does_not_crash",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer; {{productUuid}}/{{productQualityUuid}} are the client's catalog product. The request creates a NEW QA_Platform_ draft only; the PR reference is bogus so no real PR is touched.",
+    "steps": [
+      "1. POST /event_groups with a working draft body whose single line carries pr_line_item_uuid = Z2dnWmdaUWtnZw== (PR line 999999999, does not exist).",
+      "2. Read the status code; if 200, note the returned line items."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DPRE_051_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          },
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Today the create is ACCEPTED: EventGroups::CreateService never checks that pr_line_item_id exists - the dormant gate and set_pr_details both query company-scoped PR items and silently find none (create_service.rb:69-90,103-115), and the id is copied into the line's meta_data (trade_controller_helper.rb:6330). The draft carries a dangling PR reference that only fails later, at stage creation (557, trade_controller_helper.rb:1737-1748). A 422 code 557 would be the better answer.",
+    "rationale": "Pins current behaviour and flags the gap: a PR-based draft can be created against a PR line that does not exist, which only surfaces when the buyer tries to build a stage."
+  },
+  {
+    "id": "EDGE-DPRE-052",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_create_with_same_pr_line_twice_does_not_crash",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer; {{productUuid}}/{{productQualityUuid}} are the client's catalog product. The request creates a NEW QA_Platform_ draft only; the PR reference is bogus so no real PR is touched.",
+    "steps": [
+      "1. POST /event_groups with two lines that both reference the same PR line (bogus id).",
+      "2. Read the status code."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DPRE_052_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 5
+          },
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        },
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 5
+          },
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. CreateService does not de-duplicate PR references (create_service.rb:47-66), so today two lines point at one PR line; the duplicate is only caught when stages are built (one PRTM per EGLI) or when the line is pulled via pri_to_draft_project (existing_mapping, event_group_controller_helper.rb:84-87).",
+    "rationale": "Same PR line twice in one event double-counts the requisition; records that the create path does not stop it."
+  },
+  {
+    "id": "EDGE-DPRE-053",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_create_with_undecodable_pr_line_uuid_is_plain_draft",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is the QA buyer; {{productUuid}}/{{productQualityUuid}} are the client's catalog product. The request creates a NEW QA_Platform_ draft only; the PR reference is bogus so no real PR is touched.",
+    "steps": [
+      "1. POST /event_groups with a line carrying pr_line_item_uuid = 'WrongUuid1=' (decodes to nothing).",
+      "2. Expect 200 and a draft with no PR link."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DPRE_053_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          },
+          "pr_line_item_uuid": "WrongUuid1="
+        }
+      ]
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200. ParamsAuth rewrites pr_line_item_uuid to pr_line_item_id = nil (params_auth.rb:74-75); the dormant gate compacts it away (create_service.rb:104-105) and set_pr_details finds nothing, so the result is an ordinary draft. The line's pr_line_item_id is null.",
+    "rationale": "A garbled uuid from a stale cart must degrade to 'no PR link', not crash; the buyer then sees a non-PR draft."
+  },
+  {
+    "id": "EDGE-DPRE-054",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_create_with_raw_numeric_pr_line_id_does_not_crash",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer; {{productUuid}}/{{productQualityUuid}} are the client's catalog product. The request creates a NEW QA_Platform_ draft only; the PR reference is bogus so no real PR is touched.",
+    "steps": [
+      "1. POST /event_groups with a line carrying pr_line_item_id = 999999999 (raw integer, bypassing uuid decoding).",
+      "2. Read the status code."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DPRE_054_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          },
+          "pr_line_item_id": 999999999
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Keys without 'uuid' are passed through untouched, so a raw id goes straight into the line's meta_data with no existence or company check (create_service.rb:47-66, trade_controller_helper.rb:6330). Only the dormant gate and set_pr_details are company-scoped, and both just skip it.",
+    "rationale": "Raw-id references are how a client could point a draft at another tenant's PR line; records that create accepts them unchecked."
+  },
+  {
+    "id": "EDGE-DPRE-055",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_create_with_text_pr_line_id_does_not_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer; {{productUuid}}/{{productQualityUuid}} are the client's catalog product. The request creates a NEW QA_Platform_ draft only; the PR reference is bogus so no real PR is touched.",
+    "steps": [
+      "1. POST /event_groups with a line carrying pr_line_item_id = 'QA_Platform_x_<stamp>' (not a number).",
+      "2. Read the status code."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DPRE_055_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 10
+          },
+          "pr_line_item_id": "QA_Platform_x_{{stamp}}"
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. The value reaches PurchaseRequestItem.where(id: [...]) in the dormant gate and set_pr_details (create_service.rb:79-81,111-113) - ActiveRecord casts a non-numeric string to NULL - and is then stored as-is in meta_data; the show serializer must not choke on it when it encodes the PR reference.",
+    "rationale": "Unvalidated text in an id field; the risk is a 500 in the response serializer, not in the query."
+  },
+  {
+    "id": "EDGE-DPRE-056",
+    "feature": "pr.partial_selection",
+    "title": "QA_Platform_create_pr_line_with_zero_quantity_becomes_rate_only",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer; {{productUuid}}/{{productQualityUuid}} are the client's catalog product. The request creates a NEW QA_Platform_ draft only; the PR reference is bogus so no real PR is touched.",
+    "steps": [
+      "1. POST /event_groups with a PR-referencing line whose quantity.value is 0.",
+      "2. Read the status code; if 200, the line is marked rate-only."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DPRE_056_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": 0
+          },
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. Zero (or null) quantity is not refused - get_details_for_event_group_line_items sets is_rate_only = true (trade_controller_helper.rb:6317-6320) - so a PR line becomes a rate-only line that reserves nothing on the PR.",
+    "rationale": "Zero is the boundary between 'buy some' and 'ask for a rate'; a PR line silently turning rate-only means the PR stays fully open while an event exists for it."
+  },
+  {
+    "id": "EDGE-DPRE-057",
+    "feature": "pr.partial_selection",
+    "title": "QA_Platform_create_pr_line_with_negative_quantity_does_not_crash",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Caller is the QA buyer; {{productUuid}}/{{productQualityUuid}} are the client's catalog product. The request creates a NEW QA_Platform_ draft only; the PR reference is bogus so no real PR is touched.",
+    "steps": [
+      "1. POST /event_groups with a PR-referencing line whose quantity.value is -5.",
+      "2. Read the status code; a refusal is the desired answer."
+    ],
+    "method": "POST",
+    "path": "/event_groups",
+    "body": {
+      "status": "draft",
+      "title": "QA_Platform_DPRE_057_{{stamp}}",
+      "line_items": [
+        {
+          "product_uuid": "{{productUuid}}",
+          "product_quality_uuid": "{{productQualityUuid}}",
+          "quantity": {
+            "unitSymbol": "Nos",
+            "value": -5
+          },
+          "pr_line_item_uuid": "Z2dnWmdaUWtnZw=="
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "No 5xx. There is no sign check anywhere on the create path (create_service.rb:47-66, trade_controller_helper.rb:6303-6320; EventGroupLineItem has no validations), so today -5 is stored. Desired: 422 refusal. If it is accepted, read the draft back and record the negative quantity as a defect.",
+    "rationale": "A negative PR quantity, once published, is summed into the PR's in-progress quantity (purchase_request_item.rb:497-519) and would inflate the PR's open quantity."
+  },
+  {
+    "id": "EDGE-DPRE-072",
+    "feature": "pr.partial_selection",
+    "title": "QA_Platform_pr_list_with_open_and_in_progress_together_does_not_crash",
+    "type": "Robustness",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":[\"active\",\"in_progress\"]} (Open and In-progress at once).",
+      "2. Assert no 5xx."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%5B%22active%22%2C%22in_progress%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. SUSPECTED DEFECT: filter_by_status_and_get_quantities only assigns pr_items when status == ['active'] / ['approval_in_progress'] / ['in_progress'] exactly (app/services/purchase_requests/search_query.rb:402-413); any other mix that intersects that set returns nil, and the next line calls apply_scopes(nil, ...).distinct (app/services/purchase_requests/search_query.rb:112) - NoMethodError, untyped 500.",
+    "rationale": "The PR list is the oracle for 'how much of this line is still open vs in an event'. A client (or report) asking for both buckets crashes the endpoint instead of getting the union."
+  },
+  {
+    "id": "EDGE-DPRE-073",
+    "feature": "pr.partial_selection",
+    "title": "QA_Platform_pr_list_with_unknown_status_does_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":[\"QA_Platform_bogus\"]}.",
+      "2. Assert no 5xx (an empty list or a 422 is fine)."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%5B%22QA_Platform_bogus%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. SUSPECTED DEFECT: an unknown status matches none of the branches in filter_by_status_and_get_quantities (app/services/purchase_requests/search_query.rb:400-421), which then returns nil as the relation; the following apply_scopes(...).distinct (app/services/purchase_requests/search_query.rb:112) raises NoMethodError.",
+    "rationale": "Unknown enum values in filters should narrow to nothing, not crash; a renamed tab key on the client would take the PR page down."
+  },
+  {
+    "id": "EDGE-DPRE-074",
+    "feature": "pr.partial_selection",
+    "title": "QA_Platform_pr_list_with_status_as_text_does_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":\"active\"} (a string, not an array).",
+      "2. Assert no 5xx."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%22active%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. SUSPECTED DEFECT: [\"active\",\"in_progress\",\"approval_in_progress\"] & \"active\" raises TypeError (no implicit conversion of String into Array) at app/services/purchase_requests/search_query.rb:402; nothing rescues it. ViewService already tolerates a string status (view_service.rb:100-102) but SearchQuery runs first.",
+    "rationale": "Every other PR filter is shape-tolerant; this one is not, and the dashboard's own view-service code shows a string status is expected input."
+  },
+  {
+    "id": "EDGE-DPRE-075",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_pr_list_with_unknown_closure_type_does_not_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":[\"completed\"],\"closure_type\":[\"QA_Platform_bogus\"]}.",
+      "2. Assert no 5xx."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%5B%22completed%22%5D%2C%22closure_type%22%3A%5B%22QA_Platform_bogus%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "Must not 5xx. SUSPECTED DEFECT: an unknown closure type falls to the else-branch of filter_by_closure_type, collects no ids, and returns `... if combined_ids.any?` = nil (app/services/purchase_requests/search_query.rb:530-537); the chain then reaches nil.order(...) (app/services/purchase_requests/search_query.rb:143) - NoMethodError.",
+    "rationale": "Closure type is how a buyer finds partially-closed vs PO-closed lines in the Completed tab; a typo must give an empty page, not an error page."
+  },
+  {
+    "id": "EDGE-DPRE-076",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_pr_list_partial_closure_filter_reads_cleanly",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is the QA buyer. Read only. Behaviour differs with is_pr_partial_closure_enabled; both answers are 200.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":[\"completed\"],\"closure_type\":[\"partial_closure\"]}.",
+      "2. Assert no 5xx; note whether the list is narrowed."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%5B%22completed%22%5D%2C%22closure_type%22%3A%5B%22partial_closure%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. With the partial-closure feature off, 'partial_closure' is stripped from the filter and the Completed list comes back UNFILTERED (app/services/purchase_requests/search_query.rb:512-515) - a silent widening rather than an empty result. With it on, only lines carrying partial_closure_metadata are returned.",
+    "rationale": "Records the silent-widening behaviour: a report built on this filter would count every completed line when the feature is off."
+  },
+  {
+    "id": "EDGE-DPRE-077",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_list_filtered_by_a_non_pr_event_is_empty",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is the QA buyer. Read only. The sandbox {{eventGroupUuid}} was built from the catalog, not from a PR.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":[\"in_progress\"],\"rfx_uuids\":[\"{{eventGroupUuid}}\"]}.",
+      "2. Assert no 5xx and an empty purchase_requests list."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%5B%22in_progress%22%5D%2C%22rfx_uuids%22%3A%5B%22{{eventGroupUuid}}%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with no rows: parse_filters turns rfx_uuids into rfx_ids (common_functions.rb:93) and the rfx_ids scope joins PR lines to that event group (purchase_request_item.rb:282); the sandbox has no PR mapping. (If the uuid contains '+', the query string turns it into a space and the decode yields nil - still an empty 200.)",
+    "rationale": "Read-back oracle for 'which PR lines does this event consume' - the call a test uses after pulling lines in; it must be exact and must not crash on a non-PR event."
+  },
+  {
+    "id": "EDGE-DPRE-078",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_list_rfx_id_wildcard_does_not_crash",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":[\"in_progress\"],\"rfx_id_ilike\":\"%\"}.",
+      "2. Assert no 5xx."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%5B%22in_progress%22%5D%2C%22rfx_id_ilike%22%3A%22%25%22%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200. The value is bound (no injection) but '%'/'_' are not escaped in the rfx_id_ilike scope (purchase_request_item.rb:283-286), so '%' matches every PR line linked to any event - a wildcard, not a literal search.",
+    "rationale": "Records that event-reference search treats % and _ as wildcards (unlike rfq_no, which goes through sql_like)."
+  },
+  {
+    "id": "EDGE-DPRE-079",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_list_unknown_event_status_does_not_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /purchase_requests?page=1 with filters {\"status\":[\"in_progress\"],\"event_statuses\":[\"QA_Platform_bogus\"]}.",
+      "2. Assert no 5xx and an empty list."
+    ],
+    "method": "GET",
+    "path": "/purchase_requests?page=1&filters=%7B%22status%22%3A%5B%22in_progress%22%5D%2C%22event_statuses%22%3A%5B%22QA_Platform_bogus%22%5D%7D",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200, empty. event_statuses is a jsonb ?| ARRAY[...] bind (purchase_request_item.rb:256-268); an unknown value simply matches nothing.",
+    "rationale": "The 'event status' column filter on In-progress is how a buyer finds PR lines whose event was awarded; unknown values must be harmless."
+  },
+  {
+    "id": "EDGE-DPRE-080",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_number_options_wildcard_search_does_not_crash",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /event_groups/pr_number_options?page=1&search_query=% .",
+      "2. Assert no 5xx."
+    ],
+    "method": "GET",
+    "path": "/event_groups/pr_number_options?page=1&search_query=%25",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200 with PR numbers linked to ACTIVE events only (filter_options_helper.rb:38-53). The search is a bound ILIKE but '%' is not escaped, so it returns everything.",
+    "rationale": "This options list feeds the event list's 'PR number' filter; it must stay read-only and crash-free on wildcard input."
+  },
+  {
+    "id": "EDGE-DPRE-081",
+    "feature": "pr.to_event",
+    "title": "QA_Platform_pr_number_options_negative_page_is_clamped",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Caller is the QA buyer. Read only.",
+    "steps": [
+      "1. GET /event_groups/pr_number_options?page=-5.",
+      "2. Assert no 5xx and the first page returned."
+    ],
+    "method": "GET",
+    "path": "/event_groups/pr_number_options?page=-5",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 200, first page: EventGroupsController#paginate clamps with [1, page.to_i].max (app/controllers/api/event_groups_controller.rb:1703-1705).",
+    "rationale": "Negative paging must clamp, not raise in Kaminari."
+  },
+  {
+    "id": "EDGE-DPRE-082",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_partial_close_without_reason_is_refused_for_a_real_line",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "is_pr_partial_closure_enabled is ON (enabled: true). {{prItemId}} is a REAL PR line; the body has no closure_reason, which no configured reason key can match, so the request is refused before any write.",
+    "steps": [
+      "1. PATCH /purchase_requests/partial_close with pr_item_uuids = [a real PR line] (the key the dashboard sends), remarks set, and NO closure_reason.",
+      "2. Read the status code and error.",
+      "3. GET /purchase_requests/{{prId}} - the line has no partial_closure_metadata."
+    ],
+    "method": "PATCH",
+    "path": "/purchase_requests/partial_close",
+    "body": {
+      "pr_item_uuids": [
+        "{{prItemId}}"
+      ],
+      "remarks": "QA_Platform_no_reason_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 with message 'Invalid closure reason'. The controller coerces params[:closure_reason].to_s to '' (purchase_requests_controller.rb:1006) and validate checks allowed_closure_reason_keys.include?('') (app/services/purchase_requests/partial_closure_service.rb:154) before the item lookup. With the feature off the answer is 861 instead.",
+    "rationale": "Uses the dashboard's real key (pr_item_uuids, decoded by ParamsAuth) - unlike the older PR-PCL cases that send uuids under pr_item_ids, which never decode and can only ever reach 528. Proves a closure without a reason is impossible on a real line."
+  },
+  {
+    "id": "EDGE-DPRE-083",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_partial_close_with_markup_only_remarks_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Caller is the QA buyer; the line id is bogus (Z2dnWmdaUWtnZw==), so even a regressed validator cannot close anything (528 at worst).",
+    "steps": [
+      "1. PATCH /purchase_requests/partial_close with remarks = '<p> </p>' (markup only), a plausible reason key and a bogus line.",
+      "2. Read the status code."
+    ],
+    "method": "PATCH",
+    "path": "/purchase_requests/partial_close",
+    "body": {
+      "pr_item_uuids": [
+        "Z2dnWmdaUWtnZw=="
+      ],
+      "closure_reason": "budget_cut",
+      "remarks": "<p> </p>"
+    },
+    "expected": "reject",
+    "expectedResult": "Non-2xx, never 5xx: 861 (feature off), 2 'Invalid closure reason' (reason not configured), 2 'Remarks are required' (sanitize_input_params strips the tags, params_auth.rb:18-30, leaving a blank string caught at app/services/purchase_requests/partial_closure_service.rb:155) or 528 (line not found). Which one depends on the company's closure_reasons list.",
+    "rationale": "The UI trims remarks before sending (partiallyClosedDrawer.jsx:51-52); the API must reach the same verdict when the only content is markup."
+  },
+  {
+    "id": "EDGE-DPRE-084",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_partial_close_with_reason_as_object_is_refused",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "is_pr_partial_closure_enabled is ON (enabled: true). {{prItemId}} is a REAL PR line; the reason is an object, so no configured key can match.",
+    "steps": [
+      "1. PATCH /purchase_requests/partial_close with closure_reason = {\"key\":\"budget_cut\"} (object instead of the key string).",
+      "2. Read the status code and error."
+    ],
+    "method": "PATCH",
+    "path": "/purchase_requests/partial_close",
+    "body": {
+      "pr_item_uuids": [
+        "{{prItemId}}"
+      ],
+      "closure_reason": {
+        "key": "budget_cut"
+      },
+      "remarks": "QA_Platform_obj_reason_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 with message 'Invalid closure reason' - .to_s turns the Parameters object into its inspect string (purchase_requests_controller.rb:1006), which is not a configured key (app/services/purchase_requests/partial_closure_service.rb:154). Not a 500 from the Sorbet String sig.",
+    "rationale": "A client posting the whole reason option (key + label) instead of the key is a realistic bug; it must get a readable refusal."
+  },
+  {
+    "id": "EDGE-DPRE-085",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_partial_close_with_comma_separated_uuid_string_is_refused",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "is_pr_partial_closure_enabled is ON (enabled: true). Bogus line ids only.",
+    "steps": [
+      "1. PATCH /purchase_requests/partial_close with pr_item_uuids = 'Z2dnWmdaUWtnZw==,Z2dnWmdaUWtnZw==' (one string) and an unconfigurable reason.",
+      "2. Read the status code and error."
+    ],
+    "method": "PATCH",
+    "path": "/purchase_requests/partial_close",
+    "body": {
+      "pr_item_uuids": "Z2dnWmdaUWtnZw==,Z2dnWmdaUWtnZw==",
+      "closure_reason": "QA_Platform_reason_{{stamp}}",
+      "remarks": "QA_Platform_csv_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 with message 'Invalid closure reason'. ParamsAuth splits a *_uuids STRING on commas and decodes each (params_auth.rb:72-73), so this is accepted as two ids, de-duplicated to one (app/services/purchase_requests/partial_closure_service.rb:36), and stopped at the reason rung (app/services/purchase_requests/partial_closure_service.rb:154).",
+    "rationale": "Documents the undocumented comma-string form of every *_uuids parameter and that it does not crash the closure service."
+  },
+  {
+    "id": "EDGE-DPRE-086",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_partial_close_with_ids_as_object_is_refused",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "is_pr_partial_closure_enabled is ON (enabled: true). Bogus ids only.",
+    "steps": [
+      "1. PATCH /purchase_requests/partial_close with pr_item_ids = {\"a\": 999999999} (an object) and an unconfigurable reason.",
+      "2. Read the status code and error."
+    ],
+    "method": "PATCH",
+    "path": "/purchase_requests/partial_close",
+    "body": {
+      "pr_item_ids": {
+        "a": 999999999
+      },
+      "closure_reason": "QA_Platform_reason_{{stamp}}",
+      "remarks": "QA_Platform_obj_ids_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 with message 'Invalid closure reason'. Array(params[:pr_item_ids]) wraps the object as a one-element array (purchase_requests_controller.rb:1005); it is not blank and not over 20, so the reason rung answers (app/services/purchase_requests/partial_closure_service.rb:152-154). Not a 500.",
+    "rationale": "Type confusion on the id list must not escape as a 500 from Array()/uniq or the Sorbet sig."
+  },
+  {
+    "id": "EDGE-DPRE-087",
+    "feature": "pr.partial_closure",
+    "title": "QA_Platform_partial_close_without_any_line_ids_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "is_pr_partial_closure_enabled is ON (enabled: true). No line ids at all.",
+    "steps": [
+      "1. PATCH /purchase_requests/partial_close with only closure_reason and remarks (no pr_item_ids / pr_item_uuids key).",
+      "2. Read the status code and error."
+    ],
+    "method": "PATCH",
+    "path": "/purchase_requests/partial_close",
+    "body": {
+      "closure_reason": "budget_cut",
+      "remarks": "QA_Platform_no_ids_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, error.code 2 'Insufficient parameters' - Array(nil) is [] and validate's first rung is @pr_item_ids.blank? (app/services/purchase_requests/partial_closure_service.rb:152), which runs before the reason check.",
+    "rationale": "Missing (not empty) id list; confirms the 2 comes from the first rung so the reason/remarks rungs are never reached."
+  }
+]

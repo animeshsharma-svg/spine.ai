@@ -148,7 +148,12 @@ const extra = (prefix: string) =>
 // `ui-*.md`: generated UI-layer cases in the same format (e.g. the UI↔API cross-checks).
 const ui = [join(CASES_DIR, "events-ui.md"), ...extra("product-"), ...extra("ui-")].flatMap((f) => parse(f, "ui"));
 const api = [join(CASES_DIR, "events-api.md"), ...extra("api-")].flatMap((f) => parse(f, "api"));
-const all = [...ui, ...api];
+// `events-deep-*.md`: sourcing events in depth, one file per area, holding BOTH
+// screen (UI-XD…) and API (API-XD…) cases — the layer is read off each id.
+const deep = extra("events-deep-").flatMap((f) =>
+  parse(f, "api").map((c) => (c.id.startsWith("UI-") ? { ...c, layer: "ui" as const } : c)),
+);
+const all = [...ui, ...api, ...deep];
 const dupes = [...all.reduce((m, c) => m.set(c.id, (m.get(c.id) ?? 0) + 1), new Map<string, number>())].filter(([, n]) => n > 1);
 if (dupes.length) console.log(`  ⚠ ${dupes.length} duplicate case id(s): ${dupes.slice(0, 5).map(([id]) => id).join(", ")}`);
 
