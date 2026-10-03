@@ -119,8 +119,10 @@ async function slingringEmbed(texts: string[]): Promise<number[][]> {
       out = await slingringEmbedOnce(texts);
       break;
     } catch (e) {
+      // No status = the connection itself failed ("fetch failed: other side
+      // closed", seen 2026-10-03 mid-build) — as retryable as a 5xx.
       const status = (e as { status?: number }).status ?? 0;
-      if (attempt >= 4 || !(status === 429 || status >= 500)) throw e;
+      if (attempt >= 5 || !(status === 0 || status === 429 || status >= 500)) throw e;
       await sleep(1000 * 2 ** (attempt - 1));
     }
   }
