@@ -31,6 +31,7 @@ import { pathToFileURL } from "node:url";
 
 import { PROCOL_TEST, openClientContext } from "../executor.js";
 import { classify, redactSecrets, type CheckOutcome } from "./engine.js";
+import { appOf, appRefusal } from "./appAccess.js";
 import { EVENT_TYPES, type JourneyPlan, type JourneyRecord, type StepKind } from "./journeyModel.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./eventJourney.js";
 import { listQaVendors, vendorClient, type QaVendor } from "./matrixVendors.js";
@@ -154,12 +155,18 @@ interface Reply {
   code?: string;
   message?: string;
   ms: number;
+  /** Set when the request was deliberately not sent (and why). */
+  notSent?: string;
 }
 
 const ENV_STATUS = new Set([0, 408, 429, 502, 503, 504]);
 
 /** One request, never throws, 60 s bound; an environment failure is tried again twice. */
 async function send(api: any, method: string, path: string, body?: unknown): Promise<Reply> {
+  // Never ask the wrong app: a buyer token on a vendor-only API is answered 401
+  // and the backend signs that buyer out of the web console (see appAccess.ts).
+  const why = appRefusal(appOf(api), method, path);
+  if (why) return { status: 0, ok: false, data: null, message: `not sent: ${why}`, ms: 0, notSent: why };
   const t = Date.now();
   let tries = 0;
   for (;;) {
@@ -199,6 +206,7 @@ function redact(body: unknown): unknown {
 }
 
 function said(r: Reply): string {
+  if (r.notSent) return `not sent — ${r.notSent}`;
   if (r.status === 0) return `no reply came back (${r.message ?? "network"})`;
   if (r.ok) return `the app accepted it (HTTP ${r.status})`;
   return `the app refused it: “${r.message ?? "no message"}” (HTTP ${r.status}${r.code ? `, code ${r.code}` : ""})`;
@@ -845,7 +853,10 @@ async function attempt(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReu
     let sv: StepVerdict;
     let actual = said(reply);
     const inconclusive = !!c.inconclusive;
-    if (reply.status === 0) {
+    if (reply.notSent) {
+      sv = "couldn't tell";
+      actual = `Not sent: ${reply.notSent}.`;
+    } else if (reply.status === 0) {
       sv = "couldn't tell";
       actual = `No reply came back (${reply.message ?? "network"}).`;
     } else if (reply.status >= 500) {
@@ -940,6 +951,14 @@ async function attempt(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReu
         continue;
       }
       const reply = await send(api, "GET", path);
+      if (reply.notSent) {
+        emit({ n, phase: "verify", title, actor: actorWord, expected: "The read-back holds.", actual: `Not read: ${reply.notSent}.`, verdict: "couldn't tell", ms: 0 });
+        if (verdict !== "failed") {
+          verdict = "couldn't tell";
+          reason = `The read-back was not sent: ${reply.notSent}.`;
+        }
+        continue;
+      }
       const results = v.assert.map((as0) => {
         const mv: string[] = [];
         // ids inside a path (auction_identifiers_data.{{vendorUuid}}…) are this run's ids

@@ -15,7 +15,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { classify, redactSecrets, type CheckOutcome } from "../src/checks/engine.js";
+import { apiAttempt, classify, documentedCodes, redactSecrets, runCheck, type Check, type CheckOutcome } from "../src/checks/engine.js";
+import { appOf, appRefusal } from "../src/checks/appAccess.js";
 import { endpointOf, evaluateStepAssertions, type AssertionCatalog } from "../src/checks/apiAssertions.js";
 import { humanActual } from "../src/checks/humanize.js";
 import { journeyOutcome, journeyPlan, type JourneyStepRecord } from "../src/checks/journeyModel.js";
@@ -80,6 +81,60 @@ describe("engine.classify", () => {
     assert.equal(r.pass, false);
     assert.match(r.verdict, /REJECTED a valid input/);
   });
+  test("a documented not-found code is the case working, not a broken fixture", () => {
+    // EDGE-PUB-088: GET /event_groups/1 documents "code 533 or 455"; 533 is "Project does not exist."
+    const doc = "HTTP 422, code 533 or 455 — for uuid-enabled clients check_for_uuid decodes even an integer id.";
+    assert.deepEqual(documentedCodes(doc), ["533", "455"]);
+    const ok = classify("reject", outcome({ httpStatus: 422, accepted: false, message: "Project does not exist." }), undefined, doc);
+    assert.equal(ok.pass, true);
+    // Without the code in the documentation it stays "the fixture was not usable".
+    const r = classify("reject", outcome({ httpStatus: 422, accepted: false, message: "Project does not exist." }), undefined, "HTTP 422 for a bad id.");
+    assert.equal(r.inconclusive, true);
+  });
+  test("a code mentioned after the lead clause is not the expected answer", () => {
+    assert.deepEqual(documentedCodes("HTTP 422, code 2001 'New stage…' — when the setting is OFF the answer is code 1127 first."), ["2001"]);
+  });
+  test("a case quoting its own message is still held to it, whatever the code", () => {
+    const r = classify("reject", outcome({ httpStatus: 422, accepted: false, message: "failed to add remark", errorCode: "472" }), "You can attach a maximum of 10 files", "HTTP 422 code 472 with message 'You can attach a maximum of 10 files'");
+    assert.equal(r.inconclusive, true);
+  });
+  test("a message lifted from the explanation does not override the code the lead clause names", () => {
+    // EDGE-PUB-102: the runner lifted "s company in the caller" from "the event's company in the caller's …".
+    const doc = "HTTP 422, code 888 (if id 1 is not active/latest) or 455 — the raw item_id is looked up unscoped, then update? requires the event's company in the caller's allowed companies.";
+    const r = classify("reject", outcome({ httpStatus: 422, accepted: false, message: "Invalid Parameters" }), "s company in the caller", doc);
+    assert.equal(r.pass, true);
+    const other = classify("reject", outcome({ httpStatus: 422, accepted: false, message: "Insufficient parameters" }), "s company in the caller", doc);
+    assert.equal(other.inconclusive, true);
+  });
+  test("the buyer's console session is never sent to a vendor-only API (it would be signed out)", async () => {
+    const tok = (key: string) => ({ tokens: { accessToken: Buffer.from(`${key}:s:t`).toString("base64") } });
+    const buyer = { ...tok("console_app_key"), post: async () => { throw new Error("must not be sent"); } };
+    assert.equal(appOf(buyer), "console");
+    assert.equal(appOf(tok("agribid_web_key")), "vendor");
+    assert.ok(appRefusal("console", "POST", "/v1/bids"));
+    assert.ok(appRefusal("console", "POST", "/v1/bids/WHBERFpw/create_bid_products"));
+    assert.equal(appRefusal("vendor", "POST", "/v1/bids"), undefined);
+    assert.equal(appRefusal("console", "GET", "/v1/dashboard_configuration"), undefined);
+    assert.equal(appRefusal("console", "POST", "/v1/bulk_create_vendor"), undefined);
+    assert.equal(appRefusal("console", "POST", "/event_groups"), undefined); // unversioned: never judged
+    const o = await apiAttempt(buyer, "/v1/bids", {});
+    assert.ok(o.notSent);
+    const r = classify("reject", o);
+    assert.equal(r.inconclusive, true);
+    assert.match(r.verdict, /^not sent/);
+  });
+  test("a unit the case sent and this client lacks is a data mismatch, not a product answer", async () => {
+    const mk = (expected: "accept" | "reject", expectedResult: string): Check => ({
+      id: "T1", flowId: "events.rfq_only", module: "m", scenario: "s", type: "Negative" as any, category: "c", priority: "P1", severity: "High",
+      expected, layer: "api", inputSummary: "", expectedResult,
+      request: { method: "POST", path: "/trade/template_input", body: { data: [{ product: { unit_type: "KG" } }] } },
+      exec: async () => ({ httpStatus: 422, accepted: false, message: "The unit kg is not present", durationMs: 1 }),
+    } as Check);
+    const acc = await runCheck({} as any, mk("accept", "2xx. The guard is time_difference < 30."));
+    assert.equal(acc.inconclusive, true, "an accept case refused for the client's unit is not a product failure");
+    const doc = await runCheck({} as any, mk("reject", "HTTP 422 'The unit kg is not present' — the unit is checked first."));
+    assert.equal(doc.pass, true, "a case that documents the unit refusal is judged normally");
+  });
   test("credentials never survive into a stored message", () => {
     const s = redactSecrets(`headers: access-token: abcDEF123456789 authorization: Bearer xyz.abc`)!;
     assert.ok(!s.includes("abcDEF123456789"));
@@ -139,6 +194,26 @@ describe("apiAssertions", () => {
     assert.equal(by.A5, true, "a numeric string counts as a number");
     assert.equal(by.A6, true);
     assert.equal(r.total, 6);
+  });
+  test("a documented server replacement wins over what was sent; a retired check is not judged", () => {
+    const cat: AssertionCatalog = {
+      ...catalog,
+      steps: {
+        create_draft: {
+          ...catalog.steps.create_draft,
+          assertions: [
+            { id: "P1", step: "create_draft", endpoint: "POST /event_groups", path: "w[*].configuration.precision", op: "equals_request", ref: "w[0].configuration.precision", title: "p", expected: "as sent", why: "", severity: "critical", samples: 3, overriddenBy: { path: "trade_config.widget_precision", source: "trade_template_helper.rb:1816-1829" } },
+            { id: "R1", step: "create_draft", endpoint: "POST /event_groups", path: "x", op: "exists", title: "x", expected: "present", why: "", severity: "major", samples: 3, retired: "learned from one client" },
+          ],
+        },
+      },
+    };
+    const sent = step({ call: { method: "POST", path: "/event_groups", body: { w: [{ configuration: { precision: 4 } }] } } });
+    const two = evaluateStepAssertions(sent, { w: [{ configuration: { precision: 2 } }], trade_config: { widget_precision: 2 } }, {}, cat)!;
+    assert.equal(two.results.find((x) => x.id === "P1")!.pass, true, "the company's precision (2) replaces the sent 4");
+    assert.equal(two.results.some((x) => x.id === "R1"), false);
+    const lost = evaluateStepAssertions(sent, { w: [{ configuration: { precision: 2 } }] }, {}, cat)!;
+    assert.equal(lost.results.find((x) => x.id === "P1")!.pass, false, "without a company setting the echo must hold");
   });
   test("a changed value is a failed check, not a skipped one", () => {
     const r = evaluateStepAssertions(step({}), { uuid: "OTHER123", name: "renamed", qty: -1 }, { eventGroupUuid: "RFFEY0RO" }, catalog)!;
