@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-XAWD-135",
+  "title": "PO forms need every line awarded when partial line awarding is disallowed",
+  "compiledAt": "2026-10-03T09:49:39.002Z",
+  "planVersion": 1,
+  "source": "library-case",
+  "coverage": "partial",
+  "gaps": [
+   "it depends on a company setting this run does not change — a failure is reported as couldn't tell, not as a bug",
+   "the part about “po” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal/:id/create_po_form"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Please ensure all line items are awarded before continuing.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XAWD-135",
+  "title": "PO forms need every line awarded when partial line awarding is disallowed",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-AWD-135",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "791",
+   "message": "Please ensure all line items are awarded before continuing."
+  },
+  "dependsOnSetting": "disallow_partial_line_item_awarding on"
+ }
+}

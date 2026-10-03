@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-XAWD-072",
+  "title": "A vendor cannot send a bulk counter offer",
+  "compiledAt": "2026-10-03T09:49:20.691Z",
+  "planVersion": 1,
+  "source": "library-case",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send POST /additional_request/raise_bulk_counter_offer, but the supplier app may not call POST /additional_request/raise_bulk_counter_offer (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /additional_request/raise_bulk_counter_offer"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The invited QA vendor sends the additional request raise bulk counter offer request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XAWD-072",
+  "title": "A vendor cannot send a bulk counter offer",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-AWD-072",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

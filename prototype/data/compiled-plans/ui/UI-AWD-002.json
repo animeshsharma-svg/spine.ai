@@ -1,0 +1,120 @@
+{
+ "meta": {
+  "caseId": "UI-AWD-002",
+  "title": "The comparison shows every bid, per line item, with totals",
+  "compiledAt": "2026-10-03T11:46:51.006Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify exact calculated per-line and total amount math automatically beyond what open_master_qcs renders",
+   "Assert non-placeholder vendor names specifically via grid text without knowing exact company test names"
+  ],
+  "warnings": [
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "dropped invented vendor name(s) Vendor A, Vendor B — the test case never named them, so the product's audience supplies the vendors instead",
+   "dropped invented vendor name Vendor A from place_bid — it will bid for whoever is on the event",
+   "dropped invented vendor name Vendor B from place_bid — it will bid for whoever is on the event",
+   "named AMD on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain",
+   "can only test part of this — no step for: Verify exact calculated per-line and total amount math automatically beyond what open_master_qcs renders; Assert non-placeholder vendor names specifically via grid text without knowing exact company test names"
+  ]
+ },
+ "plan": {
+  "title": "UI-AWD-002 — The comparison shows every bid, per line item, with totals",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating an eRFX event"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Set up the stage"
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Set a unique title for the event"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Pick a pricing template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Add multiple line items for line-item comparison"
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill out the pricing sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 5
+    },
+    "note": "Set schedule for the event"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "names": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "count": 2,
+     "vendors": [
+      "AMD"
+     ]
+    },
+    "note": "Invite two specific vendors so they can submit competing bids"
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event"
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify event is published"
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "First vendor places a bid"
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 120
+    },
+    "note": "Second vendor places a competing bid"
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open Master QCS to verify comparison grid shows both vendors and their bids"
+   }
+  ]
+ }
+}

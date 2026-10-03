@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-PUB-013",
+  "title": "A caller without update permission is refused",
+  "compiledAt": "2026-10-03T09:44:01.868Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen",
+   "The available setup does not create a caller in neither branch; EDGE-PUB-016 covers a vendor caller without event update permission instead."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the request that updates (and publishes) the event, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PUB-013",
+  "title": "A caller without update permission is refused",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-PUB-016",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

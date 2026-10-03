@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-XPUB-092",
+  "title": "A vendor cannot change the event's owner",
+  "compiledAt": "2026-10-03T09:50:24.179Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "change_ownership endpoint uses raw library request rather than native op",
+   "it does not read the record back to confirm what was kept or shown"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /event_groups/:id/change_ownership"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the event groups change ownership request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not authorized to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XPUB-092",
+  "title": "A vendor cannot change the event's owner",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DLST-078",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "455",
+   "message": "You are not authorized to perform this action"
+  }
+ }
+}

@@ -177,6 +177,55 @@ const ALLOW_DEEP: AllowRule[] = [
 ];
 const DEEP_CASE = /^EDGE-D[A-Z]+-\d{3}$/;
 
+/**
+ * Publish / audience / participation edge cases that act ONLY on the run's
+ * own copy of the event (path and body name {{eventGroupUuid}} / {{tradeId}},
+ * the run's QA vendor, the run's own buyer, or a bogus id), and whose starting
+ * state a fresh copy has. Each runs on a copy of its own (caseLibrary.ts
+ * ownCopyReason), so whatever it changes, no other case inherits it.
+ *
+ * Scoped by case id, like ALLOW_DEEP: the endpoints are opened for these cases
+ * and no others. Cases on the same paths that need a state a fresh copy does
+ * not have (a closed stage, a proposal, a versioned event, a second buyer…)
+ * are listed with their reason in caseLibrary.ts STATE_NOT_BUILT; EDGE-BID-007
+ * (a user-intent row aimed at a real user record) and EDGE-BID-013/014 (a
+ * vendor outside the audience / a stage whose window is over) are left out.
+ */
+export const SANDBOX_PUB_CASES = new Set([
+  // PATCH /trade/:id — extend, end, close or cancel the copy's live stage
+  "EDGE-PUB-058", "EDGE-PUB-059", "EDGE-PUB-060", "EDGE-PUB-067", "EDGE-PUB-069", "EDGE-PUB-070",
+  "EDGE-PUB-071", "EDGE-PUB-072", "EDGE-PUB-073", "EDGE-PUB-074",
+  // PATCH /v1/trade/remove_audience — the invited vendor tries to remove a vendor
+  "EDGE-PUB-042",
+  // POST /event_groups/:id/participants — the invited vendor joins an open tender
+  "EDGE-PUB-049", "EDGE-PUB-051",
+  // PATCH /event_groups/:id/reject_participant — remarks missing / not participated / vendor caller
+  "EDGE-PUB-053", "EDGE-PUB-054", "EDGE-PUB-056",
+  // POST /event_groups/:id/change_ownership — blank owner / vendor caller
+  "EDGE-PUB-090", "EDGE-PUB-092",
+  // POST /event_groups/:id/create_clone — the copy cloned / a vendor tries
+  "EDGE-PUB-109", "EDGE-PUB-113",
+  // POST /user_intents — the invited vendor declines (or accepts) the copy's stage
+  "EDGE-BID-001", "EDGE-BID-002", "EDGE-BID-003", "EDGE-BID-004", "EDGE-BID-005", "EDGE-BID-006",
+  "EDGE-BID-008", "EDGE-BID-009", "EDGE-BID-010", "EDGE-BID-011", "EDGE-BID-012",
+]);
+
+/** Methods exactly as procol-backend config/routes.rb declares them. */
+const ALLOW_SANDBOX_PUB: AllowRule[] = [
+  // resources :trade, only: [:show, :update] → PATCH /trade/:id
+  { method: "PATCH", re: /^\/trade\/[^/?]+$/, what: "edit the copy's stage (extend / end / close)" },
+  // v1 scope :trade → patch 'remove_audience' => 'trade#remove_audience_live_auction'
+  { method: "PATCH", re: /^\/v1\/trade\/remove_audience(\?|$)/, what: "remove a vendor from the copy's stage" },
+  // event_groups scope → post ':id/participants' => 'event_groups#participate'
+  { method: "POST", re: /^\/event_groups\/[^/]+\/participants$/, what: "join the copy as a vendor" },
+  // patch '/:id/reject_participant' => 'event_groups#reject_participant'
+  { method: "PATCH", re: /^\/event_groups\/[^/]+\/reject_participant$/, what: "reject a participant of the copy" },
+  // post ':id/change_ownership' / post ':id/create_clone'
+  { method: "POST", re: /^\/event_groups\/[^/]+\/(change_ownership|create_clone)$/, what: "hand over / clone the copy" },
+  // resources :user_intents, only: [:create] → POST /user_intents
+  { method: "POST", re: /^\/user_intents$/, what: "the vendor's participate / decline answer on the copy" },
+];
+
 /** The endpoint menu the LLM is shown — kept in sync with ALLOW above. */
 const ENDPOINT_MENU = `
 READS (safe, use freely for negative/robustness checks):
@@ -242,6 +291,8 @@ export interface DynamicContext {
   vbuRealMail?: boolean;
   /** false = skip bulk cases that create test vendors */
   vbuCreate?: boolean;
+  /** company settings some edge cases depend on (caseLibrary.ts resolveCaseSettings); null = could not be read */
+  caseSettings?: Record<string, boolean | null>;
 }
 
 export interface DynamicSpec {
@@ -472,7 +523,9 @@ export function gate(
   if (typeof path !== "string" || !path.startsWith("/"))
     return { check: null, reason: "path is missing or not absolute" };
 
-  const allowed = curated ? [...ALLOW, ...ALLOW_CURATED, ...(DEEP_CASE.test(id) ? ALLOW_DEEP : [])] : ALLOW;
+  const allowed = curated
+    ? [...ALLOW, ...ALLOW_CURATED, ...(DEEP_CASE.test(id) ? ALLOW_DEEP : []), ...(SANDBOX_PUB_CASES.has(id) ? ALLOW_SANDBOX_PUB : [])]
+    : ALLOW;
   const rule = allowed.find((r) => r.method === method && r.re.test(path));
   if (!rule) return { check: null, reason: `${method} ${path} is not on the allowlist` };
 

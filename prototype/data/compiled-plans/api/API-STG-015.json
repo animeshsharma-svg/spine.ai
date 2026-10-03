@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-STG-015",
+  "title": "A stage created with no bid_end_time fails at creation, not later",
+  "compiledAt": "2026-10-03T09:43:31.344Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with the bid end time empty (null)."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-STG-015",
+  "title": "A stage created with no bid_end_time fails at creation, not later",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.bid_end_time",
+      "set": null
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}
