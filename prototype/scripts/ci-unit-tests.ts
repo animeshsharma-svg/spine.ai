@@ -605,3 +605,5 @@ describe("report wording", () => {
     assert.equal(humanTitle(""), "an untitled check");
   });
 });
+
+import "./hubspot-unit-tests.js"; // HubSpot stripper, leak check, classifier, case file
