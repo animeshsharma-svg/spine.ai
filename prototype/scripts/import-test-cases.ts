@@ -73,6 +73,8 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
           ? "automate"
           : "unclassified";
     const refs = [...trace.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+    // A support-ticket regression lives in the journey group its Trace names (`API-XBID` …).
+    if (current.id.startsWith("HS-")) current.group = refs.find((r) => /^API-[A-Z]+$/.test(r)) ?? "HS";
     const setup = (buf.Setup ?? []).join(" ").replace(/\s+/g, " ").trim();
     cases.push({
       id: current.id,
@@ -110,7 +112,9 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
     }
     // UI-/API- are the hand-written catalog; PRD- are the product-knowledge
     // cases generated from the Modules & Features workbook.
-    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+-\d+)\s*[—–-]\s*(.+)$/);
+    // HS-<ticketId>-N are the support-ticket regressions (hubspot-regressions.md);
+    // their group is the journey group named in the Trace (see flush()).
+    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+-\d+|HS-\d+-\d+)\s*[—–-]\s*(.+)$/);
     if (head) {
       flush();
       current = {
@@ -147,7 +151,8 @@ const extra = (prefix: string) =>
   readdirSync(CASES_DIR).filter((f) => f.startsWith(prefix) && f.endsWith(".md")).sort().map((f) => join(CASES_DIR, f));
 // `ui-*.md`: generated UI-layer cases in the same format (e.g. the UI↔API cross-checks).
 const ui = [join(CASES_DIR, "events-ui.md"), ...extra("product-"), ...extra("ui-")].flatMap((f) => parse(f, "ui"));
-const api = [join(CASES_DIR, "events-api.md"), ...extra("api-")].flatMap((f) => parse(f, "api"));
+// `hubspot-*.md`: regression cases generated from support tickets (scripts/hubspot-ingest.ts), API layer.
+const api = [join(CASES_DIR, "events-api.md"), ...extra("api-"), ...extra("hubspot-")].flatMap((f) => parse(f, "api"));
 // `events-deep-*.md`: sourcing events in depth, one file per area, holding BOTH
 // screen (UI-XD…) and API (API-XD…) cases — the layer is read off each id.
 const deep = extra("events-deep-").flatMap((f) =>
