@@ -607,3 +607,5 @@ describe("report wording", () => {
 });
 
 import "./hubspot-unit-tests.js"; // HubSpot stripper, leak check, classifier, case file
+
+import "./db-unit-tests.js"; // product tables: run mapping, case versions, redaction, bug sheet (database part skips without SPINE_DB_URL)
