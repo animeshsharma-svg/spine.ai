@@ -27,7 +27,7 @@ reports every result as a plain-language test case with the evidence behind it.
 | **CI/CD** | Offline checks on every push (GitHub Actions); a nightly live regression and a backend-change watcher (local, opt-in). |
 
 The catalog holds **5,439 written test cases in 42 journeys** (`test-cases/*.md`), every one placed in a
-journey. So far the platform has found **45 verified product defects** (`docs/bugs/`) — each reproduced on a
+journey. So far the platform has found **56 verified product defects** (`docs/bugs/`) — each reproduced on a
 fresh test event before it was reported.
 
 ## How a verdict is reached
@@ -120,14 +120,14 @@ QA test vendors. Nothing deletes or changes real data, and Procol's database is 
 
 | | Today |
 |---|---|
-| Verified product defects found | 45 (1 critical, 11 high) — each reproduced on a fresh test event |
+| Verified product defects found | 56 (1 critical, 11 high) — each reproduced on a fresh test event |
 | Typed test case → right existing case (rules + model) | 97% top-1 · new cases detected 100% |
 | Instruction → right journey | 95.1% |
 | Written case → runnable browser plan | 92.7% |
 | Test case → correct API test plan | 90% exact (49 cases) |
 | "Couldn't tell" share of results (7 days) | 12% — target ≤ 5% |
 | Flaky share (checks run 3+ times) | 4.3% — target ≤ 2% |
-| Catalog cases that can run today | 52% (2,159 of 4,143 automatable) · 1,462 have run on PROCOL DEMO |
+| Catalog cases that can run today | 55% (2,271 of 4,142 automatable) · 1,959 have run on PROCOL DEMO |
 
 ## Working on it
 
