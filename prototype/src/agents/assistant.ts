@@ -29,7 +29,9 @@ import { buildEventFixture } from "../checks/eventsFixture.js";
 import { openClientContext } from "../executor.js";
 import { usageReport } from "../ai/llm.js";
 import type { CheckResult } from "../ai/types.js";
-import { buildAutomation, type BuiltAutomation } from "./caseBuilder.js";
+import { buildAutomation, planSummary, type BuiltAutomation } from "./caseBuilder.js";
+import { RECIPES, validatePlan, type ApiPlan } from "./apiPlanner.js";
+import { runApiPlan, type PlanRunResult } from "../checks/apiPlanRunner.js";
 import { nextDraftId, saveDraft, recordTurn, getDraftAutomation, updateDraftRun } from "./drafts.js";
 import { EVENT_PLACEHOLDERS } from "./caseBuilder.js";
 
@@ -402,6 +404,38 @@ export async function runApiDraft(built: BuiltAutomation, companyId: number, emi
   }
 }
 
+// ── running a new draft's API PLAN (the API test compiler) ──────────────────
+
+const PLAN_VERDICT: Record<PlanRunResult["verdict"], HumanResult["verdict"]> = { passed: "passed", failed: "failed", "couldn't tell": "couldn't tell", "not run": "not run" };
+
+/**
+ * Run a compiled API plan on its own fresh record (apiPlanRunner.ts). The
+ * setup is a journey run, so it is held to the same switch as journey runs.
+ */
+export async function runPlanDraft(plan: ApiPlan, caseId: string, opts: Pick<AssistantOptions, "companyId" | "journey">, emit: AssistantEmit): Promise<DraftRun> {
+  const recipe = RECIPES[plan.setup.recipe];
+  if (recipe && recipe.eventType !== null && !opts.journey)
+    return { ran: false, verdict: "not run", line: `Not run — the plan builds a fresh event first (about ${recipe.minutes} min), and journey runs were turned off for this turn (journey=0).` };
+  const v = await validatePlan({ ...plan, caseId });
+  if (!v.ok) return { ran: false, verdict: "not run", line: `Not run — the stored plan no longer validates: ${v.errors.slice(0, 3).join("; ")}.` };
+  const r = await runApiPlan(v.plan, { companyId: opts.companyId, onLine: (line) => emit("line", { line }), confirm: true });
+  return {
+    ran: r.verdict !== "not run",
+    verdict: PLAN_VERDICT[r.verdict],
+    line: `${{ passed: "Passed", failed: "Failed", "couldn't tell": "Couldn't tell", "not run": "Not run" }[r.verdict]} — ${r.reason}`,
+    fixture: r.setup.title ? { title: r.setup.title, steps: r.setup.steps.length } : null,
+    details: {
+      kind: "api-plan",
+      runId: r.runId,
+      recipe: plan.setup.recipe,
+      setup: { ok: r.setup.ok, reason: r.setup.reason, event: r.setup.title },
+      steps: r.steps.map((s) => ({ phase: s.phase, n: s.n, title: s.title, verdict: s.verdict, actual: s.actual, request: s.call ? `${s.call.method} ${s.call.path}` : undefined, httpStatus: s.status, code: s.code })),
+      confirmed: r.confirmed,
+      confirmation: r.confirmation ? { verdict: r.confirmation.verdict, reason: r.confirmation.reason } : undefined,
+    },
+  };
+}
+
 // ── one turn ────────────────────────────────────────────────────────────────
 
 export interface AssistantTurn {
@@ -475,7 +509,13 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
     for (const d of match.same.filter((c) => c.origin === "draft")) {
       const auto = await getDraftAutomation(d.id);
       let r: HumanResult;
-      if (!auto?.apiCase) r = { caseId: d.id, verdict: "not run", line: `Not run — draft ${d.id} has no API request${auto?.uiPlan ? "; its UI plan runs in a browser" : ""}.` };
+      const storedPlan = (auto?.apiCase as { apiPlan?: ApiPlan } | null)?.apiPlan;
+      if (storedPlan && opts.run) {
+        const dr = await runPlanDraft(storedPlan, d.id, opts, emit);
+        await updateDraftRun(d.id, dr);
+        r = { caseId: d.id, verdict: dr.verdict, line: `${dr.line}${auto!.coverage !== "full" ? ` (the draft's automation covers only part of it: ${auto!.gaps.join("; ")})` : ""}`, details: dr.details };
+      } else if (storedPlan) r = { caseId: d.id, verdict: "not run", line: "Not run — this turn was a dry run (run=0). Its stored API plan would run on a fresh record." };
+      else if (!auto?.apiCase) r = { caseId: d.id, verdict: "not run", line: `Not run — draft ${d.id} has no API request${auto?.uiPlan ? "; its UI plan runs in a browser" : ""}.` };
       else if (!opts.run) r = { caseId: d.id, verdict: "not run", line: "Not run — this turn was a dry run (run=0). Its stored API request would run." };
       else {
         const rec = auto.apiCase;
@@ -517,9 +557,16 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
       layer: built.layer,
       api: built.api ? { gate: built.api.gate, covers: built.api.covers, basedOn: built.api.record.basedOn, generatedBy: built.api.record.generatedBy, request: `${built.api.record.method} ${built.api.record.path}`, body: built.api.record.body, expected: built.api.record.expected } : null,
       apiSkipped: built.apiSkipped,
+      apiPlan: built.apiPlan
+        ? { used: !!built.usesPlan, plan: built.apiPlan.plan, coverage: built.apiPlan.coverage, gaps: built.apiPlan.gaps, source: built.apiPlan.source, endpoints: built.apiPlan.endpoints, errors: built.apiPlan.errors }
+        : null,
       ui: built.ui.compiled ? { steps: built.ui.compiled.plan.steps.map((s) => s.step), coverage: built.ui.compiled.coverage, gaps: built.ui.compiled.gaps, source: built.ui.compiled.source, executeCall: built.ui.executeCall } : { skipped: built.ui.skipped },
     });
-    if (opts.run && built.api?.gate.ok) {
+    if (opts.run && built.usesPlan && built.apiPlan?.plan) {
+      emit("step", { name: "run", status: "start", line: `Running the API plan of ${built.id} on a fresh record…` });
+      draftRun = await runPlanDraft(built.apiPlan.plan, built.id, opts, emit);
+      emit("draft-result", { id: built.id, ...draftRun });
+    } else if (opts.run && built.api?.gate.ok) {
       emit("step", { name: "run", status: "start", line: `Running the API part of ${built.id}…` });
       draftRun = await runApiDraft(built, opts.companyId, emit);
       emit("draft-result", { id: built.id, ...draftRun });
@@ -540,6 +587,7 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
       gaps: built.gaps,
       partialOf: match.partial.map((c) => c.id),
       apiCase: built.api?.record,
+      apiPlan: built.usesPlan ? built.apiPlan?.plan ?? undefined : undefined,
       uiPlan: built.ui.compiled?.plan,
       lastRun: draftRun,
       companyId: opts.companyId,
@@ -549,7 +597,8 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
 
     const cov = { full: "covers all of it", partial: "covers part of it", none: "could not cover it yet" }[built.coverage];
     answer.push(`I wrote it up as ${built.id} — “${built.draft.title}” — and built an automation that ${cov}.`);
-    if (built.api?.gate.ok) answer.push(`API part: one request, a variation of library case ${built.api.record.basedOn ?? "?"}${draftRun ? ` — ${draftRun.line}` : " (not run this turn)."}`);
+    if (built.usesPlan && built.apiPlan?.plan) answer.push(`API part: ${planSummary(built.apiPlan)}${draftRun ? ` — ${draftRun.line}` : " (not run this turn)."}`);
+    else if (built.api?.gate.ok) answer.push(`API part: one request, a variation of library case ${built.api.record.basedOn ?? "?"}${draftRun ? ` — ${draftRun.line}` : " (not run this turn)."}`);
     else if (built.wantsApi) answer.push(`API part: none — ${built.apiSkipped}.`);
     if (built.ui.compiled && built.ui.compiled.source === "llm")
       answer.push(`UI part: a ${built.ui.compiled.plan.steps.length}-step browser plan (coverage ${built.ui.compiled.coverage}), compiled but not run — browser runs are started separately.`);

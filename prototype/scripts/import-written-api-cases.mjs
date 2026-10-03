@@ -416,7 +416,25 @@ function sharedFeature(sec, c) {
 }
 
 // ── read, resolve endpoints, emit ────────────────────────────────────────
-const written = JSON.parse(readFileSync(WRITTEN, "utf8")).cases.filter((c) => c.layer === "api");
+/**
+ * ONLY the hand-written events-api.md sections.
+ *
+ * The catalog has since grown API cases from other sources that reuse the same
+ * section NUMBERS: field checks (API-F…, §1–28), request negatives (API-N…,
+ * §1–21), edge cases (API-X…, §1–13), template fields, the bidding matrix and
+ * vendor bulk upload. Filtering on `layer === "api"` alone would read
+ * API-FDRAFT (§2) as "creating the draft" and emit ~2,500 generic-body cases
+ * that duplicate runners which already exist. Those families have their own
+ * runners (journey field checks, the EDGE library, vendorBulk.ts…), so this
+ * importer stays scoped to the groups it was written for.
+ */
+const WRITTEN_GROUPS = new Set([
+  "API-AUTH", "API-EG", "API-STG", "API-PUB", "API-LI", "API-AUD", "API-TECH", "API-BID",
+  "API-SUR", "API-CONV", "API-AWD", "API-LC", "API-PERM", "API-VAL", "API-DB", "API-NFR",
+]);
+const written = JSON.parse(readFileSync(WRITTEN, "utf8")).cases.filter(
+  (c) => c.layer === "api" && WRITTEN_GROUPS.has(c.group),
+);
 written.sort((a, b) => a.sectionNo - b.sectionNo || a.id.localeCompare(b.id));
 
 const tally = { stated: 0, carried: 0, anchor: 0 };

@@ -4,7 +4,7 @@ import { resolveClient } from "./db/clients.js";
 import { clientFromSession } from "./auth/sessionAuth.js";
 import { resolveCatalog } from "./catalog/resolve.js";
 import { resolveEvaluatorUuid } from "./catalog/users.js";
-import { pickInvitableVendor } from "./flows/vendors.js";
+import { pickInvitableVendor, NoQaVendorError } from "./flows/vendors.js";
 
 export interface ClientContext {
   companyId: number;
@@ -21,6 +21,8 @@ export interface ClientContext {
   evaluatorPhone?: string;
   /** invited vendor (uuid + login email) */
   vendor: { uuid: string; email?: string; name?: string };
+  /** Set when the client has no QA test vendor: why the vendor is empty (real suppliers are never used). */
+  noQaVendor?: string;
   dispose: () => Promise<void>;
 }
 
@@ -49,9 +51,18 @@ export async function resolveClientContext(
   const client = await resolveClient(companyId);
   const buyerApi = await clientFromSession(client.buyer, { app: "console", companyId, ...(baseURL ? { baseURL } : {}) });
 
+  // Only QA test vendors are ever invited. A client without one gets an empty
+  // vendor and a stated reason; flows then run without a vendor instead of
+  // mailing a real supplier.
+  let noQaVendor: string | undefined;
   const [cat, vendor] = await Promise.all([
     resolveCatalog(buyerApi),
-    pickInvitableVendor(buyerApi),
+    pickInvitableVendor(buyerApi, "", companyId).catch((e) => {
+      if (!(e instanceof NoQaVendorError)) throw e;
+      noQaVendor = e.message;
+      console.warn(`[context] ${e.message}`);
+      return { uuid: "", name: "no QA test vendor on this client", email: undefined } as { uuid: string; name?: string; email?: string };
+    }),
   ]);
   const evaluator = await resolveEvaluatorUuid(buyerApi, client.buyer.email ?? undefined, companyId);
 
@@ -74,6 +85,7 @@ export async function resolveClientContext(
     evaluatorUuid: evaluator.uuid,
     evaluatorPhone: evaluator.phone,
     vendor: { uuid: vendor.uuid, email: vendor.email, name: vendor.name },
+    ...(noQaVendor ? { noQaVendor } : {}),
     dispose: async () => {
       await buyerApi.dispose();
     },

@@ -82,6 +82,8 @@ export interface JourneyClient {
     catalog?: Partial<EventCatalog>;
     evaluatorUuid?: string;
     vendor?: { uuid?: string; email?: string; name?: string };
+    /** Why there is no vendor: the client has no QA test vendor (real suppliers are never used). */
+    noQaVendor?: string;
     companyId?: number;
     companyName?: string | null;
   };
@@ -760,6 +762,8 @@ const publish: StepSpec = {
         vendorCompanyUuid: j.vendorCompanyUuid,
       }),
       draft_trade_request_uuids: uuids,
+      // No QA vendor: publish to nobody rather than to a real supplier or a blank id.
+      ...(j.vendorCompanyUuid ? {} : { audience_company_uuids: [] }),
     };
     const { call, reply } = await fire(j.client.ctx.buyerApi, "PATCH", j.s.Endpoints.eventGroup(ev.eventGroupUuid!), body);
     if (!reply.ok) return { call, reply };
@@ -1663,7 +1667,11 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
   if (choices) rec.choices = choices;
   let reason: Needs;
   try {
-    reason = await spec.needs(j, ev, done);
+    // No QA test vendor on this client: real suppliers are never used instead,
+    // so every step acted by the vendor is not run — said, not faked.
+    reason = STEP_META[spec.kind].actor === "vendor" && !j.vendorCompanyUuid
+      ? `this client has no QA test vendor, and real suppliers are never invited — ${j.client.ctx.noQaVendor ?? "create QA vendors for it first"}`
+      : await spec.needs(j, ev, done);
   } catch (e) {
     reason = `working out what this step needs failed: ${clean(e instanceof Error ? e.message : String(e))}`;
   }
