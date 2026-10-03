@@ -24,9 +24,9 @@ export async function listQaVendors(buyerApi: ApiClient, workspaceId?: number, l
   const ws = workspaceId ?? (buyerApi as unknown as { companyId?: number }).companyId;
   if (!ws) return [];
   let rows: Array<{ id: number; name: string; email: string }> = [];
-  try {
+  const lookup = async () => {
     const { query: sql } = await import("../db/pool.js");
-    rows = await sql(
+    return sql<{ id: number; name: string; email: string }>(
       `select distinct on (c.id) c.id, c.name, u.email
          from companies c
          join buyer_seller_company_mappings b on b.dealing_with_company_id = c.id and b.client_company_id = $1 and b.status = 1
@@ -36,8 +36,16 @@ export async function listQaVendors(buyerApi: ApiClient, workspaceId?: number, l
         order by c.id, u.id`,
       [ws],
     );
+  };
+  // One retry: a dropped idle connection must not turn into "no QA vendor".
+  try {
+    rows = await lookup();
   } catch {
-    return [];
+    try {
+      rows = await lookup();
+    } catch {
+      return [];
+    }
   }
   const out: VendorCompany[] = [];
   for (const r of rows.slice(0, Math.max(limit * 2, limit))) {
@@ -49,24 +57,43 @@ export async function listQaVendors(buyerApi: ApiClient, workspaceId?: number, l
   return out;
 }
 
-const warned = new Set<number>();
-function warnRealVendor(buyerApi: ApiClient): void {
-  const ws = (buyerApi as unknown as { companyId?: number }).companyId ?? 0;
-  if (warned.has(ws)) return;
-  warned.add(ws);
-  console.warn(`[vendors] no QA vendor for this client${ws ? ` (${ws})` : ""} — using a real vendor. Its people get the invite and one-time-code emails.`);
+/**
+ * Real suppliers are NEVER invited by default: inviting one mails real people
+ * (invites, one-time codes). Only an explicit SPINE_ALLOW_REAL_VENDORS=1 lets
+ * the old "first vendor with an email" fallback run. Without a QA vendor the
+ * caller gets NoQaVendorError and must run without a vendor.
+ */
+export class NoQaVendorError extends Error {
+  constructor(workspaceId?: number) {
+    super(
+      `No QA test vendor on this client${workspaceId ? ` (${workspaceId})` : ""} — real suppliers are never invited. ` +
+        `Create QA vendors for it first (prototype: npm run matrix, which sets them up), or set SPINE_ALLOW_REAL_VENDORS=1 deliberately.`,
+    );
+    this.name = "NoQaVendorError";
+  }
 }
 
-/** Vendors that have a login email (candidates for the vendor self-bid flow). QA vendors first. */
+const allowRealVendors = () => process.env.SPINE_ALLOW_REAL_VENDORS === "1";
+const warned = new Set<number>();
+function warnRealVendor(ws: number | undefined): void {
+  if (warned.has(ws ?? 0)) return;
+  warned.add(ws ?? 0);
+  console.warn(`[vendors] SPINE_ALLOW_REAL_VENDORS=1 and no QA vendor for this client${ws ? ` (${ws})` : ""} — using a REAL vendor. Its people get the invite and one-time-code emails.`);
+}
+
+/** Vendors that have a login email (candidates for the vendor self-bid flow). QA vendors only, unless explicitly allowed. */
 export async function listInvitableVendors(
   buyerApi: ApiClient,
   query = "",
   limit = 5,
+  workspaceId?: number,
 ): Promise<VendorCompany[]> {
   if (!query) {
-    const qa = await listQaVendors(buyerApi, undefined, limit);
+    const ws = workspaceId ?? (buyerApi as unknown as { companyId?: number }).companyId;
+    const qa = await listQaVendors(buyerApi, ws, limit);
     if (qa.length) return qa;
-    warnRealVendor(buyerApi);
+    if (!allowRealVendors()) throw new NoQaVendorError(ws);
+    warnRealVendor(ws);
   }
   const { companies } = await fetchVendorsFiltered(buyerApi, 1, query);
   const withEmail = companies.filter((c) => c.uuid && c.email && c.email.includes("@"));
@@ -84,8 +111,9 @@ export async function listInvitableVendors(
 export async function pickInvitableVendor(
   buyerApi: ApiClient,
   query = "",
+  workspaceId?: number,
 ): Promise<VendorCompany> {
-  const [first] = await listInvitableVendors(buyerApi, query, 1);
+  const [first] = await listInvitableVendors(buyerApi, query, 1, workspaceId);
   if (!first) throw new Error("No vendor with a login email found in the vendor list.");
   return first;
 }
