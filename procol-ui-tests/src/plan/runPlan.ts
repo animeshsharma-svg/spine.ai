@@ -123,6 +123,19 @@ function onSingleStage(s: RunState): boolean {
   return /singleStage=true/i.test(url) && !/\/project\//.test(url);
 }
 
+/**
+ * The single-stage create screen, recognised by what it shows ("Event Type" + the
+ * "Select Templates" picker, no stage tab strip) as well as by its address — the
+ * address alone missed it, and the eRFX steps then "succeeded" while doing nothing.
+ */
+async function isSingleStageScreen(s: RunState): Promise<boolean> {
+  if (onSingleStage(s)) return true;
+  if (/\/project\//.test(s.page.url())) return false;
+  const eventType = await s.page.getByText(/^Event Type$/).first().isVisible().catch(() => false);
+  const picker = await s.page.getByText(/select templates/i).first().isVisible().catch(() => false);
+  return eventType && picker;
+}
+
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
@@ -445,7 +458,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `stages: ${stages.join(", ")}`;
     }
     case "set_title": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         s.title = String(a.title ?? "") || generateEventTitle("UI_Plan");
         await s.single.setTitle(s.title);
         return `${s.title} (single-stage)`;
@@ -465,8 +478,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `on the ${stage} tab`;
     }
     case "select_template": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         await s.single.selectBuyTemplate();
+        // Prove it took: the picker stops reading "Select Templates" once a template is chosen.
+        const still = await s.page.getByText(/^\s*select templates\s*$/i).first().isVisible().catch(() => false);
+        if (still) throw new Error('the template picker still reads "Select Templates" — no template was chosen (not evidence about the product)');
         s.templateName = "Buy template";
         return "template: Buy template (single-stage)";
       }
@@ -478,7 +494,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `template: ${chosen}`;
     }
     case "add_line_items": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         // The single-stage sheet takes one product row typed in place; the
         // journey that publishes single-stage events does exactly this.
         await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"));
@@ -499,7 +515,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `${s.products.length} line item(s)`;
     }
     case "fill_sheet": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         return "sheet already filled with the line item (single-stage)";
       }
       if (!Object.keys(s.widgets).length) s.widgets = await s.create.selectFirstTemplateAndExtractWidgets();
@@ -515,7 +531,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `${n} evaluator control(s)`;
     }
     case "set_schedule": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         return "default schedule kept (single-stage sets its window on publish)";
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
@@ -593,7 +609,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
       return "the bid is submitted";
     case "invite_vendor": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         const asked = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
         // Only QA test vendors may be named (real suppliers are never invited).
         const qa = await qaVendorNames();
@@ -610,7 +626,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s)`;
     }
     case "publish":
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         await s.single.publish(s.title);
         const redirected = await s.single.waitForRedirectToProject().then(() => true).catch(() => false);
         if (!redirected) {
@@ -641,7 +657,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
 
     // ── assertions ────────────────────────────────────────────────────────
     case "expect_line_items": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         return "single-stage sheet holds its line item (no Items badge on this screen)";
       }
       const want = asInt(a.count, s.lineItemsAdded || 1);
