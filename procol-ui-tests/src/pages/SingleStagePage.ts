@@ -231,7 +231,9 @@ export class SingleStagePage extends BasePage {
     let preferred = items.filter({ hasText: /buy|pricing|rfq|price/i }).first();
     // Right after the event type changes, the menu can still list the RFP questionnaires for a
     // moment. When the screen is priced (Event Type RFQ / Auction), look again before settling.
-    const priced = await this.page.getByRole("button", { name: /^(rfq|auction)\b/i }).first().isVisible().catch(() => false);
+    // Priced unless the Event Type reads RFP / RFI (an auction reads "Rank on lot", "Price on item" …).
+    const questionnaire = await this.page.getByRole("button", { name: /^(rfp|rfi)\b/i }).first().isVisible().catch(() => false);
+    const priced = !questionnaire;
     for (let i = 0; i < 6 && priced && !(await preferred.count()); i++) {
       await this.page.mouse.move(0, 0).catch(() => {});
       await this.pause(1000);
