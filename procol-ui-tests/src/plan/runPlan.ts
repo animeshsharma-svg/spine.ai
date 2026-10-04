@@ -738,8 +738,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "expect_stages": {
       const want = asStages(a.stages);
-      const have = await s.create.currentStages();
-      expect(have.sort()).toEqual(want.sort());
+      // The create screen paints its stage tabs after a loading spinner; reading the strip
+      // while it spins sees no stages. Wait (bounded) for the spinner to go and the tabs to settle.
+      await s.create.waitForSpinnerHidden().catch(() => {});
+      let have = await s.create.currentStages();
+      for (let i = 0; i < 10 && have.length === 0; i++) {
+        await s.create.page.waitForTimeout(1_000);
+        have = await s.create.currentStages();
+      }
+      if (have.length === 0) throw new Error("the stage tabs never rendered within 40s — the screen did not finish loading (not evidence about the product)");
+      expect(have.sort(), `the stage tabs read ${have.join(", ")}`).toEqual(want.sort());
       return `stages are ${have.join(", ")}`;
     }
     default:
