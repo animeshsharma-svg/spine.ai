@@ -37,6 +37,11 @@ export class AwardPage extends BasePage {
    * treated as an unrelated toggle and unticked again. Create Proposal then
    * refused with "Please award for at least one Vendor".
    */
+  /** The awarding screen's counters ("Tot. selected line items" and "Awarded Vendors"), for a plan's assertion. */
+  async readCounters(): Promise<{ items: { selected: number; total: number } | null; vendors: { selected: number; total: number } | null }> {
+    return this.counters();
+  }
+
   private async counters(): Promise<{ items: { selected: number; total: number } | null; vendors: { selected: number; total: number } | null }> {
     const text = ((await this.page.locator("body").textContent().catch(() => "")) ?? "").replace(/\s+/g, " ");
     const i = text.match(/selected line items\s*(\d+)\s*\/\s*(\d+)/i);

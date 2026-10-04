@@ -20,6 +20,8 @@
  */
 
 import { GENERIC_STEPS } from "./generic/catalog.js";
+import { EXPECTATION_STEPS } from "./expectCatalog.js";
+import type { PlanContext } from "./screens.js";
 
 export type StageKeyLike = "rfp" | "rfq" | "auction";
 
@@ -288,6 +290,23 @@ export const STEP_CATALOG: StepSpec[] = [
     args: { vendor: "vendor to award to; defaults to whichever bid can be allocated" },
   },
   {
+    name: "start_awarding",
+    purpose:
+      "On Master QCS of a closed event with bids, press Start Awarding (or Bid Selection Proposal when a draft proposal exists) and land on the awarding screen. Use for cases about entering the award flow.",
+  },
+  {
+    name: "allocate_award",
+    purpose:
+      "On the awarding screen (after start_awarding), allocate the line items to a vendor and confirm the screen's counters moved. Use for cases about allocating / selecting a vendor for award; follow with expect_award_counters.",
+    args: { vendor: "vendor name (optional; the first that can be allocated)" },
+  },
+  {
+    name: "expect_award_counters",
+    purpose: 'On the awarding screen, assert the counters read as given: "Tot. selected line items" items (e.g. "1/1") and "Awarded Vendors" vendors (e.g. "1/1").',
+    args: { items: 'expected "selected/total" for line items (optional)', vendors: 'expected "selected/total" for vendors (optional)' },
+    assertion: true,
+  },
+  {
     name: "expect_awarded",
     purpose: "Assert the award went through (a proposal was created and submitted).",
     assertion: true,
@@ -316,6 +335,9 @@ export const STEP_CATALOG: StepSpec[] = [
 // largest family on the gap ledger: "assert this tooltip / count / value /
 // message", "click this control", "this must NOT render".
 STEP_CATALOG.push(...GENERIC_STEPS);
+// Prepared-state + expectation steps (expectCatalog.ts / expectations.ts): open the
+// screen on the state the API built, and the expectations a screen case needs.
+STEP_CATALOG.push(...EXPECTATION_STEPS);
 
 export const STEP_NAMES = STEP_CATALOG.map((s) => s.name);
 
@@ -329,6 +351,8 @@ export interface PlanStep {
 export interface TestPlan {
   title: string;
   steps: PlanStep[];
+  /** What the API built for this case (ids + values) — set by the runner, never by the model. */
+  context?: PlanContext;
 }
 
 /** A plan is only runnable if every step exists. Reject, never improvise. */
@@ -353,7 +377,7 @@ export function validatePlan(plan: unknown): { ok: true; plan: TestPlan } | { ok
   if (nested.length) {
     return { ok: false, reason: `attempt/skip name step(s) that cannot be used there: ${nested.join(", ") || "(none given)"}` };
   }
-  return { ok: true, plan: { title: String(p.title ?? "Untitled test"), steps: p.steps as PlanStep[] } };
+  return { ok: true, plan: { title: String(p.title ?? "Untitled test"), steps: p.steps as PlanStep[], ...(p.context && typeof p.context === "object" ? { context: p.context } : {}) } };
 }
 
 /** The catalog rendered for a prompt — the model's menu of what it may ask for. */

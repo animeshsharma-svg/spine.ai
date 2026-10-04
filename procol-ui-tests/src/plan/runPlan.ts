@@ -18,6 +18,10 @@ import { runGenericStep } from "./generic/run.js";
 import { toastMark } from "./generic/messages.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
+import { runExpectationStep } from "./expectations.js";
+import { installObserver, observe, type Observation } from "./observe.js";
+import { resolveScreen, type PlanContext } from "./screens.js";
+import { CONFIG, NAV } from "../config.js";
 
 /**
  * THE PLAN EXECUTOR — runs a compiled test case.
@@ -46,6 +50,8 @@ export interface PlanResult {
   title: string;
   steps: StepResult[];
   passed: boolean;
+  /** The observation pass: what the runner saw on each screen it visited (observe.ts). */
+  observations?: Observation[];
 }
 
 interface RunState {
@@ -82,6 +88,12 @@ interface RunState {
   curMark: number;
   /** The locator strategy the last generic step reported. */
   lastStrategy?: string;
+  /** What the API built for this case, when its state was set up by API. */
+  context: PlanContext;
+  /** 1-based number of the step running now (evidence file names). */
+  stepNo: number;
+  /** The project id this plan published, so returning to it is a route, not a search. */
+  projectId?: string;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -116,6 +128,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
   // its inner step back through this function, so a domain step can be tried
   // as a negative ("attempt publish") with the same healed code.
+  const expectation = await runExpectationStep({ page: s.page, context: s.context, prevMark: s.prevMark, stepNo: s.stepNo }, step);
+  if (expectation !== null) return expectation;
   const generic = await runGenericStep(s, step, (inner) => runStep(s, inner));
   if (generic) {
     s.lastStrategy = generic.strategy;
@@ -140,10 +154,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const title = String(a.title ?? s.title ?? "");
       if (!title) throw new Error("expect_event_in_list needs a title, and this plan has not created an event to look for");
       if (!/\/orders/.test(s.page.url())) await s.events.goto();
-      await s.events.searchByTitle(title);
-      const found = await s.events.hasEventMatching(title);
-      if (!found) throw new Error(`no event titled "${title}" in the list after searching for it`);
-      return `"${title}" is in the list`;
+      // The list's search can lag behind an event made a moment ago: search
+      // again, bounded (3 tries, 20 s apart), before saying it is not there.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        await s.events.searchByTitle(title);
+        if (await s.events.hasEventMatching(title)) return `"${title}" is in the list${attempt > 1 ? ` (found on search ${attempt})` : ""}`;
+        if (attempt < 3) {
+          await s.page.waitForTimeout(20_000);
+          await s.events.goto();
+        }
+      }
+      throw new Error(`no event titled "${title}" in the list after searching for it three times over 40 s`);
     }
     case "expect_event_status": {
       const status = String(a.status ?? "").trim();
@@ -250,7 +271,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "place_counter_offer": {
       if (!/\/project\//.test(s.page.url())) throw new Error("place_counter_offer needs the published event's page with Master QCS open — publish, take a bid, open_master_qcs first");
-      const price = Number(a.price);
+      // No price named: counter just under the vendor's bid the API placed (95 %, 2 dp).
+      const bid = Number(s.context.values?.bidPrice);
+      const price = a.price !== undefined ? Number(a.price) : Number.isFinite(bid) && bid > 0 ? Math.round(bid * 95) / 100 : NaN;
       if (!Number.isFinite(price) || price <= 0) throw new Error('place_counter_offer needs a positive "price"');
       const co = new CounterOfferPage(s.page);
       const detail = await co.sendCounterOffer({ vendor: a.vendor ? String(a.vendor) : undefined, price, remark: a.remark ? String(a.remark) : undefined });
@@ -280,8 +303,19 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `event closed: ${done}`;
     }
     case "open_event": {
-      const id = a.id ? String(a.id) : undefined;
-      const title = a.title ? String(a.title) : id ? undefined : s.title;
+      // The event the API built for this case is opened by its route, not by
+      // searching the list: a search is the subject of list cases only, and the
+      // list's search lagged behind fresh events (the lookups that failed).
+      if (!a.id && !a.title && s.context.eventGroupUuid) {
+        const { path } = resolveScreen("summary", s.context);
+        await s.page.goto(`${CONFIG.appUrl.replace(/\/$/, "")}${path}`, NAV);
+        await s.events.dismissDistractions().catch(() => false);
+        return `opened the prepared event "${s.context.title ?? s.context.eventGroupUuid}" by its route`;
+      }
+      // This plan's own published event: back by its project id, not a list search.
+      const own = !a.id && (!a.title || String(a.title) === s.title) && s.projectId ? s.projectId : undefined;
+      const id = a.id ? String(a.id) : own;
+      const title = a.title && !own ? String(a.title) : id ? undefined : s.title;
       if (!id && !title) throw new Error("open_event needs an id or a title, and this plan has not created an event to return to");
       const where = await s.events.openEvent({ id, title });
       if (title && !s.title) s.title = title;
@@ -295,6 +329,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const vendorPage = await vendorCtx.newPage();
       try {
         const portal = new VendorPortalPage(vendorPage);
+        // Only a QA test vendor (qa_…@example.com) is ever signed in as — the
+        // profile's default vendor can be a real supplier.
+        if (!/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(CONFIG.vendorEmail) && !allowRealVendors())
+          throw new Error("place_bid needs a QA test vendor identity (qa_…@example.com) — automation needs update: the runner did not hand one over");
         await portal.goto();
         await portal.login();
         await portal.openEvent(s.title);
@@ -517,6 +555,25 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.bidSubmitted = true;
       return `surrogate bid entered for ${who}`;
     }
+    case "start_awarding": {
+      const award = new AwardPage(s.page);
+      await award.startAwarding();
+      return `on the awarding screen at ${new URL(s.page.url()).pathname}`;
+    }
+    case "allocate_award": {
+      const award = new AwardPage(s.page);
+      const allocated = await award.allocate(a.vendor ? String(a.vendor) : undefined);
+      return `allocated ${allocated.items} line item(s) to ${allocated.vendors} vendor(s)`;
+    }
+    case "expect_award_counters": {
+      const c = await new AwardPage(s.page).readCounters();
+      const show = (x: { selected: number; total: number } | null) => (x ? `${x.selected}/${x.total}` : "(not shown)");
+      const want = (v: unknown) => String(v ?? "").replace(/\s+/g, "");
+      if (a.items !== undefined && show(c.items) !== want(a.items)) throw new Error(`"Tot. selected line items" reads ${show(c.items)} — the case expects ${want(a.items)}`);
+      if (a.vendors !== undefined && show(c.vendors) !== want(a.vendors)) throw new Error(`"Awarded Vendors" reads ${show(c.vendors)} — the case expects ${want(a.vendors)}`);
+      if (a.items === undefined && a.vendors === undefined) throw new Error("expect_award_counters needs items or vendors to compare");
+      return `line items ${show(c.items)}, vendors ${show(c.vendors)}`;
+    }
     case "award_event": {
       const award = new AwardPage(s.page);
       await award.startAwarding();
@@ -568,9 +625,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           throw new Error(`the single-stage publish did not reach a project page${toast ? ` — the app said: ${toast}` : ""}${inline.length ? ` — on screen: ${inline.join(" | ")}` : " (captured for a look)"}`);
         }
         const id = s.single.projectId();
+        if (id) s.projectId = id;
         return `published as ${id ?? "(no id in URL)"} (single-stage)`;
       }
       await s.create.publishAndAwaitOutcome(s.title);
+      s.projectId = s.create.projectId() ?? s.projectId;
       return `published as ${s.create.projectId()}`;
     case "save_draft":
       await s.create.saveAsDraft();
@@ -691,7 +750,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     create: new CreateEventPage(page),
     single: new SingleStagePage(page),
     page,
-    title: generateEventTitle("UI_Plan"),
+    title: plan.context?.title ?? generateEventTitle("UI_Plan"),
     widgets: {},
     products: [],
     lineItemsAdded: 0,
@@ -701,10 +760,23 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     memory: {},
     prevMark: 0,
     curMark: 0,
+    context: plan.context ?? {},
+    stepNo: 0,
   };
 
-  console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)`);
+  console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)${plan.context?.state ? ` on a ${plan.context.state} event built by API` : ""}`);
   const results: StepResult[] = [];
+  const observations: Observation[] = [];
+  installObserver(page, process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`);
+  /** The observation pass after a step — bounded, and never the reason a step fails. */
+  const look = async (i: number, name: string, force: boolean) => {
+    const o = await Promise.race([
+      observe(page, i + 1, name, { force }).catch(() => null),
+      new Promise<null>((r) => setTimeout(() => r(null), 25_000)),
+    ]);
+    if (o && (o.findings.length || o.screenshot)) observations.push(o);
+    if (o?.findings.length) console.log(`[observe] after ${name}: ${o.findings.map((f) => `${f.rule}: ${f.detail}`).join(" | ").slice(0, 300)}`);
+  };
   let failed = false;
 
   for (const [i, step] of plan.steps.entries()) {
@@ -719,9 +791,11 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       s.prevMark = s.curMark;
       s.curMark = await toastMark(s.page);
       s.lastStrategy = undefined;
+      s.stepNo = i + 1;
       const detail = await runStep(s, step);
       results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
+      await look(i, step.step, i === plan.steps.length - 1);
     } catch (err) {
       // Keep the first line AND the locator Playwright names in its call log.
       // Reporting only "locator.click: Timeout 15000ms exceeded" cost an
@@ -736,9 +810,10 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       const detail = selector ? `${first} — ${selector.replace(/^-\s*/, "")}` : first;
       results.push({ step: step.step, args: step.args, status: "failed", detail, ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${detail}`);
+      await look(i, step.step, true);
       failed = true;
     }
   }
 
-  return { title: plan.title, steps: results, passed: !failed };
+  return { title: plan.title, steps: results, passed: !failed, observations };
 }

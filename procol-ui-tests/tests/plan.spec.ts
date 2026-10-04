@@ -1,3 +1,4 @@
+import { NOISE_CONTAINER_TEXT } from "../src/oracle/noise.js";
 import { test } from "@playwright/test";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -58,6 +59,22 @@ test("planned test case", async ({ page }) => {
     },
   });
   watchdog.start();
+
+  // Pop-ups unrelated to the test (notification prompt, tours, cookie bars …)
+  // are closed BEFORE EVERY ACTION, like a manual QA would — never a failure.
+  // Playwright runs this handler whenever the locator is visible before an
+  // action or an expectation (oracle/noise.ts holds the list).
+  await page
+    .addLocatorHandler(
+      page.locator(".ant-notification-notice, .ant-message-notice, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i]").filter({ hasText: NOISE_CONTAINER_TEXT }).first(),
+      async () => {
+        const closed = await base.dismissDistractions().catch(() => false);
+        if (!closed) await page.keyboard.press("Escape").catch(() => {});
+        collector.note?.("dismissed an unrelated pop-up (notification prompt / tour / banner)");
+      },
+      { noWaitAfter: true },
+    )
+    .catch(() => {});
 
   // A demo wants the login SEEN. The saved session skips it, and forcing the
   // setup project would open a second window. So: in this same window, drop

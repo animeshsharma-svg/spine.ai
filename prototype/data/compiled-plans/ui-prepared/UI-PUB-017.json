@@ -1,0 +1,106 @@
+{
+ "meta": {
+  "caseId": "UI-PUB-017",
+  "title": "Withdrawing a live event requires a remark and closes it to vendors",
+  "compiledAt": "2026-10-04T11:23:34.890Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "partial",
+  "gaps": [
+   "Verify vendor bidding is refused with 'Order not active' after withdrawal",
+   "Entering a withdrawal remark in the withdrawal modal"
+  ],
+  "warnings": [
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "named AMD on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain",
+   "can only test part of this — no step for: Verify vendor bidding is refused with 'Order not active' after withdrawal; Entering a withdrawal remark in the withdrawal modal"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-003",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-PUB-017 Withdrawing a live event requires a remark and closes it to vendors",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating an event"
+   },
+   {
+    "step": "set_title",
+    "note": "Give the event a title"
+   },
+   {
+    "step": "select_template",
+    "note": "Pick a template for the stage"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item"
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Fill pricing sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Set schedule for publish"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "AMD"
+     ]
+    },
+    "note": "Invite a vendor"
+   },
+   {
+    "step": "publish",
+    "note": "Publish the event to make it live"
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm event is published"
+   },
+   {
+    "step": "place_bid"
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Settings"
+    },
+    "note": "Open Settings menu on the project page"
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "menuitem",
+      "name": "Withdraw Project"
+     },
+     "expect": "refused"
+    },
+    "note": "Attempt withdrawal with an empty remark and expect refusal"
+   }
+  ]
+ }
+}

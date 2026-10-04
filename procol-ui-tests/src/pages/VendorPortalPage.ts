@@ -204,6 +204,42 @@ export class VendorPortalPage extends BasePage {
   /** Submit the bid and confirm any modal. */
   async submitBid(): Promise<void> {
     await this.dismissDistractions();
+    // "Submit Quote" stays DISABLED until every term of the event is ticked:
+    // the Terms and Conditions list under the sheet carries one checkbox per
+    // term ("Your evaluation for this event will depend on Gross Total."). The
+    // old step filled the sheet, never ticked them, and waited 10s for a
+    // button that could not enable (UI batch 2026-10-03: "submit never
+    // clickable"). Ticking the terms is the vendor's own act on their own bid.
+    const submit = this.page.getByRole("button", { name: /submit quote/i }).first();
+    const disabled = async () => (await submit.count()) > 0 && (await submit.isDisabled().catch(() => false));
+    if (await disabled()) {
+      const terms = this.page
+        .getByText(/terms and conditions/i)
+        .first()
+        .locator("xpath=following::*[@role='checkbox' or (self::input and @type='checkbox')]");
+      const n = Math.min(await terms.count().catch(() => 0), 20);
+      let ticked = 0;
+      for (let i = 0; i < n; i++) {
+        const box = terms.nth(i);
+        if (await box.isDisabled().catch(() => true)) continue;
+        if (await box.isChecked().catch(() => true)) continue;
+        await box.check({ timeout: 3_000 }).catch(() => box.click({ timeout: 3_000, force: true }).catch(() => {}));
+        ticked += 1;
+      }
+      if (ticked) console.log(`[vendor] ticked ${ticked} term(s) of the event before submitting`);
+      const until = Date.now() + 8_000;
+      while (Date.now() < until && (await disabled())) await this.pause(400);
+      if (await disabled()) {
+        const empty = await this.page
+          .evaluate(() =>
+            [...document.querySelectorAll("[role='columnheader']")]
+              .map((h) => (h as HTMLElement).innerText.trim())
+              .filter((t) => /\*\s*$/.test(t)),
+          )
+          .catch(() => [] as string[]);
+        throw new Error(`"Submit Quote" stays disabled after the sheet was filled and ${ticked} term(s) ticked — required columns on the sheet: ${empty.join(", ") || "(none marked)"}`);
+      }
+    }
     await this.click(
       [
         this.page.getByRole("button", { name: /submit quote/i }),

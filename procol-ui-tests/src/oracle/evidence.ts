@@ -1,3 +1,4 @@
+import { isNoiseMessage } from "./noise.js";
 import { Page, Request, Response } from "@playwright/test";
 import { redactSecrets } from "../support/redact.js";
 import { drainToasts } from "./journal.js";
@@ -112,7 +113,14 @@ export class EvidenceCollector {
           }
         });
       };
-      new MutationObserver(harvest).observe(document.documentElement, { childList: true, subtree: true });
+      // An init script can run before the document has a root element (a fresh
+      // frame); observing null threw "parameter 1 is not of type 'Node'" on every
+      // screen — our own error, which the observation pass then saw as the app's.
+      const start = () => {
+        if (document.documentElement) new MutationObserver(harvest).observe(document.documentElement, { childList: true, subtree: true });
+      };
+      if (document.documentElement) start();
+      else document.addEventListener("readystatechange", start, { once: true });
     });
   }
 
@@ -188,6 +196,7 @@ export class EvidenceCollector {
   }
 
   toast(severity: ToastRecord["severity"], text: string): void {
+    if (isNoiseMessage(text)) return; // a notification prompt / tour / cookie bar is not the app's answer
     if (this.evidence.toasts.some((t) => t.text === text && t.severity === severity)) return;
     this.evidence.toasts.push({ severity, text, at: new Date().toISOString() });
   }
