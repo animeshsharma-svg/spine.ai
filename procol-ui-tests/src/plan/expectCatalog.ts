@@ -52,7 +52,7 @@ export const EXPECTATION_STEPS: StepSpec[] = [
     assertion: true,
     purpose:
       'Assert the screen SENT a request to the backend during this run (and how it was answered) — for cases that say "the screen calls GET /templates/…" or "POST /event_groups with …". Matches the request path (a fragment, ids may be left out), optionally its method, a query fragment and the answer status. Waits up to timeoutMs for it. It cannot read request bodies.',
-    args: { path: 'a path fragment, e.g. "/templates/excel_template"', method: '"GET" | "POST" | "PATCH" (optional)', query: "a query-string fragment (optional)", status: "expected HTTP status (optional; default any 2xx)", timeoutMs: "optional, default 15000" },
+    args: { path: 'a path fragment, e.g. "/templates/excel_template"', method: '"GET" | "POST" | "PATCH" (optional)', query: "a query-string fragment (optional)", status: "expected HTTP status (optional; default any 2xx)", absent: "true = assert the screen did NOT send it (optional)", timeoutMs: "optional, default 15000" },
   },
 ];
 

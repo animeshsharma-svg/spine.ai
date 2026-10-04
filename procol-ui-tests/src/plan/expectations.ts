@@ -157,6 +157,23 @@ export async function runExpectationStep(x: ExpectCtx, step: PlanStep): Promise<
         if (status !== undefined ? r.status !== status : r.status < 200 || r.status >= 300) return false;
         return true;
       };
+      // absent:true — the screen must NOT have sent it (e.g. "no call to raise_additional_request was made").
+      // Wait a short settle window so a late call is still caught, then require none.
+      if (a.absent === true || a.absent === "true") {
+        await page.waitForTimeout(Math.min(Math.max(Number(a.timeoutMs) || 3_000, 1_000), 15_000));
+        const sent = responsesSince(page, 0).filter((r) => {
+          const u = new URL(r.url);
+          let from = 0;
+          for (const part of parts) {
+            const i = u.pathname.indexOf(part, from);
+            if (i < 0) return false;
+            from = i + part.length;
+          }
+          return (!method || r.method === method) && (!query || decodeURIComponent(u.search).includes(query));
+        });
+        if (sent.length) throw new Error(`the screen DID send ${sent.map((r) => `${r.method} ${new URL(r.url).pathname} → ${r.status}`).slice(0, 3).join("; ")}`);
+        return `the screen sent no ${method ?? ""} request to ${frag}`;
+      }
       const deadline = Date.now() + Math.min(Math.max(Number(a.timeoutMs) || 15_000, 1_000), 60_000);
       let found = responsesSince(page, 0).find(hit);
       while (!found && Date.now() < deadline) {
