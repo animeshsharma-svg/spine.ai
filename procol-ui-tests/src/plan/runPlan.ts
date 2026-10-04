@@ -132,7 +132,7 @@ async function isSingleStageScreen(s: RunState): Promise<boolean> {
   if (onSingleStage(s)) return true;
   const url = s.page.url();
   if (/\/project\//.test(url)) return false;
-  if (/\/orders\/quick-create/i.test(url)) return true; // the single-stage create screen's own address
+  // /orders/quick-create serves BOTH create screens, so the address proves nothing here.
   // By content: "Event Type" + "Publish Event", and NOT the eRFX screen's "Save as draft"
   // (both screens show a "Select Templates" picker, so that alone proves nothing).
   const eventType = await s.page.getByText(/^Event Type$/).first().isVisible().catch(() => false);

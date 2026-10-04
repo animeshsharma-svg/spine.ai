@@ -378,8 +378,10 @@ export class CreateEventPage extends BasePage {
    * add Auction"). Returns the offered stages, the tooltip and whether "+" is disabled.
    */
   async openAddStageMenu(): Promise<{ items: string[]; tooltip: string; buttonDisabled: boolean }> {
-    const plus = this.page.locator("button:has(i.anticon-plus), button:has(.anticon-plus)").filter({ visible: true }).last();
-    if (!(await plus.count())) throw new Error('no "+" (add stage) button on the create screen — it is only shown once a stage exists');
+    // The add-stage "+" is ICON-ONLY; other "+" buttons carry text ("+ Add Evaluator" …) and must
+    // never be mistaken for it.
+    const plus = this.page.getByRole("button", { name: /^\s*(icon:\s*)?plus\s*$/i }).filter({ visible: true }).first();
+    if (!(await plus.count())) throw new Error('no icon-only "+" (add stage) button on the create screen — it is only shown once a stage exists');
     const buttonDisabled = await plus.isDisabled().catch(() => false);
     await plus.hover({ force: true }).catch(() => {});
     const menu = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)").filter({ hasText: /Add Stages/i }).last();
@@ -387,6 +389,7 @@ export class CreateEventPage extends BasePage {
     const items = (await menu.locator("[role='menuitem'], .ant-dropdown-menu-item").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim()).filter(Boolean);
     const tip = this.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").last();
     const tooltip = ((await tip.innerText({ timeout: 1_500 }).catch(() => "")) || "").trim();
+    if (!buttonDisabled && !items.length) throw new Error('the "+" add-stage menu did not open (no "Add Stages" menu appeared) — not evidence about the product');
     return { items, tooltip, buttonDisabled };
   }
 
