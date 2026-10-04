@@ -268,7 +268,13 @@ export class SingleStagePage extends BasePage {
       { label: "participants-input", timeout: TIMEOUTS.MEDIUM },
     );
     if (!cb) return false;
-    await cb.fill(query);
+    // Some layouts render the search as a read-only shell around the real input:
+    // fill() then times out. Fall back to focusing it and typing, like a person.
+    const typed = await cb.fill(query, { timeout: 5_000 }).then(() => true).catch(() => false);
+    if (!typed) {
+      await cb.click({ timeout: 5_000, force: true }).catch(() => {});
+      await this.page.keyboard.type(query, { delay: 30 });
+    }
     await this.pause(1500);
     const esc = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     // Only the option that matches the name — never "the first option", which
@@ -292,8 +298,15 @@ export class SingleStagePage extends BasePage {
     if (!allowRealVendors()) {
       const qa = await qaVendorNames();
       if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
-      const ok = await this.addParticipant(qa[0]);
-      if (!ok) throw new Error(`could not add the QA test vendor "${qa[0]}" — stopping so no real supplier is invited`);
+      // The event may already carry a QA vendor (the API setup invites QA vendor 1):
+      // add the first QA vendor the search still offers, never a real supplier.
+      let ok = false;
+      for (const name of qa.slice(0, 4)) {
+        ok = await this.addParticipant(name);
+        if (ok) break;
+        await this.page.keyboard.press("Escape").catch(() => {});
+      }
+      if (!ok) throw new Error(`could not add any QA test vendor (${qa.slice(0, 4).join(", ")}) — they may all be on the event already; stopping so no real supplier is invited`);
       await this.dismissDistractions();
       return;
     }

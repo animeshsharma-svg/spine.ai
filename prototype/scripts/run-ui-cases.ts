@@ -51,6 +51,22 @@ const { buildUiState, qaVendorOf } = await import("../src/ui/uiSetup.js");
 const { compileTestCase } = await import("../src/agents/planner.js");
 const { closestUiExemplars, exemplarPrompt, addUiExemplar } = await import("../src/agents/uiExemplars.js");
 const { runUiPlan, readPlanResult } = await import("../src/ui/uiFlowRunner.js");
+const { isKnownLabel } = await import("../../procol-ui-tests/src/plan/generic/labels.js");
+/** Literal screen texts a plan's assertions look for that Procol is not known to render. */
+function unknownLabels(plan: any): string[] {
+  const ASSERT = new Set(["expect_text", "expect_visible", "expect_hidden", "expect_disabled", "expect_enabled", "expect_count", "expect_field_error", "click"]);
+  const out = new Set<string>();
+  for (const st of plan?.steps ?? []) {
+    if (!ASSERT.has(st?.step)) continue;
+    const a = st.args ?? {};
+    for (const v of [a.text, a.label, a.name, a.target?.name, a.target?.text, a.target?.label]) {
+      if (typeof v !== "string" || v.length < 3 || v.length > 60) continue;
+      if (/\d/.test(v) || /\{\{/.test(v)) continue; // values and placeholders come from the run, not the product's labels
+      if (!isKnownLabel(v)) out.add(v);
+    }
+  }
+  return [...out];
+}
 const { saveRun, newRunId, whenRunsSaved } = await import("../src/runStore.js");
 const { closeSpineDb } = await import("../src/db/spineDb.js");
 const { usageReport } = await import("../src/ai/llm.js");
@@ -210,6 +226,22 @@ async function compiled(c: CatalogCase, p: Prep): Promise<{ plan: any; coverage:
         r.plan.steps = r.plan.steps.filter((st: any) => !emptyTargets({ steps: [st] }).length);
         r.coverage = r.coverage === "none" ? "none" : "partial";
         r.gaps = [...(r.gaps ?? []), "a step the case needs could not be named (dropped)"];
+      }
+    }
+    // A screen assertion on a label Procol has never rendered (not in its source, never seen live)
+    // costs minutes of browser time and ends in "couldn't tell". Catch it here: compile once more
+    // with the screen's real labels; if it still guesses, the plan is partial and says which label.
+    if (r.plan?.steps?.length) {
+      const unknown = unknownLabels(r.plan);
+      if (unknown.length) {
+        log(`   the plan expects label(s) Procol is not known to render: ${unknown.map((u) => `“${u}”`).join(", ")} — compiling once more with the screen's real labels`);
+        const again = await compileOnce(`\nNOTE: these labels are NOT rendered by Procol (not in its source, never seen live): ${unknown.map((u) => `"${u}"`).join(", ")}. Use only labels from KNOWN LABELS for this screen; if the case's element has no known label, list it in cannotExpress.`);
+        if (again?.plan?.steps?.length) r = again;
+        const still = unknownLabels(r.plan);
+        if (still.length) {
+          r.coverage = r.coverage === "none" ? "none" : "partial";
+          r.gaps = [...(r.gaps ?? []), `expects label(s) Procol is not known to render: ${still.join(", ")}`];
+        }
       }
     }
   }
