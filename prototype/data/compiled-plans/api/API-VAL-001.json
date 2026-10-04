@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-VAL-001",
+  "title": "Every required parameter is enforced on every write endpoint",
+  "compiledAt": "2026-10-04T07:02:42.286Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Only the missing-lots parameter on the lot-saving write is checked; required-parameter enforcement for event-group create/update, stage create, bid create, proposal create, and other write endpoints is not covered.",
+   "the case reads as “it is accepted”, but the plan checks “it is refused”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id/save_draft_lots"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the event groups save draft lots request, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-VAL-001",
+  "title": "Every required parameter is enforced on every write endpoint",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DLOT-014",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

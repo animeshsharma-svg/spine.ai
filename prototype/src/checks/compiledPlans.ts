@@ -107,7 +107,7 @@ export function allStoredApiPlans(): StoredPlan[] {
  */
 export async function storedPlanProblems(plan: any, caseText: string): Promise<string[]> {
   const out: string[] = [];
-  const [{ OPS }, { loadCases, heldCases }, { appRefusal }, { vendorAppRefusal }] = await Promise.all([
+  const [{ OPS, libraryActProblems }, { loadCases, heldCases }, { appRefusal }, { vendorAppRefusal }] = await Promise.all([
     import("../agents/apiPlanner.js"),
     import("./caseLibrary.js"),
     import("./appAccess.js"),
@@ -134,5 +134,7 @@ export async function storedPlanProblems(plan: any, caseText: string): Promise<s
   }
   if (/\bnot (?:a )?super[ _-]?admin\b|\bnot Procol employee\b|\bnormal buyer\b|\bwithout (?:update|create|reopen) permission\b|\bcaller without\b|\banother buyer\b|\bnot the (?:event )?owner\b/i.test(caseText))
     out.push("the case needs a caller who is not a super admin (or lacks a permission), and every run acts as the client's own super-admin buyer — a refusal it expects may legitimately not happen");
+  // a library request sent as the wrong actor, or from a starting state no recipe builds
+  out.push(...libraryActProblems(plan));
   return out;
 }

@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-002",
+  "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
+  "compiledAt": "2026-10-04T07:08:25.754Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "reject bid with allow_rebidding false (no operation in vocabulary)",
+   "assert that the round's settings list the vendor as not allowed to re-bid",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRJB-002",
+  "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

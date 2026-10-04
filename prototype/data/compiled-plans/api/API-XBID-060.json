@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-XBID-060",
+  "title": "A price above the configured ceiling is refused",
+  "compiledAt": "2026-10-04T07:05:51.516Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-BID-060 needs a starting state no recipe builds (“A draft bid {{bidUuid}} on a stage whose line item has a ceiling (max) price”)",
+   "library case EDGE-BID-060 needs a starting state no recipe builds (a line item with a ceiling price)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Price cannot be more than the allowed price”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-060",
+  "title": "A price above the configured ceiling is refused",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-060",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "38",
+   "message": "Price cannot be more than the allowed price"
+  }
+ }
+}

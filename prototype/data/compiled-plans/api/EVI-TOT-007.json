@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "caseId": "EVI-TOT-007",
+  "title": "Wrong totals sent by a vendor cannot make it L1",
+  "compiledAt": "2026-10-04T07:18:00.926Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "specific recomputed total amount comparison for vendor 2 is outside read_indicators exact shape",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-TOT-007",
+  "title": "Wrong totals sent by a vendor cannot make it L1",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": true
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

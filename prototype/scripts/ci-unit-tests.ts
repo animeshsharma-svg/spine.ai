@@ -621,3 +621,4 @@ import "./hubspot-unit-tests.js"; // HubSpot stripper, leak check, classifier, c
 
 import "./db-unit-tests.js"; // product tables: run mapping, case versions, redaction, bug sheet (database part skips without SPINE_DB_URL)
 import "./integrity-unit-tests.js"; // bid-number calculator: exact decimals, template formulas, ranks, savings, invariants
+import "./matcher-unit-tests.js"; // case matcher frame + automation-exemplar reuse rules

@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDWGT-071",
+  "title": "A vendor can read the weights set for a competitor",
+  "compiledAt": "2026-10-04T07:09:51.086Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Cannot save weights for QA vendor 1 or QA vendor 2 because no weight-saving operation or supported body fields are available.",
+   "Cannot verify the absence of QA vendor 2's weight or the absence of weightages because weightages are not available among the read-back fields."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor reads the pricing round.",
+    "As the invited QA vendor, read the pricing round and check that the read succeeds."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDWGT-071",
+  "title": "A vendor can read the weights set for a competitor",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "op": "status_2xx"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

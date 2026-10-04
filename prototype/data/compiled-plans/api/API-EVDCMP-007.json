@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-007",
+  "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
+  "compiledAt": "2026-10-04T07:12:49.982Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Exact price of the live bid cannot be asserted with the available read‑back fields",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer enters a bid on a vendor's behalf (surrogate bid).",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "As the invited QA vendor, read the pricing round and check that “bid count” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “bid count” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDCMP-007",
+  "title": "A vendor bids itself after the buyer bid on its behalf: one live bid, at the vendor's price",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "surrogate_bid",
+    "as": "buyer"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

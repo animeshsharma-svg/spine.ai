@@ -1,0 +1,89 @@
+{
+ "meta": {
+  "caseId": "EVI-TAX-003",
+  "title": "Tax charged on the bid total after discount and charges",
+  "compiledAt": "2026-10-04T07:16:50.574Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "cannot set or verify discount, freight, other charges, or tax formulas via the available vocabulary",
+   "cannot create a third vendor to have three distinct bids",
+   "cannot read back calculated discount/sub-total/tax/total values; only rank indicators are readable"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round with the trade request uuid set to “…”.",
+    "A second QA vendor opens a bid on the pricing round with the trade request uuid set to “…”.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present; “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” is present."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-TAX-003",
+  "title": "Tax charged on the bid total after discount and charges",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "change": [
+     {
+      "path": "trade_request_uuid",
+      "set": "{{tradeId}}"
+     }
+    ]
+   },
+   {
+    "op": "open_bid",
+    "as": "vendor2",
+    "change": [
+     {
+      "path": "trade_request_uuid",
+      "set": "{{tradeId}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

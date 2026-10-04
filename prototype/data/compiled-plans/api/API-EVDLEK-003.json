@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "API-EVDLEK-003",
+  "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
+  "compiledAt": "2026-10-04T07:14:06.015Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The recipe does not include a third QA vendor (vendor 3) to test its invisibility",
+   "what the screen shows (an API plan checks the data, not the page)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event where the invited QA vendor has submitted a bid; bidding still open.",
+   "steps": [
+    "The invited QA vendor reads the pricing round.",
+    "As the invited QA vendor, read the pricing round and check that “participants” has exactly 1 entries."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “participants” has exactly 1 entries."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDLEK-003",
+  "title": "A bid the buyer placed on a vendor's behalf is as hidden as an own bid",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "participants",
+      "op": "count",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

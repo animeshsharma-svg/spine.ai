@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "caseId": "API-XBID-046",
+  "title": "The buyer cannot open an ordinary bid on their own event",
+  "compiledAt": "2026-10-04T07:05:46.876Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case BID-SURR-002 is written for a vendor's session, but the plan sends it as the buyer"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /bids/template_input"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You are not allowed to perform this action”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-046",
+  "title": "The buyer cannot open an ordinary bid on their own event",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "BID-SURR-002",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "101",
+   "message": "You are not allowed to perform this action"
+  }
+ }
+}

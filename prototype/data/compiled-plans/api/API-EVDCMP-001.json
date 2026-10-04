@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-001",
+  "title": "After the first bid, that vendor leads and its price is the L1 price",
+  "compiledAt": "2026-10-04T07:12:02.121Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "four QA vendors invited (recipe provides one QA vendor)"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "QA vendor 1 places a bid.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals true."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDCMP-001",
+  "title": "After the first bid, that vendor leads and its price is the L1 price",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true,
+    "say": "QA vendor 1 places a bid."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": true
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

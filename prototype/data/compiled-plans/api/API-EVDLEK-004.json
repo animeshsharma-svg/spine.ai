@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "caseId": "API-EVDLEK-004",
+  "title": "In a rank auction vendors see their rank, never a competitor's price or name",
+  "compiledAt": "2026-10-04T07:14:18.704Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send GET /v1/trade/{{tradeId}}/event_indicators, but the vendor's session may not call GET /v1/trade/:id/event_indicators (trade#event_indicators is not on that app's list in config/app_auth_config.yml)",
+   "multiple QA vendors 1-3 concurrently placing bids and verifying strict isolation of competitor name and price in rank auction mode"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor reads the round's comparison (ranks, best bidder).",
+    "As the invited QA vendor, read the round's comparison (ranks, best bidder) and check that “auction identifiers data” is absent."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data” is absent."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDLEK-004",
+  "title": "In a rank auction vendors see their rank, never a competitor's price or name",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "auction_identifiers_data",
+      "op": "absent"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

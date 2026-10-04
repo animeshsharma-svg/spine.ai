@@ -52,7 +52,8 @@ export type ChunkKind =
   | "product-fact" // one cited fact of the product model / one client's templates, fields, units, settings
   | "error-code" // one backend error code: message, HTTP status, where it is raised
   | "access-rule" // which app (buyer web console / vendor website) may call which API
-  | "backend-code" // per-action digest of the event controllers (knowledge/events/backend-digest)
+  | "backend-code" // per-action/model/service digest of the event backend (knowledge/events/backend-digest, doc-vs-code.md)
+  | "frontend-code" // per-screen digest of the buyer console's event screens (knowledge/events/frontend-digest; migration 021)
   | "known-bug" // one verified Procol defect (docs/bugs/*.xlsx)
   | "lesson"; // one hard-won domain rule (knowledge/lessons)
 
@@ -66,13 +67,14 @@ export const KNOWLEDGE_KINDS: ChunkKind[] = [
   "error-code",
   "access-rule",
   "backend-code",
+  "frontend-code",
   "lesson",
 ];
 /**
  * Facts read from Procol's code/data (not test cases, not prose) — what the
  * assistant should cite when it explains WHY something happens.
  */
-export const FACT_KINDS: ChunkKind[] = ["product-fact", "error-code", "access-rule", "backend-code", "lesson", "known-bug"];
+export const FACT_KINDS: ChunkKind[] = ["product-fact", "error-code", "access-rule", "backend-code", "frontend-code", "lesson", "known-bug"];
 /** What HAS happened — earned by running: plan/finding/track-record experience and verified bugs. */
 export const EXPERIENCE_KINDS: ChunkKind[] = ["experience", "known-bug"];
 
@@ -124,7 +126,15 @@ function gatherChunks(): Chunk[] {
     // The backend digest and the lessons are written one self-contained
     // section per rule, so each part of a long section keeps its heading
     // (a part without it would not say which action or rule it is about).
-    const kind: ChunkKind = src.startsWith("events/backend-digest/") ? "backend-code" : src.startsWith("lessons/") ? "lesson" : "doc";
+    // doc-vs-code.md states, per product-doc claim, what the CODE does (cited) — a code fact.
+    const kind: ChunkKind =
+      src.startsWith("events/backend-digest/") || src === "events/doc-vs-code.md"
+        ? "backend-code"
+        : src.startsWith("events/frontend-digest/")
+          ? "frontend-code"
+          : src.startsWith("lessons/")
+            ? "lesson"
+            : "doc";
     if (kind !== "doc" && LEGACY) continue;
     const parts = kind === "doc" ? splitMarkdown(raw) : splitMarkdownWithHeadings(raw);
     parts.forEach((text, i) => {

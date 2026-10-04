@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "caseId": "API-EVDDOC-046",
+  "title": "Attachments sent as plain links break the event page",
+  "compiledAt": "2026-10-04T07:07:31.082Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "it does not read the record back to confirm what was kept or shown",
+   "what the screen shows (an API plan checks the data, not the page)",
+   "the part about “pdf” is outside what an API plan on a sourcing event checks"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and an RFQ (pricing) round attached, not published.",
+   "steps": [
+    "The buyer publishes the event with 1 attachments."
+   ],
+   "expected": "The app refuses the step the case is about with a clear message, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-046",
+  "title": "Attachments sent as plain links break the event page",
+  "setup": {
+   "recipe": "draft_rfq"
+  },
+  "act": [
+   {
+    "op": "publish_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "attachments",
+      "set": [
+       "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+      ]
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject"
+  }
+ }
+}

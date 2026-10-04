@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-001",
+  "title": "A started round cannot be moved to a later window, and its clock is untouched",
+  "compiledAt": "2026-10-04T07:09:07.712Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "verifying the exact error message text 'You cannot re-schedule this event!'"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer moves the round's bid end time.",
+    "As the buyer, read the pricing round and check that “status” equals active."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot re-schedule this event!”, and never with a server error. Read back afterwards: “status” equals active."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-001",
+  "title": "A started round cannot be moved to a later window, and its clock is untouched",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "258",
+   "message": "You cannot re-schedule this event!"
+  }
+ }
+}

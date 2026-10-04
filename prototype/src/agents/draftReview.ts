@@ -48,6 +48,8 @@ export interface ReviewResult {
   gaps?: string[];
   group?: string;
   imported?: boolean;
+  /** did it become an automation exemplar (exemplars.ts) — only a full plan with a decisive last run does */
+  exemplar?: { filed: boolean; embedded: boolean; error?: string };
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -191,6 +193,23 @@ export async function reviewDraft(input: ReviewInput): Promise<ReviewResult> {
             automation_confirmed = $4, catalog_file = $5, coverage = $6, gaps = $7, updated_at = now() WHERE id = $1`,
     [id, reviewer, note || null, input.automationCovers === true, APPROVED_FILE, stored.coverage === "none" ? d.coverage : stored.coverage, stored.gaps],
   );
+  // The learning loop: an approved draft whose plan is stored in full AND ran
+  // with a decisive verdict (passed or failed — never "couldn't tell") becomes
+  // an automation exemplar at once, so the next new case can learn from it.
+  let exemplar: ReviewResult["exemplar"];
+  if (stored.coverage === "full" && rawPlan) {
+    const last = String(d.last_run?.verdict ?? "");
+    if (last === "passed" || last === "failed") {
+      try {
+        const ex = await import("./exemplars.js");
+        const e = await ex.exemplarFromApproved(id, oneLine(d.title), caseText, rawPlan);
+        const r = e ? await ex.addExemplar(e) : { filed: false, embedded: false, error: "the plan no longer validates" };
+        exemplar = { filed: r.filed, embedded: r.embedded, ...(r.error ? { error: r.error } : {}) };
+      } catch (e) {
+        exemplar = { filed: false, embedded: false, error: (e as Error).message.slice(0, 160) };
+      }
+    } else exemplar = { filed: false, embedded: false, error: last ? `its last run was "${last}", not a decisive pass or fail` : "it has not run yet" };
+  }
   const imported = await runImport();
   try {
     (await import("../checks/testCatalog.js")).reloadCatalog();
@@ -206,6 +225,7 @@ export async function reviewDraft(input: ReviewInput): Promise<ReviewResult> {
     gaps: stored.gaps,
     group,
     imported,
+    exemplar,
     message:
       `${id} is now in the catalog (${group})` +
       (runs
@@ -213,6 +233,7 @@ export async function reviewDraft(input: ReviewInput): Promise<ReviewResult> {
         : stored.coverage === "partial"
           ? `; its automation is stored but not counted yet — ${stored.gaps.join("; ")}.`
           : `; it has no usable automation yet — ${stored.gaps.join("; ")}.`) +
+      (exemplar?.filed ? " Its automation is now a worked example the compiler learns from." : "") +
       (imported ? "" : " The catalog could not be re-imported automatically: run `npm run cases:import`."),
   };
 }

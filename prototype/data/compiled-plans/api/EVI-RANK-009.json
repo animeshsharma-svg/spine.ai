@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "caseId": "EVI-RANK-009",
+  "title": "Rank auction: overall ranks on the bid total",
+  "compiledAt": "2026-10-04T07:18:27.570Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Only two vendors are available via existing recipes; cannot create a third vendor bid of ₹101.25",
+   "Verification of total price ranking (based on unit price * quantity) is not expressed in the current read_indicators schema"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank\" is unverified",
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals vendor2; “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 3; “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” equals vendor2; “auction identifiers data › QA vendor 1 › inline › the line › rank” equals 3; “auction identifiers data › QA vendor 2 › inline › the line › rank” equals 1."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-RANK-009",
+  "title": "Rank auction: overall ranks on the bid total",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": "vendor2"
+     },
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "equals",
+      "value": 3
+     },
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

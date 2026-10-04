@@ -1,0 +1,55 @@
+{
+ "meta": {
+  "caseId": "API-EVDRGT-042",
+  "title": "A vendor cannot regret a line on another vendor's draft",
+  "compiledAt": "2026-10-04T07:08:04.538Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the buyer send POST /v1/bids/{{bidUuid}}/create_bid_products, but the buyer's web-console session may not call POST /v1/bids/:id/create_bid_products (bids#create_bid_trade_products is not on that app's list in config/app_auth_config.yml)",
+   "library case BID-SUBMIT-002 is written for a vendor's session, but the plan sends it as the buyer",
+   "Opening a specific draft bid for vendor 2 with lock_quote_after_submission off, and attempting a line regret as vendor 1"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids/:id/create_bid_products"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Bid not found”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-042",
+  "title": "A vendor cannot regret a line on another vendor's draft",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "BID-SUBMIT-002",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "32",
+   "message": "Bid not found"
+  }
+ }
+}
