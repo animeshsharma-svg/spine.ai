@@ -203,7 +203,7 @@ export class SingleStagePage extends BasePage {
   }
 
   /** Open the template picker and select a Buy (pricing) template. */
-  async selectBuyTemplate(): Promise<void> {
+  async selectBuyTemplate(): Promise<string> {
     await this.dismissDistractions();
     // The picker is DISABLED while its template list loads (templateSelection.jsx:137,
     // templateListLoading). A forced click on it does nothing and the step used to "pass";
@@ -221,11 +221,23 @@ export class SingleStagePage extends BasePage {
     // Only ever pick inside the OPEN template menu: a page-wide "first menuitem" was the left
     // sidebar ("clara"), so the step "passed" having chosen nothing. Prefer a buy / pricing
     // template; otherwise take the first real template the tenant lists (never the search row).
-    const menu = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)").filter({ has: this.page.getByPlaceholder(/search template/i) }).last();
+    // The menu built while the screen was still RFP stays in the page (hidden) after the event
+    // type changes — only the VISIBLE template menu counts.
+    await picker.hover({ timeout: 5_000 }).catch(() => {});
+    const menu = this.page.locator(".ant-dropdown").filter({ has: this.page.getByPlaceholder(/search template/i) }).filter({ visible: true }).last();
     await menu.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
-    const items = menu.locator("[role='menuitem']").filter({ hasNot: this.page.getByPlaceholder(/search template/i) });
+    const items = menu.locator("[role='menuitem']").filter({ visible: true }).filter({ hasNot: this.page.getByPlaceholder(/search template/i) });
     if (!(await items.count().catch(() => 0))) throw new Error("the template menu opened with no templates in it (not evidence about the product)");
-    const preferred = items.filter({ hasText: /buy|pricing|rfq|price/i }).first();
+    let preferred = items.filter({ hasText: /buy|pricing|rfq|price/i }).first();
+    // Right after the event type changes, the menu can still list the RFP questionnaires for a
+    // moment. When the screen is priced (Event Type RFQ / Auction), look again before settling.
+    const priced = await this.page.getByRole("button", { name: /^(rfq|auction)\b/i }).first().isVisible().catch(() => false);
+    for (let i = 0; i < 6 && priced && !(await preferred.count()); i++) {
+      await this.page.mouse.move(0, 0).catch(() => {});
+      await this.pause(1000);
+      await picker.hover({ timeout: 5_000 }).catch(() => {});
+      preferred = menu.locator("[role='menuitem']").filter({ visible: true }).filter({ hasText: /buy|pricing|rfq|price/i }).first();
+    }
     const pick = (await preferred.count()) ? preferred : items.first();
     const name = ((await pick.innerText().catch(() => "")) || "").trim();
     await pick.click({ timeout: 8_000 });
@@ -235,6 +247,7 @@ export class SingleStagePage extends BasePage {
     console.log(`[single-stage] chose template "${name}"`);
     await this.waitForSpinnerHidden();
     await this.pause(1000);
+    return name;
   }
 
   /**
@@ -243,6 +256,13 @@ export class SingleStagePage extends BasePage {
    * participant_quantity. Order matters — product first (variant depends on it).
    */
   async fillFirstLineItem(searchText = "a"): Promise<void> {
+    // No price sheet on screen (e.g. the default Event Type is RFP and the template is a
+    // questionnaire): say so at once instead of waiting ~30 s on each of six cells that
+    // do not exist and then reporting the row as filled.
+    const grid = this.page.locator(".data-grid-container").first();
+    if (!(await grid.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      throw new Error("this template has no price sheet (an RFP questionnaire?) — a priced case must set the event type (RFQ / auction) before choosing a template (not evidence about the product)");
+    }
     const sheet = new InlineSheet(this.page);
     await sheet.fillCell(0, "product", { key: "product", type: "product" }, searchText);
     await this.pause(500);

@@ -479,12 +479,19 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "select_template": {
       if (await isSingleStageScreen(s)) {
-        await s.single.selectBuyTemplate();
-        // Prove it took: the picker stops reading "Select Templates" once a template is chosen.
-        const still = await s.page.getByText(/^\s*select templates\s*$/i).first().isVisible().catch(() => false);
-        if (still) throw new Error('the template picker still reads "Select Templates" — no template was chosen (not evidence about the product)');
-        s.templateName = "Buy template";
-        return "template: Buy template (single-stage)";
+        const chosen = await s.single.selectBuyTemplate();
+        // Prove it took: a button now carries the template's name, or its price sheet is on screen.
+        // (Another "Select Templates" button exists elsewhere on the page, so its presence proves nothing.)
+        let took = false;
+        for (let i = 0; i < 30 && !took; i++) {
+          took =
+            (chosen ? await s.page.getByRole("button", { name: new RegExp(chosen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").slice(0, 40), "i") }).first().isVisible().catch(() => false) : false) ||
+            (await s.page.locator(".data-grid-container").first().isVisible().catch(() => false));
+          if (!took) await s.page.waitForTimeout(500);
+        }
+        if (!took) throw new Error(`the template "${chosen}" was clicked but neither its name nor a sheet appeared within 15 s (not evidence about the product)`);
+        s.templateName = chosen;
+        return `template: ${chosen} (single-stage)`;
       }
       const chosen = await s.create.selectTemplate(a.name ? String(a.name) : undefined);
       s.templateName = chosen;
@@ -728,6 +735,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // with neither is refused for participants).
         const n = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
         if (a.because && !n(refusal).includes(n(String(a.because)))) {
+          if (/created successfully|published successfully|event (is )?live/i.test(String(refusal))) {
+            throw new Error(`publishing was ALLOWED — the app said "${refusal}"; the case expects it to be refused with "${a.because}" (check the plan really built the case's starting condition)`);
+          }
           throw new Error(`publishing was blocked, but for a different reason — the app said "${refusal}"; the case expects "${a.because}"`);
         }
         return `blocked: ${refusal}`;

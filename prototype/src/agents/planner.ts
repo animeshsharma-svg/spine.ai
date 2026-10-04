@@ -860,6 +860,21 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // The SINGLE-STAGE create screen opens with Event Type = RFP, whose templates are questionnaires
+  // with no price sheet. A priced plan must set the event type before choosing a template.
+  {
+    const oc = steps.findIndex((st) => st.step === "open_create" && /single/i.test(String((st.args as any)?.path ?? (st.args as any)?.type ?? "")));
+    const priced = steps.some((st) => ["add_line_items", "fill_sheet", "place_bid", "place_surrogate_bid"].includes(st.step));
+    const hasType = steps.some((st) => st.step === "configure_single_stage");
+    if (oc >= 0 && priced && !hasType) {
+      const eventType = /auction|knock|dutch|rank|traffic/i.test(testCase) ? "auction" : "rfq";
+      const tpl = steps.findIndex((st) => st.step === "select_template");
+      const at = tpl > oc ? tpl : oc + 1;
+      steps.splice(at, 0, { step: "configure_single_stage", args: { eventType }, note: "a priced single-stage event needs its type set before a template (the screen opens as RFP)" });
+      repairs.push(`inserted configure_single_stage{eventType:${eventType}} — the single-stage screen opens as RFP, whose templates have no price sheet`);
+    }
+  }
+
   return { plan: { ...plan, steps }, repairs };
 }
 
