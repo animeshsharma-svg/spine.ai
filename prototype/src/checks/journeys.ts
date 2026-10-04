@@ -526,7 +526,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Three or four vendors bid against each other: ranks and L1 update after every bid, ties and rebids are handled, auctions extend when a late bid lands, and no vendor ever learns a competitor's price.",
     order: 48,
     uiGroups: ["UI-EVDCMP", "UI-EVDAUX", "UI-EVDLEK"],
-    apiGroups: ["API-EVDCMP", "API-EVDAUX", "API-EVDLEK"],
+    apiGroups: ["API-EVDCMP", "API-EVDAUX", "API-EVDLEK", "API-EVRVIS"],
     spine: ["vendors_bid", "ranks_update", "auto_extension", "no_price_leak"],
   },
   {
@@ -536,7 +536,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Every figure Procol computes from bids — line totals, tax, charges, discounts, bid totals, ranks, L1, savings, precision, currency and the comparison report — matches an independent recalculation from what the vendors actually quoted, and no vendor ever sees another vendor's prices.",
     order: 49,
     uiGroups: [],
-    apiGroups: ["EVI-LINE", "EVI-TAX", "EVI-CHG", "EVI-TOT", "EVI-RANK", "EVI-SAV", "EVI-PREC", "EVI-CUR", "EVI-AWD", "EVI-ISO", "EVI-REP"],
+    apiGroups: ["EVI-LINE", "EVI-TAX", "EVI-CHG", "EVI-TOT", "EVI-RANK", "EVI-SAV", "EVI-PREC", "EVI-CUR", "EVI-AWD", "EVI-ISO", "EVI-REP", "API-EVRCAL", "API-EVRMBP"],
     spine: ["vendor_bids", "bid_totals", "ranking", "savings", "comparison_report"],
   },
 ];

@@ -421,7 +421,23 @@ function parseRulesMd(): any[] {
   return out;
 }
 
+/**
+ * Rules a reviewer mapped by hand to cases written before the rules existed
+ * (data/rules/rule-case-map.json: [{rule, cases, note}]) — e.g. the bid-number
+ * integrity cases (EVI-*) that check a calculation rule in other words. Read as
+ * "the case names the rule".
+ */
+function manualMap(): Map<string, Set<string>> {
+  const m = new Map<string, Set<string>>();
+  try {
+    for (const x of JSON.parse(readFileSync(join(OUT_DIR, "rule-case-map.json"), "utf8")) as Array<{ rule: string; cases: string[] }>)
+      for (const c of x.cases) (m.get(c) ?? m.set(c, new Set()).get(c)!).add(x.rule);
+  } catch {}
+  return m;
+}
+
 function loadCases(includeRulesFiles: boolean): CaseDoc[] {
+  const mapped = manualMap();
   const cat = JSON.parse(readFileSync(join(PROTO, "data", "test-cases.json"), "utf8")).cases as any[];
   const have = new Set(cat.map((c) => c.id));
   const extra = includeRulesFiles ? parseRulesMd().filter((c) => !have.has(c.id)) : [];
@@ -444,7 +460,7 @@ function loadCases(includeRulesFiles: boolean): CaseDoc[] {
         files,
         codes: new Set(codesIn(hay)),
         endpoints: eps,
-        ruleIds: new Set([...hay.matchAll(/\bR-[A-Z]{3}-\d{3}-\d+\b/g)].map((m) => m[0])),
+        ruleIds: new Set([...[...hay.matchAll(/\bR-[A-Z]{3}-\d{3}-\d+\b/g)].map((m) => m[0]), ...(mapped.get(c.id) ?? [])]),
         fromRulesFiles: mine,
       } as CaseDoc;
     });
