@@ -141,6 +141,10 @@ export async function runExpectationStep(x: ExpectCtx, step: PlanStep): Promise<
       const method = a.method ? String(a.method).toUpperCase() : undefined;
       const query = a.query ? String(a.query) : undefined;
       const status = a.status !== undefined ? Number(a.status) : undefined;
+      // bodyContains: words the request body must carry (bodyLacks: words it must NOT carry)
+      const toList = (v: unknown) => (v === undefined ? [] : Array.isArray(v) ? v.map(String) : [String(v)]);
+      const bodyHas = toList(a.bodyContains);
+      const bodyLacks = toList(a.bodyLacks);
       // ids in a case's path ("/v1/trade/<stage>/download") are placeholders: match the fixed parts in order
       const parts = frag.split(/<[^>]+>|:\w+|\{\{[^}]+\}\}/).map((x) => x.trim()).filter(Boolean);
       const hit = (r: { url: string; method: string; status: number }) => {
@@ -155,6 +159,9 @@ export async function runExpectationStep(x: ExpectCtx, step: PlanStep): Promise<
         if (method && r.method !== method) return false;
         if (query && !decodeURIComponent(u.search).includes(query)) return false;
         if (status !== undefined ? r.status !== status : r.status < 200 || r.status >= 300) return false;
+        const b = (r as { body?: string }).body ?? "";
+        if (bodyHas.some((w) => !b.toLowerCase().includes(w.toLowerCase()))) return false;
+        if (bodyLacks.some((w) => b.toLowerCase().includes(w.toLowerCase()))) return false;
         return true;
       };
       // absent:true — the screen must NOT have sent it (e.g. "no call to raise_additional_request was made").

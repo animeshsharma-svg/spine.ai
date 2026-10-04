@@ -51,8 +51,8 @@ export const EXPECTATION_STEPS: StepSpec[] = [
     name: "expect_request",
     assertion: true,
     purpose:
-      'Assert the screen SENT a request to the backend during this run (and how it was answered) — for cases that say "the screen calls GET /templates/…" or "POST /event_groups with …". Matches the request path (a fragment, ids may be left out), optionally its method, a query fragment and the answer status. Waits up to timeoutMs for it. It cannot read request bodies.',
-    args: { path: 'a path fragment, e.g. "/templates/excel_template"', method: '"GET" | "POST" | "PATCH" (optional)', query: "a query-string fragment (optional)", status: "expected HTTP status (optional; default any 2xx)", absent: "true = assert the screen did NOT send it (optional)", timeoutMs: "optional, default 15000" },
+      'Assert the screen SENT a request to the backend during this run (and how it was answered) — for cases that say "the screen calls GET /templates/…" or "POST /event_groups with …". Matches the request path (a fragment, ids may be left out), optionally its method, a query fragment and the answer status. Waits up to timeoutMs for it. It can check words in the request body (bodyContains / bodyLacks); sign-in calls are never recorded.',
+    args: { path: 'a path fragment, e.g. "/templates/excel_template"', method: '"GET" | "POST" | "PATCH" (optional)', query: "a query-string fragment (optional)", status: "expected HTTP status (optional; default any 2xx)", absent: "true = assert the screen did NOT send it (optional)", bodyContains: "word(s) the request body must carry, e.g. the remark text (optional)", bodyLacks: "word(s) it must NOT carry (optional)", timeoutMs: "optional, default 15000" },
   },
 ];
 
