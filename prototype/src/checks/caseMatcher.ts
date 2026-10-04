@@ -50,6 +50,10 @@ import { chat, llmMode, usageReport } from "../ai/llm.js";
 
 /** Hinglish function words and verbs → English. Applied before anything else. */
 const HINGLISH: Array<[RegExp, string]> = [
+  // "deadline ke baad" is "after the deadline": Hindi puts the postposition after the noun.
+  [/\b((?:bid |submission |closing |end )?(?:deadline|end time|closing time|submission time|bid end|window|time|close|closing|award\w*|publish\w*|submission|extension))\s+(?:ke|kay|ki)\s+(?:baad|bad)\b/g, " after the $1 "],
+  [/\b((?:bid |submission |closing |end )?(?:deadline|end time|closing time|submission time|bid end|window|start|publish\w*|award\w*))\s+(?:ke|kay|ki|se)\s+(?:pehle|pahle|phle)\b/g, " before the $1 "],
+  [/\b(?:dena|dene|deni|dijiye|dijie|dedo|de do|karne|karni|krne|karvana|karwana)\b/g, " "],
   [/\bke\s+bina\b|\bbina\b|\bbagair\b|\bbager\b|\bbegair\b/g, " without "],
   [/\b(?:hona|hone|honi)\s+(?:chahiye|chahie|chaiye)\b|\b(?:chahiye|chahie|chaiye|chahiye)\b/g, " should "],
   [/\bnahi+n?\b|\bnahee\b|\bnhi\b|\bnai\b|\bmat\b/g, " not "],
@@ -79,7 +83,8 @@ const HINGLISH: Array<[RegExp, string]> = [
   [/\bpehle\b|\bpahle\b/g, " before "],
   [/\bbaad\b/g, " after "],
   [/\bzyada\b|\bjyada\b|\bzada\b|\bjada\b/g, " more "],
-  [/\b(?:sakta|sakte|sakti|paye|paaye|paega)\b/g, " can "],
+  [/\b(?:sakta|sakte|sakti|paye|paaye|paega|paana|pana|paayega|payega)\b/g, " can "],
+  [/\b(?:khatam|khatm|khtam|khtm|khatham|nikal gaya|nikal gayi|beet gaya)\b/g, " over "],
   [/\b(?:hatao|hatana|hata)\b/g, " remove "],
   [/\b(?:banao|banana|bana|banaye)\b/g, " create "],
   [/\b(?:kholo|kholna|khol)\b/g, " open "],
@@ -205,6 +210,8 @@ export interface Understood {
   concepts: FoundConcept[];
   /** what the typed case expects to happen */
   polarity: Polarity;
+  /** who does what, in which state (see frameOf) */
+  frame: Frame;
 }
 
 export type Polarity = "refuse" | "crash" | "success" | "neutral";
@@ -247,6 +254,8 @@ export interface FoundConcept {
   said: string;
   /** for a condition: the thing it applies to ("title" in "without title") */
   object?: string[];
+  /** an action named only in a setup clause ("create an RFQ event and check whether …") */
+  setup?: boolean;
 }
 
 /**
@@ -277,7 +286,7 @@ export const CONCEPTS: Concept[] = [
   { id: "evaluate", kind: "action", label: "evaluation / scoring", re: /\bevaluat\w*|\bscor\w*/ },
   { id: "counter", kind: "action", label: "a counter offer", re: /\bcounter[- ]?offer\w*|\bnegotiat\w*/ },
   { id: "upload", kind: "action", label: "an upload", re: /\bupload\w*|\bbulk\b|\bimport\w*/ },
-  { id: "submit", kind: "action", label: "submitting", re: /\bsubmi\w*/ },
+  { id: "submit", kind: "action", label: "submitting", re: /\bsubmi\w*\b(?! (?:time|date|deadline|window|end|period)\b)/ },
   { id: "delete", kind: "action", label: "removing / deleting", re: /\bdelet\w*|\bremov\w*/ },
   { id: "version", kind: "action", label: "versioning", re: /\bversion\w*|\bsupersed\w*/ },
   { id: "view", kind: "action", label: "what is shown / seen", re: /\bsee[sn]?\b|\bshown?\b|\bvisible\b|\bdisplay\w*|\bappear\w*|\bread\w*|\bview\w*|\blist\b/ },
@@ -329,15 +338,20 @@ export const CONCEPTS: Concept[] = [
   { id: "invalid", kind: "condition", label: "an invalid / malformed value", re: /\binvalid\b|\bwrong\b|\bmalformed\b|\bnon[- ]?numeric\b|\bletters?\b|\btext (?:in|like)\b|\bas text\b|\bstring\b|\babc\b|\bgarbage\b|\bbad\b/ },
   { id: "nonexistent", kind: "condition", label: "something that does not exist", re: /\bnon[- ]?exist\w*|\bdoes not exist\b|\bnot exist\w*|\bunknown\b|\bbogus\b|\bfake\b|\bnot found\b/ },
   { id: "limit", kind: "condition", label: "going over a limit", re: /\bmax\w*|\blimit\w*|\bceiling\b|\bmore than\b|\bexceed\w*|\bcap(?:ped)?\b|\bover \d+|\b(?<!\b(?:an?|http|status|code|not|gives?|returns?|with) )\d{3,}\b(?! (?:error|status|response|code))/ },
-  { id: "closed", kind: "condition", label: "after the window closed", re: /\bafter (?:the )?(?:window|event|bid\w*|deadline)? ?(?:clos\w*|end\w*|expir\w*)|\bclosed\b|\bexpired\b/ },
+  {
+    id: "closed",
+    kind: "condition",
+    label: "after the bidding window is over",
+    re: /\bafter (?:the )?(?:window|event|bid\w*|deadline|submission|closing|end)?(?: (?:end|closing|submission|bidding))? ?(?:time|date|window)? ?(?:is |has |gets )?(?:clos\w*|end\w*|expir\w*|over|passed|up)\b|\bclosed\b|\bexpired\b|\b(?:deadline|end time|bid end|bid end time|closing time|window|submission time|bidding time|time) (?:is |has |gets )?(?:over|passed|expired|ended|gone|up|lapsed)\b|\bafter (?:the )?(?:deadline|bid end|end time|closing time|submission time|bid end time|cut-?off)\b|\blate (?:bid|quote|submission|response)\w*|\bpast (?:the )?(?:deadline|end time|bid end|closing time|cut-?off)\b|\bonce (?:bidding|the round|the window|the event) (?:has )?(?:clos\w*|end\w*)/,
+  },
   { id: "special", kind: "condition", label: "special characters / script input", re: /\bemoji\w*|\bspecial char\w*|\bscript\w*|\bhtml\b|\bxss\b|\binjection\b|\bunicode\b/ },
   { id: "long", kind: "condition", label: "a very long value", re: /\bvery long\b|\btoo long\b|\blong (?:title|name|text|string)\b|\bcharacters?\b/ },
-  { id: "past", kind: "condition", label: "a date in the past / wrong order", re: /\bpast\b|\bbefore (?:the )?start\b|\bend before\b|\bearlier than\b/ },
+  { id: "past", kind: "condition", label: "a date in the past / wrong order", re: /\bpast\b(?! (?:the )?(?:deadline|end time|bid end|closing time|cut-?off))|\bbefore (?:the )?start\b|\bend before\b|\bearlier than\b/ },
 ];
 
-const REFUSE = /\brefus\w*|\breject\w*|\bblock\w*|\berror\w*|\bfail\w*|\bnot allowed\b|\bcannot\b|\bshould not\b|\bmust not\b|\bdenied\b|\bprevent\w*|\bdisallow\w*|\bstops?\b|\bforbid\w*|\bnot (?:be )?(?:possible|permitted)\b|\b4\d\d\b|\bvalidation\b/;
+const REFUSE = /\bnot (?:should|can)\b|\bnot (?:be )?able\b|\brefus\w*|\breject\w*|\bblock\w*|\berror\w*|\bfail\w*|\bnot allowed\b|\bcannot\b|\bshould not\b|\bmust not\b|\bdenied\b|\bprevent\w*|\bdisallow\w*|\bstops?\b|\bforbid\w*|\bnot (?:be )?(?:possible|permitted)\b|\b4\d\d\b|\bvalidation\b/;
 const CRASH = /\b5\d\d\b|\bcrash\w*|\bserver error\b/;
-const SUCCESS = /\bsucceed\w*|\bsuccess\w*|\bworks?\b|\baccept\w*|\bcreated\b|\bpublishes\b|\bsaved\b|\bis shown\b|\bappears?\b|\bcompletes?\b|\blands? on\b/;
+const SUCCESS = /\ballowed\b|\bable to\b|\bcan (?!not\b)(?:still |also )?[a-z]+|\bis possible\b|\bgoes through\b|\bsucceed\w*|\bsuccess\w*|\bworks?\b|\baccept\w*|\bcreated\b|\bpublishes\b|\bsaved\b|\bis shown\b|\bappears?\b|\bcompletes?\b|\blands? on\b/;
 
 export function polarityOf(text: string): Polarity {
   if (CRASH.test(text)) return "crash";
@@ -437,7 +451,82 @@ function candidateHas(k: FoundConcept, text: string, words: string[]): boolean {
 
 export function understand(typed: string): Understood {
   const { text, repairs } = normalizeText(typed);
-  return { typed, normalized: text, repairs, concepts: conceptsIn(text), polarity: polarityOf(text) };
+  const frame = frameOf(text);
+  // An action in a setup clause ("create an RFQ event and check whether …") is
+  // how the case starts, not what it tests: a candidate need not contain it.
+  const concepts = conceptsIn(text).map((c) => (c.kind === "action" && frame.setupVerbs.includes(c.id) && c.id !== frame.verb ? { ...c, setup: true } : c));
+  return { typed, normalized: text, repairs, concepts, polarity: frame.polarity, frame };
+}
+
+// ── the case's FRAME: who does what, in which state, expecting what ─────────
+
+export type Actor = "vendor" | "uninvited-vendor" | "buyer" | "buyer-for-vendor" | "evaluator" | "other-company" | "unknown";
+export type EventState = "draft" | "open" | "closed" | "with-bid" | "awarded" | null;
+export interface Frame {
+  /** who performs the decisive action */
+  actor: Actor;
+  /** the decisive action (a CONCEPTS action id) */
+  verb: string | null;
+  /** actions in a setup clause — how the case starts, not what it tests */
+  setupVerbs: string[];
+  state: EventState;
+  eventType: "rfq" | "rfp" | "auction" | null;
+  polarity: Polarity;
+  /** asked as a question ("check whether…", "can the vendor…?") — the outcome is not stated */
+  question: boolean;
+}
+
+/** Most specific first: "vendor submits a bid" is about bidding, not submitting. */
+const VERB_ORDER = [
+  "surrogate", "convert", "counter", "withdraw", "extend", "clone", "version", "award", "approve", "evaluate", "bid", "upload",
+  "invite", "publish", "submit", "delete", "edit", "download", "search", "login", "save", "create", "view",
+];
+/** "create an RFQ event and check whether …" — the part before the check is setup. */
+const CHECK_SPLIT = /\b(?:and |then |, )?(?:check|verify|test|see|confirm|validate|find out|ensure)(?: \w+)? (?:whether|if|that)\b|\bthen\b/;
+const QUESTION = /\?|\b(?:whether|check if|verify if|see if|find out if)\b|^(?:can|does|do|is|are|will|should|could)\b/;
+
+function actorOf(t: string): Actor {
+  if (/\bsurrogate\b|\bon (?:the |a )?(?:vendor\w* )?behalf\b|\bbuyer (?:\w+ ){0,3}(?:bid|bids|quote|quotes|price|prices|enters?|places?|submits?) (?:\w+ ){0,4}for (?:a |the |an )?(?:\w+ )?vendor\b|\bbid (?:\w+ ){0,2}for (?:a |the )?vendor\b/.test(t)) return "buyer-for-vendor";
+  if (/\b(?:uninvited|not invited|not on the audience|outside the audience|not (?:a )?participant)\b/.test(t)) return "uninvited-vendor";
+  if (/\banother (?:company|tenant)\b|\bother company\b|\bcross[- ]tenant\b|\bdifferent company\b|\bbuyer of (?:a |another )?(?:second|other|different) company\b/.test(t)) return "other-company";
+  if (/\bevaluators? (?:can|cannot|should|must|scores?|submits?|is|tries|not)\b|\bas (?:the |an )?evaluator\b/.test(t)) return "evaluator";
+  const vendorSubj = /\b(?:vendor|bidder)s? (?:\w+ ){0,2}(?:can|cannot|should|must|is|are|tries|try|bids?|submits?|opens?|places?|prices?|quotes?|sees?|views?|reads?|uploads?|responds?|answers?|accepts?|rejects?|declines?|revises?|edits?|withdraws?|not|still|able|gets?|starts?|creates?|regrets?|changes?|downloads?|asks?)\b|\bas (?:the |a |an )?(?:invited |qa )?vendor\b|\bsession: the invited vendor\b|\bvendor side\b/;
+  const buyerSubj = /\b(?:buyer|owner|admin|user)s? (?:\w+ ){0,2}(?:can|cannot|should|must|is|tries|creates?|publish\w*|edits?|extends?|withdraws?|awards?|invites?|adds?|removes?|opens?|reads?|sees?|uploads?|sends?|closes?|converts?|clones?|approves?|rejects?|changes?|not|still|able)\b|\bas the buyer\b/;
+  const v = t.search(vendorSubj);
+  const b = t.search(buyerSubj);
+  if (v >= 0 && (b < 0 || v < b)) return "vendor";
+  if (b >= 0) return "buyer";
+  if (/\bvendor\w*\b/.test(t) && /\bbid\w*|\bquot\w*|\btechnical response\b/.test(t)) return "vendor";
+  return "unknown";
+}
+
+/** The frame of a text (typed, or a catalog case's title + setup). Pass normalized text. */
+export function frameOf(normalized: string): Frame {
+  const t = ` ${normalized.toLowerCase()} `;
+  const m = t.match(CHECK_SPLIT);
+  const setupPart = m && (m.index ?? 0) > 6 ? t.slice(0, m.index) : "";
+  const core = setupPart ? t.slice((m!.index ?? 0) + m![0].length) : t;
+  const actionsIn = (s: string) => CONCEPTS.filter((c) => c.kind === "action" && c.re.test(s)).map((c) => c.id);
+  const coreActs = actionsIn(core);
+  const setupActs = setupPart ? actionsIn(setupPart).filter((a) => !coreActs.includes(a)) : [];
+  const verb = VERB_ORDER.find((v) => coreActs.includes(v)) ?? VERB_ORDER.find((v) => setupActs.includes(v)) ?? null;
+  const closed = CONCEPTS.find((c) => c.id === "closed")!.re.test(t);
+  const state: EventState = closed
+    ? "closed"
+    : /\b(?:after (?:the )?award\w*|awarded|award proposal exists)\b/.test(t) && verb !== "award"
+      ? "awarded"
+      : /\bdraft\b/.test(t) && !/\bdraft bid\b/.test(t)
+        ? "draft"
+        : /\b(?:live|published|running|open|active)\b/.test(t)
+          ? "open"
+          : null;
+  const eventType = /\bauction\w*\b/.test(t) ? "auction" : /\brfp\w*\b|\btechnical\b/.test(t) ? "rfp" : /\brfq\w*\b|\bpricing (?:stage|round)\b/.test(t) ? "rfq" : null;
+  const question = QUESTION.test(core.trim()) || QUESTION.test(t.trim());
+  let polarity = polarityOf(core);
+  if (polarity === "neutral") polarity = polarityOf(t);
+  // "check whether a vendor can bid …" asks; it does not say what should happen.
+  if (question && polarity !== "crash" && !/\b(?:should|must)(?: not)?\b|\bcannot\b|\bnot (?:be )?able\b/.test(core)) polarity = "neutral";
+  return { actor: actorOf(core.trim() ? core : t), verb, setupVerbs: setupActs, state, eventType, polarity, question };
 }
 
 // ── 2 · CANDIDATES ──────────────────────────────────────────────────────────
@@ -587,6 +676,23 @@ async function memoryCandidates(query: string, limit: number): Promise<{ hits: M
 
 export type Relation = "same" | "partial" | "unrelated";
 
+/** Everything the decision is computed from — kept so the eval can re-decide without calls. */
+export interface MatchFeatures {
+  memoryRaw: number;
+  words: number;
+  concepts: number;
+  /** the case expects the opposite outcome (refused vs succeeds) */
+  clash: boolean;
+  /** the case is done by a different actor (the vendor vs the buyer on the vendor's behalf …) */
+  actorClash: boolean;
+  /** distinguishing things the case's TITLE is about that the typed text never mentions */
+  extras: number;
+  /** the case's title is not about the typed decisive action */
+  verbMiss?: boolean;
+  /** share of the typed words (rare ones counting most) that the TITLE contains */
+  title?: number;
+}
+
 export interface MatchCandidate {
   id: string;
   title: string;
@@ -598,25 +704,51 @@ export interface MatchCandidate {
   /** the deterministic answer, before any model confirmation */
   ruleRelation: Relation;
   scores: { memoryRaw: number; memory: number; words: number; concepts: number; final: number };
+  features: MatchFeatures;
   /** the case expects the opposite outcome (refused vs succeeds) */
   clash: boolean;
   covered: string[];
   /** what the typed case asks for that this case does not cover, in words */
   missing: string[];
-  /** one plain-English line: why this relation */
+  /** one plain-English line: why this relation (ids allowed — for Details) */
   why: string;
+  /** plain English, no ids: what makes it a match */
+  matchWhy: string;
+  /** plain English, no ids: what is different ("" when nothing) */
+  differs: string;
+  /** a draft's review status */
+  status?: string;
   llm?: { relation: Relation; missing?: string; note?: string };
+}
+
+/** One of the closest existing cases, for the reader. */
+export interface Closest {
+  id: string;
+  title: string;
+  layer: string;
+  relation: Relation;
+  /** 0..1, for the score bar */
+  score: number;
+  /** "Same action (bidding), same condition (after the bidding window is over), same actor (a vendor)." */
+  why: string;
+  /** "It is the buyer bidding on a vendor's behalf, not the vendor." — "" when nothing differs */
+  differs: string;
+  best: boolean;
 }
 
 export interface MatchResult {
   typed: string;
   understood: Understood;
-  /** existing = at least one SAME · partial = only PARTIAL · new = neither */
+  /** existing = at least one catalog case is SAME · partial = only PARTIAL · new = neither. Drafts never count. */
   decision: "existing" | "partial" | "new";
   same: MatchCandidate[];
   partial: MatchCandidate[];
-  /** top candidates in rank order, whatever their relation */
+  /** top candidates in rank order, whatever their relation (catalog and drafts) */
   candidates: MatchCandidate[];
+  /** the 3–5 closest CATALOG cases, best first — shown even when the decision is "new" */
+  closest: Closest[];
+  /** a draft the assistant wrote earlier that already says this — review it instead of writing another */
+  nearDraft?: { id: string; title: string; status: string; relation: Relation; score: number; why: string; differs: string };
   /** plain English, for the chat reply */
   headline: string;
   memory: string;
@@ -625,12 +757,16 @@ export interface MatchResult {
 }
 
 /**
- * The tuned constants. Changed only through the eval (scripts/eval-matcher.ts);
- * the values and what they were tuned on are in the report it writes.
+ * The tuned constants (2026-10-04: picked on the DEV half of data/evals/matcher-hard.json
+ * (and the DEV half of prompts/matching.jsonl) among hand-picked candidates —
+ * the full grid over-fitted DEV). Changed only through the evals (scripts/eval-matcher.ts on
+ * prompts/matching.jsonl, scripts/eval-matcher-hard.ts on data/evals/matcher-hard.json),
+ * tuned on the DEV split only; the TEST split is the reported number.
  */
 export const THRESHOLDS: {
   memLow: number; memHigh: number; wMemory: number; wWords: number; wConcepts: number;
   sameFinal: number; sameConcepts: number; sameMargin: number; partialFinal: number; partialConcepts: number;
+  pActor: number; pExtra: number; pClash: number; pVerb: number; wTitle: number;
 } = {
   /** memory hybrid score mapped to 0..1 across this band */
   memLow: 0.4,
@@ -641,15 +777,48 @@ export const THRESHOLDS: {
   wConcepts: 0.3,
   /** SAME needs every one of these */
   sameFinal: 0.55,
-  sameConcepts: 0.6,
+  sameConcepts: 0.7,
   /** and must be within this of the best candidate */
   sameMargin: 0.05,
   /** PARTIAL needs these */
-  partialFinal: 0.35,
+  partialFinal: 0.5,
   partialConcepts: 0.3,
+  /** penalties: a different actor, each distinguishing extra (max 3), the opposite outcome */
+  pActor: 0.12,
+  pExtra: 0.08,
+  pClash: 0.08,
+  /** the case's title is not about the typed decisive action */
+  pVerb: 0.08,
+  /** bonus weight for typed words found in the case's TITLE */
+  wTitle: 0,
 };
+export type Thresholds = typeof THRESHOLDS;
 
 const CONCEPT_WEIGHT: Record<ConceptKind, number> = { action: 1, thing: 0.7, condition: 1.2 };
+/** a concept only in the case's body (not its title or setup) counts this much */
+const BODY_ONLY = 0.6;
+/** actions that name the same decisive step in a title */
+const VERB_EQUIV: Record<string, string[]> = {
+  bid: ["bid", "submit", "surrogate"],
+  submit: ["submit", "bid", "publish", "approve", "evaluate"],
+  view: ["view", "search", "download"],
+  create: ["create", "draft", "save"],
+  save: ["save", "create", "draft"],
+  edit: ["edit", "extend", "version"],
+  invite: ["invite", "delete"],
+  award: ["award", "approve"],
+  approve: ["approve", "award"],
+};
+
+/**
+ * Concepts that make a case a DIFFERENT case when its title names them and the
+ * typed text does not: "a surrogate bid after close" is not "a bid after close".
+ */
+const DISTINGUISHING = new Set([
+  "surrogate", "auction", "dutch", "knockout", "rfp", "counter", "extend", "withdraw", "clone", "convert", "approve", "evaluate", "award",
+  "boq", "version", "upload", "closed", "missing", "negative", "zero", "twice", "invalid", "nonexistent", "limit", "special", "long", "past",
+  "othercompany", "masking", "currency", "gst", "discount", "freight",
+]);
 
 /** What a case says, for concept matching. The section heading counts: "A missing
  *  status is refused" says nothing about creating a draft — its section does. */
@@ -675,6 +844,41 @@ function wordCoverage(typedTokens: string[], c: { title: string; steps: string; 
   return total ? got / total : 0;
 }
 
+const ACTOR_WORDS: Record<Actor, string> = {
+  vendor: "a vendor",
+  "uninvited-vendor": "a vendor who is not invited",
+  buyer: "the buyer",
+  "buyer-for-vendor": "the buyer bidding on a vendor's behalf",
+  evaluator: "an evaluator",
+  "other-company": "a user of another company",
+  unknown: "someone",
+};
+/** Actor pairs that make two cases different tests. */
+function actorsClash(a: Actor, b: Actor): boolean {
+  if (a === "unknown" || b === "unknown" || a === b) return false;
+  const pair = new Set([a, b]);
+  if (pair.has("evaluator") && pair.has("buyer")) return false; // an evaluator is a buyer user
+  return true;
+}
+const OUTCOME_WORDS: Record<Polarity, string> = { refuse: "a refusal", success: "success", crash: "no server error", neutral: "" };
+
+/** The case's frame: its title and setup say who acts; title + expected say the outcome. */
+const candFrameCache = new Map<string, { actor: Actor; pol: Polarity; titleConcepts: Set<string> }>();
+function candidateFrame(c: { id: string; title: string; setup?: string; expected: string }) {
+  let f = candFrameCache.get(c.id);
+  if (f) return f;
+  const head = normalizeLite(`${c.title}. ${(c.setup ?? "").slice(0, 220)}`).trim();
+  const titleNorm = normalizeLite(c.title).trim();
+  const titleActor = frameOf(titleNorm).actor;
+  f = {
+    actor: titleActor !== "unknown" ? titleActor : frameOf(head).actor,
+    pol: polarityOf(normalizeLite(`${c.title} ${c.expected}`)),
+    titleConcepts: new Set(conceptsIn(titleNorm).map((x) => x.id)),
+  };
+  if (!c.id.startsWith("GEN-")) candFrameCache.set(c.id, f);
+  return f;
+}
+
 function judge(
   u: Understood,
   c: { id: string; title: string; steps: string; expected: string; setup?: string; section?: string },
@@ -685,49 +889,132 @@ function judge(
   let have = 0;
   let total = 0;
   const covered: string[] = [];
+  const coveredLabels: string[] = [];
   const missing: string[] = [];
+  // A concept the case's TITLE (or setup) states counts in full; one only somewhere in
+  // its long steps or notes counts for less — deep-dig cases mention everything.
+  const headText = normalizeLite(`${c.title} . ${(c.setup ?? "").slice(0, 240)}`);
+  const headWords = headText.split(/[^a-z0-9-]+/).filter(Boolean);
   for (const k of u.concepts) {
+    if (k.setup) continue; // how the case starts, not what it tests
     const w = CONCEPT_WEIGHT[k.kind];
     total += w;
-    if (candidateHas(k, text, words)) {
-      have += w;
+    if (candidateHas(k, headText, headWords) || candidateHas(k, text, words)) {
+      have += candidateHas(k, headText, headWords) ? w : w * BODY_ONLY;
       covered.push(k.said);
+      coveredLabels.push(k.kind === "condition" ? k.label : k.label);
     } else {
       missing.push(k.kind === "condition" ? `“${k.said}”` : k.label);
     }
   }
-  const wordScore = wordCoverage([...new Set(tokens(u.normalized))], c);
+  const typedToks = [...new Set(tokens(u.normalized))];
+  const wordScore = wordCoverage(typedToks, c);
+  const titleScore = wordCoverage(typedToks, { title: c.title, steps: "", expected: "", section: "" });
   const conceptScore = total ? have / total : wordScore;
   // Outcome: a case expecting a refusal is not the same test as one expecting success.
   const head = normalizeLite(`${c.title} ${c.expected}`);
-  const candPol = polarityOf(head);
+  const cf = candidateFrame(c);
+  const candPol = cf.pol;
   const polarityClash =
     (u.polarity === "refuse" && candPol === "success" && !REFUSE.test(head)) ||
     (u.polarity === "success" && (candPol === "refuse" || candPol === "crash") && !SUCCESS.test(head));
   if (polarityClash) missing.push(u.polarity === "refuse" ? "that it should be refused" : "that it should succeed");
+  const actorClash = actorsClash(u.frame.actor, cf.actor);
+  const typedIds = new Set(u.concepts.map((x) => x.id));
+  const extraIds = [...cf.titleConcepts].filter((id) => DISTINGUISHING.has(id) && !typedIds.has(id) && !(id === "rfp" && typedIds.has("evaluate")));
+  // The decisive action must be what the case's title is about ("a vendor bids late" is not "an award stops bidding").
+  const verbIds = u.frame.verb ? VERB_EQUIV[u.frame.verb] ?? [u.frame.verb] : [];
+  const titleOnly = normalizeLite(c.title);
+  const verbMiss = verbIds.length > 0 && !verbIds.some((id) => CONCEPTS.find((x) => x.id === id)?.re.test(titleOnly));
+  const features: MatchFeatures = { memoryRaw: memScore, words: wordScore, concepts: conceptScore, clash: polarityClash, actorClash, extras: extraIds.length, verbMiss, title: titleScore };
+  const final = finalFrom(features);
   const T = THRESHOLDS;
   const mem = Math.max(0, Math.min(1, (memScore - T.memLow) / (T.memHigh - T.memLow)));
-  const final = T.wMemory * mem + T.wWords * wordScore + T.wConcepts * conceptScore;
-  return { conceptScore, wordScore, covered, missing, polarityClash, mem, memRaw: memScore, final };
+
+  // Plain English for the reader — no ids, no field names.
+  const whyParts: string[] = [];
+  const verb = u.frame.verb ? CONCEPTS.find((x) => x.id === u.frame.verb) : undefined;
+  if (verb && !verbMiss) whyParts.push(`same action (${verb.label})`);
+  const conds = u.concepts.filter((k) => k.kind === "condition" && candidateHas(k, text, words));
+  if (conds.length) whyParts.push(`same condition (${conds.map((k) => k.label).join(", ")})`);
+  if (!actorClash && u.frame.actor !== "unknown" && cf.actor === u.frame.actor) whyParts.push(`same actor (${ACTOR_WORDS[cf.actor]})`);
+  if (!polarityClash && u.polarity !== "neutral" && candPol === u.polarity) whyParts.push(`expects ${OUTCOME_WORDS[candPol]}`);
+  else if (u.frame.question && candPol !== "neutral") whyParts.push(`answers your question: it expects ${OUTCOME_WORDS[candPol]}`);
+  const things = u.concepts.filter((k) => k.kind === "thing" && !["vendor"].includes(k.id) && candidateHas(k, text, words)).map((k) => k.label);
+  if (!whyParts.length && things.length) whyParts.push(`about ${things.slice(0, 3).join(", ")}`);
+  const matchWhy = whyParts.length ? `${whyParts.join(", ").replace(/^./, (x) => x.toUpperCase())}.` : wordScore > 0.4 ? "Shares most of your wording." : "Only loosely related.";
+  const diffParts: string[] = [];
+  if (actorClash) diffParts.push(`it is ${ACTOR_WORDS[cf.actor]}, not ${ACTOR_WORDS[u.frame.actor]}`);
+  if (verbMiss && verb) {
+    const theirs = frameOf(titleOnly).verb;
+    const tl = theirs ? CONCEPTS.find((x) => x.id === theirs)?.label : undefined;
+    diffParts.push(tl ? `its main step is ${tl}, not ${verb.label}` : `its title is not about ${verb.label}`);
+  }
+  if (polarityClash) diffParts.push(`it expects the opposite outcome (${OUTCOME_WORDS[candPol]})`);
+  const missWords = u.concepts.filter((k) => !k.setup && !candidateHas(k, text, words) && k.id !== "vendor").map((k) => (k.kind === "condition" ? k.label : k.label));
+  if (missWords.length) diffParts.push(`it does not cover ${missWords.slice(0, 3).join(", ")}`);
+  if (extraIds.length) diffParts.push(`it is also about ${extraIds.slice(0, 3).map((id) => CONCEPTS.find((x) => x.id === id)?.label ?? id).join(", ")}`);
+  const differs = diffParts.length ? `${diffParts.join("; ").replace(/^./, (x) => x.toUpperCase())}.` : "";
+  return { conceptScore, wordScore, covered, missing, polarityClash, actorClash, extras: extraIds, features, mem, memRaw: memScore, final, matchWhy, differs };
 }
 
-export type Thresholds = typeof THRESHOLDS;
-
-/** The final score from the three signals — exported so the eval can re-tune it. */
-export function finalScore(memRaw: number, words: number, concepts: number, T: Thresholds = THRESHOLDS): number {
+/** The final score from the signals — exported so the evals can re-tune it. */
+export function finalScore(memRaw: number, words: number, concepts: number, T: Thresholds = THRESHOLDS, pen: { clash?: boolean; actorClash?: boolean; extras?: number; verbMiss?: boolean; title?: number } = {}): number {
   const mem = Math.max(0, Math.min(1, (memRaw - T.memLow) / (T.memHigh - T.memLow)));
-  return T.wMemory * mem + T.wWords * words + T.wConcepts * concepts;
+  return (
+    T.wMemory * mem + T.wWords * words + T.wConcepts * concepts + T.wTitle * (pen.title ?? 0) -
+    (pen.actorClash ? T.pActor : 0) - (pen.clash ? T.pClash : 0) - T.pExtra * Math.min(3, pen.extras ?? 0) - (pen.verbMiss ? T.pVerb : 0)
+  );
+}
+function finalFrom(f: MatchFeatures, T: Thresholds = THRESHOLDS): number {
+  return finalScore(f.memoryRaw, f.words, f.concepts, T, f);
 }
 
 /** The deterministic relation for one candidate, given the best final score in its list. */
-export function decideRelation(x: { final: number; concepts: number; clash: boolean }, best: number, T: Thresholds = THRESHOLDS): Relation {
-  if (!x.clash && x.final >= T.sameFinal && x.concepts >= T.sameConcepts && x.final >= best - T.sameMargin) return "same";
+export function decideRelation(x: { final: number; concepts: number; clash: boolean; actorClash?: boolean }, best: number, T: Thresholds = THRESHOLDS): Relation {
+  if (!x.clash && !x.actorClash && x.final >= T.sameFinal && x.concepts >= T.sameConcepts && x.final >= best - T.sameMargin) return "same";
   if (x.final >= T.partialFinal && x.concepts >= T.partialConcepts) return "partial";
   return "unrelated";
 }
 
+/**
+ * Re-decide a cached candidate list under thresholds T (the hard eval's --tune).
+ * Catalog candidates decide; drafts never count as coverage.
+ */
+export function rescore(cands: Array<{ id: string; origin: string; relation: string; f: Record<string, number | boolean> }>, T: Thresholds) {
+  const withFinal = cands.map((c) => {
+    const f = c.f as unknown as MatchFeatures;
+    return { ...c, final: finalFrom({ memoryRaw: Number(f.memoryRaw), words: Number(f.words), concepts: Number(f.concepts), clash: !!f.clash, actorClash: !!f.actorClash, extras: Number(f.extras ?? 0), verbMiss: !!f.verbMiss, title: Number(f.title ?? 0) }, T) };
+  });
+  const best = Math.max(0, ...withFinal.filter((c) => c.origin !== "draft").map((c) => c.final));
+  const out = withFinal.map((c) => ({ ...c, rel: decideRelation({ final: c.final, concepts: Number(c.f.concepts), clash: !!c.f.clash, actorClash: !!c.f.actorClash }, best, T) }));
+  const cat = out.filter((c) => c.origin !== "draft");
+  const decision = cat.some((c) => c.rel === "same") ? "existing" : cat.some((c) => c.rel === "partial") ? "partial" : "new";
+  return { cands: out, decision };
+}
+
+/** The grid the hard eval searches (on DEV only). */
+export function TUNE_GRID(): Thresholds[] {
+  const out: Thresholds[] = [];
+  for (const wMemory of [0.3, 0.4, 0.5])
+    for (const wWords of [0.1, 0.2, 0.3])
+      for (const wTitle of [0, 0.1, 0.2])
+        for (const sameFinal of [0.5, 0.55, 0.6, 0.65, 0.7])
+          for (const sameConcepts of [0.7, 0.8])
+            for (const sameMargin of [0.03, 0.06, 0.1])
+              for (const partialFinal of [0.42, 0.5])
+                for (const pActor of [0, 0.1])
+                  for (const pExtra of [0.04, 0.08, 0.14])
+                    for (const pVerb of [0, 0.06, 0.12]) {
+                      const wConcepts = +(1 - wMemory - wWords).toFixed(2);
+                      if (wConcepts <= 0) continue;
+                      out.push({ ...THRESHOLDS, wMemory, wWords, wConcepts, wTitle, sameFinal, sameConcepts, sameMargin, partialFinal, pActor, pExtra, pVerb });
+                    }
+  return out;
+}
+
 function ruleRelation(j: ReturnType<typeof judge>, best: number): Relation {
-  return decideRelation({ final: j.final, concepts: j.conceptScore, clash: j.polarityClash }, best);
+  return decideRelation({ final: j.final, concepts: j.conceptScore, clash: j.polarityClash, actorClash: j.actorClash }, best);
 }
 
 function whyLine(rel: Relation, cand: { id: string; title: string }, covered: string[], missing: string[]): string {
@@ -815,13 +1102,37 @@ export interface MatchOptions {
   top?: number;
 }
 
+/** How the catalog itself words each concept — added to the word search only. */
+const EXPAND: Record<string, string> = {
+  closed: "window closes closed deadline bid end",
+  surrogate: "surrogate behalf",
+  missing: "without missing empty",
+  twice: "duplicate twice already",
+  limit: "limit exceeds maximum",
+  negative: "negative",
+  invalid: "invalid",
+  nonexistent: "nonexistent unknown",
+  "not-invited": "uninvited invited audience",
+  counter: "counter offer",
+  convert: "convert auction",
+  extend: "extend extension bid end",
+  withdraw: "withdraw",
+  masking: "masked masking",
+  othercompany: "another company tenant",
+};
+
+const NAMED_ID = /\b(?:(?:UI|API|PRD)-[A-Z]+(?:-[A-Z]+)?-\d{2,4}|EVI-[A-Z]+-\d{2,4}|GEN-[A-Z]+-\d{3})\b/gi;
+
 export async function matchTestCase(typed: string, opts: MatchOptions = {}): Promise<MatchResult> {
   const started = Date.now();
   const u = understand(typed);
   const top = opts.top ?? 8;
   const query = u.normalized || typed;
 
-  const [mem, words] = await Promise.all([memoryCandidates(query, 60), Promise.resolve(bm25Search(query, 40))]);
+  // The word index also gets the catalog's own words for each concept read out of
+  // the text ("submission time is over" → window, closes, deadline …).
+  const expanded = `${query} ${u.concepts.filter((k) => !k.setup).map((k) => EXPAND[k.id] ?? "").join(" ")}`.trim();
+  const [mem, words] = await Promise.all([memoryCandidates(query, 60), Promise.resolve(bm25Search(expanded, 50))]);
   const memById = new Map<string, number>();
   for (const h of mem.hits) memById.set(h.id, Math.max(memById.get(h.id) ?? 0, h.score));
   const bestWords = words[0]?.score ?? 1;
@@ -833,44 +1144,50 @@ export async function matchTestCase(typed: string, opts: MatchOptions = {}): Pro
   const memFloor = mem.hits.length ? Math.min(...mem.hits.map((h) => h.score)) : 0;
   const ids = [...new Set([...memById.keys(), ...wordsById.keys()])];
   const full = new Map<string, { steps: string; expected: string }>();
-  const scored = ids
-    .map((id) => {
-      const c = caseById(id) as CatalogCase;
-      full.set(id, { steps: c.steps, expected: c.expected });
-      const j = judge(u, c, memById.get(id) ?? memFloor);
-      return { c, j, origin: "catalog" as const };
-    })
-    .filter((x) => x.c);
+  type Scored = { c: CatalogCase; j: ReturnType<typeof judge>; origin: "catalog" | "draft"; status?: string };
+  const scored: Scored[] = ids
+    .map((id) => caseById(id) as CatalogCase)
+    .filter((c) => !!c)
+    .map((c) => {
+      full.set(c.id, { steps: c.steps, expected: c.expected });
+      return { c, j: judge(u, c, memById.get(c.id) ?? memFloor), origin: "catalog" as const };
+    });
 
-  // Drafts the assistant wrote earlier: a typed case that matches one of them
-  // is not new a second time.
+  // Drafts the assistant wrote earlier. They NEVER count as coverage (a person
+  // has not reviewed them); a close one is pointed at instead of writing another.
+  // An approved draft is a catalog case (GEN-… in api-assistant-approved.md) and
+  // is found above.
   const drafts = draftSearch ? await draftSearch(mem.vec, mem.embedder, query).catch(() => []) : [];
   for (const d of drafts) {
+    if (d.status === "approved" || caseById(d.id)) continue;
     const memScore = d.dense !== undefined ? d.dense * 0.75 + lexicalOverlap(memTerms(query), `${d.title} ${d.steps} ${d.expected}`) * 0.25 : memFloor;
     full.set(d.id, { steps: d.steps, expected: d.expected });
     scored.push({
-      c: { id: d.id, title: d.title, steps: d.steps, expected: d.expected, setup: "", layer: "draft", section: `Draft (${d.status})` } as unknown as CatalogCase,
+      c: { id: d.id, title: d.title, steps: d.steps, expected: d.expected, setup: "", layer: "draft", section: `Draft (${d.status})`, refs: [] } as unknown as CatalogCase,
       j: judge(u, d, memScore),
-      origin: "catalog" as const,
+      origin: "draft",
+      status: d.status,
     });
-    (scored[scored.length - 1] as { origin: string }).origin = "draft";
   }
 
   // A case named by its id ("run UI-CRE-017") is that case, whatever the words say.
-  const named = new Set((typed.match(/\b(?:UI|API|PRD|GEN)-[A-Z]+-\d{3}\b/gi) ?? []).map((x) => x.toUpperCase()));
+  const named = new Set((typed.match(NAMED_ID) ?? []).map((x) => x.toUpperCase()));
   for (const id of named) {
     const c = caseById(id);
     if (!c) continue;
     const at = scored.findIndex((x) => x.c.id === id);
-    const j = { conceptScore: 1, wordScore: 1, covered: ["named by id"], missing: [] as string[], polarityClash: false, mem: 1, memRaw: 1, final: 1 };
+    const base = at >= 0 ? scored[at].j : judge(u, c, 1);
+    const j = { ...base, conceptScore: 1, wordScore: 1, covered: ["named by id"], missing: [] as string[], polarityClash: false, actorClash: false, mem: 1, memRaw: 1, final: 1, matchWhy: "You named this case.", differs: "" };
+    j.features = { ...j.features, memoryRaw: 1, words: 1, concepts: 1, clash: false, actorClash: false, extras: 0, verbMiss: false };
     if (at >= 0) scored[at].j = j;
-    else scored.push({ c, j, origin: "catalog" as const });
+    else scored.push({ c, j, origin: "catalog" });
   }
 
   scored.sort((a, b) => b.j.final - a.j.final);
-  const best = scored[0]?.j.final ?? 0;
-  let cands: MatchCandidate[] = scored.slice(0, Math.max(top, 12)).map(({ c, j, origin }) => {
-    const rel = ruleRelation(j, best);
+  // The best CATALOG score anchors SAME's margin: a draft never pushes a catalog case out.
+  const best = scored.find((x) => x.origin === "catalog")?.j.final ?? 0;
+  const toCand = ({ c, j, origin, status }: Scored): MatchCandidate => {
+    const rel = origin === "draft" ? decideRelation({ final: j.final, concepts: j.conceptScore, clash: j.polarityClash, actorClash: j.actorClash }, j.final) : ruleRelation(j, best);
     return {
       id: c.id,
       title: c.title,
@@ -880,18 +1197,24 @@ export async function matchTestCase(typed: string, opts: MatchOptions = {}): Pro
       relation: rel,
       ruleRelation: rel,
       scores: { memoryRaw: +j.memRaw.toFixed(4), memory: +j.mem.toFixed(3), words: +j.wordScore.toFixed(3), concepts: +j.conceptScore.toFixed(3), final: +j.final.toFixed(3) },
+      features: { ...j.features, memoryRaw: +j.features.memoryRaw.toFixed(4), words: +j.features.words.toFixed(3), concepts: +j.features.concepts.toFixed(3) },
       clash: j.polarityClash,
       covered: j.covered,
       missing: j.missing,
       why: whyLine(rel, c, j.covered, j.missing),
+      matchWhy: j.matchWhy,
+      differs: j.differs,
+      ...(status ? { status } : {}),
     };
-  });
+  };
+  const catalogCands = scored.filter((x) => x.origin === "catalog").slice(0, Math.max(top, 12)).map(toCand);
+  const draftCands = scored.filter((x) => x.origin === "draft").slice(0, 4).map(toCand);
 
-  // Model confirmation of the top five only.
+  // Model confirmation of the top five catalog candidates only.
   const llmInfo: MatchResult["llm"] = { used: false };
-  if (opts.llm !== false && cands.length) {
+  if (opts.llm !== false && catalogCands.length) {
     const before = usageReport();
-    const head = cands.slice(0, 5);
+    const head = catalogCands.slice(0, 5);
     const { answers, error } = await confirmWithModel(typed, head, full);
     const after = usageReport();
     const delta = (k: "promptTokens" | "completionTokens") =>
@@ -905,29 +1228,45 @@ export async function matchTestCase(typed: string, opts: MatchOptions = {}): Pro
       const a = answers.get(c.id);
       if (!a) continue;
       c.llm = { relation: a.relation, missing: a.missing };
-      c.relation = combine(c, a);
-      if (c.relation !== c.ruleRelation) {
-        c.llm.note = `the rule said ${c.ruleRelation}, the model said ${a.relation}`;
-      }
+      // A different actor or the opposite outcome is a fact of the words, not a judgement: the model cannot lift it to SAME.
+      c.relation = (c.features.actorClash || c.clash) && combine(c, a) === "same" ? "partial" : combine(c, a);
+      if (c.relation !== c.ruleRelation) c.llm.note = `the rule said ${c.ruleRelation}, the model said ${a.relation}`;
       if (c.relation === "partial" && a.missing && !c.missing.includes(a.missing)) c.missing = [a.missing, ...c.missing];
       c.why = whyLine(c.relation, c, c.covered, c.missing);
     }
   }
 
   // Order: SAME first, then PARTIAL, then the rest, each by score.
-  cands.sort((a, b) => RANK[b.relation] - RANK[a.relation] || b.scores.final - a.scores.final);
-  cands = cands.slice(0, top);
-  const same = cands.filter((c) => c.relation === "same");
-  const partial = cands.filter((c) => c.relation === "partial");
-  const decision = same.length ? "existing" : partial.length ? "partial" : "new";
+  catalogCands.sort((a, b) => RANK[b.relation] - RANK[a.relation] || b.scores.final - a.scores.final);
+  const same = catalogCands.filter((c) => c.relation === "same").slice(0, top);
+  const partial = catalogCands.filter((c) => c.relation === "partial").slice(0, top);
+  const decision: MatchResult["decision"] = same.length ? "existing" : partial.length ? "partial" : "new";
+
+  // The closest existing cases, always — even when the answer is "new".
+  const closest: Closest[] = catalogCands.slice(0, 5).map((c, i) => ({
+    id: c.id,
+    title: c.title,
+    layer: c.layer,
+    relation: c.relation,
+    score: +Math.max(0, Math.min(1, c.scores.final)).toFixed(3),
+    why: c.matchWhy,
+    differs: c.relation === "same" && !c.differs ? "" : c.differs || (c.relation === "same" ? "" : "It is about something close, but not the same test."),
+    best: i === 0,
+  }));
+
+  // A draft that already says this: point at it instead of writing another.
+  const dBest = draftCands.find((d) => d.relation === "same" && d.scores.final >= (catalogCands[0]?.scores.final ?? 0) - 0.15);
+  const nearDraft = dBest
+    ? { id: dBest.id, title: dBest.title, status: dBest.status ?? "draft", relation: dBest.relation, score: dBest.scores.final, why: dBest.matchWhy, differs: dBest.differs }
+    : undefined;
+
+  const t = (c: MatchCandidate) => `“${c.title}”`;
   const headline =
     decision === "existing"
-      ? `This matches ${same.length} existing test case${same.length > 1 ? "s" : ""}: ${same.map((c) => `${c.id} (${c.title})`).join("; ")}.`
+      ? `This is already covered: ${same.slice(0, 3).map(t).join("; ")}${same.length > 3 ? ` and ${same.length - 3} more` : ""}.`
       : decision === "partial"
-        ? `Nothing covers this exactly. ${partial.length} existing case${partial.length > 1 ? "s cover" : " covers"} part of it — ${partial
-            .slice(0, 3)
-            .map((c) => `${c.id}, which does not cover ${c.missing.slice(0, 2).join(" or ") || "everything you typed"}`)
-            .join("; ")}.`
-        : "This is new — no existing test case covers it.";
-  return { typed, understood: u, decision, same, partial, candidates: cands, headline, memory: mem.via, llm: llmInfo, ms: Date.now() - started };
+        ? `Nothing covers this exactly. The closest ${partial.length > 1 ? "cases cover" : "case covers"} part of it — ${t(partial[0])}${partial[0].differs ? ` (${partial[0].differs.replace(/\.$/, "").replace(/^./, (x) => x.toLowerCase())})` : ""}.`
+        : `This is new — no existing test case covers it.${closest[0] ? ` The closest is ${t(catalogCands[0])}.` : ""}`;
+  const candidates = [...catalogCands, ...draftCands].sort((a, b) => RANK[b.relation] - RANK[a.relation] || b.scores.final - a.scores.final).slice(0, Math.max(top, 8));
+  return { typed, understood: u, decision, same, partial, candidates, closest, ...(nearDraft ? { nearDraft } : {}), headline, memory: mem.via, llm: llmInfo, ms: Date.now() - started };
 }

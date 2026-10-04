@@ -90,7 +90,8 @@ if (rescoreArg >= 0) {
     got.push({
       id: r.id,
       decision: m.decision,
-      cands: m.candidates.map((c) => ({
+      // Drafts never count as coverage (caseMatcher.ts): only catalog candidates are scored.
+      cands: m.candidates.filter((c: any) => c.origin !== "draft").map((c) => ({
         id: c.id,
         memoryRaw: c.scores.memoryRaw,
         words: c.scores.words,
@@ -217,7 +218,7 @@ if (tune) {
               for (const sameMargin of grid.sameMargin)
                 for (const partialFinal of grid.partialFinal)
                   for (const partialConcepts of grid.partialConcepts) {
-                    const T = { memLow, memHigh, wMemory, wWords, wConcepts, sameFinal, sameConcepts, sameMargin, partialFinal, partialConcepts };
+                    const T = { ...THRESHOLDS, memLow, memHigh, wMemory, wWords, wConcepts, sameFinal, sameConcepts, sameMargin, partialFinal, partialConcepts };
                     const v = objective(score("dev", T));
                     if (v > best.v + 1e-9) best = { T, v };
                   }

@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "EVI-RANK-010",
+  "title": "Each vendor sees its own correct rank in a rank auction",
+  "compiledAt": "2026-10-04T07:18:40.248Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send GET /v1/trade/{{tradeId}}/event_indicators, but the vendor's session may not call GET /v1/trade/:id/event_indicators (trade#event_indicators is not on that app's list in config/app_auth_config.yml)"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFP + RFQ event where the invited QA vendor has submitted its technical response; rounds still open.",
+   "steps": [
+    "The invited QA vendor reads the round's comparison (ranks, best bidder).",
+    "As the invited QA vendor, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 1 › inline › the line › rank › best bidder” is present."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-RANK-010",
+  "title": "Each vendor sees its own correct rank in a rank auction",
+  "setup": {
+   "recipe": "rfp_rfq_with_tech_response"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

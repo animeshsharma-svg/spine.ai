@@ -131,6 +131,35 @@
     );
   }
 
+  /** "Closest matches": the 3–5 nearest written cases, best first, with a score bar and why / what differs. */
+  function closestHtml(m) {
+    const list = m.closest || [];
+    if (!list.length) return "";
+    const relWord = { same: "Same test", partial: "Covers part", unrelated: "Related" };
+    const rows = list
+      .map((c) => {
+        const pct = Math.round(Math.max(0, Math.min(1, Number(c.score) || 0)) * 100);
+        const cls = c.relation === "same" ? "good" : c.relation === "partial" ? "warn" : "idle";
+        return (
+          `<div class="sx-match-row${c.best ? " sx-best" : ""}">` +
+          `<div class="sx-row" style="gap:6px">${c.best ? `<span class="sx-badge accent">Best match</span>` : ""}<span class="t sx-grow">${esc(c.title)}</span><span class="sx-badge ${cls}">${esc(relWord[c.relation] || "")}</span></div>` +
+          `<div class="sx-row" style="gap:6px;align-items:center"><div style="flex:1;height:6px;border-radius:3px;background:var(--line,#ddd);overflow:hidden" title="closeness ${pct}%"><div style="width:${pct}%;height:100%;background:var(--accent,#4a7)"></div></div><span class="sx-muted" style="min-width:3em;text-align:right">${pct}%</span></div>` +
+          `<div class="w">Why it matches: ${esc(c.why || "")}</div>` +
+          (c.differs ? `<div class="w">What differs: ${esc(c.differs)}</div>` : "") +
+          `</div>`
+        );
+      })
+      .join("");
+    return `<span class="sx-k">Closest matches</span>${rows}`;
+  }
+
+  /** A draft written earlier that already says this. */
+  function nearDraftHtml(m) {
+    const d = m.nearDraft;
+    if (!d || m.decision === "existing") return "";
+    return `<div class="sx-banner info">You already have a draft: <b>${esc(d.title)}</b> — review it in the drafts list below rather than writing another.${d.differs ? ` <span class="sx-muted">(${esc(d.differs)})</span>` : ""}</div>`;
+  }
+
   function matchHtml(m) {
     if (!m) return "";
     const decisionWord = { existing: "Already covered", partial: "Partly covered", new: "Not covered yet" }[m.decision] || "";
@@ -149,13 +178,17 @@
       ...(m.understood ? [{ label: "Read as", value: m.understood.normalized }] : []),
       ...(m.ms != null ? [{ label: "Took", value: `${m.ms} ms` }] : []),
       ...plan,
+      ...(m.closest || []).map((c) => ({ label: `Closest: ${c.title}`, value: `${c.id} · ${c.relation} · ${Number(c.score).toFixed(3)}`, kind: "code" })),
+      ...(m.nearDraft ? [{ label: "Existing draft", value: `${m.nearDraft.id} (${m.nearDraft.status})`, kind: "code" }] : []),
       ...scoreRows,
     ];
     return (
       `<div class="sx-card ${decisionCls === "good" ? "good" : decisionCls === "warn" ? "warn" : "accent"}">` +
       `<div class="sx-row"><h3 class="sx-h3 sx-grow">What already checks this</h3><span class="sx-badge ${decisionCls}">${esc(decisionWord)}</span></div>` +
-      `<p class="sx-p">${esc(m.headline || "")}</p>` +
-      (same ? `<span class="sx-k">The same test</span>${same}` : "") +
+      `<p class="sx-p">${esc(CV.scrub(m.headline || ""))}</p>` +
+      nearDraftHtml(m) +
+      closestHtml(m) +
+      (same && !(m.closest || []).length ? `<span class="sx-k">The same test</span>${same}` : "") +
       (partial.length
         ? `<details class="sx-attempts" style="color:inherit"><summary style="color:var(--accent)">Covers part of it (${partial.length})</summary>${partial.map((c) => candidateRow(c, { showMissing: true })).join("")}</details>`
         : "") +

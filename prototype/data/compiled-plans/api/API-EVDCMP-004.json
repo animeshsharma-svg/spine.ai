@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "caseId": "API-EVDCMP-004",
+  "title": "A rebid below the leader takes the lead, and the old bid stops counting",
+  "compiledAt": "2026-10-04T07:12:24.229Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The comparison result does not expose or verify QA vendor 2's exact new price as L1."
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "QA vendor 2 places a better (lower) bid to take the lead.",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data › QA vendor 2 › inline › the line › rank › best bidder” equals true."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDCMP-004",
+  "title": "A rebid below the leader takes the lead, and the old bid stops counting",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor2",
+    "params": {
+     "price": 50
+    },
+    "decisive": true,
+    "say": "QA vendor 2 places a better (lower) bid to take the lead."
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+      "op": "equals",
+      "value": true
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

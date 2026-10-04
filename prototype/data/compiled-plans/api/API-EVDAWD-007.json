@@ -1,0 +1,53 @@
+{
+ "meta": {
+  "caseId": "API-EVDAWD-007",
+  "title": "Awarding more than the line's quantity across vendors is refused when partial awarding is on",
+  "compiledAt": "2026-10-04T07:11:36.508Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The plan does not verify that the original 25-unit allocations remain unchanged after the rejection."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal/:id/add_response"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “You cannot select bid with more than requested quantity.”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAWD-007",
+  "title": "Awarding more than the line's quantity across vendors is refused when partial awarding is on",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "AWD-PART-004",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "561",
+   "message": "You cannot select bid with more than requested quantity."
+  }
+ }
+}

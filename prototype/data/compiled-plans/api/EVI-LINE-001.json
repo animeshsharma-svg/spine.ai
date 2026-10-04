@@ -1,0 +1,89 @@
+{
+ "meta": {
+  "caseId": "EVI-LINE-001",
+  "title": "A quote is stored exactly as the vendor entered it",
+  "compiledAt": "2026-10-04T07:15:51.282Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "fractional quantities, GST rates per line read-back details not fully supported by indicators shape"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round.",
+    "The invited QA vendor prices the line on the bid with the price set to “123.4567”.",
+    "The invited QA vendor submits the bid.",
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data” is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data” is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-LINE-001",
+  "title": "A quote is stored exactly as the vendor entered it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "change": [
+     {
+      "path": "price",
+      "set": "123.4567",
+      "add": true
+     }
+    ]
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

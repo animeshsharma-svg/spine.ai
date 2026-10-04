@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "caseId": "EVI-RANK-006",
+  "title": "Best bid total and ranks on a charges template use the full total",
+  "compiledAt": "2026-10-04T07:18:21.270Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "specific discount and tax component calculations on charges template cannot be fully asserted without itemized price breakdown fields in read_indicators"
+  ],
+  "warnings": [
+   "verify 1: read_indicators's reply shape has not been sampled; \"auction_identifiers_data\" is unverified"
+  ],
+  "validated": true,
+  "endpoints": [
+   "GET /v1/trade/:id/event_indicators"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh published RFQ event with two QA vendors invited, each with a submitted bid; bidding still open.",
+   "steps": [
+    "The buyer reads the round's comparison (ranks, best bidder).",
+    "As the buyer, read the round's comparison (ranks, best bidder) and check that “auction identifiers data” is not empty."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “auction identifiers data” is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "EVI-RANK-006",
+  "title": "Best bid total and ranks on a charges template use the full total",
+  "setup": {
+   "recipe": "rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_indicators",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "auction_identifiers_data",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

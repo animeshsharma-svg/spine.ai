@@ -195,7 +195,7 @@ export interface CompiledApiPlan {
   errors: string[];
   /** non-blocking notes (a field not yet seen in a real reply, a code not in en-IN.yml…) */
   warnings: string[];
-  source: "library-case" | "rules" | "llm-fast" | "llm-reason" | "none";
+  source: "library-case" | "exemplar" | "rules" | "llm-fast" | "llm-reason" | "none";
   /** the endpoints the plan sends, "METHOD /route/:id" */
   endpoints: string[];
   /** the decisive request's endpoint */
@@ -205,6 +205,10 @@ export interface CompiledApiPlan {
   text: string;
   /** library cases offered to the model as templates */
   candidates: string[];
+  /** the automation exemplars retrieved for this case (closest first), when any */
+  exemplars?: Array<{ id: string; title: string; score: number; dense: number; structure: number; verdict: string; source: string }>;
+  /** the exemplar whose validated plan was reused without a model */
+  reusedFrom?: string;
   ms: number;
 }
 
@@ -1194,13 +1198,13 @@ function parseModel(raw: string): ModelAnswer | null {
   }
 }
 
-async function askModel(text: string, cands: TestCaseRecord[], tier: "fast" | "reason", repair?: { previous: string; errors: string[] }): Promise<ModelAnswer | null> {
+async function askModel(text: string, cands: TestCaseRecord[], tier: "fast" | "reason", repair?: { previous: string; errors: string[] }, worked = ""): Promise<ModelAnswer | null> {
   const sys =
     "You compile software test cases for Procol (B2B procurement: sourcing events, RFQ/RFP rounds, vendor bids, awards) into API test plans. " +
     "You use ONLY the vocabulary given: recipes, operations, fields, tokens and assertion ops. Never invent an endpoint, field or recipe. " +
     "When part of the case cannot be expressed, keep the part that can and list the rest in gaps; when nothing can, return plan:null. Reply with JSON only.";
   const user =
-    `${vocabularyPrompt(cands)}\n\n${EXAMPLES}\n\nRULES: the setup must create the state the case starts from (closed_* = the window is over; *_short = still open but closing in ~2 min, so a wait can see it close). ` +
+    `${vocabularyPrompt(cands)}\n\n${EXAMPLES}\n\n${worked ? `${worked}\n\n` : ""}RULES: the setup must create the state the case starts from (closed_* = the window is over; *_short = still open but closing in ~2 min, so a wait can see it close). ` +
     `The decisive act is the one the case is about; earlier acts arrange (they must succeed; when an arrange act carries the case's own invalid input, give it "ifRefused":"pass"). Use verify read-backs when the case says something is kept, changed, shown or not changed. ` +
     `expected.code only when the app's error code is known (33 order not active/window over, 712 RFP ends after RFQ, 536 not allowed to view, 455/101 not authorised, 95 stage closed or withdrawn, 2 insufficient parameters, 801 proposal exists, 96 the vendor already bid themselves (surrogate refused), 99 a surrogate bid already exists for the vendor, 737 technical response pending, 512 cannot remove a vendor who already participated, 782 uninvited vendor cannot bid, 34 a bid already placed from your team, 875 revise locked after submission, 94 already converted to auction); otherwise leave it out. ` +
     `Use no-5xx only when the case is about not crashing; a case that says something is refused expects reject.\n\n` +
@@ -1269,11 +1273,46 @@ export interface CompileOptions {
   allowReason?: boolean;
   /** skip the library-case and rule paths (to measure the model alone) */
   modelOnly?: boolean;
+  /**
+   * use the automation exemplars (exemplars.ts): reuse one outright when it fits
+   * exactly, else show the closest to the model as worked examples. Default on;
+   * SPINE_EXEMPLARS=0 turns it off for the whole process (to measure without).
+   */
+  exemplars?: boolean;
 }
 
 /** A catalog case as the words a QA engineer wrote. */
 export function catalogCaseText(c: CatalogCase): string {
   return [c.title, c.setup && `Setup: ${c.setup}`, c.steps && `Steps: ${c.steps}`, c.expected && `Expected: ${c.expected}`].filter(Boolean).join("\n");
+}
+
+/**
+ * A model-written plan that sends a library case's request must send it in the
+ * state and as the actor that library case was written for — otherwise the
+ * request tests something else and its "failure" would be a false positive.
+ * Seen 2026-10-04: API-XBID-060 (needs a ceiling price no recipe sets) and
+ * API-XBID-046 (a vendor-side surrogate case sent as the buyer).
+ */
+export function libraryActProblems(plan: ApiPlan): string[] {
+  const lib = library();
+  const out: string[] = [];
+  for (const a of plan.act) {
+    if (a.op !== "library" || !a.caseId) continue;
+    const lc = lib.byId.get(a.caseId);
+    if (!lc) continue;
+    const r = recipeForLibraryCase(lc);
+    if (r.unbuilt) out.push(`library case ${lc.id} needs a starting state no recipe builds (“${r.unbuilt.slice(0, 120)}”)`);
+    const head = `${lc.title} ${lc.preconditions ?? ""}`.toLowerCase().replace(/_/g, " ");
+    const vendorSide = /^(?:qa platform )?vendor\b|\bvendor (?:calls|session|user)\b|\bauthenticated vendor\b|\bsession: the invited vendor\b/.test(head);
+    const as = a.as ?? "buyer";
+    if (vendorSide && as === "buyer") out.push(`library case ${lc.id} is written for a vendor's session, but the plan sends it as the buyer`);
+    if (!vendorSide && r.actor === "buyer" && as !== "buyer" && /\bbuyer\b/.test(head)) out.push(`library case ${lc.id} is written for the buyer, but the plan sends it as ${as}`);
+  }
+  return out;
+}
+
+function exSummary(hits: import("./exemplars.js").ExemplarHit[]): CompiledApiPlan["exemplars"] {
+  return hits.slice(0, 4).map((h) => ({ id: h.ex.id, title: h.ex.title, score: h.score, dense: h.dense, structure: h.structure, verdict: h.verdict.verdict, source: h.ex.source }));
 }
 
 export async function compileApiPlan(input: CompileInput, opts: CompileOptions = {}): Promise<CompiledApiPlan> {
@@ -1327,8 +1366,49 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     }
   }
 
+  // 1b · the memory of automation built before (exemplars.ts): the closest
+  // cases that already have a working plan — reused outright when one fits
+  // exactly, otherwise shown to the model as worked examples.
+  // Only when the model is in play: the search embeds the case (a network call),
+  // and no-model callers (coverage metrics compile 1,000 cases in a 30 s budget) must stay fast.
+  const useExemplars = (opts.exemplars ?? process.env.SPINE_EXEMPLARS !== "0") && opts.llm !== false && llmMode() !== "fallback";
+  let exHits: import("./exemplars.js").ExemplarHit[] = [];
+  let worked = "";
+  if (useExemplars) {
+    try {
+      const ex = await import("./exemplars.js");
+      const exclude = [input.caseId, ...(cat?.refs ?? [])].filter((x): x is string => !!x);
+      exHits = await Promise.race([
+        ex.findExemplars(text, { k: 6, exclude }),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("exemplar search took over 30 s")), 30_000)),
+      ]);
+      if (!opts.modelOnly) {
+        const fit = ex.exactFit(text, exHits, input.caseId, cat?.title ?? text.split("\n")[0].slice(0, 140));
+        if (fit) {
+          const v = await validatePlan(fit.plan);
+          if (v.ok) {
+            const cov = judgeCoverage(text, v.plan, [], [], cat ? [cat.title, cat.expected] : []);
+            return out({
+              plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: [...v.warnings, fit.why], source: "exemplar",
+              candidates: [fit.from.ex.id], exemplars: exSummary(exHits), reusedFrom: fit.from.ex.id,
+            });
+          }
+        }
+      }
+      worked = ex.workedExamples(exHits.slice(0, 4));
+    } catch (e) {
+      worked = "";
+      console.warn(`[apiPlanner] exemplars unavailable: ${(e as Error).message.slice(0, 160)}`);
+    }
+  }
+
   const cited = [libCase, ...(cat?.refs ?? []).map((r) => lib.byId.get(r))].filter((c): c is TestCaseRecord => !!c && !libraryCaseProblem(c));
-  const cands = [...cited, ...nearestLibraryCases(text).filter((c) => !cited.includes(c))].slice(0, 7);
+  // The exemplars' library requests are offered first after the cited ones: they were found by meaning, not only by words.
+  const fromExemplars = exHits
+    .map((h) => h.ex.libraryId ?? h.ex.plan?.act.find((a) => a.op === "library")?.caseId)
+    .map((id) => (id ? lib.byId.get(id) : undefined))
+    .filter((c): c is TestCaseRecord => !!c && !libraryCaseProblem(c) && !cited.includes(c));
+  const cands = [...new Set([...cited, ...fromExemplars.slice(0, 3), ...nearestLibraryCases(text).filter((c) => !cited.includes(c))])].slice(0, 8);
   const useModel = opts.llm !== false && llmMode() !== "fallback";
   let lastErrors: string[] = [];
   let lastWarnings: string[] = [];
@@ -1341,7 +1421,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
     for (let i = 0; i < tiers.length; i++) {
       const tier = tiers[i];
       if (tier === "reason") reasonTried = true;
-      const ans = await askModel(text, cands, tier, previous && lastErrors.length ? { previous, errors: lastErrors } : undefined);
+      const ans = await askModel(text, cands, tier, previous && lastErrors.length ? { previous, errors: lastErrors } : undefined, worked);
       if (!ans) {
         lastErrors = ["the model's answer was not JSON"];
         continue;
@@ -1361,8 +1441,8 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
       const v = await validatePlan({ ...(ans.plan as object), ...(input.caseId ? { caseId: input.caseId } : {}) });
       lastWarnings = v.warnings;
       if (v.ok) {
-        const cov = judgeCoverage(text, v.plan, ans.gaps, [], cat ? [cat.title, cat.expected] : []);
-        return out({ plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: v.warnings, source: tier === "reason" ? "llm-reason" : "llm-fast", candidates: cands.map((c) => c.id), reasonTried } as any);
+        const cov = judgeCoverage(text, v.plan, ans.gaps, libraryActProblems(v.plan), cat ? [cat.title, cat.expected] : []);
+        return out({ plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: v.warnings, source: tier === "reason" ? "llm-reason" : "llm-fast", candidates: cands.map((c) => c.id), exemplars: exSummary(exHits), reasonTried } as any);
       }
       lastErrors = v.errors;
     }
@@ -1375,7 +1455,7 @@ export async function compileApiPlan(input: CompileInput, opts: CompileOptions =
       const v = await validatePlan({ ...r.plan, title: text.split("\n")[0].slice(0, 140), ...(input.caseId ? { caseId: input.caseId } : {}) });
       if (v.ok) {
         const cov = judgeCoverage(text, v.plan, [], ["compiled by a fixed rule, not read in full — check the steps match the case"], cat ? [cat.title, cat.expected] : []);
-        return out({ plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: v.warnings, source: "rules", candidates: cands.map((c) => c.id) });
+        return out({ plan: v.plan, coverage: cov.coverage, gaps: cov.gaps, warnings: v.warnings, source: "rules", candidates: cands.map((c) => c.id), exemplars: exSummary(exHits) });
       }
       lastErrors = [...lastErrors, ...v.errors.map((e) => `rule: ${e}`)];
     }

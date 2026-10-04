@@ -1,0 +1,88 @@
+{
+ "meta": {
+  "caseId": "API-EVDAWD-008",
+  "title": "Line-wise split: each line goes whole to its own best bidder, with exact amounts",
+  "compiledAt": "2026-10-04T07:11:48.880Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Setup recipe closed_rfq_with_2_bids builds one line item instead of two, so line 2 split and exact per-vendor calculation cannot be fully expressed"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/add_response",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where two QA vendors bid, and the bidding window is over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal for the invited QA vendor.",
+    "The buyer awards the line to a vendor on the proposal for a second QA vendor.",
+    "The buyer sends the award proposal call, exactly as the matching library case writes it.",
+    "As the buyer, read the event and check that “proposals” is not empty."
+   ],
+   "expected": "The app answers cleanly — accepted or refused — but never with a server error. Read back afterwards: “proposals” is not empty."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDAWD-008",
+  "title": "Line-wise split: each line goes whole to its own best bidder, with exact amounts",
+  "setup": {
+   "recipe": "closed_rfq_with_2_bids"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor",
+     "lineItemUuid": "{{lineItemUuid}}"
+    }
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "params": {
+     "vendor": "vendor2",
+     "lineItemUuid": "{{lineItemUuid}}"
+    }
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "API-AWD-012",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "proposals",
+      "op": "non_empty"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "no-5xx"
+  }
+ }
+}

@@ -1,0 +1,62 @@
+{
+ "meta": {
+  "caseId": "API-EVDRJB-045",
+  "title": "Another vendor cannot discard my draft",
+  "compiledAt": "2026-10-04T07:08:54.310Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "vendor2 discarding vendor1's draft bid (no vocabulary for discard action)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor opens a bid on the pricing round with the trade request uuid set to “…”, with the company uuid set to “…”."
+   ],
+   "expected": "The app refuses the step the case is about with “No such bid exists”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRJB-045",
+  "title": "Another vendor cannot discard my draft",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor",
+    "change": [
+     {
+      "path": "trade_request_uuid",
+      "set": "{{tradeId}}"
+     },
+     {
+      "path": "company_uuid",
+      "set": "{{vendorUuid}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "250",
+   "message": "No such bid exists"
+  }
+ }
+}

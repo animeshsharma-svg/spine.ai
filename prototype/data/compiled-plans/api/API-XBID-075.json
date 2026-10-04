@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "caseId": "API-XBID-075",
+  "title": "A bid cannot be submitted after the window closes",
+  "compiledAt": "2026-10-04T07:06:05.231Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "library case EDGE-BID-075 needs a starting state no recipe builds (“A priced draft bid {{bidUuid}} whose stage bid_end_time has passed”)",
+   "library case EDGE-BID-075 needs a starting state no recipe builds (a priced DRAFT bid on a closed stage)"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "PATCH /v1/bids/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The invited QA vendor sends the bid call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XBID-075",
+  "title": "A bid cannot be submitted after the window closes",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EDGE-BID-075",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active"
+  }
+ }
+}

@@ -1,0 +1,84 @@
+{
+ "meta": {
+  "caseId": "API-EVDTME-066",
+  "title": "After the end is pulled in, a vendor cannot bid",
+  "compiledAt": "2026-10-04T07:09:20.757Z",
+  "planVersion": 1,
+  "source": "llm-fast (read-back removed after a false live failure)",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "2026-10-04: the model's read-back (round status equals closed) was removed — the case does not state it, and the round reads 'active' during its extra closing time; it made a live run fail falsely on two fresh events."
+  ],
+  "validated": true,
+  "endpoints": [
+   "PATCH /trade/:id",
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The buyer pulls the end in to 90 seconds from now.",
+    "Wait until the pulled-in bid end passes.",
+    "QA vendor tries to place a bid after the pulled-in end.",
+    "As the invited QA vendor, read the pricing round and check that “status” equals closed."
+   ],
+   "expected": "The app refuses the step the case is about with “Order not active”, and never with a server error. Read back afterwards: “status” equals closed."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-066",
+  "title": "After the end is pulled in, a vendor cannot bid",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+90}}"
+     },
+     {
+      "path": "remarks",
+      "set": "QA_Platform_shorten_{{stamp}}"
+     }
+    ],
+    "expect": "accept",
+    "say": "The buyer pulls the end in to 90 seconds from now."
+   },
+   {
+    "op": "wait",
+    "as": "buyer",
+    "params": {
+     "until": "bid_end"
+    },
+    "say": "Wait until the pulled-in bid end passes."
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true,
+    "say": "QA vendor tries to place a bid after the pulled-in end."
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active"
+  }
+ }
+}

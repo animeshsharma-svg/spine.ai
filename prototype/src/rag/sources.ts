@@ -13,6 +13,8 @@
  *   experience    spine DB case_track_record + results: per case, its runs,
  *                 verdict history, flaky flag and last reason (refreshed on
  *                 every build; absent when the DB is down)
+ *   automation-exemplar  data/exemplars.json: one case with a working automation
+ *                 (case words → validated plan), for the API test compiler
  *
  * Every source is optional: one that is missing or broken is skipped and
  * reported, never fatal. Every text goes through redact() — no OTPs, tokens,
@@ -497,6 +499,8 @@ export async function structuredChunks(): Promise<{ chunks: Chunk[]; counts: Rec
     ["access-rule", () => accessChunks()],
     ["known-bug", () => knownBugChunks(notes)],
     ["experience (track record)", () => experienceChunks(notes)],
+    // automation-exemplar (migration 020): cases with a working automation, case words → plan (src/agents/exemplars.ts)
+    ["automation-exemplar", async () => (await import("../agents/exemplars.js")).exemplarChunks() as unknown as Chunk[]],
   ];
   const chunks: Chunk[] = [];
   const counts: Record<string, number> = {};

@@ -473,7 +473,9 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
     headline: match.headline,
     same: match.same.map(slim),
     partial: match.partial.map(slim),
-    others: match.candidates.filter((c) => c.relation === "unrelated").slice(0, 3).map(slim),
+    others: match.candidates.filter((c) => c.relation === "unrelated" && c.origin === "catalog").slice(0, 3).map(slim),
+    closest: match.closest,
+    nearDraft: match.nearDraft ?? null,
     memory: match.memory,
     llm: match.llm,
   });
@@ -487,7 +489,17 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
   let draftRun: DraftRun | undefined;
   let draftSaved: AssistantTurn["draftSaved"];
 
-  if (match.decision === "existing") {
+  // A draft written earlier already says this: point at it (and run its stored
+  // automation) instead of writing a second one. Drafts never count as coverage.
+  const nearDraft = match.decision !== "existing" ? match.nearDraft : undefined;
+  if (nearDraft) {
+    const dc = match.candidates.find((c) => c.id === nearDraft.id);
+    if (dc) match.same = [...match.same, dc];
+    answer.push(`You already have a draft for this: “${nearDraft.title}” (${nearDraft.id}), still waiting for review — review it rather than writing another. No new draft was written.`);
+    emit("step", { name: "build", status: "done", line: `Not written again — you already have a draft that says this: “${nearDraft.title}”. Review it in the drafts list.` });
+  }
+
+  if (match.decision === "existing" || nearDraft) {
     targets = match.same.map((c) => caseById(c.id)).filter((c): c is CatalogCase => !!c).map((c) => resolveTarget(c, opts.companyId));
     emit("plan", { targets });
     const runnableHere = targets.filter((t) => t.how === "case-run" || t.how === "library" || t.how === "journey");
@@ -543,7 +555,7 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
       }
     }
     const drafts = match.same.filter((c) => c.origin === "draft");
-    if (drafts.length) answer.push(`${drafts.map((d) => d.id).join(", ")} ${drafts.length > 1 ? "are drafts" : "is a draft"} written earlier by the assistant — still waiting for review.`);
+    if (drafts.length && !nearDraft) answer.push(`${drafts.map((d) => d.id).join(", ")} ${drafts.length > 1 ? "are drafts" : "is a draft"} written earlier by the assistant — still waiting for review.`);
   } else if (opts.build) {
     emit("step", { name: "build", status: "start", line: "Nothing covers this fully, so I am writing a test case and the automation for it…" });
     const area = (await import("./drafts.js")).areaFor(u.concepts);
@@ -633,7 +645,7 @@ export async function runAssistant(typed: string, opts: AssistantOptions, emit: 
 }
 
 function slim(c: MatchCandidate) {
-  return { id: c.id, title: c.title, relation: c.relation, why: c.why, missing: c.missing, origin: c.origin, layer: c.layer, scores: c.scores, llm: c.llm };
+  return { id: c.id, title: c.title, relation: c.relation, why: c.why, matchWhy: c.matchWhy, differs: c.differs, missing: c.missing, origin: c.origin, layer: c.layer, scores: c.scores, llm: c.llm };
 }
 
 export { brief };
