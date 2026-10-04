@@ -27,6 +27,10 @@ export function getPool(): pg.Pool {
       idleTimeoutMillis: 30_000,
       max: 4,
     });
+    // An idle connection that dies (ETIMEDOUT, network change) emits 'error' on
+    // the pool; without a listener Node kills the whole run. The pool drops the
+    // dead client by itself and the next query opens a fresh one.
+    pool.on("error", (e) => console.warn(`[procol-db] idle connection dropped: ${e.message}`));
   }
   return pool;
 }
