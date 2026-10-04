@@ -1,0 +1,95 @@
+{
+ "meta": {
+  "caseId": "UI-SS-001",
+  "title": "A single-stage RFQ publishes",
+  "compiledAt": "2026-10-04T10:53:27.581Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-CRE-002",
+   "UI-CRE-007"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Single-stage RFQ publishes successfully",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Open the single-stage event create screen as requested by the test case setup."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Configure the single-stage event as an RFQ with lot-based awarding."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the event a unique generated title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Pick the stage's pricing template so line items can be added."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the first line item to the sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill the pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 5
+    },
+    "note": "Set and commit the event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add at least one participant to the event."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the single-stage RFQ event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert the browser reached a real project page with an id (/project/:id/details)."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Assert that no error toast or message appeared during or after publishing."
+   }
+  ]
+ }
+}

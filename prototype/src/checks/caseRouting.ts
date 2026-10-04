@@ -10,6 +10,8 @@ import { STEP_CODE } from "./apiAssertions.js";
 import { gate } from "./dynamicChecks.js";
 import { STEP_META, type StepKind } from "./journeyModel.js";
 import { hasStoredFullPlan, storedApiPlan } from "./compiledPlans.js";
+import { decideLayerSync } from "../agents/layerDecider.js";
+import { prepFor } from "../ui/uiCasePrep.js";
 
 /**
  * How a written case reaches an actual runner — and, just as importantly, when
@@ -631,6 +633,27 @@ export function routeFor(c: CatalogCase): CaseRoute {
    * when a fraction of that is, so they are counted honestly instead.
    */
   if (c.layer === "ui" && c.verdict !== "manual") {
+    // The written screen cases (docs/ui-automation-design.md): the layer decider
+    // says whether the browser is needed at all, and the screen-case runner
+    // (scripts/run-ui-cases.ts) builds the starting state by API and opens the
+    // screen. A stored plan the compiler said covers none of the case is not runnable.
+    if (/^UI-/.test(c.group) && c.group !== "UI-XCHK") {
+      const d = decideLayerSync(c);
+      if (d.layer === "api")
+        return { kind: "ui-compile", because: "every expectation of this case can be observed through the API — the layer decider keeps the browser out of it", runnable: false, strength: "none", runsNow: false, resultIds: ownIds };
+      const p = prepFor(c);
+      if (!p.ok) return { kind: "ui-compile", because: `the screen-case runner cannot start it yet: ${p.why}`, runnable: false, strength: "none", runsNow: false, resultIds: ownIds };
+      if (preparedPlanCoverage(c.id) === "none")
+        return { kind: "ui-compile", because: "compiled once: no step can observe what this case is about (see data/vocabulary-gaps.json)", runnable: false, strength: "none", runsNow: false, resultIds: ownIds };
+      return {
+        kind: "ui-compile",
+        because: p.prepared ? `the screen-case runner builds a ${p.state} event by API and opens ${p.screenWhat}; the compiler writes the case's steps` : `the screen-case runner opens ${p.screenWhat}; the compiler writes the case's steps`,
+        runnable: true,
+        strength: "compile",
+        runsNow: true,
+        resultIds: ownIds,
+      };
+    }
     if (COMPILABLE_SECTIONS.has(c.group)) {
       return {
         kind: "ui-compile",
@@ -661,6 +684,18 @@ export function routeFor(c: CatalogCase): CaseRoute {
     runsNow: false,
     resultIds: ownIds,
   };
+}
+
+/** The coverage a stored screen-case plan was compiled to (data/compiled-plans/ui-prepared), if any. */
+const PREPARED_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "data", "compiled-plans", "ui-prepared");
+function preparedPlanCoverage(id: string): string | null {
+  const f = join(PREPARED_DIR, `${id}.json`);
+  if (!existsSync(f)) return null;
+  try {
+    return String(JSON.parse(readFileSync(f, "utf8"))?.meta?.coverage ?? "") || null;
+  } catch {
+    return null;
+  }
 }
 
 /** Coverage, counted rather than claimed. */

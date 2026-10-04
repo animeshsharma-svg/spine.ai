@@ -1,0 +1,82 @@
+{
+ "meta": {
+  "caseId": "UI-TPL-009",
+  "title": "Leaving a creator column blank is refused as a partially filled sheet",
+  "compiledAt": "2026-10-04T11:01:39.615Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-TPL-001",
+   "UI-SCH-003"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "UI-TPL-009 — Leaving a creator column blank is refused as a partially filled sheet",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start event creation via eRFX path"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-TPL-009 Test Event"
+    },
+    "note": "Provide mandatory event title"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Pick the stage pricing template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item to populate the sheet"
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill sheet cells, leaving creator columns blank as required by test setup"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant so publish is not blocked by missing participants"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 5
+    },
+    "note": "Set schedule so event has valid duration"
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Attempt to publish with incomplete pricing sheet"
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Sheet partially filled, please check again."
+    },
+    "note": "Assert the app refuses publish with the exact validation message"
+   }
+  ]
+ }
+}

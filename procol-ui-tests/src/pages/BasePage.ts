@@ -1,3 +1,4 @@
+import { NOISE_CONTAINER_TEXT } from "../oracle/noise.js";
 import { Page, Locator } from "@playwright/test";
 import { noteToast } from "../oracle/journal.js";
 import { recipesFor } from "../ai/learned.js";
@@ -187,6 +188,15 @@ export class BasePage {
       // ALWAYS take the declining half, never "Yes, I'm in".
       p.getByRole("button", { name: /not\s*now/i }),
       p.locator("button", { hasText: /not\s*now/i }),
+      // Any prompt from the noise list (oracle/noise.ts): take its declining or close control,
+      // never "Enable" / "Allow" / "Yes". Drawers and modals the test opened are never closed.
+      p
+        .locator(".ant-notification-notice, .ant-message-notice, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i], [class*='toast' i]")
+        .filter({ hasText: NOISE_CONTAINER_TEXT })
+        .last()
+        .locator("button, [role='button'], .anticon-close, [aria-label*='close' i]")
+        .filter({ hasNotText: /enable|allow|yes|turn on|subscribe|accept/i })
+        .last(),
     ];
     let dismissed = false;
     for (const c of candidates) {

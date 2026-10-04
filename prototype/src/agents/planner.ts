@@ -252,6 +252,24 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(why);
   };
 
+  // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built
+  // through the API and open_prepared opens the screen the case is about. No
+  // create screen, no title, no search — only the steps the case is about.
+  if (has("open_prepared")) {
+    for (const drop of ["open_create", "set_title", "open_events_list", "open_event", "expect_published", "publish"]) {
+      while (has(drop) && !(drop === "publish" && /\bpublish/i.test(testCase))) {
+        steps.splice(indexOf(drop), 1);
+        repairs.push(`dropped ${drop} — the API built this case's event; open_prepared opens its screen`);
+      }
+    }
+    if (indexOf("open_prepared") !== 0) {
+      const [open] = steps.splice(indexOf("open_prepared"), 1);
+      steps.unshift(open);
+      repairs.push("moved open_prepared to the front — every later step acts on that screen");
+    }
+    return { plan: { ...plan, steps }, repairs };
+  }
+
   // ── generic steps ─────────────────────────────────────────────────────────
   //
   // 1. A generic step that names a screen or action a DOMAIN step owns is
@@ -896,6 +914,12 @@ export interface CompileOptions {
    * compiler as it was before them. Used only to measure the before/after.
    */
   withholdGeneric?: boolean;
+  /**
+   * The case's starting state is built through the API (src/ui/uiSetup.ts):
+   * the plan opens `screen` with open_prepared and holds only the steps the
+   * case is about. `valueKeys` are the API values expect_api_value can compare.
+   */
+  prepared?: { state: string; screen: string; screenWhat: string; valueKeys: string[]; technical?: boolean; screenAssertions?: string[]; examples?: string };
 }
 
 /**
@@ -969,6 +993,20 @@ export function labelGuesses(steps: PlanStep[], testCase: string, labels: Record
   return [...new Set(out)];
 }
 
+/** The prompt section for a case whose state the API builds (CompileOptions.prepared). */
+function preparedRules(p: NonNullable<CompileOptions["prepared"]>): string {
+  return `PREPARED STATE — THIS OVERRIDES the create-test rules above:
+- Before the plan runs, the API has ALREADY built this case's event: a ${p.technical ? "technical (RFP) round + " : ""}pricing (RFQ) round, state "${p.state}" (draft = saved, not published; live = published, bidding open; bid = live and the QA vendor has submitted a bid; closed = the bidding window ended after that bid; proposal = closed with a DRAFT award proposal allocating the line; awarded = closed and the proposal submitted).
+- The built event has exactly ONE line item, ONE invited QA vendor (whose bid, when there is one, is the only bid) and default settings. A case that needs more line items, more vendors or bids, or another tenant setting is NOT this state: write the steps for what this state can show, put the rest in cannotExpress and set coverage "partial" — never assert numbers the case assumes for a bigger event (e.g. "1/2").
+- The state is FIXED: close_event, publish, save_draft, set_schedule, invite_vendor and place_bid are NOT available (the window stays open for an hour on live/bid; closed/proposal are already closed). A case that needs the event in two states (e.g. "shown while live, hidden once closed") gets steps for THIS state only and coverage "partial".
+- After a click that opens a proposal, the URL is /project/<id>/proposal/<id>; the awarding screen is /awarding/<id>.
+- The FIRST step MUST be open_prepared{"screen":"${p.screen}"} — it opens ${p.screenWhat} on that event. Do NOT open_create, set_title, compose_stages, publish, invite or search the list: the event exists. Use other navigation (go_to tab, click) only to reach a sub-screen the case names.
+- Write ONLY the steps the case is about, then an assertion for EACH screen expectation${p.screenAssertions?.length ? ` — these are the ones a screen must show:\n${p.screenAssertions.map((a) => `  • ${a}`).join("\n")}` : "."}
+- A value the API holds and the screen must show (title, vendor name, quantity, bid price…) → expect_api_value{key} with key one of: ${p.valueKeys.join(", ") || "(none for this state)"}.
+- Use expect_toast for a toast, expect_field_error for an error at a field, expect_navigated after a click that should move the screen, expect_order for order/sorting, expect_disabled/expect_enabled for control state, expect_visible/expect_text/expect_count for presence and absence, expect_screen_clean when the case is about the screen rendering correctly.
+- If the case needs a state this one is not (e.g. a second vendor, a setting flipped, a different event type), say so in cannotExpress and set coverage "partial" or "none".${p.examples ? `\n\n${p.examples}` : ""}`;
+}
+
 export async function compileTestCase(testCase: string, moduleHint = "events", opts: CompileOptions = {}): Promise<CompileResult> {
   const full = loadCatalog();
   const catalog: Catalog = opts.withholdGeneric
@@ -1022,6 +1060,7 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     knownLabels ? `KNOWN LABELS (exact strings the product renders, by screen — from its source and from live runs):\n${knownLabels}` : "",
     expectations.length ? `WHAT THE RULES SAY ABOUT THIS AREA:\n${expectations.map((e) => `- ${e}`).join("\n")}` : "",
     experience.length ? `WHAT HAS BROKEN HERE BEFORE (worth asserting):\n${experience.map((e) => `- ${e}`).join("\n")}` : "",
+    opts.prepared ? preparedRules(opts.prepared) : "",
     `TEST CASE:\n${testCase}`,
   ]
     .filter(Boolean)
@@ -1115,6 +1154,10 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     return { plan: fallbackPlan(testCase), reasoning: "No usable steps.", context: { expectations, experience }, source: "fallback", warnings, coverage: "partial", gaps: ["compiled without a model, so this is a generic plan rather than this case"] };
   }
 
+  if (opts.prepared && !steps.some((st) => st.step === "open_prepared")) {
+    steps.unshift({ step: "open_prepared", args: { screen: opts.prepared.screen }, note: "the API built this case's state" });
+    warnings.push(`added open_prepared(${opts.prepared.screen}) — the API built this case's state`);
+  }
   const linted = lintPlan({ title: String(parsed.title ?? testCase.slice(0, 60)), steps }, testCase);
   warnings.push(...linted.repairs);
 

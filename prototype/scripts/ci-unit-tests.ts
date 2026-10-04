@@ -622,3 +622,58 @@ import "./hubspot-unit-tests.js"; // HubSpot stripper, leak check, classifier, c
 import "./db-unit-tests.js"; // product tables: run mapping, case versions, redaction, bug sheet (database part skips without SPINE_DB_URL)
 import "./integrity-unit-tests.js"; // bid-number calculator: exact decimals, template formulas, ranks, savings, invariants
 import "./matcher-unit-tests.js"; // case matcher frame + automation-exemplar reuse rules
+
+// UI layer decision + case preparation (docs/ui-automation-design.md)
+import { decideAssertion, decideLayerSync, splitAssertions } from "../src/agents/layerDecider.js";
+import { prepFor } from "../src/ui/uiCasePrep.js";
+
+describe("layerDecider: where an expectation can be observed (docs/ui-automation-design.md §1)", () => {
+  test("a disabled control is a screen assertion", () => {
+    assert.equal(decideAssertion("The confirm modal's OK is disabled")?.layer, "ui");
+  });
+  test("a refusal with the API's message is an API assertion", () => {
+    assert.equal(decideAssertion('Refused ("Only active or withdrawn events can be cloned.")')?.layer, "api");
+  });
+  test("data the screen must show is both", () => {
+    assert.equal(decideAssertion("The comparison grid renders with the line items and the bidding vendors")?.layer, "both");
+  });
+  test("the words inside a quoted toast belong to the message, not the claim", () => {
+    assert.equal(decideAssertion('Toast "Counter offer sent to supplier"')?.layer, "ui");
+  });
+  test("a data word that names a control is about the control", () => {
+    assert.equal(decideAssertion("A technical-bid control, no price drawer")?.layer, "ui");
+  });
+  test("a case with only API assertions stays API-only even when written as a UI case", () => {
+    assert.equal(decideLayerSync({ id: "X", layer: "ui", title: "t", expected: "Refused.", oracle: "" }).layer, "api");
+  });
+  test("ui + api claims make the case both", () => {
+    assert.equal(decideLayerSync({ id: "X", layer: "ui", title: "t", expected: "The Save button is disabled; the audience is unchanged.", oracle: "" }).layer, "both");
+  });
+  test("the expected result is split into its claims", () => {
+    assert.deepEqual(splitAssertions("OK disabled; a toast appears. Then the list reloads"), ["OK disabled", "a toast appears", "the list reloads"]);
+  });
+});
+
+describe("uiCasePrep: the state the API builds and the screen the browser opens (§2)", () => {
+  const c = (group: string, title: string, expected = "", steps = "", setup = "") => ({ id: `${group}-1`, group, title, expected, steps, setup });
+  test("a vendor-portal case is a named gap, never forced onto a buyer screen", () => {
+    const p = prepFor(c("UI-VBID", "The vendor sees the buyer's line items"));
+    assert.equal(p.ok, false);
+    assert.match(p.why, /vendor portal/);
+  });
+  test("an award case starts on a closed event's Master QCS", () => {
+    const p = prepFor(c("UI-AWD", "Start Awarding enters the awarding flow", "The awarding screen opens"));
+    assert.deepEqual([p.ok, p.state, p.screen, p.prepared], [true, "closed", "master_qcs", true]);
+  });
+  test("a case about an existing proposal gets a draft proposal built", () => {
+    assert.equal(prepFor(c("UI-AWD", "Bid Selection Proposal re-enters the flow once a draft proposal exists")).state, "proposal");
+  });
+  test("a create-screen case builds nothing and opens a new create screen", () => {
+    const p = prepFor(c("UI-CRE", "A default Auction publishes with nothing but the defaults touched", "Publishes"));
+    assert.deepEqual([p.state, p.screen, p.prepared], ["none", "create", false]);
+  });
+  test("a surrogate-bid case opens the live event's Participants", () => {
+    const p = prepFor(c("UI-SUR", "The Add Bid drawer opens with that vendor's sheet"));
+    assert.deepEqual([p.state, p.screen], ["live", "participants"]);
+  });
+});

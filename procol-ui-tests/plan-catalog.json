@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T07:08:46.701Z",
+  "generatedAt": "2026-10-04T10:22:13.216Z",
   "steps": [
     {
       "name": "open_events_list",
@@ -301,6 +301,26 @@
       }
     },
     {
+      "name": "start_awarding",
+      "purpose": "On Master QCS of a closed event with bids, press Start Awarding (or Bid Selection Proposal when a draft proposal exists) and land on the awarding screen. Use for cases about entering the award flow."
+    },
+    {
+      "name": "allocate_award",
+      "purpose": "On the awarding screen (after start_awarding), allocate the line items to a vendor and confirm the screen's counters moved. Use for cases about allocating / selecting a vendor for award; follow with expect_award_counters.",
+      "args": {
+        "vendor": "vendor name (optional; the first that can be allocated)"
+      }
+    },
+    {
+      "name": "expect_award_counters",
+      "purpose": "On the awarding screen, assert the counters read as given: \"Tot. selected line items\" items (e.g. \"1/1\") and \"Awarded Vendors\" vendors (e.g. \"1/1\").",
+      "args": {
+        "items": "expected \"selected/total\" for line items (optional)",
+        "vendors": "expected \"selected/total\" for vendors (optional)"
+      },
+      "assertion": true
+    },
+    {
       "name": "expect_awarded",
       "purpose": "Assert the award went through (a proposal was created and submitted).",
       "assertion": true
@@ -524,6 +544,64 @@
         "because": "substring the refusal message must contain (optional)",
         "expect": "\"refused\" (default: a message or a disabled control) | \"nothing_opens\""
       }
+    },
+    {
+      "name": "open_prepared",
+      "purpose": "FIRST STEP of a case whose starting state was built through the API: open the named screen on that event (no create, no publish, no search). Waits for the API calls that feed the screen and fails as 'could not tell' if they never come.",
+      "args": {
+        "screen": "one of: events_list | drafts_list | history_list | create | draft | summary | responses | overview | participants | analytics | technical | master_qcs"
+      }
+    },
+    {
+      "name": "expect_navigated",
+      "assertion": true,
+      "purpose": "Assert the browser is now on a named screen (after a click that should move it): the URL matches the screen's route and the screen is ready.",
+      "args": {
+        "screen": "one of: events_list | drafts_list | history_list | create | draft | summary | responses | overview | participants | analytics | technical | master_qcs",
+        "path": "or: a substring the URL must contain"
+      }
+    },
+    {
+      "name": "expect_field_error",
+      "assertion": true,
+      "purpose": "Assert an inline error is shown AT a field (its form item / cell), optionally containing text — not a toast somewhere else.",
+      "args": {
+        "field": "the field's label as on screen",
+        "message": "substring the error must contain (optional)"
+      }
+    },
+    {
+      "name": "expect_toast",
+      "assertion": true,
+      "purpose": "Assert a toast appeared after the previous action — of a kind (success | error | warning | any), optionally containing text. Reads toasts that already faded.",
+      "args": {
+        "kind": "\"success\" | \"error\" | \"warning\" | \"any\"",
+        "text": "substring (optional)"
+      }
+    },
+    {
+      "name": "expect_api_value",
+      "assertion": true,
+      "purpose": "Assert the screen shows a value the API holds for this case's event — the event title, the vendor's name, the line item’s quantity and unit, the bid price and bid total — compared as a person reads it (₹, commas and .00 ignored).",
+      "args": {
+        "key": "\"title\" | \"vendorName\" | \"quantity\" | \"unit\" | \"bidPrice\" | \"bidTotal\"",
+        "within": "region text (optional)"
+      }
+    },
+    {
+      "name": "expect_order",
+      "assertion": true,
+      "purpose": "Assert order on screen: either the given texts appear in exactly this order, or the cells of a column/list (role+name/text) are sorted asc/desc (numbers compared as numbers).",
+      "args": {
+        "items": "array of texts in the expected order (optional)",
+        "text": "a text every compared cell contains (optional)",
+        "by": "\"asc\" | \"desc\" (with text/role)"
+      }
+    },
+    {
+      "name": "expect_screen_clean",
+      "assertion": true,
+      "purpose": "Assert the current screen passes the observation rules: no NaN / undefined / null / raw ids on screen, no server error or page crash since the previous look."
     }
   ],
   "names": [
@@ -570,6 +648,9 @@
     "place_bid",
     "place_surrogate_bid",
     "award_event",
+    "start_awarding",
+    "allocate_award",
+    "expect_award_counters",
     "expect_awarded",
     "expect_bid_submitted",
     "expect_publish_blocked",
@@ -591,7 +672,14 @@
     "expect_remembered",
     "switch_company",
     "skip",
-    "attempt"
+    "attempt",
+    "open_prepared",
+    "expect_navigated",
+    "expect_field_error",
+    "expect_toast",
+    "expect_api_value",
+    "expect_order",
+    "expect_screen_clean"
   ],
   "generic": [
     "go_to",
@@ -723,7 +811,9 @@
       "Start time",
       "End time",
       "Evaluation time",
-      "Mark as Recurring Event"
+      "Mark as Recurring Event",
+      "Items 1",
+      "Publish"
     ],
     "line_items_drawer": [
       "Manage Line Items",
@@ -881,10 +971,13 @@
       "For basket auction, savings can only be on line item.",
       "Add products to set savings data",
       "button:Add Savings"
+    ],
+    "awarding": [
+      "Start Awarding"
     ]
   },
   "labelCounts": {
     "fromSource": 238,
-    "seenLive": 11
+    "seenLive": 14
   }
 }

@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "caseId": "UI-SCH-003",
+  "title": "Publishing without pressing Save Schedule",
+  "compiledAt": "2026-10-04T10:52:16.658Z",
+  "tier": "fast",
+  "source": "llm",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "added expect_publish_blocked — skip{set_schedule} leaves a mandatory step out, so the plan must assert the app blocks it",
+   "dropped publish — expect_publish_blocked presses Publish itself and judges the refusal"
+  ],
+  "state": "none",
+  "screen": "create",
+  "technical": false,
+  "exemplars": [
+   "UI-SCH-002",
+   "UI-CRE-002"
+  ],
+  "crossCheckAdded": []
+ },
+ "plan": {
+  "title": "Publishing without pressing Save Schedule",
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating an eRFX event"
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "UI-SCH-003 Schedule Omission Test"
+    },
+    "note": "Give the event a title"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Pick a template so items can be added"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add line items"
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill out the pricing sheet"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a participant so publish has participants"
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "set_schedule",
+     "reason": "Test case requirement: schedule drawer opened or touched but Save Schedule never pressed"
+    },
+    "note": "Deliberately omit committing the schedule"
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Assert no untyped 500 internal server error occurred"
+   },
+   {
+    "step": "expect_publish_blocked",
+    "note": "skip{set_schedule} needs the block asserted"
+   }
+  ]
+ }
+}

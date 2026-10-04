@@ -17,6 +17,8 @@ export interface SeenMessage {
   text: string;
 }
 
+import { isNoiseMessage } from "../../oracle/noise.js";
+
 const clean = (t: string) => t.replace(/\s+/g, " ").trim();
 
 /** How many toasts the in-page journal holds now — a mark to read "new since". */
@@ -26,7 +28,10 @@ export async function toastMark(page: Page): Promise<number> {
 
 async function journalSince(page: Page, mark: number): Promise<SeenMessage[]> {
   const list = (await page.evaluate(() => (window as any).__qaToasts ?? []).catch(() => [])) as Array<{ severity: string; text: string }>;
-  return list.slice(mark).map((t) => ({ kind: t.severity === "error" ? "error" : t.severity === "warning" ? "warning" : t.severity === "success" ? "success" : "toast", text: clean(t.text) }));
+  return list
+    .slice(mark)
+    .filter((t) => !isNoiseMessage(t.text)) // notification prompts etc. are never the app's answer
+    .map((t) => ({ kind: t.severity === "error" ? "error" : t.severity === "warning" ? "warning" : t.severity === "success" ? "success" : "toast", text: clean(t.text) }));
 }
 
 const SELECTORS: Record<string, string> = {
@@ -50,7 +55,7 @@ export async function visibleMessages(page: Page, kind: MessageKind): Promise<Se
     const n = Math.min(await loc.count().catch(() => 0), 10);
     for (let i = 0; i < n; i++) {
       const text = clean((await loc.nth(i).innerText().catch(() => "")) || "");
-      if (text && !out.some((m) => m.text === text)) out.push({ kind: k, text: text.slice(0, 300) });
+      if (text && !isNoiseMessage(text) && !out.some((m) => m.text === text)) out.push({ kind: k, text: text.slice(0, 300) });
     }
   }
   return out;
