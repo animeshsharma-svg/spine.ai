@@ -1,6 +1,6 @@
 # Rule coverage — sourcing events
 
-Generated 2026-10-04 08:21 by `prototype/scripts/rule-coverage.ts`. Rules come from the memory's digests (knowledge/events/backend-digest, frontend-digest, doc-vs-code.md), every one cited to the line of code that makes it true. Test cases come from the written catalog (data/test-cases.json, plus test-cases/events-rules-*.md).
+Generated 2026-10-04 08:46 by `prototype/scripts/rule-coverage.ts`. Rules come from the memory's digests (knowledge/events/backend-digest, frontend-digest, doc-vs-code.md), every one cited to the line of code that makes it true. Test cases come from the written catalog (data/test-cases.json, plus test-cases/events-rules-*.md).
 
 **How a rule counts as tested.** A case *covers* a rule when it is pinned to it — it names the rule, cites the same file and lines, or expects the same uncommon error code — and is about the same thing (same endpoint, similar wording, or the memory ranks it among the ten closest cases). *Partly* means there is evidence but not enough (only the topic, or only a common code such as 2 or 101). *Not covered* means no case comes close. This is deterministic matching, not a judgement; a spot-check of the verdicts is in the report that produced this file.
 
@@ -8,72 +8,71 @@ Generated 2026-10-04 08:21 by `prototype/scripts/rule-coverage.ts`. Rules come f
 
 | | Rules | Covered | Partly | Not covered |
 |---|---:|---:|---:|---:|
-| Before the rule cases (catalog only) | 3713 | 1523 (41%) | 346 | 1844 (50%) |
-| After (catalog + events-rules-*.md) | 3713 | 1814 (49%) | 342 | 1557 (42%) |
+| Before the rule cases (catalog only) | 3713 | 1814 (49%) | 342 | 1557 (42%) |
+| After (catalog + events-rules-*.md) | 3713 | 2290 (62%) | 370 | 1053 (28%) |
 
 ## By area
 
 | | Rules | Covered | Partly | Not covered | Covered before |
 |---|---:|---:|---:|---:|---:|
-| Stage model (TradeRequest) (MTR) | 357 | 115 | 33 | 209 | 110 |
-| Policies and what each actor sees (VIS) | 268 | 180 | 5 | 83 | 92 |
-| Event model, lines, evaluation (MEG) | 259 | 77 | 11 | 171 | 77 |
-| Calculation services (CAL) | 257 | 152 | 7 | 98 | 56 |
-| Jobs, reminders, notifications (JOB) | 251 | 55 | 17 | 179 | 55 |
-| Bid and proposal models (MBP) | 248 | 145 | 32 | 71 | 54 |
-| Lifecycle services (LIF) | 240 | 92 | 28 | 120 | 92 |
+| Stage model (TradeRequest) (MTR) | 357 | 294 | 35 | 28 | 115 |
+| Policies and what each actor sees (VIS) | 268 | 182 | 6 | 80 | 180 |
+| Event model, lines, evaluation (MEG) | 259 | 221 | 12 | 26 | 77 |
+| Calculation services (CAL) | 257 | 159 | 11 | 87 | 152 |
+| Jobs, reminders, notifications (JOB) | 251 | 59 | 30 | 162 | 55 |
+| Bid and proposal models (MBP) | 248 | 145 | 32 | 71 | 145 |
+| Lifecycle services (LIF) | 240 | 211 | 29 | 0 | 92 |
 | Console: create screens (FCR) | 240 | 45 | 8 | 187 | 45 |
-| Bids (controllers) (BID) | 220 | 157 | 22 | 41 | 154 |
+| Bids (controllers) (BID) | 220 | 161 | 22 | 37 | 157 |
 | Console: list and award screens (FLA) | 213 | 63 | 7 | 143 | 63 |
-| Auctions and templates (controllers) (AUC) | 198 | 109 | 21 | 68 | 109 |
-| Stages (controllers) (STG) | 198 | 150 | 25 | 23 | 150 |
-| Evaluation and award (controllers) (AWD) | 186 | 104 | 43 | 39 | 103 |
-| Live trade v1 (controllers) (LIV) | 170 | 97 | 57 | 16 | 95 |
-| Event groups (controllers) (EVG) | 162 | 136 | 11 | 15 | 136 |
-| Product docs vs code (DOC) | 148 | 106 | 11 | 31 | 103 |
-| Company settings and flags (CFG) | 98 | 31 | 4 | 63 | 29 |
+| Auctions and templates (controllers) (AUC) | 198 | 110 | 22 | 66 | 109 |
+| Stages (controllers) (STG) | 198 | 151 | 25 | 22 | 150 |
+| Evaluation and award (controllers) (AWD) | 186 | 112 | 44 | 30 | 104 |
+| Live trade v1 (controllers) (LIV) | 170 | 97 | 57 | 16 | 97 |
+| Event groups (controllers) (EVG) | 162 | 140 | 9 | 13 | 136 |
+| Product docs vs code (DOC) | 148 | 106 | 12 | 30 | 106 |
+| Company settings and flags (CFG) | 98 | 34 | 9 | 55 | 31 |
 
 ## By kind of rule
 
 | | Rules | Covered | Partly | Not covered |
 |---|---:|---:|---:|---:|
-| state | 664 | 332 | 83 | 249 |
-| validation | 584 | 298 | 62 | 224 |
-| calculation | 564 | 281 | 37 | 246 |
-| visibility | 457 | 221 | 17 | 219 |
-| side-effect | 405 | 130 | 65 | 210 |
-| permission | 403 | 280 | 33 | 90 |
-| time | 351 | 165 | 36 | 150 |
-| config | 285 | 107 | 9 | 169 |
+| state | 664 | 426 | 85 | 153 |
+| validation | 584 | 344 | 67 | 173 |
+| calculation | 564 | 362 | 44 | 158 |
+| visibility | 457 | 256 | 19 | 182 |
+| side-effect | 405 | 211 | 66 | 128 |
+| permission | 403 | 305 | 32 | 66 |
+| time | 351 | 219 | 40 | 92 |
+| config | 285 | 167 | 17 | 101 |
 
 ## By what is at stake
 
 | | Rules | Covered | Partly | Not covered |
 |---|---:|---:|---:|---:|
-| Status and time rules (state-time) | 938 | 450 | 112 | 376 |
-| Money (prices, totals, tax, savings, currency) (money) | 920 | 466 | 62 | 392 |
-| Other (other) | 829 | 282 | 86 | 461 |
-| Who may act / who sees what (access) | 761 | 439 | 48 | 274 |
-| Other checks with a typed error (typed-error) | 265 | 177 | 34 | 54 |
+| Status and time rules (state-time) | 938 | 591 | 119 | 228 |
+| Money (prices, totals, tax, savings, currency) (money) | 920 | 590 | 72 | 258 |
+| Other (other) | 829 | 430 | 96 | 303 |
+| Who may act / who sees what (access) | 761 | 495 | 49 | 217 |
+| Other checks with a typed error (typed-error) | 265 | 184 | 34 | 47 |
 
 ## Not covered — the most important first
 
 Each line: rule id · kind · what the code does · where. The full list (with the closest cases and why they did not count) is in `prototype/data/rules/rule-coverage.json`.
 
-35 of the 1557 not-covered rules were reviewed and judged not checkable from outside (dead code, logging only, internal caches, a path only an old mobile app reaches, needs a database edit); each has its reason in `prototype/data/rules/not-checkable.json`. They are listed last.
+88 of the 1053 not-covered rules were reviewed and judged not checkable from outside (dead code, logging only, internal caches, a path only an old mobile app reaches, needs a database edit); each has its reason in `prototype/data/rules/not-checkable.json`. They are listed last.
 
-### Money — 369
+### Money — 231
 
-- `R-AUC-009-3` · validation · "English auction" is a flag: config is_english_auction_enabled, settable only when is_english_auction_allowed; enabling it forces the best-price indicator on — trade_request_model_helper.rb:884-897, trade_controller_help… · `app/models/model_helpers/trade_request_model_helper.rb:884-897`
 - `R-AUC-009-4` · validation · Knockout: each round price = previous − price_difference; dutch: previous + price_difference (sign flipped for sell) — trade_controller.rb:941-942, trade_controller_helper.rb:3463-3465, 3488-3491 · `app/controllers/api/trade_controller.rb:941-942`
 - `R-AUC-010-4` · calculation · A best_price column is auto-added for price / rank_and_price auctions and line-item English auctions — trade_template_helper.rb:1794-1800 · `app/controllers/concerns/trade_template_helper.rb:1794-1800`
 - `R-AUC-010-6` · validation · show_best_price_by_default_in_english_auction is only echoed by GET /api/v1/dashboard_configuration; the backend does not enforce it (unverified: frontend default) — api/v1/users_controller.rb:578, 701 · `app/controllers/api/v1/users_controller.rb:578`
 - `R-AUC-014-1` · calculation · Formulas: max_value target<=limit, min_value target>=limit, step = change of at least the step vs the previous bid, or no change — lib/modules/trade_validation.rb:184-202 · `lib/modules/trade_validation.rb:184-202`
 - `R-AUC-014-2` · calculation · gap · A validation is evaluated only if its formula has prev.* variables AND a previous bid exists; otherwise skipped. So max_value/min_value are never enforced by the backend and step only on revisions (defect-shaped: server … · `lib/modules/trade_validation.rb:210-222`
 - `R-AUC-020-4` · state · a bulk_price edit voids the running round, restarts the same round now (new version) for time_difference, voids and regenerates later rounds; vendors get "current_offer_bulk_price_edit" — trade_controller.rb:925-953 · `app/controllers/api/trade_controller.rb:925-953`
+- `R-AUC-021-1` · state · Dutch end_price already crossed by the next round → 244 "Invalid End Price" (HTTP 422); stage closed → 151 "Sorry, You cannot perform this action at this time" (HTTP 403) — trade_controller.rb:876-893 · `app/controllers/api/trade_controller.rb:876-893`
 - `R-AUC-034-2` · calculation · Formula widget with empty/invalid formula, referencing itself, or an operand that is not a number/percentage/formula/dropdown/quantity widget → "Invalid Formula for <name>" — validate_service.rb:93-125 · `app/services/access_lists/validate_service.rb:93-125`
 - `R-AUC-034-5` · validation · gap · inline_components or global_price_components missing → NoMethodError, untyped 500 (defect-shaped) — validate_service.rb:51, 59 · `app/services/access_lists/validate_service.rb:51`
-- `R-AWD-017-3` · calculation · Section-wise scoring: precompute waits until every section of the vendor is active; a vendor whose weighted total equals the TNA score gets its event rank score cleared — evaluation_score.rb:73-76, app/helpers/api/evalua… · `app/helpers/api/evaluations_helper.rb:975-994`
 - `R-AWD-047-3` · calculation · Otherwise formulas are re-evaluated with `participant_quantity` replaced by `awarded_quantity` per line — :209-225, 154-162 · `app/controllers/concerns/awarded_quantity_widgets_helper.rb:209-225`
 - `R-AWD-049-1` · calculation · No bid for the rank-1 vendor (or no ranks at all) → aborted "No bid found to Auto Award"; in line-item mode ONE product without a bid aborts the whole round — :90, 22-23 · `?`
 - `R-AWD-049-2` · calculation · Only scenarios configured in `auto_awarding_enabled` are checked: `pending_counter_offers` ("Pending counter offers are present"), `tie_bid` (tie on L1 → "Tie bid on L1 vendor"), `price_increase_approval` ("Price increas… · `?`
@@ -91,15 +90,10 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-BID-039-7` · side-effect · currency preference saved (INR default), bid context email_submitted_bid / email_ai_submitted_bid (buyer may then edit it) — :119-157 · `app/services/bid_submit/commercial_bid_service.rb:119-157`
 - `R-BID-047-3` · calculation · Old events without event scores read trade_request.auction_rank_hash — bid_rank_helper.rb:194-199 · `app/models/concerns/bid_rank_helper.rb:194-199`
 - `R-BID-049-1` · calculation · After a bid-trade mapping save (not revised): bid active, stage not RFQ, not dynamic closing, bid end time within the next 1 minute, config update_trade_end_time on, and the bid's rank changed to ≤ config rank_for_update… · `app/models/bid_trade.rb:38`
-- `R-CAL-002-1` · config · Defaults: rank-based → rank (+ best_price_only_on_gross_total when config auction_closing_mode = line_item_based); price-based → best_price_only_on_gross_total + best_price; traffic light → traffic_light_color; best_rank… · `app/models/model_helpers/trade_request_model_helper.rb:698-707`
-- `R-CAL-002-2` · config · Optional (other) indicators: rank, best_price, best_price_only_on_gross_total (+ loading_factor when loading factor is enabled), minus the defaults — trade_request_model_helper.rb:709-726 · `app/models/model_helpers/trade_request_model_helper.rb:709-726`
 - `R-CAL-008-4` · calculation · Line colour value = the bid product's line rank when traffic light is on rank, else its rank score; bounds from trade_product.meta_data lower_bound/upper_bound — bids_group.rb:369-376 · `app/models/bids_group.rb:369-376`
 - `R-CAL-013-4` · calculation · Default ranking_key is 'rank' unless the caller passes one — line_item_based.rb:12 · `app/services/event_indicators/line_item_based.rb:12`
 - `R-CAL-014-5` · calculation · gap · entries without the ranking key are not filtered (LotBased filters them): sort_by on a nil next to a Float raises ArgumentError → untyped 500 in L1 lookups (auto award, l1_data_for_event, lot L1 amount) — line_item_based… · `app/services/event_indicators/lot_based.rb:60-62`
 - `R-CAL-017-4` · calculation · gap · a bid product with nil price makes `btp[0] * btp[1]` raise → savings worker crash — app/models/bid.rb:1225 · `app/models/bid.rb:1225`
-- `R-CAL-018-2` · calculation · Possible best amount (unrealised) per line: walk ACTIVE bid products in their loaded order, filling trade_product.quantity: whole btp quantities until the remainder fits, then price × remainder — trade_product.rb:695-711 · `app/models/trade_product.rb:695-711`
-- `R-CAL-018-3` · calculation · If active quantity is short of the line quantity, the sum of all active btps is returned (no error) — trade_product.rb:701-710 · `app/models/trade_product.rb:701-710`
-- `R-CAL-018-4` · validation · gap · `btps.reverse if sell?` discards its result, so sell events fill from the same order as buy events — trade_product.rb:700. Order is the association's load order, not an explicit price sort (comment says "ordered by price… · `app/models/trade_product.rb:700`
 - `R-CAL-020-5` · calculation · Per-unit references (reference_on_key_attribute "price") are unit-converted for display (round 6, truncated to 4 decimals); other references only strip trailing zeros — app/models/concerns/savings_configuration_helpers/s… · `app/models/concerns/savings_configuration_helpers/savings_formatter.rb:36-55`
 - `R-CAL-021-3` · state · Trade-level calculate_savings works only for lot-based configurations and a Bid; product-level only for a BidTradeProduct of that same trade product; anything else → nil — savings_calculator.rb:15-32 · `app/models/concerns/savings_configuration_helpers/savings_calculator.rb:15-32`
 - `R-CAL-022-3` · calculation · A nil bid value (unbound variable) also makes evaluate return nil → amount "0.0" and percent 0.0 instead of reporting the full reference (unverified gem behaviour) — savings_calculator.rb:86, 92 · `app/models/concerns/savings_configuration_helpers/savings_calculator.rb:86`
@@ -109,8 +103,6 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-CAL-027-3` · config · The same flip happens when a report computes line savings — app/services/reporting_engine/concerns/report_data_generator.rb:510-520 · `app/services/reporting_engine/concerns/report_data_generator.rb:510-520`
 - `R-CAL-027-4` · visibility · Reports skip "default" savings whose amount is negative — report_data_generator.rb:611-612 · `app/services/reporting_engine/concerns/report_data_generator.rb:611-612`
 - `R-CAL-028-4` · calculation · Bid products of status rejected/draft/in_active/revoke/pending/anomaly_detected are excluded from the reference — savings_configuration.rb:354-356 · `app/models/savings_configuration.rb:354-356`
-- `R-CAL-032-2` · state · Skips if stage missing, not active/closed, or closed_at in the future — app/workers/custom_savings_calculator_worker.rb:9-12 · `app/workers/custom_savings_calculator_worker.rb:9-12`
-- `R-CAL-032-3` · side-effect · Writes misc["custom_savings_configuration"] and each line's meta_data["custom_savings_configuration"] (lot_based) — custom_savings_calculator_worker.rb:14-31 · `app/workers/custom_savings_calculator_worker.rb:14-31`
 - `R-CAL-033-1` · validation · savings_comparison_on must be lot_based or line_item_based → ArgumentError "Should be from Valid Savings Comparison On"; a TradeProduct cannot be lot_based → "Trade Product can't have savings comparison based on lot" — a… · `app/poro_classes/vendor_specific_savings/reference.rb:94-99`
 - `R-CAL-037-5` · calculation · calculate_widget_formula fills missing dependent widgets recursively, result to_f (nil → 0.0) — formula_evaluator_service.rb:48-57 · `app/services/formula_evaluator/formula_evaluator_service.rb:48-57`
 - `R-CAL-037-6` · calculation · gap · calculate_widget_formula has no cycle guard: two formulas that reference each other recurse until SystemStackError — formula_evaluator_service.rb:48-54 · `app/services/formula_evaluator/formula_evaluator_service.rb:48-54`
@@ -146,7 +138,6 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-CFG-004-4` · config · Default ON when the key is missing from the stage config: is_allowed_to_revoke_bid (:331-332), is_over_quantity_allowed (:181-182), is_under_quantity_allowed (:189-190), is_price_increase_allowed / is_price_decrease_allo… · `app/models/trade_request.rb:1504-1509`
 - `R-CFG-006-1` · config · order_type buy → is_price_decrease_allowed = true, is_price_decrease_approval_required = false; any other order_type → is_price_increase_allowed = true, is_price_increase_approval_required = false — trade_controller_help… · `app/controllers/concerns/trade_controller_helper.rb:3150-3159`
 - `R-CFG-006-2` · config · `is_price_increase_approval_required` column = config value or false — :3328 · `app/controllers/concerns/trade_controller_helper.rb:3328`
-- `R-CFG-007-2` · config · is_tnc_mandatory false, is_english_auction_enabled false, is_alternate_bidding_allowed false, dynamic_closing_time_strategy "price_based", closing_mode "single", is_auction_on_base_price true, end_price 0 — base.rb:62-86 · `app/services/trade_requests/base.rb:62-86`
 - `R-CFG-009-5` · config · `show_best_price_by_default_in_english_auction` — only exposed — users_controller.rb:578, 701 · `app/controllers/api/v1/users_controller.rb:578`
 - `R-CFG-009-6` · config · `default_multi_currency_precision` — only exposed — users_controller.rb:633, 756 · `app/controllers/api/v1/users_controller.rb:633`
 - `R-CFG-011-1` · visibility · Planning designations (section_incharge, line_incharge, planner, area_incharge) are exempt — app/models/user.rb:158 · `app/models/user.rb:158`
@@ -184,13 +175,21 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-FCR-008-1` · calculation · Body: `title`, `description`, `status`, `draft_trade_request_uuids`, `audience_company_uuids`, `line_items` (kept + deleted, each `{status, uuid, quantity, product_uuid, product_quality_uuid}`), `terms_and_conditions:{cl… · `src/redux/project/actions.js:52-88`
 - `R-FCR-008-3` · calculation · `terms_and_conditions` is ALWAYS present in the body, even when the caller passed no T&C (clauses undefined, attachments value []) — src/redux/project/actions.js:71-82 · `src/redux/project/actions.js:71-82`
 - `R-FCR-008-4` · calculation · Recurring stage → `config:{is_scheduled_template:true, schedule:{schedule_type, interval(>1 or custom), days_of_week, day_of_month/last_day, repeat_type(custom)}, ends_at, max_occurrences}` — src/views/projectCreation/he… · `src/views/projectCreation/helpers.js:664-712`
-- … and 249 more (see the JSON).
+- `R-FCR-009-1` · config · mode `auction`, type `Rank`, strategy `rank`, closingOn `lot_based`, rfpEvaluationOn `line_item_based`, rfpCreationOn `template`, trafficType price, offersOn base price, dutchClosingOn single vendor — src/views/projectCr… · `src/views/projectCreation/helpers.js:61-95`
+- `R-FCR-009-2` · config · Savings: savingsStrategy `lot_based`, savingsReferenceStrategy `historical_price`, savingsColumn `{budget:"price"}`, savingsOptions {budget:"Budget", historical_price:"Historical Price", existing_proposal:"Existing Propo… · `src/views/projectCreation/helpers.js:87-94`
+- `R-FCR-009-4` · config · dynamicClosingTime -1 (Custom), currencyMode `multiple_currencies`, isTncMandatory false, isBasketAuction false, basket/serial slab "min", autoAwardingEnabled false, recurring daily/interval 1/never — src/views/projectCr… · `src/views/projectCreation/helpers.js:100-147`
+- `R-FCR-010-4` · config · `is_allowed_to_modify_audience`, `is_rfp_template_edit_allowed_during_creation`, `is_publish_auction_in_draft`, `route_auctions_to_auction_team` (default false), `is_saving_configuration_mandatory` — src/redux/orders/sel… · `src/redux/orders/selectors.js:720-727`
+- `R-FCR-011-4` · config · `config.freeze_pr_savings_reference` → Historical Price savings tab read-only for PR-created events — src/redux/user/index.js:142-146, src/views/eventCreation/eventCreation.jsx:2366-2370 · `src/redux/user/index.js:142-146`
+- `R-FCR-012-1` · calculation · Auto stage title = "<Label> <n+1>" where n = existing stages of that mode; for the first one the code produces "Auction " / "RFQ " / "Technical Stage " WITH a trailing space — src/views/projectCreation/helpers.js:1010-10… · `src/views/projectCreation/helpers.js:1010-1041`
+- `R-FCR-012-2` · state · Saving the strategy drawer in project creation resets the stage title to the auto title computed with no other stages (`allModes: []`), overwriting a renamed title and its number — src/views/eventCreation/components/auct… · `src/views/eventCreation/components/auctionConfiguration/auctionConfiguration.jsx:497-506`
+- `R-FCR-014-5` · calculation · After save, an untouched empty project title is auto-generated (`use_pr_number_in_title`) — src/views/projectCreation/projectCreation.jsx:2289-2301 · `src/views/projectCreation/projectCreation.jsx:2289-2301`
+- `R-FCR-015-5` · calculation · gap · backend allows quantity up to open qty × (1 + over_quantity_tolerance_percentage) (558) while the UI caps at open qty — trade-stages.md part 10. FE-4.5 says remove controls are inert; the code leaves delete live — projec… · `src/views/projectCreation/components/projectLineItem.jsx:206-213`
+- … and 111 more (see the JSON).
 
-### Who may act / who sees what — 269
+### Who may act / who sees what — 209
 
 - `R-AUC-010-5` · visibility · Vendors see position indicators only after start (buyer always) — trade_template_helper.rb:2084 · `app/controllers/concerns/trade_template_helper.rb:2084`
 - `R-AUC-030-7` · permission · Access lists: RFI templates always filtered, trade templates only with enable_template_access_filtering; super admins and Procol employees bypass — template.rb:148-164 · `app/models/template.rb:148-164`
-- `R-AUC-031-4` · permission · Trade template, company setting enable_template_access_filtering on, user not super admin and not on the access list → 5 "Not authorized" (HTTP 422) — template.rb:130-135, app/models/company.rb:296-298 · `app/models/company.rb:296-298`
 - `R-AUC-032-1` · visibility · Access rules → 4 / 2 / 5 (see "Template access rules") — templates_controller.rb:157-158 · `app/controllers/api/integration_builder/templates_controller.rb:157-158`
 - `R-AUC-032-2` · permission · Policy show? (trade create_record or template read_record) → 455 (HTTP 422) — templates_controller.rb:159, template_policy.rb:9-12 · `app/controllers/api/integration_builder/templates_controller.rb:159`
 - `R-AUC-036-2` · permission · Policy update?: template update_record AND template company in allowed companies, so global default templates cannot be edited → 455 (HTTP 422) — templates_controller.rb:41, template_policy.rb:22-24 · `app/controllers/api/integration_builder/templates_controller.rb:41`
@@ -220,7 +219,6 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-CFG-013-3` · visibility · Masked users get "Vendor N" in reports (approved quotation, comparison, BOQ, master QCS) — app/data_models/approved_quotation_report_data_model.rb:109; app/data_models/auction_bids_comparison_report_data_model/base.rb:18… · `app/data_models/approved_quotation_report_data_model.rb:109`
 - `R-CFG-013-5` · visibility · Masked → suspicious-bid indicator hidden; new-bid email to buyer suppressed; push says "someone placed a bid" — trade_request_model_helper.rb:81-88; app/models/bid.rb:275-280; lib/modules/push_notification.rb:705-715 · `app/models/bid.rb:275-280`
 - `R-CFG-014-5` · permission · gap · the API toggle (rule 4) does not check super admin, dutch, or upcoming/running, so any user who may update the stage can unmask vendor names during a live event. The UI predicate (rule 3) is stricter — trade_controller.r… · `app/controllers/api/trade_controller.rb:490-492`
-- `R-CFG-015-5` · visibility · `show_bidding_stats_in_masked_events` (default false) + masked → buyer sees only placed-bid stats while running; `show_placed_bids_stats` key present → its value for non-super-admins — trade_request_model_helper.rb:289-3… · `app/models/model_helpers/trade_request_model_helper.rb:289-305`
 - `R-CFG-015-6` · visibility · gap · PATCH /trade/:id `trade_config` replaces the whole stage config for non-Procol users without validation, so closed_envelope / masking / lock keys can be set or cleared outside the enable_bid_masking_for_event gate — app/… · `app/controllers/api/trade_controller.rb:748-749`
 - `R-CFG-016-4` · visibility · show_unlock_bid_history on → unlock history in the awarding proposal report — app/data_models/awarding_proposal_report_data_model.rb:449-451 · `app/data_models/awarding_proposal_report_data_model.rb:449-451`
 - `R-CFG-016-5` · visibility · gap · verify-OTP does not re-check restrict_unlock_bid_before_evaluation (an OTP sent before re-evaluation still unlocks) — trade_controller.rb:1270-1289. The chosen `bid_visibility` is not checked against unlock_bids_restrict… · `app/controllers/api/trade_controller.rb:1270-1289`
@@ -234,7 +232,6 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-DOC-037-4` · visibility · The screen hides the share-participants action when masking is on — src/views/orderDetails/eventHeader/eventHeader.jsx:634-636 · `src/views/orderDetails/eventHeader/eventHeader.jsx:634-636`
 - `R-EVG-020-5` · permission · the UI flag `is_allowed_to_withdraw` (status active/draft, no selected/requested proposal, buyer, owner or super admin) is NOT enforced by this endpoint — event_group_controller_helper.rb:552, 2604-2611. · `app/controllers/concerns/event_group_controller_helper.rb:552`
 - `R-EVG-027-3` · permission · No visible stages → 682 "You are not allowed to view this project." — :135; effectively unreachable, the policy refused first · `app/policies/event_group_policy.rb:135`
-- `R-EVG-037-4` · permission · Company `allow_lpo_update?` off, no PR-linked active line item, or project not active → 101 (HTTP 422) — :1109, event_group.rb:909-912 · `app/models/event_group.rb:909-912`
 - `R-FCR-001-1` · permission · `/orders/quick-create` (ROUTE_KEYS.CREATE_QUICK_ORDERS) needs the `trade:create_record` route key and renders AsyncProjectCreation; `/orders/create` (same key) renders the legacy createOrder screen — src/app/routes/route… · `src/app/routes/routeConfigs.js:353-367`
 - `R-FCR-002-6` · visibility · gap · the `fetchDraftEventDetails` failure path has no error UI (see FE-14.6) — src/views/projectCreation/projectCreation.jsx:1145-1148 · `src/views/projectCreation/projectCreation.jsx:1145-1148`
 - `R-FCR-011-5` · visibility · Clara summary panel renders when `isClaraEnabled` is FALSE and the project has a claraSummary (FE-15.2 states the inverse) — src/views/projectCreation/projectCreation.jsx:3405-3409 · `src/views/projectCreation/projectCreation.jsx:3405-3409`
@@ -308,13 +305,15 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-FLA-053-4` · visibility · Approvals sidebar only when approval requests exist; details rendered read-only scoped to the approval company's `tenant_uuid` — src/views/approvalNote/approvalNote.jsx:229-247, 262-293 · `src/views/approvalNote/approvalNote.jsx:229-247`
 - `R-FLA-054-1` · visibility · Shows the first file (name truncated to 7 chars, tooltip full) and "+N more" popover listing the rest (truncated to 10 chars); click opens the media viewer; remove icons only when a remove handler is passed (editable con… · `src/components/nfaAttachments/nfaAttachments.jsx:10-119`
 - `R-JOB-012-3` · visibility · Recipients = active companies of `not_selected_bids` (one mail per company, to the bid's user, else company email); the stage owner is CC'd when company `keep_buyer_in_new_order_email_notification_cc?` — app/models/trade… · `app/models/trade_request.rb:328-337`
-- … and 149 more (see the JSON).
+- `R-JOB-014-1` · visibility · `restricted` stage: audience rows with visible=1 only (hidden vendors get no mail) — app/models/trade_request.rb:1453-1454, app/models/audience.rb:34 · `app/models/trade_request.rb:1453-1454`
+- `R-JOB-014-2` · visibility · `except_for`: all buyer-company vendors minus audience rows with visible=0; `everyone`: vendors of the stage creator's company — app/models/trade_request.rb:1455-1460 · `app/models/trade_request.rb:1455-1460`
+- `R-JOB-014-4` · visibility · Mapping status `invited` → mail goes to the invitation email (Invitations status active/accepted, minus emails of in_active users); otherwise to active users of the vendor company with an active user_company_mapping — ap… · `app/models/trade_request.rb:1464-1471`
+- … and 89 more (see the JSON).
 
-### Status and time — 375
+### Status and time — 209
 
 - `R-AUC-007-5` · state · Only RFQ line items still active/closed are carried — trade_controller_helper.rb:847-850 · `app/controllers/concerns/trade_controller_helper.rb:847-850`
 - `R-AUC-011-3` · state · placed_bid_config on a non-active stage → 4 "Request not found" (HTTP 422) — companies_controller.rb:619-620 · `app/controllers/api/companies_controller.rb:619-620`
-- `R-AUC-011-4` · time · an auction's bid_start_time is the start of its "auction" schedule — trade_request.rb:723-733 · `app/models/trade_request.rb:723-733`
 - `R-AUC-015-1` · time · After an active bid is saved and the auction ends within the next 1 minute, end time is extended — app/models/bid_trade.rb:118-129 · `app/models/bid_trade.rb:118-129`
 - `R-AUC-025-1` · time · Queued on RFQ→auction conversion, on schedule edits of rfq_then_auction stages with extra closing time, and on auction reschedule — create_service.rb:295-315, trade_controller_helper.rb:597-614, trade_request.rb:2384-241… · `app/services/active_bid_identifiers/create_service.rb:295-315`
 - `R-AUC-025-2` · time · Each job queued only if its send time is still ahead — create_service.rb:298, 307 · `app/services/active_bid_identifiers/create_service.rb:298`
@@ -326,7 +325,6 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-AUC-038-3` · state · Status update fails → 8 with model message (HTTP 422) — templates_controller.rb:86-88 · `app/controllers/api/integration_builder/templates_controller.rb:86-88`
 - `R-AUC-038-4` · state · template → in_active (not hard-deleted); intake templates also deactivate their template mapping, intake request condition and condition item mappings — templates_controller.rb:86-102 · `app/controllers/api/integration_builder/templates_controller.rb:86-102`
 - `R-AUC-039-3` · time · No new name and the same name exists in the workspace → 8 "Validation failed: Template name has already been taken" (HTTP 422) — duplicate_service.rb:33-39, template.rb:338-342 · `app/services/templates/duplicate_service.rb:33-39`
-- `R-AWD-016-3` · time · When the RFP becomes fully evaluated it is set `closed` and its extra closing time (evaluation window) ends now; with both lot and line evaluation only once every line item is evaluated — evaluation_score.rb:99-102, 151-… · `app/models/evaluation.rb:40-48`
 - `R-AWD-020-1` · state · add_evaluators: evaluator access on the line item, user added to `evaluator_user_ids` and the round's `trade_identifiers`, "notify_evaluators" email queued (RfpEmailNotificationWorker); when the adder is a planner, the p… · `app/controllers/api/event_group_line_item_controller.rb:725-729`
 - `R-AWD-020-3` · state · resend_evaluation: their non-final scores and evaluations go back to `draft` so they can re-submit — :733-735, 1053-1059 · `app/controllers/api/event_group_line_item_controller.rb:733-735`
 - `R-AWD-020-4` · state · "Pending on evaluator" for the line item is recomputed — :736, 739-747 · `app/controllers/api/event_group_line_item_controller.rb:736`
@@ -335,22 +333,16 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-AWD-041-1` · state · bids are closed without creating orders (`skip_order_creation`), then `Contracts::ContractCreationService` runs and its failure code is returned. No approval workflow and no counter-offer revocation on this path — :152-1… · `app/controllers/api/proposal_controller.rb:152-165`
 - `R-AWD-047-1` · state · Values only for a vendor layer with a proposal and a latest bid; otherwise the original value is kept — awarded_quantity_widgets_helper.rb:182-195 · `app/controllers/concerns/awarded_quantity_widgets_helper.rb:182-195`
 - `R-AWD-047-2` · state · No line item with awarded quantity > 0 → every awarded widget is 0 (₹0) — :207, 226-229 · `app/controllers/concerns/awarded_quantity_widgets_helper.rb:207`
-- `R-AWD-048-1` · time · Scheduled at bid end + 3 s when the round has auto awarding on — trade_request.rb:3227-3234 · `app/models/trade_request.rb:3227-3234`
-- `R-AWD-048-2` · time · Worker stops if disabled, before bid end, or round not `active` (re-scheduling itself if bid end is still ahead) — app/workers/auto_award_worker.rb:7-14 · `app/workers/auto_award_worker.rb:7-14`
 - `R-AWD-050-1` · state · fetch_awarding_scenarios: event missing → "Can not find rfx"; not active → "RFX is not live. Can not create proposal for it"; offers "l1_vendor", plus "last_po_vendor" when a line item has a last PO vendor code — handler… · `app/services/mcp/awarding_tools/handler.rb:48-73`
 - `R-AWD-050-2` · state · apply_awarding_scenario: event missing / not active refused; any active/selected/requested proposal → "Proposal already Created for this RFX. Can not create another proposal"; lot-split events refused — :75-87, app/model… · `app/models/proposal.rb:75`
 - `R-AWD-050-4` · state · It only builds the DRAFT; submitting is left to the buyer — :111-120 · `app/services/mcp/awarding_tools/handler.rb:111-120`
 - `R-BID-008-3` · state · Line void/in_active → 569 "Products have been updated, please refresh page" — v1 helper:189-191 · `app/helpers/api/v1/bids_controller_helper.rb:189-191`
 - `R-BID-013-5` · time · Old counter-offer flow (open counter_offer request) outside running/extra closing time → 33 — v1 helper:591-597 · `app/helpers/api/v1/bids_controller_helper.rb:591-597`
 - `R-BID-025-2` · state · Revising a line whose quote was revoked → 373 "You cannot place a quote after revoking the previous quote"; unknown line → 80; city_id unknown → 187 "City does not exist."; line limits (skipped for additional-request rev… · `app/controllers/concerns/bids_controller_helper.rb:651-717`
-- `R-BID-037-2` · state · No active bid with that id → 70 "User does not exist" (misleading message) — v1/bids_controller.rb:106-107 · `app/controllers/api/v1/bids_controller.rb:106-107`
-- `R-BID-037-3` · state · status not approved/rejected, or bid is not an unregistered bid → 2 "Insufficient parameters" — app/services/poc_bid_action_service.rb:15-16 · `app/services/poc_bid_action_service.rb:15-16`
-- `R-BID-037-4` · state · Vendor POC user not active → 70 — poc_bid_action_service.rb:18-19 · `app/services/poc_bid_action_service.rb:18-19`
 - `R-BID-039-5` · time · Then draft (15), line items (732/508/569/736/737/limits) and submit (499/875/748/33/473/96/300/98/800/372) — :89-117 · `app/services/bid_submit/commercial_bid_service.rb:89-117`
 - `R-BID-040-1` · state · Stage not RFI/RFP or vendor not allowed (validate_params_for_trade_request) → that error code, message "Invalid trade request" — app/services/bid_submit/technical_bid_service.rb:58-64 · `app/services/bid_submit/technical_bid_service.rb:58-64`
 - `R-BID-040-2` · time · Vendor company and stage not running → 33 "Trade request is not running" — :79-83 · `app/services/bid_submit/technical_bid_service.rb:79-83`
 - `R-BID-043-3` · time · v1 vendor flow does not check stage status, only the time window (unverified: whether withdraw/close also ends the schedule so the 33 check catches it) · `app/controllers/concerns/trade_controller_helper.rb`
-- `R-CAL-030-2` · time · Also re-scheduled at new end + 5 s on schedule extension, at +5 s after an approval resolves, and on PR amendment — app/models/trade_schedule.rb:168-169; app/services/approvals/resolve_approval.rb:66-68; app/services/pur… · `app/models/trade_schedule.rb:168-169`
 - `R-CAL-041-1` · state · Stage in_active / draft / cancelled → full refresh of the event group instead — app/services/precomputation_engine/bid_service_v1.rb:14-17 · `app/services/precomputation_engine/bid_service_v1.rb:14-17`
 - `R-CAL-041-5` · state · A non-ranked bid removes the vendor from participant_vendor_company_ids unless it still has an active/selected/requested/revised bid — :91, 124-148 · `app/services/precomputation_engine/bid_service_v1.rb:91`
 - `R-CAL-043-1` · state · Skipped for a vendor that is TNA on the line when misc allow_tna_vendors_to_bid is explicitly false (existing data kept) — app/services/precomputation_engine/bid_product_service_v1.rb:24-29 · `app/services/precomputation_engine/bid_product_service_v1.rb:24-29`
@@ -359,11 +351,8 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-CAL-050-5` · time · gap · when no stage window matches, stage_context is nil and a normal_revision hits nil.include? → NoMethodError — :77, 81; precomputation re-run happens even when the context was not saved — :59-68 · `app/services/bid_context_label_service.rb:77`
 - `R-CFG-001-6` · state · gap · `update_cache` does not look at `status`. If a row is set to in_active (console/data fix), its value is still written into the cache and stays in effect for up to 24 h — custom_configuration.rb:188-193 · `app/models/custom_configuration.rb:188-193`
 - `R-CFG-002-3` · state · gap · if a company-specific master row for key K exists, other companies can read K as nil (not the global default), or that company can get the global default instead of its own — depending on load order. The settings-screen … · `app/models/custom_configuration.rb:36-58`
-- `R-CFG-007-1` · time · bid_end_time = start + `clara_company_policies.bid_end_time_duration` (default 2 days); extra_closing_time = start + `evaluation_time_extension` days (default 4) — app/services/trade_requests/base.rb:59-61, 72-74 · `app/services/trade_requests/base.rb:59-61`
-- `R-CFG-007-5` · time · New RFP stage added after an RFQ → bid_end_time = the RFQ's last bidding window end — base.rb:101-105 · `app/services/trade_requests/base.rb:101-105`
 - `R-CFG-010-2` · state · `disable_withdraw_during_submission_time` on + auction → serializer flag `disable_withdraw_for_submission_time` — app/serializers/trade_template_serializer.rb:140-141 · `app/serializers/trade_template_serializer.rb:140-141`
 - `R-CFG-014-4` · state · PATCH /trade/:id with `is_vendor_masking_enabled` changes it whenever masking is allowed for the stage — app/controllers/api/trade_controller.rb:490-492 · `app/controllers/api/trade_controller.rb:490-492`
-- `R-DOC-013-3` · time · Without that config the evaluation window starts automatically at bid end — trade_request_model_helper.rb:1184-1189 (window is created at stage creation, per trade-stages digest) · `app/models/model_helpers/trade_request_model_helper.rb:1184-1189`
 - `R-DOC-015-2` · time · If bidding is still running, the best-offer review window is created to start at bid end. It is not refused — app/controllers/concerns/trade_controller_helper.rb:5855-5866 · `app/controllers/concerns/trade_controller_helper.rb:5855-5866`
 - `R-DOC-035-4` · state · gap · for a non-default indicator, revision_recorder_helper returns true (shown at once), while TradeRequest#have_enough_revisions_to_show_given_indicator? returns false (never shown) — revision_recorder_helper.rb:16-18 vs tra… · `app/models/concerns/revision_recorder_helper.rb:16-18`
 - `R-DOC-038-1` · state · The next knockout round's participants = the accepted participants of the round just executed — app/controllers/api/trade_controller.rb:954-958 · `app/controllers/api/trade_controller.rb:954-958`
@@ -432,9 +421,20 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-FLA-036-4` · state · Cancel resets to the offered quantity; un-awarding sends the line's current `awarded_quantity` with action remove — src/components/dataGrid/formatters/comparisonSelectionFormatter.jsx:49-55, 147-157 · `src/components/dataGrid/formatters/comparisonSelectionFormatter.jsx:49-55`
 - `R-FLA-037-4` · state · gap · `awarded_quantity: 0` can never be produced by the UI (blocked at 57-63 and dropped at actions.js:512) — the backend's 0-quantity award (full bid value added) is API-only — backend-digest/evaluation-award.md "Award with … · `src/redux/project/actions.js:512`
 - `R-FLA-039-1` · state · Vendor status blacklisted → partial-quantity popover never opens and its checkbox is disabled; BOQ vendor checkbox disabled; Select All hidden — src/components/dataGrid/formatters/comparisonSelectionFormatter.jsx:78-84, … · `src/components/dataGrid/formatters/comparisonSelectionFormatter.jsx:78-84`
-- … and 255 more (see the JSON).
+- `R-FLA-040-2` · state · Vendor checkbox disabled when the proposal is excel-awarded (`is_awarding_with_excel`) or vendor blacklisted — src/components/dataGrid/formatters/comparisonHeaderFormatter.jsx:790, 801-811 · `src/components/dataGrid/formatters/comparisonHeaderFormatter.jsx:790`
+- `R-FLA-040-5` · state · gap · backend discard has no creator check (any company user may discard another's draft) — backend-digest/evaluation-award.md "discard_draft_proposal"; the UI only exposes it on BOQ+sheet-awarding — src/views/awardingFlow/awa… · `src/views/awardingFlow/awardingQCS.jsx:664`
+- `R-FLA-044-2` · state · "Download" per stage only when its uuid is in `report_status_data.active_report_stage_uuids`; Master QCS download only when `master_qcs_report_status` — src/views/projectProposal/projectProposal.jsx:514-541, 554-577 · `src/views/projectProposal/projectProposal.jsx:514-541`
+- `R-FLA-045-4` · state · Document is read-only once the proposal is not draft — src/views/projectProposal/projectProposal.jsx:1005-1006, 686-697 · `src/views/projectProposal/projectProposal.jsx:1005-1006`
+- `R-FLA-048-1` · time · Non-draft proposal: GET `/event_groups/:id/get_approvals?lot_no=` on open and every 30000 ms — src/views/projectProposal/approvalSection/approvalSection.jsx:22, 75-95 · `src/views/projectProposal/approvalSection/approvalSection.jsx:22`
+- `R-FLA-051-2` · state · Picking a reorder version → `/reorder-approvals?approval_uuid=`; else the other proposal page with `?lotNo=` — src/views/projectProposal/projectProposal.jsx:335-353 · `src/views/projectProposal/projectProposal.jsx:335-353`
+- `R-FLA-055-1` · time · All dates use `appFormatDate`: company date format (default "DD MMMM YYYY hh:mm:ss A"; DATE_TIME drops seconds), browser local timezone via moment; numeric input ≤10 digits treated as unix seconds, longer as ms; empty → … · `src/utils/index.js:1227-1242`
+- `R-JOB-001-2` · time · `scheduled_job_scheduler` (ScheduledJobs::SchedulerWorker) runs every minute (`* * * * *`); `scheduled_job_upcoming_email` runs hourly (`0 * * * *`) — config/sidekiq.yml:168-176 · `config/sidekiq.yml:168-176`
+- `R-JOB-001-3` · time · `daily_pending_evaluation_mailer` runs at `0 9 * * *` with args company_ids [25686] only — config/sidekiq.yml:150-156 · `config/sidekiq.yml:150-156`
+- `R-JOB-001-4` · time · `vendor_invite_reminder_job` cron `0 10 * * *`, `trade_approval_all` `0 18 * * *`, `daily_auction_bidding_report` `30 23 * * *` — config/sidekiq.yml:56-79,115-120 · `config/sidekiq.yml:56-79`
+- `R-JOB-001-5` · time · Cron hours are evaluated in the Sidekiq process clock; no `tz` key is set on any entry (unverified which zone production uses) — config/sidekiq.yml:29-213 · `config/sidekiq.yml:29-213`
+- … and 89 more (see the JSON).
 
-### Typed errors — 54
+### Typed errors — 47
 
 - `R-AUC-011-2` · validation · Code 7 "Kindly wait for the auction to start" (HTTP 422) comes only from GET /api/placed_bid_config (companies#placed_bid_config; vendor website and mobile apps) when bid_start_time is in the future; message overridden t… · `app/controllers/api/companies_controller.rb:617-631`
 - `R-AUC-019-4` · validation · auction_remark saved; failure → 472 "failed to add remark" (HTTP 422) — trade_controller.rb:534-538 · `app/controllers/api/trade_controller.rb:534-538`
@@ -473,25 +473,18 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-EVG-040-4` · validation · Record invalid → 15 (HTTP 422); other exception → 15 with HTTP 500 — controller :872-875 · `app/controllers/concerns/event_group_controller_helper.rb:872-875`
 - `R-EVG-046-1` · validation · `form_id` not found → 2 "Insufficient parameters" (HTTP 422) — event_group_line_item_controller.rb:9-10 · `app/controllers/api/event_group_line_item_controller.rb:9-10`
 - `R-FLA-042-5` · validation · gap · Submit is offered to non-creators; backend proposal#submit returns 2 "Insufficient parameters" for anyone but the creator — src/views/projectProposal/projectProposal.jsx:872-880, procol-backend app/controllers/api/propos… · `src/views/projectProposal/projectProposal.jsx:872-880`
-- `R-LIF-035-1` · validation · status not approved/rejected, or record not marked `is_unregistered_bid` → 2; POC user not active → 70 "User does not exist" — app/services/poc_bid_action_service.rb:14-19 · `app/services/poc_bid_action_service.rb:14-19`
-- `R-LIF-039-1` · validation · `company_id` missing → 2 — app/services/template_responses/validate_service.rb:11-14 · `app/services/template_responses/validate_service.rb:11-14`
-- `R-LIF-039-2` · validation · No form answers and no remarks → 2 — validate_service.rb:51-53 · `app/services/template_responses/validate_service.rb:51-53`
-- `R-LIF-040-1` · validation · `data` missing → 2 "Insufficient parameters" — validate_service.rb:26-31 · `app/services/template_responses/validate_service.rb:26-31`
-- `R-LIF-040-2` · validation · Any answer whose RFI widget config `is_required` is true and value blank → 2 (not 572) — validate_service.rb:32-41 · `app/services/template_responses/validate_service.rb:32-41`
 - `R-LIV-005-1` · validation · Vendor blacklisted → 755 "Can't select bid of a blacklisted vendor" (HTTP 422) — app/controllers/concerns/bids_controller_helper.rb:2006-2007 · `app/controllers/concerns/bids_controller_helper.rb:2006-2007`
 - `R-LIV-005-2` · validation · Vendor unverified and not allowed → 588 "You cannot select bid for an unverified vendor." (HTTP 422) — bids_controller_helper.rb:2008-2010 · `app/controllers/concerns/bids_controller_helper.rb:2008-2010`
 - `R-LIV-009-4` · validation · No PO identifier at selection → 15 "Operation failed" (HTTP 422) — app/controllers/concerns/bids_controller_helper.rb:1557-1559 · `app/controllers/concerns/bids_controller_helper.rb:1557-1559`
 - `R-LIV-039-2` · validation · Not lot-based RFP evaluation → 2 "Trade request must be a lot-based RFP" (HTTP 422) — trade_controller.rb:1522 · `app/controllers/api/trade_controller.rb:1522`
 - `R-LIV-039-6` · validation · A section is in peer review or approval → 2 "Evaluator cannot be changed while section is in approval" (HTTP 422) — trade_controller.rb:1538,1554-1558 · `app/controllers/api/trade_controller.rb:1538`
 - `R-LIV-040-1` · validation · No line items → 2 "event_group_line_item_ids is required"; more than 10 → 2 "At most 10 line items are allowed at once" (HTTP 422) — app/controllers/api/v1/trade_controller.rb:1566-1567 · `app/controllers/api/v1/trade_controller.rb:1566-1567`
-- `R-MTR-021-6` · validation · Publishing knockout/dutch with rfx_project enabled returns 101 "You are not allowed to perform this action" (HTTP 422) when multi-product without fast bidding, or rfx_mode not auction/rfq_then_auction — app/controllers/c… · `app/controllers/concerns/trade_controller_helper.rb:4553-4556`
-- `R-MTR-047-8` · validation · gap · `save_formula_values` calls `trade_request.get_formula_widget_key_attrs_vs_formula`, which does `widgets[line_type].each` with no nil guard → any line-item save on a stage with nil widgets raises → 500 — app/models/trade… · `app/models/trade_product.rb:829`
 - `R-STG-024-2` · validation · Company has any auction team and the user is not in one → 586 "You cannot publish an auction" (HTTP 422) — trade_controller_helper.rb:5441, 5431-5436 · `app/controllers/concerns/trade_controller_helper.rb:5441`
 - `R-STG-038-2` · validation · productwise_vendor_validations missing → 2 "Insufficient parameters" — trade_controller.rb:787 · `app/controllers/api/trade_controller.rb:787`
 - `R-STG-044-1` · validation · id, product_id or variant_name missing → 2 (HTTP 422) — trade_controller_helper.rb:2510-2512 · `app/controllers/concerns/trade_controller_helper.rb:2510-2512`
 - `R-STG-044-6` · validation · New line item save fails → 15 with model message — trade_controller.rb:1399-1404 · `app/controllers/api/trade_controller.rb:1399-1404`
 
-### Other — 455
+### Other — 269
 
 - `R-AUC-007-1` · validation · allow_tna_vendors_to_bid defaults to false, so vendors whose every line item is TNA are dropped from audience_company_ids unless the client sends true — create_service.rb:18, 134-141 · `app/services/active_bid_identifiers/create_service.rb:18`
 - `R-AUC-007-2` · validation · Sheet-template events copy audience via set_customized_audiences; others use vendors of bid_ids + extra_audience_ids, audience restricted — trade_controller_helper.rb:4644-4662 · `app/controllers/concerns/trade_controller_helper.rb:4644-4662`
@@ -513,22 +506,14 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-AUC-044-2` · validation · Only custom inline widgets with field_type participant are copied from the vendor's row; creator columns sent by the vendor are ignored — trade_template_helper.rb:5803-5830 · `app/controllers/concerns/trade_template_helper.rb:5803-5830`
 - `R-AUC-045-2` · validation · mode_type is forced to read for vendor-uneditable auction fields (config uneditable_auction_fields_for_vendor) when the sheet is served — trade_template_helper.rb:72-76, 1602-1612 · `app/controllers/concerns/trade_template_helper.rb:72-76`
 - `R-AWD-004-5` · validation · User is an evaluator on the whole round (round access list) → allowed — :93 · `app/services/evaluations/validate_service.rb:93`
-- `R-AWD-012-2` · side-effect · the status change re-sets "pending on evaluator" for the line item — app/models/evaluation_score.rb:51, 63-66. · `app/models/evaluation_score.rb:51`
-- `R-AWD-017-2` · validation · Bids of that vendor in commercial rounds (auction / RFQ / RFQ-then-auction) are re-precomputed and proposal snapshots refreshed — evaluation_score.rb:103, 136-149 · `app/models/evaluation_score.rb:103`
-- `R-AWD-017-4` · validation · Vendor-onboarding rounds and scores on other item types skip all of this — evaluation_score.rb:69-71 · `app/models/evaluation_score.rb:69-71`
 - `R-AWD-021-2` · validation · For PR-linked line items extra users are added as `editor`: with company configuration `evaluator_config`, users matching its source entities (`source_entity_mode` AND/OR) filtered by target entities (`target_entity_mode… · `app/helpers/api/evaluations_helper.rb:249-303`
-- `R-AWD-025-3` · validation · The evaluator then re-scores with POST /api/evaluations and submits again; old proposal score ids are re-pointed to the new scores — app/models/evaluation.rb:50-77 · `app/models/evaluation.rb:50-77`
-- `R-AWD-048-3` · validation · Timeline in `misc`: in_progress, then completed or aborted with reasons — :16-30 · `app/workers/auto_award_worker.rb:16-30`
 - `R-AWD-049-3` · validation · A matching configured scenario ALWAYS aborts: the "auto_award" action and tie splitting are TODO stubs — :121-135 · `?`
 - `R-BID-002-3` · side-effect · placed_at stamped on first activation (bid.rb:131); other draft bids of the same company on the stage set in_active when a bid becomes active (bid.rb:139, 1844-1850); after commit: rank-change notifications, push, precom… · `app/models/bid.rb:131`
 - `R-BID-018-6` · validation · where.not(rfx_mode: [rfi,rfp], auction_config: [knockout,dutch]) is a NAND in Rails 7.0: only an RFI/RFP stage that is also knockout/dutch is excluded — trade_controller_helper.rb:6508-6510 · `app/controllers/concerns/trade_controller_helper.rb:6508-6510`
-- `R-BID-037-5` · side-effect · approved → POC registered, meta unregistered_bid_accepted, pending count decremented, sibling records accepted, push; rejected → bid, lines and BidTrade rejected, POC deactivated if no other active bid/response — poc_bid… · `app/services/poc_bid_action_service.rb:51-109`
 - `R-BID-040-6` · side-effect · draft template response → form page answers → active response; attachments only go into the "Vendor Assessment" form — :69-105, 145 · `app/services/bid_submit/technical_bid_service.rb:69-105`
 - `R-BID-045-1` · validation · CreateBidAnomalyValidator#validate and ReviseBidAnomalyValidator#validate start with a bare `return`, so they always return nil and never refuse — app/services/anomaly_bid_detector/create_bid_anomaly_validator.rb:22-23, … · `app/services/anomaly_bid_detector/create_bid_anomaly_validator.rb:22-23`
 - `R-BID-046-4` · side-effect · none; data comes from a 24 h cache filled on each active/requested bid save, excluding surrogate and broker bids — app/models/bid.rb:2302-2312 · `app/models/bid.rb:2302-2312`
-- `R-CAL-002-3` · config · Dutch, RFI and RFP stages get no optional indicators, except a dutch stage on an rfx project gets only rank; knockout gets only rank — trade_request_model_helper.rb:716-722 · `app/models/model_helpers/trade_request_model_helper.rb:716-722`
 - `R-CAL-006-2` · config · loading_factor shown only when is_loading_factor_enabled? (config loading_factor_enabled AND (baseline_cost_adjustment or an auction stage)) and in the indicator list — auction_indicators_service.rb:107; trade_request_mo… · `app/services/sourcing_engine/auction_indicators_service.rb:107`
-- `R-CAL-032-5` · validation · gap · TradeProduct.update_meta_data puts meta_data.to_json in a single-quoted SQL literal without escaping; an apostrophe in any meta_data value aborts the update — app/models/trade_product.rb:305-317 · `app/models/trade_product.rb:305-317`
 - `R-CAL-038-5` · validation · gap · Cycle → StandardError "Circular dependency detected: …"; depth ≥ 100 → "Recursion depth limit exceeded: Maximum depth of 100 …" (raised, untyped 500) — :128-139 · `app/services/formula_evaluator/recursive_formula_evaluator_service.rb:128-139`
 - `R-CAL-041-6` · validation · gap · non-lot path uses @eg.precomputed_data_v1["…"] without a nil guard (lot path uses &.), while the SQL explicitly handles a NULL column → NoMethodError when NULL — :88 vs :86, 249-253 · `app/services/precomputation_engine/bid_service_v1.rb:88`
 - `R-CAL-042-5` · side-effect · A vendor regretted on every line it participates in is pruned from participant lists and line data (non-lot only) — :47-79 · `app/services/precomputation_engine/bid_service_v1.rb:47-79`
@@ -551,15 +536,11 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-CFG-005-4` · config · Template with section_wise_scoring_enabled → `section_wise_scoring_enabled` true and `section_wise_max_score` = template value or 5 — trade_controller_helper.rb:3144-3148 · `app/controllers/concerns/trade_controller_helper.rb:3144-3148`
 - `R-CFG-006-5` · config · Line-item closing or RFQ → update_trade_end_time = false; dutch → is_order_allowed_to_close_in_extra_closing_time_only = false — :3383-3386 · `app/controllers/concerns/trade_controller_helper.rb:3383-3386`
 - `R-CFG-006-9` · config · auto_awarding_enabled present → allow_fixed_quantity_for_bidding = true; weighted events also force it — :3605-3606, 3863 · `app/controllers/concerns/trade_controller_helper.rb:3605-3606`
-- `R-CFG-007-3` · config · auction_closing_mode = company `default_closing_mode`; rfp_evaluation_mode = company `default_rfp_evaluation_mode` (forced "lot_based" for BOQ projects) — base.rb:69-70; trade_controller_helper.rb:5576-5592 · `app/services/trade_requests/base.rb:69-70`
-- `R-CFG-007-4` · config · Editing an existing stage keeps its config and only refreshes order_type, title, rfx_mode and times — base.rb:87-99 · `app/services/trade_requests/base.rb:87-99`
 - `R-CFG-008-2` · config · Live (read from the company each time): restrict_event_visibility_to_owner, is_partial_awarding_enabled, is_over_awarding_allowed, is_event_versioning_enabled, allow_versioning_post_auction, is_add_new_stage_allowed, tra… · `?`
-- `R-CFG-008-3` · config · An open-tender flag change takes effect on a stage only at its next save (`tender` is recomputed before_save) — app/models/trade_request.rb:277, 3152-3159 · `app/models/trade_request.rb:277`
 - `R-CFG-009-1` · config · `lock_vendors_addition_in_event_creation` — only exposed — app/controllers/api/v1/users_controller.rb:568, 696 · `app/controllers/api/v1/users_controller.rb:568`
 - `R-CFG-009-3` · config · `allow_zero_value_in_widgets` — only exposed — users_controller.rb:563, 726 · `app/controllers/api/v1/users_controller.rb:563`
 - `R-CFG-009-4` · config · `enable_upload_bid_during_best_offer` — only exposed — users_controller.rb:659, 795 · `app/controllers/api/v1/users_controller.rb:659`
 - `R-CFG-009-8` · validation · gap · each item is a client-only guard (expected to be enforced server side for at least items 1, 2, 4) — users_controller.rb lines above · `app/controllers/api/v1/users_controller.rb`
-- `R-CFG-010-4` · validation · `mandatory_approval_remarks` and stage `is_remark_required_to_accept_approval` are sent to the console only — users_controller.rb:540; app/models/model_helpers/trade_request_model_helper.rb:762-766; app/controllers/api/v… · `app/models/model_helpers/trade_request_model_helper.rb:762-766`
 - `R-CFG-012-2` · side-effect · Auction created / scheduled push to admins: setting on → only the company's super admins (except the creator); off → active buyer managers/admins of the matching category teams — lib/modules/push_notification.rb:603-618,… · `lib/modules/push_notification.rb:603-618`
 - `R-CFG-014-1` · config · Company `vendor_masking_true` (no master migration; nil = off) on → every new stage gets is_vendor_masking_enabled = true and ..._except_super_admin = true; the request param is ignored — trade_controller_helper.rb:3396-… · `app/controllers/concerns/trade_controller_helper.rb:3396-3399`
 - `R-CFG-014-2` · config · Otherwise, if masking is allowed for the stage, is_vendor_masking_enabled = param or false — :3400-3402 · `app/controllers/concerns/trade_controller_helper.rb:3400-3402`
@@ -576,7 +557,6 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-EVG-014-2` · side-effect · approval raised (v1) or started (v2); stage closed_at extended by approval expiry — :4579-4590. · `app/models/trade_schedule.rb:4579-4590`
 - `R-EVG-016-4` · side-effect · audience differences vs the stage's pre-publish audience logged as `vendor_added` / `vendor_removed` — update_service.rb:271-272, 368-374. · `app/services/event_groups/update_service.rb:271-272`
 - `R-EVG-024-2` · side-effect · `schedule_updated` email and `recurring_event_edited` push on resume — :553-554. Templates send no invitation mails — event_group.rb:489-504. · `app/models/event_group.rb:489-504`
-- `R-EVG-037-5` · side-effect · for active line items not in a selected proposal, unless a refresh is already `in_progress`: status set in_progress and RefreshLpoDataWorker queued — event_group.rb:919-929. · `app/models/event_group.rb:919-929`
 - `R-EVG-040-5` · side-effect · PR mappings inserted, `pr_line_item_id` backfilled, in-progress quantity workers — helper :2705-2711. · `app/controllers/concerns/event_group_controller_helper.rb:2705-2711`
 - `R-EVG-043-4` · validation · rejected vendors come from `precomputed_data.rejected_company_ids`; suggested vendors from `meta_data.suggested_audience_snapshot` — :557-560. get_audience_filters has login flag 0 in app_auth_config — app_auth_config.ym… · `config/app_auth_config.yml:1071`
 - `R-EVG-047-1` · validation · `ctm_uuid` or `events` blank → code 422, which has no locale entry → "Something went wrong!" with HTTP 500 — event_groups_controller.rb:254-256, json_helpers.rb:19-20 · `app/controllers/api/event_groups_controller.rb:254-256`
@@ -613,15 +593,82 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-FCR-018-5` · validation · Multi-product = more than one row with a product key; closingOn undefined → "Please select closing on mode for the event" — src/views/projectCreation/helpers.js:227-228, 308-310 · `src/views/projectCreation/helpers.js:227-228`
 - `R-FCR-019-1` · side-effect · eRFX project publish OK → "Project created successfully", redirect to project details (details tab) — src/views/projectCreation/projectCreation.jsx:1873-1888 · `src/views/projectCreation/projectCreation.jsx:1873-1888`
 - `R-FCR-019-2` · side-effect · Non-project publish → "Event sent to Auction Team successfully" when publishToDraft else "Event created successfully"; eRFX redirects to the project of the first stage, classic to `/orders/:id?tab=<eventDetails>` — src/v… · `src/views/projectCreation/projectCreation.jsx:1891-1914`
-- … and 335 more (see the JSON).
+- `R-FCR-021-2` · validation · Interval InputNumber min 1, max 12 (monthly repeat), 52 (weekly), else 365; "After" occurrences min 1 max 999; "On Date" picker blocks past days and stores "YYYY-MM-DD" — src/views/projectCreation/components/projectSched… · `src/views/projectCreation/components/projectScheduler/recurringEventSettings/recurringEventSettings.jsx:84-85`
+- `R-FCR-022-3` · validation · Serial bidding without evaluation → "Evaluation time is required for serial bidding event" — projectScheduler.jsx:63-68, stageSchedulerCard.jsx:691-696 · `src/views/projectCreation/components/projectScheduler/projectScheduler.jsx:63-68`
+- `R-FCR-022-5` · config · Duration menu = template `event_duration_predefined_values[mode].event_duration` or default 30 min, 1 h, 4 h, 24 h; switching to "Fixed time" presets now + 30 min — stageSchedulerCard.jsx:68-71, 213-225, src/views/projec… · `src/views/projectCreation/components/projectScheduler/constants.js:1`
+- `R-FCR-026-3` · side-effect · Select → `GET /v1/trade/new_request_config…&filters={"template_uuid":…}` and `GET /templates/:uuid`; template durations reset start to now and end/eval to the template defaults — templateSelection.jsx:143-173, src/models… · `src/models/orders/ordersService.js:262`
+- `R-FCR-028-1` · validation · max ≤ min on any row → "Please fill correct values in the validation columns" — src/views/projectCreation/helpers.js:603-610, src/views/projectCreation/projectCreation.jsx:1726-1729 · `src/views/projectCreation/helpers.js:603-610`
+- `R-FCR-028-3` · validation · Checked only when both min and max columns still exist and all values are truthy (0 skips the check) — src/views/projectCreation/helpers.js:602-615 · `src/views/projectCreation/helpers.js:602-615`
+- `R-FCR-028-4` · validation · gap · `max <= min` is compared without Number(); if cell values are strings it is a lexicographic compare ("10" <= "9") (unverified value type) — src/views/projectCreation/helpers.js:605-607. Backend vendor-validation checks: … · `src/views/projectCreation/helpers.js:605-607`
+- `R-FCR-029-4` · validation · Save with mode auction and type "auction" → "Please select a valid auction strategy" — auctionConfiguration.jsx:421-424, src/translations/en.json errorMessages.quickCreateOrder.notAValidAuctionStrategy · `src/translations/en.js`
+- `R-FCR-030-2` · validation · Time difference (minutes) must match /^\d+(\.\d{1,2})?$/ AND be ≥ 0.5 AND stage duration > td×60 (strict) — auctionConfiguration.jsx:599-609, src/views/projectCreation/helpers.js:437-447 · `src/views/projectCreation/helpers.js:437-447`
+- `R-FCR-033-4` · validation · Serial bidding: duration required ("Please enter a valid duration"), stage end = (rows−1) × duration × slab; minimum revisions must be digits and not "0" ("Please enter a valid number") — auctionConfiguration.jsx:641-650… · `src/views/eventCreation/eventCreation.jsx:1005-1013`
+- `R-FCR-034-3` · config · RFQ→Auction seeds the toggle from the source's `closedEnvelopeBiddingForRfqs` / `ForAuctions` — src/views/projectCreation/projectCreation.jsx:1249-1252 · `src/views/projectCreation/projectCreation.jsx:1249-1252`
+- `R-FCR-035-4` · side-effect · Search → `GET /companies/vendorlist_filtered?query=…&pr_item_uuids=…&product_uuids=…&trade_request_uuid=…&page=n`, debounced 500 ms, trimmed, paged on scroll — participantsSelection.jsx:500-554, src/redux/vendors/api.js:… · `src/redux/vendors/api.js:96-122`
+- `R-FCR-035-5` · side-effect · Product audience → `GET /companies/audience_for_product?product_uuids=[…]&pr_item_uuids=[…]` when product ids change — src/views/eventCreation/eventCreation.jsx:1071-1119, src/redux/vendors/actions.js:553-571 · `src/views/eventCreation/eventCreation.jsx:1071-1119`
+- … and 149 more (see the JSON).
 
-### Not checkable from outside — 35
+### Not checkable from outside — 88
 
 - `R-MBP-010-6` · convert_price_kg_to_qt = (price × 100).round (integer); convert_quantity_kg_to_qt = qty / 100.0 — app/models/bid.rb:702-708 — *kg↔quintal helper for legacy agri flows, not on event screens*
 - `R-MBP-016-2` · after commit, when the line is `active`, `rejected` or `revoke`: the trade product's meta_data `prices_hash[company_id]` := the line value o… — *English-auction prices hash bookkeeping — covered by BUG-60 (shared per-vendor prices record)*
 - `R-MBP-017-4` · BidTrade (bid↔stage mapping) statuses stop at pending 7 (no draft / anomaly / approval_requested) — app/models/bid_trade.rb:28 — *BidTrade enum reference*
 - `R-MBP-039-4` · Suspicious-IP cache: active/requested non-surrogate, non-broker bids add company to `bids_ips_vs_companies_ids#<trade>` for 24 h only when t… — *24 h suspicious-IP cache — observable only through API-EVRVIS-027*
 - `R-MBP-050-1` · AuctionAnalytic has no validations, callbacks or methods; it only stores denormalised per-line rows (price, avg/median, reference price, sav… — *AuctionAnalytic is a reporting table with no behaviour*
+- `R-MEG-001-6` · `access_lists`, `eg_alternatives_mappings` only include rows with status `active` — event_group.rb:79-80 — *association filter on active rows; internal*
+- `R-MEG-027-6` · `assign_structured_tnc!` writes `self.misc`, a column EventGroup does not have (schema annotation lines 7-28) → NoMethodError if called with… — *no caller under app/ (dead method)*
+- `R-MEG-028-5` · ProcolVariable `MQCS_GROUPING_ENABLED` "true" → `get_precomputed_data` returns `precomputed_data_v1`, else `precomputed_data` — event_group.… — *platform-wide ProcolVariable switch; cannot be toggled from a test (read-only Procol)*
+- `R-MEG-031-2` · Technical sheet from the LAST RFI/RFP not void/cancelled/in_active (a withdrawn RFP is used); commercial sheet from `latest_commercial_stage… — *Excel URLs attached to vendor mails / AI email workers only; mail content*
+- `R-MEG-031-4` · Temporarily sets Current.workspace/user (vendor or project company / owner) and resets them after — event_group.rb:1112-1127 — *temporary Current.user/workspace swap; internal*
+- `R-MEG-032-2` · Update input "enable" → running, "disable" → paused, blank → absent; stuck with reasons stores `meta_data.clara_stuck_reasons`; written with… — *Clara auto-pilot status written with update_columns; internal AI state*
+- `R-MEG-032-3` · Offer-reader / query-routing emails need company config `clara_ai_access_enabled.company_tenant_mapping_id`, else nil — event_group.rb:1131-… — *Clara mail routing addresses; company tenant config*
+- `R-MEG-032-4` · Lookup by (tenant uuid, ref_id): blank → nil; only ACTIVE projects, ref_id upper-cased — event_group.rb:1184-1194 — *Clara lookup by tenant uuid; internal mail-ingest path*
+- `R-MEG-032-5` · New chat identifier "EventGroup_<uuid>_<epoch>" in meta_data — event_group.rb:1196-1205 — *Clara chat identifier; internal*
+- `R-MEG-032-6` · lookup does `config.modifications["value"]["company_tenant_mapping_id"]` for every active clara config; any config whose value is not a hash… — *Clara config data shape; needs a config edit to set up*
+- `R-MEG-036-5` · `reset_precomputed_data(company)` keeps only the vendor's `evaluation_score` (drops the rest), or removes the vendor key entirely when unsco… — *precomputed data reset internals; outcome covered by score cases*
+- `R-MEG-040-1` · Status enum in_active 0, active 1 (default active) — app/models/purchase_request_trade_mapping.rb:24 — *enum integer values; internal*
+- `R-MEG-043-1` · Status enum: in_active 0, active 1, draft 2, requested 3, revised 4, peer_review 5, rejected 6, reevaluation_requested 7, reevaluated 8; `sc… — *enum integer values; internal*
+- `R-MEG-047-1` · Status enum: in_active 0, active 1 (submitted), revised 2, draft 3, accepted 4, rejected 5, requested 6, edit_in_review 7 — app/models/templ… — *enum integer values; internal*
+- `R-MEG-049-1` · draft/requested → active: vendor mapping "in_review"; active → requested: "in_approval"; → accepted: "active" with score value/label + resol… — *vendor-onboarding round (template response / score / approval); outside the sourcing-event scope*
+- `R-MEG-049-5` · v2 draft → active with config-driven final validation: recheck worker in 5 minutes — template_response.rb:71-73, 487-492 — *vendor-onboarding round (template response / score / approval); outside the sourcing-event scope*
+- `R-MEG-050-1` · On becoming active (onboarding, not v2): score value = the round's `config.ranking_widget` value from the answers; with `rules`, the FIRST r… — *vendor-onboarding round (template response / score / approval); outside the sourcing-event scope*
+- `R-MEG-050-3` · Approval rejected/expired/withdrawn → buyer response (data.buyer_response_id) set in_active, ALL evaluations of the round in_active, vendor … — *vendor-onboarding round (template response / score / approval); outside the sourcing-event scope*
+- `R-MEG-050-4` · Same, onboarding v2 for the company in ProcolVariable `GRASIM_COMPANY_ID`: the vendor mapping's active buyer response is re-opened as draft … — *vendor-onboarding round (template response / score / approval); outside the sourcing-event scope*
+- `R-MEG-050-5` · Approval title "Request to Accept Vendor" / "Request to Reject Vendor"; v2 uses the vendor company as event — template_response.rb:428-458 — *vendor-onboarding round (template response / score / approval); outside the sourcing-event scope*
+- `R-MEG-050-6` · ProcolVariable `GRASIM_COMPANY_ID` missing → `nil.value` NoMethodError on every v2 rejection — template_response.rb:415 — *vendor-onboarding round (template response / score / approval); outside the sourcing-event scope*
+- `R-MEG-052-1` · `item_id`, `item_type` and `snapshot_data` are required; a snapshot with only `snapshot_data_v1` fails validation — app/models/event_snapsho… — *snapshot model validations; snapshots are written by the server only*
+- `R-MEG-052-2` · Status in_active 0 / active 1 (default active) — event_snapshot.rb:28 — *enum integer values; internal*
+- `R-MEG-052-3` · `get_snapshot_data` = `snapshot_data_v1` when ProcolVariable MQCS_GROUPING_ENABLED is "true", else `snapshot_data` — event_snapshot.rb:32-42 — *platform-wide ProcolVariable switch; read-only*
+- `R-MEG-053-1` · `category` participant 0 / client 1; `status` in_active 0 / active 1 (default active) — app/models/trade_flexi_mapping.rb:23-24 — *flexi (FxResponse) integration; not reachable from the event flow*
+- `R-MEG-053-2` · trade_request, fx_response and owner_company are required associations; a mapping without owner_company fails "Owner company must exist" eve… — *flexi (FxResponse) integration; not reachable from the event flow*
+- `R-MTR-002-8` · trade_controller compares `trade_request.current_status == "auction"`, a value the enum never has (auctioning/rfqing/offline_trading), so th… — *dead branch (current_status never equals 'auction'); no behaviour to observe*
+- `R-MTR-004-5` · Draft stages skip activity-log entries unless the save moves them to active — app/models/trade_request.rb:3255-3259 — *activity-log suppression for draft saves; internal audit write, no stable reader for draft stages*
+- `R-MTR-004-6` · `set_tender_value` calls `self.event_group.show_under_open_events?` without a nil guard (event_group is optional) → NoMethodError → untyped … — *needs a stage with no project; every sourcing event round belongs to a project*
+- `R-MTR-005-3` · `add_event_group_details`: if project `precomputed_data.trade_template_id` is blank and stage is not RFI/RFP, stores this stage's template_i… — *internal precomputed project data and EventGroupUpdateWorker timing; outcome covered by status cases*
+- `R-MTR-005-4` · `update_latest_stage_time_on_eg` sets project `latest_stage_time = created_at` — app/models/trade_request.rb:284, 3177-3181 — *internal project timestamp latest_stage_time; not shown in any event screen*
+- `R-MTR-005-5` · `add_ref_id` (see "ref_id") and, when `misc.integration_type == "FxResponse"`, `FlexiModule::TradeReferenceUpdateService` — app/models/trade… — *FxResponse integration only; not reachable from the event flow*
+- `R-MTR-005-7` · `add_event_group_details` dereferences `self.event_group.precomputed_data` without nil guard → crash on a stage with no project — app/models… — *needs a stage with no project; every sourcing event round belongs to a project*
+- `R-MTR-006-3` · Status saved → active on a rfq_then_auction stage → project `refresh_lpo_data(user_id:)` — app/models/trade_request.rb:300, 3011-3015 — *LPO refresh internal cache; no reader in the event flow*
+- `R-MTR-006-8` · Every update commit → push `update_trade_socket_ping` (+ `update_trade_notification` if `send_notification_on_trade_update`) — app/models/tr… — *websocket ping payload*
+- `R-MTR-011-6` · `duration` (hours) = (end − start)/3600, rounded to 1 decimal if < 1 h, else to integer — app/models/trade_request.rb:1140-1149 — *duration reader has no API/report caller found (grep origin/main)*
+- `R-MTR-013-5` · Scope `currently_running` = any schedule with start <= now AND end >= now; `currently_running_in_bidding_time` limits to rfq, auction, offli… — *query scopes; observable outcomes are covered by window cases*
+- `R-MTR-013-6` · `is_created_within_2_min?` = created_at >= now − 2 min — app/models/trade_request.rb:1927-1929 — *push-notification suppression for child multiline auctions within 2 min; push only*
+- `R-MTR-015-5` · start_time, end_time, schedule_type, status are NOT NULL columns — app/models/trade_schedule.rb:6-10 — *database NOT NULL constraints; schedules are always built by the server*
+- `R-MTR-015-6` · `get_approval_pending_schedule_end_time` = latest end of `approval_pending_time` schedules — app/models/trade_request.rb:2021-2023 — *internal reader for approval-pending schedule; no direct output*
+- `R-MTR-022-5` · Approval enum on the stage: approval_not_required=0, approval_pending=1, approval_completed=2, approval_expired=3, approval_rejected=4, appr… — *enum integer values; internal*
+- `R-MTR-023-7` · `self.event_group.reload` without nil guard → crash for a stage with no project — app/models/trade_request.rb:1954 — *needs a stage with no project; every sourcing event round belongs to a project*
+- `R-MTR-029-1` · Status change while ACTIVE on an auction-type stage with `config.snapshot_auction_report_after_auction_end` and a company `auction_report_ty… — *report snapshot job; output stored internally, gated per company*
+- `R-MTR-029-2` · closed_at change on active/closed non-RFI/RFP stage → `AuctionCloseSlackWorker` at closed_at + 10 s (each stage of a multiline/basket lot), … — *Slack logging only*
+- `R-MTR-040-6` · Vendor onboarding stages: mapping in VALID_STATUSES_FOR_VENDOR_ONBOARDING; anything else → nil (denied) — app/models/model_helpers/trade_req… — *vendor onboarding stages; outside the sourcing-event scope*
+- `R-MTR-047-1` · `status`: in_active=0, active=1, closed=2, void=3, cancelled=4 (NOT NULL); `current_status`: rfq=0, auction=1 (default auction) — app/models… — *enum integer values; internal*
+- `R-MTR-047-2` · `unit_type` enum 0..44 (weight=0 default … nos=44), deprecated in favour of `unit` — app/models/trade_product.rb:78-82, 27 — *deprecated unit_type enum; internal*
+- `R-MTR-055-2` · `estimated_purchase_savings` (closed stages only): mean landed cost of selected bids; average of active/selected bids within 10% of that mea… — *estimated_purchase_savings has no caller (grep origin/main)*
+- `R-MTR-059-2` · `closing_price` on a closed stage falls back to `selected_bid.price` → NoMethodError when no bid is selected and no selected bid line exists… — *closing_price is read only by the old mobile-app history view and price trend serializer*
+- `R-MTR-059-4` · No project: `get_latest_commercial_proposal`, `lot_rfp_form_ids` (RecordNotFound), `active_lot_number`, `project_ref_with_title` crash — app… — *needs a stage with no project; every sourcing event round belongs to a project*
+- `R-MTR-059-6` · `buyer_hub_names` / `display_buyer_hub` (`tp.buyer_hub.name`), `display_title_for_multiline_auction` (`product.name`) — app/models/model_hel… — *delivery location and product are required on a line (trade_product.rb:60-66); nil path not reachable*
+- `R-MTR-060-1` · `set_key_value_in_misc(key:, value:)` builds `jsonb_set(misc, '{key}', 'value'::jsonb)` by string interpolation and executes it directly (no… — *raw SQL helper; its callers write server-built JSON (no user text) — risk covered by API-EVRMTR-047 for the line variant*
+- `R-MTR-060-3` · `save_vendor_specific_savings` (stage and line) and `update_approver_identifiers` write misc/meta_data with update_columns (no callbacks) — … — *update_columns writes; internal (no callbacks), outcome covered by savings cases*
+- `R-MTR-060-4` · `TradeProduct.mark_void(ids)` sets status void with update_all — app/models/trade_product.rb:551-553 — *bulk void helper; internal*
 - `R-VIS-001-4` · Every `Scope#resolve` in the seven policies returns `scope.all` — no policy scope narrows records — application_policy.rb:44-46; trade_reque… — *policy Scope#resolve returns scope.all — internal; observable effects are the per-action checks*
 - `R-VIS-002-5` · Permission sets are cached 12 h per company+role, company+team+role and user; saving a TeamPermission deletes the matching keys — team_permi… — *permission cache TTL — internal*
 - `R-VIS-040-7` · `@get_participated_auctions` is read inside the serializer but only ever set on the controller, so revised/rejected arrays are always built … — *dead code path inside the serializer*
@@ -631,7 +678,6 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-CAL-010-5` · the websocket creator push has no event_masking_enabled? check, so buyer screens subscribed to the creator channel may receive ranks while t… — *websocket subscription; unverified who subscribes*
 - `R-CAL-022-1` · Formulas are evaluated by Dentaku (gem 3.5.4) through FormulaEvaluatorService#evaluate (non-bang), result to_f — app/models/concerns/savings… — *library choice (Dentaku) — an implementation detail; outcomes tested in API-EVRCAL-032*
 - `R-CAL-031-5` · savings JSON is interpolated into SQL inside single quotes without escaping; any apostrophe in the data (e.g. a currency label) breaks the U… — *SQL escaping needs an apostrophe inside savings data that no screen lets a user type*
-- `R-CAL-032-4` · Unlike SavingsCalculatorWorker it does NOT delete duplicate scheduled jobs (call commented out) — custom_savings_calculator_worker.rb:33 — *duplicate Sidekiq job cleanup — internal*
 - `R-CAL-036-5` · truncatize splits on "." so a value rendered in scientific notation ("1.0e-05") becomes "1.0e-0" (unverified reachable) — string.rb:104-111;… — *scientific-notation input not reachable from screens (unverified)*
 - `R-CAL-037-1` · evaluate(formula, variables) = Dentaku::Calculator#evaluate; variables are the formula identifiers (tokenizer "identifier" tokens, unique) —… — *formula engine internals*
 - `R-CAL-037-2` · calculate(key_attr_vs_formula, widgets): widget hashes are reduced to value (or display_value), solved together; formulas resolving to "unde… — *formula engine internals*
@@ -644,11 +690,4 @@ Each line: rule id · kind · what the code does · where. The full list (with t
 - `R-CAL-048-5` · Fallback total amount without a formula = (price + price×gst/100 + freight + loading_unloading + packaging) × quantity — app/services/anomal… — *dormant anomaly detector*
 - `R-CAL-048-6` · reference 0 with Integer prices → ZeroDivisionError; mean_price uses Integer division when sum/count are integers — price_anomaly_detector.r… — *dormant anomaly detector*
 - `R-CAL-049-1` · threshold = expected × (1 + tolerance/100) for percentage (default), expected + tolerance for absolute, else expected — app/services/rule_en… — *rule engine tolerance evaluator is not event-scoped*
-- `R-CAL-049-2` · Pass when actual <= threshold (default operator); also less_than, greater_than(_or_equal), equal (/diff/ < 0.001) — tolerance_evaluator.rb:1… — *not event-scoped*
-- `R-CAL-049-3` · Missing subject_field/reference_field → failure "Configuration error: subject_field and reference_field are required"; nil actual/expected →… — *not event-scoped*
-- `R-CAL-049-4` · variance % = (actual − expected)//expected/ × 100 rounded 4; 0.0 when expected is 0 — app/services/rule_engine/evaluators/base_evaluator.rb:… — *not event-scoped*
-- `R-CAL-049-5` · to_numeric uses String#to_f, so non-numeric text becomes 0.0 and is compared as zero — base_evaluator.rb:93-100 — *not event-scoped*
-- `R-CAL-053-1` · TaxEngine::Client.resolve picks Gmmco for "gmmco limited", Decathlon for "decathlon sports india private limited", else Base (no-op) by comp… — *tax engine runs on FlexiModule responses for two named companies, not on events*
-- `R-CAL-053-2` · Decathlon: CGST/SGST ("1") when buyer and vendor GSTIN share the first two digits, else IGST ("0"); both must match /\A\d{2}[A-Z0-9]{13}\z/i… — *not on events*
-- `R-CAL-053-3` · It runs from FlexiModule automation on FxResponse records, not on bids or events — app/services/flexi_module/fx_automation_engine_service.rb… — *not on events*
-- `R-CAL-053-4` · the method run is template_args['function'] via `send`, i.e. any method name configured in the template is called — fx_automation_engine_ser… — *not on events*
+- … and 8 more (see not-checkable.json).

@@ -396,7 +396,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "After the bids are in, read the comparison the way a buyer does — who is L1 on each line and overall, what was saved against which baseline, what the sealed-bid rules hide before the close — and export it, with nothing shown that the buyer may not see.",
     order: 34,
     uiGroups: ["UI-XDQCS"],
-    apiGroups: ["API-XDQCS"],
+    apiGroups: ["API-XDQCS", "API-EVRMEG"],
     spine: ["close_bidding", "open_comparison", "read_l1", "read_savings", "read_indicators", "export_comparison"],
   },
   {
@@ -446,7 +446,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Pick approved purchase-request lines — all or some, all or part of their quantity — pull them into a draft event, and keep each request's open quantity right as the event is awarded, withdrawn or the line is closed.",
     order: 39,
     uiGroups: ["UI-XDPRE"],
-    apiGroups: ["API-XDPRE"],
+    apiGroups: ["API-XDPRE", "API-EVRLIF"],
     spine: ["open_pr_list", "select_pr_lines", "pull_into_draft_event", "adjust_quantities", "close_pr_lines"],
   },
   {
@@ -506,7 +506,7 @@ const JOURNEYS: JourneyDef[] = [
     goal: "Move an event's dates, give items their own closing times, weight price against other factors when ranking bids, and keep a draft safe until it is published.",
     order: 46,
     uiGroups: ["UI-EVDTME", "UI-EVDWGT", "UI-EVDDRF"],
-    apiGroups: ["API-EVDTME", "API-EVDWGT", "API-EVDDRF"],
+    apiGroups: ["API-EVDTME", "API-EVDWGT", "API-EVDDRF", "API-EVRMTR"],
     spine: ["reschedule_event", "per_item_timing", "weighted_ranking", "save_draft"],
   },
   {

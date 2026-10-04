@@ -1,0 +1,42 @@
+[
+ {
+  "id": "EDGE-EVRMTR-008",
+  "feature": "events.extend_deadline",
+  "title": "Extending a live price round to a later end is accepted and becomes the round's end time",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Session: the BUYER (owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids.",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with a new end of 1 Jan 2030 00:00 UTC and a remark.",
+   "2. Read the round: its end time must be 1 Jan 2030 00:00 UTC."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {"increase_auction_time": 1893456000, "remarks": "QA_Platform_extend_{{stamp}}"},
+  "expected": "accept",
+  "expectedResult": "HTTP 200; the round's ending_at becomes 1893456000 — before_save set_bid_end_time copies the last rfq schedule end into the stored column (app/models/trade_request.rb:277, 828-838, 3096-3098).",
+  "rationale": "Lists, filters and reminders read the stored end; it must equal the live schedule after an extension.",
+  "rule": "R-MTR-004-1 · app/models/trade_request.rb:3096-3098",
+  "notes": "Acts only on the run's own sandbox copy; the far end keeps the copy open, it never touches a real event."
+ },
+ {
+  "id": "EDGE-EVRMTR-038",
+  "feature": "auction.rank",
+  "title": "Opening a live price round returns its settings with the indicator set filled in",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Session: the BUYER (owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids.",
+  "steps": [
+   "1. GET /trade/{{tradeId}}.",
+   "2. In the settings block, other_auction_indicators_config lists every optional indicator (missing ones as false)."
+  ],
+  "method": "GET",
+  "path": "/trade/{{tradeId}}",
+  "expected": "accept",
+  "expectedResult": "HTTP 200 with trade_config.other_auction_indicators_config present (app/serializers/trade_template_serializer.rb:98; app/models/model_helpers/trade_request_model_helper.rb:745-760).",
+  "rationale": "The vendor's indicator cards are drawn from this block; a missing key hides an indicator the buyer switched on.",
+  "rule": "R-MTR-036-3 · app/models/model_helpers/trade_request_model_helper.rb:745-760"
+ }
+]
