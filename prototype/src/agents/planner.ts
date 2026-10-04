@@ -842,6 +842,24 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // On the create screen Participants and Publish are LOCKED until a template is chosen and a
+  // product added ("Please choose a template and add a product" — the eRFX create-screen order).
+  // A plan that invites or publishes first can never get there: put the missing steps in front.
+  {
+    const at = (name: string) => steps.findIndex((st) => st.step === name);
+    const onCreate = at("open_create") >= 0 || at("compose_stages") >= 0 || at("configure_single_stage") >= 0;
+    const firstNeedy = steps.findIndex((st) => ["invite_vendor", "publish", "expect_published", "set_schedule"].includes(st.step));
+    if (onCreate && firstNeedy >= 0) {
+      const missing: TestPlan["steps"] = [];
+      if (at("select_template") < 0 || at("select_template") > firstNeedy) missing.push({ step: "select_template", args: {}, note: "a template comes first on the create screen" });
+      if (at("add_line_items") < 0 || at("add_line_items") > firstNeedy) missing.push({ step: "add_line_items", args: {}, note: "a product is needed before participants or publishing" });
+      if (missing.length) {
+        steps.splice(firstNeedy, 0, ...missing);
+        repairs.push(`inserted ${missing.map((m) => m.step).join(" + ")} before ${steps[firstNeedy + missing.length].step} — the create screen locks Participants and Publish until a template is chosen and a product added`);
+      }
+    }
+  }
+
   return { plan: { ...plan, steps }, repairs };
 }
 
