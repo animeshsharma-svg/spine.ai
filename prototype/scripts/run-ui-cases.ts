@@ -313,15 +313,36 @@ interface Ran {
   stateWhy?: string;
   context?: any;
 }
-async function runOnce(c: CatalogCase, p: Prep, plan: any): Promise<Ran> {
+// ── shared starting states for plans that only LOOK ─────────────────────────
+// Building a state through the API and signing in costs ~25-60 s per case. A plan
+// whose every step only reads (checks, navigation, tabs, waits) cannot change the
+// event, so cases needing the same state may share one. Anything that clicks,
+// fills or submits gets its own fresh state, and a confirmation re-run (a failure
+// being repeated) always does. Live states expire fast because their clock moves.
+const READ_ONLY_STEPS = /^(expect_|open_prepared$|open_event$|open_tab$|go_to$|wait|hover$|scroll|screenshot$)/;
+const stateCache = new Map<string, { context: any; at: number }>();
+function onlyLooks(plan: any): boolean {
+  return (plan?.steps ?? []).length > 0 && plan.steps.every((st: any) => READ_ONLY_STEPS.test(String(st?.step ?? "")));
+}
+function maxAgeMs(state: string): number {
+  return /live|bid/.test(state) ? 10 * 60_000 : 60 * 60_000;
+}
+
+async function runOnce(c: CatalogCase, p: Prep, plan: any, fresh = false): Promise<Ran> {
   const runId = `uicase-${c.id}-${Date.now().toString(36)}`;
   let context: any;
-  if (p.prepared && p.state !== "none") {
+  const key = `${p.state}|${p.technical ? "tech" : ""}`;
+  const shared = !fresh && onlyLooks(plan) ? stateCache.get(key) : undefined;
+  if (p.prepared && p.state !== "none" && shared && Date.now() - shared.at < maxAgeMs(p.state)) {
+    context = shared.context;
+    log(`   state ${p.state} shared (this plan only looks): ${context.title}`);
+  } else if (p.prepared && p.state !== "none") {
     const built = await buildUiState(COMPANY, p.state, { technical: p.technical });
     if (!built.ok || !built.context) return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: built.why ?? "the state could not be built" };
     const x = built.context;
     context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values };
     log(`   state ${p.state}${p.technical ? " (+technical)" : ""} built by API in ${Math.round(x.builtInMs / 1000)}s: ${x.title}`);
+    if (!fresh) stateCache.set(key, { context, at: Date.now() });
   }
   // A vendor-portal step signs in as the QA test vendor the API invited — never the
   // profile's default vendor. Its one-time code is resolved by the same UAT rule the
@@ -446,7 +467,7 @@ for (const c of pick) {
   const firstFindings = findingsOf(first);
   if ((v.candidate || firstFindings.length) && left() > 5 * 60_000) {
     log(`   ${v.candidate ? "it failed" : `the observation pass saw ${firstFindings.length} finding(s)`} — running it again on a second fresh state`);
-    again = await runOnce(c, p, comp.plan);
+    again = await runOnce(c, p, comp.plan, true); // a confirmation always runs on a brand-new state
     if (v.candidate) {
       const v2 = judge(again, comp.coverage, comp.gaps);
       v = v2.candidate && !v2.pass
