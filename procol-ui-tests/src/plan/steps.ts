@@ -108,6 +108,12 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "open_add_stage_menu",
+    purpose:
+      'On the create screen, open the "Add Stages" menu through its icon-only "+" button beside the stage tabs ("Add Stages" is the menu TITLE, never a button — do not click it). The menu lists only the stages that may still be added; a stage that may not be added is ABSENT (check with expect_hidden on its name), and the "+" tooltip says why (e.g. "Remove RFQ to add Auction"). With two stages the "+" is disabled. Leaves the menu open for expect_visible / expect_hidden / expect_text.',
+    args: {},
+  },
+  {
     name: "open_stage_menu",
     purpose:
       "Open a stage tab's ⋮ overflow menu (Edit title / Delete …) and leave it open, so expect_disabled / expect_enabled can check its items. Defaults to the first stage tab.",

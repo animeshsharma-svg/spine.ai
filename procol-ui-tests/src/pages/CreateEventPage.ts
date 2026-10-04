@@ -371,6 +371,26 @@ export class CreateEventPage extends BasePage {
   }
 
   /**
+   * Open the "Add Stages" menu. Its trigger is an ICON-ONLY "+" button beside the
+   * stage tabs (projectCreation.jsx:3203-3231, a hover Dropdown); "Add Stages" is
+   * only the menu's group title, never a button. Stages that may not be added are
+   * left OUT of the menu, and the "+" button's tooltip says why (e.g. "Remove RFQ to
+   * add Auction"). Returns the offered stages, the tooltip and whether "+" is disabled.
+   */
+  async openAddStageMenu(): Promise<{ items: string[]; tooltip: string; buttonDisabled: boolean }> {
+    const plus = this.page.locator("button:has(i.anticon-plus), button:has(.anticon-plus)").filter({ visible: true }).last();
+    if (!(await plus.count())) throw new Error('no "+" (add stage) button on the create screen — it is only shown once a stage exists');
+    const buttonDisabled = await plus.isDisabled().catch(() => false);
+    await plus.hover({ force: true }).catch(() => {});
+    const menu = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)").filter({ hasText: /Add Stages/i }).last();
+    if (!buttonDisabled) await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+    const items = (await menu.locator("[role='menuitem'], .ant-dropdown-menu-item").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim()).filter(Boolean);
+    const tip = this.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").last();
+    const tooltip = ((await tip.innerText({ timeout: 1_500 }).catch(() => "")) || "").trim();
+    return { items, tooltip, buttonDisabled };
+  }
+
+  /**
    * Open a stage tab's `⋮` menu for a plan step and report what it holds.
    *
    * UI-CRE-010 checks that Delete is disabled while one stage remains; the
