@@ -116,7 +116,7 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "expect_add_stage_options",
     purpose:
-      'Assert what the create screen\'s icon-only "+" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the "+" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the "+" tooltip must contain (e.g. "Remove RFQ to add Auction").',
+      'Assert what the create screen\'s icon-only "+" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the "+" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the "+" tooltip must contain (e.g. "Remove RFQ to add Auction"). To check which stages are OFFERED, compose exactly ONE stage first — with two stages the "+" is always disabled.',
     args: { disabled: "true | false (optional)", offers: '["RFQ", "Auction", "Technical Stage"] (optional)', absent: "stage names that must not be offered (optional)", reason: "tooltip words (optional)" },
     assertion: true,
   },

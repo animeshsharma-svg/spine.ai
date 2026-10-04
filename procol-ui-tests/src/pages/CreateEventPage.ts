@@ -387,10 +387,12 @@ export class CreateEventPage extends BasePage {
     const menu = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)").filter({ hasText: /Add Stages/i }).last();
     if (!buttonDisabled) await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
     const items = (await menu.locator("[role='menuitem'], .ant-dropdown-menu-item").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim()).filter(Boolean);
-    const tip = this.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").last();
-    let tooltip = ((await tip.innerText({ timeout: 1_500 }).catch(() => "")) || "").trim();
-    // A stage tab's own title tooltip ("Technical Stage", "RFQ") is not the "+" reason.
-    if (/^(technical stage|rfq|rfp|auction|rfi)$/i.test(tooltip)) tooltip = "";
+    // The "+" explains itself in a tooltip ("Remove RFQ to add Auction"); a stage tab's own
+    // title tooltip ("Technical Stage", "RFQ") can be showing too — keep only an explanation.
+    await plus.hover({ force: true }).catch(() => {});
+    await this.page.waitForTimeout(700);
+    const tips = (await this.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim());
+    const tooltip = tips.find((t) => /remove|maximum|only|cannot|can't|not allowed|add/i.test(t) && !/^(technical stage|rfq|rfp|auction|rfi)$/i.test(t)) ?? "";
     if (!buttonDisabled && !items.length) throw new Error('the "+" add-stage menu did not open (no "Add Stages" menu appeared) — not evidence about the product');
     return { items, tooltip, buttonDisabled };
   }
