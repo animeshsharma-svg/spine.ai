@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "twinId": "EVD2-WGT-018",
+  "caseId": "API-EVDWGT-018",
+  "area": "wgt",
+  "title": "Weights cannot be cleared back to an unweighted round",
+  "compiledAt": "2026-10-03T12:53:53.287Z",
+  "planVersion": 1,
+  "priority": "P2",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDWGT-018",
+  "title": "Weights cannot be cleared back to an unweighted round",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-WGT-H01",
+    "expect": "accept",
+    "say": "The buyer saves qa_freight_adj = 100."
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-WGT-018",
+    "decisive": true,
+    "say": "Weights cannot be cleared back to an unweighted round"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "trade_config.is_weighted_bid_event",
+      "op": "equals",
+      "value": true
+     },
+     {
+      "path": "weightages.key_attributes",
+      "op": "contains",
+      "value": "qa_freight_adj"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

@@ -1,0 +1,240 @@
+[
+ {
+  "id": "EVD2-DRF-001",
+  "catalogId": "API-EVDDRF-001",
+  "feature": "events.extend_deadline",
+  "title": "QA_Platform_move_draft_rfp_end_past_rfq_end",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh draft event with an RFP round and an RFQ round, not published.",
+  "steps": [
+   "1. As the buyer, move the draft RFP round's end to one hour after the RFQ round's end (increase_auction_time + remarks)."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{rfpTradeId}}",
+  "body": {
+   "increase_auction_time": 0,
+   "remarks": "QA_Platform_extend_{{stamp}}"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No server error: a partial edit of a draft round is either applied or refused cleanly (4xx). Today the draft branch re-runs the full stage save on a partial body.",
+  "rationale": "Lead from the support-ticket pipeline (ticket 900000003): moving a draft technical round's end answered HTTP 500 on two fresh events.",
+  "source": "app/controllers/api/trade_controller.rb:594-603,796-809; app/controllers/concerns/trade_controller_helper.rb:3906-3936,3277-3330",
+  "plan": {
+   "recipe": "draft_rfp_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "library",
+     "caseId": "EVD2-DRF-001",
+     "as": "buyer",
+     "decisive": true,
+     "change": [
+      {
+       "path": "increase_auction_time",
+       "set": "{{roundEnd+3600}}"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DRF-002",
+  "catalogId": "API-EVDDRF-002",
+  "feature": "events.extend_deadline",
+  "title": "QA_Platform_move_draft_rfp_end_before_rfq_end",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh draft event with an RFP round and an RFQ round, not published.",
+  "steps": [
+   "1. As the buyer, move the draft RFP round's end to 60 s BEFORE the RFQ round's end."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{rfpTradeId}}",
+  "body": {
+   "increase_auction_time": 0,
+   "remarks": "QA_Platform_extend_{{stamp}}"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No server error: a partial edit of a draft round is either applied or refused cleanly (4xx). Today the draft branch re-runs the full stage save on a partial body.",
+  "rationale": "Lead from the support-ticket pipeline (ticket 900000003): moving a draft technical round's end answered HTTP 500 on two fresh events.",
+  "source": "app/controllers/api/trade_controller.rb:594-603,796-809; app/controllers/concerns/trade_controller_helper.rb:3906-3936,3277-3330",
+  "plan": {
+   "recipe": "draft_rfp_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "library",
+     "caseId": "EVD2-DRF-002",
+     "as": "buyer",
+     "decisive": true,
+     "change": [
+      {
+       "path": "increase_auction_time",
+       "set": "{{roundEnd-60}}"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DRF-003",
+  "catalogId": "API-EVDDRF-003",
+  "feature": "events.extend_deadline",
+  "title": "QA_Platform_remark_only_on_draft_rfp_round",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh draft event with an RFP round and an RFQ round, not published.",
+  "steps": [
+   "1. As the buyer, send only a remark to the draft RFP round."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{rfpTradeId}}",
+  "body": {
+   "remarks": "QA_Platform_extend_{{stamp}}"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No server error: a partial edit of a draft round is either applied or refused cleanly (4xx). Today the draft branch re-runs the full stage save on a partial body.",
+  "rationale": "Lead from the support-ticket pipeline (ticket 900000003): moving a draft technical round's end answered HTTP 500 on two fresh events.",
+  "source": "app/controllers/api/trade_controller.rb:594-603,796-809; app/controllers/concerns/trade_controller_helper.rb:3906-3936,3277-3330",
+  "plan": {
+   "recipe": "draft_rfp_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DRF-004",
+  "catalogId": "API-EVDDRF-004",
+  "feature": "events.extend_deadline",
+  "title": "QA_Platform_empty_patch_on_draft_rfp_round",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh draft event with an RFP round and an RFQ round, not published.",
+  "steps": [
+   "1. As the buyer, send an empty update to the draft RFP round."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{rfpTradeId}}",
+  "body": {},
+  "expected": "no-5xx",
+  "expectedResult": "No server error: a partial edit of a draft round is either applied or refused cleanly (4xx). Today the draft branch re-runs the full stage save on a partial body.",
+  "rationale": "Lead from the support-ticket pipeline (ticket 900000003): moving a draft technical round's end answered HTTP 500 on two fresh events.",
+  "source": "app/controllers/api/trade_controller.rb:594-603,796-809; app/controllers/concerns/trade_controller_helper.rb:3906-3936,3277-3330",
+  "plan": {
+   "recipe": "draft_rfp_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DRF-005",
+  "catalogId": "API-EVDDRF-005",
+  "feature": "events.extend_deadline",
+  "title": "QA_Platform_move_draft_rfq_end_in_rfp_rfq_event",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh draft event with an RFP round and an RFQ round, not published.",
+  "steps": [
+   "1. As the buyer, move the draft RFQ round's end one hour later."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "increase_auction_time": 0,
+   "remarks": "QA_Platform_extend_{{stamp}}"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No server error: a partial edit of a draft round is either applied or refused cleanly (4xx). Today the draft branch re-runs the full stage save on a partial body.",
+  "rationale": "Lead from the support-ticket pipeline (ticket 900000003): moving a draft technical round's end answered HTTP 500 on two fresh events.",
+  "source": "app/controllers/api/trade_controller.rb:594-603,796-809; app/controllers/concerns/trade_controller_helper.rb:3906-3936,3277-3330",
+  "plan": {
+   "recipe": "draft_rfp_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "library",
+     "caseId": "EVD2-DRF-005",
+     "as": "buyer",
+     "decisive": true,
+     "change": [
+      {
+       "path": "increase_auction_time",
+       "set": "{{roundEnd+3600}}"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DRF-006",
+  "catalogId": "API-EVDDRF-006",
+  "feature": "events.extend_deadline",
+  "title": "QA_Platform_move_draft_rfq_end_rfq_only",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh draft RFQ-only event, not published.",
+  "steps": [
+   "1. As the buyer, move the draft RFQ round's end one hour later."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "increase_auction_time": 0,
+   "remarks": "QA_Platform_extend_{{stamp}}"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "No server error: a partial edit of a draft round is either applied or refused cleanly (4xx). Today the draft branch re-runs the full stage save on a partial body.",
+  "rationale": "Lead from the support-ticket pipeline (ticket 900000003): moving a draft technical round's end answered HTTP 500 on two fresh events.",
+  "source": "app/controllers/api/trade_controller.rb:594-603,796-809; app/controllers/concerns/trade_controller_helper.rb:3906-3936,3277-3330",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "library",
+     "caseId": "EVD2-DRF-006",
+     "as": "buyer",
+     "decisive": true,
+     "change": [
+      {
+       "path": "increase_auction_time",
+       "set": "{{roundEnd+3600}}"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DRF-007",
+  "catalogId": "API-EVDDRF-007",
+  "feature": "events.extend_deadline",
+  "title": "QA_Platform_empty_patch_on_draft_rfq_round",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh draft RFQ-only event, not published.",
+  "steps": [
+   "1. As the buyer, send an empty update to the draft RFQ round."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {},
+  "expected": "no-5xx",
+  "expectedResult": "No server error: a partial edit of a draft round is either applied or refused cleanly (4xx). Today the draft branch re-runs the full stage save on a partial body.",
+  "rationale": "Lead from the support-ticket pipeline (ticket 900000003): moving a draft technical round's end answered HTTP 500 on two fresh events.",
+  "source": "app/controllers/api/trade_controller.rb:594-603,796-809; app/controllers/concerns/trade_controller_helper.rb:3906-3936,3277-3330",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer"
+  }
+ }
+]

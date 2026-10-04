@@ -1,0 +1,1248 @@
+[
+  {
+    "id": "EVD2-QRY-001",
+    "catalogId": "API-EVDQRY-001",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_buyer_opens_messages_list_on_live_event",
+    "type": "Happy path",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As the event's buyer, open the Messages list grouped by thread (GET /v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}&group_by=thread_id)."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}&group_by=thread_id",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with an empty list [] (no thread exists on a fresh event).",
+    "rationale": "First call of the Messages drawer; a failure hides every vendor query from the buyer.",
+    "source": "app/controllers/api/v1/chats_controller.rb:14-61",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-002",
+    "catalogId": "API-EVDQRY-002",
+    "feature": "bids.participation",
+    "title": "QA_Platform_invited_vendor_opens_messages_list",
+    "type": "Happy path",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As QA vendor 1, open the event's Messages list grouped by thread."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}&group_by=thread_id",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with [] — the invited vendor passes the event visibility check and sees only threads it takes part in (none yet).",
+    "rationale": "Vendors raise and read clarifications here; an invited vendor must be let in.",
+    "source": "app/controllers/api/v1/chats_controller.rb:17-23,43; app/models/model_helpers/trade_request_model_helper.rb:366-369",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor"
+    }
+  },
+  {
+    "id": "EVD2-QRY-003",
+    "catalogId": "API-EVDQRY-003",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_messages_list_reached_through_round_id",
+    "type": "Happy path",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As the buyer, open the Messages list passing the RFQ round instead of the event (module=TradeRequest)."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=TradeRequest&module_uuid={{tradeId}}&group_by=thread_id",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with [] — resolve_module_params rewrites the round to its event before the list runs.",
+    "rationale": "The bids header still sends module=TradeRequest; a break empties the drawer on those screens.",
+    "source": "app/controllers/api/v1/chats_controller.rb:423-432; procol-client-dashboard src/views/orderDetails/bidsSection/bidsHeader.jsx:406-413",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-004",
+    "catalogId": "API-EVDQRY-004",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_unknown_round_as_trade_request_module_crashes",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Open the Messages list with module=TradeRequest and a round id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=TradeRequest&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today the before-action resolve_module_params calls nil.event_group_id after TradeRequest.find_by_id returns nil (chats_controller.rb:427-429) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 533 'Project does not exist.'.",
+    "rationale": "The translation runs before every v1 chats action, so a stale round id breaks the list, counts, pickers and create.",
+    "source": "app/controllers/api/v1/chats_controller.rb:11,423-432",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-005",
+    "catalogId": "API-EVDQRY-005",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_messages_list_without_event_id_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Open the Messages list with module=EventGroup and no event id."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=EventGroup",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 2 'Insufficient parameters' (no branch sets the context, chats_controller.rb:33).",
+    "rationale": "A screen that lost its event id must get a clear bad-request answer.",
+    "source": "app/controllers/api/v1/chats_controller.rb:16-17,33",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-QRY-006",
+    "catalogId": "API-EVDQRY-006",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_messages_list_unknown_event_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Open the Messages list for an event id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 533 'Project does not exist.' — the list checks the event exists before the permission check.",
+    "rationale": "Guards the existence check that the count and picker actions lack.",
+    "source": "app/controllers/api/v1/chats_controller.rb:18-19",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "533"
+    }
+  },
+  {
+    "id": "EVD2-QRY-007",
+    "catalogId": "API-EVDQRY-007",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_messages_list_on_draft_event_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A draft event with one unpublished RFQ round, owned by the run's buyer. The request only reads or is refused before anything is saved.",
+    "steps": [
+      "1. As the owner, open the Messages list of the draft event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 533 'Project does not exist.' — only live and withdrawn events are looked up (VALID_STATUSES_FOR_DASHBOARD).",
+    "rationale": "The screen hides Messages on drafts; the API must refuse cleanly, not crash.",
+    "source": "app/controllers/api/v1/chats_controller.rb:18-19; app/models/event_group.rb:147",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "buyer",
+      "code": "533"
+    }
+  },
+  {
+    "id": "EVD2-QRY-008",
+    "catalogId": "API-EVDQRY-008",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_malformed_filter_on_thread_view_crashes",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As the buyer, open the thread view of the Messages list with a filter that is not JSON."
+    ],
+    "method": "GET",
+    "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}&group_by=thread_id&filters=QA_Platform_not_json",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today CommonFunctions.parse_filters swallows the JSON error and returns nil, then the thread view reads @filters[\"thread_id\"] on nil (chats_controller.rb:57) → HTTP 500 (an untyped 500 is a defect). Expected: 200 [] ignoring the filter, or 422 code 2.",
+    "rationale": "A bad deep link or hand-edited URL takes the drawer down.",
+    "source": "app/controllers/api/v1/chats_controller.rb:39,54-57,434-436; lib/common_functions.rb:83-95",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-011",
+    "catalogId": "API-EVDQRY-011",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_buyer_reads_messages_counts_on_live_event",
+    "type": "Happy path",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As the buyer, read the Messages counts for the event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_chats_count_data?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with total_threads_count 0 and unresolved_threads_count null (no thread with an active assignment).",
+    "rationale": "The Messages button polls this every 30 s on every event page.",
+    "source": "app/controllers/api/v1/chats_controller.rb:197-235,460-477",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-012",
+    "catalogId": "API-EVDQRY-012",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_owner_reads_messages_counts_on_draft",
+    "type": "Happy path",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A draft event with one unpublished RFQ round, owned by the run's buyer. The request only reads or is refused before anything is saved.",
+    "steps": [
+      "1. As the owner, read the Messages counts of the draft event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_chats_count_data?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with total_threads_count 0 — the count deliberately accepts draft events (VALID_STATUSES_FOR_DASHBOARD + [:draft]) and the owner passes the draft visibility rule.",
+    "rationale": "Unlike every other read here, drafts are allowed; the owner must get zeros, not an error.",
+    "source": "app/controllers/api/v1/chats_controller.rb:203; app/models/event_group.rb:511-514",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-013",
+    "catalogId": "API-EVDQRY-013",
+    "feature": "users.permissions",
+    "title": "QA_Platform_vendor_cannot_read_counts_of_draft_event",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A draft event with one unpublished RFQ round, owned by the run's buyer. The request only reads or is refused before anything is saved.",
+    "steps": [
+      "1. As QA vendor 1, read the Messages counts of the buyer's draft event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_chats_count_data?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 455 'You are not authorized to perform this action' — a draft has no stages a vendor may view, so EventGroupPolicy#show? is false.",
+    "rationale": "The count accepts drafts, so the permission check alone keeps vendors from probing unpublished events.",
+    "source": "app/controllers/api/v1/chats_controller.rb:203-204; app/models/event_group.rb:511-514; app/policies/event_group_policy.rb:52-54; app/controllers/concerns/api_auth.rb:16,117-119",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "vendor",
+      "code": "455"
+    }
+  },
+  {
+    "id": "EVD2-QRY-014",
+    "catalogId": "API-EVDQRY-014",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_counts_for_unknown_event_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Read the Messages counts for an event id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_chats_count_data?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today authorize(nil, :show?) raises Pundit::NotDefinedError, which is not rescued (chats_controller.rb:203-204) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 533 as the list answers.",
+    "rationale": "Missing existence check before the permission check.",
+    "source": "app/controllers/api/v1/chats_controller.rb:203-204; app/controllers/concerns/api_auth.rb:16",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-018",
+    "catalogId": "API-EVDQRY-018",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_query_on_unknown_event_crashes_before_save",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist. Nothing can be created: the error is raised before the transaction.",
+    "steps": [
+      "1. Raise a general query on an event id that does not exist, without naming recipients (the vendor-side shape)."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today @event_group is nil and line 109 calls nil.company_id → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 533. No chat is created.",
+    "rationale": "The event is used without a nil check on the create path.",
+    "source": "app/controllers/api/v1/chats_controller.rb:106-110",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-019",
+    "catalogId": "API-EVDQRY-019",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_query_on_unknown_event_with_recipient_crashes",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist. Nothing can be created: the error is raised before the transaction.",
+    "steps": [
+      "1. Raise a general query on an event id that does not exist, naming QA vendor 1 as recipient (the buyer-side shape)."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {
+      "context": "general",
+      "message_to_uuids": [
+        "{{vendorUuid}}"
+      ],
+      "message_body": "QA_Platform_query_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today line 109 is skipped and authorize(nil, :show?) raises Pundit::NotDefinedError (chats_controller.rb:110) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 533.",
+    "rationale": "Only Pundit::NotAuthorizedError is rescued; authorize on nil is an untyped 500.",
+    "source": "app/controllers/api/v1/chats_controller.rb:102,107-110; app/controllers/concerns/api_auth.rb:16",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-020",
+    "catalogId": "API-EVDQRY-020",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_query_without_module_crashes",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Any signed-in buyer. Nothing can be created: the first statement in the transaction raises before Chat.create!.",
+    "steps": [
+      "1. Raise a general query without module or event id."
+    ],
+    "method": "POST",
+    "path": "/v1/chats",
+    "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today no module branch runs and line 128 calls nil.user_id inside the transaction, before any create → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2 'Insufficient parameters'.",
+    "rationale": "Missing-parameter requests should be refused up front.",
+    "source": "app/controllers/api/v1/chats_controller.rb:106-128",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-021",
+    "catalogId": "API-EVDQRY-021",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_query_on_draft_event_crashes",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A draft event with one unpublished RFQ round, owned by the run's buyer. The request only reads or is refused before anything is saved.",
+    "steps": [
+      "1. As the owner, raise a general query on the draft event."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today drafts are excluded by the status filter, so @event_group is nil and line 109 calls nil.company_id → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 533. Nothing is created.",
+    "rationale": "A draft id behaves like an unknown event on create.",
+    "source": "app/controllers/api/v1/chats_controller.rb:107-109; app/models/event_group.rb:147",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-022",
+    "catalogId": "API-EVDQRY-022",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_query_on_unknown_purchase_request_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Raise a general query on a purchase request id that does not exist."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=PurchaseRequest&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 812 'Purchase Request not found'. Nothing is created.",
+    "rationale": "The purchase-request branch of the same endpoint refuses cleanly; regression guard.",
+    "source": "app/controllers/api/v1/chats_controller.rb:117-118,438-447",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "812"
+    }
+  },
+  {
+    "id": "EVD2-QRY-023",
+    "catalogId": "API-EVDQRY-023",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_unknown_query_context_with_line_item_crashes",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A published RFQ with one line item. Safe: the error is raised while building the chat title, before Chat.create! (chats_controller_helper.rb:207 runs before chats_controller_helper.rb:65).",
+    "steps": [
+      "1. As the buyer, raise a query whose 'regarding' value is not general/technical/commercial, on the event's line item."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {
+      "context": "QA_Platform_context",
+      "reference_uuids": [
+        "{{lineItemUuid}}"
+      ],
+      "message_body": "QA_Platform_query_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today get_chat_title leaves title nil and T.must(nil) raises TypeError (chats_controller_helper.rb:202-207) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2.",
+    "rationale": "Unknown context values are never validated.",
+    "source": "app/controllers/api/v1/chats_controller.rb:144-146; app/controllers/concerns/chats_controller_helper.rb:189-216,478-498",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-024",
+    "catalogId": "API-EVDQRY-024",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_query_without_context_or_line_item_not_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A published RFQ. Safe: with no context and no line items the create loop runs zero times, so no chat is created and nobody is notified.",
+    "steps": [
+      "1. As the buyer, send a query with a message but no 'regarding' value and no line items."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {
+      "message_body": "QA_Platform_query_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Should be refused: HTTP 422, code 2 'Insufficient parameters'. Today nothing is created and the reply is either HTTP 200 'null' or HTTP 500 from serialising a nil chat (chats_controller.rb:145-156) — both are the defect.",
+    "rationale": "The screen would report 'Message posted successfully!' for a query that was never saved.",
+    "source": "app/controllers/api/v1/chats_controller.rb:100,131,144-156; app/controllers/concerns/chats_controller_helper.rb:189-196",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-025",
+    "catalogId": "API-EVDQRY-025",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_query_attachments_as_text_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist. An unknown purchase request is used so that, even if attachments were parsed, the request would stop at 812 — nothing can be created.",
+    "steps": [
+      "1. Raise a general query whose attachments field is a plain text instead of a list."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=PurchaseRequest&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}",
+      "attachments": "QA_Platform_not_a_list"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today \"…\".map raises NoMethodError at chats_controller.rb:103, before any lookup → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2 (or 812).",
+    "rationale": "Attachments are mapped before any validation.",
+    "source": "app/controllers/api/v1/chats_controller.rb:103-104",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-026",
+    "catalogId": "API-EVDQRY-026",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_query_attachment_without_file_link_crashes",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist. Unknown purchase request, as above — nothing can be created.",
+    "steps": [
+      "1. Raise a general query with one attachment whose file entry has a name but no private_url."
+    ],
+    "method": "POST",
+    "path": "/v1/chats?module=PurchaseRequest&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {
+      "context": "general",
+      "message_body": "QA_Platform_query_{{stamp}}",
+      "attachments": [
+        {
+          "type": "chats",
+          "value": [
+            {
+              "name": "QA_Platform_file_{{stamp}}.pdf"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today AttachmentValue.new(name:) raises ArgumentError for the missing private_url keyword (attachment.rb:15, attachment_value.rb:15) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2.",
+    "rationale": "Required attachment keys are enforced by Ruby keyword arguments, not by validation.",
+    "source": "app/controllers/api/v1/chats_controller.rb:103-104; app/poro_classes/attachment.rb:12-16; app/poro_classes/attachment_value.rb:15-19",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-038",
+    "catalogId": "API-EVDQRY-038",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_open_unknown_chat_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Open a chat id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 2 'Insufficient parameters' (the code this action uses for 'chat not found').",
+    "rationale": "Stale e-mail deep links must get a clean refusal.",
+    "source": "app/controllers/api/v1/chats_controller.rb:70-72",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-QRY-040",
+    "catalogId": "API-EVDQRY-040",
+    "feature": "bids.participation",
+    "title": "QA_Platform_vendor_reply_to_unknown_chat_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. As QA vendor 1, reply to a chat id that does not exist."
+    ],
+    "method": "POST",
+    "path": "/v1/chats/Z2dnWmdaUWtnZw==/send_message",
+    "body": {
+      "message": "QA_Platform_reply_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 2 'Insufficient parameters'. Nothing is saved and nobody is notified (the lookup at line 166-167 returns first).",
+    "rationale": "The reply box may hold a chat id from an earlier screen.",
+    "source": "app/controllers/api/v1/chats_controller.rb:160-167",
+    "plan": {
+      "recipe": "none",
+      "actor": "vendor",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-QRY-041",
+    "catalogId": "API-EVDQRY-041",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_reply_attachments_as_text_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Reply to a chat id that does not exist with attachments sent as plain text."
+    ],
+    "method": "POST",
+    "path": "/v1/chats/Z2dnWmdaUWtnZw==/send_message",
+    "body": {
+      "message": "QA_Platform_reply_{{stamp}}",
+      "attachments": "QA_Platform_not_a_list"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today \"…\".map raises NoMethodError at chats_controller.rb:163, before the chat is even looked up → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2.",
+    "rationale": "Same unguarded attachment mapping as create, running first.",
+    "source": "app/controllers/api/v1/chats_controller.rb:163-164",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-049",
+    "catalogId": "API-EVDQRY-049",
+    "feature": "bids.participation",
+    "title": "QA_Platform_resolve_unknown_thread_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "QA vendor 1 signed in; the thread id is invented and matches no chat.",
+    "steps": [
+      "1. As QA vendor 1, mark an unknown thread as resolved."
+    ],
+    "method": "POST",
+    "path": "/v1/chats/close?thread_id=QA_Platform_thread_{{stamp}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 475 'Chat not found'. Nothing is closed.",
+    "rationale": "Stale 'Mark as Resolve' clicks must be refused clearly.",
+    "source": "app/controllers/api/v1/chats_controller.rb:359-362",
+    "plan": {
+      "recipe": "none",
+      "actor": "vendor",
+      "code": "475"
+    }
+  },
+  {
+    "id": "EVD2-QRY-050",
+    "catalogId": "API-EVDQRY-050",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_reassign_unknown_thread_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in buyer; the thread id is invented.",
+    "steps": [
+      "1. Reassign an unknown thread."
+    ],
+    "method": "POST",
+    "path": "/v1/chats/assign?thread_id=QA_Platform_thread_{{stamp}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 475 'Chat not found'. Nothing is assigned, nobody notified.",
+    "rationale": "Guard on the assign action.",
+    "source": "app/controllers/api/v1/chats_controller.rb:336-340",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "475"
+    }
+  },
+  {
+    "id": "EVD2-QRY-051",
+    "catalogId": "API-EVDQRY-051",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_assignee_options_unknown_thread_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in buyer; the thread id is invented.",
+    "steps": [
+      "1. Load the assignee options for an unknown thread."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/assignee_options?thread_id=QA_Platform_thread_{{stamp}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 475 'Chat not found'.",
+    "rationale": "The assignee picker loads lazily and must not crash on a stale thread.",
+    "source": "app/controllers/api/v1/chats_controller.rb:380-383",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "475"
+    }
+  },
+  {
+    "id": "EVD2-QRY-052",
+    "catalogId": "API-EVDQRY-052",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_close_unknown_single_chat_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Close a single chat id that does not exist."
+    ],
+    "method": "POST",
+    "path": "/v1/chats/Z2dnWmdaUWtnZw==/close_chat",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 475 'Chat not found'.",
+    "rationale": "Guard on the per-chat close action.",
+    "source": "app/controllers/api/v1/chats_controller.rb:317-320",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "475"
+    }
+  },
+  {
+    "id": "EVD2-QRY-053",
+    "catalogId": "API-EVDQRY-053",
+    "feature": "events.invite_vendors",
+    "title": "QA_Platform_buyer_vendor_picker_lists_invited_vendors",
+    "type": "Happy path",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As the buyer, load the 'Select vendor(s)' options of the New Message form."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_possible_participants?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with a list of {uuid, name, vendor_code, location}; QA vendor 1 is listed when its relationship status is one of the company's allowed vendor statuses.",
+    "rationale": "Without this list the buyer cannot address any vendor.",
+    "source": "app/controllers/api/v1/chats_controller.rb:237-251,261-270",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-055",
+    "catalogId": "API-EVDQRY-055",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_vendor_picker_on_draft_event_crashes",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft event with one unpublished RFQ round, owned by the run's buyer. The request only reads or is refused before anything is saved.",
+    "steps": [
+      "1. As the owner, load the vendor picker of the draft event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_possible_participants?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today drafts are filtered out, eg is nil and authorize(nil, :show?) raises Pundit::NotDefinedError (chats_controller.rb:243-244) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 533.",
+    "rationale": "No existence check before authorize.",
+    "source": "app/controllers/api/v1/chats_controller.rb:243-244",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-056",
+    "catalogId": "API-EVDQRY-056",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_vendor_picker_without_event_id_crashes",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in buyer.",
+    "steps": [
+      "1. Load the vendor picker with module=EventGroup and no event id."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_possible_participants?module=EventGroup",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today no branch sets possible_participants and line 261 calls nil.map → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2.",
+    "rationale": "Missing id is not checked in this action.",
+    "source": "app/controllers/api/v1/chats_controller.rb:240-242,261",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-057",
+    "catalogId": "API-EVDQRY-057",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_vendor_picker_unknown_onboarding_response_crashes",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Load the vendor picker for a vendor-onboarding response id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_possible_participants?module=FxResponse&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today FxResponse.active.find_by_id returns nil and nil.fetch_vendor_details raises (chats_controller.rb:253-254) → HTTP 500 (an untyped 500 is a defect). Expected: 422.",
+    "rationale": "No nil check (and no permission check) on the FxResponse branch.",
+    "source": "app/controllers/api/v1/chats_controller.rb:252-255",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-058",
+    "catalogId": "API-EVDQRY-058",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_buyer_line_item_picker_lists_event_line_items",
+    "type": "Happy path",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads. The event has one line item.",
+    "steps": [
+      "1. As the buyer, load the 'Select line item(s)' options."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_reference_options?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with one option {label '1. | <code> | <name>', value, info, assignee_uuid} (assignee empty because no context is sent).",
+    "rationale": "Technical and commercial queries must name line items.",
+    "source": "app/controllers/api/v1/chats_controller.rb:289-315",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-059",
+    "catalogId": "API-EVDQRY-059",
+    "feature": "bids.participation",
+    "title": "QA_Platform_vendor_line_item_picker_opens",
+    "type": "Happy path",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As QA vendor 1, load the line-item options of the event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_reference_options?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with the event's line item.",
+    "rationale": "Vendors raise line-item queries too.",
+    "source": "app/controllers/api/v1/chats_controller.rb:296-299; app/controllers/concerns/event_group_controller_helper.rb:2534-2555",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor"
+    }
+  },
+  {
+    "id": "EVD2-QRY-060",
+    "catalogId": "API-EVDQRY-060",
+    "feature": "users.permissions",
+    "title": "QA_Platform_vendor_cannot_list_line_items_of_draft",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A draft event with one unpublished RFQ round, owned by the run's buyer. The request only reads or is refused before anything is saved.",
+    "steps": [
+      "1. As QA vendor 1, load the line-item options of the buyer's draft event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_reference_options?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 455 'You are not authorized to perform this action' — this picker has no status filter, so the draft is found and the permission check refuses.",
+    "rationale": "The permission check alone keeps draft contents away from vendors here.",
+    "source": "app/controllers/api/v1/chats_controller.rb:297-298; app/models/event_group.rb:511-514; app/policies/event_group_policy.rb:52-54",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "vendor",
+      "code": "455"
+    }
+  },
+  {
+    "id": "EVD2-QRY-061",
+    "catalogId": "API-EVDQRY-061",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_line_item_picker_unknown_event_crashes",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Load the line-item options for an event id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_reference_options?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today authorize(nil, :show?) raises Pundit::NotDefinedError (chats_controller.rb:297-298) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 533.",
+    "rationale": "No existence check before authorize.",
+    "source": "app/controllers/api/v1/chats_controller.rb:297-298",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-062",
+    "catalogId": "API-EVDQRY-062",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_line_item_picker_unsupported_module_crashes",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Load the line-item options with module=FxResponse."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_reference_options?module=FxResponse&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today only EventGroup and PurchaseRequest set eglis, so line 305 calls nil.map → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2 or an empty list.",
+    "rationale": "Unsupported module names are not refused.",
+    "source": "app/controllers/api/v1/chats_controller.rb:296-305",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-063",
+    "catalogId": "API-EVDQRY-063",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_line_item_picker_without_event_id_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in buyer.",
+    "steps": [
+      "1. Load the line-item options with module=EventGroup and no event id."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_reference_options?module=EventGroup",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "This action checks for a missing id first; regression guard.",
+    "source": "app/controllers/api/v1/chats_controller.rb:293-295",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-QRY-066",
+    "catalogId": "API-EVDQRY-066",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_buyer_thread_filter_options",
+    "type": "Happy path",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no queries raised yet. The request only reads.",
+    "steps": [
+      "1. As the buyer, load the thread-list filter options."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/filter_options?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with data = four filters: reference_uuids (Line Item), company_uuids (Vendor), resolution_status (Closed/Open), title (General/Technical/Commercial).",
+    "rationale": "The filter bar of the Messages drawer is built from this.",
+    "source": "app/controllers/api/v1/chats_controller.rb:273-287; app/controllers/concerns/chats_controller_helper.rb:402-428",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-067",
+    "catalogId": "API-EVDQRY-067",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_filter_options_unknown_event_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Load filter options for an event id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/filter_options?module=EventGroup&module_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 533 'Project does not exist.'.",
+    "rationale": "Clean counterpart of the crashing count/picker actions.",
+    "source": "app/controllers/api/v1/chats_controller.rb:279-280",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "533"
+    }
+  },
+  {
+    "id": "EVD2-QRY-068",
+    "catalogId": "API-EVDQRY-068",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_filter_options_without_event_id_crash",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in buyer.",
+    "steps": [
+      "1. Load filter options with module=EventGroup and no event id."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/filter_options?module=EventGroup",
+    "body": {},
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused cleanly with a 4xx. Today eg stays nil and is passed to get_chat_filter_options, typed EventGroup, then dereferenced (chats_controller_helper.rb:401-405) → HTTP 500 (an untyped 500 is a defect). Expected: 422 code 2.",
+    "rationale": "Missing id is not checked in this action.",
+    "source": "app/controllers/api/v1/chats_controller.rb:276-286; app/controllers/concerns/chats_controller_helper.rb:401-405",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-069",
+    "catalogId": "API-EVDQRY-069",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_filter_options_on_draft_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A draft event with one unpublished RFQ round, owned by the run's buyer. The request only reads or is refused before anything is saved.",
+    "steps": [
+      "1. As the owner, load filter options of the draft event."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/filter_options?module=EventGroup&module_uuid={{eventGroupUuid}}",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 533 'Project does not exist.' (drafts are excluded by status).",
+    "rationale": "Drafts must be refused cleanly.",
+    "source": "app/controllers/api/v1/chats_controller.rb:279-280",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "buyer",
+      "code": "533"
+    }
+  },
+  {
+    "id": "EVD2-QRY-070",
+    "catalogId": "API-EVDQRY-070",
+    "feature": "evaluation.score",
+    "title": "QA_Platform_buyer_reads_per_vendor_unresolved_counts",
+    "type": "Happy path",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ where QA vendor 1 has submitted a bid; no queries. The request only reads.",
+    "steps": [
+      "1. As the buyer, read the per-vendor unresolved query counts for the RFQ round (as the comparison sheet does)."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_unresolved_queries_count?event_uuid={{tradeId}}",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with {} — no bidding vendor has an open query.",
+    "rationale": "Feeds the per-vendor message badge on the comparison sheet.",
+    "source": "app/controllers/api/v1/chats_controller.rb:401-418; app/controllers/concerns/chats_controller_helper.rb:500-513; procol-client-dashboard src/redux/orders/api.js:175-178",
+    "plan": {
+      "recipe": "rfq_with_bid",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-071",
+    "catalogId": "API-EVDQRY-071",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_per_vendor_counts_unknown_round_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Read per-vendor unresolved counts for a round id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/v1/chats/get_unresolved_queries_count?event_uuid=Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 101 'You are not allowed to perform this action'.",
+    "rationale": "The round id is the only input.",
+    "source": "app/controllers/api/v1/chats_controller.rb:402-404",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "101"
+    }
+  },
+  {
+    "id": "EVD2-QRY-074",
+    "catalogId": "API-EVDQRY-074",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_list_personal_chats",
+    "type": "Happy path",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "The run's buyer, signed in. Read only.",
+    "steps": [
+      "1. Open the personal (one-to-one) chat inbox."
+    ],
+    "method": "GET",
+    "path": "/chats",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "HTTP 200 with total_unread_chats and a chats list (possibly empty).",
+    "rationale": "The older chat inbox must open for any signed-in user.",
+    "source": "app/controllers/api/chats_controller.rb:8-33; app/views/api/chats/index.json.jbuilder",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-QRY-075",
+    "catalogId": "API-EVDQRY-075",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_open_unknown_personal_chat_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Open a personal chat id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/chats/Z2dnWmdaUWtnZw==",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 475 'Chat not found'.",
+    "rationale": "Clean refusal for a stale link.",
+    "source": "app/controllers/api/chats_controller.rb:35-38",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "475"
+    }
+  },
+  {
+    "id": "EVD2-QRY-076",
+    "catalogId": "API-EVDQRY-076",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_messages_of_unknown_personal_chat_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Load the messages of a personal chat id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/chats/Z2dnWmdaUWtnZw==/conversations",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 15 'Operation failed'.",
+    "rationale": "The conversation call answers 'not found' with its own code.",
+    "source": "app/controllers/api/chats_controller.rb:62-69",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "15"
+    }
+  },
+  {
+    "id": "EVD2-QRY-077",
+    "catalogId": "API-EVDQRY-077",
+    "feature": "users.permissions",
+    "title": "QA_Platform_send_into_personal_chat_not_a_participant_refused",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Any signed-in user; no event needed. The id Z2dnWmdaUWtnZw== decodes to 999999999, which does not exist.",
+    "steps": [
+      "1. Send a message into a personal chat the user is not part of (an id that does not exist)."
+    ],
+    "method": "POST",
+    "path": "/chats/Z2dnWmdaUWtnZw==/send",
+    "body": {
+      "message": "QA_Platform_dm_{{stamp}}"
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 4 'Request not found'. Nothing is saved (the participant check at line 95-96 returns first).",
+    "rationale": "The participant check is the only barrier to writing into someone else's chat.",
+    "source": "app/controllers/api/chats_controller.rb:84-96",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "4"
+    }
+  },
+  {
+    "id": "EVD2-QRY-078",
+    "catalogId": "API-EVDQRY-078",
+    "feature": "platform.hardening",
+    "title": "QA_Platform_start_personal_chat_with_unknown_user_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Any signed-in buyer. User id 999999999 does not exist, so the 'may these users talk' check refuses before any chat is created.",
+    "steps": [
+      "1. Ask for the personal chat with a user id that does not exist."
+    ],
+    "method": "GET",
+    "path": "/chats/get_chat_id?user_id=999999999",
+    "body": {},
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 101 'You are not allowed to perform this action'. No chat is created.",
+    "rationale": "This GET creates a chat on first call; the refusal must come before that.",
+    "source": "app/controllers/api/chats_controller.rb:44-51; app/models/chat.rb:146-154",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "101"
+    }
+  }
+]

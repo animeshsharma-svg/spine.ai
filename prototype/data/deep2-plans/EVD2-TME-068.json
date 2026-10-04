@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "twinId": "EVD2-TME-068",
+  "caseId": "API-EVDTME-068",
+  "area": "tme",
+  "title": "A vendor who already bid cannot revise after the end is pulled in",
+  "compiledAt": "2026-10-03T12:53:53.286Z",
+  "planVersion": 1,
+  "priority": "P1",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDTME-068",
+  "title": "A vendor who already bid cannot revise after the end is pulled in",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "extend_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "increase_auction_time",
+      "set": "{{now+90}}"
+     }
+    ],
+    "expect": "accept",
+    "say": "The buyer moves the bid end IN to 90 seconds from now (an 'extension' to an earlier time)."
+   },
+   {
+    "op": "wait",
+    "params": {
+     "until": "bid_end"
+    },
+    "say": "Wait until the new (earlier) bid end has passed.",
+    "as": "buyer"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "decisive": true,
+    "say": "QA vendor 1 tries to revise after the new end."
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "33",
+   "message": "Order not active"
+  },
+  "dependsOnSetting": "counter_offer_modification_enabled is OFF on the round (otherwise a vendor may still open a draft during the extra closing time)"
+ }
+}

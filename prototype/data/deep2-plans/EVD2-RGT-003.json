@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "twinId": "EVD2-RGT-003",
+  "caseId": "API-EVDRGT-003",
+  "area": "rgt",
+  "title": "Undoing a regret before submitting gives a normal bid",
+  "compiledAt": "2026-10-03T12:53:53.272Z",
+  "planVersion": 1,
+  "priority": "P1",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-003",
+  "title": "Undoing a regret before submitting gives a normal bid",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EVD2-RGT-H01"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EVD2-RGT-003",
+    "decisive": true,
+    "say": "Undoing a regret before submitting gives a normal bid"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "ifRefused": "inconclusive"
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "ifRefused": "inconclusive"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

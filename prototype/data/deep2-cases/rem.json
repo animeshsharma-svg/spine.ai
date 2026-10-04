@@ -1,0 +1,647 @@
+[
+ {
+  "id": "EVD2-REM-001",
+  "catalogId": "API-EVDREM-001",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_live_rfq_lists_invited_vendor_without_bid",
+  "type": "Happy path",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "A published RFQ with QA vendor 1 invited, bidding open, no bids yet. The buyer only reads the reminder list.",
+  "steps": [
+   "1. As the event's buyer, open the reminder list for the event (GET /reminders/{{eventGroupUuid}}?resource_type=event_group)."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group",
+  "body": {},
+  "expected": "accept",
+  "expectedResult": "HTTP 200. Offer submissions lists exactly one vendor (QA vendor 1) with the RFQ round under 'Bid Pending For', no last-reminded time and remindable (can_remind true); pending evaluations, counter offers, best offer, cost breakdown and auction reminders are null; approvals null unless the company has a pending approval on the event.",
+  "rationale": "The drawer's main use is chasing vendors who have not quoted; an error or empty list here means the feature is dead.",
+  "source": "app/services/reminders/event_group_service.rb:10-31; app/services/reminders/strategies/offer_submissions.rb:6-24; app/services/reminders/strategies/base_strategy.rb:12-35",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "assert": [
+    {
+     "path": "offer_submissions.total_count",
+     "op": "equals",
+     "value": 1,
+     "say": "one vendor is pending an offer"
+    },
+    {
+     "path": "offer_submissions.recipients[0].recipient_uuid",
+     "op": "equals",
+     "value": "{{vendorUuid}}",
+     "say": "the pending vendor is QA vendor 1"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-REM-002",
+  "catalogId": "API-EVDREM-002",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_vendor_who_bid_drops_out",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A live RFQ where QA vendor 1 has submitted a bid; bidding still open. Read only.",
+  "steps": [
+   "1. As the buyer, read the reminder list (GET /reminders/{{eventGroupUuid}}?resource_type=event_group)."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group",
+  "body": {},
+  "expected": "accept",
+  "expectedResult": "HTTP 200. QA vendor 1 is no longer pending, so offer submissions is null (vendor 1 is in the round's bid_company_ids once its bid is active, app/models/bid.rb:507-508); nothing else pending.",
+  "rationale": "Reminding a vendor who already quoted is noise; the list must subtract vendors who have bid.",
+  "source": "app/services/reminders/strategies/offer_submissions.rb:14-18; app/models/trade_request.rb:2470-2472",
+  "plan": {
+   "recipe": "rfq_with_bid",
+   "actor": "buyer",
+   "assert": [
+    {
+     "path": "offer_submissions",
+     "op": "absent",
+     "say": "no vendor is pending an offer once QA vendor 1 has bid"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-REM-003",
+  "catalogId": "API-EVDREM-003",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_closed_round_is_empty",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "QA vendor 1 bid; the bidding window and extra closing time are over. Read only.",
+  "steps": [
+   "1. As the buyer, read the reminder list (GET /reminders/{{eventGroupUuid}}?resource_type=event_group)."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group",
+  "body": {},
+  "expected": "accept",
+  "expectedResult": "HTTP 200 with body null: no round has its closing time in the future, so get_reminder_data returns nil (the drawer shows 'No Pending Actions to Remind'). Never a 5xx.",
+  "rationale": "Only rounds still open may be offered for reminders; a closed event must answer cleanly.",
+  "source": "app/services/reminders/event_group_service.rb:14-15; app/controllers/api/reminders_controller.rb:9-11",
+  "plan": {
+   "recipe": "closed_rfq_with_bid",
+   "actor": "buyer",
+   "assert": [
+    {
+     "path": "",
+     "op": "absent",
+     "say": "nothing to remind after the close (body null)"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-REM-004",
+  "catalogId": "API-EVDREM-004",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_draft_event_is_empty",
+  "type": "Workflow",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A draft event with an unpublished RFQ round; the caller is its owner. Read only.",
+  "steps": [
+   "1. As the owner, read the reminder list (GET /reminders/{{eventGroupUuid}}?resource_type=event_group)."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group",
+  "body": {},
+  "expected": "accept",
+  "expectedResult": "HTTP 200 with body null: the owner passes the view check, but the reminder service only loads live (active) events, so it returns nil.",
+  "rationale": "A draft must answer cleanly, not crash on rounds that have no live schedule.",
+  "source": "app/services/reminders/event_group_service.rb:6,11; app/models/event_group.rb:85; app/policies/event_group_policy.rb:52-54",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "assert": [
+    {
+     "path": "",
+     "op": "absent",
+     "say": "nothing to remind on a draft (body null)"
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-REM-019",
+  "catalogId": "API-EVDREM-019",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_unknown_event_should_not_crash",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Any signed-in buyer; no event needed.",
+  "steps": [
+   "1. Read the reminder list for an event id that decodes to 999999999 (GET /reminders/Z2dnWmdaUWtnZw==?resource_type=event_group)."
+  ],
+  "method": "GET",
+  "path": "/reminders/Z2dnWmdaUWtnZw==?resource_type=event_group",
+  "body": {},
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused cleanly (404 or 422). Today EventGroup.find_by returns nil and authorize(nil, :show?) raises Pundit::NotDefinedError, which is not rescued (only NotAuthorizedError is, api_auth.rb:16) -> HTTP 500. A 500 here is the defect.",
+  "rationale": "An unknown event id must never be a server error.",
+  "source": "app/controllers/api/reminders_controller.rb:51-52; app/controllers/concerns/api_auth.rb:16",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-020",
+  "catalogId": "API-EVDREM-020",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_garbled_event_id_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Any signed-in buyer; no event needed.",
+  "steps": [
+   "1. Read the reminder list with an id that decodes to nothing (GET /reminders/WrongUuid1=?resource_type=event_group)."
+  ],
+  "method": "GET",
+  "path": "/reminders/WrongUuid1=?resource_type=event_group",
+  "body": {},
+  "expected": "no-5xx",
+  "expectedResult": "Should be a clean 4xx. Today the id decodes to nil, EventGroup.find_by(id: nil) is nil and authorize(nil, :show?) raises Pundit::NotDefinedError -> HTTP 500 (the defect).",
+  "rationale": "The most common shape of a broken link must not crash the server.",
+  "source": "app/controllers/concerns/params_auth.rb:61-62; app/controllers/api/reminders_controller.rb:51-52",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-021",
+  "catalogId": "API-EVDREM-021",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_unknown_resource_type_answers_error_as_success",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A live RFQ of the QA buyer. Read only.",
+  "steps": [
+   "1. Read the reminder list with resource type 'trade_request' (GET /reminders/{{eventGroupUuid}}?resource_type=trade_request)."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type=trade_request",
+  "body": {},
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 with body {\"error\": \"Reminders does not exist\"} and no permission check at all (authorize_resource and reminder_service_for only know event_group). Should be a 422; suspected defect: an error reported with a success status. A 5xx would be a new defect.",
+  "rationale": "Records today's behaviour; catches a regression to a crash and documents the missing authorisation for unknown types.",
+  "source": "app/controllers/api/reminders_controller.rb:6-11,35-53",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-022",
+  "catalogId": "API-EVDREM-022",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_missing_resource_type_answers_error_as_success",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A live RFQ of the QA buyer. Read only.",
+  "steps": [
+   "1. Read the reminder list without a resource type (GET /reminders/{{eventGroupUuid}})."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}",
+  "body": {},
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 with body {\"error\": \"Reminders does not exist\"}. Should be 422 code 2 'Insufficient parameters'.",
+  "rationale": "A client that forgets the type should get a parameter error, not a success.",
+  "source": "app/controllers/api/reminders_controller.rb:4,9,36",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-023",
+  "catalogId": "API-EVDREM-023",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_resource_type_is_case_sensitive",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A live RFQ of the QA buyer. Read only.",
+  "steps": [
+   "1. Read the reminder list with resource type 'EVENT_GROUP' (GET /reminders/{{eventGroupUuid}}?resource_type=EVENT_GROUP)."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type=EVENT_GROUP",
+  "body": {},
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 with body {\"error\": \"Reminders does not exist\"} — :EVENT_GROUP is not :event_group, so no lookup and no authorisation.",
+  "rationale": "Documents the case-sensitive type and the unauthenticated fallthrough.",
+  "source": "app/controllers/api/reminders_controller.rb:36,49",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-024",
+  "catalogId": "API-EVDREM-024",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_reminder_list_resource_type_as_list_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "A live RFQ of the QA buyer. Read only (the crash happens before any lookup).",
+  "steps": [
+   "1. Read the reminder list with the resource type sent as a list (GET /reminders/{{eventGroupUuid}}?resource_type[]=event_group)."
+  ],
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type[]=event_group",
+  "body": {},
+  "expected": "no-5xx",
+  "expectedResult": "Should be a clean 422. Today resource_type is an Array and authorize_resource calls to_sym on it -> NoMethodError -> HTTP 500 (the defect).",
+  "rationale": "Any client can trigger this crash with one query parameter.",
+  "source": "app/controllers/api/reminders_controller.rb:4,6,49",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-048",
+  "catalogId": "API-EVDREM-048",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_without_map_should_not_crash",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A live RFQ of the QA buyer. Nothing can be written or emailed: the crash is on controller line 18, before the service, the permission check or any email.",
+  "steps": [
+   "1. Send a reminder request with no 'reminders' map (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422 code 2 'Insufficient parameters'. Today params[:reminders] is nil and nil.to_unsafe_h raises NoMethodError (the '|| {}' fallback is never reached) -> HTTP 500 (the defect).",
+  "rationale": "A missing required field must be a validation message, not a server error.",
+  "source": "app/controllers/api/reminders_controller.rb:18",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-049",
+  "catalogId": "API-EVDREM-049",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_map_as_text_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "A live RFQ of the QA buyer. Crashes on controller line 18, before anything else.",
+  "steps": [
+   "1. Send a reminder request whose 'reminders' is a text value (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions",
+   "reminders": "QA_Platform_text_{{stamp}}"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422. Today String#to_unsafe_h -> NoMethodError -> HTTP 500 (the defect).",
+  "rationale": "Hostile shape of the one required map.",
+  "source": "app/controllers/api/reminders_controller.rb:18",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-050",
+  "catalogId": "API-EVDREM-050",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_map_as_list_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "A live RFQ of the QA buyer. Crashes on controller line 18, before anything else.",
+  "steps": [
+   "1. Send a reminder request whose 'reminders' is a list (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions",
+   "reminders": [
+    "Z2dnWmdaUWtnZw=="
+   ]
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422. Today Array#to_unsafe_h -> NoMethodError -> HTTP 500 (the defect).",
+  "rationale": "Sending recipients as a list is a natural client mistake.",
+  "source": "app/controllers/api/reminders_controller.rb:18",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-051",
+  "catalogId": "API-EVDREM-051",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_unknown_event_should_not_crash",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Any signed-in buyer; no event. The service is built (finds nothing), then the permission check is handed nil and raises — before the service's send, so no row and no email.",
+  "steps": [
+   "1. Send a reminder for an event id that decodes to 999999999 (POST /reminders/Z2dnWmdaUWtnZw==/send_reminder) with an unknown vendor and round."
+  ],
+  "method": "POST",
+  "path": "/reminders/Z2dnWmdaUWtnZw==/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be a clean 4xx. Today EventGroup.find_by returns nil and authorize(nil, :update?) raises Pundit::NotDefinedError (not rescued) -> HTTP 500 (the defect).",
+  "rationale": "An unknown event must never be a server error.",
+  "source": "app/controllers/api/reminders_controller.rb:20-23,51-52; app/controllers/concerns/api_auth.rb:16",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-052",
+  "catalogId": "API-EVDREM-052",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_garbled_event_id_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Any signed-in buyer; no event. Crashes at the permission check, before the send.",
+  "steps": [
+   "1. Send a reminder with an event id that decodes to nothing (POST /reminders/WrongUuid1=/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/WrongUuid1=/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be a clean 4xx. Today id nil -> EventGroup.find_by nil -> authorize(nil, :update?) -> Pundit::NotDefinedError -> HTTP 500 (the defect).",
+  "rationale": "Broken links must not crash the server.",
+  "source": "app/controllers/concerns/params_auth.rb:61-62; app/controllers/api/reminders_controller.rb:51-52",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-053",
+  "catalogId": "API-EVDREM-053",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_unknown_resource_type_answers_empty_success",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A live RFQ of the QA buyer. With an unknown type no service is built, nothing is looked up or sent.",
+  "steps": [
+   "1. Send a reminder with resource type 'trade_request' (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "trade_request",
+   "reminder_type": "offer_submissions",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 with body null (the controller renders an unassigned 'data'); no permission check. Should be a 422. A 5xx would be a new defect.",
+  "rationale": "Documents a success status for a request that did nothing.",
+  "source": "app/controllers/api/reminders_controller.rb:20-30,35-45",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-054",
+  "catalogId": "API-EVDREM-054",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_on_draft_answers_error_inside_success",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A draft RFQ; the caller is its owner. The owner passes the permission check; the service returns on line 35 (no live event) before the map is read, any reminder row is written or any email is queued.",
+  "steps": [
+   "1. Send an offer-submission reminder on the draft event (POST /reminders/{{eventGroupUuid}}/send_reminder) with an unknown vendor and round."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 with body {\"error\": true, \"code\": 533} (533 = 'Project does not exist.'). Should be HTTP 422 with code 533 and its message; suspected defect: an error with a success status.",
+  "rationale": "Callers trusting the status think the reminder went out.",
+  "source": "app/services/reminders/event_group_service.rb:6,35; app/controllers/api/reminders_controller.rb:22-30",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-055",
+  "catalogId": "API-EVDREM-055",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_auction_reminder_without_auction_answers_error_inside_success",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A live RFQ-only event (no auction), QA vendor 1 invited. The map names QA vendor 1 and the RFQ round; the service finds no auction stage and returns on line 62, BEFORE create_reminder_records (line 68) and send_reminder_email (line 69) — nothing is written or emailed.",
+  "steps": [
+   "1. Send an auction reminder for QA vendor 1 and the RFQ round (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "auction_reminders",
+   "reminders": {
+    "{{vendorUuid}}": [
+     "{{pricingTradeUuid}}"
+    ]
+   }
+  },
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 with body {\"error\": true, \"code\": 533} — 533 means 'Project does not exist.', the wrong meaning here. Should be a 422 saying there is no auction to remind about.",
+  "rationale": "Documents the error-as-success reply and guards that no reminder is written when no auction is found.",
+  "source": "app/services/reminders/event_group_service.rb:60-63",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-056",
+  "catalogId": "API-EVDREM-056",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_auction_reminder_unknown_ids_after_close_answers_error_inside_success",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A closed RFQ with a bid. Unknown round ids resolve to nothing, so no auction is found; the service returns on line 62 before any write or email.",
+  "steps": [
+   "1. Send an auction reminder with an unknown vendor and round (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "auction_reminders",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 with body {\"error\": true, \"code\": 533}.",
+  "rationale": "Same early return on a closed event; catches a regression into a crash.",
+  "source": "app/services/reminders/event_group_service.rb:40-48,60-63",
+  "plan": {
+   "recipe": "closed_rfq_with_bid",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-057",
+  "catalogId": "API-EVDREM-057",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_without_kind_should_not_crash",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A live RFQ of the QA buyer (caller passes the permission check). The map uses unknown ids; the crash is inside the reminder-row builder (base_service.rb:40), BEFORE Reminder.insert_all (line 54) and before the email (event_group_service.rb:69) — nothing written or sent.",
+  "steps": [
+   "1. Send a reminder with no reminder kind (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422 code 2 'Insufficient parameters'. Today nil.singularize raises NoMethodError -> HTTP 500 (the defect).",
+  "rationale": "The reminder kind is never validated.",
+  "source": "app/services/reminders/event_group_service.rb:60-68; app/services/reminders/base_service.rb:34-40,54",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-058",
+  "catalogId": "API-EVDREM-058",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_numeric_kind_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "A live RFQ of the QA buyer. Crash at base_service.rb:40, before the insert and the email.",
+  "steps": [
+   "1. Send a reminder whose kind is the number 5 (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": 5,
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422. Today Integer#singularize -> NoMethodError -> HTTP 500 (the defect).",
+  "rationale": "Same unvalidated field, a different hostile type.",
+  "source": "app/services/reminders/base_service.rb:40",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-REM-059",
+  "catalogId": "API-EVDREM-059",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_send_reminder_round_list_as_text_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "A live RFQ; caller is the owner (passes the permission check). Crash on event_group_service.rb:38, before any row or email.",
+  "steps": [
+   "1. Send a reminder whose vendor entry holds a single text id instead of a list (POST /reminders/{{eventGroupUuid}}/send_reminder)."
+  ],
+  "method": "POST",
+  "path": "/reminders/{{eventGroupUuid}}/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": "Z2dnWmdaUWtnZw=="
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422. Today String#map -> NoMethodError -> HTTP 500 (the defect).",
+  "rationale": "Each map value must be a list; a single id is an easy client mistake.",
+  "source": "app/services/reminders/event_group_service.rb:37-38",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ }
+]

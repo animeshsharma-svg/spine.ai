@@ -1,0 +1,26 @@
+{
+ "meta": {
+  "twinId": "EVD2-QRY-008",
+  "caseId": "API-EVDQRY-008",
+  "area": "qry",
+  "title": "A malformed filter on the thread view is a server error",
+  "compiledAt": "2026-10-03T12:53:53.268Z",
+  "planVersion": 1,
+  "priority": "P2",
+  "runner": "direct",
+  "source": "direct",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "direct": {
+  "method": "GET",
+  "path": "/v1/chats?module=EventGroup&module_uuid={{eventGroupUuid}}&group_by=thread_id&filters=QA_Platform_not_json",
+  "body": {},
+  "actor": "buyer",
+  "recipe": "published_rfq",
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused cleanly with a 4xx. Today CommonFunctions.parse_filters swallows the JSON error and returns nil, then the thread view reads @filters[\"thread_id\"] on nil (chats_controller.rb:57) → HTTP 500 (an untyped 500 is a defect). Expected: 200 [] ignoring the filter, or 422 code 2."
+ }
+}

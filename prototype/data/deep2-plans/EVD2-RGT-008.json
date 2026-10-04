@@ -1,0 +1,72 @@
+{
+ "meta": {
+  "twinId": "EVD2-RGT-008",
+  "caseId": "API-EVDRGT-008",
+  "area": "rgt",
+  "title": "Regretting every line on a new draft withdraws an already-submitted bid",
+  "compiledAt": "2026-10-03T12:53:53.273Z",
+  "planVersion": 1,
+  "priority": "P1",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-008",
+  "title": "Regretting every line on a new draft withdraws an already-submitted bid",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EVD2-RGT-008",
+    "decisive": true,
+    "say": "Regretting every line on a new draft withdraws an already-submitted bid"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "params": {
+     "price": 95
+    },
+    "ifRefused": "inconclusive"
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "params": {
+     "price": 95
+    },
+    "ifRefused": "inconclusive",
+    "say": "QA vendor 1 submits the revision"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "lock_quote_after_submission is OFF on the round and no price-change approval applies"
+ }
+}

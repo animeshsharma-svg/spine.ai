@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "twinId": "EVD2-DOC-059",
+  "caseId": "API-EVDDOC-059",
+  "area": "doc",
+  "title": "A withdrawal-notice file on an outside host is refused and the event stays live",
+  "compiledAt": "2026-10-03T12:53:53.263Z",
+  "planVersion": 1,
+  "priority": "P1",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDDOC-059",
+  "title": "A withdrawal-notice file on an outside host is refused and the event stays live",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "withdraw_event",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "withdraw_remark.attachments",
+      "set": [
+       "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+      ]
+     }
+    ],
+    "expect": "reject",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "reject",
+   "code": "472",
+   "message": "failed to add remark"
+  }
+ }
+}
