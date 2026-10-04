@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "caseId": "API-XAWD-124",
+  "title": "Submitting without a flow when approval is configured is refused",
+  "compiledAt": "2026-10-03T09:49:39.000Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/submit"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event the QA vendor bid on, closed, and awarded to that vendor (award submitted for approval).",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Approval Flow not found”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XAWD-124",
+  "title": "Submitting without a flow when approval is configured is refused",
+  "setup": {
+   "recipe": "awarded_rfq"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-AWD-124",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "570",
+   "message": "Approval Flow not found"
+  }
+ }
+}

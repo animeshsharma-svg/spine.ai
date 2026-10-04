@@ -17,7 +17,10 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Check, Client } from "./engine.js";
-import { gate, type DynamicContext, type DynamicSpec } from "./dynamicChecks.js";
+import { gate, SANDBOX_PUB_CASES, type DynamicContext, type DynamicSpec } from "./dynamicChecks.js";
+import { actorOfCase, sendAsVendor, vendorOnlyAction, vendorAppRefusal } from "./actors.js";
+import { appRefusal } from "./appAccess.js";
+import { withWatchdog } from "./resilience.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /**
@@ -49,6 +52,13 @@ const KNOWN_PLACEHOLDERS = new Set([
   // Also produced by the journey (eventJourney.ts `produced`), passed through as-is:
   // the vendor's technical response and its form/page, the quoted line, the award flow.
   "templateResponseUuid", "techFormUuid", "techPageUuid", "tradeProductUuid", "approvalFlowUuid",
+  // The journey's OWN event (closed, one submitted bid, an award proposal) — the
+  // sandbox has none of that — and the run's own buyer user. Set by the steps
+  // named in eventJourney.ts `produced`: pricing/technical stage,
+  // the converted auction (auction.convert runs),
+  // the item version (versioning runs), the surrogate bid (surrogate runs).
+  "pricingTradeUuid", "technicalTradeUuid", "auctionTradeUuid", "versionUuid",
+  "surrogateBidUuid", "buyerUserUuid",
   // Vendor bulk upload: the fixture's base64, loaded by the bulk runner.
   "vbuSheet",
 ]);
@@ -145,9 +155,82 @@ export interface TestCaseRecord {
  */
 const BODY_IS_A_PARAPHRASE = /\/trade\/template_input|\/event_groups\/update_egli/;
 
+/**
+ * A REAL stage body, recognised by its structure rather than by its endpoint.
+ *
+ * The quarantine above was written for the four-scalar summaries, but it
+ * matched the ENDPOINT — so the edge cases written later from the journey's
+ * own working stage body (data/api-cases-extra/stg.json: `widgets` + `data`
+ * for a pricing round, `forms` for a technical one, and in every one the
+ * ~30-field `configurations` block) were held out with them, although each
+ * sends the full payload and changes one thing. They are told apart here:
+ *   • `configurations` is an object naming the event (`event_group_uuid`),
+ *     the round (`rfx_mode`) and its window (`bid_end_time` / `bid_start_time`),
+ *     with the rest of the block around it (10+ fields); or
+ *   • `sheets` carries a bill-of-quantities sheet (a BOQ round's real shape).
+ * A case missing `widgets` or `forms` on purpose ("a technical round with no
+ * forms") still has the real `configurations` block, so it counts as full —
+ * that omission IS the case. A summary has none of this and stays held.
+ */
+export function isFullStageBody(body: unknown): boolean {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  const cfg = b.configurations;
+  if (cfg && typeof cfg === "object" && !Array.isArray(cfg)) {
+    const c = cfg as Record<string, unknown>;
+    const names = "event_group_uuid" in c && "rfx_mode" in c && ("bid_end_time" in c || "bid_start_time" in c);
+    if (names && Object.keys(c).length >= 10) return true;
+  }
+  if (Array.isArray(b.sheets) && b.sheets.length > 0) return true;
+  return false;
+}
+
 /** True for a case whose request body is a summary of the payload, not the payload. */
 function bodyIsAParaphrase(c: TestCaseRecord): boolean {
-  return BODY_IS_A_PARAPHRASE.test(String(c.path).split("?")[0]);
+  return BODY_IS_A_PARAPHRASE.test(String(c.path).split("?")[0]) && !isFullStageBody(c.body);
+}
+
+/**
+ * A stage case written for a DRAFT event ("Draft event group {{eventGroupUuid}}
+ * with line item {{lineItemUuid}} …"). The shared copy the edge cases act on is
+ * PUBLISHED, so these get a draft of their own — one per case, built right
+ * before the request — rather than a precondition they do not have.
+ */
+export function needsOwnDraft(c: Pick<TestCaseRecord, "path" | "preconditions" | "body">): boolean {
+  return (
+    BODY_IS_A_PARAPHRASE.test(String(c.path).split("?")[0]) &&
+    isFullStageBody(c.body) &&
+    /^\s*Draft event group \{\{eventGroupUuid\}\} with line item/i.test(c.preconditions ?? "")
+  );
+}
+
+/** Stand-ins replaced by the case's own draft when it runs (see `needsOwnDraft`). */
+const DRAFT_EG = "QA0OwnDraftEventGroup";
+const DRAFT_LI = "QA0OwnDraftLineItem";
+/** Stand-in for a draft bid the QA vendor opens on the copy right before the case runs. */
+const DRAFT_BID = "QA0OwnDraftBid";
+
+/**
+ * A vendor case that addresses {{bidUuid}} needs a bid in a stated state. The
+ * id the run would otherwise fill in is the JOURNEY's bid — submitted, on an
+ * event that has closed by then — which is not the bid these cases describe.
+ * A plain draft bid on the copy's live stage ("A draft bid {{bidUuid}} on the
+ * live RFQ stage.") is opened by the QA vendor right before the case runs;
+ * any other state (priced, submitted, past the window, a ceiling price…) is
+ * not built here, and the case says so instead of running on the wrong bid.
+ */
+const SIMPLE_DRAFT_BID =
+  /(?:^|\.\s+)A draft bid \{\{bidUuid\}\}(?: on the live RFQ stage| and line item \{\{lineItemUuid\}\} on \{\{tradeId\}\})?\.\s*$/;
+export function vendorBidNeed(c: Pick<TestCaseRecord, "method" | "path" | "body" | "preconditions">): "draft" | { reason: string } | null {
+  if (!/\{\{bidUuid\}\}/.test(JSON.stringify([c.path, c.body ?? null]))) return null;
+  if (actorOfCase(c).kind !== "vendor") return null;
+  const pre = (c.preconditions ?? "").replace(/Session:[^.]*\.\s*/i, "").trim();
+  if (SIMPLE_DRAFT_BID.test(pre)) return "draft";
+  const state = pre.replace(/\{\{bidUuid\}\}\s*/g, "").replace(/\{\{(\w+)\}\}/g, "the $1").replace(/\s+/g, " ").slice(0, 220);
+  return {
+    reason:
+      `needs the vendor's bid in a state this run does not build on the copy (${state || "see its preconditions"}); the only bid id the run has is the journey's own submitted bid on a closed event, and running it on that bid would test a different rule`,
+  };
 }
 
 let CACHE: TestCaseRecord[] | null = null;
@@ -288,8 +371,10 @@ function borrowedRequests(): Map<string, string> {
   const all = loadCases();
   // Titles carry a generated `QA_Platform_<case>_<stamp>` name, which differs
   // per case and says nothing about what is being tested.
+  // The actor is part of the request: "a vendor cannot reject a participant"
+  // sends the buyer's body, and the refusal it expects comes from WHO sends it.
   const shape = (c: TestCaseRecord) =>
-    `${c.method} ${c.path} ${JSON.stringify(c.body ?? null).replace(/QA_Platform_[A-Za-z0-9_{}]+/g, "T")}`;
+    `${actorOfCase(c).kind} ${c.method} ${c.path} ${JSON.stringify(c.body ?? null).replace(/QA_Platform_[A-Za-z0-9_{}]+/g, "T")}`;
   const byShape = new Map<string, TestCaseRecord[]>();
   for (const c of all) {
     const key = shape(c);
@@ -297,6 +382,10 @@ function borrowedRequests(): Map<string, string> {
   }
   for (const c of all) {
     if (c.expected !== "reject") continue;
+    // These run each on a copy of their own built in exactly the state they
+    // name; a sibling with the same request is about a DIFFERENT state (and is
+    // held for it, see STATE_NOT_BUILT), so the request is not borrowed.
+    if (SANDBOX_PUB_CASES.has(c.id)) continue;
     const twin = (byShape.get(shape(c)) ?? []).find((o) => o.id !== c.id && o.expected !== "reject");
     if (!twin) continue;
     reasons.set(
@@ -312,9 +401,74 @@ function borrowedRequests(): Map<string, string> {
   return BORROWED;
 }
 
+/**
+ * Publish / audience edge cases whose starting state a fresh copy of the event
+ * does not have, and which the run cannot build in one step (an expired but
+ * unclosed window, a submitted proposal, a versioned event, a second buyer…).
+ * Their endpoints are now sent for the cases whose state a fresh copy DOES
+ * have (dynamicChecks.ts SANDBOX_PUB_CASES); these stay not-run with the
+ * reason, because on a fresh copy they would test a different rule.
+ */
+const STATE_NOT_BUILT: Record<string, string> = {
+  "EDGE-PUB-045": "needs the vendor to already hold an active bid on the stage",
+  "EDGE-PUB-046": "needs an RFP stage with the vendor's submitted technical response in place of the RFQ stage",
+  "EDGE-PUB-048": "needs a DRAFT event that a vendor tries to join",
+  "EDGE-PUB-050": "needs an open-tender stage whose window is already over",
+  "EDGE-PUB-052": "needs a vendor company with no mapping to the buyer",
+  "EDGE-PUB-055": "needs a proposal or a selected bid that includes the vendor",
+  "EDGE-PUB-057": "needs a vendor that has participated and was already rejected once",
+  "EDGE-PUB-061": "needs a stage whose window has ended but which is not yet closed, with reopen settings off",
+  "EDGE-PUB-062": "needs an RFQ stage that is already closed",
+  "EDGE-PUB-063": "needs a submitted award proposal on the event",
+  "EDGE-PUB-064": "needs the RFP stage's id in place of the RFQ stage's",
+  "EDGE-PUB-065": "needs the RFP stage's id in place of the RFQ stage's",
+  "EDGE-PUB-066": "needs a draft (unpublished) stage",
+  "EDGE-PUB-068": "needs a stage inside its evaluation (extra closing) window",
+  "EDGE-PUB-075": "needs a selected or requested proposal on the event",
+  "EDGE-PUB-091": "needs a target user who shares no team with the owner",
+  "EDGE-PUB-093": "needs a second buyer of the company who is neither owner nor super admin",
+  "EDGE-PUB-094": "needs a draft event and a same-team user to hand it to",
+  "EDGE-PUB-095": "needs an event whose owner has left the company, a super-admin caller and a user of another company",
+  "EDGE-PUB-106": "needs an event that has been versioned",
+  "EDGE-PUB-110": "needs a draft event",
+  "EDGE-PUB-111": "needs an active event created from a purchase request",
+  "EDGE-PUB-112": "needs a withdrawn (in_active) event",
+  // Vendor cases (they used to come back 401 as the buyer; as the QA vendor they
+  // reach the endpoint, so a state the copy lacks would now decide the verdict).
+  "BID-PLACE-002": "needs a restricted event whose audience does not include the bidding company",
+  "BID-PLACE-003": "needs an event that has been re-versioned (amended)",
+  "BID-PLACE-004": "needs an event with an RFP technical stage the vendor never answered, the vendor left out of the RFQ audience",
+  "EDGE-BID-016": "needs the vendor to have declined the stage first (a trade_reject answer recorded)",
+  "EDGE-BID-012": "needs the vendor to have accepted the stage once already (a trade_accept answer recorded)",
+  "EDGE-BID-054": "needs a stage with a currency configuration",
+  "EDGE-BID-097": "needs a staggered (serial) auction stage",
+  "EDGE-BID-023": "needs a stage the buyer has cancelled or voided",
+};
+
 /** Why this case cannot produce an informative result as written, if it cannot. */
 export function unrunnableReason(c: TestCaseRecord): string | null {
   if (c.notRunnable) return c.notRunnable;
+  // A draft that must already carry a round of its own: not built here (the
+  // own-draft builder makes an empty draft with one line item).
+  if (
+    BODY_IS_A_PARAPHRASE.test(String(c.path).split("?")[0]) &&
+    isFullStageBody(c.body) &&
+    /^\s*Draft event group \{\{eventGroupUuid\}\} that already has/i.test(c.preconditions ?? "")
+  )
+    return "needs a draft event that already carries a round of its own (an earlier draft RFQ round with its own window), which this run does not build — on an empty draft it would test a different rule, so it is not run";
+  const state = STATE_NOT_BUILT[c.id];
+  if (state)
+    return `${state}, which a fresh copy of the event does not have and this run cannot build in one step — on a fresh copy it would test a different rule, so it is not run`;
+  const who = actorOfCase(c);
+  if (who.unavailable) return who.unavailable;
+  // The app the request would go out under may not call this endpoint at all:
+  // it is refused at the app gate (401) before any rule the case is about, and
+  // that 401 signs the session out (appAccess.ts, actors.ts). Not run.
+  const barred = who.kind === "vendor" ? vendorAppRefusal(c.method, c.path) : appRefusal("console", c.method, String(c.path).split("?")[0]);
+  if (barred)
+    return `${barred} — such a call is refused at the app gate with 401 before the rule this case is about, and that 401 signs the session out, so it is not sent`;
+  const bid = vendorBidNeed(c);
+  if (bid && bid !== "draft") return bid.reason;
   // Paraphrased bodies do not reach a run at all — `loadCases` holds them back
   // — but a caller handing one in directly still gets the truth about it.
   if (bodyIsAParaphrase(c)) return PARAPHRASE_REASON;
@@ -443,6 +597,72 @@ export function configRequirementOf(
 }
 
 /**
+ * COMPANY SETTINGS SOME EDGE CASES DEPEND ON THAT THE DASHBOARD CONFIGURATION
+ * DOES NOT CARRY.
+ *
+ * `trade_force_close` (TradeRequest#allow_trade_force_close?) and
+ * `enable_open_tender_events` (Company#open_tenders?) are read by the backend
+ * through CustomConfiguration.cached_all_configs — the company's own override,
+ * else the master default — and neither is in /v1/dashboard_configuration, so
+ * `configRequirementOf` never saw them and the cases that state them ("gate:
+ * `trade_force_close`", "the buyer company does NOT have open_tenders") ran in
+ * whichever workspace they landed in. Read here the way the backend resolves
+ * them (SELECT only), and a case whose setting is the other way, or could not
+ * be read, is skipped with the reason.
+ */
+const CASE_SETTINGS: Array<{ key: string; on: RegExp; off: RegExp }> = [
+  { key: "trade_force_close", on: /gate:\s*`trade_force_close`/i, off: /trade_force_close is OFF/i },
+  { key: "enable_open_tender_events", on: /gate:\s*`open_tenders`|Active open-tender event/i, off: /does NOT have open_tenders/i },
+  // trade_template_helper.rb:1436 — savings required on rfq/auction rounds
+  { key: "is_saving_configuration_mandatory", on: /is_saving_configuration_mandatory is ON/i, off: /is_saving_configuration_mandatory is OFF/i },
+];
+
+export async function resolveCaseSettings(companyId: number): Promise<Record<string, boolean | null>> {
+  const out: Record<string, boolean | null> = {};
+  try {
+    const { pathToFileURL } = await import("node:url");
+    const db = await import(pathToFileURL(join(here, "..", "..", "..", "procol test", "src", "db", "pool.ts")).href);
+    for (const { key } of CASE_SETTINGS) {
+      const rows = await withWatchdog<any[]>(
+        db.query(
+          `WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations
+                       WHERE item_type = 'Company' AND item_id = $1 AND config_key = $2 AND status = 1 ORDER BY id DESC LIMIT 1),
+                m AS (SELECT defaults->'value' AS v FROM master_configurations
+                       WHERE item_type = 1 AND status = 1 AND config_key = $2 AND (company_id = $1 OR company_id IS NULL)
+                       ORDER BY company_id NULLS LAST, id DESC LIMIT 1)
+           SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value`,
+          [companyId, key],
+        ),
+        20_000,
+        `reading ${key}`,
+      );
+      const v = rows?.[0]?.value;
+      // Ruby truthiness: nil and false are off, anything else is on.
+      out[key] = v === null || v === undefined || v === false || v === "false" ? false : true;
+    }
+  } catch {
+    for (const { key } of CASE_SETTINGS) if (!(key in out)) out[key] = null;
+  }
+  return out;
+}
+
+/** Why this case's setting rules it out here, or null. */
+function caseSettingSkip(c: TestCaseRecord, settings: Record<string, boolean | null> | undefined): string | null {
+  const text = `${c.preconditions ?? ""}`;
+  for (const g of CASE_SETTINGS) {
+    const wantOff = g.off.test(text);
+    const wantOn = !wantOff && g.on.test(text);
+    if (!wantOn && !wantOff) continue;
+    const have = settings?.[g.key];
+    if (have === null || have === undefined)
+      return `this case only holds when the company setting "${g.key}" is ${wantOn ? "ON" : "OFF"}, and the setting could not be read here`;
+    if (have !== wantOn)
+      return `this case only holds when the company setting "${g.key}" is ${wantOn ? "ON" : "OFF"}; it is ${have ? "ON" : "OFF"} for this company, so the outcome it expects would not apply`;
+  }
+  return null;
+}
+
+/**
  * Resolve the {{placeholders}} a case can reference, by reading real ids out of
  * the live client. Every lookup is a READ and every one is individually
  * optional: if a lookup fails or the client simply has no such record, the token
@@ -489,12 +709,22 @@ export async function resolveCaseContext(
     if (Array.isArray(items) && items[0]) ctx.prItemId = firstId(items[0]);
   }
 
-  // A vendor company this buyer actually deals with.
-  const vList = vendors?.companies ?? vendors?.data ?? [];
-  const vendor = Array.isArray(vList) ? vList[0] : undefined;
-  if (vendor) {
-    ctx.vendorUuid = vendor.uuid;
-    ctx.vendorCompanyId = vendor.id ?? vendor.company_id;
+  // The vendor every case addresses is the client's QA TEST vendor — never a
+  // real supplier. This used to be the first company in the buyer's vendor
+  // list, which put a real supplier into test events whenever a case sent
+  // {{vendorUuid}} (an invite list, an auction audience …) — 3,000+ uses.
+  // No QA vendor → the token stays unresolved and those cases are skipped
+  // with a reason. A real vendor only with SPINE_ALLOW_REAL_VENDORS=1.
+  const qaVendor = client.ctx.vendor?.uuid ? client.ctx.vendor : undefined;
+  if (qaVendor && !client.ctx.noQaVendor) {
+    ctx.vendorUuid = qaVendor.uuid;
+  } else if (process.env.SPINE_ALLOW_REAL_VENDORS === "1") {
+    const vList = vendors?.companies ?? vendors?.data ?? [];
+    const vendor = Array.isArray(vList) ? vList[0] : undefined;
+    if (vendor) {
+      ctx.vendorUuid = vendor.uuid;
+      ctx.vendorCompanyId = vendor.id ?? vendor.company_id;
+    }
   }
 
   // A category and a family (families are what products hang off).
@@ -520,7 +750,11 @@ export async function resolveCaseContext(
   // Vendor bulk upload settings, straight from the configuration tables — most
   // of them (allow_contactless_vendor_upload, vendor_duplicate_check_fields)
   // are not in the dashboard configuration the other gates read.
-  if (typeof client.ctx.companyId === "number") ctx.vbu = await resolveVbuWorkspace(client.ctx.companyId);
+  if (typeof client.ctx.companyId === "number") {
+    const [vbu, settings] = await Promise.all([resolveVbuWorkspace(client.ctx.companyId), resolveCaseSettings(client.ctx.companyId)]);
+    ctx.vbu = vbu;
+    ctx.caseSettings = settings;
+  }
 
   // ── DELIBERATELY GATED ──────────────────────────────────────────────────
   // tradeId / proposalUuid / bidUuid identify REAL, LIVE business records — an
@@ -622,7 +856,16 @@ export function buildChecksFromCases(
     // If so, running it would prove nothing — and, worse, a case like "a member
     // must NOT be able to create a super_admin" would actually CREATE one when
     // run as a super_admin. Skip it and say why.
-    const need = actorRequirementOf(c.preconditions);
+    const settingSkip = caseSettingSkip(c, (fullCtx as any).caseSettings);
+    if (settingSkip) {
+      skipped.push({ id: c.id, title: c.title, reason: settingSkip });
+      continue;
+    }
+
+    // Who sends it: the buyer's console session, or the client's QA vendor
+    // (supplier-app endpoints, or a case that names the vendor's session).
+    const who = actorOfCase(c);
+    const need = who.kind === "buyer" ? actorRequirementOf(c.preconditions) : null;
     if (need && actor.role) {
       const mismatch = need.unauth || (need.roles && !need.roles.includes(actor.role));
       if (mismatch) {
@@ -650,8 +893,13 @@ export function buildChecksFromCases(
         continue;
       }
     }
-    const caseCtx: DynamicContext =
+    let caseCtx: DynamicContext =
       c.bulk?.fixture ? { ...fullCtx, vbuSheet: `<base64 of procol test/fixtures/vendor-bulk-upload/${c.bulk.fixture}, filled per run>` } : fullCtx;
+    // A draft-stage case addresses its OWN draft, built when it runs.
+    const ownDraft = needsOwnDraft(c);
+    if (ownDraft) caseCtx = { ...caseCtx, eventGroupUuid: DRAFT_EG, lineItemUuid: DRAFT_LI } as DynamicContext;
+    const draftBid = vendorBidNeed(c) === "draft";
+    if (draftBid) caseCtx = { ...caseCtx, bidUuid: DRAFT_BID } as DynamicContext;
 
     const spec: DynamicSpec = {
       scenario: c.title,
@@ -680,6 +928,24 @@ export function buildChecksFromCases(
       (check as any).bulkTier = c.bulk.tier;
     }
     if (check) {
+      // A full, real stage body is the payload the journey itself sends, so a
+      // documented success on it is checkable as a success — the gate's
+      // "cannot build this payload" downgrade is for summaries and guesses.
+      if (c.expected === "accept" && isFullStageBody(c.body) && check.weakenedTo5xxOnly) {
+        check.expected = "accept";
+        delete check.weakenedTo5xxOnly;
+      }
+      if (who.kind === "vendor" && !c.bulk) {
+        // Sent with the QA vendor's own session; the request is read when it
+        // runs, so a move onto a fresh copy (retarget) still applies.
+        (check as any).actor = "vendor";
+        (check as any).actorWhy = who.because;
+        check.exec = (runClient?: Client) => sendAsVendor(runClient ?? client, check.request!);
+        if (draftBid) wrapWithDraftBid(check, client, fullCtx);
+      }
+      if (ownDraft) wrapWithOwnDraft(check, client, fullCtx);
+      const copy = ownCopyReason(c);
+      if (copy) (check as any).ownCopy = copy;
       // Only meaningful for reject cases — that's where "right reason" matters.
       if (c.expected === "reject") check.expectMessage = expectedMessageOf(c.expectedResult);
       // Carry the documentation through so the UI can show steps/expected result.
@@ -710,6 +976,147 @@ export function buildChecksFromCases(
       held: lineItemPlan.held,
     },
   };
+}
+
+/**
+ * Give a draft-stage case its own draft event, built right before it runs.
+ *
+ * One POST /event_groups (status draft, one line item of the catalog product
+ * in KG, as the stage bodies expect) per run of the case — a re-check gets a
+ * new one — so no case inherits a round another case added. The draft is a
+ * QA_Platform_ test record. A draft that cannot be built makes the case
+ * "couldn't tell" with the reason; it never fires at a stand-in id.
+ */
+function wrapWithOwnDraft(check: Check, client: Client, ctx: DynamicContext): void {
+  const template = check.request!;
+  const send = check.exec;
+  check.exec = async (runClient?: Client) => {
+    const t = Date.now();
+    const d = await buildOwnDraft(runClient ?? client, ctx, check.id);
+    if (!d.eventGroupUuid || !d.lineItemUuid) {
+      return {
+        httpStatus: null,
+        accepted: false,
+        message: d.problem ?? "no draft",
+        durationMs: Date.now() - t,
+        verdictOverride: { pass: false, inconclusive: true, verdict: `not checked — the draft event this case needs could not be built: ${d.problem}` },
+      };
+    }
+    const swap = (s: string) => s.split(DRAFT_EG).join(d.eventGroupUuid!).split(DRAFT_LI).join(d.lineItemUuid!);
+    check.request = {
+      ...template,
+      path: swap(template.path),
+      ...(template.body === undefined ? {} : { body: JSON.parse(swap(JSON.stringify(template.body))) }),
+    };
+    if (typeof check.inputSummary === "string") check.inputSummary = swap(check.inputSummary);
+    (check as any).ownDraft = d.eventGroupUuid;
+    return send(runClient);
+  };
+}
+
+/**
+ * Open a draft bid as the QA vendor on the stage the case's request names
+ * (body.trade_request_uuid — read when it runs, so a move onto a fresh copy
+ * applies), then send the case with that bid's id. A re-check opens another.
+ */
+function wrapWithDraftBid(check: Check, client: Client, ctx: DynamicContext): void {
+  const send = check.exec;
+  let last = DRAFT_BID;
+  check.exec = async (runClient?: Client) => {
+    const t = Date.now();
+    const req = check.request!;
+    const tradeUuid = (req.body as any)?.trade_request_uuid;
+    const notChecked = (why: string) => ({
+      httpStatus: null,
+      accepted: false,
+      message: why,
+      durationMs: Date.now() - t,
+      verdictOverride: { pass: false, inconclusive: true, verdict: `not checked — the draft bid this case needs could not be opened: ${why}` },
+    });
+    if (typeof tradeUuid !== "string" || !tradeUuid || !ctx.vendorUuid) return notChecked("the case names no stage (trade_request_uuid) to bid on");
+    const opened = await sendAsVendor(runClient ?? client, {
+      method: "POST",
+      path: "/v1/bids",
+      body: {
+        trade_request_uuid: tradeUuid,
+        company_uuid: ctx.vendorUuid,
+        currency_preference: { name: "Indian Rupees (INR)", code: "INR", symbol: "₹", rateInBase: 1, adjustedPrecision: 2, defaultPrecision: 2, numberSystem: "INDIAN", currencyLabel: "₹" },
+        broker_company_uuid: false,
+      },
+    });
+    const d: any = opened.data;
+    const bid = d?.bid_uuid ?? d?.uuid ?? d?.data?.bid_uuid ?? d?.data?.uuid;
+    if (!opened.accepted || !bid) return notChecked(opened.message ?? `HTTP ${opened.httpStatus} with no bid id`);
+    const swap = (x: string) => x.split(last).join(String(bid));
+    check.request = { ...req, path: swap(req.path), ...(req.body === undefined ? {} : { body: JSON.parse(swap(JSON.stringify(req.body))) }) };
+    if (typeof check.inputSummary === "string") check.inputSummary = swap(check.inputSummary);
+    last = String(bid);
+    (check as any).arrangedBid = last;
+    return send(runClient);
+  };
+}
+
+export async function buildOwnDraft(
+  client: Client,
+  ctx: DynamicContext,
+  caseId: string,
+): Promise<{ eventGroupUuid?: string; lineItemUuid?: string; problem?: string }> {
+  const productUuid = ctx.productUuid ?? client.ctx.catalog?.productUuid;
+  const qualityUuid = ctx.productQualityUuid ?? client.ctx.catalog?.productQualityUuid;
+  if (!productUuid || !qualityUuid) return { problem: "this client's catalog has no product to put on the draft" };
+  const body = {
+    status: "draft",
+    title: `QA_Platform_StageCase_${caseId}_${Date.now()}`,
+    line_items: [{ product_uuid: productUuid, quantity: { unitSymbol: "KG", value: 10 }, product_quality_uuid: qualityUuid }],
+  };
+  try {
+    const r: any = await withWatchdog(Promise.resolve(client.ctx.buyerApi.post("/event_groups", { body })), 60_000, "creating the case's draft event");
+    const eventGroupUuid = r?.uuid ?? r?.data?.uuid;
+    const lineItemUuid = (r?.event_group_line_item_ids ?? r?.data?.event_group_line_item_ids)?.[0];
+    if (!eventGroupUuid || !lineItemUuid) return { problem: "the draft came back without its id or line item" };
+    return { eventGroupUuid: String(eventGroupUuid), lineItemUuid: String(lineItemUuid) };
+  } catch (e) {
+    return { problem: String((e as Error)?.message ?? e).slice(0, 200) };
+  }
+}
+
+/**
+ * Cases that must not run on the SHARED copy of the event: each changes it in
+ * a way the next case would inherit (a round added, the audience or owner
+ * changed, the window moved or ended). The runners give each its own fresh
+ * copy (server.ts features-run, scripts/run-all-runnable.ts).
+ */
+export function ownCopyReason(c: Pick<TestCaseRecord, "id" | "method" | "path" | "preconditions" | "body">): string | null {
+  if (BODY_IS_A_PARAPHRASE.test(String(c.path).split("?")[0]) && isFullStageBody(c.body) && /^\s*Published/i.test(c.preconditions ?? ""))
+    return "it tries to add a round to the published event";
+  if (SANDBOX_PUB_CASES.has(c.id)) return "it changes the event's window, audience, owner or status";
+  // The QA vendor calling a BUYER action on the copy (update the event, version
+  // it, convert, award…) expects a refusal; if the product wrongly accepts it,
+  // the copy is changed — so it gets one of its own.
+  if (
+    String(c.method).toUpperCase() !== "GET" &&
+    actorOfCase(c as TestCaseRecord).kind === "vendor" &&
+    !vendorOnlyAction(c.method ?? "", c.path) &&
+    !/^\/template_responses/.test(String(c.path)) &&
+    /\{\{(eventGroupUuid|tradeId)\}\}/.test(JSON.stringify([c.path, c.body ?? null]))
+  )
+    return "the vendor tries a buyer's action on the event; if it were accepted the event would change";
+  return null;
+}
+
+/**
+ * Order for a run on one shared copy: the buyer's non-destructive cases, then
+ * the vendor's (a bid the vendor places changes what later buyer cases see),
+ * then the destructive ones (withdraw, close, force-end …) last. Cases with a
+ * copy of their own are unaffected by where they sit.
+ */
+export function orderForSharedCopy<T extends Pick<TestCaseRecord, "id" | "method" | "path" | "preconditions">>(cases: T[], destructive: (c: T) => boolean): T[] {
+  const vendor = (c: T) => actorOfCase(c).kind === "vendor";
+  return [
+    ...cases.filter((c) => !destructive(c) && !vendor(c)),
+    ...cases.filter((c) => !destructive(c) && vendor(c)),
+    ...cases.filter(destructive),
+  ];
 }
 
 /**

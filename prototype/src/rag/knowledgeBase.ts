@@ -42,7 +42,39 @@ const PLANS_DIR = join(ROOT, "..", "procol-ui-tests", ".plans");
  * the other is how a planner ends up testing last week's bug report instead of
  * this week's feature — so every chunk is tagged and retrieval can be scoped.
  */
-export type ChunkKind = "doc" | "flow" | "test-case" | "api-contract" | "experience";
+export type ChunkKind =
+  | "doc"
+  | "flow"
+  | "test-case"
+  | "api-contract"
+  | "experience"
+  // added 2026-10-03 (migration 008) — each its own kind so a caller can ask for exactly one:
+  | "product-fact" // one cited fact of the product model / one client's templates, fields, units, settings
+  | "error-code" // one backend error code: message, HTTP status, where it is raised
+  | "access-rule" // which app (buyer web console / vendor website) may call which API
+  | "backend-code" // per-action digest of the event controllers (knowledge/events/backend-digest)
+  | "known-bug" // one verified Procol defect (docs/bugs/*.xlsx)
+  | "lesson"; // one hard-won domain rule (knowledge/lessons)
+
+/** What SHOULD happen — authored or read from code. */
+export const KNOWLEDGE_KINDS: ChunkKind[] = [
+  "test-case",
+  "api-contract",
+  "doc",
+  "flow",
+  "product-fact",
+  "error-code",
+  "access-rule",
+  "backend-code",
+  "lesson",
+];
+/**
+ * Facts read from Procol's code/data (not test cases, not prose) — what the
+ * assistant should cite when it explains WHY something happens.
+ */
+export const FACT_KINDS: ChunkKind[] = ["product-fact", "error-code", "access-rule", "backend-code", "lesson", "known-bug"];
+/** What HAS happened — earned by running: plan/finding/track-record experience and verified bugs. */
+export const EXPERIENCE_KINDS: ChunkKind[] = ["experience", "known-bug"];
 
 export interface Chunk {
   id: string;
@@ -71,6 +103,13 @@ export interface RetrieveOptions {
   module?: string;
 }
 
+/**
+ * SPINE_RAG_LEGACY=1 builds the memory as it was before 2026-10-03 (docs, flows,
+ * test cases, plans, findings only) — a measuring switch, so the grounding eval
+ * can tell what the new kinds add from what a refreshed corpus adds.
+ */
+const LEGACY = process.env.SPINE_RAG_LEGACY === "1";
+
 // ── 1. Gather the raw text from every knowledge source ────────────────────
 function gatherChunks(): Chunk[] {
   const chunks: Chunk[] = [];
@@ -82,8 +121,14 @@ function gatherChunks(): Chunk[] {
     const raw = readFileSync(file, "utf8");
     const src = relSource(file);
     const module = moduleOf(file);
-    splitMarkdown(raw).forEach((text, i) => {
-      chunks.push({ id: `${src}#${i}`, source: src, kind: "doc", module, text });
+    // The backend digest and the lessons are written one self-contained
+    // section per rule, so each part of a long section keeps its heading
+    // (a part without it would not say which action or rule it is about).
+    const kind: ChunkKind = src.startsWith("events/backend-digest/") ? "backend-code" : src.startsWith("lessons/") ? "lesson" : "doc";
+    if (kind !== "doc" && LEGACY) continue;
+    const parts = kind === "doc" ? splitMarkdown(raw) : splitMarkdownWithHeadings(raw);
+    parts.forEach((text, i) => {
+      chunks.push({ id: `${src}#${i}`, source: src, kind, module: kind === "lesson" ? "events" : module, text });
     });
   }
 
@@ -325,18 +370,79 @@ function splitMarkdown(raw: string, maxChars = 1100): string[] {
   return out;
 }
 
+/**
+ * Split by `##`/`###` heading; every chunk starts with its heading line, and a
+ * section longer than maxChars is packed by paragraph with the heading repeated
+ * on each part. A heading with no body (a title, "## Error codes …") is not a
+ * chunk of its own.
+ */
+function splitMarkdownWithHeadings(raw: string, maxChars = 1400): string[] {
+  const out: string[] = [];
+  for (const sec of raw.split(/\n(?=#{2,3}\s)/)) {
+    const s = sec.trim();
+    if (!s) continue;
+    if (!s.split("\n").slice(1).join("\n").trim()) continue; // heading only
+    if (s.length <= maxChars) {
+      out.push(s);
+      continue;
+    }
+    const nl = s.indexOf("\n");
+    const heading = nl > 0 ? s.slice(0, nl).replace(/^#+\s*/, "") : "";
+    const body = nl > 0 ? s.slice(nl + 1) : s;
+    let buf = "";
+    let part = 1;
+    const flush = () => {
+      if (!buf.trim()) return;
+      out.push(`${heading}${part > 1 ? ` (continued ${part})` : ""}\n${buf.trim()}`);
+      part++;
+      buf = "";
+    };
+    for (const para of body.split(/\n(?=\s*\n)|\n(?=\d+\.\s|- )/)) {
+      if ((buf + "\n" + para).length > maxChars - heading.length && buf) flush();
+      buf = buf ? buf + "\n" + para : para;
+    }
+    flush();
+  }
+  return out;
+}
+
+/**
+ * Every chunk the memory should hold right now: the markdown/JSON/catalog/plan/
+ * finding chunks plus the structured sources (product model, error codes, app
+ * access, verified bugs, run track record — each optional, never fatal).
+ * Nothing is embedded here, so it is cheap to call for a dry count.
+ */
+export async function gatherAll(): Promise<{ chunks: Chunk[]; byKind: Record<string, number>; notes: string[] }> {
+  const chunks = gatherChunks();
+  const { structuredChunks } = await import("./sources.js");
+  const extra = LEGACY ? { chunks: [], notes: ["SPINE_RAG_LEGACY=1 — structured sources, backend digest and lessons left out"] } : await structuredChunks();
+  chunks.push(...extra.chunks);
+  const byKind: Record<string, number> = {};
+  for (const c of chunks) byKind[c.kind] = (byKind[c.kind] ?? 0) + 1;
+  return { chunks, byKind, notes: extra.notes };
+}
+
 // ── 2. Build & save the index ─────────────────────────────────────────────
 export async function build(
   onProgress?: (done: number, total: number) => void,
-): Promise<{ chunks: number; dims: number; embedded?: number; removed?: number; store: "postgres" | "file" }> {
+): Promise<{
+  chunks: number;
+  dims: number;
+  embedded?: number;
+  removed?: number;
+  store: "postgres" | "file";
+  byKind: Record<string, number>;
+  notes: string[];
+}> {
   await ensureEmbedderReady();
-  const chunks = gatherChunks();
+  const { chunks, byKind, notes } = await gatherAll();
+  const extra = { notes };
   const db = await spineDb();
   if (db) {
     // Incremental: only new or changed chunks are embedded.
     const r = await syncChunks(db, chunks, embedderId(), embedMany, onProgress);
     dbEmbedder = embedderId();
-    return { chunks: r.chunks, dims: r.dims, embedded: r.embedded, removed: r.removed, store: "postgres" };
+    return { chunks: r.chunks, dims: r.dims, embedded: r.embedded, removed: r.removed, store: "postgres", byKind, notes: extra.notes };
   }
   const embeddings = await embedMany(chunks.map((c) => c.text));
   chunks.forEach((c, i) => (c.embedding = embeddings[i]));
@@ -346,7 +452,7 @@ export async function build(
   );
   cache = undefined;
   storeEmbedder = embedderId();
-  return { chunks: chunks.length, dims: embeddings[0]?.length ?? 0, store: "file" };
+  return { chunks: chunks.length, dims: embeddings[0]?.length ?? 0, store: "file", byKind, notes: extra.notes };
 }
 
 // ── 3. Load & retrieve ────────────────────────────────────────────────────
@@ -391,9 +497,35 @@ async function dbMemoryEmbedder(): Promise<string | null> {
   return dbEmbedder || null;
 }
 
-/** Hybrid score, the same rule for both stores. */
-function hybrid(dense: number, lexical: number, haveVector: boolean): number {
-  return haveVector ? dense * 0.75 + lexical * 0.25 : lexical;
+/**
+ * Hybrid score, the same rule for both stores: meaning + word overlap, plus a
+ * bonus when the chunk carries an IDENTIFIER the query names exactly (a case
+ * id like API-BID-002, a bug id like BUG-07, a step key like eval_score).
+ * Embeddings barely tell API-BID-002 from API-BID-010, and an exact id is the
+ * one thing a person who types it certainly means.
+ * Weights can be overridden for experiments (SPINE_RAG_LEX, SPINE_RAG_ID_BONUS).
+ */
+const envNumber = (name: string, fallback: number, min: number, max: number) => {
+  const v = Number(process.env[name]);
+  return process.env[name] !== undefined && Number.isFinite(v) && v >= min && v <= max ? v : fallback;
+};
+const LEX_WEIGHT = envNumber("SPINE_RAG_LEX", 0.25, 0, 1);
+const ID_BONUS = envNumber("SPINE_RAG_ID_BONUS", 0.05, 0, 1);
+function hybrid(dense: number, lexical: number, haveVector: boolean, idHit = false): number {
+  const base = haveVector ? dense * (1 - LEX_WEIGHT) + lexical * LEX_WEIGHT : lexical;
+  return base + (idHit ? ID_BONUS : 0);
+}
+
+/** Query terms that look like identifiers: letters and digits joined by - _ . (not plain words or bare numbers). */
+function identifierTerms(queryTerms: string[]): string[] {
+  return queryTerms.filter((t) => /[a-z]/.test(t) && (/\d/.test(t) || t.includes("_")) && /[-_.]/.test(t));
+}
+/** Does the chunk carry one of those identifiers as a whole token (labels first, then text)? */
+function hasIdentifier(ids: string[], c: { labels?: string[]; text: string }): boolean {
+  if (!ids.length) return false;
+  const labels = (c.labels ?? []).map((l) => String(l).toLowerCase());
+  const text = c.text.toLowerCase();
+  return ids.some((id) => labels.includes(id) || new RegExp(`(^|[^a-z0-9_.-])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9_-])`).test(text));
 }
 
 /** Top-k from Postgres: indexed candidates, then the same hybrid scoring as the file store. */
@@ -407,6 +539,7 @@ async function retrieveFromDb(query: string, k: number, opts: RetrieveOptions, b
   }
   const q = stale ? null : await embedOne(query);
   const queryTerms = lexicalTerms(query);
+  const ids = identifierTerms(queryTerms);
   const limit = Math.max(60, k * 8);
   let found = await candidates(db, built, q, queryTerms, opts, limit);
   // A scope that matches nothing falls back to everything, as the file store does.
@@ -414,7 +547,7 @@ async function retrieveFromDb(query: string, k: number, opts: RetrieveOptions, b
   return found
     .map((c) => {
       const lexical = lexicalOverlap(queryTerms, { id: "", source: c.source, kind: c.kind, labels: c.labels, text: c.text });
-      return { source: c.source, kind: c.kind, module: c.module, labels: c.labels, text: c.text, score: hybrid(c.dense, lexical, !!q) };
+      return { source: c.source, kind: c.kind, module: c.module, labels: c.labels, text: c.text, score: hybrid(c.dense, lexical, !!q, hasIdentifier(ids, c)) };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
@@ -443,6 +576,7 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
   // let term overlap carry the whole score rather than blending in zeros.
   const q = stale ? null : await embedOne(query);
   const queryTerms = lexicalTerms(query);
+  const ids = identifierTerms(queryTerms);
   return chunks
     .map((c) => {
       // Hybrid scoring. A 384-dimension sentence embedding is good at meaning
@@ -451,6 +585,7 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
       // them typed. Blending in literal term overlap means a query naming a
       // field or a case id actually finds it, while paraphrases still work.
       const lexical = lexicalOverlap(queryTerms, c);
+      const idHit = hasIdentifier(ids, c);
       const dense = q ? similarity(q, c.embedding!) : 0;
       return {
         source: c.source,
@@ -458,7 +593,7 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
         module: c.module,
         labels: c.labels,
         text: c.text,
-        score: hybrid(dense, lexical, !!q),
+        score: hybrid(dense, lexical, !!q, idHit),
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -475,8 +610,8 @@ export async function recall(
   k = 6,
 ): Promise<{ expectations: Retrieved[]; experience: Retrieved[] }> {
   const [expectations, experience] = await Promise.all([
-    retrieve(query, k, { kinds: ["test-case", "api-contract", "doc", "flow"], module }),
-    retrieve(query, k, { kinds: ["experience"], module }),
+    retrieve(query, k, { kinds: KNOWLEDGE_KINDS, module }),
+    retrieve(query, k, { kinds: EXPERIENCE_KINDS, module }),
   ]);
   return { expectations, experience };
 }

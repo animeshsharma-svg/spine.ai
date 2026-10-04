@@ -55,7 +55,8 @@ const ALLOW: AllowRule[] = [
   { method: "POST", re: /^\/event_groups$/, what: "create a draft event" },
   { method: "POST", re: /^\/trade\/template_input(\?|$)/, what: "add a stage to an event" },
   { method: "POST", re: /^\/trade\/move_to_auction$/, what: "convert a stage to auction" },
-  { method: "POST", re: /^\/v1\/trade\/add_audience(\?|$)/, what: "invite vendors to a stage" },
+  // The route is PATCH (procol-backend config/routes.rb: patch 'add_audience'); a POST entry never matched.
+  { method: "PATCH", re: /^\/v1\/trade\/add_audience(\?|$)/, what: "invite vendors to a stage" },
   { method: "POST", re: /^\/template_responses(\/[^/]+\/create_page_responses)?$/, what: "technical response" },
   { method: "POST", re: /^\/template_responses\/create_surrogate_response$/, what: "surrogate technical response" },
   { method: "POST", re: /^\/bids\/template_input$/, what: "surrogate RFQ bid" },
@@ -128,6 +129,103 @@ const ALLOW_CURATED: AllowRule[] = [
   { method: "POST", re: /^\/invitations\/send_invite$/, what: "single-vendor invite (QA test vendors)" },
 ];
 
+/**
+ * EXTRA endpoints for the "sourcing events in depth" cases ONLY
+ * (data/api-cases-extra/deep-*.json, ids EDGE-D<AREA>-NNN).
+ *
+ * Scoped by case id, not opened to the whole curated library, on purpose:
+ * each deep case on these paths was written against the backend source AND
+ * run live on a fresh test event before it was kept. Older cases on some of
+ * the same paths (EDGE-PUB change_ownership/create_clone, EDGE-AWD counter
+ * offers) have not had that live pass, so they stay held until someone does
+ * it — opening the path for them would put unreviewed verdicts in every run.
+ *
+ * Every write here acts on the run's own sandbox event, the journey's own
+ * event, the run's own buyer user, or a bogus id that cannot resolve.
+ */
+const ALLOW_DEEP: AllowRule[] = [
+  // ── reads ──
+  { method: "GET", re: /^\/event_groups(\?|$)/, what: "the events list" },
+  { method: "POST", re: /^\/event_groups\/search$/, what: "event lookup (read)" },
+  { method: "GET", re: /^\/proposal\/[^/]+(\/[a-z_]+)?(\?|$)/, what: "read an award proposal" },
+  { method: "GET", re: /^\/trade\/[^/]+\/[a-z_]+(\?|$)/, what: "read a stage's reports" },
+  { method: "GET", re: /^\/v1\/trade\/[^/]+\/[a-z_0-9]+(\/[^/?]+)?(\?|$)/, what: "read a stage's comparison data" },
+  { method: "GET", re: /^\/v1\/trade\/new_request_config(\?|$)/, what: "stage configuration" },
+  { method: "GET", re: /^\/v1\/additional_requests\/([^/]+\/counter_offer_details|pending_tasks)(\?|$)/, what: "counter-offer reads" },
+  { method: "GET", re: /^\/sheets\/(schema|details)(\?|$)/, what: "Master QCS sheet reads" },
+  { method: "GET", re: /^\/mqcs_report_templates(\/[^/?]+)?(\?|$)/, what: "Master QCS report templates" },
+  { method: "GET", re: /^\/versions_log\/all(\?|$)/, what: "change history" },
+  { method: "GET", re: /^\/approval_workflow\/(approval_requests|approval_flows)(\/[^?]*)?(\?|$)/, what: "approval reads" },
+  { method: "GET", re: /^\/delegations\/[^/?]+(\?|$)/, what: "read a delegation" },
+  { method: "GET", re: /^\/bids\/([^/]+\/get_approvals|approval_workflows_for_surrogate_bid_create)(\?|$)/, what: "bid approval reads" },
+  { method: "GET", re: /^\/reports\/download_bulk_report(\?|$)/, what: "events-list export (refusals only: no date range)" },
+  // ── writes: sandbox / journey event / own user / bogus ids only (see each case) ──
+  { method: "POST", re: /^\/additional_request\/(raise_additional_request|raise_bulk_counter_offer)$/, what: "counter offer on the journey's QA-vendor bid" },
+  { method: "PATCH", re: /^\/additional_request\/(resolve_additional_request|revoke_additional_requests)$/, what: "counter offer resolve/revoke (bogus ids)" },
+  { method: "POST", re: /^\/ask_ai_chats\/counter_offer$/, what: "counter-offer suggestion (sandbox)" },
+  { method: "POST", re: /^\/event_groups\/[^/]+\/(create_clone|change_ownership)$/, what: "clone the sandbox / hand it to self or a bogus user" },
+  { method: "PATCH", re: /^\/event_groups\/[^/]+\/(save_draft_lots|reset_to_smart_lots)(\?|$)/, what: "sandbox lot plan" },
+  { method: "POST", re: /^\/trade\/create_new_lot$/, what: "split a lot (sandbox / bogus)" },
+  { method: "PATCH", re: /^\/trade\/[^/]+(\/staggered_time)?$/, what: "edit a stage (sandbox / journey / bogus)" },
+  { method: "PATCH", re: /^\/v1\/trade\/[^/]+\/(currency_exchange_rates|widgets)$/, what: "stage rates / widgets (sandbox / bogus)" },
+  { method: "PATCH", re: /^\/v1\/trade\/(add_audience|remove_audience)(\?|$)/, what: "live audience with no vendor list" },
+  { method: "POST", re: /^\/v1\/trade\/[^/]+\/(add_new_stage_in_live_event|close_bid|close_bid\/approval_workflows|send_otp_for_unlocking_bids|verify_otp_for_unlocking_bids|upload_bid_excel)$/, what: "stage actions (sandbox / bogus)" },
+  { method: "POST", re: /^\/reports\/download_report$/, what: "report download (refused bodies)" },
+  { method: "POST", re: /^\/templates\/product_sheet_params$/, what: "sheet upload (no file / bogus template)" },
+  { method: "POST", re: /^\/approval_workflow\/approval_requests(\/(resolve_approval|bulk_resolve|[^/]+\/withdraw_approval))?$/, what: "approval actions (bogus ids only)" },
+  { method: "PATCH", re: /^\/approval_workflow\/approval_requests\/[^/]+$/, what: "approval update (bogus id)" },
+];
+const DEEP_CASE = /^EDGE-D[A-Z]+-\d{3}$/;
+
+/**
+ * Publish / audience / participation edge cases that act ONLY on the run's
+ * own copy of the event (path and body name {{eventGroupUuid}} / {{tradeId}},
+ * the run's QA vendor, the run's own buyer, or a bogus id), and whose starting
+ * state a fresh copy has. Each runs on a copy of its own (caseLibrary.ts
+ * ownCopyReason), so whatever it changes, no other case inherits it.
+ *
+ * Scoped by case id, like ALLOW_DEEP: the endpoints are opened for these cases
+ * and no others. Cases on the same paths that need a state a fresh copy does
+ * not have (a closed stage, a proposal, a versioned event, a second buyer…)
+ * are listed with their reason in caseLibrary.ts STATE_NOT_BUILT; EDGE-BID-007
+ * (a user-intent row aimed at a real user record) and EDGE-BID-013/014 (a
+ * vendor outside the audience / a stage whose window is over) are left out.
+ */
+export const SANDBOX_PUB_CASES = new Set([
+  // PATCH /trade/:id — extend, end, close or cancel the copy's live stage
+  "EDGE-PUB-058", "EDGE-PUB-059", "EDGE-PUB-060", "EDGE-PUB-067", "EDGE-PUB-069", "EDGE-PUB-070",
+  "EDGE-PUB-071", "EDGE-PUB-072", "EDGE-PUB-073", "EDGE-PUB-074",
+  // PATCH /v1/trade/remove_audience — the invited vendor tries to remove a vendor
+  "EDGE-PUB-042",
+  // POST /event_groups/:id/participants — the invited vendor joins an open tender
+  "EDGE-PUB-049", "EDGE-PUB-051",
+  // PATCH /event_groups/:id/reject_participant — remarks missing / not participated / vendor caller
+  "EDGE-PUB-053", "EDGE-PUB-054", "EDGE-PUB-056",
+  // POST /event_groups/:id/change_ownership — blank owner / vendor caller
+  "EDGE-PUB-090", "EDGE-PUB-092",
+  // POST /event_groups/:id/create_clone — the copy cloned / a vendor tries
+  "EDGE-PUB-109", "EDGE-PUB-113",
+  // POST /user_intents — the invited vendor declines (or accepts) the copy's stage
+  "EDGE-BID-001", "EDGE-BID-002", "EDGE-BID-003", "EDGE-BID-004", "EDGE-BID-005", "EDGE-BID-006",
+  "EDGE-BID-008", "EDGE-BID-009", "EDGE-BID-010", "EDGE-BID-011", "EDGE-BID-012",
+]);
+
+/** Methods exactly as procol-backend config/routes.rb declares them. */
+const ALLOW_SANDBOX_PUB: AllowRule[] = [
+  // resources :trade, only: [:show, :update] → PATCH /trade/:id
+  { method: "PATCH", re: /^\/trade\/[^/?]+$/, what: "edit the copy's stage (extend / end / close)" },
+  // v1 scope :trade → patch 'remove_audience' => 'trade#remove_audience_live_auction'
+  { method: "PATCH", re: /^\/v1\/trade\/remove_audience(\?|$)/, what: "remove a vendor from the copy's stage" },
+  // event_groups scope → post ':id/participants' => 'event_groups#participate'
+  { method: "POST", re: /^\/event_groups\/[^/]+\/participants$/, what: "join the copy as a vendor" },
+  // patch '/:id/reject_participant' => 'event_groups#reject_participant'
+  { method: "PATCH", re: /^\/event_groups\/[^/]+\/reject_participant$/, what: "reject a participant of the copy" },
+  // post ':id/change_ownership' / post ':id/create_clone'
+  { method: "POST", re: /^\/event_groups\/[^/]+\/(change_ownership|create_clone)$/, what: "hand over / clone the copy" },
+  // resources :user_intents, only: [:create] → POST /user_intents
+  { method: "POST", re: /^\/user_intents$/, what: "the vendor's participate / decline answer on the copy" },
+];
+
 /** The endpoint menu the LLM is shown — kept in sync with ALLOW above. */
 const ENDPOINT_MENU = `
 READS (safe, use freely for negative/robustness checks):
@@ -193,6 +291,8 @@ export interface DynamicContext {
   vbuRealMail?: boolean;
   /** false = skip bulk cases that create test vendors */
   vbuCreate?: boolean;
+  /** company settings some edge cases depend on (caseLibrary.ts resolveCaseSettings); null = could not be read */
+  caseSettings?: Record<string, boolean | null>;
 }
 
 export interface DynamicSpec {
@@ -423,7 +523,9 @@ export function gate(
   if (typeof path !== "string" || !path.startsWith("/"))
     return { check: null, reason: "path is missing or not absolute" };
 
-  const allowed = curated ? [...ALLOW, ...ALLOW_CURATED] : ALLOW;
+  const allowed = curated
+    ? [...ALLOW, ...ALLOW_CURATED, ...(DEEP_CASE.test(id) ? ALLOW_DEEP : []), ...(SANDBOX_PUB_CASES.has(id) ? ALLOW_SANDBOX_PUB : [])]
+    : ALLOW;
   const rule = allowed.find((r) => r.method === method && r.re.test(path));
   if (!rule) return { check: null, reason: `${method} ${path} is not on the allowlist` };
 

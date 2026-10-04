@@ -41,6 +41,8 @@ export interface DraftRecord {
   gaps: string[];
   partialOf: string[];
   apiCase?: unknown;
+  /** the API test compiler's plan (apiPlanner.ts), stored inside api_case as { apiPlan } */
+  apiPlan?: unknown;
   uiPlan?: unknown;
   lastRun?: unknown;
   companyId?: number;
@@ -128,7 +130,7 @@ export function draftMarkdown(d: DraftRecord): string {
     `- **Steps.** ${steps}`,
     `- **Expected.** ${d.expected}`,
     `- **Oracle.** ${d.oracle}`,
-    `- **Trace.** ${d.priority} · draft · \`${d.id}\` · layer ${d.layer} · coverage ${d.coverage}${d.partialOf.length ? ` · overlaps ${d.partialOf.slice(0, 3).map((x) => `\`${x}\``).join(", ")}` : ""} · typed: “${d.typed.replace(/\s+/g, " ").slice(0, 200)}”`,
+    `- **Trace.** ${d.priority} · draft · \`${d.id}\` · layer ${d.layer} · coverage ${d.coverage}${(d.apiPlan as { setup?: { recipe?: string } } | undefined)?.setup?.recipe ? ` · api plan on \`${(d.apiPlan as { setup: { recipe: string } }).setup.recipe}\`` : ""}${d.partialOf.length ? ` · overlaps ${d.partialOf.slice(0, 3).map((x) => `\`${x}\``).join(", ")}` : ""} · typed: “${d.typed.replace(/\s+/g, " ").slice(0, 200)}”`,
     "",
   ].join("\n");
 }
@@ -168,7 +170,7 @@ export async function saveDraft(d: DraftRecord): Promise<{ id: string; mdFile: s
        ON CONFLICT (id) DO UPDATE SET last_run = EXCLUDED.last_run, updated_at = now()`,
       [
         d.id, d.area, d.typed, d.title, d.setup, d.steps, d.expected, d.oracle, d.layer, d.coverage, d.gaps, d.partialOf,
-        d.apiCase ? JSON.stringify(d.apiCase) : null,
+        d.apiCase || d.apiPlan ? JSON.stringify({ ...((d.apiCase as object) ?? {}), ...(d.apiPlan ? { apiPlan: d.apiPlan } : {}) }) : null,
         d.uiPlan ? JSON.stringify(d.uiPlan) : null,
         d.lastRun ? JSON.stringify(d.lastRun) : null,
         d.companyId ?? null, md, file,

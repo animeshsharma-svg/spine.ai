@@ -1,0 +1,71 @@
+{
+ "meta": {
+  "twinId": "EVD2-RGT-011",
+  "caseId": "API-EVDRGT-011",
+  "area": "rgt",
+  "title": "One-round event: the vendor can quote again on a regretted line, but the line stays flagged",
+  "compiledAt": "2026-10-03T12:53:53.273Z",
+  "planVersion": 1,
+  "priority": "P1",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-011",
+  "title": "One-round event: the vendor can quote again on a regretted line, but the line stays flagged",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EVD2-RGT-011",
+    "expect": "accept",
+    "say": "One-round event: the vendor can quote again on a regretted line, but the line stays flagged"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "ifRefused": "inconclusive"
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "ifRefused": "inconclusive"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor",
+    "expect": "accept",
+    "decisive": true,
+    "say": "QA vendor 1 bids again on the line it regretted"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

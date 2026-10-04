@@ -62,6 +62,15 @@ export interface RunRecord {
    * because these cases exist only in this run.
    */
   pastedCases?: TestCaseRecord[];
+  /**
+   * Who or what started the run, when the caller knows: manual | assistant |
+   * ci | nightly | backend-watch | hubspot | agent. Optional — without it the
+   * database infers it from `request` and says so (trigger_basis 'inferred').
+   * SPINE_TRIGGER in the environment does the same for a whole process.
+   */
+  trigger?: "manual" | "assistant" | "ci" | "nightly" | "backend-watch" | "hubspot" | "agent";
+  /** the person or service behind `trigger`, in words ("nightly", an email) */
+  triggeredBy?: string;
 }
 
 export interface RunSummary {
@@ -96,12 +105,40 @@ export function newRunId(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+/** Database copies still in flight (see whenRunsSaved). */
+const pendingCopies = new Set<Promise<void>>();
+
 export function saveRun(rec: RunRecord): void {
   ensureDir();
   writeFileSync(join(RUNS_DIR, `${rec.id}.json`), JSON.stringify(rec, null, 0));
   // A copy in spine.ai's database, for track records across runs. Best-effort
   // and in the background: the file above is what the run depends on.
-  void recordRun(rec);
+  const p: Promise<void> = recordRun(rec).finally(() => pendingCopies.delete(p));
+  pendingCopies.add(p);
+}
+
+/**
+ * Wait (bounded) for the background database copies of saved runs to finish.
+ *
+ * A script that calls process.exit() right after saveRun() cuts its copy off:
+ * the run is on disk but not in the database, so /api/metrics and the
+ * history do not count it (db:reconcile found 9 such runs). Call this before
+ * exiting. Resolves true when every copy finished, false when `timeoutMs`
+ * passed first (the copy is then left to `npm run db:backfill`).
+ */
+export async function whenRunsSaved(timeoutMs = 15_000): Promise<boolean> {
+  if (!pendingCopies.size) return true;
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(false), timeoutMs);
+    timer.unref?.();
+  });
+  const done = Promise.allSettled([...pendingCopies]).then(() => true);
+  try {
+    return await Promise.race([done, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function getRun(id: string): RunRecord | null {

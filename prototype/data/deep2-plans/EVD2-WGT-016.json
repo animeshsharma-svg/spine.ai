@@ -1,0 +1,57 @@
+{
+ "meta": {
+  "twinId": "EVD2-WGT-016",
+  "caseId": "API-EVDWGT-016",
+  "area": "wgt",
+  "title": "Saving a new value for the same weight replaces the old one",
+  "compiledAt": "2026-10-03T12:53:53.287Z",
+  "planVersion": 1,
+  "priority": "P0",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDWGT-016",
+  "title": "Saving a new value for the same weight replaces the old one",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-WGT-H01",
+    "expect": "accept",
+    "say": "The buyer saves qa_freight_adj = 100."
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-WGT-016",
+    "decisive": true,
+    "say": "Saving a new value for the same weight replaces the old one"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "weightages.values.qa_freight_adj.data.{{vendorUuid}}",
+      "op": "equals",
+      "value": "250.0"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

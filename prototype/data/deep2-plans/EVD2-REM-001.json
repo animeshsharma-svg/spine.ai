@@ -1,0 +1,40 @@
+{
+ "meta": {
+  "twinId": "EVD2-REM-001",
+  "caseId": "API-EVDREM-001",
+  "area": "rem",
+  "title": "A live RFQ with no bids lists the invited vendor under \"Offer submissions\"",
+  "compiledAt": "2026-10-03T12:53:53.270Z",
+  "planVersion": 1,
+  "priority": "P0",
+  "runner": "direct",
+  "source": "direct",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "direct": {
+  "method": "GET",
+  "path": "/reminders/{{eventGroupUuid}}?resource_type=event_group",
+  "body": {},
+  "actor": "buyer",
+  "recipe": "published_rfq",
+  "expected": "accept",
+  "expectedResult": "HTTP 200. Offer submissions lists exactly one vendor (QA vendor 1) with the RFQ round under 'Bid Pending For', no last-reminded time and remindable (can_remind true); pending evaluations, counter offers, best offer, cost breakdown and auction reminders are null; approvals null unless the company has a pending approval on the event.",
+  "assert": [
+   {
+    "path": "offer_submissions.total_count",
+    "op": "equals",
+    "value": 1,
+    "say": "one vendor is pending an offer"
+   },
+   {
+    "path": "offer_submissions.recipients[0].recipient_uuid",
+    "op": "equals",
+    "value": "{{vendorUuid}}",
+    "say": "the pending vendor is QA vendor 1"
+   }
+  ]
+ }
+}

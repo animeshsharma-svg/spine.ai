@@ -1,0 +1,77 @@
+{
+ "meta": {
+  "caseId": "API-STG-002",
+  "title": "An auction stage is created with a rank strategy",
+  "compiledAt": "2026-10-03T09:42:58.880Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "Setting specific auction configuration options like auction_config: rank directly in add_rfq_round is not supported by the available body fields."
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with the value 10, with the bid start time moved later, with the bid end time moved later.",
+    "As the buyer, read the pricing round and check that “status” is present."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” is present."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-STG-002",
+  "title": "An auction stage is created with a rank strategy",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "data[0].creator_quantity.value",
+      "set": 10
+     },
+     {
+      "path": "configurations.bid_start_time",
+      "set": "{{now}}"
+     },
+     {
+      "path": "configurations.bid_end_time",
+      "set": "{{now+600}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "exists"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

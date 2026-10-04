@@ -1,0 +1,68 @@
+{
+ "meta": {
+  "caseId": "API-STG-001",
+  "title": "An RFQ stage is created against a draft event group",
+  "compiledAt": "2026-10-03T09:42:41.050Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /trade/template_input",
+   "GET /trade/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh draft event with one line item and no rounds.",
+   "steps": [
+    "The buyer adds a pricing (RFQ) round to the event with the title set to “QA_Platform_RFQ Stage …”.",
+    "As the buyer, read the pricing round and check that “status” equals draft."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” equals draft."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-STG-001",
+  "title": "An RFQ stage is created against a draft event group",
+  "setup": {
+   "recipe": "draft_event"
+  },
+  "act": [
+   {
+    "op": "add_rfq_round",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "configurations.title",
+      "set": "QA_Platform_RFQ Stage {{stamp}}"
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "draft"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

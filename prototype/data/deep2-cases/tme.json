@@ -1,0 +1,906 @@
+[
+ {
+  "id": "EVD2-TME-001",
+  "catalogId": "API-EVDTME-001",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_started_round_cannot_be_rescheduled_clock_unchanged",
+  "type": "Negative",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "A fresh live RFQ whose bidding started when it was published (about 20 minutes open), QA vendor 1 invited, no bids.",
+  "steps": [
+   "1. The buyer asks to move the round to start in one hour and end in two hours.",
+   "2. Read the round back."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "bid_start_time": "{{now+3600}}",
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 258 'You cannot re-schedule this event!'. The round still starts in the past and ends at its original time.",
+  "rationale": "Moving a live round's start would close bidding under vendors who are quoting; the refusal must also leave the clock untouched.",
+  "source": "app/controllers/api/trade_controller.rb:399-408,590-606",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "code": "258"
+  }
+ },
+ {
+  "id": "EVD2-TME-002",
+  "catalogId": "API-EVDTME-002",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_started_round_reversed_window_refused_by_started_rule",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFQ, bidding started at publish, no bids.",
+  "steps": [
+   "1. The buyer asks to reschedule with an end time one hour BEFORE the new start time."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "bid_start_time": "{{now+7200}}",
+   "bid_end_time": "{{now+3600}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused by the 'already started' rule, which runs before any time check: HTTP 422, code 258 'You cannot re-schedule this event!'.",
+  "rationale": "Shows the guard order: a started round answers 258 whatever the times are (the reschedule path itself has no end-after-start check, see API-EVDTME-018).",
+  "source": "app/controllers/api/trade_controller.rb:605-606",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "code": "258"
+  }
+ },
+ {
+  "id": "EVD2-TME-003",
+  "catalogId": "API-EVDTME-003",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_started_round_text_times_refused_without_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFQ, bidding started at publish, no bids.",
+  "steps": [
+   "1. The buyer sends a reschedule whose start and end are words instead of times."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "bid_start_time": "QA_Platform_later_{{stamp}}",
+   "bid_end_time": "QA_Platform_later_{{stamp}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused cleanly before the text reaches the time conversion: HTTP 422, code 258 'You cannot re-schedule this event!' (never a 500).",
+  "rationale": "On an upcoming round the same text crashes in Time.at (API-EVDTME-023); on a started round the 258 guard must come first.",
+  "source": "app/controllers/api/trade_controller.rb:605-606; app/controllers/concerns/trade_controller_helper.rb:541",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "code": "258"
+  }
+ },
+ {
+  "id": "EVD2-TME-004",
+  "catalogId": "API-EVDTME-004",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_only_new_start_time_is_silently_ignored",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh live RFQ, bidding started at publish, no bids.",
+  "steps": [
+   "1. The buyer sends only a new start time (one hour from now), no end time.",
+   "2. Read the round back."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "bid_start_time": "{{now+3600}}"
+  },
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 and nothing changes — the reschedule branch needs BOTH times, so the request falls through to a generic save. The round still starts in the past. Should be refused (code 2) so the caller knows nothing happened.",
+  "rationale": "A silent 200 tells an integration or a stale screen that the reschedule worked when it did not.",
+  "source": "app/controllers/api/trade_controller.rb:605,635-779",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-TME-005",
+  "catalogId": "API-EVDTME-005",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_only_new_end_time_does_not_extend_round",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh live RFQ, bidding open about 20 minutes, no bids.",
+  "steps": [
+   "1. The buyer sends only a new end time two hours from now (no start time, no increase_auction_time).",
+   "2. Read the round back."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 but the round's end does not move — bid_end_time on its own is neither a reschedule nor an extension. Should be refused (code 2) or applied.",
+  "rationale": "A buyer (or Clara/an integration) that 'extends' by sending bid_end_time gets a success while vendors are still cut off at the old time.",
+  "source": "app/controllers/api/trade_controller.rb:605,642",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-TME-006",
+  "catalogId": "API-EVDTME-006",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_started_technical_round_cannot_be_rescheduled",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh live RFP+RFQ event; both rounds started at publish; QA vendor 1 invited to both.",
+  "steps": [
+   "1. The buyer asks to move the technical (RFP) round to start in one hour and end in two hours."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{rfpTradeId}}",
+  "body": {
+   "bid_start_time": "{{now+3600}}",
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 258 'You cannot re-schedule this event!'. The evaluator step that runs first for technical rounds only acts when forms are sent, so nothing is written.",
+  "rationale": "Technical rounds take a slightly different path (evaluator handling, closed allowed); the started rule must still hold.",
+  "source": "app/controllers/api/trade_controller.rb:590-606,600-602,1848-1857",
+  "plan": {
+   "recipe": "published_rfp_rfq",
+   "actor": "buyer",
+   "code": "258"
+  }
+ },
+ {
+  "id": "EVD2-TME-007",
+  "catalogId": "API-EVDTME-007",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_closed_technical_round_cannot_be_rescheduled",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh RFP+RFQ event whose technical response is in and whose windows are both over.",
+  "steps": [
+   "1. The buyer asks to move the closed technical round to a new window in the future."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{rfpTradeId}}",
+  "body": {
+   "bid_start_time": "{{now+3600}}",
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 258 'You cannot re-schedule this event!' — technical rounds stay editable after close (closed is an allowed status for RFP), so the started rule is what stops it.",
+  "rationale": "Re-opening a finished technical round by 'rescheduling' it would wipe the evaluation timeline; extensions have their own reopen rules.",
+  "source": "app/controllers/api/trade_controller.rb:590-594,605-606",
+  "plan": {
+   "recipe": "closed_rfp_rfq_with_tech_response",
+   "actor": "buyer",
+   "code": "258"
+  }
+ },
+ {
+  "id": "EVD2-TME-008",
+  "catalogId": "API-EVDTME-008",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_closed_pricing_round_cannot_be_rescheduled",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh RFQ whose bidding window and extra closing time are over; QA vendor 1 invited, no bids.",
+  "steps": [
+   "1. The buyer asks to move the closed round to a new window in the future."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "bid_start_time": "{{now+3600}}",
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused (HTTP 422): code 4 'Request not found' once the round's status is closed (RFQ rounds are not editable when closed), or code 258 'You cannot re-schedule this event!' if the close worker has not flipped the status yet.",
+  "rationale": "A closed commercial round must never be reopened through the reschedule path.",
+  "source": "app/controllers/api/trade_controller.rb:590-594,605-606",
+  "plan": {
+   "recipe": "closed_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-TME-009",
+  "catalogId": "API-EVDTME-009",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_awarded_round_cannot_be_rescheduled",
+  "type": "Negative",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh RFQ where QA vendor 1 bid, the round closed, and an award proposal was created and submitted.",
+  "steps": [
+   "1. The buyer asks to move the awarded round to a new window in the future."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "bid_start_time": "{{now+3600}}",
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused (HTTP 422): code 769 'You cannot edit rfq once the auction is created.' where the company has rfx projects on (a submitted proposal restricts RFQ changes), otherwise code 4 'Request not found' (closed) or 258 'You cannot re-schedule this event!'.",
+  "rationale": "Moving the clock of an awarded round would orphan the award.",
+  "source": "app/controllers/api/trade_controller.rb:408,590-606; app/models/model_helpers/trade_request_model_helper.rb:1434-1445",
+  "plan": {
+   "recipe": "awarded_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-TME-010",
+  "catalogId": "API-EVDTME-010",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_reschedule_unknown_round",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed-in QA buyer; no event needed.",
+  "steps": [
+   "1. The buyer asks to reschedule a round id that does not exist."
+  ],
+  "method": "PATCH",
+  "path": "/trade/Z2dnWmdaUWtnZw==",
+  "body": {
+   "bid_start_time": "{{now+3600}}",
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' (the id decodes to 999999999, no such round).",
+  "rationale": "Bogus ids must fail closed before any policy or schedule logic.",
+  "source": "app/controllers/api/trade_controller.rb:400-402",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-011",
+  "catalogId": "API-EVDTME-011",
+  "feature": "erfx.schedule",
+  "title": "QA_Platform_reschedule_garbled_round_id",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed-in QA buyer; no event needed.",
+  "steps": [
+   "1. The buyer asks to reschedule using a garbled round id."
+  ],
+  "method": "PATCH",
+  "path": "/trade/WrongUuid1=",
+  "body": {
+   "bid_start_time": "{{now+3600}}",
+   "bid_end_time": "{{now+7200}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' (the id decodes to nothing, find_by_id(nil) is nil).",
+  "rationale": "A garbled id must not crash the lookup.",
+  "source": "app/controllers/api/trade_controller.rb:400-402; app/controllers/concerns/params_auth.rb:57-66",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-041",
+  "catalogId": "API-EVDTME-041",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_staggered_time_on_draft_round_not_found",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh draft event with an RFQ round that is not published.",
+  "steps": [
+   "1. The buyer sends per-line times for one line (start in 1 minute, end in 10 minutes)."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}/staggered_time",
+  "body": {
+   "trade_products_time": {
+    "999999999": {
+     "start_time": "{{now+60}}",
+     "end_time": "{{now+600}}"
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' — only rounds in status active are looked up, so a draft is invisible here.",
+  "rationale": "staggered_time has no permission check of its own; the only thing standing between a caller and the schedule is this lookup, so it must hold in every state.",
+  "source": "app/controllers/api/trade_controller.rb:1408-1411",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-042",
+  "catalogId": "API-EVDTME-042",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_staggered_time_on_closed_round_not_found",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh RFQ whose bidding window and extra closing time are over; no bids.",
+  "steps": [
+   "1. The buyer sends per-line times for one line (start in 1 minute, end in 10 minutes)."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}/staggered_time",
+  "body": {
+   "trade_products_time": {
+    "999999999": {
+     "start_time": "{{now+60}}",
+     "end_time": "{{now+600}}"
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' — either the round is no longer active, or it is not a staggered round; both answer 4.",
+  "rationale": "staggered_time has no permission check of its own; the only thing standing between a caller and the schedule is this lookup, so it must hold in every state.",
+  "source": "app/controllers/api/trade_controller.rb:1408-1412",
+  "plan": {
+   "recipe": "closed_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-043",
+  "catalogId": "API-EVDTME-043",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_staggered_time_on_technical_round_refused",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFP+RFQ event; the technical round is open.",
+  "steps": [
+   "1. The buyer sends per-line times for one line (start in 1 minute, end in 10 minutes)."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{rfpTradeId}}/staggered_time",
+  "body": {
+   "trade_products_time": {
+    "999999999": {
+     "start_time": "{{now+60}}",
+     "end_time": "{{now+600}}"
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' — a technical round never has per-line closing.",
+  "rationale": "staggered_time has no permission check of its own; the only thing standing between a caller and the schedule is this lookup, so it must hold in every state.",
+  "source": "app/controllers/api/trade_controller.rb:1408-1412; app/controllers/concerns/trade_template_helper.rb:1626-1630",
+  "plan": {
+   "recipe": "published_rfp_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-044",
+  "catalogId": "API-EVDTME-044",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_staggered_time_on_awarded_round_refused",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh RFQ with QA vendor 1's bid, closed, award proposal submitted.",
+  "steps": [
+   "1. The buyer sends per-line times for one line (start in 1 minute, end in 10 minutes)."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}/staggered_time",
+  "body": {
+   "trade_products_time": {
+    "999999999": {
+     "start_time": "{{now+60}}",
+     "end_time": "{{now+600}}"
+    }
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' — the round is closed or not staggered; nothing about the award is touched.",
+  "rationale": "staggered_time has no permission check of its own; the only thing standing between a caller and the schedule is this lookup, so it must hold in every state.",
+  "source": "app/controllers/api/trade_controller.rb:1408-1412",
+  "plan": {
+   "recipe": "awarded_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-054",
+  "catalogId": "API-EVDTME-054",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_lines_with_null_line_list_crashes",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh live RFQ (not staggered); QA vendor 1 invited, no bids.",
+  "steps": [
+   "1. The buyer asks to reopen lines, sending the line list as null and a 10-minute extension."
+  ],
+  "method": "POST",
+  "path": "/trade/{{tradeId}}/reopen_line_items",
+  "body": {
+   "trade_product_uuids": null,
+   "reopen_time_extension": 600
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused cleanly (422 code 2, or code 4 for a round that is not staggered). Today the id decoding that runs before every action calls .map on null for any key ending in 'uuids' (params_auth.rb:72-73) and the request fails with HTTP 500 before the controller runs.",
+  "rationale": "trade_product_uuids is the exact key the Reopen Line Items drawer sends; a null from a bad client must not be a server error.",
+  "source": "app/controllers/concerns/params_auth.rb:72-73; app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-TME-057",
+  "catalogId": "API-EVDTME-057",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_lines_on_non_staggered_round_not_found",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFQ (not staggered), QA vendor 1 invited, no bids. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen one line for 10 minutes on a normal (not staggered) live RFQ."
+  ],
+  "method": "POST",
+  "path": "/trade/{{tradeId}}/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": 600
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' — reopening exists only on staggered line-item auctions.",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-058",
+  "catalogId": "API-EVDTME-058",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_without_lines_round_check_comes_first",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFQ (not staggered), QA vendor 1 invited, no bids. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen lines without naming any line."
+  ],
+  "method": "POST",
+  "path": "/trade/{{tradeId}}/reopen_line_items",
+  "body": {
+   "reopen_time_extension": 600
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' — the round check runs before the parameter check, so the missing lines are never reported here (on a staggered round the same body answers code 2, API-EVDTME-051).",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-059",
+  "catalogId": "API-EVDTME-059",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_zero_extension_round_check_comes_first",
+  "type": "Boundary",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFQ (not staggered), QA vendor 1 invited, no bids. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen one line for 0 seconds."
+  ],
+  "method": "POST",
+  "path": "/trade/{{tradeId}}/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": 0
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' (round check first; on a staggered round: code 2).",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-060",
+  "catalogId": "API-EVDTME-060",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_word_extension_round_check_comes_first",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFQ (not staggered), QA vendor 1 invited, no bids. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen one line with the extension written as a word."
+  ],
+  "method": "POST",
+  "path": "/trade/{{tradeId}}/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": "QA_Platform_ten_minutes_{{stamp}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' (round check first; on a staggered round a word converts to 0 and answers code 2).",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-061",
+  "catalogId": "API-EVDTME-061",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_lines_unknown_round",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed-in QA buyer; no event needed. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen lines on a round id that does not exist."
+  ],
+  "method": "POST",
+  "path": "/trade/Z2dnWmdaUWtnZw==/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": 600
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found'.",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-062",
+  "catalogId": "API-EVDTME-062",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_lines_garbled_round_id",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed-in QA buyer; no event needed. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen lines using a garbled round id."
+  ],
+  "method": "POST",
+  "path": "/trade/WrongUuid1=/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": 600
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' (the id decodes to nothing).",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-063",
+  "catalogId": "API-EVDTME-063",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_lines_on_draft_round_not_found",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh draft event with an unpublished RFQ round. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen a line on a round that is still a draft."
+  ],
+  "method": "POST",
+  "path": "/trade/{{tradeId}}/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": 600
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' — only active rounds of the buyer's own company are looked up.",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-064",
+  "catalogId": "API-EVDTME-064",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_lines_on_closed_round_not_found",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh RFQ whose window and extra closing time are over; no bids. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen a line after the round has fully closed."
+  ],
+  "method": "POST",
+  "path": "/trade/{{tradeId}}/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": 600
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found' (not active, or not staggered — both answer 4).",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "closed_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-065",
+  "catalogId": "API-EVDTME-065",
+  "feature": "auction.serial_bidding",
+  "title": "QA_Platform_reopen_lines_on_technical_round_refused",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "A fresh live RFP+RFQ event. The buyer has create permission (the permission check that runs first passes).",
+  "steps": [
+   "1. The buyer asks to reopen a line on the live technical (RFP) round."
+  ],
+  "method": "POST",
+  "path": "/trade/{{rfpTradeId}}/reopen_line_items",
+  "body": {
+   "trade_product_uuids": [
+    "Z2dnWmdaUWtnZw=="
+   ],
+   "reopen_time_extension": 600
+  },
+  "expected": "reject",
+  "expectedResult": "Refused: HTTP 422, code 4 'Request not found'.",
+  "rationale": "reopen_line_items had no case at all; these pin its guard order (create permission, then own-company active round, then staggered, then parameters) on states the run can build.",
+  "source": "app/controllers/api/trade_controller.rb:1426-1437",
+  "plan": {
+   "recipe": "published_rfp_rfq",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-TME-066",
+  "catalogId": "API-EVDTME-066",
+  "feature": "bids.place",
+  "title": "QA_Platform_vendor_cannot_bid_after_end_pulled_in",
+  "type": "Workflow",
+  "priority": "P0",
+  "severity": "High",
+  "preconditions": "A fresh live RFQ open about 20 minutes, QA vendor 1 invited, no bids. counter_offer_modification_enabled is OFF on the round (otherwise a vendor may still open a draft during the extra closing time).",
+  "steps": [
+   "1. The buyer sends an extension whose new end is 90 seconds from now (earlier than the current end).",
+   "2. Wait until that new end has passed.",
+   "3. QA vendor 1 tries to place a bid.",
+   "4. Read the round back."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "increase_auction_time": "{{now+90}}",
+   "remarks": "QA_Platform_shorten_{{stamp}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Step 1 is accepted (Expected today — nothing stops an 'extension' to an earlier time, which cuts ~18 minutes off the vendors' window). Step 3 is refused: HTTP 422, code 33 'Order not active'. The read-back shows the bid end in the past.",
+  "rationale": "Vendors plan their quote around the published end; the extension field can silently shorten it, and the bid lock-out follows the new clock.",
+  "source": "app/controllers/concerns/trade_controller_helper.rb:5824-5833; app/helpers/api/v1/bids_controller_helper.rb:71-73; app/models/trade_request.rb:1191-1194",
+  "plan": {
+   "recipe": "published_rfq",
+   "dependsOnSetting": "counter_offer_modification_enabled is OFF on the round (otherwise a vendor may still open a draft during the extra closing time)",
+   "code": "33",
+   "act": [
+    {
+     "op": "extend_round",
+     "as": "buyer",
+     "change": [
+      {
+       "path": "increase_auction_time",
+       "set": "{{now+90}}"
+      }
+     ],
+     "expect": "accept",
+     "say": "The buyer moves the bid end IN to 90 seconds from now (an 'extension' to an earlier time)."
+    },
+    {
+     "op": "wait",
+     "params": {
+      "until": "bid_end"
+     },
+     "say": "Wait until the new (earlier) bid end has passed."
+    },
+    {
+     "op": "place_bid",
+     "as": "vendor",
+     "decisive": true,
+     "say": "QA vendor 1 tries to bid after the new end."
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-TME-067",
+  "catalogId": "API-EVDTME-067",
+  "feature": "bids.place",
+  "title": "QA_Platform_draft_opened_before_end_pulled_in_cannot_be_priced",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "A fresh live RFQ open about 20 minutes, QA vendor 1 invited, no bids.",
+  "steps": [
+   "1. QA vendor 1 opens a draft bid while bidding is open.",
+   "2. The buyer moves the bid end in to 90 seconds from now.",
+   "3. Wait until that end has passed.",
+   "4. QA vendor 1 tries to price the line on the draft it opened in step 1."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "increase_auction_time": "{{now+90}}",
+   "remarks": "QA_Platform_shorten_{{stamp}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Step 4 is refused (HTTP 422): code 32 'Bid not found' once the end-of-bidding job has discarded drafts, otherwise code 33 'Order not active' (or 508 'Not allowed to bid on this product' where counter-offer modification is on and the round is in its extra closing time).",
+  "rationale": "A vendor half-way through a quote when the clock is pulled in must not be able to finish it after the new end.",
+  "source": "app/controllers/api/v1/bids_controller.rb:113-127; app/controllers/concerns/bids_controller_helper.rb:792-800; app/workers/delete_draft_bids_worker.rb:7-21",
+  "plan": {
+   "recipe": "published_rfq",
+   "act": [
+    {
+     "op": "open_bid",
+     "as": "vendor",
+     "expect": "accept",
+     "say": "QA vendor 1 opens a draft bid while bidding is open."
+    },
+    {
+     "op": "extend_round",
+     "as": "buyer",
+     "change": [
+      {
+       "path": "increase_auction_time",
+       "set": "{{now+90}}"
+      }
+     ],
+     "expect": "accept",
+     "say": "The buyer moves the bid end IN to 90 seconds from now (an 'extension' to an earlier time)."
+    },
+    {
+     "op": "wait",
+     "params": {
+      "until": "bid_end"
+     },
+     "say": "Wait until the new (earlier) bid end has passed."
+    },
+    {
+     "op": "price_bid",
+     "as": "vendor",
+     "decisive": true,
+     "say": "QA vendor 1 tries to price its draft after the new end."
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-TME-068",
+  "catalogId": "API-EVDTME-068",
+  "feature": "bids.place",
+  "title": "QA_Platform_vendor_cannot_revise_after_end_pulled_in",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "A fresh live RFQ where QA vendor 1 has submitted a bid; bidding still open. counter_offer_modification_enabled is OFF on the round (otherwise a vendor may still open a draft during the extra closing time).",
+  "steps": [
+   "1. The buyer moves the bid end in to 90 seconds from now.",
+   "2. Wait until that end has passed.",
+   "3. QA vendor 1 tries to revise (place a new bid)."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "increase_auction_time": "{{now+90}}",
+   "remarks": "QA_Platform_shorten_{{stamp}}"
+  },
+  "expected": "reject",
+  "expectedResult": "Step 3 is refused: HTTP 422, code 33 'Order not active'. The earlier submitted bid stays the vendor's quote.",
+  "rationale": "Revisions follow the moved clock too; a vendor that already quoted must not slip a better price in after the new end.",
+  "source": "app/helpers/api/v1/bids_controller_helper.rb:39-73",
+  "plan": {
+   "recipe": "rfq_with_bid",
+   "dependsOnSetting": "counter_offer_modification_enabled is OFF on the round (otherwise a vendor may still open a draft during the extra closing time)",
+   "code": "33",
+   "act": [
+    {
+     "op": "extend_round",
+     "as": "buyer",
+     "change": [
+      {
+       "path": "increase_auction_time",
+       "set": "{{now+90}}"
+      }
+     ],
+     "expect": "accept",
+     "say": "The buyer moves the bid end IN to 90 seconds from now (an 'extension' to an earlier time)."
+    },
+    {
+     "op": "wait",
+     "params": {
+      "until": "bid_end"
+     },
+     "say": "Wait until the new (earlier) bid end has passed."
+    },
+    {
+     "op": "place_bid",
+     "as": "vendor",
+     "decisive": true,
+     "say": "QA vendor 1 tries to revise after the new end."
+    }
+   ]
+  }
+ }
+]

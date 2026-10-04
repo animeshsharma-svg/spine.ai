@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T18:57:09.915Z",
+  "generatedAt": "2026-10-04T07:22:21.736Z",
   "steps": [
     {
       "name": "open_events_list",
@@ -326,6 +326,205 @@
         "stages": "array of \"rfp\" | \"rfq\" | \"auction\""
       },
       "assertion": true
+    },
+    {
+      "name": "go_to",
+      "generic": true,
+      "purpose": "Navigate to a screen that has no domain step: a published event's stage tab or one of its sub-tabs (responses, overview, participants, analytics, price trends, participant remarks), any tab by name, or a console path. Waits for the screen to be ready. Prefer open_events_list / open_event / open_create / open_master_qcs / open_participants when they fit.",
+      "args": {
+        "screen": "\"stage\" | \"responses\" | \"overview\" | \"participants\" | \"analytics\" | \"price_trends\" | \"participant_remarks\" | \"tab\" | \"path\" | \"events_list\" | \"event\" | \"master_qcs\"",
+        "stage": "for screen \"stage\": \"rfq\" | \"rfp\" | \"auction\" (optional; default the first stage tab)",
+        "name": "for screen \"tab\": the tab's visible name",
+        "path": "for screen \"path\": a console path such as \"/orders\" (no host)",
+        "title": "for screen \"event\": the event title (default: this plan's own event)"
+      }
+    },
+    {
+      "name": "click",
+      "generic": true,
+      "purpose": "Click an element named by role+name, label or text (e.g. the toolbar \"Items\" button, a menu item, a radio). Fails if the element is not found or is disabled — use attempt{step:\"click\"} when the case expects the click to be refused.",
+      "args": {
+        "role": "ARIA role when it is a control: button | link | tab | menuitem | checkbox | switch | radio | textbox | combobox | row | heading | dialog (optional)",
+        "name": "the control's visible name, exactly as on screen, e.g. \"Items\", \"Add Bid\" (with role)",
+        "label": "a form field's label (instead of role+name)",
+        "text": "plain visible text (instead of role+name)",
+        "placeholder": "an input's placeholder (instead of label)",
+        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in"
+      }
+    },
+    {
+      "name": "hover",
+      "generic": true,
+      "purpose": "Hover an element (to reveal its tooltip or menu). Pair with expect_message{kind:\"tooltip\"}.",
+      "args": {
+        "role": "ARIA role when it is a control: button | link | tab | menuitem | checkbox | switch | radio | textbox | combobox | row | heading | dialog (optional)",
+        "name": "the control's visible name, exactly as on screen, e.g. \"Items\", \"Add Bid\" (with role)",
+        "label": "a form field's label (instead of role+name)",
+        "text": "plain visible text (instead of role+name)",
+        "placeholder": "an input's placeholder (instead of label)",
+        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in"
+      }
+    },
+    {
+      "name": "fill",
+      "generic": true,
+      "purpose": "Type a value into a text field found by its label or placeholder (or role textbox + name), then confirm the field holds it.",
+      "args": {
+        "label": "field label or placeholder",
+        "value": "text to type"
+      }
+    },
+    {
+      "name": "select",
+      "generic": true,
+      "purpose": "Choose an option in a dropdown/select found by its label (antd or native), then confirm the select shows it.",
+      "args": {
+        "label": "the select's label or placeholder",
+        "option": "visible text of the option to choose"
+      }
+    },
+    {
+      "name": "toggle",
+      "generic": true,
+      "purpose": "Set a switch or checkbox found by its label to on or off, then confirm its state.",
+      "args": {
+        "label": "switch/checkbox label",
+        "on": "true | false"
+      }
+    },
+    {
+      "name": "upload",
+      "generic": true,
+      "purpose": "Attach a fixture file to an upload control found by its label/text (opens the file chooser or fills the file input).",
+      "args": {
+        "label": "the upload control's label or text",
+        "file": "\"sample.pdf\" | \"sample.png\" | \"sample.csv\" | \"sample.txt\" (fixtures only)"
+      }
+    },
+    {
+      "name": "press",
+      "generic": true,
+      "purpose": "Press a keyboard key on the current screen (Escape to close a drawer, Enter to submit a search).",
+      "args": {
+        "key": "\"Escape\" | \"Enter\" | \"Tab\" | …"
+      }
+    },
+    {
+      "name": "expect_text",
+      "generic": true,
+      "assertion": true,
+      "purpose": "Assert a text IS (present:true, default) or is NOT (present:false) visible on the current screen, optionally inside a region. An absence check waits for the screen to be ready first.",
+      "args": {
+        "text": "the text",
+        "present": "true | false",
+        "within": "region (optional)"
+      }
+    },
+    {
+      "name": "expect_visible",
+      "generic": true,
+      "assertion": true,
+      "purpose": "Assert an element (by role+name / label / text) is visible (visible:true, default) or absent (visible:false). Use for 'the drawer opens', 'no price drawer', 'the Recurring toggle is shown'.",
+      "args": {
+        "role": "ARIA role when it is a control: button | link | tab | menuitem | checkbox | switch | radio | textbox | combobox | row | heading | dialog (optional)",
+        "name": "the control's visible name, exactly as on screen, e.g. \"Items\", \"Add Bid\" (with role)",
+        "label": "a form field's label (instead of role+name)",
+        "text": "plain visible text (instead of role+name)",
+        "placeholder": "an input's placeholder (instead of label)",
+        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in",
+        "visible": "true | false"
+      }
+    },
+    {
+      "name": "expect_count",
+      "generic": true,
+      "assertion": true,
+      "purpose": "Count visible elements matching role+name / text and assert count (exact), min or max — e.g. zero \"Add Bid\" buttons, at least 1 row, exactly 2 stage tabs. Count 0 / max 0 is an absence check and waits for the screen to be ready.",
+      "args": {
+        "role": "ARIA role when it is a control: button | link | tab | menuitem | checkbox | switch | radio | textbox | combobox | row | heading | dialog (optional)",
+        "name": "the control's visible name, exactly as on screen, e.g. \"Items\", \"Add Bid\" (with role)",
+        "label": "a form field's label (instead of role+name)",
+        "text": "plain visible text (instead of role+name)",
+        "placeholder": "an input's placeholder (instead of label)",
+        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in",
+        "count": "exact number (optional)",
+        "min": "at least (optional)",
+        "max": "at most (optional)"
+      }
+    },
+    {
+      "name": "expect_value",
+      "generic": true,
+      "assertion": true,
+      "purpose": "Assert the value a field/select/radio group SHOWS — the input's value, the select's chosen option, the checked radio — found by its label. Case-insensitive contains.",
+      "args": {
+        "label": "field/select label",
+        "value": "expected value text"
+      }
+    },
+    {
+      "name": "expect_message",
+      "generic": true,
+      "assertion": true,
+      "purpose": "Assert the app shows a message of a kind — toast, error, warning, success, inline (form error), tooltip, modal — optionally containing text. For a tooltip, give `on` (the element to hover). Reads toasts that already faded via the run's toast journal.",
+      "args": {
+        "kind": "\"toast\" | \"error\" | \"warning\" | \"success\" | \"inline\" | \"tooltip\" | \"modal\" | \"any\"",
+        "text": "substring expected (optional)",
+        "on": "for tooltip: the visible name of the element to hover, e.g. \"Items\""
+      }
+    },
+    {
+      "name": "remember",
+      "generic": true,
+      "purpose": "Read and keep the text of an element or region under a key, so a later expect_remembered can compare (e.g. the line items before a rename).",
+      "args": {
+        "key": "a short name",
+        "role": "ARIA role when it is a control: button | link | tab | menuitem | checkbox | switch | radio | textbox | combobox | row | heading | dialog (optional)",
+        "name": "the control's visible name, exactly as on screen, e.g. \"Items\", \"Add Bid\" (with role)",
+        "label": "a form field's label (instead of role+name)",
+        "text": "plain visible text (instead of role+name)",
+        "placeholder": "an input's placeholder (instead of label)",
+        "within": "optional region: \"dialog\" | \"menu\" | the text of the row/card it sits in"
+      }
+    },
+    {
+      "name": "expect_remembered",
+      "generic": true,
+      "assertion": true,
+      "purpose": "Re-read what remember{key} read and assert it is the same (same:true, default) or changed (same:false).",
+      "args": {
+        "key": "the remember key",
+        "same": "true | false"
+      }
+    },
+    {
+      "name": "switch_company",
+      "generic": true,
+      "purpose": "Sign the console in as another QA test company (by company id) and reload — for cases comparing tenants. Only known QA tenants are allowed; never changes any setting.",
+      "args": {
+        "companyId": "numeric company id named by the case (e.g. 32461)"
+      }
+    },
+    {
+      "name": "skip",
+      "generic": true,
+      "purpose": "NEGATIVE TESTS ONLY: mark a mandatory step as deliberately left out (e.g. skip{step:\"select_template\"}) so it is not repaired back in. Must be followed by an assertion of the block (expect_publish_blocked, attempt, expect_error, expect_message, expect_disabled).",
+      "args": {
+        "step": "the domain step deliberately omitted",
+        "reason": "why (the case's premise)"
+      }
+    },
+    {
+      "name": "attempt",
+      "generic": true,
+      "assertion": true,
+      "purpose": "NEGATIVE TESTS: try an action the case says the app must REFUSE, and pass only on positive evidence of the refusal — an error/warning toast, an inline message, a disabled control, or (expect:\"nothing_opens\") no drawer/dialog opening on a ready screen. Fails if the app allows it, and fails as 'could not tell' if the action broke for our own reasons. For a refused PUBLISH prefer expect_publish_blocked.",
+      "args": {
+        "step": "the action to try: \"click\" | \"save_draft\" | \"publish\" | \"add_line_items\" | \"set_schedule\" | \"fill\" | \"select\" | \"toggle\" | …",
+        "args": "the inner step's args as an object, e.g. {role:\"button\", name:\"Items\"} for a click",
+        "because": "substring the refusal message must contain (optional)",
+        "expect": "\"refused\" (default: a message or a disabled control) | \"nothing_opens\""
+      }
     }
   ],
   "names": [
@@ -375,6 +574,320 @@
     "expect_awarded",
     "expect_bid_submitted",
     "expect_publish_blocked",
-    "expect_stages"
-  ]
+    "expect_stages",
+    "go_to",
+    "click",
+    "hover",
+    "fill",
+    "select",
+    "toggle",
+    "upload",
+    "press",
+    "expect_text",
+    "expect_visible",
+    "expect_count",
+    "expect_value",
+    "expect_message",
+    "remember",
+    "expect_remembered",
+    "switch_company",
+    "skip",
+    "attempt"
+  ],
+  "generic": [
+    "go_to",
+    "click",
+    "hover",
+    "fill",
+    "select",
+    "toggle",
+    "upload",
+    "press",
+    "expect_text",
+    "expect_visible",
+    "expect_count",
+    "expect_value",
+    "expect_message",
+    "remember",
+    "expect_remembered",
+    "switch_company",
+    "skip",
+    "attempt"
+  ],
+  "labels": {
+    "events_list": [
+      "tab:Live",
+      "tab:History",
+      "tab:Drafts",
+      "tab:Recurring",
+      "Search Title",
+      "button:Create Event",
+      "menuitem:Single Stage",
+      "Source through RFP / RFQ / Auction",
+      "menuitem:eRFX Project",
+      "Manage sourcing via a project approach",
+      "menuitem:BOQ based RFX Project",
+      "Source BOQ via a project approach",
+      "button:Export",
+      "All Stages",
+      "In - Evaluation",
+      "Upcoming",
+      "Completed",
+      "Withdrawn",
+      "Starting from",
+      "Ending at",
+      "No events live right now. Click here to create a new event",
+      "No Results found",
+      "No events found",
+      "No Drafts Found",
+      "No Recurring Events Found",
+      "Hold",
+      "To Be Scheduled",
+      "Total Participants Invited",
+      "Active",
+      "Paused",
+      "Cancelled",
+      "RFP",
+      "Technical Offer",
+      "RFQ",
+      "Auction",
+      "Vendor Onboarding",
+      "Live",
+      "History",
+      "Recurring"
+    ],
+    "create_erfx": [
+      "Title:",
+      "Enter the title of the project",
+      "button:Add T&Cs",
+      "button:Items [toolbar button, reads 'Items <count>'; opens the Manage Line Items drawer once a template is chosen]",
+      "button:Save as draft",
+      "Please select template for [tooltip on the disabled Save as draft while the stage has no template]",
+      "Please add line items [tooltip on the disabled Save as draft while there are no line items]",
+      "button:Publish",
+      "button:Send to Auction team",
+      "button:Save Recurring Event",
+      "button:Withdraw",
+      "You have a saved draft.",
+      "button:Continue Editing",
+      "menuitem:Edit title",
+      "menuitem:Delete",
+      "Add Stages",
+      "menuitem:Technical Stage",
+      "menuitem:RFQ",
+      "menuitem:Auction",
+      "Remove RFQ to add Auction [tooltip on Auction in the Add Stages menu while an RFQ stage exists]",
+      "Remove Auction to add RFQ [tooltip on RFQ in the Add Stages menu while an Auction stage exists]",
+      "Stage is not reviewed",
+      "button:Select Templates",
+      "Templates",
+      "Search Template",
+      "Template used in RFQ has already been selected",
+      "Please add line items in the manage line items section and choose a template to proceed!",
+      "Please choose a template to proceed!",
+      "Please choose a template and upload a BOQ sheet to proceed",
+      "Please choose a template and add a product [tooltip on the disabled footer controls (Participants, Savings, Terms & Conditions, Schedule) before a template and a line item exist]",
+      "Event Title :",
+      "Enter the title of this event",
+      "Event Type",
+      "Bid Masking",
+      "Line Items",
+      "button:Savings [footer button; opens the Savings Calculation drawer]",
+      "button:Terms & Conditions",
+      "button:Payment Terms",
+      "Schedule [footer schedule chip; disabled until a template and a line item exist; opens the Schedule Event drawer]",
+      "Event Schedule",
+      "button:Publish Event",
+      "Publish Event",
+      "button:Edit Schedule",
+      "Please review all stages before publishing.",
+      "Publish as open tender",
+      "Enter remarks",
+      "Please fill project title! [refusal when Publish is pressed with no title]",
+      "Please add participants to proceed! [refusal when Publish is pressed with no participants]",
+      "RFP duration exceeds RFQ end time. Please adjust.",
+      "Sheet partially filled, please check again.",
+      "Evaluation time is mandatory for serial bidding",
+      "Please add Evaluator in the Technical Stage",
+      "Some sections are empty, please check and try again",
+      "Savings configuration is mandatory",
+      "Please add end time for the event",
+      "Payment Terms and Conditions are mandatory",
+      "There are some errors in",
+      "Event created successfully",
+      "Project created successfully",
+      "Draft Project created successfully",
+      "Draft Project updated successfully",
+      "Items 0",
+      "Schedule",
+      "Schedule Event",
+      "Start time",
+      "End time",
+      "Evaluation time",
+      "Mark as Recurring Event",
+      "Items 1",
+      "Publish"
+    ],
+    "line_items_drawer": [
+      "Manage Line Items",
+      "Search and add line items using product name [placeholder of the drawer's search combobox — the drawer's identity]",
+      "Please add line items to proceed!",
+      "button:Save",
+      "button:Cancel",
+      "Quantity",
+      "Are you sure to delete this line item?",
+      "Please fill valid quantity on every line item",
+      "Please add atleast one item to proceed!"
+    ],
+    "schedule_drawer": [
+      "Schedule Event",
+      "Start time",
+      "menuitem:Start now",
+      "menuitem:Schedule for later",
+      "End time",
+      "menuitem:Duration",
+      "menuitem:Fixed time",
+      "Evaluation time",
+      "menuitem:Not applicable",
+      "menuitem:Custom duration",
+      "Cost Breakdown Time",
+      "Event will end at",
+      "Event will last for",
+      "Start time should be less than end time",
+      "Start time cannot be less than the current time",
+      "End time cannot be less than the current time",
+      "Evaluation time is required",
+      "Recurring Event Settings",
+      "Mark as Recurring Event",
+      "Repeats",
+      "Repeat Every",
+      "Ends",
+      "menuitem:Daily",
+      "menuitem:Weekly",
+      "menuitem:Monthly",
+      "menuitem:Custom",
+      "button:Back",
+      "button:Save Schedule",
+      "RFQ and Auction cannot be scheduled together"
+    ],
+    "participants": [
+      "Participants",
+      "button:Invite",
+      "button:Clear",
+      "Search vendors you want to add",
+      "Invite Vendors you want to add",
+      "All Vendors",
+      "button:Invite Vendor",
+      "Search Vendors",
+      "No vendors to show",
+      "Show only selected vendors",
+      "button:Add Bid [surrogate-bid button on each eligible vendor row of a published stage's Participants list]",
+      "button:Remove Bid",
+      "Search vendors",
+      "Add Bid for"
+    ],
+    "stage_page": [
+      "Loading your event details...",
+      "tab:Project Details",
+      "tab:Responses",
+      "tab:Leaderboard",
+      "tab:Overview",
+      "tab:Participants",
+      "tab:Analytics",
+      "tab:Price Trends",
+      "tab:Participant Remarks",
+      "button:Settings",
+      "button:Download Report",
+      "menuitem:Withdraw",
+      "menuitem:Cancel Event",
+      "Auction cannot be withdrawn when the event is live [tooltip on Settings → Withdraw for a live auction]",
+      "menuitem:Convert to Auction",
+      "menuitem:Use RFQ quotes as initial bids",
+      "menuitem:Extend Submission Time",
+      "menuitem:Send Bulk Counter Offer",
+      "menuitem:Request Best Offers",
+      "menuitem:Recreate Order",
+      "menuitem:Reschedule Event",
+      "menuitem:Reopen Line Items",
+      "menuitem:Rejected Bids",
+      "menuitem:Order Activity",
+      "menuitem:Edit Evaluation Time",
+      "menuitem:Download Logs",
+      "menuitem:Unlock Bids",
+      "menuitem:Send Reminders",
+      "menuitem:Change Owner",
+      "menuitem:Clone Project",
+      "menuitem:Withdraw Project",
+      "Overview",
+      "Published Stages",
+      "Withdrawn"
+    ],
+    "responses": [
+      "button:View by",
+      "button:Counter Offer",
+      "button:Revoke Counter Offer",
+      "button:Select",
+      "button:Reject",
+      "Best Price",
+      "No bids received yet.",
+      "Bids of participated vendors will be visible once the event duration is over."
+    ],
+    "master_qcs": [
+      "tab:Master QCS",
+      "button:Start Awarding",
+      "menuitem:Manual Award",
+      "menuitem:Awarding with Excel",
+      "Show awarded bids",
+      "Awarding is only allowed for the latest version [tooltip on Start Awarding when not on the latest version]",
+      "No bids are placed yet!",
+      "Awarding initiated successfully, redirecting to awarding flow..."
+    ],
+    "single_stage": [
+      "Configuration for Event",
+      "Event Type",
+      "Auction",
+      "RFQ",
+      "RFP",
+      "Technical Stage",
+      "Choose a Strategy",
+      "Price Based",
+      "Rank Based",
+      "Knockout",
+      "Dutch Auction",
+      "Traffic Light",
+      "Knockout auctions can be created only when converting an RFQ to an auction [tooltip on the disabled Knockout strategy in the single-stage configuration drawer]",
+      "Dutch auctions can be created only when converting an RFQ to an auction [tooltip on the disabled Dutch Auction strategy]",
+      "You cannot change the event type as this is a new stage",
+      "already exists in the project",
+      "Switching event mode will reset existing data.",
+      "Please choose event mode",
+      "Please select a valid auction strategy",
+      "How will you award the event?",
+      "I'll award the entire lot to single Vendor",
+      "I may partially award the event to multiple",
+      "Group traffic light by",
+      "How will you create the Technical Stage ?",
+      "Please choose event closing mode"
+    ],
+    "savings_drawer": [
+      "Savings Calculation",
+      "How do you want to measure savings?",
+      "Gross Total",
+      "Line Item",
+      "Budget",
+      "Historical Price",
+      "Existing Proposal",
+      "Choose column to calculate savings on",
+      "Add Custom Reference",
+      "Transfer savings from RFQ",
+      "button:Paste from CSV",
+      "For basket auction, savings can only be on line item.",
+      "Add products to set savings data",
+      "button:Add Savings"
+    ]
+  },
+  "labelCounts": {
+    "fromSource": 238,
+    "seenLive": 13
+  }
 }

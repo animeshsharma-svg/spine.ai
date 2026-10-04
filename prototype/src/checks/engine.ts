@@ -7,8 +7,12 @@
  * (too lenient, too strict, or a 5xx). This is the deterministic "running"
  * layer — the AI decides WHAT to test, this proves what actually happens.
  */
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { TestType, CheckResult } from "../ai/types.js";
 import { openClientContext } from "../executor.js";
+import { appOf, appRefusal } from "./appAccess.js";
 
 export type Client = Awaited<ReturnType<typeof openClientContext>>;
 
@@ -37,6 +41,14 @@ export interface CheckOutcome {
    * verdict; it is used as-is.
    */
   verdictOverride?: { pass: boolean; verdict: string; inconclusive?: boolean };
+  /** the app's own error code, when the refusal carried one (en-IN.yml api_errors) */
+  errorCode?: string;
+  /**
+   * Set when the request was deliberately NOT sent, with the reason. Today:
+   * the session's app is not allowed this endpoint, and sending it would get
+   * a 401 that signs the session out (see appAccess.ts).
+   */
+  notSent?: string;
 }
 
 export interface Check {
@@ -127,52 +139,129 @@ export function redactSecrets(text: string | null | undefined): string | null {
   return out;
 }
 
+/**
+ * NEVER ASK THE WRONG APP.
+ *
+ * A request the session's app is not allowed (the buyer's console token on a
+ * vendor-only API) is answered 401 and the backend then marks that session
+ * in_active (json_helpers.rb:31-35) — the buyer is signed out of the web
+ * console, and every later call in the run answers "Authentication failed".
+ * Such a request is not sent; the case says why. See appAccess.ts.
+ */
+function refusedApp(api: any, method: string, path: string): CheckOutcome | undefined {
+  const why = appRefusal(appOf(api), method, path);
+  if (!why) return undefined;
+  return { httpStatus: null, accepted: false, message: null, durationMs: 0, notSent: why };
+}
+
+/** What a thrown sibling ApiError says, in the outcome's shape. */
+function refusal(e: any, t: number): CheckOutcome {
+  return {
+    httpStatus: typeof e?.status === "number" ? e.status : null,
+    accepted: false,
+    message: redactSecrets(e?.message ?? String(e)),
+    durationMs: Date.now() - t,
+    ...(e?.code !== undefined && e?.code !== null ? { errorCode: String(e.code) } : {}),
+  };
+}
+
 /** Fire one POST and record accept/reject faithfully (never throws). */
 export async function apiAttempt(api: any, path: string, body: any): Promise<CheckOutcome> {
+  const blocked = refusedApp(api, "POST", path);
+  if (blocked) return blocked;
   const t = Date.now();
   try {
     const data = await api.post(path, { body });
     return { httpStatus: 200, accepted: true, message: null, durationMs: Date.now() - t, data };
   } catch (e: any) {
-    return {
-      httpStatus: typeof e?.status === "number" ? e.status : null,
-      accepted: false,
-      message: redactSecrets(e?.message ?? String(e)),
-      durationMs: Date.now() - t,
-    };
+    return refusal(e, t);
   }
 }
 
 /** Fire one GET and record accept/reject (read-only; safe for live features). */
 export async function apiGet(api: any, path: string): Promise<CheckOutcome> {
+  const blocked = refusedApp(api, "GET", path);
+  if (blocked) return blocked;
   const t = Date.now();
   try {
     await api.get(path);
     return { httpStatus: 200, accepted: true, message: null, durationMs: Date.now() - t };
   } catch (e: any) {
-    return {
-      httpStatus: typeof e?.status === "number" ? e.status : null,
-      accepted: false,
-      message: redactSecrets(e?.message ?? String(e)),
-      durationMs: Date.now() - t,
-    };
+    return refusal(e, t);
   }
 }
 
 /** Fire one PATCH and record accept/reject faithfully (never throws). */
 export async function apiPatch(api: any, path: string, body: any): Promise<CheckOutcome> {
+  const blocked = refusedApp(api, "PATCH", path);
+  if (blocked) return blocked;
   const t = Date.now();
   try {
     await api.patch(path, { body });
     return { httpStatus: 200, accepted: true, message: null, durationMs: Date.now() - t };
   } catch (e: any) {
-    return {
-      httpStatus: typeof e?.status === "number" ? e.status : null,
-      accepted: false,
-      message: redactSecrets(e?.message ?? String(e)),
-      durationMs: Date.now() - t,
-    };
+    return refusal(e, t);
   }
+}
+
+// ── the app's own error codes ──────────────────────────────────────────────
+
+const here = dirname(fileURLToPath(import.meta.url));
+const ERRORS_FILE = join(here, "..", "..", "data", "app-errors.json");
+let errorBook: Record<string, string> | null | undefined;
+
+/** The app's message for an error code (config/locales/en-IN.yml, snapshotted by scripts/build-app-access.ts). */
+export function appErrorMessage(code: string | number | undefined | null): string | undefined {
+  if (code === undefined || code === null || code === "") return undefined;
+  if (errorBook === undefined) {
+    try {
+      errorBook = existsSync(ERRORS_FILE) ? (JSON.parse(readFileSync(ERRORS_FILE, "utf8")).errors as Record<string, string>) : null;
+    } catch {
+      errorBook = null;
+    }
+  }
+  return errorBook?.[String(code)];
+}
+
+/**
+ * The error codes a case's documented expectation names as THE answer.
+ *
+ * Read only from the lead clause — up to the first dash, semicolon or full
+ * stop — so a code mentioned in passing ("…when the setting is off the answer
+ * is 1127 first") is never taken for the expected one. "HTTP 422, code 533 or
+ * 455 — …" gives [533, 455].
+ */
+/** The lead clause of a documented expectation — the answer it names, before any explanation. */
+export function leadClause(documented: string | undefined): string {
+  return (documented ?? "").split(/\s[—–-]\s|;|\.\s|\(app\//)[0];
+}
+
+export function documentedCodes(documented: string | undefined): string[] {
+  if (!documented) return [];
+  const lead = leadClause(documented);
+  const out: string[] = [];
+  for (const m of lead.matchAll(/\bcodes?\s*[:=]?\s*((?:\d{1,4})(?:\s*(?:,|or|\/|and)\s*\d{1,4})*)/gi))
+    for (const d of m[1].match(/\d{1,4}/g) ?? []) if (!out.includes(d)) out.push(d);
+  return out;
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/[.!\s]+$/, "").replace(/\s+/g, " ").trim();
+
+/**
+ * Did the app answer with one of the codes the case documents? By the code in
+ * the reply when it carried one, else by the reply's message being exactly
+ * that code's message in the app's own locale file.
+ */
+function answeredDocumentedCode(documented: string | undefined, o: CheckOutcome): string | undefined {
+  const codes = documentedCodes(documented);
+  if (!codes.length) return undefined;
+  if (o.errorCode && codes.includes(o.errorCode)) return o.errorCode;
+  if (!o.message) return undefined;
+  const got = norm(o.message);
+  return codes.find((c) => {
+    const m = appErrorMessage(c);
+    return !!m && norm(m) === got;
+  });
 }
 
 /**
@@ -209,8 +298,22 @@ export function classify(
   /** the case's own documented expected result, verbatim */
   documented?: string,
 ): { pass: boolean; verdict: string; inconclusive?: boolean } {
+  if (o.notSent)
+    return {
+      pass: false,
+      inconclusive: true,
+      verdict:
+        `not sent — ${o.notSent}. The app answers such a call 401 and then signs the session out ` +
+        `(json_helpers.rb:31-35), which would log the buyer out of the web console and turn every later case ` +
+        `into a 401. Nothing was tested; this case has to run as the user the endpoint belongs to.`,
+    };
   if (o.httpStatus !== null && o.httpStatus >= 500)
     return { pass: false, verdict: `server error ${o.httpStatus} — a 5xx is always a defect` };
+  // Which of the case's documented answers came back, if any (by error code).
+  // Used to tell a documented "not found / not active" from a broken fixture,
+  // and to see past a message lifted from the explanation rather than the
+  // answer. A case whose lead clause quotes its message is still held to it.
+  const docCode = !o.accepted ? answeredDocumentedCode(documented, o) : undefined;
 
   // 401 = we never got through the door. The endpoint's validation, business
   // rules and permissions were never exercised, so the check proves nothing —
@@ -232,6 +335,7 @@ export function classify(
     o.message &&
     FIXTURE_UNUSABLE.test(o.message) &&
     !anticipates(documented, o.message) &&
+    !docCode &&
     !(expectMessage && o.message.toLowerCase().includes(expectMessage.toLowerCase()))
   ) {
     return {
@@ -261,7 +365,13 @@ export function classify(
     if (expectMessage && o.message) {
       const got = o.message.toLowerCase();
       const want = expectMessage.toLowerCase();
-      if (!got.includes(want)) {
+      // The message held against the reply is lifted from the case's text by
+      // the case runner, and an apostrophe ("the event's company in the
+      // caller's …") can make it a fragment of the explanation instead of the
+      // answer. When that fragment is NOT in the lead clause and the reply is
+      // the very code the lead clause names, the lead clause wins.
+      const incidental = !!docCode && !leadClause(documented).toLowerCase().includes(want);
+      if (!got.includes(want) && !incidental) {
         return {
           pass: false,
           inconclusive: true,
@@ -272,11 +382,76 @@ export function classify(
         };
       }
     }
-    return { pass: true, verdict: `correctly rejected (${o.httpStatus ?? "err"}${o.message ? `: ${o.message}` : ""})` };
+    return {
+      pass: true,
+      verdict:
+        `correctly rejected (${o.httpStatus ?? "err"}${o.message ? `: ${o.message}` : ""})` +
+        (docCode && o.message && (FIXTURE_UNUSABLE.test(o.message) || (expectMessage && !o.message.toLowerCase().includes(expectMessage.toLowerCase())))
+          ? ` — code ${docCode}, the answer the case documents`
+          : ""),
+    };
   }
   return o.accepted
     ? { pass: true, verdict: `accepted, as expected (HTTP ${o.httpStatus})` }
     : { pass: false, verdict: `REJECTED a valid input (HTTP ${o.httpStatus}${o.message ? `: ${o.message}` : ""})` };
+}
+
+const RETRY_PAUSE_MS = 3_000;
+/** The connection was never made: nothing reached the app, so sending again cannot do anything twice. */
+const NOT_CONNECTED = /\b(ENETUNREACH|EHOSTUNREACH|ECONNREFUSED|EAI_AGAIN|ENOTFOUND)\b/;
+/** The call went out and no answer came back in time. */
+const TIMED_OUT = /Timeout \d+ms exceeded|\bETIMEDOUT\b|socket hang up|\bECONNRESET\b/i;
+
+/**
+ * Did this outcome never reach the app? Then it is no verdict at all, and the
+ * check deserves one more try. Only where a second send is harmless: a
+ * connection that was never made (any method), or a READ that timed out. A
+ * write that timed out may have been applied, so it is never re-sent. A check
+ * with its own verdict (the bulk runner) is never re-run here.
+ */
+function neverReached(o: CheckOutcome, method: string | undefined): boolean {
+  if (o.verdictOverride || o.notSent || o.httpStatus !== null || o.accepted) return false;
+  const m = String(o.message ?? "");
+  if (NOT_CONNECTED.test(m)) return true;
+  return String(method ?? "").toUpperCase() === "GET" && TIMED_OUT.test(m);
+}
+
+/**
+ * THE CASE WAS WRITTEN WITH ANOTHER CLIENT'S DATA.
+ *
+ * Hundreds of written case bodies carry PROCOL DEMO's unit ("KG") literally.
+ * Demo Account 2 has no such unit, so the app refuses them with “The unit kg
+ * is not present” before it reaches the rule under test. Read as a product
+ * answer that was a false FAIL on accept cases (EDGE-STG-046 and -053, "REJECTED
+ * a valid input") and a vacuous pass on reject cases. It is neither: the
+ * client's data did not fit the case. Unless the case documents that refusal.
+ */
+const UNIT_NOT_PRESENT = /\bthe units? (.+?) (?:is|are) not present\b/i;
+export function clientDataMismatch(check: Check, o: CheckOutcome): { pass: boolean; verdict: string; inconclusive: boolean } | undefined {
+  if (o.accepted || !o.message || (o.httpStatus !== null && o.httpStatus >= 500)) return undefined;
+  const m = o.message.match(UNIT_NOT_PRESENT);
+  if (!m) return undefined;
+  const unit = m[1].trim().toLowerCase();
+  const documented = (check as { expectedResult?: string }).expectedResult;
+  if (anticipates(documented, o.message) || /not present/i.test(documented ?? "")) return undefined;
+  if (check.expectMessage && o.message.toLowerCase().includes(check.expectMessage.toLowerCase())) return undefined;
+  // Only when the unit is one the case's OWN request sent.
+  const sent = new Set<string>();
+  const walk = (v: unknown, key = "") => {
+    if (Array.isArray(v)) v.forEach((x) => walk(x, key));
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k);
+    else if (typeof v === "string" && /unit|suffix|postfix/i.test(key)) sent.add(v.trim().toLowerCase());
+  };
+  walk(check.request?.body);
+  if (!sent.has(unit)) return undefined;
+  return {
+    pass: false,
+    inconclusive: true,
+    verdict:
+      `this client has no unit “${m[1].trim()}”, which the case's request uses — the app refused it for that ` +
+      `(“${o.message}”, HTTP ${o.httpStatus ?? "err"}) before reaching the rule under test. The case was written with ` +
+      `another client's unit; nothing was proved either way.`,
+  };
 }
 
 /** Run one check and produce a serializable result. */
@@ -287,14 +462,27 @@ export async function runCheck(
   onData?: (data: unknown, check: Check) => void,
 ): Promise<CheckResult> {
   const t = Date.now();
-  let outcome: CheckOutcome;
-  try {
-    outcome = await check.exec(client);
-  } catch (e: any) {
-    outcome = { httpStatus: e?.status ?? null, accepted: false, message: redactSecrets(e?.message ?? String(e)), durationMs: Date.now() - t };
+  const attempt = async (): Promise<CheckOutcome> => {
+    try {
+      return await check.exec(client);
+    } catch (e: any) {
+      return { httpStatus: e?.status ?? null, accepted: false, message: redactSecrets(e?.message ?? String(e)), durationMs: Date.now() - t };
+    }
+  };
+  let outcome = await attempt();
+  // A request that never reached the app is not an answer. Once, after a short
+  // pause, it is sent again — see neverReached for exactly when that is safe.
+  const lost = neverReached(outcome, check.request?.method);
+  if (lost) {
+    await new Promise((r) => setTimeout(r, RETRY_PAUSE_MS));
+    const again = await attempt();
+    outcome = neverReached(again, check.request?.method)
+      ? { ...again, message: `${again.message ?? ""} (also on a second try ${RETRY_PAUSE_MS / 1000} s later — the app could not be reached)`.trim() }
+      : again;
   }
   const { pass, verdict, inconclusive } =
     outcome.verdictOverride ??
+    clientDataMismatch(check, outcome) ??
     classify(
       check.expected,
       outcome,

@@ -1,0 +1,1838 @@
+{
+ "summary": {
+  "at": "2026-10-03T06:07:52.484Z",
+  "mode": "deterministic only",
+  "rows": 51,
+  "validity": {
+   "n": 49,
+   "ok": 25,
+   "pct": 51
+  },
+  "recipe": {
+   "n": 49,
+   "ok": 25,
+   "pct": 51
+  },
+  "endpoint": {
+   "n": 49,
+   "ok": 23,
+   "pct": 47
+  },
+  "outcome": {
+   "n": 49,
+   "ok": 25,
+   "pct": 51
+  },
+  "code": {
+   "n": 18,
+   "ok": 9,
+   "pct": 50
+  },
+  "verify": {
+   "n": 6,
+   "ok": 2,
+   "pct": 33
+  },
+  "exact": {
+   "n": 49,
+   "ok": 23,
+   "pct": 47
+  },
+  "noneDetect": {
+   "n": 2,
+   "ok": 2,
+   "pct": 100
+  },
+  "typed": {
+   "rows": 26,
+   "validity": {
+    "n": 26,
+    "ok": 10,
+    "pct": 38
+   },
+   "recipe": {
+    "n": 26,
+    "ok": 10,
+    "pct": 38
+   },
+   "endpoint": {
+    "n": 26,
+    "ok": 9,
+    "pct": 35
+   },
+   "outcome": {
+    "n": 26,
+    "ok": 10,
+    "pct": 38
+   },
+   "exact": {
+    "n": 26,
+    "ok": 9
+   }
+  },
+  "catalog": {
+   "rows": 23,
+   "validity": {
+    "n": 23,
+    "ok": 15,
+    "pct": 65
+   },
+   "recipe": {
+    "n": 23,
+    "ok": 15,
+    "pct": 65
+   },
+   "endpoint": {
+    "n": 23,
+    "ok": 14,
+    "pct": 61
+   },
+   "outcome": {
+    "n": 23,
+    "ok": 15,
+    "pct": 65
+   },
+   "exact": {
+    "n": 23,
+    "ok": 14
+   }
+  },
+  "compiledBy": {
+   "rules": 14,
+   "none": 26,
+   "library-case": 11
+  },
+  "coverage": {
+   "partial": 17,
+   "none": 26,
+   "full": 8
+  },
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0,
+   "byModel": {}
+  },
+  "wallMs": 244
+ },
+ "results": [
+  {
+   "id": "T01",
+   "source": "typed",
+   "input": "a vendor cannot bid after the deadline is extended and closes again",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "a vendor cannot bid after the deadline is extended and closes again",
+    "setup": {
+     "recipe": "published_rfq_short"
+    },
+    "act": [
+     {
+      "op": "extend_round",
+      "change": [
+       {
+        "path": "increase_auction_time",
+        "set": "{{roundEnd+60}}"
+       }
+      ],
+      "expect": "accept",
+      "say": "The buyer extends the bid end by one minute.",
+      "as": "buyer"
+     },
+     {
+      "op": "wait",
+      "params": {
+       "until": "close"
+      },
+      "as": "buyer"
+     },
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_round",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "bid_count",
+        "op": "equals",
+        "value": 0
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 69
+  },
+  {
+   "id": "T02",
+   "source": "typed",
+   "input": "publishing with a template that has no line items is refused",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "publishing with a template that has no line items is refused",
+    "setup": {
+     "recipe": "draft_event"
+    },
+    "act": [
+     {
+      "op": "add_rfq_round",
+      "change": [
+       {
+        "path": "data",
+        "set": []
+       }
+      ],
+      "expect": "no-5xx",
+      "ifRefused": "pass",
+      "say": "The buyer adds a pricing round whose template carries no line items.",
+      "as": "buyer"
+     },
+     {
+      "op": "publish_event",
+      "decisive": true,
+      "as": "buyer"
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "draft"
+       }
+      ],
+      "as": "buyer"
+     }
+    ],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 14
+  },
+  {
+   "id": "T03",
+   "source": "typed",
+   "input": "editing a published event's title updates it for vendors",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "editing a published event's title updates it for vendors",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "update_event",
+      "decisive": true,
+      "as": "buyer"
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_round",
+      "as": "vendor",
+      "assert": [
+       {
+        "path": "event_group.title",
+        "op": "equals",
+        "value": "{{act1.body.title}}"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 6
+  },
+  {
+   "id": "T04",
+   "source": "typed",
+   "input": "A vendor cannot place a bid once the bid end time has passed",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "A vendor cannot place a bid once the bid end time has passed",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 11
+  },
+  {
+   "id": "T05",
+   "source": "typed",
+   "input": "The buyer can extend the bid end time of a live RFQ and the new end time is saved",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": false
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "T06",
+   "source": "typed",
+   "input": "Withdrawing a live event without a remark must be refused",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Withdrawing a live event without a remark must be refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": ""
+       }
+      ],
+      "decisive": true,
+      "as": "buyer"
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "active"
+       }
+      ],
+      "as": "buyer"
+     }
+    ],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 10
+  },
+  {
+   "id": "T07",
+   "source": "typed",
+   "input": "After the buyer withdraws the event, the invited vendor can no longer open a bid on it",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "After the buyer withdraws the event, the invited vendor can no longer open a bid on it",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "expect": "accept",
+      "as": "buyer"
+     },
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case",
+    "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 13
+  },
+  {
+   "id": "T08",
+   "source": "typed",
+   "input": "A vendor who is not invited to the event cannot see the pricing round",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "A vendor who is not invited to the event cannot see the pricing round",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "read_round",
+      "as": "vendor2",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "536",
+     "message": "You are not allowed to view this event."
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case",
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 3
+  },
+  {
+   "id": "T09",
+   "source": "typed",
+   "input": "An uninvited vendor cannot open a bid on the RFQ",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "An uninvited vendor cannot open a bid on the RFQ",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "read_round",
+      "as": "vendor2",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "536",
+     "message": "You are not allowed to view this event."
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": false,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 6
+  },
+  {
+   "id": "T10",
+   "source": "typed",
+   "input": "Publishing a draft event that has no rounds attached should be refused",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Publishing a draft event that has no rounds attached should be refused",
+    "setup": {
+     "recipe": "draft_event"
+    },
+    "act": [
+     {
+      "op": "publish_event",
+      "change": [
+       {
+        "path": "draft_trade_request_uuids",
+        "set": []
+       }
+      ],
+      "decisive": true,
+      "as": "buyer"
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "draft"
+       }
+      ],
+      "as": "buyer"
+     }
+    ],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 11
+  },
+  {
+   "id": "T11",
+   "source": "typed",
+   "input": "The buyer cannot enter a surrogate bid for a vendor who has already bid themselves",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T12",
+   "source": "typed",
+   "input": "The buyer can invite a second vendor to a live RFQ round and that vendor can then bid",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "T13",
+   "source": "typed",
+   "input": "Removing a vendor who has already bid from the live round is refused",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T14",
+   "source": "typed",
+   "input": "After the round closes the buyer can open an award proposal for the event",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "T15",
+   "source": "typed",
+   "input": "The submission time cannot be extended once an award proposal exists",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "T16",
+   "source": "typed",
+   "input": "An invited vendor can start a technical response on a live RFP round",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "T17",
+   "source": "typed",
+   "input": "A technical response cannot be started after the technical round has closed",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T18",
+   "source": "typed",
+   "input": "Creating a draft event with a negative quantity is refused",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T19",
+   "source": "typed",
+   "input": "Creating an event with a 1000 character title must not crash the server",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T20",
+   "source": "typed",
+   "input": "Renaming a draft event keeps the new title when the event is read back",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Renaming a draft event keeps the new title when the event is read back",
+    "setup": {
+     "recipe": "draft_rfq"
+    },
+    "act": [
+     {
+      "op": "update_event",
+      "decisive": true,
+      "as": "buyer"
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "title",
+        "op": "equals",
+        "value": "{{act1.body.title}}"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 30
+  },
+  {
+   "id": "T21",
+   "source": "typed",
+   "input": "Cloning a published event succeeds",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T22",
+   "source": "typed",
+   "input": "A vendor's bid with a price of zero should be refused",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T23",
+   "source": "typed",
+   "input": "Two vendors bid and the buyer's comparison marks the cheaper one as best bidder",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": false
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "T24",
+   "source": "typed",
+   "input": "The award confirmation email reaches the vendor within a minute",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "noneDetect": true
+   },
+   "exact": null,
+   "ms": 4
+  },
+  {
+   "id": "T25",
+   "source": "typed",
+   "input": "The vendor list page loads in under two seconds on a slow network",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "noneDetect": true
+   },
+   "exact": null,
+   "ms": 3
+  },
+  {
+   "id": "T26",
+   "source": "typed",
+   "input": "deadline khatam hone ke baad vendor bid nahi kar sakta",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "T27",
+   "source": "typed",
+   "input": "Publishing an RFP+RFQ event where the technical round ends after the pricing round is refused",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "T28",
+   "source": "typed",
+   "input": "Withdrawing a live event with a remark succeeds and the event reads back as withdrawn",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": false
+   },
+   "exact": false,
+   "ms": 3
+  },
+  {
+   "id": "C01",
+   "source": "catalog",
+   "input": "API-XBID-049",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-049",
+    "title": "A bid cannot be opened after the window closes",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor",
+      "caseId": "EDGE-BID-049",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 20
+  },
+  {
+   "id": "C02",
+   "source": "catalog",
+   "input": "API-XBID-030",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-030",
+    "title": "A technical response cannot be started after the stage closed",
+    "setup": {
+     "recipe": "closed_rfp_rfq_with_tech_response"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor",
+      "caseId": "EDGE-BID-030",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 1
+  },
+  {
+   "id": "C03",
+   "source": "catalog",
+   "input": "API-XBID-045",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-045",
+    "title": "An uninvited vendor cannot open a bid",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor2",
+      "caseId": "EDGE-BID-045",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "782",
+     "message": "Bid could not be placed. Please refresh and try again."
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 0
+  },
+  {
+   "id": "C04",
+   "source": "catalog",
+   "input": "API-XBID-020",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-020",
+    "title": "An uninvited vendor cannot read a restricted event",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor2",
+      "caseId": "EDGE-BID-020",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "536",
+     "message": "You are not allowed to view this event."
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 1
+  },
+  {
+   "id": "C05",
+   "source": "catalog",
+   "input": "API-XBID-074",
+   "compiledBy": "library-case",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-074",
+    "title": "Submitting the same bid twice does not create a second active bid",
+    "setup": {
+     "recipe": "rfq_with_bid"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor",
+      "caseId": "EDGE-BID-074",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 1
+  },
+  {
+   "id": "C06",
+   "source": "catalog",
+   "input": "API-XBID-075",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-075",
+    "title": "A bid cannot be submitted after the window closes",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 11
+  },
+  {
+   "id": "C07",
+   "source": "catalog",
+   "input": "API-XCRT-018",
+   "compiledBy": "library-case",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XCRT-018",
+    "title": "Create with whitespace title",
+    "setup": {
+     "recipe": "none"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "buyer",
+      "caseId": "EDGE-CRT-018",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 0
+  },
+  {
+   "id": "C08",
+   "source": "catalog",
+   "input": "API-XCRT-022",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XCRT-022",
+    "title": "Patch back to draft after publish",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "buyer",
+      "caseId": "EDGE-CRT-022",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 0
+  },
+  {
+   "id": "C09",
+   "source": "catalog",
+   "input": "API-XPUB-004",
+   "compiledBy": "library-case",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XPUB-004",
+    "title": "status \"in_active\" plus a config change soft-deletes a live event with no withdraw flow",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "buyer",
+      "caseId": "EDGE-PUB-004",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [
+    "the documented correct behaviour is a refusal, but the case checks only that the app does not crash (it records today's behaviour)",
+    "the case reads as “it is accepted”, but the plan checks “the app answers without a server error”",
+    "the part about “notification” is outside what an API plan on a sourcing event checks"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 1
+  },
+  {
+   "id": "C10",
+   "source": "catalog",
+   "input": "API-XAWD-092",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XAWD-092",
+    "title": "Opening the award twice returns the same draft",
+    "setup": {
+     "recipe": "awarded_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "buyer",
+      "caseId": "EDGE-AWD-092",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 0
+  },
+  {
+   "id": "C11",
+   "source": "catalog",
+   "input": "API-XAWD-119",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XAWD-119",
+    "title": "Submitting an award twice is refused",
+    "setup": {
+     "recipe": "awarded_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "buyer",
+      "caseId": "EDGE-AWD-119",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "2",
+     "message": "Insufficient parameters"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 13
+  },
+  {
+   "id": "C12",
+   "source": "catalog",
+   "input": "API-XMAT-017",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XMAT-017",
+    "title": "The buyer cannot bid for a vendor after the bid end time",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": false,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 41
+  },
+  {
+   "id": "C13",
+   "source": "catalog",
+   "input": "API-XMAT-031",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 6
+  },
+  {
+   "id": "C14",
+   "source": "catalog",
+   "input": "API-XMAT-036",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 9
+  },
+  {
+   "id": "C15",
+   "source": "catalog",
+   "input": "API-XMAT-037",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 6
+  },
+  {
+   "id": "C16",
+   "source": "catalog",
+   "input": "API-LC-002",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-LC-002",
+    "title": "Withdrawing with blank remarks is refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": ""
+       }
+      ],
+      "decisive": true,
+      "as": "buyer"
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "active"
+       }
+      ],
+      "as": "buyer"
+     }
+    ],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 21
+  },
+  {
+   "id": "C17",
+   "source": "catalog",
+   "input": "API-LC-005",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 5
+  },
+  {
+   "id": "C18",
+   "source": "catalog",
+   "input": "API-LC-008",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 4
+  },
+  {
+   "id": "C19",
+   "source": "catalog",
+   "input": "API-DB-008",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": false
+   },
+   "exact": false,
+   "ms": 5
+  },
+  {
+   "id": "C20",
+   "source": "catalog",
+   "input": "API-AUD-002",
+   "compiledBy": "library-case",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-AUD-002",
+    "title": "The invited vendor can read the event",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "buyer",
+      "caseId": "API-AUD-002",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 3
+  },
+  {
+   "id": "C21",
+   "source": "catalog",
+   "input": "API-BID-006",
+   "compiledBy": "rules",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-BID-006",
+    "title": "A bid on a withdrawn event is refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "expect": "accept",
+      "as": "buyer"
+     },
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "compiled by a fixed rule, not read in full — check the steps match the case"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 19
+  },
+  {
+   "id": "C22",
+   "source": "catalog",
+   "input": "API-XMAT-032",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 10
+  },
+  {
+   "id": "C23",
+   "source": "catalog",
+   "input": "API-PUB-006",
+   "compiledBy": "none",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "no model is configured and no fixed rule matches the words"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": false,
+    "recipe": false,
+    "endpoint": false,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 6
+  }
+ ]
+}

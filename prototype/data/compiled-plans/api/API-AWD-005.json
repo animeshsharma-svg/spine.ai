@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "caseId": "API-AWD-005",
+  "title": "Submitting the proposal moves it to requested and blocks further awarding",
+  "compiledAt": "2026-10-03T09:45:43.341Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "approval flow uuid submission step parameter is outside vocabulary",
+   "second proposal creation block is partially represented via submission rejection library case"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /proposal",
+   "POST /proposal/:id/submit"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event where the invited QA vendor bid, and the bidding window is over.",
+   "steps": [
+    "The buyer opens an award proposal.",
+    "The buyer sends the award proposal call, exactly as the matching library case writes it.",
+    "The buyer sends the award proposal call, exactly as the matching library case writes it."
+   ],
+   "expected": "The app refuses the step the case is about with “Insufficient parameters”, and never with a server error."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-AWD-005",
+  "title": "Submitting the proposal moves it to requested and blocks further awarding",
+  "setup": {
+   "recipe": "closed_rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "API-AWD-001"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-AWD-119",
+    "decisive": true
+   }
+  ],
+  "verify": [],
+  "expected": {
+   "outcome": "reject",
+   "code": "2",
+   "message": "Insufficient parameters"
+  }
+ }
+}

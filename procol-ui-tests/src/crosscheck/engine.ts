@@ -26,7 +26,7 @@ export interface CrossFinding {
   where: string;
   screenshot?: string;
   /** Collapsible detail: route, JSON path, rule. */
-  details: { source?: string; rule: string; field: string; item?: string };
+  details: { source?: string; rule: string; field: string; item?: string; code?: string; raw?: { api?: unknown; screen?: string } };
 }
 
 export interface CaseResult {
@@ -129,7 +129,7 @@ export function runScreen(
         screenValue: r.shown,
         where: r.scope,
         screenshot: opts.screenshot,
-        details: { source: r.source, rule: r.how, field: r.field, item: r.item },
+        details: { source: r.source, rule: r.how, field: r.field, item: r.item, code: r.code, raw: r.raw },
       };
     });
     const verdict: CaseVerdict = bad.length ? "failed" : counts.passed > 0 ? "passed" : "inconclusive";

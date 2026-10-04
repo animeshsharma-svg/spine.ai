@@ -1,0 +1,52 @@
+{
+ "meta": {
+  "twinId": "EVD2-RJB-002",
+  "caseId": "API-EVDRJB-002",
+  "area": "rjb",
+  "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
+  "compiledAt": "2026-10-03T12:53:53.278Z",
+  "planVersion": 1,
+  "priority": "P0",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRJB-002",
+  "title": "Rejecting without allowing re-bidding puts the vendor on the round's block list",
+  "setup": {
+   "recipe": "rfq_with_bid"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-RJB-002",
+    "decisive": true,
+    "say": "Rejecting without allowing re-bidding puts the vendor on the round's block list"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "misc.not_allow_rebidding_to_sellers",
+      "op": "contains",
+      "value": "{{vendorUuid}}",
+      "say": "QA vendor 1 is on the round's no-rebid list"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  },
+  "dependsOnSetting": "disable_reject_bid_in_bidding_time is OFF on the round (rejecting is allowed while bidding is open)"
+ }
+}

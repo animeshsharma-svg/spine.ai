@@ -1,0 +1,116 @@
+{
+ "meta": {
+  "caseId": "API-XMAT-052",
+  "title": "After converting an RFQ to an auction the vendor bids in the auction before the award",
+  "compiledAt": "2026-10-03T09:47:49.384Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "The library case EDGE-DAUC-032 is used for conversion to auction rather than a dedicated conversion operation",
+   "Detailed award breakdown fields per line item are not fully verified"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "POST /v1/bids",
+   "POST /v1/bids/:id/create_bid_products",
+   "PATCH /v1/bids/:id",
+   "POST /trade/move_to_auction",
+   "POST /proposal",
+   "POST /proposal/:id/add_response",
+   "GET /trade/:id",
+   "GET /event_groups/:id"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.",
+   "steps": [
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "The buyer sends the request that converts a round into an auction, exactly as the matching library case writes it.",
+    "The invited QA vendor places a complete bid (open, price, submit).",
+    "The buyer opens an award proposal.",
+    "The buyer awards the line to a vendor on the proposal with the line item uuid set to “…”.",
+    "As the invited QA vendor, read the pricing round and check that “status” equals active; “bid count” is at least 2.",
+    "As the buyer, read the event and check that “proposals › status” contains awarded."
+   ],
+   "expected": "The app accepts it. Read back afterwards: “status” equals active; “bid count” is at least 2; “proposals › status” contains awarded."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-XMAT-052",
+  "title": "After converting an RFQ to an auction the vendor bids in the auction before the award",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "place_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EDGE-DAUC-032"
+   },
+   {
+    "op": "place_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "open_proposal",
+    "as": "buyer"
+   },
+   {
+    "op": "award_vendor",
+    "as": "buyer",
+    "change": [
+     {
+      "path": "line_item_uuid",
+      "set": "{{lineItemUuid}}",
+      "add": true
+     }
+    ],
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "status",
+      "op": "equals",
+      "value": "active"
+     },
+     {
+      "path": "bid_count",
+      "op": "gte",
+      "value": 2
+     }
+    ]
+   },
+   {
+    "op": "read_event",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "proposals[*].status",
+      "op": "contains",
+      "value": "awarded"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

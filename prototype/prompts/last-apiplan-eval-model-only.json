@@ -1,0 +1,2638 @@
+{
+ "summary": {
+  "at": "2026-10-03T06:08:29.186Z",
+  "mode": "model-only (fast tier)",
+  "rows": 51,
+  "validity": {
+   "n": 49,
+   "ok": 49,
+   "pct": 100
+  },
+  "recipe": {
+   "n": 49,
+   "ok": 47,
+   "pct": 96
+  },
+  "endpoint": {
+   "n": 49,
+   "ok": 49,
+   "pct": 100
+  },
+  "outcome": {
+   "n": 49,
+   "ok": 48,
+   "pct": 98
+  },
+  "code": {
+   "n": 18,
+   "ok": 17,
+   "pct": 94
+  },
+  "verify": {
+   "n": 6,
+   "ok": 6,
+   "pct": 100
+  },
+  "exact": {
+   "n": 49,
+   "ok": 45,
+   "pct": 92
+  },
+  "noneDetect": {
+   "n": 2,
+   "ok": 2,
+   "pct": 100
+  },
+  "typed": {
+   "rows": 26,
+   "validity": {
+    "n": 26,
+    "ok": 26,
+    "pct": 100
+   },
+   "recipe": {
+    "n": 26,
+    "ok": 25,
+    "pct": 96
+   },
+   "endpoint": {
+    "n": 26,
+    "ok": 26,
+    "pct": 100
+   },
+   "outcome": {
+    "n": 26,
+    "ok": 25,
+    "pct": 96
+   },
+   "exact": {
+    "n": 26,
+    "ok": 23
+   }
+  },
+  "catalog": {
+   "rows": 23,
+   "validity": {
+    "n": 23,
+    "ok": 23,
+    "pct": 100
+   },
+   "recipe": {
+    "n": 23,
+    "ok": 22,
+    "pct": 96
+   },
+   "endpoint": {
+    "n": 23,
+    "ok": 23,
+    "pct": 100
+   },
+   "outcome": {
+    "n": 23,
+    "ok": 23,
+    "pct": 100
+   },
+   "exact": {
+    "n": 23,
+    "ok": 22
+   }
+  },
+  "compiledBy": {
+   "llm-fast": 51
+  },
+  "coverage": {
+   "full": 29,
+   "partial": 20,
+   "none": 2
+  },
+  "llm": {
+   "calls": 53,
+   "promptTokens": 188332,
+   "completionTokens": 19876,
+   "usd": 0,
+   "byModel": {
+    "HACK26_GPT_5_6_LUNA": {
+     "calls": 53,
+     "promptTokens": 188332,
+     "completionTokens": 19876,
+     "usd": 0
+    }
+   }
+  },
+  "wallMs": 31246
+ },
+ "results": [
+  {
+   "id": "T01",
+   "source": "typed",
+   "input": "a vendor cannot bid after the deadline is extended and closes again",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "A vendor cannot bid after the extended deadline closes",
+    "setup": {
+     "recipe": "published_rfq_short"
+    },
+    "act": [
+     {
+      "op": "extend_round",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "increase_auction_time",
+        "set": "{{roundEnd+240}}"
+       }
+      ]
+     },
+     {
+      "op": "wait",
+      "as": "buyer",
+      "params": {
+       "until": "close",
+       "round": "pricing"
+      }
+     },
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 242
+  },
+  {
+   "id": "T02",
+   "source": "typed",
+   "input": "publishing with a template that has no line items is refused",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Publishing a template with no line items is refused",
+    "setup": {
+     "recipe": "draft_event"
+    },
+    "act": [
+     {
+      "op": "add_rfq_round",
+      "change": [
+       {
+        "path": "data",
+        "set": []
+       }
+      ],
+      "as": "buyer"
+     },
+     {
+      "op": "publish_event",
+      "change": [
+       {
+        "path": "draft_trade_request_uuids",
+        "set": [
+         "{{act1.data.pricingTradeUuid}}"
+        ]
+       }
+      ],
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 181
+  },
+  {
+   "id": "T03",
+   "source": "typed",
+   "input": "editing a published event's title updates it for vendors",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Published event title update is visible to vendors",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "update_event",
+      "change": [
+       {
+        "path": "title",
+        "set": "QA_Platform_Renamed_{{stamp}}"
+       }
+      ],
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_round",
+      "as": "vendor",
+      "assert": [
+       {
+        "path": "event_group.title",
+        "op": "equals",
+        "value": "{{act1.body.title}}"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 185
+  },
+  {
+   "id": "T04",
+   "source": "typed",
+   "input": "A vendor cannot place a bid once the bid end time has passed",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "A vendor cannot place a bid once the bid end time has passed",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 151
+  },
+  {
+   "id": "T05",
+   "source": "typed",
+   "input": "The buyer can extend the bid end time of a live RFQ and the new end time is saved",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Buyer can extend the live RFQ bid end time and the new end time is saved",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "extend_round",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "increase_auction_time",
+        "set": "{{roundEnd+240}}"
+       }
+      ],
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_round",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "ending_at",
+        "op": "equals",
+        "value": "{{act1.body.increase_auction_time}}"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 81
+  },
+  {
+   "id": "T06",
+   "source": "typed",
+   "input": "Withdrawing a live event without a remark must be refused",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Withdrawing a live event without a remark is refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": ""
+       }
+      ],
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 137
+  },
+  {
+   "id": "T07",
+   "source": "typed",
+   "input": "After the buyer withdraws the event, the invited vendor can no longer open a bid on it",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Invited vendor cannot open a bid after event withdrawal",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "as": "buyer"
+     },
+     {
+      "op": "open_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "withdrawn"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "reject",
+     "code": "95",
+     "message": "Trade Request not found",
+     "codeInferred": true
+    }
+   },
+   "gaps": [
+    "the case reads as “it is accepted”, but the plan checks “it is refused”"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 68
+  },
+  {
+   "id": "T08",
+   "source": "typed",
+   "input": "A vendor who is not invited to the event cannot see the pricing round",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Uninvited vendor cannot see the pricing round",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "read_round",
+      "as": "vendor2",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "536",
+     "message": "You are not allowed to view this event.",
+     "codeInferred": true
+    }
+   },
+   "gaps": [
+    "it does not read the record back to confirm what was kept or shown"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 96
+  },
+  {
+   "id": "T09",
+   "source": "typed",
+   "input": "An uninvited vendor cannot open a bid on the RFQ",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "An uninvited vendor cannot open a bid on the RFQ",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor2",
+      "caseId": "EDGE-BID-045",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "782",
+     "message": "Bid could not be placed. Please refresh and try again."
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 78
+  },
+  {
+   "id": "T10",
+   "source": "typed",
+   "input": "Publishing a draft event that has no rounds attached should be refused",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Publishing a draft event with no rounds is refused",
+    "setup": {
+     "recipe": "draft_event"
+    },
+    "act": [
+     {
+      "op": "publish_event",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "The rejection error code and response reason are not specified in the available vocabulary."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 83
+  },
+  {
+   "id": "T11",
+   "source": "typed",
+   "input": "The buyer cannot enter a surrogate bid for a vendor who has already bid themselves",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Buyer cannot enter a surrogate bid for a vendor who already bid themselves",
+    "setup": {
+     "recipe": "rfq_with_bid"
+    },
+    "act": [
+     {
+      "op": "surrogate_bid",
+      "as": "buyer",
+      "params": {
+       "vendor": "vendor"
+      },
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "96",
+     "message": "A bid has already been placed by your team",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 79
+  },
+  {
+   "id": "T12",
+   "source": "typed",
+   "input": "The buyer can invite a second vendor to a live RFQ round and that vendor can then bid",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Buyer invites a second vendor to a live RFQ round and the vendor bids",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "add_vendor",
+      "as": "buyer",
+      "params": {
+       "round": "pricing"
+      }
+     },
+     {
+      "op": "place_bid",
+      "as": "vendor2",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_round",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "bid_count",
+        "op": "equals",
+        "value": 1
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 82
+  },
+  {
+   "id": "T13",
+   "source": "typed",
+   "input": "Removing a vendor who has already bid from the live round is refused",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Removing a vendor who has already bid from the live round is refused",
+    "setup": {
+     "recipe": "rfq_with_bid"
+    },
+    "act": [
+     {
+      "op": "remove_vendor",
+      "as": "buyer",
+      "params": {
+       "vendor": "vendor"
+      },
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "512",
+     "message": "You cannot remove a vendor who has already participated.",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 2641
+  },
+  {
+   "id": "T14",
+   "source": "typed",
+   "input": "After the round closes the buyer can open an award proposal for the event",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Buyer can open an award proposal after the round closes",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "open_proposal",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "proposals",
+        "op": "non_empty"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": false,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 56
+  },
+  {
+   "id": "T15",
+   "source": "typed",
+   "input": "The submission time cannot be extended once an award proposal exists",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Submission time cannot be extended once an award proposal exists",
+    "setup": {
+     "recipe": "closed_rfq_with_bid"
+    },
+    "act": [
+     {
+      "op": "open_proposal",
+      "as": "buyer"
+     },
+     {
+      "op": "read_event",
+      "as": "buyer"
+     },
+     {
+      "op": "extend_round",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "The specific rejection error code is not provided."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": false,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 111
+  },
+  {
+   "id": "T16",
+   "source": "typed",
+   "input": "An invited vendor can start a technical response on a live RFP round",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "An invited vendor can start a technical response on a live RFP round",
+    "setup": {
+     "recipe": "published_rfp_rfq"
+    },
+    "act": [
+     {
+      "op": "start_tech_response",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "The returned technical response UUID cannot be read back because no operation or read-back field is provided for technical responses."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 58
+  },
+  {
+   "id": "T17",
+   "source": "typed",
+   "input": "A technical response cannot be started after the technical round has closed",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "A technical response cannot be started after the technical round has closed",
+    "setup": {
+     "recipe": "closed_rfp_rfq_with_tech_response"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor",
+      "caseId": "EDGE-BID-030",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 84
+  },
+  {
+   "id": "T18",
+   "source": "typed",
+   "input": "Creating a draft event with a negative quantity is refused",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Creating a draft event with a negative quantity is refused",
+    "setup": {
+     "recipe": "none"
+    },
+    "act": [
+     {
+      "op": "create_draft",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "line_items[0].quantity.value",
+        "set": -5
+       }
+      ],
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "The exact application error code and message are not provided."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 84
+  },
+  {
+   "id": "T19",
+   "source": "typed",
+   "input": "Creating an event with a 1000 character title must not crash the server",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Creating an event with a 1000 character title must not crash the server",
+    "setup": {
+     "recipe": "none"
+    },
+    "act": [
+     {
+      "op": "create_draft",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "title",
+        "set": "QA_Platform_{{stamp}}",
+        "add": true
+       }
+      ],
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [
+    "The exact 1000-character title value is not supplied; the plan uses QA_Platform_{{stamp}} instead.",
+    "create_draft requires productUuid and productQualityUuid, but no permitted values for those fields are provided."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 102
+  },
+  {
+   "id": "T20",
+   "source": "typed",
+   "input": "Renaming a draft event keeps the new title when the event is read back",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Renaming a draft event keeps the new title when the event is read back",
+    "setup": {
+     "recipe": "draft_event"
+    },
+    "act": [
+     {
+      "op": "update_event",
+      "change": [
+       {
+        "path": "title",
+        "set": "QA_Platform_Renamed_{{stamp}}"
+       }
+      ],
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "title",
+        "op": "equals",
+        "value": "{{act1.body.title}}"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 56
+  },
+  {
+   "id": "T21",
+   "source": "typed",
+   "input": "Cloning a published event succeeds",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Cloning a published event succeeds",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "clone_event",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "The cloned event's details cannot be verified because no read operation accepts cloneUuid."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 55
+  },
+  {
+   "id": "T22",
+   "source": "typed",
+   "input": "A vendor's bid with a price of zero should be refused",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "A vendor's zero-price bid is refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "open_bid",
+      "as": "vendor"
+     },
+     {
+      "op": "library",
+      "caseId": "EDGE-BID-057",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [
+    "The plan checks that the zero-priced quote request does not cause a server error, but cannot verify that the zero-price line is omitted or explicitly refused."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": false,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 61
+  },
+  {
+   "id": "T23",
+   "source": "typed",
+   "input": "Two vendors bid and the buyer's comparison marks the cheaper one as best bidder",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Two vendors' bids appear in the buyer comparison",
+    "setup": {
+     "recipe": "rfq_with_2_bids"
+    },
+    "act": [
+     {
+      "op": "read_indicators",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_indicators",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "auction_identifiers_data.{{vendorUuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+        "op": "non_empty"
+       },
+       {
+        "path": "auction_identifiers_data.{{vendor2Uuid}}.inline.{{lineItemUuid}}.rank.best_bidder",
+        "op": "non_empty"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "The setup does not specify which vendor submitted the cheaper bid, and the available read-back fields do not expose bid prices, so the plan cannot verify that the vendor marked best bidder is specifically the cheaper vendor."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 121
+  },
+  {
+   "id": "T24",
+   "source": "typed",
+   "input": "The award confirmation email reaches the vendor within a minute",
+   "compiledBy": "llm-fast",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "Email delivery to the vendor and the within-one-minute timing are outside the available operations, fields, tokens, and assertion ops."
+   ],
+   "errors": [],
+   "checks": {
+    "noneDetect": true
+   },
+   "exact": null,
+   "ms": 60
+  },
+  {
+   "id": "T25",
+   "source": "typed",
+   "input": "The vendor list page loads in under two seconds on a slow network",
+   "compiledBy": "llm-fast",
+   "coverage": "none",
+   "plan": null,
+   "gaps": [
+    "The available vocabulary cannot verify vendor list page load time or slow-network performance."
+   ],
+   "errors": [],
+   "checks": {
+    "noneDetect": true
+   },
+   "exact": null,
+   "ms": 66
+  },
+  {
+   "id": "T26",
+   "source": "typed",
+   "input": "deadline khatam hone ke baad vendor bid nahi kar sakta",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "A vendor cannot bid after the bid end time",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 54
+  },
+  {
+   "id": "T27",
+   "source": "typed",
+   "input": "Publishing an RFP+RFQ event where the technical round ends after the pricing round is refused",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "title": "Publishing an RFP+RFQ event where the technical round ends after the pricing round is refused",
+    "setup": {
+     "recipe": "draft_event"
+    },
+    "act": [
+     {
+      "op": "add_rfq_round",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "configurations.bid_end_time",
+        "set": "{{now+600}}"
+       }
+      ]
+     },
+     {
+      "op": "add_rfp_round",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "configurations.bid_end_time",
+        "set": "{{roundEnd+60}}"
+       }
+      ]
+     },
+     {
+      "op": "publish_event",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "712",
+     "message": "RFP duration exceeds RFQ end time. Please adjust.",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 106
+  },
+  {
+   "id": "T28",
+   "source": "typed",
+   "input": "Withdrawing a live event with a remark succeeds and the event reads back as withdrawn",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "title": "Withdrawing a live event with a remark succeeds and reads back as withdrawn",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": "QA_Platform_withdraw_{{stamp}}"
+       },
+       {
+        "path": "status",
+        "set": "withdrawn"
+       }
+      ],
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "withdrawn"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "The plan does not verify that the withdrawal remark is retained because no specific read-back field for the remark is available."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 56
+  },
+  {
+   "id": "C01",
+   "source": "catalog",
+   "input": "API-XBID-049",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-049",
+    "title": "A bid cannot be opened after the window closes",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "open_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 1856
+  },
+  {
+   "id": "C02",
+   "source": "catalog",
+   "input": "API-XBID-030",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-030",
+    "title": "A technical response cannot be started after the stage closed",
+    "setup": {
+     "recipe": "closed_rfp_rfq_with_tech_response"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-BID-030",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 1562
+  },
+  {
+   "id": "C03",
+   "source": "catalog",
+   "input": "API-XBID-045",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-045",
+    "title": "An uninvited vendor cannot open a bid",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "as": "vendor",
+      "caseId": "EDGE-BID-045",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "782",
+     "message": "Bid could not be placed. Please refresh and try again."
+    }
+   },
+   "gaps": [
+    "The setup recipe invites one QA vendor, while the case requires the authenticated vendor to be outside the event audience; this precondition is supplied by the library case."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 4822
+  },
+  {
+   "id": "C04",
+   "source": "catalog",
+   "input": "API-XBID-020",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-020",
+    "title": "An uninvited vendor cannot read a restricted event",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-BID-020",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "536",
+     "message": "You are not allowed to view this event."
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 2419
+  },
+  {
+   "id": "C05",
+   "source": "catalog",
+   "input": "API-XBID-074",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-074",
+    "title": "Submitting the same bid twice does not create a second active bid",
+    "setup": {
+     "recipe": "rfq_with_bid"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-BID-074",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "34",
+     "message": "A bid has already been placed from your team"
+    }
+   },
+   "gaps": [
+    "The plan does not directly verify the number of active bids after the rejected update."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 2658
+  },
+  {
+   "id": "C06",
+   "source": "catalog",
+   "input": "API-XBID-075",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XBID-075",
+    "title": "A bid cannot be submitted after the window closes",
+    "setup": {
+     "recipe": "published_rfq_short"
+    },
+    "act": [
+     {
+      "op": "open_bid",
+      "as": "vendor"
+     },
+     {
+      "op": "price_bid",
+      "as": "vendor",
+      "params": {
+       "price": 100
+      }
+     },
+     {
+      "op": "wait",
+      "as": "buyer",
+      "params": {
+       "until": "bid_end"
+      }
+     },
+     {
+      "op": "library",
+      "as": "vendor",
+      "caseId": "EDGE-BID-075",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": false,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": false,
+   "ms": 83
+  },
+  {
+   "id": "C07",
+   "source": "catalog",
+   "input": "API-XCRT-018",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XCRT-018",
+    "title": "Create with whitespace title does not return 5xx",
+    "setup": {
+     "recipe": "none"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-CRT-018",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "list_events",
+      "as": "buyer",
+      "assert": [
+       {
+        "op": "status_2xx"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [
+    "The plan cannot verify the create response's exact status code or error details.",
+    "The plan cannot verify that the created title is rejected, trimmed, or replaced with a default title."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 25809
+  },
+  {
+   "id": "C08",
+   "source": "catalog",
+   "input": "API-XCRT-022",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XCRT-022",
+    "title": "Patch back to draft after publish",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-CRT-022",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "status",
+        "op": "not_equals",
+        "value": "draft"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "no-5xx"
+    }
+   },
+   "gaps": [
+    "The error response body and refusal reason are not available as read-back fields."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 3788
+  },
+  {
+   "id": "C09",
+   "source": "catalog",
+   "input": "API-XPUB-004",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XPUB-004",
+    "title": "Status in_active with config cannot bypass the withdraw flow",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-PUB-004",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "active"
+       },
+       {
+        "path": "stages[*].status",
+        "op": "contains",
+        "value": "active"
+       },
+       {
+        "path": "withdraw_details",
+        "op": "absent"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "Does not verify that PR quantities remain unreleased.",
+    "Does not verify vendor notification behavior.",
+    "The refusal response status or application error code is not specified.",
+    "the case reads as “it is accepted”, but the plan checks “it is refused”",
+    "the part about “notification” is outside what an API plan on a sourcing event checks"
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 5782
+  },
+  {
+   "id": "C10",
+   "source": "catalog",
+   "input": "API-XAWD-092",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XAWD-092",
+    "title": "Opening the award twice returns the same draft",
+    "setup": {
+     "recipe": "closed_rfq_with_bid"
+    },
+    "act": [
+     {
+      "op": "open_proposal",
+      "as": "buyer"
+     },
+     {
+      "op": "library",
+      "caseId": "EDGE-AWD-092",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "The available read operations cannot independently verify that both responses contain the same proposal UUID; EDGE-AWD-092 covers this assertion."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 5129
+  },
+  {
+   "id": "C11",
+   "source": "catalog",
+   "input": "API-XAWD-119",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XAWD-119",
+    "title": "Submitting an award twice is refused",
+    "setup": {
+     "recipe": "awarded_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-AWD-119",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "2",
+     "message": "Insufficient parameters"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 2934
+  },
+  {
+   "id": "C12",
+   "source": "catalog",
+   "input": "API-XMAT-017",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XMAT-017",
+    "title": "Buyer cannot bid for a vendor after the bid end time",
+    "setup": {
+     "recipe": "published_rfq_short"
+    },
+    "act": [
+     {
+      "op": "add_vendor",
+      "as": "buyer",
+      "params": {
+       "round": "pricing"
+      }
+     },
+     {
+      "op": "wait",
+      "as": "buyer",
+      "params": {
+       "until": "bid_end"
+      }
+     },
+     {
+      "op": "surrogate_bid",
+      "as": "buyer",
+      "params": {
+       "vendor": "vendor2"
+      },
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 70
+  },
+  {
+   "id": "C13",
+   "source": "catalog",
+   "input": "API-XMAT-031",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XMAT-031",
+    "title": "Vendor 2 cannot open a bid after the extra closing time",
+    "setup": {
+     "recipe": "closed_rfq"
+    },
+    "act": [
+     {
+      "op": "open_bid",
+      "as": "vendor2",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "33",
+     "message": "Order not active",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 76
+  },
+  {
+   "id": "C14",
+   "source": "catalog",
+   "input": "API-XMAT-036",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XMAT-036",
+    "title": "Event with technical round ending after pricing round cannot be published",
+    "setup": {
+     "recipe": "draft_event"
+    },
+    "act": [
+     {
+      "op": "add_rfq_round",
+      "change": [
+       {
+        "path": "configurations.bid_end_time",
+        "set": "{{now+600}}"
+       }
+      ],
+      "as": "buyer"
+     },
+     {
+      "op": "add_rfp_round",
+      "change": [
+       {
+        "path": "configurations.bid_end_time",
+        "set": "{{now+690}}"
+       }
+      ],
+      "as": "buyer"
+     },
+     {
+      "op": "library",
+      "caseId": "EDGE-PUB-013",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "712",
+     "message": "RFP duration exceeds RFQ end time. Please adjust."
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 73
+  },
+  {
+   "id": "C15",
+   "source": "catalog",
+   "input": "API-XMAT-037",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XMAT-037",
+    "title": "Extending only the technical round past the pricing round is refused",
+    "setup": {
+     "recipe": "published_rfp_rfq"
+    },
+    "act": [
+     {
+      "op": "extend_round",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "increase_auction_time",
+        "set": "{{roundClose+60}}"
+       }
+      ],
+      "params": {
+       "round": "technical"
+      },
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "712",
+     "message": "RFP duration exceeds RFQ end time. Please adjust."
+    }
+   },
+   "gaps": [
+    "The available time token represents one minute after the pricing round's extra closing time, not exactly two minutes after the pricing round's end.",
+    "The plan does not verify that the technical round's end time remains unchanged after refusal."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": true,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 75
+  },
+  {
+   "id": "C16",
+   "source": "catalog",
+   "input": "API-LC-002",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-LC-002",
+    "title": "Withdrawing with blank remarks is refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": ""
+       },
+       {
+        "path": "status",
+        "set": "withdrawn"
+       }
+      ],
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [
+    "The exact HTTP 422 response is not asserted."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 73
+  },
+  {
+   "id": "C17",
+   "source": "catalog",
+   "input": "API-LC-005",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-LC-005",
+    "title": "Activating a withdrawn event is refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": "QA_Platform_Withdrawn_{{stamp}}"
+       },
+       {
+        "path": "status",
+        "set": "withdrawn"
+       }
+      ]
+     },
+     {
+      "op": "update_event",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "status",
+        "set": "active",
+        "add": true
+       }
+      ],
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "withdrawn"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "reject"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 88
+  },
+  {
+   "id": "C18",
+   "source": "catalog",
+   "input": "API-LC-008",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-LC-008",
+    "title": "A withdrawn event can be cloned",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": "QA withdrawal"
+       },
+       {
+        "path": "status",
+        "set": "withdrawn"
+       }
+      ],
+      "as": "buyer"
+     },
+     {
+      "op": "clone_event",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 64
+  },
+  {
+   "id": "C19",
+   "source": "catalog",
+   "input": "API-DB-008",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-DB-008",
+    "title": "Withdrawn event status and remark are persisted",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": "QA_Platform_withdraw_{{stamp}}"
+       },
+       {
+        "path": "status",
+        "set": "withdrawn"
+       }
+      ],
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "withdrawn"
+       },
+       {
+        "path": "withdraw_details",
+        "op": "contains",
+        "value": "QA_Platform_withdraw_{{stamp}}"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": true
+   },
+   "exact": true,
+   "ms": 67
+  },
+  {
+   "id": "C20",
+   "source": "catalog",
+   "input": "API-AUD-002",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-AUD-002",
+    "title": "Invited vendor can read the event",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "read_event",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "vendor",
+      "assert": [
+       {
+        "op": "status",
+        "value": 200
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 3256
+  },
+  {
+   "id": "C21",
+   "source": "catalog",
+   "input": "API-BID-006",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-BID-006",
+    "title": "A bid on a withdrawn event is refused",
+    "setup": {
+     "recipe": "published_rfq"
+    },
+    "act": [
+     {
+      "op": "withdraw_event",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "withdraw_remark.remarks",
+        "set": "QA_Platform_withdrawn_{{stamp}}"
+       },
+       {
+        "path": "status",
+        "set": "withdrawn"
+       }
+      ]
+     },
+     {
+      "op": "place_bid",
+      "as": "vendor",
+      "decisive": true
+     }
+    ],
+    "verify": [],
+    "expected": {
+     "outcome": "reject",
+     "code": "95",
+     "message": "Trade Request not found",
+     "codeInferred": true
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 65
+  },
+  {
+   "id": "C22",
+   "source": "catalog",
+   "input": "API-XMAT-032",
+   "compiledBy": "llm-fast",
+   "coverage": "partial",
+   "plan": {
+    "version": 1,
+    "caseId": "API-XMAT-032",
+    "title": "Extending the submission time reopens bidding",
+    "setup": {
+     "recipe": "closed_rfq_with_bid"
+    },
+    "act": [
+     {
+      "op": "extend_round",
+      "as": "buyer",
+      "change": [
+       {
+        "path": "increase_auction_time",
+        "set": "{{now+600}}"
+       }
+      ],
+      "params": {
+       "round": "pricing"
+      }
+     },
+     {
+      "op": "read_round",
+      "as": "buyer"
+     },
+     {
+      "op": "add_vendor",
+      "as": "buyer",
+      "params": {
+       "round": "pricing"
+      }
+     },
+     {
+      "op": "place_bid",
+      "as": "vendor2",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_round",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "ending_at",
+        "op": "equals",
+        "value": "{{act1.body.increase_auction_time}}"
+       },
+       {
+        "path": "ending_at",
+        "op": "format",
+        "value": "epochSeconds"
+       },
+       {
+        "path": "extra_closing_time",
+        "op": "format",
+        "value": "epochSeconds"
+       },
+       {
+        "path": "bid_count",
+        "op": "equals",
+        "value": 2
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [
+    "The available time token extends to {{now+600}} rather than about two minutes.",
+    "The available read-back assertions cannot verify that the extra closing time moved by the same amount as the bid end.",
+    "There is no operation or exposed bidUuid for vendor 1 to revise the existing bid, so vendor 1's revision is not performed or independently verified."
+   ],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 87
+  },
+  {
+   "id": "C23",
+   "source": "catalog",
+   "input": "API-PUB-006",
+   "compiledBy": "llm-fast",
+   "coverage": "full",
+   "plan": {
+    "version": 1,
+    "caseId": "API-PUB-006",
+    "title": "Activation succeeds with a single invited vendor",
+    "setup": {
+     "recipe": "draft_rfq"
+    },
+    "act": [
+     {
+      "op": "library",
+      "caseId": "EDGE-PUB-036",
+      "as": "buyer",
+      "decisive": true
+     }
+    ],
+    "verify": [
+     {
+      "op": "read_event",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "status",
+        "op": "equals",
+        "value": "active"
+       }
+      ]
+     },
+     {
+      "op": "read_audience",
+      "as": "buyer",
+      "assert": [
+       {
+        "path": "",
+        "op": "non_empty"
+       }
+      ]
+     }
+    ],
+    "expected": {
+     "outcome": "accept"
+    }
+   },
+   "gaps": [],
+   "errors": [],
+   "checks": {
+    "validity": true,
+    "recipe": true,
+    "endpoint": true,
+    "outcome": true,
+    "code": null,
+    "verify": null
+   },
+   "exact": true,
+   "ms": 71
+  }
+ ]
+}

@@ -5,10 +5,13 @@ import { fileURLToPath } from "node:url";
 /**
  * The written test catalog, as data.
  *
- * `test-cases/events-ui.md` and `events-api.md` are the source of truth — 648
- * cases written for people to read. `scripts/import-test-cases.ts` derives
- * `data/test-cases.json` from them; this module is how the rest of the platform
- * reads that, so nothing else has to know the prose format.
+ * `test-cases/*.md` are the source of truth — thousands of cases written for
+ * people to read (events UI/API, field checks, edge cases, product modules…).
+ * `scripts/import-test-cases.ts` derives `data/test-cases.json` from them; this
+ * module is how the rest of the platform reads that, so nothing else has to
+ * know the prose format. Which runner (if any) runs each case is decided in
+ * `caseRouting.ts`; how much of the catalog really runs is counted in
+ * `metrics.ts` (`npm run coverage:report`, the Success page).
  *
  * The catalog is deliberately NOT a set of scripts. A case says what to do and
  * how to tell whether it worked; turning one into steps is the compiler's job
@@ -55,6 +58,11 @@ export function allCases(): CatalogCase[] {
     cache = [];
   }
   return cache!;
+}
+
+/** Forget the cached catalog (after `cases:import` rewrote data/test-cases.json). */
+export function reloadCatalog(): void {
+  cache = null;
 }
 
 /** One case by id, case-insensitively (`ui-cre-001` finds `UI-CRE-001`). */

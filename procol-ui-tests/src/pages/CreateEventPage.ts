@@ -2,6 +2,7 @@ import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
+import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError } from "../db/qaVendors.js";
 import { InlineSheet, WidgetConfig } from "../helpers/inlineSheet.js";
 import { forEachSequential } from "../helpers/data.js";
 import { templateChoice, scheduleMinutes } from "../master/params.js";
@@ -1415,6 +1416,18 @@ export class CreateEventPage extends BasePage {
    * somebody to bid.
    */
   async inviteVendors(opts: { names?: string[]; count?: number } = {}): Promise<string[]> {
+    if (!allowRealVendors()) {
+      const qa = await qaVendorNames();
+      const asked = opts.names ?? [];
+      const notQa = asked.filter((n) => !isQaVendorName(n, qa));
+      if (notQa.length) {
+        throw new Error(`asked to invite ${notQa.join(", ")}, which ${notQa.length === 1 ? "is not a QA test vendor" : "are not QA test vendors"} — real suppliers are never invited`);
+      }
+      if (!asked.length) {
+        await this.inviteQaVendors();
+        return [];
+      }
+    }
     const invited: string[] = [];
     for (const name of opts.names ?? []) {
       const ok = await this.addParticipantByName(name);
@@ -1437,7 +1450,68 @@ export class CreateEventPage extends BasePage {
     return [];
   }
 
+  /**
+   * QA-ONLY INVITE. Inviting mails a vendor's people, so a run may only ever
+   * leave the client's own QA test vendors (qa_…@example.com) on the event:
+   * add one by exact name, remove anything the product pre-filled, and refuse
+   * to continue if a non-QA participant is still there. The old behaviour —
+   * keep the pre-filled audience, or type "a" and take the first match, which
+   * invited real suppliers — runs only with SPINE_ALLOW_REAL_VENDORS=1.
+   */
+  private async inviteQaVendors(): Promise<void> {
+    const qa = await qaVendorNames();
+    if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
+    await this.dismissDistractions();
+    await this.waitForParticipants(3_000); // let a pre-filled audience arrive before judging it
+    await this.removeNonQaParticipants(qa);
+    if (!(await this.participantNames()).some((n) => isQaVendorName(n, qa))) {
+      await this.addParticipantByName(qa[0]);
+    }
+    await this.removeNonQaParticipants(qa);
+    const names = await this.participantNames();
+    const nonQa = names.filter((n) => !isQaVendorName(n, qa));
+    if (!names.length || nonQa.length) {
+      throw new Error(
+        `could not leave only QA test vendors on the event (${names.length} participant(s), ${nonQa.length} not a QA vendor) — ` +
+          "stopping here so no real supplier is invited",
+      );
+    }
+    console.log(`[create-event] invited QA test vendor(s) only: ${names.join(", ")}`);
+  }
+
+  /** Names on the participant chips. */
+  async participantNames(): Promise<string[]> {
+    const texts = await this.participantChips().allInnerTexts().catch(() => [] as string[]);
+    return texts.map((t) => t.trim()).filter(Boolean);
+  }
+
+  /** Remove every participant chip that is not a QA test vendor (bounded). */
+  async removeNonQaParticipants(qa: string[]): Promise<number> {
+    let removed = 0;
+    for (let round = 0; round < 40; round++) {
+      const chips = this.participantChips();
+      const n = await chips.count();
+      let hit = false;
+      for (let k = 0; k < n; k++) {
+        const chip = chips.nth(k);
+        const text = (await chip.innerText().catch(() => "")).trim();
+        if (!text || isQaVendorName(text, qa)) continue;
+        const close = chip.locator(".ant-select-selection__choice__remove, .ant-tag .anticon-close, .anticon-close, [aria-label='close'], [class*='remove']").first();
+        if (await close.count()) {
+          await close.click({ timeout: 5_000 }).catch(() => {});
+          removed++;
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) break;
+    }
+    if (removed) console.log(`[create-event] removed ${removed} non-QA participant(s) the product had pre-filled`);
+    return removed;
+  }
+
   async inviteVendor(): Promise<void> {
+    if (!allowRealVendors()) return this.inviteQaVendors();
     const p = this.page;
     // Timed, because "it takes too long to select the vendor" is a claim worth
     // being able to check rather than argue about.

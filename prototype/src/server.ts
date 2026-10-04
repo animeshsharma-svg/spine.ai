@@ -25,7 +25,8 @@ import { mergeFieldChecks } from "./report/journeyReport.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./checks/eventJourney.js";
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
 import { apiModulesFor, singleApiModule } from "../config/apiModules.js";
-import { caseCountsByFeature, lineItemCaseCountsByFeature, casesForFeatures, buildChecksFromCases, idsFromReply, loadCases, resolveCaseContext, resolveActor, configRequirementOf } from "./checks/caseLibrary.js";
+import { caseCountsByFeature, lineItemCaseCountsByFeature, casesForFeatures, buildChecksFromCases, idsFromReply, loadCases, resolveCaseContext, resolveActor, configRequirementOf, orderForSharedCopy } from "./checks/caseLibrary.js";
+import { disposeVendorSession } from "./checks/actors.js";
 import { runOrchestrator } from "./agents/orchestrator.js";
 import type { CheckResult } from "./ai/types.js";
 import { providerLabel, usageReport, llmMode } from "./ai/llm.js";
@@ -1354,7 +1355,9 @@ const server = createServer(async (req, res) => {
             (/destructive|own copy|run it last/i.test(`${cs.preconditions ?? ""} ${cs.title ?? ""}`) ||
               /withdraw|cancel|force_?(end|close)|close_trade|revert/i.test(cs.path) ||
               /"status":"(withdrawn|closed|cancelled|draft|in_active|deleted)"|"force_end":|"withdraw_remark"/.test(JSON.stringify(cs.body ?? {})));
-          cases = [...cases.filter((cs) => !destructive(cs)), ...cases.filter(destructive)];
+          // Buyer cases, then the QA vendor's (a bid it places changes what later
+          // buyer cases see), then the destructive ones.
+          cases = orderForSharedCopy(cases, destructive);
           const edgeCount = cases.filter(isEdge).length;
           if (edgeCount) send("line", { line: `${edgeCount} edge / negative case(s) will run after the journey, on a second copy of the event.` });
           // The plan itself was sent before the client opened, so the list was
@@ -1616,6 +1619,9 @@ const server = createServer(async (req, res) => {
 
         const runOne = async (chk: any): Promise<CheckResult | null> => {
           const result = await runCheck(client, chk, harvest);
+          // A 401 on the QA vendor's own token says nothing about the buyer's
+          // session (the vendor session signs itself in again on its next case).
+          if (chk.actor === "vendor") return result;
           if (!isAuthFailure(result)) {
             consecutiveAuthFails = 0;
             return result;
@@ -1699,7 +1705,39 @@ const server = createServer(async (req, res) => {
           }
           for (const [k, v] of Object.entries(to)) if (v) (liveCtx as any)[k] = v;
         };
+        /**
+         * A case that changes the copy in a way the next case would inherit
+         * (adds a round, moves the window, hands the event over, changes the
+         * audience) runs on a fresh copy of its OWN; the shared copy is left
+         * as it was. Bounded; a case that cannot get one is not run.
+         */
+        let ownCopies = 0;
+        const MAX_OWN_COPIES = 40;
+        const giveOwnCopy = async (chk: any): Promise<boolean> => {
+          if (!chk?.ownCopy) return true;
+          if (!sandbox || !rebuildSandbox) return true; // no shared copy either: it runs where every case runs
+          const own = ownCopies < MAX_OWN_COPIES ? await bounded(rebuildSandbox(), 180_000, "building a copy for one case", undefined) : undefined;
+          if (!own) {
+            skipped.push({
+              id: chk.id,
+              title: chk.scenario,
+              reason: `needs a fresh copy of the event of its own (${chk.ownCopy}) and ${ownCopies >= MAX_OWN_COPIES ? `this run already built ${MAX_OWN_COPIES}` : "one could not be built"} — not run, rather than run on the shared copy`,
+            });
+            send("skips", { skipped });
+            return false;
+          }
+          ownCopies += 1;
+          const from = sandbox;
+          const pairs = ([["eventGroupUuid"], ["tradeId"], ["lineItemUuid"]] as const)
+            .map(([k]) => [from[k], own[k]] as const)
+            .filter(([a, b]) => a && b && a !== b) as Array<readonly [string, string]>;
+          const swap = (x: string) => pairs.reduce((acc, [a, b]) => acc.split(a).join(b), x);
+          chk.request = { ...chk.request, path: swap(String(chk.request.path)), ...(chk.request.body === undefined ? {} : { body: JSON.parse(swap(JSON.stringify(chk.request.body))) }) };
+          if (typeof chk.inputSummary === "string") chk.inputSummary = swap(chk.inputSummary);
+          return true;
+        };
         const guardSandbox = async (chk: any, result: CheckResult, pending: any[]) => {
+          if (chk?.ownCopy) return; // it had a copy of its own; the shared one is untouched
           if (!sandbox || !rebuildSandbox || sandboxRebuilds >= MAX_SANDBOX_REBUILDS) return;
           const req = chk.request ?? {};
           if (String(req.method ?? "GET").toUpperCase() === "GET") return;
@@ -1723,6 +1761,7 @@ const server = createServer(async (req, res) => {
 
         for (let i = 0; i < runnable.length; i++) {
           const chk = runnable[i];
+          if (!(await giveOwnCopy(chk))) continue;
           const result = await runOne(chk);
           if (!result) break;
           results.push(result);
@@ -1766,6 +1805,7 @@ const server = createServer(async (req, res) => {
           if (stoppedEarly) break;
           for (let i = 0; i < built.checks.length; i++) {
             const chk = built.checks[i];
+            if (!(await giveOwnCopy(chk))) continue;
             const result = await runOne(chk);
             if (!result) break;
             results.push(result);
@@ -1830,8 +1870,12 @@ const server = createServer(async (req, res) => {
       } catch (err: any) {
         send("fatal", { message: err?.message ?? String(err) });
       } finally {
+        await disposeVendorSession(client);
         await client.dispose().catch(() => {});
-        for (const old of stale) await old.dispose?.().catch?.(() => {});
+        for (const old of stale) {
+          await disposeVendorSession(old as any);
+          await old.dispose?.().catch?.(() => {});
+        }
       }
       return res.end();
     }

@@ -73,6 +73,10 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
           ? "automate"
           : "unclassified";
     const refs = [...trace.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+    // A support-ticket regression lives in the journey group its Trace names (`API-XBID` …).
+    if (current.id.startsWith("HS-")) current.group = refs.find((r) => /^API-[A-Z]+$/.test(r)) ?? "HS";
+    // An approved assistant draft (api-assistant-approved.md) joins the group its Trace names.
+    if (current.id.startsWith("GEN-")) current.group = refs.find((r) => /^(API|UI)-[A-Z]+$/.test(r)) ?? "GEN";
     const setup = (buf.Setup ?? []).join(" ").replace(/\s+/g, " ").trim();
     cases.push({
       id: current.id,
@@ -110,13 +114,16 @@ function parse(file: string, layer: "ui" | "api"): CatalogCase[] {
     }
     // UI-/API- are the hand-written catalog; PRD- are the product-knowledge
     // cases generated from the Modules & Features workbook.
-    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+-\d+)\s*[—–-]\s*(.+)$/);
+    // HS-<ticketId>-N are the support-ticket regressions (hubspot-regressions.md);
+    // their group is the journey group named in the Trace (see flush()).
+    const head = raw.match(/^#{3,4}\s+((?:UI|API|PRD)-[A-Z]+(?:-[A-Z]+)?-\d+|EVI-[A-Z]+-\d+|HS-\d+-\d+|GEN-[A-Z]+-\d{3})\s*[—–-]\s*(.+)$/);
     if (head) {
       flush();
       current = {
         id: head[1],
         title: head[2].trim(),
-        group: head[1].replace(/-\d+$/, ""),
+        // UI-XCHK-<SCREEN>-NNN (the UI↔API cross-checks) all belong to the UI-XCHK group
+        group: head[1].startsWith("UI-XCHK-") ? "UI-XCHK" : head[1].replace(/-\d+$/, ""),
         section,
         sectionNo,
       };
@@ -146,9 +153,17 @@ const CASES_DIR = join(ROOT, "test-cases");
 const extra = (prefix: string) =>
   readdirSync(CASES_DIR).filter((f) => f.startsWith(prefix) && f.endsWith(".md")).sort().map((f) => join(CASES_DIR, f));
 // `ui-*.md`: generated UI-layer cases in the same format (e.g. the UI↔API cross-checks).
-const ui = [join(CASES_DIR, "events-ui.md"), ...extra("product-"), ...extra("ui-")].flatMap((f) => parse(f, "ui"));
-const api = [join(CASES_DIR, "events-api.md"), ...extra("api-")].flatMap((f) => parse(f, "api"));
-const all = [...ui, ...api];
+const ui = [join(CASES_DIR, "events-ui.md"), join(CASES_DIR, "events-ui-crosscheck.md"), ...extra("product-"), ...extra("ui-")].flatMap((f) => parse(f, "ui"));
+// `hubspot-*.md`: regression cases generated from support tickets (scripts/hubspot-ingest.ts), API layer.
+const api = [join(CASES_DIR, "events-api.md"), ...extra("api-"), ...extra("hubspot-")].flatMap((f) => parse(f, "api"));
+// `events-deep-*.md`: sourcing events in depth, one file per area, holding BOTH
+// screen (UI-XD…) and API (API-XD…) cases — the layer is read off each id.
+// `events-integrity.md`: the bid-number checks (EVI-…), recomputed by src/integrity/.
+// `events-deep2-*.md` / `events-deep3-*.md`: the second and third deep-dig rounds (API-EVD… / UI-EVD…).
+const deep = [...extra("events-deep-"), ...extra("events-deep2-"), ...extra("events-deep3-"), ...extra("events-integrity")].flatMap((f) =>
+  parse(f, "api").map((c) => (c.id.startsWith("UI-") ? { ...c, layer: "ui" as const } : c)),
+);
+const all = [...ui, ...api, ...deep];
 const dupes = [...all.reduce((m, c) => m.set(c.id, (m.get(c.id) ?? 0) + 1), new Map<string, number>())].filter(([, n]) => n > 1);
 if (dupes.length) console.log(`  ⚠ ${dupes.length} duplicate case id(s): ${dupes.slice(0, 5).map(([id]) => id).join(", ")}`);
 

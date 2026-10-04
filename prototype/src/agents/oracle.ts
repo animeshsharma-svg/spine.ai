@@ -1,7 +1,7 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { recall } from "../rag/knowledgeBase.js";
+import { recall, retrieve } from "../rag/knowledgeBase.js";
 import type { Emit } from "./agents.js";
 import type { RunState } from "../ai/types.js";
 
@@ -59,6 +59,8 @@ export interface OracleVerdict {
   fingerprint?: string;
   /** How many times memory has seen this before — 0 means it is new. */
   seenBefore: number;
+  /** The bug-sheet row (BUG-xx) that already lists this case, when one does. */
+  knownBug?: string;
 }
 
 interface UiFinding {
@@ -334,10 +336,15 @@ export async function oracleAgent(
   // triager than "new since this change".
   for (const v of verdicts) {
     try {
+      // Exact keys only: a fuzzy similarity match could hide a NEW bug as "known".
       const { experience } = await recall(v.title, undefined, 4);
-      v.seenBefore = experience.filter(
-        (e) => (v.fingerprint && e.labels?.includes(v.fingerprint)) || e.score > 0.85,
-      ).length;
+      v.seenBefore = experience.filter((e) => v.fingerprint && e.labels?.includes(v.fingerprint)).length;
+      const caseId = /^\[([A-Z][A-Z0-9-]+)\]/.exec(v.title)?.[1];
+      if (caseId) {
+        const bugs = await retrieve(caseId, 5, { kinds: ["known-bug"] });
+        const hit = bugs.find((b) => b.labels?.includes(caseId) && !b.labels.includes("needs-confirmation"));
+        if (hit) v.knownBug = hit.labels?.find((l) => /^BUG-\d+$/.test(l));
+      }
     } catch {
       /* memory not built yet — a new platform has no history, which is fine */
     }

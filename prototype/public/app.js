@@ -46,7 +46,8 @@ let catRunning = null; // the open EventSource while cases are running
 // Purchase-to-bill is off the nav for now: its runner and endpoints stay,
 // so restoring it is a nav entry and a view block, nothing more.
 // crosscheck = UI vs API (public/crosscheck.js), product = Product knowledge (public/model.js), matrix = Bidding scenarios (public/matrix.js)
-const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product", "matrix"];
+// success = Success (public/success.js)
+const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product", "matrix", "success"];
 const DEFAULT_VIEW = "run";
 
 function currentView() {
@@ -4725,6 +4726,9 @@ const ROUTE_TAG = {
   "ui-crosscheck": ["journey", "UI↔API cross-check"],
   "api-library": ["exact", "API case library"],
   "api-field": ["area", "field check on every journey"],
+  "api-template": ["exact", "template field check"],
+  "api-matrix": ["exact", "bidding scenario"],
+  "api-plan": ["", "API test compiler"],
   manual: ["manual", "for a person"],
   none: ["none", "no runner yet"],
 };
@@ -5446,7 +5450,9 @@ function renderCatalog() {
       updateCatCount();
     });
     const body = el("div", "cat-body");
-    const [tagCls, tagText] = ROUTE_TAG[c.route.kind] || ["", c.route.kind];
+    const [tagCls0, tagText] = ROUTE_TAG[c.route.kind] || ["", c.route.kind];
+    // A library copy that cannot run this case as written is not "exact".
+    const tagCls = tagCls0 === "exact" && c.route.strength && !["exact", "same-request"].includes(c.route.strength) ? "area" : tagCls0;
     // The headline is the case in plain words (from /api/case-display); the id
     // is a muted reference. Until the words land, the author's title stands in.
     body.appendChild(
@@ -5667,6 +5673,10 @@ const ROUTE_SENTENCE = {
   "ui-compile": () => `No built journey covers this — reading the written case and compiling it into steps the browser can perform.`,
   manual: () => `The catalog says a person should do this one.`,
   none: () => `Nothing can run this yet.`,
+  "api-library": (r) => r.because,
+  "api-template": (r) => r.because,
+  "api-matrix": (r) => r.because,
+  "api-plan": (r) => r.because,
 };
 
 // The step vocabulary, in the words a person would use.

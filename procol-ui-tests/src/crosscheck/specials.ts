@@ -5,6 +5,7 @@ import type { ScreenSnapshot, Segment } from "./screenText.js";
 import type { ItemResult } from "./checks.js";
 import { compareValue, spellApi } from "./checks.js";
 import { normText, toInstant } from "./normalize.js";
+import { runMoreSpecial } from "./specialsMore.js";
 import { anchorsFor, excerpt, headerAbove, labelSegments, lineOf, lineText, underHeader } from "./scopes.js";
 
 /**
@@ -158,6 +159,17 @@ function widgetsOf(schemaBody: unknown): Map<string, Widget> {
   return out;
 }
 
+/**
+ * The grid hides a zero: getFormattedValue returns nothing for 0 unless the
+ * cell has a previous value or is the buyer's requested quantity, and the cell
+ * then renders "–" (client-dashboard components/dataGrid/formatters/
+ * cellValueFormatter.jsx:59-65, 139, 477-484). By the console's own rule that
+ * is the right display, so it is not a disagreement.
+ */
+const ZERO_CODE = "components/dataGrid/formatters/cellValueFormatter.jsx:59-65,139,477-484";
+const ZERO_RULE = "the API value is zero and the console shows zero as \"–\" in grid cells (its own rule)";
+const hiddenZero = (value: unknown, key: string) => key !== "creator_quantity" && Number(String(value).replace(/[^\d.-]/g, "")) === 0 && /\d/.test(String(value));
+
 const SKIP_KEYS = new Set(["action", "status", "serial_number", "product", "variant", "meta_data", "savings_with_strategy", "rank", "rfp_status", "service_name"]);
 
 function formatFor(w: Widget): "number" | "money" | "quantity" | "text" {
@@ -167,9 +179,9 @@ function formatFor(w: Widget): "number" | "money" | "quantity" | "text" {
 }
 
 /** Vendor column regions on a comparison grid: [x of this vendor's header, x of the next). */
-function vendorRegions(snap: ScreenSnapshot, labels: Array<{ key: string; label: string }>): Map<string, [number, number]> {
+function vendorRegions(snap: ScreenSnapshot, labels: Array<{ key: string; label: string }>, minY = -1e9): Map<string, [number, number]> {
   const found = labels
-    .map((l) => ({ ...l, seg: anchorsFor(snap, l.label).sort((a, b) => a.box.y - b.box.y)[0] }))
+    .map((l) => ({ ...l, seg: anchorsFor(snap, l.label).filter((a) => a.box.y > minY).sort((a, b) => a.box.y - b.box.y)[0] }))
     .filter((l): l is typeof l & { seg: Segment } => !!l.seg)
     .sort((a, b) => a.seg.box.x - b.seg.box.x);
   const out = new Map<string, [number, number]>();
@@ -233,7 +245,11 @@ function sheetWidgets(ctx: SpecialContext, s: SpecialSpec): ItemResult[] {
         const cellSegs = underHeader(line, header);
         const c = compareValue({ format: fmt }, value, undefined, { text: lineText(cellSegs), segs: cellSegs }, w.precision);
         const blank = cellSegs.every((x) => /^[-–—]?$/.test(x.text.trim()));
-        out.push(mk(ctx, { ...base, verdict: c.ok ? "pass" : blank ? "missing" : "mismatch", shown: blank ? "(blank)" : c.shown, how: c.how, scope: `"${header.text}" column of the "${product}" row${xr ? `, ${vendorName}'s columns` : ""}` }));
+        if (!c.ok && blank && hiddenZero(value, k)) {
+          out.push(mk(ctx, { ...base, verdict: "pass", shown: "–", how: ZERO_RULE, scope: `"${header.text}" column of the "${product}" row`, code: ZERO_CODE }));
+          continue;
+        }
+        out.push(mk(ctx, { ...base, verdict: c.ok ? "pass" : blank ? "missing" : "mismatch", shown: blank ? "(blank)" : c.shown, how: c.how, scope: `"${header.text}" column of the "${product}" row${xr ? `, ${vendorName}'s columns` : ""}`, raw: { api: value, screen: lineText(cellSegs) } }));
       }
     }
   }
@@ -261,7 +277,11 @@ function qcsCells(ctx: SpecialContext, s: SpecialSpec): ItemResult[] {
     out.push(mk(ctx, { key: "qcs.bidder", field: "Bidder column", item: String(l.label), verdict: seen ? "pass" : "missing", api: String(l.label), shown: seen ? String(l.label) : "(no column)", how: seen ? "the bidder has a column" : "the API lists this bidder but QCS has no column for it", scope: "QCS header", source: "sheets/schema → layers[].label" }));
   }
   const widgets = widgetsOf(schema);
-  const regions = vendorRegions(ctx.snap, layers.map((l) => ({ key: String(l.key), label: String(l.label) })));
+  // On a page that shows the vendors' names in other tables too (the proposal
+  // page), the grid is the part below its own panel heading.
+  const belowSeg = s.params?.below ? labelSegments(ctx.snap, String(s.params.below)).sort((a, b) => a.box.y - b.box.y)[0] : undefined;
+  const minY = belowSeg ? belowSeg.box.y : -1e9;
+  const regions = vendorRegions(ctx.snap, layers.map((l) => ({ key: String(l.key), label: String(l.label) })), minY);
   const body = details.body as Record<string, any>;
   for (const [vendorKey, rows] of Object.entries((body.inline_data ?? {}) as Record<string, Array<Record<string, any>>>)) {
     const vendorName = String(layers.find((l) => l.key === vendorKey)?.label ?? vendorKey);
@@ -282,7 +302,7 @@ function qcsCells(ctx: SpecialContext, s: SpecialSpec): ItemResult[] {
         const api = fmt === "text" ? String(value) : spellApi({ format: fmt }, value, undefined, conf.prefix ?? "", conf.suffix ?? "");
         const base = { key: `qcs.${k}`, field: name, item: `${vendorName} · ${product}`, api, source: `${details.method} ${details.route} → inline_data.${vendorKey}[${productIndex}].${k}.value` };
         // The row label repeats once per line item group; take this product's occurrence.
-        const labels = labelSegments(ctx.snap, name).sort((a, b) => a.box.y - b.box.y);
+        const labels = labelSegments(ctx.snap, name).filter((x) => x.box.y > minY).sort((a, b) => a.box.y - b.box.y);
         const label = labels.length === rows.length ? labels[productIndex] : labels[0];
         if (!label) {
           out.push(mk(ctx, { ...base, verdict: "skipped", shown: "(row not displayed)", how: `no "${name}" row on screen — it may be hidden with "Hide fields"`, scope: "qcs", optional: true }));
@@ -291,7 +311,11 @@ function qcsCells(ctx: SpecialContext, s: SpecialSpec): ItemResult[] {
         const cells = lineOf(ctx.snap, label).filter((x) => x !== label && x.box.x + x.box.w / 2 >= region[0] && x.box.x + x.box.w / 2 < region[1]);
         const c = compareValue({ format: fmt }, value, undefined, { text: lineText(cells), segs: cells }, typeof conf.precision === "number" ? conf.precision : undefined);
         const blank = cells.every((x) => /^[-–—]?$/.test(x.text.trim()));
-        out.push(mk(ctx, { ...base, verdict: c.ok ? "pass" : blank ? "missing" : "mismatch", shown: blank ? "(blank)" : c.shown, how: c.how, scope: `"${name}" row, ${vendorName}'s column` }));
+        if (!c.ok && blank && hiddenZero(value, k)) {
+          out.push(mk(ctx, { ...base, verdict: "pass", shown: "–", how: ZERO_RULE, scope: `"${name}" row, ${vendorName}'s column`, code: ZERO_CODE }));
+          continue;
+        }
+        out.push(mk(ctx, { ...base, verdict: c.ok ? "pass" : blank ? "missing" : "mismatch", shown: blank ? "(blank)" : c.shown, how: c.how, scope: `"${name}" row, ${vendorName}'s column`, raw: { api: value, screen: lineText(cells) } }));
       }
     });
   }
@@ -301,7 +325,7 @@ function qcsCells(ctx: SpecialContext, s: SpecialSpec): ItemResult[] {
     if (!total || total.value === null || total.value === undefined) continue;
     const vendorName = String(layers.find((l) => l.key === vendorKey)?.label ?? vendorKey);
     const region = regions.get(vendorKey) ?? [0, 1e6];
-    const labels = labelSegments(ctx.snap, String(total.name ?? "Sum Total"));
+    const labels = labelSegments(ctx.snap, String(total.name ?? "Sum Total")).filter((x) => x.box.y > minY);
     const cells = labels.flatMap((l) => lineOf(ctx.snap, l).filter((x) => x !== l && x.box.x + x.box.w / 2 >= region[0] && x.box.x + x.box.w / 2 < region[1]));
     const c = compareValue({ format: "money" }, total.value, undefined, { text: lineText(cells), segs: cells }, 2);
     out.push(mk(ctx, { key: "qcs.gross_total", field: String(total.name ?? "Sum Total"), item: vendorName, verdict: !labels.length ? "missing" : c.ok ? "pass" : "mismatch", api: spellApi({ format: "money" }, total.value, undefined, total.configuration?.prefix ?? "₹"), shown: labels.length ? c.shown : "(no Sum Total row)", how: c.how, scope: `"Sum Total" row, ${vendorName}'s column`, source: `${details.method} ${details.route} → global_data.${vendorKey}.rfq_final.gross_total.value` }));
@@ -375,6 +399,8 @@ export function runSpecial(ctx: SpecialContext, s: SpecialSpec): ItemResult[] {
       return qcsCells(ctx, s);
     case "api-vs-screen-errors":
       return apiVsScreen(ctx, s);
+    default:
+      return runMoreSpecial(ctx, s) ?? [];
   }
 }
 

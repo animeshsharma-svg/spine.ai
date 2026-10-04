@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "twinId": "EVD2-WGT-017",
+  "caseId": "API-EVDWGT-017",
+  "area": "wgt",
+  "title": "Leaving a weight out of the next save removes it",
+  "compiledAt": "2026-10-03T12:53:53.287Z",
+  "planVersion": 1,
+  "priority": "P1",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDWGT-017",
+  "title": "Leaving a weight out of the next save removes it",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-WGT-H02",
+    "expect": "accept",
+    "say": "The buyer saves two weights."
+   },
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-WGT-017",
+    "decisive": true,
+    "say": "Leaving a weight out of the next save removes it"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "weightages.key_attributes",
+      "op": "count",
+      "value": 2
+     },
+     {
+      "path": "weightages.values.qa_quality_pen",
+      "op": "absent"
+     },
+     {
+      "path": "misc.weightage.key_attributes",
+      "op": "count",
+      "value": 2
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

@@ -32,6 +32,7 @@ import { caseById } from "../checks/testCatalog.js";
 import type { MatchResult, Understood } from "../checks/caseMatcher.js";
 import { compileTestCase, type CompileResult } from "./planner.js";
 import { areaFor } from "./drafts.js";
+import { compileApiPlan, planInWords, RECIPES, type CompiledApiPlan } from "./apiPlanner.js";
 
 /** Placeholders a draft may use: the ones a run can fill without touching live business records. */
 export const DRAFT_PLACEHOLDERS = [
@@ -82,6 +83,13 @@ export interface BuiltAutomation {
   draft: DraftCase;
   api: ApiPart | null;
   apiSkipped?: string;
+  /**
+   * The API TEST COMPILER's plan (apiPlanner.ts): setup recipe → acts →
+   * read-backs → expected outcome. When it is valid it IS the API part — a
+   * multi-step case is then automated in full rather than as one request —
+   * and `api` (the single-request variation) is kept only as a fallback.
+   */
+  apiPlan?: CompiledApiPlan;
   ui: UiPart;
   layer: "api" | "ui" | "api+ui" | "none";
   coverage: "full" | "partial" | "none";
@@ -91,6 +99,8 @@ export interface BuiltAutomation {
   llm: { calls: number; promptTokens: number; completionTokens: number; reasonTierUsed: boolean };
   /** library cases the API part was a variation of */
   bases: string[];
+  /** true when the API plan (not the single request) is the API part */
+  usesPlan?: boolean;
 }
 
 // ── choosing the requests to vary ───────────────────────────────────────────
@@ -310,6 +320,8 @@ async function writeWithModel(typed: string, u: Understood, bases: TestCaseRecor
 export interface BuildOptions {
   /** compile a UI plan with the planner (reason tier — costs money); default true */
   compileUi?: boolean;
+  /** compile an API plan (setup → acts → read-backs) with the API test compiler; default true */
+  compileApi?: boolean;
   /** use the fast model to write the draft and the API variation; default true */
   llm?: boolean;
   /** the id to file it under; computed by the caller (drafts.nextDraftId) */
@@ -325,8 +337,23 @@ export async function buildAutomation(typed: string, match: MatchResult, opts: B
   const wantsUiWords = UI_WORDS.test(u.normalized);
   const wantsApiWords = API_WORDS.test(u.normalized) || u.polarity === "refuse" || u.polarity === "crash";
 
-  const model = opts.llm === false ? null : await writeWithModel(typed, u, bases, match);
-  const draft = humanDraft(model?.draft ?? fallbackDraft(u));
+  const [model, apiPlan] = await Promise.all([
+    opts.llm === false ? Promise.resolve(null) : writeWithModel(typed, u, bases, match),
+    opts.compileApi === false || (wantsUiWords && !wantsApiWords)
+      ? Promise.resolve(undefined)
+      : compileApiPlan({ text: typed }, { llm: opts.llm !== false, allowReason: false }).catch(() => undefined),
+  ]);
+  const planOk = !!apiPlan?.plan && apiPlan.coverage !== "none";
+  const baseDraft = model?.draft ?? fallbackDraft(u);
+  // With a plan, the draft's setup / steps / expected are the plan's own words
+  // (what will actually run), unless the model already wrote richer prose.
+  if (planOk && !model?.draft) {
+    const w = planInWords(apiPlan!.plan!);
+    baseDraft.setup = w.preconditions;
+    baseDraft.steps = w.steps;
+    baseDraft.expected = w.expected;
+  }
+  const draft = humanDraft(baseDraft);
 
   // ── API part ──
   let api: ApiPart | null = null;
@@ -422,7 +449,7 @@ export async function buildAutomation(typed: string, match: MatchResult, opts: B
   }
 
   // ── UI part ──
-  const wantsUi = wantsUiWords || model?.uiNeeded === true || !api || !api.gate.ok;
+  const wantsUi = wantsUiWords || model?.uiNeeded === true || ((!api || !api.gate.ok) && !planOk);
   let ui: UiPart = { compiled: null };
   let reasonTierUsed = false;
   if (!wantsUi) ui.skipped = "the case is fully about a request; no screen step is needed";
@@ -442,13 +469,19 @@ export async function buildAutomation(typed: string, match: MatchResult, opts: B
   }
 
   // ── honest coverage ──
-  const apiCov = api && api.gate.ok ? api.covers : "none";
+  // A valid API plan is the API part; the single request is the fallback.
+  const singleCov = api && api.gate.ok ? api.covers : "none";
+  const planCov = planOk ? apiPlan!.coverage : "none";
+  const usePlan = planOk && (planCov === "full" || singleCov !== "full");
+  const apiCov = usePlan ? planCov : singleCov;
   const uiCov = ui.compiled && ui.compiled.source === "llm" ? ui.compiled.coverage : "none";
   const coverage: BuiltAutomation["coverage"] =
     apiCov === "full" || uiCov === "full" ? "full" : apiCov === "partial" || uiCov === "partial" ? "partial" : "none";
   const gaps = [
-    ...(api && api.gate.ok && api.covers === "partial" ? api.notCovered.map((g) => `API part: ${g}`) : []),
-    ...(apiSkipped && wantsApi ? [`API part: ${apiSkipped}`] : []),
+    ...(usePlan ? apiPlan!.gaps.map((g) => `API plan: ${g}`) : []),
+    ...(!usePlan && api && api.gate.ok && api.covers === "partial" ? api.notCovered.map((g) => `API part: ${g}`) : []),
+    ...(!usePlan && apiSkipped && wantsApi ? [`API part: ${apiSkipped}`] : []),
+    ...(!usePlan && apiPlan && !planOk && wantsApi ? [`API plan: ${apiPlan.gaps.join("; ") || "none could be compiled"}`] : []),
     ...(ui.compiled && ui.compiled.coverage !== "full" ? ui.compiled.gaps.map((g) => `UI part: ${g}`) : []),
     ...(ui.skipped && wantsUi ? [`UI part: ${ui.skipped}`] : []),
   ];
@@ -463,6 +496,7 @@ export async function buildAutomation(typed: string, match: MatchResult, opts: B
     draft,
     api,
     apiSkipped,
+    ...(apiPlan ? { apiPlan: usePlan ? apiPlan : { ...apiPlan, plan: planOk ? apiPlan.plan : null } } : {}),
     ui,
     layer,
     coverage: coverage === "full" && gaps.length && apiCov !== "full" && uiCov !== "full" ? "partial" : coverage,
@@ -476,5 +510,13 @@ export async function buildAutomation(typed: string, match: MatchResult, opts: B
       reasonTierUsed,
     },
     bases: bases.map((b) => b.id),
+    usesPlan: usePlan,
   };
+}
+
+/** One line on the plan, for the assistant's answer. */
+export function planSummary(c: CompiledApiPlan): string {
+  if (!c.plan) return "no API plan could be compiled";
+  const r = RECIPES[c.plan.setup.recipe];
+  return `an API plan — ${c.plan.act.length} step(s) and ${c.plan.verify.length} read-back(s) on a fresh record (${(r ? r.title.replace(/\.$/, "").replace(/^A /, "a ") : c.plan.setup.recipe)}), expecting ${c.plan.expected.outcome === "reject" ? `a refusal${c.plan.expected.message ? ` (“${c.plan.expected.message}”)` : ""}` : c.plan.expected.outcome === "accept" ? "success" : "no server error"}`;
 }

@@ -1,0 +1,81 @@
+{
+ "meta": {
+  "caseId": "API-PERM-001",
+  "title": "`GET /api/event_groups` requires trade read permission",
+  "compiledAt": "2026-10-03T09:46:05.506Z",
+  "planVersion": 1,
+  "source": "llm-fast",
+  "coverage": "partial",
+  "gaps": [
+   "the plan has the vendor send GET /orders, but the supplier app may not call GET /orders (it is not on agribid_website's list in config/app_auth_config.yml)",
+   "the case reads as “it is refused”, but the plan checks “it is accepted”"
+  ],
+  "warnings": [],
+  "validated": true,
+  "endpoints": [
+   "GET /orders"
+  ],
+  "llm": {
+   "calls": 0,
+   "promptTokens": 0,
+   "completionTokens": 0,
+   "usd": 0
+  },
+  "words": {
+   "preconditions": "A buyer signed in to the client under test (no event is built).",
+   "steps": [
+    "The buyer lists events.",
+    "The invited QA vendor lists events.",
+    "As the buyer, list events and check that the read succeeds.",
+    "As the invited QA vendor, list events and check that the read answers HTTP 403."
+   ],
+   "expected": "The app accepts it. Read back afterwards: the read succeeds; the read answers HTTP 403."
+  }
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-PERM-001",
+  "title": "`GET /api/event_groups` requires trade read permission",
+  "setup": {
+   "recipe": "none"
+  },
+  "act": [
+   {
+    "op": "list_events",
+    "as": "buyer"
+   },
+   {
+    "op": "list_events",
+    "as": "vendor",
+    "decisive": true
+   }
+  ],
+  "verify": [
+   {
+    "op": "list_events",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "",
+      "op": "status_2xx",
+      "value": null
+     }
+    ]
+   },
+   {
+    "op": "list_events",
+    "as": "vendor",
+    "assert": [
+     {
+      "path": "",
+      "op": "status",
+      "value": 403
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}

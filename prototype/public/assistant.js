@@ -410,6 +410,58 @@
   }
 
   // ── the drafts the assistant has written ──────────────────────────────
+  function statusBadge(st) {
+    if (st === "approved") return `<span class="sx-badge good">Approved — in the catalog</span>`;
+    if (st === "rejected") return `<span class="sx-badge bad">Rejected</span>`;
+    return `<span class="sx-badge warn">Needs review</span>`;
+  }
+  /** Approve / reject controls for a draft still waiting (draftReview.ts decides what approval does). */
+  function reviewBox(d) {
+    if ((d.status || "draft") !== "draft") return "";
+    const full = d.coverage === "full";
+    return (
+      `<div class="sx-review" style="margin-top:6px">` +
+      `<label class="sx-sub"><input type="checkbox" data-covers ${full ? "checked" : ""}> I checked it: the automation tests what this case says</label>` +
+      `<div class="sx-row" style="margin-top:4px;gap:6px">` +
+      `<button class="run-btn primary" data-approve>Approve — add to the catalog</button>` +
+      `<input type="text" data-note placeholder="Reason (needed to reject)" class="sx-grow" style="min-width:140px">` +
+      `<button class="chip" data-reject>Reject</button>` +
+      `</div><div class="sx-sub" data-review-msg></div></div>`
+    );
+  }
+  async function review(card, decision) {
+    const id = card.getAttribute("data-draft");
+    const msg = card.querySelector("[data-review-msg]");
+    const note = card.querySelector("[data-note]")?.value || "";
+    const covers = !!card.querySelector("[data-covers]")?.checked;
+    if (decision === "reject" && !note.trim()) {
+      msg.textContent = "Write why it is rejected first.";
+      return;
+    }
+    card.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    msg.textContent = decision === "approve" ? "Adding it to the catalog…" : "Rejecting…";
+    try {
+      const r = await fetch("/api/assistant/drafts/review", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, decision, automationCovers: covers, note }),
+      });
+      const j = await r.json();
+      msg.textContent = j.message || (j.ok ? "Done." : "It did not work.");
+      if (j.ok) setTimeout(loadDrafts, 2500);
+      else card.querySelectorAll("button").forEach((b) => (b.disabled = false));
+    } catch (e) {
+      msg.textContent = `Could not reach the server: ${e.message}`;
+      card.querySelectorAll("button").forEach((b) => (b.disabled = false));
+    }
+  }
+  q("#as-drafts-list")?.addEventListener("click", (ev) => {
+    const card = ev.target.closest?.("[data-draft]");
+    if (!card) return;
+    if (ev.target.matches("[data-approve]")) review(card, "approve");
+    else if (ev.target.matches("[data-reject]")) review(card, "reject");
+  });
+
   async function loadDrafts() {
     const list = q("#as-drafts-list");
     if (!list) return;
@@ -417,7 +469,8 @@
       const j = await (await fetch("/api/assistant/drafts?limit=30")).json();
       const drafts = j.drafts || [];
       const n = q("#as-drafts-n");
-      if (n) n.textContent = drafts.length ? `${drafts.length} waiting for review` : "none yet";
+      const waiting = drafts.filter((d) => (d.status || "draft") === "draft").length;
+      if (n) n.textContent = drafts.length ? `${waiting} waiting for review${drafts.length > waiting ? ` · ${drafts.length - waiting} reviewed` : ""}` : "none yet";
       if (!drafts.length) {
         list.innerHTML = `<div class="empty">None yet. When you type a test case nothing covers, the assistant writes it up here as a draft.</div>`;
         return;
@@ -430,10 +483,11 @@
             ? `<div class="sx-row" style="margin-top:3px">${pill(lr.verdict || (lr.ran ? "passed" : "not run"))}<span class="sx-muted">${esc(cap(stripVerdict(CV.scrub(lr.line || ""))))}</span></div>`
             : "";
           return (
-            `<div class="sx-draft"><div class="sx-row"><b class="sx-grow">${esc(d.title)}</b><span class="sx-badge warn">Draft</span><span class="sx-badge ${cov[1]}">${esc(cov[0])}</span></div>` +
+            `<div class="sx-draft" data-draft="${esc(d.id)}"><div class="sx-row"><b class="sx-grow">${esc(d.title)}</b>${statusBadge(d.status)}<span class="sx-badge ${cov[1]}">${esc(cov[0])}</span></div>` +
             `<div class="sx-sub">You typed: “${esc(d.typed || "")}” · ${esc(new Date(d.createdAt).toLocaleString())}</div>` +
             ((d.gaps || []).length ? `<div class="sx-sub">Not covered yet: ${esc(d.gaps.join("; "))}</div>` : "") +
             lastRun +
+            reviewBox(d) +
             CV.detailsHtml([
               { label: "Draft id", value: d.id, kind: "code" },
               { label: "Kind", value: d.layer || "" },

@@ -1,0 +1,34 @@
+{
+ "meta": {
+  "twinId": "EVD2-REM-052",
+  "caseId": "API-EVDREM-052",
+  "area": "rem",
+  "title": "Sending with a garbled event id crashes",
+  "compiledAt": "2026-10-03T12:53:53.272Z",
+  "planVersion": 1,
+  "priority": "P2",
+  "runner": "direct",
+  "source": "direct",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "direct": {
+  "method": "POST",
+  "path": "/reminders/WrongUuid1=/send_reminder",
+  "body": {
+   "resource_type": "event_group",
+   "reminder_type": "offer_submissions",
+   "reminders": {
+    "Z2dnWmdaUWtnZw==": [
+     "Z2dnWmdaUWtnZw=="
+    ]
+   }
+  },
+  "actor": "buyer",
+  "recipe": "none",
+  "expected": "no-5xx",
+  "expectedResult": "Should be a clean 4xx. Today id nil -> EventGroup.find_by nil -> authorize(nil, :update?) -> Pundit::NotDefinedError -> HTTP 500 (the defect)."
+ }
+}

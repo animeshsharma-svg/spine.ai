@@ -82,6 +82,8 @@ export interface JourneyClient {
     catalog?: Partial<EventCatalog>;
     evaluatorUuid?: string;
     vendor?: { uuid?: string; email?: string; name?: string };
+    /** Why there is no vendor: the client has no QA test vendor (real suppliers are never used). */
+    noQaVendor?: string;
     companyId?: number;
     companyName?: string | null;
   };
@@ -137,6 +139,8 @@ export interface JourneyRunOptions {
   journeyBudgetMs?: number;
   /** TESTING ONLY: a shorter watchdog for request steps (default BOUNDS.stepMs) */
   stepBoundMs?: number;
+  /** The event title's prefix (default "API_Journey"); e.g. "QA_Platform_XCHK" for the UI cross-check's events. */
+  titlePrefix?: string;
 }
 
 export interface JourneyRunResult {
@@ -150,6 +154,13 @@ export interface JourneyRunResult {
    * case runner calls this to move the remaining cases onto a fresh copy.
    */
   rebuildForCases?: () => Promise<{ eventGroupUuid: string; tradeId?: string; lineItemUuid: string } | undefined>;
+  /**
+   * Every bid number on the journey's pricing round, recomputed independently
+   * (src/integrity/invariants.ts checkEventIntegrity): totals, tax, ranks, L1,
+   * savings, and that the vendor sees no other vendor's prices. Read-only. A
+   * failed check is a FINDING to re-confirm on a fresh event, never a step failure.
+   */
+  integrity?: unknown;
 }
 
 // ── the sibling framework, loaded once ─────────────────────────────────────
@@ -618,6 +629,31 @@ async function otpLogin(j: Journey, identity: any, idBody: Record<string, unknow
   }
 }
 
+/**
+ * Re-read the buyer's newest web-console session from Procol's database
+ * (SELECT only) and put it into the SAME client object, so everything holding
+ * that client — the cases after the journey included — uses it. Returns
+ * undefined when it was renewed, else why it could not be.
+ */
+async function renewBuyerSession(j: Journey): Promise<string | undefined> {
+  if (!j.s.resolveClient || j.companyId === undefined) return "the database is not reachable from here";
+  const api = j.client.ctx.buyerApi as { tokens?: unknown } | undefined;
+  if (!api || typeof api !== "object" || !("tokens" in api)) return "the buyer client cannot take a new session";
+  try {
+    const resolved = await withWatchdog(j.s.resolveClient(j.companyId), 30_000, "re-reading the buyer's session");
+    if (!resolved?.buyer) return "the database has no session for this company's buyer";
+    const fresh = await j.s.clientFromSession(resolved.buyer, { app: "console", companyId: j.companyId, baseURL: j.baseURL });
+    try {
+      api.tokens = (fresh as { tokens?: unknown }).tokens;
+    } finally {
+      await fresh.dispose?.().catch?.(() => {});
+    }
+    return undefined;
+  } catch (e) {
+    return clean(e instanceof Error ? e.message : String(e));
+  }
+}
+
 // ── the steps ──────────────────────────────────────────────────────────────
 
 const buyerLogin: StepSpec = {
@@ -626,7 +662,23 @@ const buyerLogin: StepSpec = {
   expected: (j) =>
     `The app accepts the buyer's existing web-console session for ${j.company} (read from the database, so no one-time code is sent) and answers with the dashboard configuration.`,
   run: async (j) => {
-    const { call, reply } = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.dashboardConfiguration());
+    let { call, reply } = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.dashboardConfiguration());
+    // The session can be signed out between the client being opened and this
+    // step (every 401 the app renders marks the session in_active —
+    // json_helpers.rb:31-35 — so one wrong-app call anywhere ends it). Read
+    // the newest session from the database once and try again; say so.
+    let renewed: string | undefined;
+    let firstTry: JourneyCall | undefined;
+    if (reply.status === 401) {
+      const why = await renewBuyerSession(j);
+      if (why === undefined) {
+        const first = call;
+        ({ call, reply } = await fire(j.client.ctx.buyerApi, "GET", j.s.Endpoints.dashboardConfiguration()));
+        renewed = `The first try was refused as signed out (HTTP 401); the newest session was read from the database again and the second try ${reply.ok ? "was accepted" : "was refused too"}.`;
+        if (!reply.ok) return { call, alsoCalled: [first], reply, hint: `${renewed} Someone from ${j.company} must sign into the web console so a fresh session exists; then run this again.` };
+        firstTry = first;
+      }
+    }
     if (!reply.ok) {
       return { call, reply, hint: `Someone from ${j.company} must sign into the web console so a fresh session exists; then run this again.` };
     }
@@ -637,8 +689,9 @@ const buyerLogin: StepSpec = {
     j.actors.buyer = true;
     return {
       call,
+      ...(firstTry ? { alsoCalled: [firstTry] } : {}),
       reply,
-      actual: `Using ${name ? `${name}'s` : "the buyer's"} web-console session for ${j.company} — the app accepted it${role ? ` (role: ${role})` : ""}.`,
+      actual: `Using ${name ? `${name}'s` : "the buyer's"} web-console session for ${j.company} — the app accepted it${role ? ` (role: ${role})` : ""}.${renewed ? ` ${renewed}` : ""}`,
       produced: user.uuid ? { buyerUserUuid: String(user.uuid) } : undefined,
     };
   },
@@ -760,6 +813,8 @@ const publish: StepSpec = {
         vendorCompanyUuid: j.vendorCompanyUuid,
       }),
       draft_trade_request_uuids: uuids,
+      // No QA vendor: publish to nobody rather than to a real supplier or a blank id.
+      ...(j.vendorCompanyUuid ? {} : { audience_company_uuids: [] }),
     };
     const { call, reply } = await fire(j.client.ctx.buyerApi, "PATCH", j.s.Endpoints.eventGroup(ev.eventGroupUuid!), body);
     if (!reply.ok) return { call, reply };
@@ -1663,7 +1718,11 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
   if (choices) rec.choices = choices;
   let reason: Needs;
   try {
-    reason = await spec.needs(j, ev, done);
+    // No QA test vendor on this client: real suppliers are never used instead,
+    // so every step acted by the vendor is not run — said, not faked.
+    reason = STEP_META[spec.kind].actor === "vendor" && !j.vendorCompanyUuid
+      ? `this client has no QA test vendor, and real suppliers are never invited — ${j.client.ctx.noQaVendor ?? "create QA vendors for it first"}`
+      : await spec.needs(j, ev, done);
   } catch (e) {
     reason = `working out what this step needs failed: ${clean(e instanceof Error ? e.message : String(e))}`;
   }
@@ -1684,7 +1743,35 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
   } catch (e) {
     fired = { reply: { status: 0, ok: false, data: null, errorMessage: e instanceof Error ? e.message : String(e), ms: Date.now() - t } };
   }
+  // SIGNED OUT UNDER THE JOURNEY'S FEET. Any 401 the app renders with this
+  // session — from ANY run sharing it, e.g. a buyer-session call to a
+  // vendor-only API — marks it in_active (json_helpers.rb:31-35), and the
+  // next buyer step answers "Authentication failed". Seen live 2026-10-03
+  // 17:05: another run's 401 at :05 signed this journey out at :22, between
+  // step 1 and step 2. That refusal comes from authenticate_accessor, before
+  // the action runs, so nothing was applied: read the newest session once and
+  // send the step again. The first try stays on the record.
+  let signedOut: string | undefined;
+  if (
+    STEP_META[spec.kind].actor === "buyer" &&
+    spec.kind !== "buyer_login" &&
+    fired.reply?.status === 401 &&
+    /authentication failed/i.test(String(fired.reply.errorMessage ?? ""))
+  ) {
+    const why = await renewBuyerSession(j);
+    if (why === undefined) {
+      const first = fired;
+      try {
+        fired = await spec.run(j, ev);
+      } catch (e) {
+        fired = { reply: { status: 0, ok: false, data: null, errorMessage: e instanceof Error ? e.message : String(e), ms: Date.now() - t } };
+      }
+      fired = { ...fired, alsoCalled: [...(first.call ? [first.call] : []), ...(first.alsoCalled ?? []), ...(fired.alsoCalled ?? [])] };
+      signedOut = `The first try was refused as signed out (HTTP 401 “Authentication failed”) — the buyer's session had been ended elsewhere; the newest session was read from the database again and the step was sent once more.`;
+    } else signedOut = `The buyer's session had been ended elsewhere (HTTP 401 “Authentication failed”) and could not be renewed: ${why}.`;
+  }
   finish(rec, fired);
+  if (signedOut) rec.actual = `${rec.actual ?? ""} ${signedOut}`.trim();
   // Keep the body for the report and the catalog build, then run the
   // field-level checks against the FULL live reply (not the trimmed copy),
   // with the ids the earlier steps produced for the cross-step checks.
@@ -2188,7 +2275,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
   const stageSeconds = opts.stageSeconds && opts.stageSeconds > 0 ? Math.floor(opts.stageSeconds) : 45;
-  const title = `API_Journey_${TITLE_TAG[plan.eventType]}_${Date.now()}`;
+  const title = `${opts.titlePrefix ?? "API_Journey"}_${TITLE_TAG[plan.eventType]}_${Date.now()}`;
   const planned = plan.steps.length;
   const budgetMs = opts.journeyBudgetMs && opts.journeyBudgetMs > 0 ? opts.journeyBudgetMs : BOUNDS.journeyMs;
 
@@ -2338,6 +2425,26 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     }
   }
 
+  // Recompute every bid number on the pricing round while the vendor's session
+  // is still open (it lets the check confirm the vendor sees no competitor's
+  // prices). Read-only GETs through the app-guarded sender; bounded; never throws.
+  let integrity: unknown;
+  const pricingTrade = tradeOf(j.event, "pricing");
+  if (pricingTrade && j.made.bidUuid && process.env.SPINE_JOURNEY_INTEGRITY !== "0") {
+    try {
+      const { checkEventIntegrity } = await import("../integrity/invariants.js");
+      const vendors = j.actors.vendorApi && j.vendorCompanyUuid ? [{ label: "the vendor", companyUuid: j.vendorCompanyUuid, api: j.actors.vendorApi }] : [];
+      const [rep] = await withWatchdog(
+        checkEventIntegrity({ tradeUuid: pricingTrade }, { buyer: j.client.ctx.buyerApi, vendors }, { onLine: opts.onLine }),
+        90_000,
+        "checking the bid numbers",
+      );
+      integrity = rep;
+    } catch (e) {
+      opts.onLine?.(`the bid numbers could not be checked: ${clean(e instanceof Error ? e.message : String(e))}`);
+    }
+  }
+
   // The vendor's and evaluator's clients are this run's own; the buyer's
   // belongs to the server and outlives the journey.
   await withWatchdog(Promise.resolve(j.actors.vendorApi?.dispose?.()), 10_000, "closing the vendor session").catch(() => {});
@@ -2379,6 +2486,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     journey: record(j.steps, j.made, j.waitedMs, variationsEvent, resilience, j.event.title),
     ...(forCases ? { forCases } : {}),
     ...(rebuildForCases ? { rebuildForCases } : {}),
+    ...(integrity ? { integrity } : {}),
   };
 }
 

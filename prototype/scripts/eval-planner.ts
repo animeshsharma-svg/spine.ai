@@ -54,8 +54,16 @@ function invariants(plan: TestPlan): string[] {
   // open_create/set_title of it was this check assuming every test is a create
   // test. It must still assert something, or it proves nothing.
   const LIST_ASSERTS = ["expect_events_list", "expect_no_error", "expect_create_options", "expect_event_in_list", "expect_event_status"];
+  const GENERIC_ASSERTS = ["expect_text", "expect_visible", "expect_count", "expect_value", "expect_message", "expect_remembered", "attempt"];
   if (steps[0] === "open_events_list") {
-    if (!LIST_ASSERTS.some(has)) problems.push("opens the events list and asserts nothing about it");
+    if (!LIST_ASSERTS.some(has) && !GENERIC_ASSERTS.some(has)) problems.push("opens the events list and asserts nothing about it");
+    return problems;
+  }
+  // A plan about an EXISTING screen (an event, a tab, another tenant) starts
+  // by navigating there, not with open_create — it must still assert.
+  if (["open_event", "go_to", "switch_company"].includes(steps[0])) {
+    const ASSERTS = [...LIST_ASSERTS, ...GENERIC_ASSERTS, "open_master_qcs", "expect_published", "expect_counter_offer_sent", "expect_counter_offer_accepted", "expect_disabled", "expect_enabled", "expect_url_contains"];
+    if (!ASSERTS.some(has)) problems.push(`starts with ${steps[0]} and asserts nothing`);
     return problems;
   }
   // A create plan may END on the list — publish, then go and find the event
@@ -78,7 +86,8 @@ function invariants(plan: TestPlan): string[] {
    * that make it the test it is. The same reasoning is already spelled out for
    * per-stage configuration a few lines down; it belongs here too.
    */
-  const refusalExpected = has("expect_publish_blocked");
+  // skip{} marks a deliberately omitted step: the plan is a refusal test.
+  const refusalExpected = has("expect_publish_blocked") || has("skip");
   if (!has("set_title") && !refusalExpected) problems.push("never sets a title");
   if (has("add_line_items") && !has("select_template")) problems.push("adds line items with no template");
   if (has("add_line_items") && has("select_template") && at("select_template") > at("add_line_items"))
@@ -131,10 +140,20 @@ function invariants(plan: TestPlan): string[] {
   return problems;
 }
 
-const cases: Case[] = readFileSync(CORPUS, "utf8")
+// COST RULE: the compiler runs on the $50/1M tier. Never compile the whole
+// corpus; pick cases with EVAL_IDS=tc001,tc056 (or EVAL_LIMIT=n). Unfiltered
+// runs are refused unless EVAL_ALL=1 is set deliberately.
+const wanted = (process.env.EVAL_IDS ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+let cases: Case[] = readFileSync(CORPUS, "utf8")
   .split("\n")
   .filter((l) => l.trim())
   .map((l) => JSON.parse(l));
+if (wanted.length) cases = cases.filter((c) => wanted.includes(c.id));
+else if (process.env.EVAL_LIMIT) cases = cases.slice(0, Number(process.env.EVAL_LIMIT));
+else if (process.env.EVAL_ALL !== "1") {
+  console.log(`Refusing to compile all ${cases.length} cases (cost rule). Set EVAL_IDS=… (≤15) or EVAL_LIMIT=n; EVAL_ALL=1 overrides.`);
+  process.exit(2);
+}
 
 console.log(`Compiling ${cases.length} test cases · ${providerLabel()}\n`);
 

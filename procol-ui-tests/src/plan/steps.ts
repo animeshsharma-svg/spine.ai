@@ -19,6 +19,8 @@
  * AI can use it immediately — that is what makes every field dynamic.
  */
 
+import { GENERIC_STEPS } from "./generic/catalog.js";
+
 export type StageKeyLike = "rfp" | "rfq" | "auction";
 
 export interface StepSpec {
@@ -30,6 +32,12 @@ export interface StepSpec {
   args?: Record<string, string>;
   /** True when the step asserts rather than acts — used to shape the report. */
   assertion?: boolean;
+  /**
+   * True for the screen-neutral generic steps (generic/catalog.ts): they name
+   * elements by role/label/text instead of knowing a flow. The compiler is
+   * told to prefer a domain step whenever one fits.
+   */
+  generic?: boolean;
 }
 
 export const STEP_CATALOG: StepSpec[] = [
@@ -308,6 +316,11 @@ export const STEP_CATALOG: StepSpec[] = [
   },
 ];
 
+// The generic read/verify/navigate/act steps (generic/catalog.ts) close the
+// largest family on the gap ledger: "assert this tooltip / count / value /
+// message", "click this control", "this must NOT render".
+STEP_CATALOG.push(...GENERIC_STEPS);
+
 export const STEP_NAMES = STEP_CATALOG.map((s) => s.name);
 
 export interface PlanStep {
@@ -335,6 +348,14 @@ export function validatePlan(plan: unknown): { ok: true; plan: TestPlan } | { ok
       ok: false,
       reason: `plan asks for step(s) that do not exist: ${unknown.join(", ")}. Available: ${STEP_NAMES.join(", ")}`,
     };
+  }
+  // attempt / skip name another step; that one has to exist too.
+  const nested = p.steps
+    .filter((s) => (s as PlanStep)?.step === "attempt" || (s as PlanStep)?.step === "skip")
+    .map((s) => String((s as PlanStep).args?.step ?? ""))
+    .filter((name) => !STEP_NAMES.includes(name) || name === "attempt" || name === "skip");
+  if (nested.length) {
+    return { ok: false, reason: `attempt/skip name step(s) that cannot be used there: ${nested.join(", ") || "(none given)"}` };
   }
   return { ok: true, plan: { title: String(p.title ?? "Untitled test"), steps: p.steps as PlanStep[] } };
 }

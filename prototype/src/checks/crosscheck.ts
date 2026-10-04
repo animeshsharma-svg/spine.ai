@@ -20,7 +20,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const UI_TESTS_DIR = resolve(here, "..", "..", "..", "procol-ui-tests");
 export const CROSSCHECK_DIR = join(UI_TESTS_DIR, "findings", "crosscheck");
 const MAPS_DIR = join(UI_TESTS_DIR, "src", "crosscheck", "maps");
-const CATALOG = resolve(here, "..", "..", "..", "test-cases", "ui-api-crosscheck.md");
+// First batch (UI-XCHK-NNN) and second batch of screens (UI-XCHK-<SCREEN>-NNN).
+const CATALOGS = ["ui-api-crosscheck.md", "events-ui-crosscheck.md"].map((f) => resolve(here, "..", "..", "..", "test-cases", f));
 
 export interface CrossRunSummary {
   runId: string;
@@ -101,23 +102,25 @@ export function readCrossMaps(): { maps: unknown[]; discovered: Record<string, u
 }
 
 /** The written cases (id, title, section, priority, verdict), from the catalog file itself. */
-export function crossCases(): Array<{ id: string; title: string; section: string; priority: string; automation: string }> {
-  if (!existsSync(CATALOG)) return [];
-  const out: Array<{ id: string; title: string; section: string; priority: string; automation: string }> = [];
-  let section = "";
-  let cur: { id: string; title: string; section: string; priority: string; automation: string } | null = null;
-  for (const line of readFileSync(CATALOG, "utf8").split("\n")) {
-    const sec = line.match(/^##\s+\d+\.\s+(.+)$/);
-    if (sec) section = sec[1].trim();
-    const head = line.match(/^#{3,4}\s+(UI-XCHK-\d+)\s+[—–-]\s+(.+)$/);
-    if (head) {
-      cur = { id: head[1], title: head[2].trim(), section, priority: "P2", automation: "automate" };
-      out.push(cur);
-    }
-    const trace = line.match(/^-\s+\*\*Trace\.\*\*\s+(.*)$/);
-    if (trace && cur) {
-      cur.priority = trace[1].match(/\bP[0-3]\b/)?.[0] ?? "P2";
-      cur.automation = /automate-later/.test(trace[1]) ? "automate-later" : /manual/.test(trace[1]) ? "manual" : "automate";
+export function crossCases(): Array<{ id: string; title: string; section: string; priority: string; automation: string; file: string }> {
+  const out: Array<{ id: string; title: string; section: string; priority: string; automation: string; file: string }> = [];
+  for (const file of CATALOGS) {
+    if (!existsSync(file)) continue;
+    let section = "";
+    let cur: (typeof out)[number] | null = null;
+    for (const line of readFileSync(file, "utf8").split("\n")) {
+      const sec = line.match(/^##\s+\d+\.\s+(.+)$/);
+      if (sec) section = sec[1].trim();
+      const head = line.match(/^#{3,4}\s+(UI-XCHK-(?:[A-Z]+-)?\d+)\s+[—–-]\s+(.+)$/);
+      if (head) {
+        cur = { id: head[1], title: head[2].trim(), section, priority: "P2", automation: "automate", file: file.split("/").pop()! };
+        out.push(cur);
+      }
+      const trace = line.match(/^-\s+\*\*Trace\.\*\*\s+(.*)$/);
+      if (trace && cur) {
+        cur.priority = trace[1].match(/\bP[0-3]\b/)?.[0] ?? "P2";
+        cur.automation = /automate-later/.test(trace[1]) ? "automate-later" : /manual/.test(trace[1]) ? "manual" : "automate";
+      }
     }
   }
   return out;

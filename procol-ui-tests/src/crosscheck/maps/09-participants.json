@@ -1,0 +1,31 @@
+{
+  "screen": "audience",
+  "title": "stage's Participants tab",
+  "howToOpen": "Open the event, click the stage's tab, then the Participants sub-tab.",
+  "reviewed": {
+    "by": "spine.ai crosscheck agent",
+    "at": "2026-10-03",
+    "fromDiscovery": "probeu-musekkmx",
+    "note": "components/audienceList/audienceList.jsx. Two calls: audience_for_product with product_uuids (every vendor that deals in the product, paged by 10 on screen) and the same with show_bidders=true (the vendors on this stage). The invited vendors are the ones checked; their rows sit among all the product's vendors."
+  },
+  "sources": {
+    "bidders": { "method": "GET", "path": "^/api/companies/audience_for_product\\?.*show_bidders=true" },
+    "all": { "method": "GET", "path": "^/api/companies/audience_for_product\\?product_uuids=" }
+  },
+  "groups": [
+    {
+      "case": "UI-XCHK-PART-001",
+      "title": "The stage's Participants tab lists every vendor invited to the stage, with the email the API returns",
+      "code": ["components/audienceList/audienceList.jsx:677-692,756-761", "components/vendorListItem/vendorListItem.jsx:134-153", "redux/vendors/actions.js:556-616"],
+      "fields": [
+        { "key": "part.name", "label": "Invited vendor", "source": "bidders", "each": "companies[]", "value": "name", "format": "text", "scope": "page", "code": "vendorListItem.jsx:134-153 (Name ← name)" },
+        { "key": "part.email", "label": "Vendor email", "source": "bidders", "each": "companies[]", "value": "email", "anchor": "name", "format": "text", "scope": "line", "code": "vendorListItem.jsx:134-153 (Email ← email)" }
+      ]
+    },
+    {
+      "case": "UI-XCHK-050",
+      "title": "No screen of the event looks fine while a request behind it failed, and none reports an error while its requests succeeded",
+      "special": [{ "kind": "api-vs-screen-errors", "label": "Errors agree" }]
+    }
+  ]
+}

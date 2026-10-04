@@ -4,6 +4,7 @@ import { recordStuck } from "../oracle/stuck.js";
 import { InlineSheet } from "../helpers/inlineSheet.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { randomNumber } from "../helpers/data.js";
+import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError } from "../db/qaVendors.js";
 
 export type EventType = "rfq" | "rfp" | "auction";
 export type AuctionSubtype = "rank" | "price" | "traffic_light";
@@ -269,12 +270,14 @@ export class SingleStagePage extends BasePage {
     if (!cb) return false;
     await cb.fill(query);
     await this.pause(1500);
+    const esc = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Only the option that matches the name — never "the first option", which
+    // invited whichever real supplier the search returned (unless explicitly allowed).
     const picked = await this.clickIfPresent(
       [
-        this.page.locator(".ant-select-dropdown [role='option']", { hasText: new RegExp(query, "i") }),
-        this.page.getByRole("option", { name: new RegExp(query, "i") }),
-        this.page.getByRole("option"),
-        this.page.locator(".ant-select-item-option"),
+        this.page.locator(".ant-select-dropdown [role='option']", { hasText: new RegExp(esc, "i") }),
+        this.page.getByRole("option", { name: new RegExp(esc, "i") }),
+        ...(allowRealVendors() ? [this.page.getByRole("option"), this.page.locator(".ant-select-item-option")] : []),
       ],
       { label: "vendor-option", timeout: TIMEOUTS.MEDIUM },
     );
@@ -284,6 +287,16 @@ export class SingleStagePage extends BasePage {
 
   /** Add vendors: prefer the whole-audience Invite Vendor button, else pick one via the combobox. */
   async inviteVendor(): Promise<void> {
+    // QA-only: add the client's QA test vendor by name; never the whole
+    // suggested audience or the first search result (real suppliers).
+    if (!allowRealVendors()) {
+      const qa = await qaVendorNames();
+      if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
+      const ok = await this.addParticipant(qa[0]);
+      if (!ok) throw new Error(`could not add the QA test vendor "${qa[0]}" — stopping so no real supplier is invited`);
+      await this.dismissDistractions();
+      return;
+    }
     const invited = await this.clickIfPresent(
       [this.page.getByRole("button", { name: /invite vendor/i }), this.page.getByText(/invite vendor/i)],
       { label: "invite-vendor", timeout: TIMEOUTS.SHORT },

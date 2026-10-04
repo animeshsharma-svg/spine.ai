@@ -14,19 +14,22 @@ reports every result as a plain-language test case with the evidence behind it.
 
 | Capability | What happens |
 |---|---|
+| **Vendors** | Only the platform's own QA test vendors (`qa_…@example.com`) are ever invited or signed in as; a client without one runs without a vendor. |
 | **Event journeys** | Builds a real event on UAT (draft → rounds → publish → vendor responds → bidding closes → evaluation → award), one request per step, with ~1,000 field-level checks on the replies. |
 | **Never-stuck engine** | Every step is time-bounded. A refused data choice (e.g. *"The unit kg is not present"*) is retried with the next real alternative, backtracking to the step that made the choice — and the first failure is still reported as **failed**, with the reason. |
 | **Product model** | 380 facts about how events work, each cited to Procol's code; for every client the real templates, their fields and rules, units, products and vendors (versioned in the database). |
 | **Template field tests** | For any template a client really has, one test per field × rule × violation, run against a fresh test event. |
-| **Edge and negative cases** | ~500 cases that each change one thing in a working request; the shared test event is rebuilt whenever a case breaks it, so no case is judged on another's damage. |
+| **Edge and negative cases** | ~950 runnable cases that each change one thing in a working request; the shared test event is rebuilt whenever a case breaks it, so no case is judged on another's damage. |
+| **API test compiler** | A test case (typed or written) becomes setup → actions → read-back checks, run on its own fresh event; a failure counts only if it repeats on a second fresh event. |
 | **Bidding scenarios** | 15 scenarios with several QA vendors bidding through their own logins, surrogate bids, late bids, extensions, the RFP-before-RFQ rule, evaluation completeness, dynamic closing, awards. |
-| **UI ↔ API cross-check** | Compares what the backend sent each screen with what the screen shows (5 event screens), normalising numbers, currency, dates and units. |
+| **Bid-number integrity** | An independent calculator recomputes every figure Procol derives from bids (line and bid totals, tax, charges, discounts, ranks, L1, savings, the comparison Excel) from what the vendors actually quoted, and checks that no vendor sees another's prices — at the end of every event journey. |
+| **UI ↔ API cross-check** | Compares what the backend sent each screen with what the screen shows (12 event screens), normalising numbers, currency, dates and units. |
 | **Assistant** | A test case typed in plain language (Hinglish included) is matched to the catalog and run, or — if it is new — turned into a gated automation and saved as a draft for review. |
 | **CI/CD** | Offline checks on every push (GitHub Actions); a nightly live regression and a backend-change watcher (local, opt-in). |
 
-The catalog holds **4,375 written test cases in 33 journeys** (`test-cases/*.md`), every one placed in a
-journey. So far the platform has found **30 verified product defects** — each reproduced on a fresh
-test event before it was reported.
+The catalog holds **6,124 written test cases in 48 journeys** (`test-cases/*.md`), every one placed in a
+journey. So far the platform has found **79 verified product defects** (`docs/bugs/`) — each reproduced on a
+fresh test event before it was reported.
 
 ## How a verdict is reached
 
@@ -108,6 +111,7 @@ npm run model:build -- --c 198678                    # refresh a client's produc
 npm run nightly                                      # live regression (own server, lock, time limits)
 npm run ci:check                                     # everything CI checks, locally
 npm run eval:matcher && npm run eval:routing         # measure the AI parts
+npm run coverage:report                              # what runs, what has run, what to build next
 ```
 
 Live runs create test records on UAT only — events named `QA_Platform_…` / `API_Test_…`, inviting
@@ -117,13 +121,14 @@ QA test vendors. Nothing deletes or changes real data, and Procol's database is 
 
 | | Today |
 |---|---|
-| Verified product defects found | 30 (1 critical, 6 high) — each re-checked on a fresh test event |
+| Verified product defects found | 79 (2 critical, 18 high) — each reproduced on a fresh test event |
 | Typed test case → right existing case (rules + model) | 97% top-1 · new cases detected 100% |
 | Instruction → right journey | 95.1% |
 | Written case → runnable browser plan | 92.7% |
+| Test case → correct API test plan | 90% exact (49 cases) |
 | "Couldn't tell" share of results (7 days) | 12% — target ≤ 5% |
 | Flaky share (checks run 3+ times) | 4.3% — target ≤ 2% |
-| Catalog cases that have actually run | 14% (620 / 4,375) — the gap is the build order |
+| Catalog cases that can run today | 55% (2,271 of 4,142 automatable) · 1,959 have run on PROCOL DEMO |
 
 ## Working on it
 
@@ -136,7 +141,6 @@ QA test vendors. Nothing deletes or changes real data, and Procol's database is 
 
 ## Known limits
 
-* Coverage of the written catalog is still low (see above); field checks and edge cases run, many
-  written UI cases do not yet have an executable route.
+* About half of the automatable catalog cannot run yet; `npm run coverage:report` lists what to build next.
 * The nightly run and backend watcher are prepared but not scheduled (`docs/CI.md`).
 * HubSpot ticket ingestion and modules beyond events are planned, not built.

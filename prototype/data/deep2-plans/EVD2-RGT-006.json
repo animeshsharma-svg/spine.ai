@@ -1,0 +1,78 @@
+{
+ "meta": {
+  "twinId": "EVD2-RGT-006",
+  "caseId": "API-EVDRGT-006",
+  "area": "rgt",
+  "title": "Regretting the only line and submitting leaves the vendor with no live bid",
+  "compiledAt": "2026-10-03T12:53:53.273Z",
+  "planVersion": 1,
+  "priority": "P1",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [
+   "verify 2: read_audience's reply shape has not been sampled; \"stages[*].bid_placed_company_uuids\" is unverified"
+  ],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDRGT-006",
+  "title": "Regretting the only line and submitting leaves the vendor with no live bid",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "open_bid",
+    "as": "vendor"
+   },
+   {
+    "op": "library",
+    "as": "vendor",
+    "caseId": "EVD2-RGT-006",
+    "decisive": true,
+    "say": "Regretting the only line and submitting leaves the vendor with no live bid"
+   },
+   {
+    "op": "price_bid",
+    "as": "vendor",
+    "ifRefused": "inconclusive"
+   },
+   {
+    "op": "submit_bid",
+    "as": "vendor",
+    "ifRefused": "inconclusive",
+    "say": "QA vendor 1 submits the bid whose only line is regretted"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "bid_count",
+      "op": "equals",
+      "value": 0
+     }
+    ]
+   },
+   {
+    "op": "read_audience",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "stages[*].bid_placed_company_uuids",
+      "op": "contains",
+      "value": "{{vendorUuid}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}
