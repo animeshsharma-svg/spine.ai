@@ -130,10 +130,15 @@ function onSingleStage(s: RunState): boolean {
  */
 async function isSingleStageScreen(s: RunState): Promise<boolean> {
   if (onSingleStage(s)) return true;
-  if (/\/project\//.test(s.page.url())) return false;
+  const url = s.page.url();
+  if (/\/project\//.test(url)) return false;
+  if (/\/orders\/quick-create/i.test(url)) return true; // the single-stage create screen's own address
+  // By content: "Event Type" + "Publish Event", and NOT the eRFX screen's "Save as draft"
+  // (both screens show a "Select Templates" picker, so that alone proves nothing).
   const eventType = await s.page.getByText(/^Event Type$/).first().isVisible().catch(() => false);
-  const picker = await s.page.getByText(/select templates/i).first().isVisible().catch(() => false);
-  return eventType && picker;
+  const publishEvent = await s.page.getByRole("button", { name: /^publish event$/i }).first().isVisible().catch(() => false);
+  const saveDraft = await s.page.getByRole("button", { name: /save as draft/i }).first().isVisible().catch(() => false);
+  return eventType && publishEvent && !saveDraft;
 }
 
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
