@@ -1418,7 +1418,8 @@ export class CreateEventPage extends BasePage {
     if (!(await search.count())) return false;
     await search.fill(name).catch(() => {});
     // Vendor search is a server round-trip; wait for rows rather than guessing.
-    await this.waitForVendorRows(TIMEOUTS.MEDIUM);
+    // UAT's vendor search can take well over 15 s to answer (a spinner sits in the dropdown).
+    await this.waitForVendorRows(TIMEOUTS.LONG);
     // Identify the vendor dropdown by its own "VENDORS" group header. Taking
     // the LAST open dropdown was wrong: filling the sheet leaves a dozen
     // non-hidden antd dropdowns behind, so `.last()` landed on a stale sheet
@@ -1491,8 +1492,10 @@ export class CreateEventPage extends BasePage {
     await this.dismissDistractions();
     await this.waitForParticipants(3_000); // let a pre-filled audience arrive before judging it
     await this.removeNonQaParticipants(qa);
-    if (!(await this.participantNames()).some((n) => isQaVendorName(n, qa))) {
-      await this.addParticipantByName(qa[0]);
+    // Try each of the client's QA vendors in turn (never anyone else) until one lands as a chip.
+    for (const name of qa.slice(0, 4)) {
+      if ((await this.participantNames()).some((n) => isQaVendorName(n, qa))) break;
+      await this.addParticipantByName(name);
     }
     await this.removeNonQaParticipants(qa);
     const names = await this.participantNames();
