@@ -116,7 +116,7 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "open_event_settings",
     purpose:
-      'On a published event\'s page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: "Reschedule Event" (only while the event is UPCOMING), "Convert to Auction" (published RFQ), "Extend Bidding Time", "Withdraw" and more. Use before click{role:"menuitem", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered.',
+      'On a published event\'s page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: "Reschedule Event" (only while the event is UPCOMING), "Convert to Auction" (published RFQ), "Extend Bidding Time", "Withdraw" and more. Use before click{role:"menuitem", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered. An item can be PRESENT BUT DISABLED (e.g. "Send Bulk Counter Offer" with one bid or fewer) — check that with expect_disabled{control: name}, not expect_hidden.',
     args: {},
   },
   {

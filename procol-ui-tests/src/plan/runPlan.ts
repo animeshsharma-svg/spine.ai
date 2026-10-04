@@ -236,7 +236,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await gear.click({ timeout: 10_000 });
       const menu = s.page.locator(".ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu").filter({ visible: true }).last();
       await menu.waitFor({ state: "visible", timeout: 8_000 }).catch(() => {});
-      const items = (await menu.locator("[role='menuitem']").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim()).filter(Boolean);
+      const rows = menu.locator("[role='menuitem']");
+      const n = await rows.count().catch(() => 0);
+      const items: string[] = [];
+      for (let i = 0; i < n; i++) {
+        const r = rows.nth(i);
+        const text = ((await r.innerText().catch(() => "")) || "").trim();
+        if (!text) continue;
+        const off = (await r.getAttribute("aria-disabled").catch(() => null)) === "true" || /disabled/.test((await r.getAttribute("class").catch(() => "")) ?? "");
+        items.push(off ? `${text} (disabled)` : text);
+      }
       if (!items.length) throw new Error("the Settings menu did not open (not evidence about the product)");
       return `event settings offer: ${items.join(", ")}`;
     }
