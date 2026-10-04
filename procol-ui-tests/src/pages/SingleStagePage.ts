@@ -205,26 +205,34 @@ export class SingleStagePage extends BasePage {
   /** Open the template picker and select a Buy (pricing) template. */
   async selectBuyTemplate(): Promise<void> {
     await this.dismissDistractions();
-    await this.click(
-      [this.page.getByRole("button", { name: /select templates/i }), this.page.getByText(/select templates/i)],
-      { label: "open-templates", force: true, timeout: TIMEOUTS.MEDIUM },
-    );
-    const search = await this.find(
-      [this.page.getByTestId("template-search-input"), this.page.getByPlaceholder(/search template/i)],
-      { label: "template-search", timeout: TIMEOUTS.SHORT },
-    );
-    if (search) {
-      await search.fill("Buy");
-      await this.pause(700);
+    // The picker is DISABLED while its template list loads (templateSelection.jsx:137,
+    // templateListLoading). A forced click on it does nothing and the step used to "pass";
+    // wait (bounded) until it is enabled, then click it like a person.
+    const picker = this.page.getByRole("button", { name: /select templates/i }).first();
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && (await picker.isDisabled().catch(() => true))) await this.pause(500);
+    if (await picker.isDisabled().catch(() => true)) {
+      throw new Error('"Select Templates" stayed disabled for 30s — the template list never finished loading (not evidence about the product)');
     }
     await this.click(
-      [
-        this.page.getByTestId(/^template-item-/).filter({ hasText: /buy/i }),
-        this.page.getByTestId(/^template-item-/),
-        this.page.getByRole("menuitem"),
-      ],
-      { label: "template-item", timeout: TIMEOUTS.MEDIUM },
+      [picker, this.page.getByText(/select templates/i)],
+      { label: "open-templates", timeout: TIMEOUTS.MEDIUM },
     );
+    // Only ever pick inside the OPEN template menu: a page-wide "first menuitem" was the left
+    // sidebar ("clara"), so the step "passed" having chosen nothing. Prefer a buy / pricing
+    // template; otherwise take the first real template the tenant lists (never the search row).
+    const menu = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)").filter({ has: this.page.getByPlaceholder(/search template/i) }).last();
+    await menu.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+    const items = menu.locator("[role='menuitem']").filter({ hasNot: this.page.getByPlaceholder(/search template/i) });
+    if (!(await items.count().catch(() => 0))) throw new Error("the template menu opened with no templates in it (not evidence about the product)");
+    const preferred = items.filter({ hasText: /buy|pricing|rfq|price/i }).first();
+    const pick = (await preferred.count()) ? preferred : items.first();
+    const name = ((await pick.innerText().catch(() => "")) || "").trim();
+    await pick.click({ timeout: 8_000 });
+    // Some tenants confirm a template choice in a modal — accept it.
+    const confirm = this.page.locator(".ant-modal-wrap:not([style*='display: none']) .ant-btn-primary").filter({ hasText: /ok|yes|confirm|proceed|continue/i }).first();
+    if (await confirm.isVisible().catch(() => false)) await confirm.click({ timeout: 5_000 }).catch(() => {});
+    console.log(`[single-stage] chose template "${name}"`);
     await this.waitForSpinnerHidden();
     await this.pause(1000);
   }
@@ -259,10 +267,13 @@ export class SingleStagePage extends BasePage {
       ],
       { label: "open-participants", timeout: TIMEOUTS.MEDIUM, force: true },
     );
+    // ONLY the Participants search ("Search vendors you want to add"). A page-wide
+    // "first open select input" was the RFP template's Evaluator picker — the QA vendor's
+    // name was typed into Evaluator and the invite could never succeed.
+    const participants = this.page.locator(".ant-select").filter({ hasText: /search vendors you want to add/i }).last();
     const cb = await this.find(
       [
-        this.page.locator("input.ant-select-search__field"),
-        this.page.locator(".ant-select-open input, .ant-select-focused input"),
+        participants.locator("input.ant-select-search__field, input"),
         this.page.getByPlaceholder(/search vendors you want to add/i),
       ],
       { label: "participants-input", timeout: TIMEOUTS.MEDIUM },
@@ -283,6 +294,9 @@ export class SingleStagePage extends BasePage {
       [
         this.page.locator(".ant-select-dropdown [role='option']", { hasText: new RegExp(esc, "i") }),
         this.page.getByRole("option", { name: new RegExp(esc, "i") }),
+        // This screen lists vendors as MENU ITEMS under a "VENDORS" group, not as options.
+        this.page.getByRole("listbox").getByRole("menuitem", { name: new RegExp(esc, "i") }),
+        this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='menuitem'], .ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem']", { hasText: new RegExp(esc, "i") }),
         ...(allowRealVendors() ? [this.page.getByRole("option"), this.page.locator(".ant-select-item-option")] : []),
       ],
       { label: "vendor-option", timeout: TIMEOUTS.MEDIUM },
