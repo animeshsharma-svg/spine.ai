@@ -28,7 +28,7 @@ import { runEventJourney } from "../checks/eventJourney.js";
 import { journeyPlan } from "../checks/journeyModel.js";
 import { withWatchdog } from "../checks/resilience.js";
 
-export type UiState = "none" | "draft" | "live" | "bid" | "closed" | "proposal" | "awarded";
+export type UiState = "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
 export const UI_STATES: UiState[] = ["none", "draft", "live", "bid", "closed", "proposal", "awarded"];
 
 /** What the browser (and the screen assertions) get from the build. */
@@ -61,6 +61,8 @@ export interface UiSetupResult {
 
 const PREFIX: Record<Exclude<UiState, "none">, string> = {
   draft: "add_stage_pricing",
+  // published with bidding starting in 30 minutes — "Reschedule Event" is offered only then
+  upcoming: "read_back",
   live: "read_back",
   bid: "bid_submit",
   closed: "wait_close",
@@ -146,6 +148,7 @@ export async function buildUiState(
     r = await withWatchdog(
       runEventJourney(client, plan, {
         stageSeconds,
+        ...(state === "upcoming" ? { startDelaySec: 30 * 60 } : {}),
         titlePrefix: "QA_Platform_UI",
         journeyBudgetMs: opts.budgetMs ?? 12 * 60_000,
         onLine: (l: string) => opts.onLine?.(l),

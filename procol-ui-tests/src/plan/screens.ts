@@ -8,7 +8,7 @@
 
 /** What the API built for this case (prototype/src/ui/uiSetup.ts), handed to the plan. */
 export interface PlanContext {
-  state?: "none" | "draft" | "live" | "bid" | "closed" | "proposal" | "awarded";
+  state?: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
   eventGroupUuid?: string;
   stageUuid?: string;
   technicalStageUuid?: string;
@@ -31,10 +31,11 @@ export interface ScreenSpec {
   what: string;
 }
 
-const ANY_EVENT: ScreenSpec["needs"] = ["live", "bid", "closed", "proposal", "awarded"];
+// "upcoming" = published, bidding not yet open (the only state that offers Reschedule Event)
+const ANY_EVENT: ScreenSpec["needs"] = ["upcoming", "live", "bid", "closed", "proposal", "awarded"];
 
 export const SCREENS: Record<string, ScreenSpec> = {
-  events_list: { path: "/orders", feeds: ["/api/event_groups\\?"], needs: ["none", "draft", "live", "bid", "closed", "proposal", "awarded"], lands: /\/orders(\?|$)/, what: "the events list" },
+  events_list: { path: "/orders", feeds: ["/api/event_groups\\?"], needs: ["none", "draft", "upcoming", "live", "bid", "closed", "proposal", "awarded"], lands: /\/orders(\?|$)/, what: "the events list" },
   drafts_list: { path: "/orders?tab=draft", feeds: ["/api/event_groups/draft"], needs: ["none", "draft"], lands: /\/orders\?tab=draft/, what: "the Drafts tab of the events list" },
   history_list: { path: "/orders?tab=history", feeds: ["/api/event_groups/history"], needs: ["none", "closed", "proposal", "awarded"], lands: /\/orders\?tab=history/, what: "the History tab of the events list" },
   create: { path: "/orders/quick-create?projectCreation=true", feeds: [], needs: ["none"], lands: /\/orders\/quick-create/, what: "a new event's create screen" },

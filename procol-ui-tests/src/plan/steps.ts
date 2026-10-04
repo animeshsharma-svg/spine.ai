@@ -114,6 +114,12 @@ export const STEP_CATALOG: StepSpec[] = [
     args: {},
   },
   {
+    name: "open_event_settings",
+    purpose:
+      'On a published event\'s page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: "Reschedule Event" (only while the event is UPCOMING), "Convert to Auction" (published RFQ), "Extend Bidding Time", "Withdraw" and more. Use before click{role:"menuitem", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered.',
+    args: {},
+  },
+  {
     name: "expect_add_stage_options",
     purpose:
       'Assert what the create screen\'s icon-only "+" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the "+" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the "+" tooltip must contain (e.g. "Remove RFQ to add Auction"). To check which stages are OFFERED, compose exactly ONE stage first — with two stages the "+" is always disabled.',

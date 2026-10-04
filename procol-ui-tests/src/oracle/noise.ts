@@ -23,7 +23,7 @@ export const NOISE_TEXT: RegExp[] = [
   /what'?s new/i,
   /take a (quick )?tour/i,
   /rate (us|your experience)|how (likely|was your experience)|share (your )?feedback/i,
-  /we use cookies|accept (all )?cookies/i,
+  /we use (essential |some )?cookies|accept (all )?cookies|cookie policy/i,
   /new version (is )?available|refresh to update/i,
   /verification for your (e-?)?mail|verify your (e-?)?mail/i,
 ];

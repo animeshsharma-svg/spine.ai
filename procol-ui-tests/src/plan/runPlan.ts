@@ -220,6 +220,26 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const m = await s.create.openAddStageMenu();
       return `add-stage menu: ${m.buttonDisabled ? "the + button is disabled" : `offers ${m.items.join(", ") || "(nothing)"}`}${m.tooltip ? `; tooltip “${m.tooltip}”` : ""}`;
     }
+    case "open_event_settings": {
+      // The gear (event-settings-button) sits in a STAGE page's header; the project overview only
+      // has a "⋮". Open the first stage tab when the gear is not on screen, then fall back to "⋮".
+      let gear = s.page.getByTestId("event-settings-button").filter({ visible: true }).first();
+      if (!(await gear.count().catch(() => 0))) {
+        const tab = s.page.getByRole("tab", { name: /^(rfq|auction|rfp|technical stage|rfi)\b/i }).first();
+        if (await tab.isVisible().catch(() => false)) {
+          await tab.click({ timeout: 8_000 }).catch(() => {});
+          await gear.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+        }
+      }
+      if (!(await gear.count().catch(() => 0))) gear = s.page.locator("button:has(.anticon-more)").filter({ visible: true }).first();
+      if (!(await gear.count().catch(() => 0))) throw new Error("no Settings (gear) or ⋮ menu on this event (not evidence about the product)");
+      await gear.click({ timeout: 10_000 });
+      const menu = s.page.locator(".ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu").filter({ visible: true }).last();
+      await menu.waitFor({ state: "visible", timeout: 8_000 }).catch(() => {});
+      const items = (await menu.locator("[role='menuitem']").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim()).filter(Boolean);
+      if (!items.length) throw new Error("the Settings menu did not open (not evidence about the product)");
+      return `event settings offer: ${items.join(", ")}`;
+    }
     case "expect_add_stage_options": {
       const m = await s.create.openAddStageMenu();
       const norm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim();

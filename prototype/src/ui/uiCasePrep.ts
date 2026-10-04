@@ -91,6 +91,8 @@ export function prepFor(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" 
   if (/reopen(ed)? (the )?draft|draft (is )?reopened|saved draft|existing draft|amendment draft/.test(t)) return r("draft", "draft", technical, "a case about an existing draft — the draft is built by API");
 
   // Everything else on a published event.
+  if (/upcoming|reschedul|not (yet )?started|before (it|the event|bidding) (starts|opens)|starts? later/.test(t))
+    return r("upcoming", "summary", technical, "an upcoming-event case — published by API with bidding starting in 30 minutes");
   if (/overview/.test(t)) return r("live", "overview", technical, "an overview case — the event is built live");
   if (/analytics/.test(t)) return r("bid", "analytics", technical, "an analytics case — the event is built with a bid");
   return r(/\bbids?\b|quote/.test(t) ? "bid" : "live", "summary", technical, "a case on a published event — built live by API");

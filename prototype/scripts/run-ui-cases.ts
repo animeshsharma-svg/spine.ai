@@ -325,7 +325,7 @@ function onlyLooks(plan: any): boolean {
   return (plan?.steps ?? []).length > 0 && plan.steps.every((st: any) => READ_ONLY_STEPS.test(String(st?.step ?? "")));
 }
 function maxAgeMs(state: string): number {
-  return /live|bid/.test(state) ? 10 * 60_000 : 60 * 60_000;
+  return /live|bid|upcoming/.test(state) ? 10 * 60_000 : 60 * 60_000;
 }
 
 async function runOnce(c: CatalogCase, p: Prep, plan: any, fresh = false): Promise<Ran> {
