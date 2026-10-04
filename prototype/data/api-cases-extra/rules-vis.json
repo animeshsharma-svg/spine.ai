@@ -1,0 +1,92 @@
+[
+  {
+    "id": "EDGE-EVRVIS-025",
+    "feature": "bids.place",
+    "title": "Bid details for a vendor that has not bid is 'bid not found', not a crash",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Session: the BUYER (the run's buyer, owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids. {{vendorUuid}} is the client's QA vendor company, {{userUuid}} an active user.",
+    "steps": [
+      "1. GET /bids/get_bid_details for the QA vendor company and a user on the sandbox round, which has no bids."
+    ],
+    "method": "GET",
+    "path": "/bids/get_bid_details?user_uuid={{userUuid}}&company_uuid={{vendorUuid}}&trade_request_uuid={{tradeId}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422 — code 32 'Bid not found' (or 101 if the caller is not the round's owner). Never 500: today bid is nil and `bid.errors` (bids_controller.rb:385) / `bid.id` (:378) raise.",
+    "rationale": "Opening a vendor's row before it bids is an ordinary action.",
+    "rule": "R-VIS-016-5 · app/controllers/api/bids_controller.rb:370-386"
+  },
+  {
+    "id": "EDGE-EVRVIS-026",
+    "feature": "bids.place",
+    "title": "Bid details without the vendor company is refused as missing parameters",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the BUYER (the run's buyer, owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids. {{vendorUuid}} is the client's QA vendor company, {{userUuid}} an active user.",
+    "steps": [
+      "1. GET /bids/get_bid_details with user and round but no company."
+    ],
+    "method": "GET",
+    "path": "/bids/get_bid_details?user_uuid={{userUuid}}&trade_request_uuid={{tradeId}}",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' (app/controllers/api/bids_controller.rb:362-364).",
+    "rationale": "Parameter guard before the owner check.",
+    "rule": "R-VIS-016-1 · app/controllers/api/bids_controller.rb:362-364"
+  },
+  {
+    "id": "EDGE-EVRVIS-027",
+    "feature": "bids.place",
+    "title": "Bid details on a round that does not exist is 'request not found'",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the BUYER (the run's buyer, owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids. {{vendorUuid}} is the client's QA vendor company, {{userUuid}} an active user.",
+    "steps": [
+      "1. GET /bids/get_bid_details with trade_request_uuid Z2dnWmdaUWtnZw== (id 999999999)."
+    ],
+    "method": "GET",
+    "path": "/bids/get_bid_details?user_uuid={{userUuid}}&company_uuid={{vendorUuid}}&trade_request_uuid=Z2dnWmdaUWtnZw==",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 4 'Request not found' — no active/closed stage with that id (app/controllers/api/bids_controller.rb:365-366).",
+    "rationale": "Typed refusal for an unknown round.",
+    "rule": "R-VIS-016-1 · app/controllers/api/bids_controller.rb:365-366"
+  },
+  {
+    "id": "EDGE-EVRVIS-028",
+    "feature": "auction.visibility",
+    "title": "Suspicious-bid details on a round without the indicator are refused, never a crash",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "Session: the BUYER (the run's buyer, owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids. {{vendorUuid}} is the client's QA vendor company, {{userUuid}} an active user.",
+    "steps": [
+      "1. GET /bids/get_suspicious_bids_detail for the sandbox round (indicator not switched on by this run)."
+    ],
+    "method": "GET",
+    "path": "/bids/get_suspicious_bids_detail?trade_request_uuid={{tradeId}}",
+    "expected": "no-5xx",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' when the stage config is_suspicious_bid_indicator_enabled is not true (app/models/model_helpers/trade_request_model_helper.rb:81-88; bids_controller.rb:393); HTTP 200 [] if the client's template turns it on. Never 5xx.",
+    "rationale": "The list maps IPs to vendor names; it exists only where enabled.",
+    "rule": "R-VIS-009-3 · app/controllers/api/bids_controller.rb:389-405"
+  },
+  {
+    "id": "EDGE-EVRVIS-029",
+    "feature": "auction.visibility",
+    "title": "Suspicious-bid details for a round that does not exist is a typed refusal",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "Session: the BUYER (the run's buyer, owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids. {{vendorUuid}} is the client's QA vendor company, {{userUuid}} an active user.",
+    "steps": [
+      "1. GET /bids/get_suspicious_bids_detail with trade_request_uuid Z2dnWmdaUWtnZw==."
+    ],
+    "method": "GET",
+    "path": "/bids/get_suspicious_bids_detail?trade_request_uuid=Z2dnWmdaUWtnZw==",
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 95 'Trade Request not found' (app/controllers/api/bids_controller.rb:390-391).",
+    "rationale": "Looked up before authorize.",
+    "rule": "R-VIS-009-1 · app/controllers/api/bids_controller.rb:390-391"
+  }
+]

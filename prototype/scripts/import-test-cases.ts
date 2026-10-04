@@ -160,7 +160,7 @@ const api = [join(CASES_DIR, "events-api.md"), ...extra("api-"), ...extra("hubsp
 // screen (UI-XD…) and API (API-XD…) cases — the layer is read off each id.
 // `events-integrity.md`: the bid-number checks (EVI-…), recomputed by src/integrity/.
 // `events-deep2-*.md` / `events-deep3-*.md`: the second and third deep-dig rounds (API-EVD… / UI-EVD…).
-const deep = [...extra("events-deep-"), ...extra("events-deep2-"), ...extra("events-deep3-"), ...extra("events-integrity")].flatMap((f) =>
+const deep = [...extra("events-deep-"), ...extra("events-deep2-"), ...extra("events-deep3-"), ...extra("events-rules-"), ...extra("events-integrity")].flatMap((f) =>
   parse(f, "api").map((c) => (c.id.startsWith("UI-") ? { ...c, layer: "ui" as const } : c)),
 );
 const all = [...ui, ...api, ...deep];

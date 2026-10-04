@@ -159,6 +159,7 @@ const ALLOW_DEEP: AllowRule[] = [
   { method: "GET", re: /^\/delegations\/[^/?]+(\?|$)/, what: "read a delegation" },
   { method: "GET", re: /^\/bids\/([^/]+\/get_approvals|approval_workflows_for_surrogate_bid_create)(\?|$)/, what: "bid approval reads" },
   { method: "GET", re: /^\/reports\/download_bulk_report(\?|$)/, what: "events-list export (refusals only: no date range)" },
+  { method: "GET", re: /^\/bids\/(get_bid_details|get_suspicious_bids_detail)(\?|$)/, what: "bid detail reads (rule coverage)" },
   // ── writes: sandbox / journey event / own user / bogus ids only (see each case) ──
   { method: "POST", re: /^\/additional_request\/(raise_additional_request|raise_bulk_counter_offer)$/, what: "counter offer on the journey's QA-vendor bid" },
   { method: "PATCH", re: /^\/additional_request\/(resolve_additional_request|revoke_additional_requests)$/, what: "counter offer resolve/revoke (bogus ids)" },
@@ -171,11 +172,13 @@ const ALLOW_DEEP: AllowRule[] = [
   { method: "PATCH", re: /^\/v1\/trade\/(add_audience|remove_audience)(\?|$)/, what: "live audience with no vendor list" },
   { method: "POST", re: /^\/v1\/trade\/[^/]+\/(add_new_stage_in_live_event|close_bid|close_bid\/approval_workflows|send_otp_for_unlocking_bids|verify_otp_for_unlocking_bids|upload_bid_excel)$/, what: "stage actions (sandbox / bogus)" },
   { method: "POST", re: /^\/reports\/download_report$/, what: "report download (refused bodies)" },
+  { method: "POST", re: /^\/remarks$/, what: "a chat message on the sandbox round (mentions only the signed-in buyer or a bogus user)" },
   { method: "POST", re: /^\/templates\/product_sheet_params$/, what: "sheet upload (no file / bogus template)" },
   { method: "POST", re: /^\/approval_workflow\/approval_requests(\/(resolve_approval|bulk_resolve|[^/]+\/withdraw_approval))?$/, what: "approval actions (bogus ids only)" },
   { method: "PATCH", re: /^\/approval_workflow\/approval_requests\/[^/]+$/, what: "approval update (bogus id)" },
 ];
-const DEEP_CASE = /^EDGE-D[A-Z]+-\d{3}$/;
+// EDGE-D… are the deep-dig twins; EDGE-EVR… the rule-coverage twins (data/api-cases-extra/rules-*.json).
+const DEEP_CASE = /^EDGE-(D[A-Z]+|EVR[A-Z]{3})-\d{3}$/;
 
 /**
  * Publish / audience / participation edge cases that act ONLY on the run's

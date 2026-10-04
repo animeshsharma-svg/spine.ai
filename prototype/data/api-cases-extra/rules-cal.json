@@ -1,0 +1,149 @@
+[
+ {
+  "id": "EDGE-EVRCAL-035",
+  "feature": "platform.audit",
+  "title": "Mentioning the same colleague twice in one chat message is accepted",
+  "type": "Boundary",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Session: the BUYER. The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids. {{userUuid}} is an active user of this workspace.",
+  "steps": [
+   "1. POST /remarks on the price round with a message that mentions <U#{{userUuid}}> twice."
+  ],
+  "method": "POST",
+  "path": "/remarks",
+  "body": {
+   "item_type": "TradeRequest",
+   "item_uuid": "{{tradeId}}",
+   "event_type": "trade_message",
+   "remark": "QA_Platform_chat_{{stamp}} <U#{{buyerUserUuid}}> please check, <U#{{buyerUserUuid}}>"
+  },
+  "expected": "accept",
+  "expectedResult": "HTTP 200, the remark is saved and the colleague mentioned once. Today: HTTP 422 code 101 'You are not allowed to perform this action' — get_user_ids keeps duplicates while the user lookup is distinct, so 2 != 1 (app/services/expression_evaluator/expression_evaluator_service.rb:30-33).",
+  "rationale": "A refusal of an ordinary message is a defect; the count compares a list with duplicates to a distinct set.",
+  "rule": "R-CAL-054-5 · app/services/expression_evaluator/expression_evaluator_service.rb:30-33",
+  "notes": "Mentions the signed-in buyer itself, never another workspace user (a mention notifies the person)."
+ },
+ {
+  "id": "EDGE-EVRCAL-036",
+  "feature": "platform.audit",
+  "title": "Mentioning someone who is not in the workspace is refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "Session: the BUYER. The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids. Z2dnWmdaUWtnZw== decodes to id 999999999 (no such user).",
+  "steps": [
+   "1. POST /remarks on the price round mentioning <U#Z2dnWmdaUWtnZw==>.",
+   "2. The message must not be saved."
+  ],
+  "method": "POST",
+  "path": "/remarks",
+  "body": {
+   "item_type": "TradeRequest",
+   "item_uuid": "{{tradeId}}",
+   "event_type": "trade_message",
+   "remark": "QA_Platform_chat_{{stamp}} <U#Z2dnWmdaUWtnZw==>"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' — the mentioned id is not an active user of the workspace (app/services/expression_evaluator/expression_evaluator_service.rb:29-34).",
+  "rationale": "A mention mails the person; an outsider or a forged id must never be accepted.",
+  "rule": "R-CAL-054-1 · app/services/expression_evaluator/expression_evaluator_service.rb:29-34"
+ },
+ {
+  "id": "EDGE-EVRCAL-037",
+  "feature": "platform.audit",
+  "title": "A plain chat message on a live price round is saved",
+  "type": "Workflow",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Session: the BUYER. The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids.",
+  "steps": [
+   "1. POST /remarks on the price round with a plain message, no mentions, no attachments."
+  ],
+  "method": "POST",
+  "path": "/remarks",
+  "body": {
+   "item_type": "TradeRequest",
+   "item_uuid": "{{tradeId}}",
+   "event_type": "trade_message",
+   "remark": "QA_Platform_chat_plain_{{stamp}}"
+  },
+  "expected": "accept",
+  "expectedResult": "HTTP 200; the remark is created (no mentions → saved as written, app/services/expression_evaluator/expression_evaluator_service.rb:35-39).",
+  "rationale": "Positive control for the mention refusals.",
+  "rule": "R-CAL-054-1 · app/services/expression_evaluator/expression_evaluator_service.rb:35-39"
+ },
+ {
+  "id": "EDGE-EVRCAL-038",
+  "feature": "platform.audit",
+  "title": "A chat message with eleven attachments is refused",
+  "type": "Boundary",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Session: the BUYER. The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids.",
+  "steps": [
+   "1. POST /remarks on the price round with eleven attachment links."
+  ],
+  "method": "POST",
+  "path": "/remarks",
+  "body": {
+   "item_type": "TradeRequest",
+   "item_uuid": "{{tradeId}}",
+   "event_type": "trade_message",
+   "remark": "QA_Platform_chat_att_{{stamp}}",
+   "attachments": [
+    "https://example.com/qa_platform_{{stamp}}_1.pdf",
+    "https://example.com/qa_platform_{{stamp}}_2.pdf",
+    "https://example.com/qa_platform_{{stamp}}_3.pdf",
+    "https://example.com/qa_platform_{{stamp}}_4.pdf",
+    "https://example.com/qa_platform_{{stamp}}_5.pdf",
+    "https://example.com/qa_platform_{{stamp}}_6.pdf",
+    "https://example.com/qa_platform_{{stamp}}_7.pdf",
+    "https://example.com/qa_platform_{{stamp}}_8.pdf",
+    "https://example.com/qa_platform_{{stamp}}_9.pdf",
+    "https://example.com/qa_platform_{{stamp}}_10.pdf",
+    "https://example.com/qa_platform_{{stamp}}_11.pdf"
+   ]
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422 — code 101 when the links are not this company's storage (validate_company_urls, app/controllers/api/remarks_controller.rb:31), else code 864 'Number of attachments exceed the maximum allowed limit' (expression_evaluator_service.rb:37). Either way refused, never saved, never 5xx.",
+  "rationale": "The attachment cap is the only upload limit on chat.",
+  "rule": "R-CAL-054-1 · app/services/expression_evaluator/expression_evaluator_service.rb:37,47"
+ },
+ {
+  "id": "EDGE-EVRCAL-040",
+  "feature": "evaluation.qcs",
+  "title": "L1 data on a live round with no bids is empty, not an error",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "Session: the BUYER. The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids.",
+  "steps": [
+   "1. GET /v1/trade/{{tradeId}}/l1_data_for_event."
+  ],
+  "method": "GET",
+  "path": "/v1/trade/{{tradeId}}/l1_data_for_event",
+  "expected": "accept",
+  "expectedResult": "HTTP 200 with {} — no scores yet (app/controllers/concerns/trade_template_helper.rb:389-410).",
+  "rationale": "Opened by the counter-offer screen before the first bid.",
+  "rule": "R-CAL-013-1 · app/controllers/concerns/trade_template_helper.rb:389-410"
+ },
+ {
+  "id": "EDGE-EVRCAL-041",
+  "feature": "evaluation.qcs",
+  "title": "Line-wise savings on a live round with no bids answer empty, not an error",
+  "type": "Boundary",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "Session: the BUYER. The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids.",
+  "steps": [
+   "1. GET /v1/trade/{{tradeId}}/best_line_wise_savings."
+  ],
+  "method": "GET",
+  "path": "/v1/trade/{{tradeId}}/best_line_wise_savings",
+  "expected": "no-5xx",
+  "expectedResult": "HTTP 200 with no savings entries (or a typed 4xx if the client has no savings configuration); never 5xx — a nil reference list must not crash (app/controllers/concerns/trade_template_helper.rb:469-470).",
+  "rationale": "Opened by the live page; the nil-reference path is crash-shaped.",
+  "rule": "R-CAL-017-1 R-CAL-025-6 · app/controllers/concerns/trade_template_helper.rb:469-470"
+ }
+]
