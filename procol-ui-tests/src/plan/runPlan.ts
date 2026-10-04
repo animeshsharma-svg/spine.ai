@@ -220,6 +220,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const m = await s.create.openAddStageMenu();
       return `add-stage menu: ${m.buttonDisabled ? "the + button is disabled" : `offers ${m.items.join(", ") || "(nothing)"}`}${m.tooltip ? `; tooltip “${m.tooltip}”` : ""}`;
     }
+    case "expect_add_stage_options": {
+      const m = await s.create.openAddStageMenu();
+      const norm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim();
+      const have = m.items.map(norm);
+      const problems: string[] = [];
+      if (a.disabled === true && !m.buttonDisabled) problems.push(`the "+" is enabled (offers ${m.items.join(", ") || "nothing"})`);
+      if (a.disabled === false && m.buttonDisabled) problems.push('the "+" is disabled');
+      for (const want of (Array.isArray(a.offers) ? a.offers : []) as string[]) if (!have.some((h) => h.includes(norm(want)))) problems.push(`"${want}" is not offered`);
+      for (const no of (Array.isArray(a.absent) ? a.absent : []) as string[]) if (have.some((h) => h.includes(norm(no)))) problems.push(`"${no}" IS offered`);
+      if (a.reason && !norm(m.tooltip).includes(norm(String(a.reason)))) problems.push(`the "+" tooltip reads "${m.tooltip || "(none)"}", not "${a.reason}"`);
+      const seen = `${m.buttonDisabled ? "the + is disabled" : `offers ${m.items.join(", ") || "nothing"}`}${m.tooltip ? `; tooltip “${m.tooltip}”` : ""}`;
+      expect(problems, `add-stage menu: ${seen}`).toEqual([]);
+      return `add-stage menu as expected: ${seen}`;
+    }
     case "open_stage_menu": {
       const stage = a.stage ? asStages([a.stage])[0] : undefined;
       const items = await s.create.openStageMenuFor(stage);

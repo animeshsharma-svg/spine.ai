@@ -388,7 +388,9 @@ export class CreateEventPage extends BasePage {
     if (!buttonDisabled) await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
     const items = (await menu.locator("[role='menuitem'], .ant-dropdown-menu-item").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim()).filter(Boolean);
     const tip = this.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").last();
-    const tooltip = ((await tip.innerText({ timeout: 1_500 }).catch(() => "")) || "").trim();
+    let tooltip = ((await tip.innerText({ timeout: 1_500 }).catch(() => "")) || "").trim();
+    // A stage tab's own title tooltip ("Technical Stage", "RFQ") is not the "+" reason.
+    if (/^(technical stage|rfq|rfp|auction|rfi)$/i.test(tooltip)) tooltip = "";
     if (!buttonDisabled && !items.length) throw new Error('the "+" add-stage menu did not open (no "Add Stages" menu appeared) — not evidence about the product');
     return { items, tooltip, buttonDisabled };
   }
