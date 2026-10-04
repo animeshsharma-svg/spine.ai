@@ -170,6 +170,20 @@ async function clickTarget(ctx: GenericCtx, t: Target, timeoutMs: number): Promi
   const { page } = ctx;
   requireWords(t, "click");
   await ctx.events.dismissDistractions().catch(() => false);
+  // A plan that "clicks" a confirmation's question ("Are you sure to delete this line item?")
+  // means: answer it. antd renders it as a popconfirm whose question is not a control — click
+  // its confirming button instead (Yes / OK / Confirm / Delete), the way a person would.
+  const words0 = targetWords(t)[0] ?? "";
+  if (/\?$|^are you sure|^do you want|^confirm\b/i.test(words0.trim())) {
+    const pop = page.locator(".ant-popover:not(.ant-popover-hidden), .ant-popconfirm, .ant-modal-confirm, .ant-modal-wrap:not([style*='display: none'])").filter({ hasText: words0.replace(/\?$/, "").slice(0, 40) }).last();
+    if (await pop.isVisible().catch(() => false)) {
+      const yes = pop.locator("button.ant-btn-primary, button").filter({ hasText: /^(yes|ok|confirm|delete|remove|proceed|continue)$/i }).first();
+      if (await yes.isVisible().catch(() => false)) {
+        await yes.click({ timeout: 8_000 });
+        return { detail: `answered the confirmation “${words0}” with ${(await yes.innerText().catch(() => "its confirm button")).trim()}`, strategy: "confirmation pop-up → its confirm button" };
+      }
+    }
+  }
   const found = await findVisible(page, t, timeoutMs);
   if (!found) {
     const words = targetWords(t)[0];
@@ -389,7 +403,17 @@ async function execute(
       const field = await fieldFor(found.locator);
       if (await isDisabled(field)) throw new Error(`the field ${describe(t)} is disabled`);
       await field.click({ timeout: 8_000 }).catch(() => {});
-      await field.fill(value, { timeout: 8_000 });
+      // antd number inputs / grid cells wrap the real input: fill that; if nothing inside is
+      // fillable, select what is there and type, like a person.
+      const filled = await field.fill(value, { timeout: 8_000 }).then(() => true).catch(() => false);
+      if (!filled) {
+        const inner = field.locator("input:not([type='hidden']), textarea, [contenteditable='true']").first();
+        const innerOk = (await inner.count().catch(() => 0)) > 0 && (await inner.fill(value, { timeout: 5_000 }).then(() => true).catch(() => false));
+        if (!innerOk) {
+          await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A").catch(() => {});
+          await page.keyboard.type(value, { delay: 20 });
+        }
+      }
       const now = await fieldValue(field);
       if (value && !norm(now).includes(norm(value))) throw new Error(`typed "${value}" into ${describe(t)} but the field now shows "${now}"`);
       noteSeen(targetWords(t)[0], page.url(), found.strategy);
