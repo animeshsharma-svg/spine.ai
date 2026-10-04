@@ -158,6 +158,14 @@ async function candidates(page: Page, t: Target): Promise<Array<{ loc: Locator; 
     const ph = (t.placeholder ?? lab)!;
     out.push({ loc: root.getByPlaceholder(pattern(ph, t.exact)), strategy: `placeholder "${ph}"${note}` });
   }
+  // Table row checkboxes (antd selection column) carry no label: "Select row", "row 2",
+  // "the first row's checkbox" mean the selection box of that body row.
+  if (t.role === "checkbox" && named && /\brow\b/i.test(named)) {
+    const nth = Number(/\brow\s*(\d+)/i.exec(named)?.[1] ?? (/second/i.test(named) ? 2 : /third/i.test(named) ? 3 : 1));
+    const rows = root.locator(".ant-table-tbody tr.ant-table-row, tbody tr").filter({ has: root.locator("input[type='checkbox'], .ant-checkbox") });
+    out.push({ loc: rows.nth(Math.max(0, nth - 1)).locator(".ant-checkbox-input, input[type='checkbox'], .ant-checkbox").first(), strategy: `table row ${nth}'s selection checkbox${note}` });
+    out.push({ loc: root.locator(".ant-table-selection-column .ant-checkbox-input, td.ant-table-selection-column input[type='checkbox']").nth(Math.max(0, nth - 1)), strategy: `selection column checkbox ${nth}${note}` });
+  }
   const txt = t.text ?? t.name ?? t.label;
   if (txt) {
     out.push({ loc: root.getByText(pattern(txt, t.exact)), strategy: `visible text "${txt}"${note}` });
