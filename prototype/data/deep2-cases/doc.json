@@ -1,0 +1,1810 @@
+[
+ {
+  "id": "EVD2-DOC-001",
+  "catalogId": "API-EVDDOC-001",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_tiny_tnc_pdf_happy_path",
+  "type": "Happy path",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}.pdf, data 'UUE=' (the two bytes 'QA') and type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "accept",
+  "expectedResult": "HTTP 200 with success true, message 'Successfully uploaded File', the cleaned file name, a private storage link (url) and a 2-hour signed link (public_url). Writes ONE private 2-byte object under trade_files/terms_and_conditions/<company>_<id>/.",
+  "rationale": "Every buyer and vendor document upload in an event goes through this call; the baseline for every refusal below.",
+  "source": "app/controllers/api/trade_controller.rb:1742-1764; app/controllers/concerns/s3_upload.rb:83-101",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-002",
+  "catalogId": "API-EVDDOC-002",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_without_name_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with data and type but no name."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters'. Nothing is stored.",
+  "rationale": "The three fields are checked together before anything is written.",
+  "source": "app/controllers/api/trade_controller.rb:1747-1749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-003",
+  "catalogId": "API-EVDDOC-003",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_without_data_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name and type but no data."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters'. Nothing is stored.",
+  "rationale": "A file with no content must not create an empty object.",
+  "source": "app/controllers/api/trade_controller.rb:1747-1749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-004",
+  "catalogId": "API-EVDDOC-004",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_without_type_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name and data but no type."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "data": "UUE="
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters'. Nothing is stored.",
+  "rationale": "The type picks the storage folder; without it there is nowhere to put the file.",
+  "source": "app/controllers/api/trade_controller.rb:1747-1749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-005",
+  "catalogId": "API-EVDDOC-005",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_with_blank_name_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name '   ' (spaces only), data and type."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "   ",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters' (a spaces-only name is blank).",
+  "rationale": "A blank name would otherwise become an extension-less key.",
+  "source": "app/controllers/api/trade_controller.rb:1747-1749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-006",
+  "catalogId": "API-EVDDOC-006",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_with_unknown_type_is_refused",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with type 'invoice'."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "data": "UUE=",
+   "type": "invoice"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — only t_and_c and product_sheet map to a folder.",
+  "rationale": "The type decides the storage folder; an unknown one must not create a new folder.",
+  "source": "app/controllers/api/trade_controller.rb:1751-1752; app/controllers/concerns/s3_upload.rb:9-12",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-007",
+  "catalogId": "API-EVDDOC-007",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_type_is_case_sensitive",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with type 'T_AND_C'."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "data": "UUE=",
+   "type": "T_AND_C"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — the folder lookup is an exact, case-sensitive key match.",
+  "rationale": "Pins down the exact contract a client must send.",
+  "source": "app/controllers/api/trade_controller.rb:1751-1752; app/controllers/concerns/s3_upload.rb:9-12",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-008",
+  "catalogId": "API-EVDDOC-008",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_exe_is_refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}.exe, data 'UUE=', type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.exe",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'. Nothing is stored. The allow-list is .xlsx .xls .csv .pdf .zip .jpg .jpeg .png .doc .docx .txt .msg .eml .dwg .cdr (case-insensitive, last extension only).",
+  "rationale": "Executables must never be stored and handed out as signed links to vendors.",
+  "source": "app/controllers/api/trade_controller.rb:1756-1757; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-009",
+  "catalogId": "API-EVDDOC-009",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_html_is_refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}.html, data 'UUE=', type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.html",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'. Nothing is stored. The allow-list is .xlsx .xls .csv .pdf .zip .jpg .jpeg .png .doc .docx .txt .msg .eml .dwg .cdr (case-insensitive, last extension only).",
+  "rationale": "An HTML file served from Procol storage would run script in the viewer's browser (stored XSS).",
+  "source": "app/controllers/api/trade_controller.rb:1756-1757; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-010",
+  "catalogId": "API-EVDDOC-010",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_svg_is_refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}.svg, data 'UUE=', type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.svg",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'. Nothing is stored. The allow-list is .xlsx .xls .csv .pdf .zip .jpg .jpeg .png .doc .docx .txt .msg .eml .dwg .cdr (case-insensitive, last extension only).",
+  "rationale": "SVG carries script just like HTML.",
+  "source": "app/controllers/api/trade_controller.rb:1756-1757; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-011",
+  "catalogId": "API-EVDDOC-011",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_double_extension_pdf_exe_is_refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}.pdf.exe, data 'UUE=', type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf.exe",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'. Nothing is stored. The allow-list is .xlsx .xls .csv .pdf .zip .jpg .jpeg .png .doc .docx .txt .msg .eml .dwg .cdr (case-insensitive, last extension only).",
+  "rationale": "Only the last extension counts; 'invoice.pdf.exe' must not slip through as a PDF.",
+  "source": "app/controllers/api/trade_controller.rb:1756-1757; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-012",
+  "catalogId": "API-EVDDOC-012",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_without_extension_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}, data 'UUE=', type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'. Nothing is stored. The allow-list is .xlsx .xls .csv .pdf .zip .jpg .jpeg .png .doc .docx .txt .msg .eml .dwg .cdr (case-insensitive, last extension only).",
+  "rationale": "A file with no extension cannot be typed or previewed safely.",
+  "source": "app/controllers/api/trade_controller.rb:1756-1757; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-013",
+  "catalogId": "API-EVDDOC-013",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_lookalike_unicode_extension_is_refused",
+  "type": "Security",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}.ｐdf, data 'UUE=', type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.ｐdf",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'. Nothing is stored. The allow-list is .xlsx .xls .csv .pdf .zip .jpg .jpeg .png .doc .docx .txt .msg .eml .dwg .cdr (case-insensitive, last extension only).",
+  "rationale": "A full-width 'ｐ' looks like .pdf on screen; the name cleaner turns it into '_' so the extension no longer matches.",
+  "source": "app/controllers/api/trade_controller.rb:1756-1757; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-014",
+  "catalogId": "API-EVDDOC-014",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_pptx_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with name QA_Platform_{{stamp}}.pptx, data 'UUE=', type t_and_c."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pptx",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'. Nothing is stored. The allow-list is .xlsx .xls .csv .pdf .zip .jpg .jpeg .png .doc .docx .txt .msg .eml .dwg .cdr (case-insensitive, last extension only).",
+  "rationale": "Buyers commonly attach PowerPoint specs; today they are refused. Records the real allow-list so a change is noticed.",
+  "source": "app/controllers/api/trade_controller.rb:1756-1757; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-015",
+  "catalogId": "API-EVDDOC-015",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_non_base64_data_stores_empty_file",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with a valid name and type and data '!!!!' (not base64)."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "data": "!!!!",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "Should be refused (422) because the content is not valid base64. Today: HTTP 200 'Successfully uploaded File' and an EMPTY (0-byte) private object is stored — Base64.decode64 silently drops invalid characters (s3_upload.rb:92). A pass means it was refused; a 200 here is the defect.",
+  "rationale": "A buyer or vendor attachment that is silently empty is only discovered when the other side opens it.",
+  "source": "app/controllers/concerns/s3_upload.rb:83-101; app/controllers/api/trade_controller.rb:1758-1763",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-016",
+  "catalogId": "API-EVDDOC-016",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_numeric_data_reports_success_without_file",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with a valid name and type and data 12345 (a number, not text)."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "data": 12345,
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "Should be refused (422). Today: HTTP 200 with success true, 'Successfully uploaded File', url null and public_url null — Base64.decode64 raises on a number, upload_file_to_s3 swallows the error and returns nil (s3_upload.rb:92-99), and the controller never checks the result (trade_controller.rb:1758-1763). Nothing is stored.",
+  "rationale": "The API claims success for a file it did not store; only the screen's own url check hides it.",
+  "source": "app/controllers/concerns/s3_upload.rb:83-101; app/controllers/api/trade_controller.rb:1758-1763",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-017",
+  "catalogId": "API-EVDDOC-017",
+  "feature": "events.terms",
+  "title": "QA_Platform_upload_very_long_name_reports_success_without_file",
+  "type": "Boundary",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed.",
+  "steps": [
+   "1. POST /trade/upload_file with a valid type and data and a 300-character file name ending .pdf."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.pdf",
+   "data": "UUE=",
+   "type": "t_and_c"
+  },
+  "expected": "reject",
+  "expectedResult": "Should be refused (422 — name too long) or stored under a shortened name. Today: HTTP 200, success true, url null — the temporary file is named after the upload ('temp_<name>', s3_upload.rb:90), which exceeds the 255-byte file-name limit; the error is swallowed and nil is returned. Nothing is stored.",
+  "rationale": "Long, descriptive document names are common in tenders; the user is told it worked.",
+  "source": "app/controllers/concerns/s3_upload.rb:90,96-100; app/controllers/api/trade_controller.rb:1758-1763",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-018",
+  "catalogId": "API-EVDDOC-018",
+  "feature": "events.terms",
+  "title": "QA_Platform_vendor_passes_upload_policy_and_reaches_validation",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as QA vendor 1 (vendor app). No event is needed.",
+  "steps": [
+   "1. As QA vendor 1 (vendor app), POST /trade/upload_file with type 'invoice'."
+  ],
+  "method": "POST",
+  "path": "/trade/upload_file",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.pdf",
+   "data": "UUE=",
+   "type": "invoice"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters' — proves the vendor is past the permission check (TradeRequestPolicy#upload_file? → show? → is_allowed_to_perform_action? is true for any non-client company) and is stopped only by validation. Nothing is stored.",
+  "rationale": "Vendors must be able to upload bid documents; a permission regression would show as 455 here.",
+  "source": "app/policies/trade_request_policy.rb:200-202; app/models/user.rb:896-899; app/controllers/api/trade_controller.rb:1743,1751-1752",
+  "plan": {
+   "recipe": "none",
+   "actor": "vendor",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-025",
+  "catalogId": "API-EVDDOC-025",
+  "feature": "events.templates",
+  "title": "QA_Platform_template_image_without_name_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed. Direct request; nothing is written (the request is refused before or at the storage step).",
+  "steps": [
+   "1. POST /templates/upload_attachment with data but no name."
+  ],
+  "method": "POST",
+  "path": "/templates/upload_attachment",
+  "body": {
+   "data": "UUE="
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters'.",
+  "rationale": "The template-question image upload checks name and data first.",
+  "source": "app/controllers/api/templates_controller.rb:57-62",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-026",
+  "catalogId": "API-EVDDOC-026",
+  "feature": "events.templates",
+  "title": "QA_Platform_template_image_without_data_is_refused",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed. Direct request; nothing is written (the request is refused before or at the storage step).",
+  "steps": [
+   "1. POST /templates/upload_attachment with a name but no data."
+  ],
+  "method": "POST",
+  "path": "/templates/upload_attachment",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.png"
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 2 'Insufficient parameters'.",
+  "rationale": "No empty images in a template.",
+  "source": "app/controllers/api/templates_controller.rb:57-62",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "2"
+  }
+ },
+ {
+  "id": "EVD2-DOC-027",
+  "catalogId": "API-EVDDOC-027",
+  "feature": "events.templates",
+  "title": "QA_Platform_template_image_exe_is_refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed. Direct request; nothing is written (the request is refused before or at the storage step).",
+  "steps": [
+   "1. POST /templates/upload_attachment with name QA_Platform_{{stamp}}.exe and data 'UUE='."
+  ],
+  "method": "POST",
+  "path": "/templates/upload_attachment",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.exe",
+   "data": "UUE="
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed'.",
+  "rationale": "Template images are shown to every vendor answering the template.",
+  "source": "app/controllers/api/templates_controller.rb:63-65; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-028",
+  "catalogId": "API-EVDDOC-028",
+  "feature": "events.templates",
+  "title": "QA_Platform_template_image_gif_is_refused_by_server",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed. Direct request; nothing is written (the request is refused before or at the storage step).",
+  "steps": [
+   "1. POST /templates/upload_attachment with name QA_Platform_{{stamp}}.gif and data 'UUE='."
+  ],
+  "method": "POST",
+  "path": "/templates/upload_attachment",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.gif",
+   "data": "UUE="
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 484 'File type not allowed' — .gif is not on the server allow-list although the RFI builder screen accepts any image/* file (see UI-EVDDOC-085).",
+  "rationale": "The screen and the server disagree on what an 'image' is.",
+  "source": "app/controllers/api/templates_controller.rb:63-65; app/controllers/concerns/utils.rb:746-749",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "484"
+  }
+ },
+ {
+  "id": "EVD2-DOC-029",
+  "catalogId": "API-EVDDOC-029",
+  "feature": "events.templates",
+  "title": "QA_Platform_template_image_numeric_data_is_upload_failed",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed. Direct request; nothing is written (the request is refused before or at the storage step).",
+  "steps": [
+   "1. POST /templates/upload_attachment with name QA_Platform_{{stamp}}.png and data 12345 (a number)."
+  ],
+  "method": "POST",
+  "path": "/templates/upload_attachment",
+  "body": {
+   "name": "QA_Platform_{{stamp}}.png",
+   "data": 12345
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 902, message 'Upload failed' — upload_file_to_s3 returns nil and this endpoint (unlike /trade/upload_file) checks it. Nothing is stored. Note: code 902 is reused here with a custom message; its catalogue text is 'Only active or paused jobs can be cancelled'.",
+  "rationale": "The correct counterpart of API-EVDDOC-016: this endpoint refuses instead of claiming success.",
+  "source": "app/controllers/api/templates_controller.rb:66-70; app/controllers/concerns/s3_upload.rb:92-99",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "902"
+  }
+ },
+ {
+  "id": "EVD2-DOC-030",
+  "catalogId": "API-EVDDOC-030",
+  "feature": "events.templates",
+  "title": "QA_Platform_template_image_name_over_storage_key_limit_is_upload_failed",
+  "type": "Boundary",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer (console). No event is needed. Direct request; nothing is written (the request is refused before or at the storage step).",
+  "steps": [
+   "1. POST /templates/upload_attachment with data 'UUE=' and a 1,100-character name ending .png."
+  ],
+  "method": "POST",
+  "path": "/templates/upload_attachment",
+  "body": {
+   "name": "QA_Platform_{{stamp}}_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png",
+   "data": "UUE="
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 902, message 'Upload failed' — the storage key 'templates/<company>/template/<time>_<name>' exceeds the 1,024-byte object-key limit, storage refuses it, the error is swallowed and the nil result is caught. Nothing is stored.",
+  "rationale": "A name-length guard is missing; the user only sees a generic failure.",
+  "source": "app/controllers/api/templates_controller.rb:66-70; app/controllers/concerns/s3_upload.rb:83-101",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer",
+   "code": "902"
+  }
+ },
+ {
+  "id": "EVD2-DOC-034",
+  "catalogId": "API-EVDDOC-034",
+  "feature": "platform.hardening",
+  "title": "QA_Platform_open_link_without_token_should_not_crash",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "No event is needed. This endpoint skips sign-in and app checks entirely (attachments_controller.rb:5-8), so whoever sends it is irrelevant and no session is put at risk. Read-only.",
+  "steps": [
+   "1. GET /v1/attachments/open with no token."
+  ],
+  "method": "GET",
+  "path": "/v1/attachments/open",
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused with 422 'Invalid token'. Today the code path raises: Base64.urlsafe_decode64(nil) calls nil.end_with? → NoMethodError, which the action does not rescue (it rescues only InvalidSignature and ArgumentError) → HTTP 500. A 500 here is the defect.",
+  "rationale": "A truncated link from an email or PDF must give a clean message, not a server error.",
+  "source": "app/controllers/api/v1/attachments_controller.rb:12-18",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-035",
+  "catalogId": "API-EVDDOC-035",
+  "feature": "platform.hardening",
+  "title": "QA_Platform_open_link_with_empty_token_is_refused",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "No event is needed. This endpoint skips sign-in and app checks entirely (attachments_controller.rb:5-8), so whoever sends it is irrelevant and no session is put at risk. Read-only.",
+  "steps": [
+   "1. GET /v1/attachments/open?token= (empty)."
+  ],
+  "method": "GET",
+  "path": "/v1/attachments/open?token=",
+  "expected": "reject",
+  "expectedResult": "HTTP 422, plain text 'Invalid token' — an empty string decodes to '' and fails the signature check.",
+  "rationale": "Baseline refusal for a cut-off link.",
+  "source": "app/controllers/api/v1/attachments_controller.rb:14-17",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-036",
+  "catalogId": "API-EVDDOC-036",
+  "feature": "platform.hardening",
+  "title": "QA_Platform_open_link_with_non_base64_token_is_refused",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "No event is needed. This endpoint skips sign-in and app checks entirely (attachments_controller.rb:5-8), so whoever sends it is irrelevant and no session is put at risk. Read-only.",
+  "steps": [
+   "1. GET /v1/attachments/open?token=!!!!"
+  ],
+  "method": "GET",
+  "path": "/v1/attachments/open?token=!!!!",
+  "expected": "reject",
+  "expectedResult": "HTTP 422, plain text 'Invalid token' — strict base64 decoding raises ArgumentError, which is rescued.",
+  "rationale": "Garbage must be refused, not crash.",
+  "source": "app/controllers/api/v1/attachments_controller.rb:14-17",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-037",
+  "catalogId": "API-EVDDOC-037",
+  "feature": "platform.hardening",
+  "title": "QA_Platform_open_link_with_garbage_base64_token_is_refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "No event is needed. This endpoint skips sign-in and app checks entirely (attachments_controller.rb:5-8), so whoever sends it is irrelevant and no session is put at risk. Read-only.",
+  "steps": [
+   "1. GET /v1/attachments/open?token=UUFfUGxhdGZvcm0 (valid base64 of 'QA_Platform', not a real token)."
+  ],
+  "method": "GET",
+  "path": "/v1/attachments/open?token=UUFfUGxhdGZvcm0",
+  "expected": "reject",
+  "expectedResult": "HTTP 422, plain text 'Invalid token'. The app sets no load_defaults and never enables authenticated encryption, so MessageEncryptor uses AES-256-CBC with a MessageVerifier; the verifier rejects the message (InvalidSignature, rescued). A 500 here would mean the cipher or the secret differs from that (InvalidMessage / nil encryptor are not rescued) — a defect too.",
+  "rationale": "The token is the only lock on this endpoint; anything that is not a genuine token must be refused cleanly.",
+  "source": "app/controllers/api/v1/attachments_controller.rb:12-18; lib/encrypt_decrypt.rb:79-83; config/application.rb (no load_defaults)",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-038",
+  "catalogId": "API-EVDDOC-038",
+  "feature": "platform.hardening",
+  "title": "QA_Platform_open_link_with_forged_signature_is_refused",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "No event is needed. This endpoint skips sign-in and app checks entirely (attachments_controller.rb:5-8), so whoever sends it is irrelevant and no session is put at risk. Read-only.",
+  "steps": [
+   "1. GET /v1/attachments/open?token=UUFfUGxhdGZvcm0tLTAwMDA (base64 of 'QA_Platform--0000': message plus a made-up signature)."
+  ],
+  "method": "GET",
+  "path": "/v1/attachments/open?token=UUFfUGxhdGZvcm0tLTAwMDA",
+  "expected": "reject",
+  "expectedResult": "HTTP 422, plain text 'Invalid token' — the signature does not match, InvalidSignature is rescued. No redirect to any file.",
+  "rationale": "Proves a hand-built token with a fake signature never opens a file.",
+  "source": "app/controllers/api/v1/attachments_controller.rb:12-18; lib/encrypt_decrypt.rb:79-91",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-039",
+  "catalogId": "API-EVDDOC-039",
+  "feature": "platform.hardening",
+  "title": "QA_Platform_open_link_with_token_list_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "No event is needed. This endpoint skips sign-in and app checks entirely (attachments_controller.rb:5-8), so whoever sends it is irrelevant and no session is put at risk. Read-only.",
+  "steps": [
+   "1. GET /v1/attachments/open?token[]=QA"
+  ],
+  "method": "GET",
+  "path": "/v1/attachments/open?token[]=QA",
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422 'Invalid token'. Today token arrives as an Array, Array has no end_with? → NoMethodError (not rescued) → HTTP 500 on an endpoint anyone can call without signing in.",
+  "rationale": "Unauthenticated endpoints are the first thing scanners hit; every malformed input must be answered cleanly.",
+  "source": "app/controllers/api/v1/attachments_controller.rb:14-16",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-043",
+  "catalogId": "API-EVDDOC-043",
+  "feature": "events.publish",
+  "title": "QA_Platform_publish_attachment_percent_encoded_folder_bypasses_company_check",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own draft event with one RFQ round, QA vendor 1 in the audience, not yet published. Publishing notifies QA vendor 1 only.",
+  "steps": [
+   "1. Publish the draft event with one attachment whose url is https://procol.s3.amazonaws.com/trade%5Ffiles/terms_and_conditions/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf (the folder name percent-encoded)."
+  ],
+  "method": "PATCH",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "body": {
+   "attachments": [
+    {
+     "url": "https://procol.s3.amazonaws.com/trade%5Ffiles/terms_and_conditions/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf",
+     "name": "QA_Platform_{{stamp}}.pdf"
+    }
+   ],
+   "title": "QA_Platform_Publish_{{stamp}}",
+   "status": "active",
+   "draft_trade_request_uuids": [
+    "{{tradeId}}"
+   ],
+   "audience_company_uuids": [
+    "{{vendorUuid}}"
+   ],
+   "line_items": [],
+   "terms_and_conditions": {
+    "clauses": [],
+    "attachments": []
+   },
+   "show_under_open_events": true,
+   "delete_draft_stage_uuids": [],
+   "amendment_remarks": {
+    "remarks": ""
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "Should be refused: HTTP 422, code 101 'You are not allowed to perform this action', as for the plain spelling (EDGE-PUB-024). Today the company check looks for the literal text 'amazonaws.com/trade_files/' (s3_url_validator.rb:26), so the encoded spelling passes and the event publishes (200); when the event is read, the signer URL-decodes the key (aws_url_helper.rb:73) and signs trade_files/…/QA_Platform_999999999/… — another company's folder.",
+  "rationale": "The tenant-isolation guard can be sidestepped by spelling the same path differently.",
+  "source": "app/controllers/concerns/s3_url_validator.rb:25-33; app/models/concerns/aws_url_helper.rb:59-82; app/controllers/api/event_groups_controller.rb:76-78",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "code": "101"
+  }
+ },
+ {
+  "id": "EVD2-DOC-044",
+  "catalogId": "API-EVDDOC-044",
+  "feature": "events.publish",
+  "title": "QA_Platform_publish_attachment_on_foreign_host_signed_as_procol_file",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own draft event with one RFQ round, QA vendor 1 in the audience, not yet published. Publishing notifies QA vendor 1 only.",
+  "steps": [
+   "1. Publish the draft event with one attachment whose url is https://files.example.com/trade_files/terms_and_conditions/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf."
+  ],
+  "method": "PATCH",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "body": {
+   "attachments": [
+    {
+     "url": "https://files.example.com/trade_files/terms_and_conditions/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf",
+     "name": "QA_Platform_{{stamp}}.pdf"
+    }
+   ],
+   "title": "QA_Platform_Publish_{{stamp}}",
+   "status": "active",
+   "draft_trade_request_uuids": [
+    "{{tradeId}}"
+   ],
+   "audience_company_uuids": [
+    "{{vendorUuid}}"
+   ],
+   "line_items": [],
+   "terms_and_conditions": {
+    "clauses": [],
+    "attachments": []
+   },
+   "show_under_open_events": true,
+   "delete_draft_stage_uuids": [],
+   "amendment_remarks": {
+    "remarks": ""
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "Should be refused with HTTP 422, code 101. Today it publishes (200): the guard only inspects URLs containing 'amazonaws.com/trade_files/', but the reader-side signer throws the host away and signs the PATH as a key in Procol's own bucket (aws_url_helper.rb:62-65), so any host + another company's folder path yields a working signed link to that company's file.",
+  "rationale": "Host-agnostic signing turns any URL into a Procol-bucket read; the guard must judge the path, not the host string.",
+  "source": "app/controllers/concerns/s3_url_validator.rb:26; app/models/concerns/aws_url_helper.rb:59-82; app/models/event_group.rb:329-338",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "code": "101"
+  }
+ },
+ {
+  "id": "EVD2-DOC-045",
+  "catalogId": "API-EVDDOC-045",
+  "feature": "events.publish",
+  "title": "QA_Platform_publish_attachment_encoded_slash_defeats_company_regex",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own draft event with one RFQ round, QA vendor 1 in the audience, not yet published. Publishing notifies QA vendor 1 only.",
+  "steps": [
+   "1. Publish with one attachment whose url is https://procol.s3.amazonaws.com/trade_files/terms_and_conditions%2FQA_Platform_999999999/QA_Platform_{{stamp}}.pdf."
+  ],
+  "method": "PATCH",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "body": {
+   "attachments": [
+    {
+     "url": "https://procol.s3.amazonaws.com/trade_files/terms_and_conditions%2FQA_Platform_999999999/QA_Platform_{{stamp}}.pdf",
+     "name": "QA_Platform_{{stamp}}.pdf"
+    }
+   ],
+   "title": "QA_Platform_Publish_{{stamp}}",
+   "status": "active",
+   "draft_trade_request_uuids": [
+    "{{tradeId}}"
+   ],
+   "audience_company_uuids": [
+    "{{vendorUuid}}"
+   ],
+   "line_items": [],
+   "terms_and_conditions": {
+    "clauses": [],
+    "attachments": []
+   },
+   "show_under_open_events": true,
+   "delete_draft_stage_uuids": [],
+   "amendment_remarks": {
+    "remarks": ""
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "Should be refused with HTTP 422, code 101. Today the company-id pattern /trade_files/<folder>/<name>_<id>/ does not match when the slash is encoded, and a non-match is treated as allowed (s3_url_validator.rb:28-29), so it publishes (200); the signer later decodes %2F into a real slash.",
+  "rationale": "'No match' must mean 'refuse', not 'allow'.",
+  "source": "app/controllers/concerns/s3_url_validator.rb:28-29; app/models/concerns/aws_url_helper.rb:73",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "code": "101"
+  }
+ },
+ {
+  "id": "EVD2-DOC-046",
+  "catalogId": "API-EVDDOC-046",
+  "feature": "events.publish",
+  "title": "QA_Platform_publish_attachments_as_plain_links_breaks_event_page",
+  "type": "Robustness",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The run's own draft event with one RFQ round, QA vendor 1 in the audience, not yet published. Publishing notifies QA vendor 1 only.",
+  "steps": [
+   "1. Publish the draft event with attachments sent as plain text links: [\"https://files.example.com/QA_Platform_{{stamp}}.pdf\"] instead of objects.",
+   "2. Read the event back as the buyer."
+  ],
+  "method": "PATCH",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "body": {
+   "attachments": [
+    "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+   ],
+   "title": "QA_Platform_Publish_{{stamp}}",
+   "status": "active",
+   "draft_trade_request_uuids": [
+    "{{tradeId}}"
+   ],
+   "audience_company_uuids": [
+    "{{vendorUuid}}"
+   ],
+   "line_items": [],
+   "terms_and_conditions": {
+    "clauses": [],
+    "attachments": []
+   },
+   "show_under_open_events": true,
+   "delete_draft_stage_uuids": [],
+   "amendment_remarks": {
+    "remarks": ""
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused (422: each attachment must be an object with a url). Today the guard skips text items (it only reads attachment['url'], event_groups_controller.rb:1745-1758), the event publishes and the list is saved; building the reply then calls attachment_obj['public_url'] = … on a String (event_group.rb:335) → IndexError → HTTP 500 — and every later GET of the event fails the same way, for buyer and vendors.",
+  "rationale": "One malformed field permanently breaks the event page for everyone.",
+  "source": "app/controllers/api/event_groups_controller.rb:1745-1758; app/models/event_group.rb:329-338; app/services/event_groups/update_service.rb:244",
+  "plan": {
+   "recipe": "draft_rfq",
+   "actor": "buyer",
+   "verify": [
+    {
+     "op": "read_event",
+     "as": "buyer",
+     "assert": [
+      {
+       "path": "uuid",
+       "op": "status_2xx"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-049",
+  "catalogId": "API-EVDDOC-049",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_tnc_file_from_other_company_folder_is_accepted",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids. Saving terms notifies the round's invited vendors (QA vendor 1 only).",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with terms_and_conditions ['QA_Platform_tnc_{{stamp}}'] and one t_and_c attachment whose private_url is https://procol.s3.amazonaws.com/trade_files/terms_and_conditions/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "terms_and_conditions": [
+    "QA_Platform_tnc_{{stamp}}"
+   ],
+   "attachments": [
+    {
+     "type": "t_and_c",
+     "value": [
+      {
+       "name": "QA_Platform_{{stamp}}.pdf",
+       "private_url": "https://procol.s3.amazonaws.com/trade_files/terms_and_conditions/QA_Platform_999999999/QA_Platform_{{stamp}}.pdf"
+      }
+     ]
+    }
+   ]
+  },
+  "expected": "reject",
+  "expectedResult": "Should be refused (422, code 101) exactly like an event-level attachment (EDGE-PUB-024). Today: HTTP 200 and the link is stored in the round — the trade controller never runs the company-URL check (it does not include S3UrlValidator); for a real bucket URL the round reader signs it for every invited vendor (trade_template_serializer.rb:881-898).",
+  "rationale": "The same cross-tenant file read the event-level guard was added to stop, one screen deeper.",
+  "source": "app/controllers/api/trade_controller.rb:459,714-722; app/serializers/trade_template_serializer.rb:881-898",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-050",
+  "catalogId": "API-EVDDOC-050",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_tnc_javascript_link_is_served_to_vendor",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids. Saving terms notifies the round's invited vendors (QA vendor 1 only).",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with terms_and_conditions ['QA_Platform_tnc_{{stamp}}'] and one t_and_c attachment whose private_url is 'javascript:alert(document.domain)'.",
+   "2. Read the round as QA vendor 1."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "terms_and_conditions": [
+    "QA_Platform_tnc_{{stamp}}"
+   ],
+   "attachments": [
+    {
+     "type": "t_and_c",
+     "value": [
+      {
+       "name": "QA_Platform_{{stamp}}.pdf",
+       "private_url": "javascript:alert(document.domain)"
+      }
+     ]
+    }
+   ]
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused (only Procol-stored files or http/https links). Today the update is accepted and the vendor's copy of the round shows the link unchanged as public_url — anything that is not a Procol bucket URL counts as a 'user link' and is passed through (utils.rb:998-1001). The verify step fails when the vendor receives the javascript: link.",
+  "rationale": "A clickable javascript: link on every invited vendor's T&C list is a stored-XSS vector.",
+  "source": "app/controllers/concerns/utils.rb:998-1001; app/serializers/trade_template_serializer.rb:881-898; app/controllers/api/trade_controller.rb:714-722",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "verify": [
+    {
+     "op": "read_round",
+     "as": "vendor",
+     "assert": [
+      {
+       "path": "attachments[*].value[*].public_url",
+       "op": "not_equals",
+       "value": "javascript:alert(document.domain)"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-051",
+  "catalogId": "API-EVDDOC-051",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_tnc_attachment_value_as_text_breaks_round_page",
+  "type": "Robustness",
+  "priority": "P0",
+  "severity": "Critical",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids. Saving terms notifies the round's invited vendors (QA vendor 1 only).",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with terms_and_conditions ['QA_Platform_tnc_{{stamp}}'] and attachments [{type: t_and_c, value: 'QA_Platform_{{stamp}}.pdf'}] (value as text, not a list).",
+   "2. Read the round as the buyer and as QA vendor 1."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "terms_and_conditions": [
+    "QA_Platform_tnc_{{stamp}}"
+   ],
+   "attachments": [
+    {
+     "type": "t_and_c",
+     "value": "QA_Platform_{{stamp}}.pdf"
+    }
+   ]
+  },
+  "expected": "no-5xx",
+  "expectedResult": "The update itself answers 200 (its reply does not include attachments). Should be refused (422). Today the bad value is saved into the round, and every later read of the round calls attachment['value'].each on a String (trade_template_serializer.rb:886) → NoMethodError → HTTP 500 for the buyer AND every vendor. The verify reads fail when that happens.",
+  "rationale": "One bad save makes the live round unreadable for everybody until someone fixes the database.",
+  "source": "app/serializers/trade_template_serializer.rb:881-898; app/controllers/api/trade_controller.rb:459,714-722",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "verify": [
+    {
+     "op": "read_round",
+     "as": "buyer",
+     "assert": [
+      {
+       "path": "uuid",
+       "op": "status_2xx"
+      }
+     ]
+    },
+    {
+     "op": "read_round",
+     "as": "vendor",
+     "assert": [
+      {
+       "path": "uuid",
+       "op": "status_2xx"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-052",
+  "catalogId": "API-EVDDOC-052",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_tnc_attachment_without_value_breaks_round_page",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids. Saving terms notifies the round's invited vendors (QA vendor 1 only).",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with terms_and_conditions ['QA_Platform_tnc_{{stamp}}'] and attachments [{type: t_and_c}] (no value).",
+   "2. Read the round as the buyer."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "terms_and_conditions": [
+    "QA_Platform_tnc_{{stamp}}"
+   ],
+   "attachments": [
+    {
+     "type": "t_and_c"
+    }
+   ]
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused, or treated as an empty list. Today it is saved and every later read calls nil.each (trade_template_serializer.rb:886) → HTTP 500. The verify read fails when that happens.",
+  "rationale": "A client that drops an empty list must not poison the round.",
+  "source": "app/serializers/trade_template_serializer.rb:881-898; app/controllers/api/trade_controller.rb:714-722",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "verify": [
+    {
+     "op": "read_round",
+     "as": "buyer",
+     "assert": [
+      {
+       "path": "uuid",
+       "op": "status_2xx"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-053",
+  "catalogId": "API-EVDDOC-053",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_attachment_only_edit_wipes_written_terms",
+  "type": "Workflow",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids. Saving terms notifies the round's invited vendors (QA vendor 1 only).",
+  "steps": [
+   "1. Arrange: set the round's T&C to the clause 'QA_Platform_tnc_keep'.",
+   "2. PATCH /trade/{{tradeId}} with ONLY attachments (one t_and_c file), no terms_and_conditions.",
+   "3. Read the round back."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "attachments": [
+    {
+     "type": "t_and_c",
+     "value": [
+      {
+       "name": "QA_Platform_{{stamp}}.pdf",
+       "private_url": "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+      }
+     ]
+    }
+   ]
+  },
+  "expected": "accept",
+  "expectedResult": "The update is accepted (200). Expected: the written clause 'QA_Platform_tnc_keep' is still there. Today the branch rebuilds T&C from Array(nil) = [] (trade_controller.rb:718-720), so changing only the files silently deletes every written clause; the verify fails when the clause is gone.",
+  "rationale": "Adding a file to the terms must not erase the terms themselves.",
+  "source": "app/controllers/api/trade_controller.rb:714-722; app/services/terms_and_conditions/persisted_array_builder.rb:8-33",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "arrange": [
+    {
+     "op": "library",
+     "caseId": "EVD2-DOC-H01",
+     "as": "buyer",
+     "expect": "accept",
+     "say": "The buyer first sets one written clause."
+    }
+   ],
+   "verify": [
+    {
+     "op": "read_round",
+     "as": "buyer",
+     "assert": [
+      {
+       "path": "terms_and_conditions",
+       "op": "contains",
+       "value": "QA_Platform_tnc_keep"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-054",
+  "catalogId": "API-EVDDOC-054",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_attachments_as_text_crashes_update",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids. Saving terms notifies the round's invited vendors (QA vendor 1 only).",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with attachments 'QA_Platform_{{stamp}}.pdf' (text, not a list)."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "attachments": "QA_Platform_{{stamp}}.pdf"
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422. Today the line that picks T&C files calls .select on the text (trade_controller.rb:459) → NoMethodError → HTTP 500, before any change is saved. The same line runs for every round update (extensions, title, settings), so any of them crashes when attachments is text.",
+  "rationale": "Malformed optional input must be refused, not crash the main round-edit endpoint.",
+  "source": "app/controllers/api/trade_controller.rb:459",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-055",
+  "catalogId": "API-EVDDOC-055",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_attachments_list_with_number_crashes_update",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids. Saving terms notifies the round's invited vendors (QA vendor 1 only).",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with attachments [1]."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "attachments": [
+    1
+   ]
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be 422. Today 1['type'] raises TypeError (no implicit conversion of String into Integer) at trade_controller.rb:459 → HTTP 500, before any change is saved.",
+  "rationale": "Same unguarded line, different shape.",
+  "source": "app/controllers/api/trade_controller.rb:459",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-056",
+  "catalogId": "API-EVDDOC-056",
+  "feature": "events.terms",
+  "title": "QA_Platform_round_tnc_files_locked_after_close_with_bids",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "The run's own RFQ round: QA vendor 1 has bid and the bid window plus extra closing time is over.",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with terms_and_conditions ['QA_Platform_tnc_{{stamp}}'] and attachments [{type: t_and_c, value: []}] after bidding has closed with a bid in."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "terms_and_conditions": [
+    "QA_Platform_tnc_{{stamp}}"
+   ],
+   "attachments": [
+    {
+     "type": "t_and_c",
+     "value": []
+    }
+   ]
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 4 'Request not found' — terms and their files cannot change once a bid exists and the bid window is over (trade_controller.rb:715-717; a round already in status closed is refused with the same code 4 at :594). Nothing changes.",
+  "rationale": "Changing the terms after vendors have bid against them would change the deal after the fact.",
+  "source": "app/controllers/api/trade_controller.rb:594,714-717",
+  "plan": {
+   "recipe": "closed_rfq_with_bid",
+   "actor": "buyer",
+   "code": "4"
+  }
+ },
+ {
+  "id": "EVD2-DOC-058",
+  "catalogId": "API-EVDDOC-058",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_withdraw_remark_without_files_list_crashes",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live event (one RFQ round, QA vendor 1 invited, no bids). A successful withdrawal notifies QA vendor 1 only.",
+  "steps": [
+   "1. PATCH /event_groups/{{eventGroupUuid}} with status withdrawn and withdraw_remark {remarks: 'QA_Platform_withdraw_{{stamp}}'} — no attachments key."
+  ],
+  "method": "PATCH",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "body": {
+   "status": "withdrawn",
+   "withdraw_remark": {
+    "remarks": "QA_Platform_withdraw_{{stamp}}"
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should withdraw normally (no files is a valid choice) or refuse with 422. Today the remark is built with attachments = nil and the Remark validation calls nil.any? (remark.rb:35-37) → NoMethodError → HTTP 500; the event stays live.",
+  "rationale": "A client that omits an empty list cannot withdraw an event at all.",
+  "source": "app/models/remark.rb:28-38; app/helpers/api/remarks_helper.rb:4-14; app/services/event_groups/update_service.rb:348-354",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "withdraw_event",
+     "as": "buyer",
+     "decisive": true,
+     "expect": "no-5xx",
+     "change": [
+      {
+       "path": "withdraw_remark.attachments",
+       "remove": true
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-059",
+  "catalogId": "API-EVDDOC-059",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_withdraw_remark_with_outside_link_is_refused_and_event_stays_live",
+  "type": "Validation",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "The run's own live event (one RFQ round, QA vendor 1 invited, no bids). A successful withdrawal notifies QA vendor 1 only.",
+  "steps": [
+   "1. PATCH /event_groups/{{eventGroupUuid}} with status withdrawn and withdraw_remark {remarks, attachments: ['https://files.example.com/QA_Platform_{{stamp}}.pdf']}.",
+   "2. Read the event back."
+  ],
+  "method": "PATCH",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "body": {
+   "status": "withdrawn",
+   "withdraw_remark": {
+    "remarks": "QA_Platform_withdraw_{{stamp}}",
+    "attachments": [
+     "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+    ]
+   }
+  },
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 472 'failed to add remark' — a remark only accepts files stored in Procol's bucket (the URL must contain the bucket name and region, remark.rb:34-38; utils.rb:998-1001). The remark is written first, so nothing else changes: the event is still active.",
+  "rationale": "The remark's file check is the only thing stopping outside links on a withdrawal notice; it must also leave the event untouched.",
+  "source": "app/models/remark.rb:28-38; app/services/event_groups/update_service.rb:316-354; app/controllers/concerns/event_group_controller_helper.rb:28-38",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "withdraw_event",
+     "as": "buyer",
+     "decisive": true,
+     "expect": "reject",
+     "change": [
+      {
+       "path": "withdraw_remark.attachments",
+       "set": [
+        "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+       ]
+      }
+     ]
+    }
+   ],
+   "code": "472",
+   "verify": [
+    {
+     "op": "read_event",
+     "as": "buyer",
+     "assert": [
+      {
+       "path": "status",
+       "op": "equals",
+       "value": "active"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-060",
+  "catalogId": "API-EVDDOC-060",
+  "feature": "events.lifecycle",
+  "title": "QA_Platform_withdraw_remark_files_as_text_should_not_crash",
+  "type": "Robustness",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "The run's own live event (one RFQ round, QA vendor 1 invited, no bids). A successful withdrawal notifies QA vendor 1 only.",
+  "steps": [
+   "1. PATCH /event_groups/{{eventGroupUuid}} with status withdrawn and withdraw_remark {remarks, attachments: 'QA_Platform_{{stamp}}.pdf'} (text, not a list)."
+  ],
+  "method": "PATCH",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "body": {
+   "status": "withdrawn",
+   "withdraw_remark": {
+    "remarks": "QA_Platform_withdraw_{{stamp}}",
+    "attachments": "QA_Platform_{{stamp}}.pdf"
+   }
+  },
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused (422). The text is cast into the remark's text-array column; depending on how the database adapter casts it the remark either fails validation (472) or the validation's value.any? meets a non-list (500). Must not be a 500.",
+  "rationale": "Type confusion on the withdrawal notice.",
+  "source": "app/models/remark.rb:28-38; app/helpers/api/remarks_helper.rb:4-14",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "withdraw_event",
+     "as": "buyer",
+     "decisive": true,
+     "expect": "no-5xx",
+     "change": [
+      {
+       "path": "withdraw_remark.attachments",
+       "set": "QA_Platform_{{stamp}}.pdf"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-061",
+  "catalogId": "API-EVDDOC-061",
+  "feature": "bids.surrogate",
+  "title": "QA_Platform_surrogate_bid_reference_remark_without_files_list_crashes",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids; the company allows surrogate (on-behalf) bids. The surrogate bid is entered for QA vendor 1.",
+  "steps": [
+   "1. Enter a surrogate bid for QA vendor 1 with surrogate_remarks {remarks: 'QA_Platform_ref_{{stamp}}'} and NO attachments key."
+  ],
+  "method": "POST",
+  "path": "/bids/template_input",
+  "expected": "no-5xx",
+  "expectedResult": "Should be accepted (a reference note without files) or refused 422. Today the bid is saved first, then the reference remark is built with attachments = nil and its validation calls nil.any? → HTTP 500 — the buyer sees an error although the bid now exists.",
+  "rationale": "A half-done surrogate bid with a server error invites a second, duplicate entry.",
+  "source": "app/controllers/concerns/bids_controller_helper.rb:633-643; app/controllers/api/bids_controller.rb:654-662; app/models/remark.rb:28-38",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "surrogate_bid",
+     "as": "buyer",
+     "decisive": true,
+     "expect": "no-5xx",
+     "change": [
+      {
+       "path": "surrogate_remarks.remarks",
+       "set": "QA_Platform_ref_{{stamp}}"
+      },
+      {
+       "path": "surrogate_remarks.attachments",
+       "remove": true
+      }
+     ]
+    }
+   ],
+   "dependsOnSetting": "surrogate bidding is allowed for the buyer company (allowed_surrogate_bid_placement)"
+  }
+ },
+ {
+  "id": "EVD2-DOC-062",
+  "catalogId": "API-EVDDOC-062",
+  "feature": "bids.surrogate",
+  "title": "QA_Platform_surrogate_bid_reference_remark_with_outside_link_crashes_after_saving",
+  "type": "Robustness",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ round, QA vendor 1 invited, no bids; the company allows surrogate (on-behalf) bids. The surrogate bid is entered for QA vendor 1.",
+  "steps": [
+   "1. Enter a surrogate bid for QA vendor 1 with surrogate_remarks {remarks: 'QA_Platform_ref_{{stamp}}', attachments: ['https://files.example.com/QA_Platform_{{stamp}}.pdf']}."
+  ],
+  "method": "POST",
+  "path": "/bids/template_input",
+  "expected": "no-5xx",
+  "expectedResult": "Should be refused with 422 code 472 and NO bid saved. Today the bid is saved, the remark fails validation, the helper renders 472 and returns nil (bids_controller_helper.rb:641-642), and the caller goes on with a nil bid (bids_controller.rb:660-666) → HTTP 500 with the bid already stored.",
+  "rationale": "The '# ! POTENTIAL RENDERING ISSUE' comment in the code is real: an invalid file link leaves a saved bid behind a server error.",
+  "source": "app/controllers/concerns/bids_controller_helper.rb:633-643; app/controllers/api/bids_controller.rb:654-662; app/models/remark.rb:28-38",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "act": [
+    {
+     "op": "surrogate_bid",
+     "as": "buyer",
+     "decisive": true,
+     "expect": "no-5xx",
+     "change": [
+      {
+       "path": "surrogate_remarks.remarks",
+       "set": "QA_Platform_ref_{{stamp}}"
+      },
+      {
+       "path": "surrogate_remarks.attachments",
+       "set": [
+        "https://files.example.com/QA_Platform_{{stamp}}.pdf"
+       ]
+      }
+     ]
+    }
+   ],
+   "dependsOnSetting": "surrogate bidding is allowed for the buyer company (allowed_surrogate_bid_placement)"
+  }
+ },
+ {
+  "id": "EVD2-DOC-067",
+  "catalogId": "API-EVDDOC-067",
+  "feature": "evaluation.qcs",
+  "title": "QA_Platform_reports_list_for_unknown_event_is_not_found",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer; no event needed.",
+  "steps": [
+   "1. GET /event_groups/Z2dnWmdaUWtnZw==/get_all_attachments (decodes to an id that does not exist)."
+  ],
+  "method": "GET",
+  "path": "/event_groups/Z2dnWmdaUWtnZw==/get_all_attachments",
+  "expected": "reject",
+  "expectedResult": "HTTP 404 — EventGroup.find raises RecordNotFound (the 'blank' check after it can never run).",
+  "rationale": "Unknown ids must be a clean not-found.",
+  "source": "app/controllers/api/event_groups_controller.rb:686-689",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-068",
+  "catalogId": "API-EVDDOC-068",
+  "feature": "evaluation.qcs",
+  "title": "QA_Platform_reports_list_for_garbled_event_id_is_not_found",
+  "type": "Negative",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "Signed in as the QA buyer; no event needed.",
+  "steps": [
+   "1. GET /event_groups/WrongUuid1=/get_all_attachments (decodes to nothing)."
+  ],
+  "method": "GET",
+  "path": "/event_groups/WrongUuid1=/get_all_attachments",
+  "expected": "reject",
+  "expectedResult": "HTTP 404 — the id decodes to nil and EventGroup.find(nil) raises RecordNotFound.",
+  "rationale": "A garbled id must not crash.",
+  "source": "app/controllers/api/event_groups_controller.rb:686-689; app/controllers/concerns/params_auth.rb:57-67",
+  "plan": {
+   "recipe": "none",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-069",
+  "catalogId": "API-EVDDOC-069",
+  "feature": "evaluation.qcs",
+  "title": "QA_Platform_reports_list_for_draft_event_is_empty_no_content",
+  "type": "Workflow",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "The run's own draft event (one line item, no rounds), read by its owner.",
+  "steps": [
+   "1. GET /event_groups/{{eventGroupUuid}}/get_all_attachments on a draft event."
+  ],
+  "method": "GET",
+  "path": "/event_groups/{{eventGroupUuid}}/get_all_attachments",
+  "expected": "no-5xx",
+  "expectedResult": "Expected (today): HTTP 204 No Content with an empty body — the action returns before rendering when the event is a draft (event_groups_controller.rb:690) and Rails answers 'no content' for a JSON request. Clients expecting {data: []} must cope with an empty body. Must not be a 500.",
+  "rationale": "Records the odd draft contract so a future change is noticed.",
+  "source": "app/controllers/api/event_groups_controller.rb:690",
+  "plan": {
+   "recipe": "draft_event",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-070",
+  "catalogId": "API-EVDDOC-070",
+  "feature": "evaluation.qcs",
+  "title": "QA_Platform_reports_list_for_live_event_lists_stage_reports",
+  "type": "Happy path",
+  "priority": "P1",
+  "severity": "Medium",
+  "preconditions": "The run's own live RFQ event, no bids, read by its owner.",
+  "steps": [
+   "1. GET /event_groups/{{eventGroupUuid}}/get_all_attachments."
+  ],
+  "method": "GET",
+  "path": "/event_groups/{{eventGroupUuid}}/get_all_attachments",
+  "expected": "accept",
+  "expectedResult": "HTTP 200 {data: […]} with, for the RFQ round, 'RFQ report' (report_category auction_bids_comparison_report) and 'RFQ Counter Offer Report' (counter_offer_report_v2), each with the round's uuid and item_type trade_request. No QCS-Purchase yet (it needs a participating vendor) and no Approval Note (no selected proposal).",
+  "rationale": "The Reports panel of the event page is built from this list.",
+  "source": "app/controllers/api/event_groups_controller.rb:686-725,1153-1183,1268-1274",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  }
+ },
+ {
+  "id": "EVD2-DOC-071",
+  "catalogId": "API-EVDDOC-071",
+  "feature": "evaluation.qcs",
+  "title": "QA_Platform_reports_list_is_returned_to_invited_vendor",
+  "type": "Security",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "The run's own live RFQ event; QA vendor 1 is invited and has submitted a bid. Read by QA vendor 1 (vendor app).",
+  "steps": [
+   "1. As QA vendor 1, GET /event_groups/{{eventGroupUuid}}/get_all_attachments."
+  ],
+  "method": "GET",
+  "path": "/event_groups/{{eventGroupUuid}}/get_all_attachments",
+  "expected": "accept",
+  "expectedResult": "Expected (today): HTTP 200 and the vendor receives the buyer's report menu for the rounds it can see — 'RFQ report', 'RFQ Counter Offer Report' and, once a vendor participates, 'QCS-Purchase' (master comparative statement), plus 'Approval Note-Purch' with the proposal id once one is selected. The policy only checks that the vendor can see a round (event_group_policy.rb:52-54). Whether each report then downloads for a vendor is decided elsewhere and must be checked manually.",
+  "rationale": "Vendors should not even learn that a comparison or award note exists.",
+  "source": "app/controllers/api/event_groups_controller.rb:686-725,1185-1265; app/policies/event_group_policy.rb:52-54",
+  "plan": {
+   "recipe": "rfq_with_bid",
+   "actor": "vendor"
+  }
+ },
+ {
+  "id": "EVD2-DOC-072",
+  "catalogId": "API-EVDDOC-072",
+  "feature": "evaluation.qcs",
+  "title": "QA_Platform_reports_list_refused_for_uninvited_vendor",
+  "type": "Security",
+  "priority": "P1",
+  "severity": "High",
+  "preconditions": "The run's own live RFQ event with QA vendor 1 invited; read by QA vendor 2, who is NOT invited.",
+  "steps": [
+   "1. As QA vendor 2, GET /event_groups/{{eventGroupUuid}}/get_all_attachments."
+  ],
+  "method": "GET",
+  "path": "/event_groups/{{eventGroupUuid}}/get_all_attachments",
+  "expected": "reject",
+  "expectedResult": "HTTP 422, code 455 'You are not authorized to perform this action' — show? needs at least one round visible to the caller; a restricted round hides it from an uninvited vendor (trade_request_model_helper.rb:366-369).",
+  "rationale": "The report menu must not leak to vendors outside the event.",
+  "source": "app/controllers/api/event_groups_controller.rb:691; app/policies/event_group_policy.rb:52-54; app/models/event_group.rb:511-526",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "vendor2",
+   "code": "455",
+   "dependsOnSetting": "the round is restricted to its invited vendors (not an open tender and not audience 'everyone')"
+  }
+ },
+ {
+  "id": "EVD2-DOC-073",
+  "catalogId": "API-EVDDOC-073",
+  "feature": "evaluation.qcs",
+  "title": "QA_Platform_reports_list_still_answers_after_withdrawal",
+  "type": "Workflow",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "The run's own live RFQ event, withdrawn by the buyer in the arrange step.",
+  "steps": [
+   "1. Arrange: withdraw the event with a remark.",
+   "2. GET /event_groups/{{eventGroupUuid}}/get_all_attachments."
+  ],
+  "method": "GET",
+  "path": "/event_groups/{{eventGroupUuid}}/get_all_attachments",
+  "expected": "accept",
+  "expectedResult": "HTTP 200: a withdrawn event is not 'draft', so the list is built; the withdrawn round still appears with 'RFQ report' and 'RFQ Counter Offer Report' (stages are listed whatever their status).",
+  "rationale": "Buyers need the paper trail of a withdrawn event.",
+  "source": "app/controllers/api/event_groups_controller.rb:686-725; app/models/event_group.rb:511-526",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer",
+   "arrange": [
+    {
+     "op": "withdraw_event",
+     "as": "buyer",
+     "expect": "accept",
+     "say": "The buyer withdraws the event first (with a remark)."
+    }
+   ]
+  }
+ },
+ {
+  "id": "EVD2-DOC-H01",
+  "feature": "events.terms",
+  "title": "QA_Platform_set_round_tnc_clause_helper",
+  "type": "Workflow",
+  "priority": "P2",
+  "severity": "Low",
+  "preconditions": "The run's own live RFQ round, no bids.",
+  "steps": [
+   "1. PATCH /trade/{{tradeId}} with terms_and_conditions ['QA_Platform_tnc_keep']."
+  ],
+  "method": "PATCH",
+  "path": "/trade/{{tradeId}}",
+  "body": {
+   "terms_and_conditions": [
+    "QA_Platform_tnc_keep"
+   ]
+  },
+  "expected": "accept",
+  "expectedResult": "HTTP 200; the round's T&C becomes the single clause 'QA_Platform_tnc_keep'.",
+  "rationale": "Helper step for EVD2-DOC-053.",
+  "source": "app/controllers/api/trade_controller.rb:714-722",
+  "plan": {
+   "recipe": "published_rfq",
+   "actor": "buyer"
+  },
+  "helper": true
+ }
+]

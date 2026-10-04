@@ -1,0 +1,1816 @@
+[
+  {
+    "id": "EVD2-RGT-H01",
+    "catalogId": "API-EVDRGT-001",
+    "feature": "bids.place",
+    "title": "QA_Platform_helper_vendor_regrets_the_line",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ; QA vendor 1 has an open draft bid ({{bidUuid}}).",
+    "steps": [
+      "1. As QA vendor 1, mark the line as regretted on the draft bid."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted: HTTP 200 with the line labelled REGRET.",
+    "rationale": "Step used by other twins to put a regret on the draft.",
+    "source": "app/controllers/api/v1/bids_controller.rb:141-157",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ]
+    },
+    "helper": true
+  },
+  {
+    "id": "EVD2-RGT-H02",
+    "catalogId": "API-EVDRGT-057",
+    "feature": "bids.participation",
+    "title": "QA_Platform_helper_vendor_declines_the_event_with_a_reason",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ, QA vendor 1 invited.",
+    "steps": [
+      "1. As QA vendor 1, decline the event with a reason and a remark."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup",
+      "intent_type": "trade_reject",
+      "reason": [
+        "QA_Platform_reason_{{stamp}}"
+      ],
+      "remarks": "QA_Platform_decline_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted: HTTP 200 {\"success\": true}.",
+    "rationale": "Step used by other twins to record an event-level decline.",
+    "source": "app/controllers/api/user_intents_controller.rb:4-24",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor"
+    },
+    "helper": true
+  },
+  {
+    "id": "EVD2-RGT-001",
+    "catalogId": "API-EVDRGT-001",
+    "feature": "bids.place",
+    "title": "QA_Platform_vendor_regrets_a_line_on_its_own_draft_bid",
+    "type": "Happy path",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor opens a draft bid and prices nothing.",
+    "steps": [
+      "1. QA vendor 1 opens a draft bid.",
+      "2. QA vendor 1 marks the line as regretted on that draft."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted. HTTP 200 with bid_uuid and status {value: regretted, label: REGRET}; the regret is stored on the draft only.",
+    "rationale": "The basic 'I cannot supply this item' action must work for the invited vendor.",
+    "source": "app/controllers/api/v1/bids_controller.rb:141-157 · app/services/bids/line_item_regret_service.rb:40-52,61-72",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-002",
+    "catalogId": "API-EVDRGT-002",
+    "feature": "bids.place",
+    "title": "QA_Platform_regretting_the_same_line_twice_is_harmless",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ; QA vendor 1's draft already has the line regretted.",
+    "steps": [
+      "1. QA vendor 1 opens a draft and regrets the line.",
+      "2. QA vendor 1 regrets the same line again."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted again: HTTP 200, label REGRET; the line is held once (keyed by line id).",
+    "rationale": "A double click must not fail or flip the line back.",
+    "source": "app/services/bids/line_item_regret_service.rb:63-72",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        },
+        {
+          "op": "library",
+          "caseId": "EVD2-RGT-H01",
+          "as": "vendor"
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-003",
+    "catalogId": "API-EVDRGT-003",
+    "feature": "bids.submit",
+    "title": "QA_Platform_undoing_a_regret_before_submitting_gives_a_normal_bid",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ; QA vendor 1's draft with the line regretted.",
+    "steps": [
+      "1. QA vendor 1 opens a draft and regrets the line.",
+      "2. QA vendor 1 undoes the regret.",
+      "3. QA vendor 1 prices the line and submits.",
+      "4. The buyer reads the round."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "undo_regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Undo accepted (HTTP 200, status value null); the bid then submits normally and the buyer sees one live bid (bid_count 1).",
+    "rationale": "An undone regret must leave no trace on the submitted bid.",
+    "source": "app/services/bids/line_item_regret_service.rb:73-91 · app/helpers/api/v1/bids_controller_helper.rb:499-503",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        },
+        {
+          "op": "library",
+          "caseId": "EVD2-RGT-H01",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "price_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive"
+        },
+        {
+          "op": "submit_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive"
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "bid_count",
+              "op": "equals",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-004",
+    "catalogId": "API-EVDRGT-004",
+    "feature": "bids.place",
+    "title": "QA_Platform_undo_with_nothing_to_undo_is_a_no_op",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ; QA vendor 1's fresh draft with nothing regretted.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. QA vendor 1 sends 'undo regret' for the line."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "undo_regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted as a no-op: HTTP 200, status value null.",
+    "rationale": "A stale screen may send undo for a line that was never regretted.",
+    "source": "app/services/bids/line_item_regret_service.rb:73-91",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-005",
+    "catalogId": "API-EVDRGT-005",
+    "feature": "bids.place",
+    "title": "QA_Platform_a_line_regretted_in_the_draft_can_still_be_priced",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live one-round RFQ (no technical round); QA vendor 1's draft with the line regretted.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. QA vendor 1 regrets the line.",
+      "3. QA vendor 1 prices the same line."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Today the price is accepted (HTTP 200): the 736 check reads only the line's saved participants and runs only when a technical round exists. The regret wins at submit.",
+    "rationale": "Records that a draft regret does not block pricing; the conflict is resolved only at submit.",
+    "source": "app/helpers/api/v1/bids_controller_helper.rb:289-301 · app/controllers/api/v1/bids_controller.rb:113-139",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "price_bid",
+          "as": "vendor",
+          "decisive": true,
+          "expect": "accept",
+          "say": "QA vendor 1 prices the line it regretted"
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-006",
+    "catalogId": "API-EVDRGT-006",
+    "feature": "bids.submit",
+    "title": "QA_Platform_regretting_the_only_line_and_submitting_leaves_no_live_bid",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live one-round RFQ with one line; QA vendor 1 opens a draft.",
+    "steps": [
+      "1. QA vendor 1 opens a draft and regrets the line.",
+      "2. QA vendor 1 prices the line and submits.",
+      "3. The buyer reads the round and the participants list."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Submit accepted (HTTP 200), but the line is then written as regretted, the priced line dropped and the whole bid turned 'revised': buyer bid_count 0, while get_audience still lists the vendor under bid placed.",
+    "rationale": "A 'successful' submit that silently leaves no bid; buyer screens disagree.",
+    "source": "app/helpers/api/v1/bids_controller_helper.rb:476-477,499-528,1101-1125 · app/controllers/concerns/event_group_controller_helper.rb:398-401",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "price_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive"
+        },
+        {
+          "op": "submit_bid",
+          "as": "vendor",
+          "say": "QA vendor 1 submits the bid whose only line is regretted",
+          "ifRefused": "inconclusive"
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "bid_count",
+              "op": "equals",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "op": "read_audience",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "stages[*].bid_placed_company_uuids",
+              "op": "contains",
+              "value": "{{vendorUuid}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-007",
+    "catalogId": "API-EVDRGT-007",
+    "feature": "bids.submit",
+    "title": "QA_Platform_submitting_a_regret_only_draft_in_a_one_round_event",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live one-round RFQ; QA vendor 1's draft with the line regretted and no price.",
+    "steps": [
+      "1. QA vendor 1 opens a draft and regrets the line.",
+      "2. QA vendor 1 submits without pricing."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "A clean answer, never 5xx: either refused because nothing is priced (e.g. 372 'Please quote prices for all the products.', 422) or accepted and the empty bid turned 'revised'.",
+    "rationale": "Declining by regretting everything must end cleanly.",
+    "source": "app/helpers/api/v1/bids_controller_helper.rb:465-477,818-821,1101-1125",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "submit_bid",
+          "as": "vendor",
+          "decisive": true,
+          "expect": "no-5xx",
+          "say": "QA vendor 1 submits the regret-only draft"
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-008",
+    "catalogId": "API-EVDRGT-008",
+    "feature": "bids.submit",
+    "title": "QA_Platform_regretting_every_line_on_a_new_draft_withdraws_a_submitted_bid",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ where QA vendor 1 already submitted a bid; round setting lock_quote_after_submission is OFF and no price-change approval applies.",
+    "steps": [
+      "1. QA vendor 1 opens a new draft (it starts with the live bid's line).",
+      "2. QA vendor 1 regrets the line.",
+      "3. QA vendor 1 re-prices at 95 and submits.",
+      "4. The buyer reads the round."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Regret accepted (HTTP 200); the revision submit is accepted, the old bid becomes revised and the new one is turned revised too because its only line is regretted: buyer bid_count 0.",
+    "rationale": "A vendor-side withdrawal path that exists by accident, with no buyer approval or 'withdrawn' wording.",
+    "source": "app/helpers/api/v1/bids_controller_helper.rb:113-141,456-477,1101-1125",
+    "plan": {
+      "recipe": "rfq_with_bid",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "price_bid",
+          "as": "vendor",
+          "params": {
+            "price": 95
+          },
+          "ifRefused": "inconclusive"
+        },
+        {
+          "op": "submit_bid",
+          "as": "vendor",
+          "params": {
+            "price": 95
+          },
+          "ifRefused": "inconclusive",
+          "say": "QA vendor 1 submits the revision"
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "bid_count",
+              "op": "equals",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "dependsOnSetting": "lock_quote_after_submission is OFF on the round and no price-change approval applies"
+    }
+  },
+  {
+    "id": "EVD2-RGT-009",
+    "catalogId": "API-EVDRGT-009",
+    "feature": "bids.place",
+    "title": "QA_Platform_undo_after_submitting_is_refused_as_not_a_draft",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ; QA vendor 1 regretted the line, priced it and submitted (the bid is now revised).",
+    "steps": [
+      "1. QA vendor 1 opens a draft, regrets the line, prices and submits.",
+      "2. QA vendor 1 sends 'undo regret' on the submitted bid."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "undo_regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 32 'Bid not found'",
+    "rationale": "Once submitted the regret cannot be taken back through this route.",
+    "source": "app/controllers/api/v1/bids_controller.rb:146-147",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        },
+        {
+          "op": "library",
+          "caseId": "EVD2-RGT-H01",
+          "as": "vendor"
+        },
+        {
+          "op": "price_bid",
+          "as": "vendor"
+        },
+        {
+          "op": "submit_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "32"
+    }
+  },
+  {
+    "id": "EVD2-RGT-011",
+    "catalogId": "API-EVDRGT-011",
+    "feature": "bids.place",
+    "title": "QA_Platform_one_round_event_vendor_can_quote_again_on_a_regretted_line",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live one-round RFQ; QA vendor 1 regretted the line, priced and submitted (bid revised, line flagged regretted).",
+    "steps": [
+      "1. QA vendor 1 opens a draft, regrets, prices and submits.",
+      "2. QA vendor 1 places a fresh full bid on the same line.",
+      "3. The buyer reads the round."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "accept",
+    "expectedResult": "Today the fresh bid is accepted (no 736/800 check in a one-round event) and the buyer sees one live bid (bid_count 1), while the line keeps its 'regretted' flag for the vendor.",
+    "rationale": "Records that a submitted regret is not enforced in one-round events and leaves a stale flag.",
+    "source": "app/helpers/api/v1/bids_controller_helper.rb:296,744-749 · app/controllers/concerns/trade_template_helper.rb:3412-3431",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "price_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive"
+        },
+        {
+          "op": "submit_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive"
+        },
+        {
+          "op": "place_bid",
+          "as": "vendor",
+          "decisive": true,
+          "expect": "accept",
+          "say": "QA vendor 1 bids again on the line it regretted"
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "bid_count",
+              "op": "equals",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-012",
+    "catalogId": "API-EVDRGT-012",
+    "feature": "bids.place",
+    "title": "QA_Platform_two_round_event_submitted_regret_blocks_quoting_the_line_again",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFP+RFQ; QA vendor 1 submitted its technical response, then in the RFQ regretted the line, priced and submitted (bid revised).",
+    "steps": [
+      "1. QA vendor 1 opens an RFQ draft, regrets, prices and submits.",
+      "2. QA vendor 1 places a fresh bid on the same line."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "The fresh draft opens but pricing the line is refused. HTTP 422, code 736 'You have declined to provide this line item; therefore, you are not permitted to quote for it commercially'",
+    "rationale": "The commercial regret must be enforced once submitted in a two-round event.",
+    "source": "app/helpers/api/v1/bids_controller_helper.rb:289-301",
+    "plan": {
+      "recipe": "rfp_rfq_with_tech_response",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "price_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive"
+        },
+        {
+          "op": "submit_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive"
+        },
+        {
+          "op": "place_bid",
+          "as": "vendor",
+          "decisive": true,
+          "expect": "reject",
+          "say": "QA vendor 1 tries to quote the regretted line again"
+        }
+      ],
+      "code": "736"
+    }
+  },
+  {
+    "id": "EVD2-RGT-013",
+    "catalogId": "API-EVDRGT-013",
+    "feature": "bids.submit",
+    "title": "QA_Platform_two_round_event_regret_only_draft_cannot_be_submitted",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFP+RFQ; QA vendor 1 submitted its technical response (no Regret answer) and opened an RFQ draft.",
+    "steps": [
+      "1. QA vendor 1 opens an RFQ draft and regrets the only line.",
+      "2. QA vendor 1 submits without pricing."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "Today the submit is refused: the coverage check reads only the line's saved participants, not the draft regret. HTTP 422, code 748 'Please enter bid for all line items that are not regretted in technical stage.'",
+    "rationale": "Records that a commercial regret does not exempt a line from the technical-coverage rule.",
+    "source": "app/helpers/api/v1/bids_controller_helper.rb:388-390,985-1014",
+    "plan": {
+      "recipe": "rfp_rfq_with_tech_response",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "after": [
+        {
+          "op": "submit_bid",
+          "as": "vendor",
+          "decisive": true,
+          "expect": "reject",
+          "say": "QA vendor 1 submits the regret-only draft"
+        }
+      ],
+      "code": "748"
+    }
+  },
+  {
+    "id": "EVD2-RGT-018",
+    "catalogId": "API-EVDRGT-018",
+    "feature": "bids.place",
+    "title": "QA_Platform_unknown_regret_action_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Sends the regret with action 'delete'."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "delete"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 805 'Invalid action type'",
+    "rationale": "Vendor-side twin of EDGE-BID-099 (that one runs as the buyer).",
+    "source": "app/services/bids/line_item_regret_service.rb:96",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "805"
+    }
+  },
+  {
+    "id": "EVD2-RGT-019",
+    "catalogId": "API-EVDRGT-019",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_without_an_action_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Sends the regret with no action."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 805 'Invalid action type'",
+    "rationale": "A dropped field must not default to regret.",
+    "source": "app/services/bids/line_item_regret_service.rb:36,96",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "805"
+    }
+  },
+  {
+    "id": "EVD2-RGT-020",
+    "catalogId": "API-EVDRGT-020",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_action_is_case_sensitive",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Sends action 'REGRET'."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "REGRET"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 805 'Invalid action type'",
+    "rationale": "The server's own label echoed back must be refused clearly.",
+    "source": "app/services/bids/line_item_regret_service.rb:5,96",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "805"
+    }
+  },
+  {
+    "id": "EVD2-RGT-021",
+    "catalogId": "API-EVDRGT-021",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_action_is_checked_before_the_line",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Sends action 'delete' for an unknown line."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/Z2dnWmdaUWtnZw==/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "delete"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 805 'Invalid action type' (not 808).",
+    "rationale": "Guard-order pin.",
+    "source": "app/services/bids/line_item_regret_service.rb:96-99",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "805"
+    }
+  },
+  {
+    "id": "EVD2-RGT-022",
+    "catalogId": "API-EVDRGT-022",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_on_an_unknown_line_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Regrets a line id that does not exist."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/Z2dnWmdaUWtnZw==/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 808 'Line item not found'",
+    "rationale": "A guessed line id must not be stored in the bid.",
+    "source": "app/services/bids/line_item_regret_service.rb:35,43,99",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "808"
+    }
+  },
+  {
+    "id": "EVD2-RGT-023",
+    "catalogId": "API-EVDRGT-023",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_on_a_garbled_line_id_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Regrets an undecodable line id."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/WrongUuid1=/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 808 'Line item not found'",
+    "rationale": "The service decodes the path itself; garbage must still be refused.",
+    "source": "app/services/bids/line_item_regret_service.rb:35,43,99",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "808"
+    }
+  },
+  {
+    "id": "EVD2-RGT-024",
+    "catalogId": "API-EVDRGT-024",
+    "feature": "bids.place",
+    "title": "QA_Platform_line_is_checked_before_the_round",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Regrets an unknown line without naming the round."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/Z2dnWmdaUWtnZw==/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 808 'Line item not found' (not 95).",
+    "rationale": "Guard-order pin.",
+    "source": "app/services/bids/line_item_regret_service.rb:99-100",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "808"
+    }
+  },
+  {
+    "id": "EVD2-RGT-025",
+    "catalogId": "API-EVDRGT-025",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_without_the_round_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Regrets without the round id."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 95 'Trade Request not found'",
+    "rationale": "The round ties the regret to the bid's own stage.",
+    "source": "app/services/bids/line_item_regret_service.rb:44,100",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "95"
+    }
+  },
+  {
+    "id": "EVD2-RGT-026",
+    "catalogId": "API-EVDRGT-026",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_with_an_unknown_round_is_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Regrets naming a round that does not exist."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "Z2dnWmdaUWtnZw==",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 95 'Trade Request not found'",
+    "rationale": "Unknown round must be refused.",
+    "source": "app/services/bids/line_item_regret_service.rb:100",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "95"
+    }
+  },
+  {
+    "id": "EVD2-RGT-027",
+    "catalogId": "API-EVDRGT-027",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_naming_the_technical_round_is_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 (technical response submitted) opens an RFQ draft.",
+      "2. Regrets naming the technical round instead of the RFQ."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{rfpTradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 95 'Trade Request not found' — the round exists but is not the bid's.",
+    "rationale": "The regret must apply to the bid's own round.",
+    "source": "app/services/bids/line_item_regret_service.rb:102",
+    "plan": {
+      "recipe": "rfp_rfq_with_tech_response",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "95"
+    }
+  },
+  {
+    "id": "EVD2-RGT-028",
+    "catalogId": "API-EVDRGT-028",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_without_the_vendor_company_is_refused",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Regrets without company_uuid."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action'",
+    "rationale": "The company is what gets written onto the line.",
+    "source": "app/controllers/api/v1/bids_controller.rb:143-145",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "101"
+    }
+  },
+  {
+    "id": "EVD2-RGT-029",
+    "catalogId": "API-EVDRGT-029",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_naming_an_unknown_company_is_refused_as_not_allowed",
+    "type": "Security",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; the vendor has an open draft bid.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Regrets naming a company id that does not exist."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "Z2dnWmdaUWtnZw==",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' (the service's 130 is unreachable).",
+    "rationale": "Pins the controller's first check.",
+    "source": "app/controllers/api/v1/bids_controller.rb:145 · app/services/bids/line_item_regret_service.rb:101",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "101"
+    }
+  },
+  {
+    "id": "EVD2-RGT-030",
+    "catalogId": "API-EVDRGT-030",
+    "feature": "bids.place",
+    "title": "QA_Platform_company_is_checked_before_the_bid",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; no bid needed.",
+    "steps": [
+      "1. QA vendor 1 regrets on a bid id that does not exist and without company_uuid."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/Z2dnWmdaUWtnZw==/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action' (not 32).",
+    "rationale": "Guard-order pin for the controller.",
+    "source": "app/controllers/api/v1/bids_controller.rb:145-147",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "code": "101"
+    }
+  },
+  {
+    "id": "EVD2-RGT-031",
+    "catalogId": "API-EVDRGT-031",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_on_a_bid_that_does_not_exist_answers_32_not_806",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ with QA vendor 1 invited; no bid needed.",
+    "steps": [
+      "1. QA vendor 1 regrets on a bid id that does not exist."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/Z2dnWmdaUWtnZw==/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 32 'Bid not found' — the controller refuses before the service (806 is dead code; corrects EDGE-BID-100).",
+    "rationale": "A guessed bid id must be refused; pins the real code.",
+    "source": "app/controllers/api/v1/bids_controller.rb:146-147 · app/services/bids/line_item_regret_service.rb:97",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "code": "32"
+    }
+  },
+  {
+    "id": "EVD2-RGT-032",
+    "catalogId": "API-EVDRGT-032",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_on_a_garbled_bid_id_is_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ with QA vendor 1 invited; no bid needed.",
+    "steps": [
+      "1. QA vendor 1 regrets on an undecodable bid id."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/WrongUuid1=/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 32 'Bid not found'",
+    "rationale": "The path id decodes to nil; the lookup must still refuse.",
+    "source": "app/controllers/concerns/params_auth.rb:57-66 · app/controllers/api/v1/bids_controller.rb:146-147",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "code": "32"
+    }
+  },
+  {
+    "id": "EVD2-RGT-033",
+    "catalogId": "API-EVDRGT-033",
+    "feature": "bids.place",
+    "title": "QA_Platform_a_submitted_bid_cannot_be_regretted_directly",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ with QA vendor 1 invited; no bid needed.",
+    "steps": [
+      "1. QA vendor 1 (bid submitted, no draft open) regrets on the submitted bid."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 32 'Bid not found' — only drafts are looked up, so 807 'Bid status is not valid' is unreachable.",
+    "rationale": "Pins that regret is draft-only although VALID_STATUSES_TO_REGRET lists submitted statuses.",
+    "source": "app/controllers/api/v1/bids_controller.rb:146 · app/models/bid.rb:164 · app/services/bids/line_item_regret_service.rb:98",
+    "plan": {
+      "recipe": "rfq_with_bid",
+      "actor": "vendor",
+      "code": "32"
+    }
+  },
+  {
+    "id": "EVD2-RGT-042",
+    "catalogId": "API-EVDRGT-042",
+    "feature": "bids.place",
+    "title": "QA_Platform_vendor_cannot_regret_on_another_vendors_draft",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A live RFQ where QA vendors 1 and 2 both bid; QA vendor 2 opens a new draft (lock_quote_after_submission OFF).",
+    "steps": [
+      "1. QA vendor 2 opens a new draft.",
+      "2. QA vendor 1 regrets a line on vendor 2's draft, naming its own company."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 32 'Bid not found' — vendor 2's draft is outside vendor 1's companies.",
+    "rationale": "Cross-company tampering with an unsent quote.",
+    "source": "app/controllers/api/v1/bids_controller.rb:146-147 · app/models/bid.rb:113",
+    "plan": {
+      "recipe": "rfq_with_2_bids",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor2"
+        }
+      ],
+      "code": "32",
+      "dependsOnSetting": "lock_quote_after_submission is OFF on the round"
+    }
+  },
+  {
+    "id": "EVD2-RGT-043",
+    "catalogId": "API-EVDRGT-043",
+    "feature": "bids.place",
+    "title": "QA_Platform_uninvited_vendor_cannot_regret_in_another_vendors_name",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A live RFQ; QA vendor 1 invited with an open draft; QA vendor 2 not invited.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. QA vendor 2 regrets on vendor 1's draft naming vendor 1's company."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action'",
+    "rationale": "Naming someone else's company must be refused before any lookup.",
+    "source": "app/controllers/api/v1/bids_controller.rb:144-145",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor2",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "101"
+    }
+  },
+  {
+    "id": "EVD2-RGT-044",
+    "catalogId": "API-EVDRGT-044",
+    "feature": "bids.place",
+    "title": "QA_Platform_vendor_cannot_name_another_company_on_its_own_draft",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ; QA vendor 1's open draft.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. QA vendor 1 regrets naming QA vendor 2's company."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendor2Uuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 101 'You are not allowed to perform this action'",
+    "rationale": "The company in the body is what gets written onto the line; it must be the caller's.",
+    "source": "app/controllers/api/v1/bids_controller.rb:145",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        }
+      ],
+      "code": "101"
+    }
+  },
+  {
+    "id": "EVD2-RGT-046",
+    "catalogId": "API-EVDRGT-046",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_no_regret_on_a_withdrawn_event",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ; QA vendor 1 opens a draft; the buyer withdraws the event.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. The buyer withdraws the event.",
+      "3. QA vendor 1 regrets the line."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 95 'Trade Request not found' — withdrawal makes the round inactive.",
+    "rationale": "A late regret must not be stored on a withdrawn event.",
+    "source": "app/services/event_groups/update_service.rb:315-330 · app/controllers/concerns/trade_controller_helper.rb:201 · app/services/bids/line_item_regret_service.rb:44,100",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        },
+        {
+          "op": "withdraw_event",
+          "as": "buyer"
+        }
+      ],
+      "code": "95"
+    }
+  },
+  {
+    "id": "EVD2-RGT-047",
+    "catalogId": "API-EVDRGT-047",
+    "feature": "bids.place",
+    "title": "QA_Platform_regret_after_the_bidding_window_closed",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A short live RFQ; QA vendor 1 opens a draft; the window and extra closing time pass.",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. Wait until the round closes.",
+      "3. QA vendor 1 regrets the line."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "A clean answer, never 5xx. Today 200 — no window check exists in the regret path (the round stays 'active' until award).",
+    "rationale": "Records the missing window check.",
+    "source": "app/services/bids/line_item_regret_service.rb:40-52,95-113 · app/workers/mark_event_closed_worker.rb:6-16",
+    "plan": {
+      "recipe": "published_rfq_short",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        },
+        {
+          "op": "wait",
+          "params": {
+            "until": "close"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-048",
+    "catalogId": "API-EVDRGT-048",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_regret_on_an_event_superseded_by_a_new_version",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ; QA vendor 1 opens a draft; the buyer issues a new version (unpublished).",
+    "steps": [
+      "1. QA vendor 1 opens a draft.",
+      "2. The buyer issues a new version.",
+      "3. QA vendor 1 regrets on the old version's draft."
+    ],
+    "method": "PATCH",
+    "path": "/v1/bids/{{bidUuid}}/line_items/{{lineItemUuid}}/regret_status",
+    "body": {
+      "company_uuid": "{{vendorUuid}}",
+      "trade_request_uuid": "{{tradeId}}",
+      "action_type": "regret"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should match the bid routes (422 code 101 'You are not allowed to perform this action'); today 200 because there is no latest-version check. Never 5xx.",
+    "rationale": "Open, price and submit refuse non-latest events; regret does not.",
+    "source": "app/controllers/api/v1/bids_controller.rb:18,50,124,141-157",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor"
+        },
+        {
+          "op": "new_version",
+          "as": "buyer"
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-057",
+    "catalogId": "API-EVDRGT-057",
+    "feature": "bids.participation",
+    "title": "QA_Platform_event_level_decline_reaches_the_buyers_participants_list",
+    "type": "Happy path",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ, QA vendor 1 invited.",
+    "steps": [
+      "1. QA vendor 1 declines the event with a reason and a remark.",
+      "2. The buyer opens the event's participants list."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup",
+      "intent_type": "trade_reject",
+      "reason": [
+        "QA_Platform_reason_{{stamp}}"
+      ],
+      "remarks": "QA_Platform_decline_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted: HTTP 200 {\"success\": true}; the vendor's row in get_audience carries the decline text.",
+    "rationale": "'Reason for not participating' is the buyer's only view of a decline.",
+    "source": "app/controllers/api/user_intents_controller.rb:4-24 · app/controllers/api/event_groups_controller.rb:1662-1672 · app/models/user_intent.rb:35-43",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "verify": [
+        {
+          "op": "read_audience",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "vendors[*].user_intent",
+              "op": "contains",
+              "value": "QA_Platform_decline_{{stamp}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-058",
+    "catalogId": "API-EVDRGT-058",
+    "feature": "bids.participation",
+    "title": "QA_Platform_round_level_decline_never_reaches_the_participants_list",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ, QA vendor 1 invited.",
+    "steps": [
+      "1. QA vendor 1 declines the round (not the event) with a reason.",
+      "2. The buyer opens the event's participants list."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "QA_Platform_reason_{{stamp}}"
+      ],
+      "remarks": "QA_Platform_decline_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "Today: accepted (HTTP 200) and every row's user_intent stays empty — the list reads event-level answers only.",
+    "rationale": "Records that a round-level decline is invisible to the buyer's participants list.",
+    "source": "app/controllers/api/event_groups_controller.rb:1662 · app/controllers/api/trade_controller.rb:1095",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "verify": [
+        {
+          "op": "read_audience",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "vendors[*].user_intent",
+              "op": "absent"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-059",
+    "catalogId": "API-EVDRGT-059",
+    "feature": "bids.participation",
+    "title": "QA_Platform_declining_counts_as_having_answered",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ, QA vendor 1 invited.",
+    "steps": [
+      "1. QA vendor 1 declines the round with a reason.",
+      "2. QA vendor 1 reads the round."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "body": {
+      "item_uuid": "{{tradeId}}",
+      "item_type": "TradeRequest",
+      "intent_type": "trade_reject",
+      "reason": [
+        "QA_Platform_reason_{{stamp}}"
+      ],
+      "remarks": "QA_Platform_decline_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted (HTTP 200); the vendor's round read shows user_intent_answered: true.",
+    "rationale": "The vendor must not be asked again after saying no.",
+    "source": "app/controllers/api/trade_controller.rb:1095,1267 · app/serializers/trade_template_serializer.rb:734-738",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "vendor",
+          "assert": [
+            {
+              "path": "user_intent_answered",
+              "op": "equals",
+              "value": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-061",
+    "catalogId": "API-EVDRGT-061",
+    "feature": "bids.participation",
+    "title": "QA_Platform_declined_vendor_still_bids_and_buyer_sees_both",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ, QA vendor 1 invited.",
+    "steps": [
+      "1. QA vendor 1 declines the event with a reason.",
+      "2. QA vendor 1 places a full bid.",
+      "3. The buyer opens the participants list."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup",
+      "intent_type": "trade_reject",
+      "reason": [
+        "QA_Platform_reason_{{stamp}}"
+      ],
+      "remarks": "QA_Platform_decline_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "Today both are accepted; the vendor row keeps the decline text while the stage lists the vendor as bid placed.",
+    "rationale": "Deeper than XMAT-051: the buyer sees contradictory answers for one vendor.",
+    "source": "app/controllers/api/v1/bids_controller.rb:11-35 · app/controllers/concerns/event_group_controller_helper.rb:393-408",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "after": [
+        {
+          "op": "place_bid",
+          "as": "vendor",
+          "ifRefused": "inconclusive",
+          "say": "QA vendor 1 bids after declining"
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_audience",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "vendors[*].user_intent",
+              "op": "contains",
+              "value": "QA_Platform_decline_{{stamp}}"
+            },
+            {
+              "path": "stages[*].bid_placed_company_uuids",
+              "op": "contains",
+              "value": "{{vendorUuid}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-062",
+    "catalogId": "API-EVDRGT-062",
+    "feature": "bids.participation",
+    "title": "QA_Platform_decline_then_accept_latest_answer_wins_in_event_view",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ; QA vendor 1 already declined at event level.",
+    "steps": [
+      "1. QA vendor 1 declines the event.",
+      "2. QA vendor 1 accepts the event.",
+      "3. QA vendor 1 reads the event."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup",
+      "intent_type": "trade_accept"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted (HTTP 200, no reason needed); the vendor's event read shows user_intent.intent_type = trade_accept.",
+    "rationale": "Answers are never superseded; the view must at least show the newest one.",
+    "source": "app/controllers/api/event_groups_controller.rb:166 · app/serializers/event_group/show_serializer.rb:246-249",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "library",
+          "caseId": "EVD2-RGT-H02",
+          "as": "vendor"
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_event",
+          "as": "vendor",
+          "assert": [
+            {
+              "path": "user_intent.intent_type",
+              "op": "equals",
+              "value": "trade_accept"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-063",
+    "catalogId": "API-EVDRGT-063",
+    "feature": "bids.participation",
+    "title": "QA_Platform_vendors_own_event_view_shows_its_decline",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ, QA vendor 1 invited.",
+    "steps": [
+      "1. QA vendor 1 declines the event with a remark.",
+      "2. QA vendor 1 reads the event."
+    ],
+    "method": "POST",
+    "path": "/user_intents",
+    "body": {
+      "item_uuid": "{{eventGroupUuid}}",
+      "item_type": "EventGroup",
+      "intent_type": "trade_reject",
+      "reason": [
+        "QA_Platform_reason_{{stamp}}"
+      ],
+      "remarks": "QA_Platform_decline_{{stamp}}"
+    },
+    "expected": "accept",
+    "expectedResult": "Accepted (HTTP 200); the vendor's event read has user_intent.intent_type = trade_reject and the remark.",
+    "rationale": "The vendor app decides from this whether to show the participate prompt.",
+    "source": "app/serializers/user_intent_serializer.rb:1-3 · app/controllers/api/event_groups_controller.rb:166",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "verify": [
+        {
+          "op": "read_event",
+          "as": "vendor",
+          "assert": [
+            {
+              "path": "user_intent.intent_type",
+              "op": "equals",
+              "value": "trade_reject"
+            },
+            {
+              "path": "user_intent.remarks",
+              "op": "contains",
+              "value": "QA_Platform_decline_{{stamp}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-RGT-064",
+    "catalogId": "API-EVDRGT-064",
+    "feature": "bids.participation",
+    "title": "QA_Platform_joining_through_participate_after_declining_records_an_acceptance",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Buyer company setting enable_open_tender_events is ON; a live event; QA vendor 1 mapped to the buyer and has declined at event level.",
+    "steps": [
+      "1. QA vendor 1 declines the event.",
+      "2. QA vendor 1 joins through 'participate'.",
+      "3. QA vendor 1 reads the event."
+    ],
+    "method": "POST",
+    "path": "/event_groups/{{eventGroupUuid}}/participants",
+    "body": {},
+    "expected": "accept",
+    "expectedResult": "Accepted: HTTP 200 {\"success\": true}; the vendor's event read shows user_intent.intent_type = trade_accept. (The buyer's list still shows the decline: the new row has no company — checked manually.)",
+    "rationale": "Self-participation must supersede a decline for the vendor.",
+    "source": "app/controllers/api/event_groups_controller.rb:276-288 · app/services/event_groups/participate_service.rb:26-45 · app/policies/event_group_policy.rb:25-27",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "vendor",
+      "arrange": [
+        {
+          "op": "library",
+          "caseId": "EVD2-RGT-H02",
+          "as": "vendor"
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_event",
+          "as": "vendor",
+          "assert": [
+            {
+              "path": "user_intent.intent_type",
+              "op": "equals",
+              "value": "trade_accept"
+            }
+          ]
+        }
+      ],
+      "dependsOnSetting": "enable_open_tender_events is ON for the buyer company (app/models/company.rb:215-217) and QA vendor 1's buyer mapping status is allowed"
+    }
+  }
+]

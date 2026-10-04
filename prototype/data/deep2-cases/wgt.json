@@ -1,0 +1,2483 @@
+[
+  {
+    "id": "EVD2-WGT-H01",
+    "helper": true,
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_helper_save_one_lot_weight",
+    "type": "Happy path",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save one lot weight 'qa_freight_adj' of 100 for QA vendor 1."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 'Weights added successfully!'.",
+    "rationale": "Arrange step: makes the run's own round weighted.",
+    "source": "app/controllers/api/trade_controller.rb:1776-1817",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-H02",
+    "helper": true,
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_helper_save_two_lot_weights",
+    "type": "Happy path",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save two lot weights (qa_freight_adj 100, qa_quality_pen 50) for QA vendor 1."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          },
+          "qa_quality_pen": {
+            "label": "QA_Platform_Quality_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "50"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 'Weights added successfully!'.",
+    "rationale": "Arrange step: a round with two weights.",
+    "source": "app/controllers/api/trade_controller.rb:1776-1817",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-001",
+    "catalogId": "API-EVDWGT-001",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weightages_object_missing_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight fields are sent at the top level, without the weightages wrapper."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightage_on": "lot",
+      "values": {
+        "qa_freight_adj": {
+          "label": "QA_Platform_Freight_{{stamp}}",
+          "input_type": "absolute",
+          "data": {
+            "{{vendorUuid}}": "100"
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "A flat payload must not half-apply; params[:weightages] is blank.",
+    "source": "app/controllers/api/trade_controller.rb:1778-1783",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "trade_config.is_weighted_bid_event",
+              "op": "equals",
+              "value": false
+            }
+          ]
+        }
+      ],
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-002",
+    "catalogId": "API-EVDWGT-002",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_legacy_payload_without_weightage_on_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The body uses the older key-list/name-list shape with no 'weight on'."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "key_attributes": [
+          "qa_freight_adj"
+        ],
+        "weightage_names": [
+          "QA_Platform_Freight_{{stamp}}"
+        ],
+        "values": {
+          "{{vendorUuid}}": [
+            "100"
+          ]
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "The legacy create-screen modal still builds this shape; weightage_on is nil.",
+    "source": "app/controllers/api/trade_controller.rb:1779-1782",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-003",
+    "catalogId": "API-EVDWGT-003",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_blank_weightage_on_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. 'Weight on' is an empty string."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "Lot vs line decides where rows are stored; blank must not default.",
+    "source": "app/controllers/api/trade_controller.rb:1781-1782",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-004",
+    "catalogId": "API-EVDWGT-004",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_unknown_round_id_refused_as_insufficient_parameters",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A signed-in buyer; no event needed. The round id Z2dnWmdaUWtnZw== decodes to 999999999 (no such round).",
+    "steps": [
+      "1. As the buyer, save a valid lot weight table for a round id that does not exist."
+    ],
+    "method": "PATCH",
+    "path": "/trade/Z2dnWmdaUWtnZw==/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before the policy runs: HTTP 422, code 2 'Insufficient parameters' (TradeRequest.active.find_by_id returns nil).",
+    "rationale": "Unknown round must be a clean refusal; documents that it reads 'Insufficient parameters', not 'not found'.",
+    "source": "app/controllers/api/trade_controller.rb:1777,1781-1782",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-005",
+    "catalogId": "API-EVDWGT-005",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_garbled_round_id_refused",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A signed-in buyer; no event needed. The round id WrongUuid1= decodes to nil.",
+    "steps": [
+      "1. As the buyer, save a valid lot weight table for a garbled round id."
+    ],
+    "method": "PATCH",
+    "path": "/trade/WrongUuid1=/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "HTTP 422, code 2 'Insufficient parameters' (find_by_id(nil) is nil).",
+    "rationale": "A nil id must stay a clean refusal.",
+    "source": "app/controllers/concerns/params_auth.rb:57-68 · app/controllers/api/trade_controller.rb:1777",
+    "plan": {
+      "recipe": "none",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-006",
+    "catalogId": "API-EVDWGT-006",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_draft_round_cannot_be_weighted_here",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A draft event with an unpublished RFQ round (status draft).",
+    "steps": [
+      "1. As the buyer, save a valid lot weight table on the draft RFQ round."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 2 'Insufficient parameters' — the lookup is TradeRequest.active, so a draft round is not found.",
+    "rationale": "Documents that weights on drafts can only come from the create flow.",
+    "source": "app/controllers/api/trade_controller.rb:1777 · app/models/trade_request.rb:162",
+    "plan": {
+      "recipe": "draft_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-007",
+    "catalogId": "API-EVDWGT-007",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_withdrawn_event_round_cannot_be_weighted",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round, no bids; the buyer withdraws the event first (its stages become in-active).",
+    "steps": [
+      "1. As the buyer, withdraw the event with a remark.",
+      "2. As the buyer, save a valid lot weight table on its RFQ round."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 2 'Insufficient parameters' (the round is no longer active).",
+    "rationale": "Scoring must not change on a cancelled event.",
+    "source": "app/services/event_groups/update_service.rb:324-329 · app/controllers/api/trade_controller.rb:1777",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "arrange": [
+        {
+          "op": "withdraw_event",
+          "as": "buyer",
+          "expect": "accept",
+          "say": "The buyer withdraws the event."
+        }
+      ],
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-013",
+    "catalogId": "API-EVDWGT-013",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_lot_weight_makes_round_weighted",
+    "type": "Happy path",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown.",
+      "2. Read the round back as the buyer."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 'Weights added successfully!'. The round reads as weighted, weights are 'lot', the list is qa_freight_adj + weighted_total, QA vendor 1's value is 100.0, and the name is stored.",
+    "rationale": "The basic promise of the feature, checked on the round read the screens use.",
+    "source": "app/controllers/api/trade_controller.rb:1790-1794 · app/controllers/concerns/trade_controller_helper.rb:3839-3867 · app/models/trade_request.rb:1760-1772,3107-3150",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "trade_config.is_weighted_bid_event",
+              "op": "equals",
+              "value": true
+            },
+            {
+              "path": "weightages.weightage_on",
+              "op": "equals",
+              "value": "lot"
+            },
+            {
+              "path": "weightages.key_attributes",
+              "op": "contains",
+              "value": "qa_freight_adj"
+            },
+            {
+              "path": "weightages.key_attributes",
+              "op": "contains",
+              "value": "weighted_total"
+            },
+            {
+              "path": "weightages.values.qa_freight_adj.data.{{vendorUuid}}",
+              "op": "equals",
+              "value": "100.0"
+            },
+            {
+              "path": "misc.weightage.weightage_names",
+              "op": "contains",
+              "value": "QA_Platform_Freight_{{stamp}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-014",
+    "catalogId": "API-EVDWGT-014",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_first_weight_save_turns_on_fixed_quantity_bidding",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown.",
+      "2. Read the round back as the buyer."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; afterwards trade_config.allow_fixed_quantity_for_bidding is true (the first save sets it on the live round). Recorded as present behaviour needing product confirmation.",
+    "rationale": "A weight save silently changes a bidding rule on a live round.",
+    "source": "app/controllers/concerns/trade_controller_helper.rb:3863-3866",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "trade_config.allow_fixed_quantity_for_bidding",
+              "op": "equals",
+              "value": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-015",
+    "catalogId": "API-EVDWGT-015",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_vendor_terms_name_the_weight_criteria",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown.",
+      "2. Read the round as QA vendor 1 and look at its terms."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; the vendor's terms include the sentence 'Your evaluation for this event will depend on QA_Platform_Freight_…, Weighted Total along with the Gross Total.' (the 'Weighted Total' mention is a cosmetic defect).",
+    "rationale": "This sentence is how vendors learn they are weighted.",
+    "source": "app/models/trade_request.rb:1025-1035 · app/serializers/trade_template_serializer.rb:295-297",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "vendor",
+          "assert": [
+            {
+              "path": "terms_and_conditions[*]",
+              "op": "contains",
+              "value": "QA_Platform_Freight_{{stamp}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-016",
+    "catalogId": "API-EVDWGT-016",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_resaving_a_weight_replaces_the_value",
+    "type": "Workflow",
+    "priority": "P0",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path. Arrange: the buyer first saves qa_freight_adj = 100 for QA vendor 1.",
+    "steps": [
+      "1. As the buyer, save qa_freight_adj = 100 for QA vendor 1.",
+      "2. As the buyer, save qa_freight_adj = 250 for QA vendor 1.",
+      "3. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "250"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; QA vendor 1's value reads 250.0 — replaced, not added to (350.0 would mean a duplicate row; the lot read sums rows).",
+    "rationale": "Rows are matched on round + vendor + key; a duplicate would double the vendor's weight.",
+    "source": "app/services/weightages/create_service.rb:22-38 · app/models/trade_request.rb:3129-3145",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "arrange": [
+        {
+          "op": "library",
+          "caseId": "EVD2-WGT-H01",
+          "as": "buyer",
+          "expect": "accept",
+          "say": "The buyer saves qa_freight_adj = 100."
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "weightages.values.qa_freight_adj.data.{{vendorUuid}}",
+              "op": "equals",
+              "value": "250.0"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-017",
+    "catalogId": "API-EVDWGT-017",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_omitting_a_weight_removes_it",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path. Arrange: the buyer first saves two weights, qa_freight_adj and qa_quality_pen.",
+    "steps": [
+      "1. As the buyer, save two weights.",
+      "2. As the buyer, save again with only qa_freight_adj.",
+      "3. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; the weight list is qa_freight_adj + weighted_total only and qa_quality_pen no longer appears in the values (its rows are set in-active).",
+    "rationale": "The screen's Delete works by omission; the dropped weight must stop counting.",
+    "source": "app/controllers/api/trade_controller.rb:1804-1815 · app/models/trade_request.rb:2567-2580",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "arrange": [
+        {
+          "op": "library",
+          "caseId": "EVD2-WGT-H02",
+          "as": "buyer",
+          "expect": "accept",
+          "say": "The buyer saves two weights."
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "weightages.key_attributes",
+              "op": "count",
+              "value": 2
+            },
+            {
+              "path": "weightages.values.qa_quality_pen",
+              "op": "absent"
+            },
+            {
+              "path": "misc.weightage.key_attributes",
+              "op": "count",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-018",
+    "catalogId": "API-EVDWGT-018",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weights_cannot_be_cleared_entirely",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path. Arrange: the buyer first saves qa_freight_adj = 100.",
+    "steps": [
+      "1. As the buyer, save qa_freight_adj = 100.",
+      "2. As the buyer, save an empty weight list.",
+      "3. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {}
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 2 'Insufficient parameters'; the round is still weighted with qa_freight_adj (no way back to an unweighted round).",
+    "rationale": "Documents the missing 'remove all weights' path.",
+    "source": "app/services/weightages/validate_service.rb:58-60",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "arrange": [
+        {
+          "op": "library",
+          "caseId": "EVD2-WGT-H01",
+          "as": "buyer",
+          "expect": "accept",
+          "say": "The buyer saves qa_freight_adj = 100."
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "trade_config.is_weighted_bid_event",
+              "op": "equals",
+              "value": true
+            },
+            {
+              "path": "weightages.key_attributes",
+              "op": "contains",
+              "value": "qa_freight_adj"
+            }
+          ]
+        }
+      ],
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-022",
+    "catalogId": "API-EVDWGT-022",
+    "feature": "bids.place",
+    "title": "QA_Platform_weights_do_not_block_vendor_bidding",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown.",
+      "2. As QA vendor 1, open, price and submit a bid.",
+      "3. Read the round back as the buyer."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "Both accepted: weights saved (HTTP 200) and the vendor's bid goes in; the round is still weighted.",
+    "rationale": "The first save switches on fixed-quantity bidding; bidding itself must keep working.",
+    "source": "app/controllers/concerns/trade_controller_helper.rb:3863 · app/models/bid.rb:149",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "after": [
+        {
+          "op": "place_bid",
+          "as": "vendor",
+          "expect": "accept",
+          "params": {
+            "price": 1000
+          },
+          "say": "QA vendor 1 places a bid after the weights are set."
+        }
+      ],
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "trade_config.is_weighted_bid_event",
+              "op": "equals",
+              "value": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-023",
+    "catalogId": "API-EVDWGT-023",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_unsubmitted_draft_bid_does_not_lock_weights",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path. Arrange: QA vendor 1 opens a draft bid and does not submit it.",
+    "steps": [
+      "1. As QA vendor 1, open a draft bid (do not submit).",
+      "2. As the buyer, save the weight table for the RFQ round with the body shown."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 'Weights added successfully!' — only submitted (active/selected/requested/anomaly) bids are counted by the lock.",
+    "rationale": "An opened but unsent draft must not freeze the buyer.",
+    "source": "app/models/bid.rb:475-493 · app/models/model_helpers/trade_request_model_helper.rb:857-859",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "arrange": [
+        {
+          "op": "open_bid",
+          "as": "vendor",
+          "expect": "accept",
+          "say": "QA vendor 1 opens a draft bid."
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-024",
+    "catalogId": "API-EVDWGT-024",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weightage_on_must_be_lot_or_line_item",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. 'Weight on' is 'vendor'."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "vendor",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:58-60",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-025",
+    "catalogId": "API-EVDWGT-025",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_table_without_weights_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Only 'weight on' is sent, no weights."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot"
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:58-60",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-026",
+    "catalogId": "API-EVDWGT-026",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_entry_must_be_an_object",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight is a bare value instead of an object."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": "100"
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:29-31,62-64",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-027",
+    "catalogId": "API-EVDWGT-027",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_needs_a_name",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight name is only spaces."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "   ",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:62-64",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-028",
+    "catalogId": "API-EVDWGT-028",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_name_of_only_html_tags_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight name is '<b></b>' (stripped to nothing)."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "<b></b>",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/controllers/concerns/params_auth.rb:9,18-41 · config/initializers/string.rb:11,38-40 · app/services/weightages/validate_service.rb:62-64",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-029",
+    "catalogId": "API-EVDWGT-029",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_type_must_be_absolute_or_relative",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight type is 'percentage'."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "percentage",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:62-64",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-030",
+    "catalogId": "API-EVDWGT-030",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_type_is_case_sensitive",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight type is 'Relative'."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "Relative",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:63",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-031",
+    "catalogId": "API-EVDWGT-031",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_without_vendor_values_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight has no vendor values."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute"
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:36-38",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-032",
+    "catalogId": "API-EVDWGT-032",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_numeric_json_weight_refused",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. QA vendor 1's value is the JSON number 100, not the text \"100\"."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": 100
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Today refused: HTTP 422, code 2 'Insufficient parameters' — the check is instance_of?(String) || instance_of?(Numeric), and no JSON number is an instance of Numeric itself. Should be accepted (is_a?).",
+    "rationale": "Integrations sending numbers get a generic error; records present (suspected-wrong) behaviour.",
+    "source": "app/services/weightages/validate_service.rb:54-56",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-033",
+    "catalogId": "API-EVDWGT-033",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_null_vendor_value_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. QA vendor 1's value is null."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": null
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:40-43,54-56",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-034",
+    "catalogId": "API-EVDWGT-034",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_relative_weight_of_100_refused",
+    "type": "Boundary",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Relative weight of exactly 100."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "relative",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:66-71",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-035",
+    "catalogId": "API-EVDWGT-035",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_relative_weight_of_minus_100_refused",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Relative weight of exactly -100."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "relative",
+            "data": {
+              "{{vendorUuid}}": "-100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:66-71",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-036",
+    "catalogId": "API-EVDWGT-036",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_relative_weight_just_inside_range_accepted",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Relative weight 99.99.",
+      "2. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "relative",
+            "data": {
+              "{{vendorUuid}}": "99.99"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; QA vendor 1's value reads 99.99 (range is -100 < x < 100).",
+    "rationale": "The boundary is exclusive, not off by one.",
+    "source": "app/services/weightages/validate_service.rb:66-71",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "weightages.values.qa_freight_adj.data.{{vendorUuid}}",
+              "op": "equals",
+              "value": "99.99"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-037",
+    "catalogId": "API-EVDWGT-037",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_negative_absolute_weight_accepted",
+    "type": "Boundary",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Absolute weight -250.",
+      "2. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "-250"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; the value reads -250.0 (absolute weights have no range; a negative amount is a credit).",
+    "rationale": "The sign must survive.",
+    "source": "app/services/weightages/validate_service.rb:66-72",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "weightages.values.qa_freight_adj.data.{{vendorUuid}}",
+              "op": "equals",
+              "value": "-250.0"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-038",
+    "catalogId": "API-EVDWGT-038",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_non_numeric_absolute_weight_stored_as_zero",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Absolute weight 'abc'."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "abc"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422 code 2. Today HTTP 200 'Weights added successfully!' and the vendor's value is stored as 0.0 (absolute values are only checked for being text, then saved with to_f).",
+    "rationale": "A typo silently removes a vendor's penalty.",
+    "source": "app/services/weightages/validate_service.rb:54-56,66-72 · app/services/weightages/create_service.rb:62",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-039",
+    "catalogId": "API-EVDWGT-039",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_line_mode_needs_values_per_line",
+    "type": "Validation",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. 'Weight on' is line_item but QA vendor 1 has one flat value."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "line_item",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:44",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-040",
+    "catalogId": "API-EVDWGT-040",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_line_value_that_is_an_object_refused",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Line mode; QA vendor 1's line value is itself an object."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "line_item",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": {
+                "Z2dnWmdaUWtnZw==": {
+                  "v": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'.",
+    "rationale": "ValidateService rule; the round must stay unweighted.",
+    "source": "app/services/weightages/validate_service.rb:45-47,54-56",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-041",
+    "catalogId": "API-EVDWGT-041",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_relative_weights_need_not_sum_to_100",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Two relative weights for QA vendor 1: 60 and 70.",
+      "2. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "relative",
+            "data": {
+              "{{vendorUuid}}": "60"
+            }
+          },
+          "qa_quality_pen": {
+            "label": "QA_Platform_Quality_{{stamp}}",
+            "input_type": "relative",
+            "data": {
+              "{{vendorUuid}}": "70"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; both stored — there is no rule that weights add up to 100.",
+    "rationale": "Documents the absence of a sum rule.",
+    "source": "app/services/weightages/validate_service.rb:26-34",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "weightages.key_attributes",
+              "op": "count",
+              "value": 3
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-042",
+    "catalogId": "API-EVDWGT-042",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_duplicate_weight_names_accepted",
+    "type": "Validation",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Two weights with the same name."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Same_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          },
+          "qa_quality_pen": {
+            "label": "QA_Platform_Same_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "50"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused like the screen does. Today HTTP 200 and the name appears twice in the weight names.",
+    "rationale": "The API is looser than the screen's duplicate check.",
+    "source": "app/services/weightages/validate_service.rb:62-64",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-043",
+    "catalogId": "API-EVDWGT-043",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_for_uninvited_vendor_accepted",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path. QA vendor 2 is NOT invited to this round.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight is set for QA vendor 2."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendor2Uuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (vendor not in the round's audience). Today HTTP 200 and a weight row for QA vendor 2 is stored.",
+    "rationale": "Vendor keys are decoded to company ids without an audience check.",
+    "source": "app/services/weightages/create_service.rb:46-47",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-044",
+    "catalogId": "API-EVDWGT-044",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_for_unknown_company_reports_success",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The vendor key is an id that matches no company."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "Z2dnWmdaUWtnZw==": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422. Today HTTP 200 'Weights added successfully!' while nothing is stored (Weightage#save fails validation and the result is ignored); the round is marked weighted.",
+    "rationale": "Silent failure behind a success message.",
+    "source": "app/services/weightages/create_service.rb:22-38 · app/models/weightage.rb:28-32",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-045",
+    "catalogId": "API-EVDWGT-045",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_line_weight_for_unknown_line_reports_success",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Line mode; QA vendor 1's value is for a line id that does not exist."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "line_item",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": {
+                "Z2dnWmdaUWtnZw==": "100"
+              }
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422. Today HTTP 200 with nothing stored; the round becomes line-item weighted.",
+    "rationale": "Line ids are never checked against the round.",
+    "source": "app/services/weightages/create_service.rb:51-64 · app/models/weightage.rb:31-32",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-047",
+    "catalogId": "API-EVDWGT-047",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weightages_as_text_no_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. weightages is a text value."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": "QA_Platform_weights_{{stamp}}"
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422 code 2. Today the code path at trade_controller.rb:1779 indexes a String with a Symbol (TypeError) → HTTP 500.",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/controllers/api/trade_controller.rb:1779",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-048",
+    "catalogId": "API-EVDWGT-048",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weightages_as_list_no_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. weightages is a list."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": [
+        "lot"
+      ]
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422 code 2. Today Array#[](:weightage_on) raises TypeError → HTTP 500.",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/controllers/api/trade_controller.rb:1779",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-049",
+    "catalogId": "API-EVDWGT-049",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weightages_true_refused_cleanly",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. weightages is true."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": true
+    },
+    "expected": "reject",
+    "expectedResult": "Refused before anything is stored: HTTP 422, code 2 'Insufficient parameters'. (true has no [] so 'weight on' is nil.)",
+    "rationale": "Contrast with 047/048: this shape is caught by the parameter check.",
+    "source": "app/controllers/api/trade_controller.rb:1779-1782",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-050",
+    "catalogId": "API-EVDWGT-050",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_list_as_text_no_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight list is a text value."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": "QA_Platform_text_{{stamp}}"
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422 code 2. Today the validator calls each on a String (NoMethodError) → HTTP 500.",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/services/weightages/validate_service.rb:29",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-051",
+    "catalogId": "API-EVDWGT-051",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_vendor_values_as_text_no_crash",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight's vendor values are a text value."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": "QA_Platform_text_{{stamp}}"
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422 code 2. Today the validator calls each on a String (NoMethodError) → HTTP 500.",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/services/weightages/validate_service.rb:38-40",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-052",
+    "catalogId": "API-EVDWGT-052",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_list_as_pairs_crashes_after_write",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight list is sent as a list of [key, weight] pairs."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": [
+          [
+            "qa_freight_adj",
+            {
+              "label": "QA_Platform_Freight_{{stamp}}",
+              "input_type": "absolute",
+              "data": {
+                "{{vendorUuid}}": "100"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422 code 2 with nothing written. Today (suspected) validation passes and the weight row is saved, then weights.keys fails on the Array (NoMethodError) → HTTP 500.",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/controllers/concerns/trade_controller_helper.rb:3849-3855 · app/services/weightages/create_service.rb:42-45",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-053",
+    "catalogId": "API-EVDWGT-053",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_garbled_line_id_crashes_save",
+    "type": "Robustness",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Line mode; QA vendor 1's value is keyed by the garbled line id WrongUuid1=."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "line_item",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": {
+                "WrongUuid1=": "100"
+              }
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be HTTP 422 code 2. Today (suspected) the line id decodes to nil and the Sorbet signature item_id: Integer raises TypeError → HTTP 500.",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/services/weightages/create_service.rb:16-22,56-60 · lib/encrypt_decrypt.rb:59-72",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-054",
+    "catalogId": "API-EVDWGT-054",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_key_containing_uuid_is_mangled",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight key is 'qa_uuid_bonus'."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_uuid_bonus": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Today refused: HTTP 422, code 2 'Insufficient parameters' — the id decoder renames any key containing 'uuid' and replaces its object with a decoded number.",
+    "rationale": "A buyer-chosen name containing 'uuid' can never be saved.",
+    "source": "app/controllers/concerns/params_auth.rb:70-86",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "code": "2"
+    }
+  },
+  {
+    "id": "EVD2-WGT-055",
+    "catalogId": "API-EVDWGT-055",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_script_text_in_weight_name_is_stripped",
+    "type": "Security",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight name contains a script tag.",
+      "2. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_<script>alert(1)</script>_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200; the stored name has the tags removed: 'QA_Platform_alert(1)_…'.",
+    "rationale": "The name is echoed into the sheet and the vendor's terms.",
+    "source": "app/controllers/concerns/params_auth.rb:18-41 · config/initializers/string.rb:38-40",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "path": "misc.weightage.weightage_names",
+              "op": "contains",
+              "value": "QA_Platform_alert(1)_{{stamp}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-056",
+    "catalogId": "API-EVDWGT-056",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_html_in_weight_key_no_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight key contains an HTML tag."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_<img src=x onerror=alert(1)>": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (keys limited to letters, digits, underscore). Today HTTP 200 and the key is stored verbatim (keys are not HTML-stripped, only values).",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/controllers/concerns/params_auth.rb:22-41 · app/controllers/api/trade_controller.rb:1804",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-057",
+    "catalogId": "API-EVDWGT-057",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_huge_weight_becomes_infinity_round_still_reads",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Absolute weight of 400 nines.",
+      "2. Read the round back."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused as out of range. Today HTTP 200 (to_f gives Infinity, stored by Postgres); the round read must stay 2xx.",
+    "rationale": "Reads and later rankings must not break on Infinity.",
+    "source": "app/services/weightages/create_service.rb:62 · app/models/trade_request.rb:3141-3145",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "buyer",
+          "assert": [
+            {
+              "op": "status_2xx"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-058",
+    "catalogId": "API-EVDWGT-058",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_key_weighted_total_no_crash",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight key is 'weighted_total'."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "weighted_total": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused as a reserved key. Today HTTP 200 and weighted_total appears twice in the weight list.",
+    "rationale": "Hostile input must be a clean 4xx; an untyped 500 is a defect.",
+    "source": "app/controllers/api/trade_controller.rb:1804-1808 · app/models/trade_request.rb:2571-2572",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-059",
+    "catalogId": "API-EVDWGT-059",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_weight_key_price_schema_still_reads",
+    "type": "Robustness",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. The weight key is 'price'.",
+      "2. Read the buyer schema."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "price": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused (reserved column key). Today HTTP 200; the buyer schema read must still be 2xx.",
+    "rationale": "Weight widgets reuse the key as the sheet column key, colliding with the real price column.",
+    "source": "app/controllers/concerns/trade_template_helper.rb:156-167",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round_schema",
+          "as": "buyer",
+          "assert": [
+            {
+              "op": "status_2xx"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "EVD2-WGT-060",
+    "catalogId": "API-EVDWGT-060",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_bid_received_locks_rfq_weights",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A live RFQ round where QA vendor 1 has SUBMITTED a bid; the round has no weights. Requires allow_edit_weight_param_rfq is OFF/absent in the round's trade_config (copied from the template/company configuration at creation), and the vendor's submitted bid is counted (status active, not held for approval).",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused, nothing changed: HTTP 422, code 15 'Operation failed' (bid count > 0 and the RFQ edit switch is off).",
+    "rationale": "Changing the scoring after prices are in can flip the winner.",
+    "source": "app/controllers/api/trade_controller.rb:1786-1788 · app/models/model_helpers/trade_request_model_helper.rb:857-859,1092-1094",
+    "plan": {
+      "recipe": "rfq_with_bid",
+      "actor": "buyer",
+      "code": "15",
+      "dependsOnSetting": "allow_edit_weight_param_rfq is OFF/absent in the round's trade_config (copied from the template/company configuration at creation), and the vendor's submitted bid is counted (status active, not held for approval)"
+    }
+  },
+  {
+    "id": "EVD2-WGT-061",
+    "catalogId": "API-EVDWGT-061",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_rfq_edit_switch_on_allows_weights_after_bids",
+    "type": "Workflow",
+    "priority": "P1",
+    "severity": "Medium",
+    "preconditions": "A live RFQ round with QA vendor 1's submitted bid; requires allow_edit_weight_param_rfq ON in the round's trade_config.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "HTTP 200 'Weights added successfully!'.",
+    "rationale": "The other side of the switch.",
+    "source": "app/controllers/api/trade_controller.rb:1786 · app/models/model_helpers/trade_request_model_helper.rb:1092-1094",
+    "plan": {
+      "recipe": "rfq_with_bid",
+      "actor": "buyer",
+      "dependsOnSetting": "allow_edit_weight_param_rfq is ON in the round's trade_config"
+    }
+  },
+  {
+    "id": "EVD2-WGT-065",
+    "catalogId": "API-EVDWGT-065",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_weights_accepted_after_close_with_no_bids",
+    "type": "Workflow",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "An RFQ round, QA vendor 1 invited, no bids, bidding window and extra time over. The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "no-5xx",
+    "expectedResult": "Should be refused after close. Today HTTP 200 'Weights added successfully!' — there is no time check and a round without bids stays active after expiry (or HTTP 422 code 2 if it was already moved to closed).",
+    "rationale": "Weights added after the deadline rewrite an expired event's record.",
+    "source": "app/workers/mark_event_closed_worker.rb:5-16 · app/controllers/api/trade_controller.rb:1777-1788",
+    "plan": {
+      "recipe": "closed_rfq",
+      "actor": "buyer"
+    }
+  },
+  {
+    "id": "EVD2-WGT-066",
+    "catalogId": "API-EVDWGT-066",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_closed_round_with_bid_refuses_weights",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "An RFQ round where QA vendor 1 bid and the window is over. Requires allow_edit_weight_param_rfq is OFF/absent in the round's trade_config (copied from the template/company configuration at creation), and the vendor's submitted bid is counted (status active, not held for approval).",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422 code 15 'Operation failed' while the round is still active, or code 2 'Insufficient parameters' once it is closed.",
+    "rationale": "After close the bid lock (or closed status) must hold.",
+    "source": "app/controllers/api/trade_controller.rb:1777,1786-1788",
+    "plan": {
+      "recipe": "closed_rfq_with_bid",
+      "actor": "buyer",
+      "dependsOnSetting": "allow_edit_weight_param_rfq is OFF/absent in the round's trade_config (copied from the template/company configuration at creation), and the vendor's submitted bid is counted (status active, not held for approval)"
+    }
+  },
+  {
+    "id": "EVD2-WGT-067",
+    "catalogId": "API-EVDWGT-067",
+    "feature": "events.lifecycle",
+    "title": "QA_Platform_awarded_round_refuses_weights",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "An RFQ round with QA vendor 1's bid, closed, award proposal created and submitted. Requires allow_edit_weight_param_rfq is OFF/absent in the round's trade_config (copied from the template/company configuration at creation), and the vendor's submitted bid is counted (status active, not held for approval).",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422 code 15 'Operation failed' or code 2 'Insufficient parameters' (round closed). There is no award check, so with the switch on and the round active it would be accepted.",
+    "rationale": "Re-weighting after award makes the award contradict the ranking.",
+    "source": "app/controllers/api/trade_controller.rb:1777-1788",
+    "plan": {
+      "recipe": "awarded_rfq",
+      "actor": "buyer",
+      "dependsOnSetting": "allow_edit_weight_param_rfq is OFF/absent in the round's trade_config (copied from the template/company configuration at creation), and the vendor's submitted bid is counted (status active, not held for approval)"
+    }
+  },
+  {
+    "id": "EVD2-WGT-068",
+    "catalogId": "API-EVDWGT-068",
+    "feature": "evaluation.qcs",
+    "title": "QA_Platform_technical_round_cannot_be_weighted",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Low",
+    "preconditions": "A live RFP + RFQ event; the technical (RFP) round has no ranking mode (auction_config is nil) and no weights.",
+    "steps": [
+      "1. As the buyer, save a valid lot weight table on the TECHNICAL round."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{technicalTradeUuid}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100"
+            }
+          }
+        }
+      }
+    },
+    "expected": "reject",
+    "expectedResult": "Refused: HTTP 422, code 15 'Operation failed' (first save requires a rank or traffic-light round).",
+    "rationale": "Weights adjust prices; a technical round has nothing to rank.",
+    "source": "app/controllers/concerns/trade_controller_helper.rb:3586,3844-3846",
+    "plan": {
+      "recipe": "published_rfp_rfq",
+      "actor": "buyer",
+      "code": "15"
+    }
+  },
+  {
+    "id": "EVD2-WGT-071",
+    "catalogId": "API-EVDWGT-071",
+    "feature": "auction.visibility",
+    "title": "QA_Platform_vendor_cannot_read_competitor_weight",
+    "type": "Security",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "A live RFQ round (QA vendor 1 invited, bidding open, no bids, no weights). The fresh round carries no weights (misc.weightage is written only by this action and by a create request that sends weightages, which the recipe does not), and the recipe RFQ is a rank round because it is created without auction_config (trade_controller_helper.rb:3534), so the first save takes the add_weightages_to_trade path.",
+    "steps": [
+      "1. As the buyer, save the weight table for the RFQ round with the body shown. Weights are set for QA vendor 1 (100) and QA vendor 2 (300).",
+      "2. Read the round as QA vendor 1."
+    ],
+    "method": "PATCH",
+    "path": "/trade/{{tradeId}}/edit_weight_parameters",
+    "body": {
+      "weightages": {
+        "weightage_on": "lot",
+        "values": {
+          "qa_freight_adj": {
+            "label": "QA_Platform_Freight_{{stamp}}",
+            "input_type": "absolute",
+            "data": {
+              "{{vendorUuid}}": "100",
+              "{{vendor2Uuid}}": "300"
+            }
+          }
+        }
+      }
+    },
+    "expected": "accept",
+    "expectedResult": "The save is accepted (HTTP 200). QA vendor 1's read of the round must not carry QA vendor 2's weight. Today (suspected) the round read serialises every vendor's weight for every caller, so 'weightages.values.qa_freight_adj.data.<vendor 2>' = '300.0' is visible to vendor 1.",
+    "rationale": "Leaks which competitors the buyer penalises or favours, and by how much.",
+    "source": "app/serializers/trade_template_serializer.rb:15,877-879 · app/models/trade_request.rb:1760-1772,3129-3145",
+    "plan": {
+      "recipe": "published_rfq",
+      "actor": "buyer",
+      "verify": [
+        {
+          "op": "read_round",
+          "as": "vendor",
+          "assert": [
+            {
+              "path": "weightages.values.qa_freight_adj.data.{{vendor2Uuid}}",
+              "op": "absent"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

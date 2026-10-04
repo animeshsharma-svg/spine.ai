@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "twinId": "EVD2-WGT-013",
+  "caseId": "API-EVDWGT-013",
+  "area": "wgt",
+  "title": "Adding a lot weight for an invited vendor makes the round a weighted round",
+  "compiledAt": "2026-10-03T12:53:53.287Z",
+  "planVersion": 1,
+  "priority": "P0",
+  "runner": "plan",
+  "source": "twin-plan",
+  "validated": true,
+  "errors": [],
+  "warnings": [],
+  "gaps": []
+ },
+ "plan": {
+  "version": 1,
+  "caseId": "API-EVDWGT-013",
+  "title": "Adding a lot weight for an invited vendor makes the round a weighted round",
+  "setup": {
+   "recipe": "published_rfq"
+  },
+  "act": [
+   {
+    "op": "library",
+    "as": "buyer",
+    "caseId": "EVD2-WGT-013",
+    "decisive": true,
+    "say": "Adding a lot weight for an invited vendor makes the round a weighted round"
+   }
+  ],
+  "verify": [
+   {
+    "op": "read_round",
+    "as": "buyer",
+    "assert": [
+     {
+      "path": "trade_config.is_weighted_bid_event",
+      "op": "equals",
+      "value": true
+     },
+     {
+      "path": "weightages.weightage_on",
+      "op": "equals",
+      "value": "lot"
+     },
+     {
+      "path": "weightages.key_attributes",
+      "op": "contains",
+      "value": "qa_freight_adj"
+     },
+     {
+      "path": "weightages.key_attributes",
+      "op": "contains",
+      "value": "weighted_total"
+     },
+     {
+      "path": "weightages.values.qa_freight_adj.data.{{vendorUuid}}",
+      "op": "equals",
+      "value": "100.0"
+     },
+     {
+      "path": "misc.weightage.weightage_names",
+      "op": "contains",
+      "value": "QA_Platform_Freight_{{stamp}}"
+     }
+    ]
+   }
+  ],
+  "expected": {
+   "outcome": "accept"
+  }
+ }
+}
