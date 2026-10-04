@@ -16,7 +16,11 @@ let pool: Pool | null = null;
 function db(): Pool | null {
   const connectionString = process.env.DATABASE_URL?.trim();
   if (!connectionString) return null;
-  pool ??= new Pool({ connectionString, ssl: { rejectUnauthorized: false }, max: 2, connectionTimeoutMillis: 10_000, query_timeout: 30_000 });
+  if (!pool) {
+    pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false }, max: 2, connectionTimeoutMillis: 10_000, query_timeout: 30_000 });
+    // a dropped idle connection must not crash the browser run (Node kills the process on an unhandled 'error')
+    pool.on("error", (e) => console.warn(`[qa-vendors-db] idle connection dropped: ${e.message}`));
+  }
   return pool;
 }
 
