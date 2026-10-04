@@ -1,0 +1,21 @@
+[
+ {
+  "id": "EDGE-EVRMEG-005",
+  "feature": "erfx.stages",
+  "title": "Opening a published event lists its live round",
+  "type": "Validation",
+  "priority": "P2",
+  "severity": "Medium",
+  "preconditions": "Session: the BUYER (owner of the sandbox). The sandbox event ({{eventGroupUuid}}) is published, its single price round {{tradeId}} is open, one line item, no bids.",
+  "steps": [
+   "1. GET /event_groups/{{eventGroupUuid}}.",
+   "2. The rounds list holds the open price round; the current round is that round."
+  ],
+  "method": "GET",
+  "path": "/event_groups/{{eventGroupUuid}}",
+  "expected": "accept",
+  "expectedResult": "HTTP 200; the event's rounds exclude void/cancelled ones and are ordered by stage number (app/models/event_group.rb:62; app/models/trade_request.rb:256-259); current_active_stage is the running round (app/serializers/event_group/show_serializer.rb:201; app/models/event_group.rb current_active_stage).",
+  "rationale": "The console's round tabs and the landing round come from this read.",
+  "rule": "R-MEG-001-1 · app/models/event_group.rb:62"
+ }
+]
