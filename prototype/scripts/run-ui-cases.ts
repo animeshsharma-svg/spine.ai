@@ -43,6 +43,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 config({ path: join(here, "..", ".env") });
+// A screen-case compile sends a long prompt (steps, labels, exemplars). Slingring's fast tier
+// is given 4 s by default (right for one-line questions), so every compile here timed out and
+// fell to Groq (413, too large) and then Gemini — the "Slingring-first" plans were never
+// Slingring's. A batch can wait for the primary model.
+process.env.SLINGRING_FAST_TIMEOUT_MS ??= "45000";
 
 const { allCases, caseAsProse } = await import("../src/checks/testCatalog.js");
 const { decideLayerSync, screenAssertions } = await import("../src/agents/layerDecider.js");
