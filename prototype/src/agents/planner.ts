@@ -473,10 +473,17 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // testing an auction whatever the test case says. Asking for an RFQ or a
   // technical stage and getting an auction is the quietest possible wrong
   // answer: everything passes, and the thing under test was never on screen.
-  if (!has("compose_stages") && /\brfq\b|technical|\brfp\b/i.test(testCase)) {
+  // Which stages: the case's SETUP sentence when it names any (the expected text may talk
+  // about other stages — UI-CRE-004 "a project holding one Auction stage" expects RFQ to be
+  // refused, and reading the whole text composed rfp+rfq). A setup naming only an Auction
+  // keeps the screen's default Auction stage.
+  const stageSetup = /(?:^|\n)Setup:\s*([^\n]*)/i.exec(testCase)?.[1] ?? "";
+  const namesStage = /\brfq\b|technical|\brfp\b|\bauction\b/i.test(stageSetup);
+  const stageText = namesStage ? stageSetup : testCase;
+  if (!has("compose_stages") && /\brfq\b|technical|\brfp\b/i.test(stageText)) {
     const wanted: string[] = [];
-    if (/technical|\brfp\b/i.test(testCase)) wanted.push("rfp");
-    if (/\brfq\b/i.test(testCase)) wanted.push("rfq");
+    if (/technical|\brfp\b/i.test(stageText)) wanted.push("rfp");
+    if (/\brfq\b/i.test(stageText)) wanted.push("rfq");
     steps.unshift({ step: "compose_stages", args: { stages: wanted } });
     repairs.push(`added compose_stages(${wanted.join(", ")}) — the screen defaults to an Auction stage, so this test would have run against the wrong stage`);
   }
