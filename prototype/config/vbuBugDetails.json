@@ -27,8 +27,8 @@
     "The row passes the tax check like any valid GSTIN.",
     "Error sheet: no tax message for this row."
    ],
-   "actual": "On some days the row fails 'Tax Type not configured for the selected Business Location' for a perfectly valid GSTIN; on other days the same sheet passes. Failed on 29 Sep and 30 Sep morning, passed on 30 Sep evening and 1 Oct.",
-   "impact": "Whether ANY Indian GST vendor can be uploaded depends on which of the 36 'India' rows in the countries table the database returns first. 55 real rows failed this way in the last 60 days.",
+   "actual": "On some days the row fails 'Tax Type not configured for the selected Business Location' for a perfectly valid GSTIN; on other days the same sheet passes. It failed on 29 Sep and on the morning of 30 Sep, and passed on the evening of 30 Sep, on 1 Oct and on 5 Oct, because a different 'India' row now comes first. The code is unchanged, so it can fail again at any time.",
+   "impact": "Whether ANY Indian GST vendor can be uploaded depends on which of the 37 'India' rows in the countries table the database returns first. 55 real rows failed this way in the 60 days before 29 Sep.",
    "sees": "Error sheet: “Tax Type not configured for the selected Business Location” for a valid GSTIN, on the days the trap fires."
   },
   "BUG-03": {
@@ -266,7 +266,7 @@
    "expected": [
     "History: two separate jobs, each with its own rows, counts and error sheet."
    ],
-   "actual": "Sometimes both uploads land under ONE job id (seen on 30 Sep: job 372), so their rows, counts and error sheets are mixed. It passed on the next two tries, so it is intermittent.",
+   "actual": "Sometimes both uploads land under ONE job id, so their rows, counts and error sheets are mixed. Seen on 30 Sep (job 372) and on 5 Oct (job 495); the other two tries got separate jobs, so it is intermittent.",
    "impact": "The history shows wrong counts and a mixed error sheet. The buyer cannot tell which rows came from which file.",
    "sees": "History: one job holding both files' rows and counts, and one mixed error sheet."
   },
@@ -332,7 +332,8 @@
    "actual": "The main invitation is marked 'skip onboarding', but the POC 2 invitation is not. The backend therefore queues the 'new prospect added' mail to every vendor-management user of the workspace, for a vendor that is not a prospect.",
    "sees": "Nothing on the upload screen. The vendor-management team receives a 'new prospect' mail for a vendor that went straight to Vendors.",
    "impact": "Every non-PQ vendor uploaded with a second contact sends a false 'new prospect' mail to the vendor-management team. In GMMCO's large migration that could be hundreds of mails. Our own test runs created 8 such invitations on 29-30 Sep, before the case was moved to the approval-only tier.",
-   "note": "VBU-119 and VBU-120 were recorded as PASSED on 29-30 Sep because the runner then checked only the first invitation's skip flag. It now checks every invitation (5 Oct). VBU-119 is now approval-only, and VBU-120 no longer has a POC 2. The proof is the 8 POC 2 invitations in the sandbox database: active, no skip flag, invitation ids 32055, 32081, 32107, 32115, 32146, 32148, 32169 and 32171."
+   "note": "VBU-119 and VBU-120 were recorded as PASSED on 29-30 Sep because the runner then checked only the first invitation's skip flag. It now checks every invitation (5 Oct). VBU-119 is now approval-only, and VBU-120 no longer has a POC 2. The proof is the 8 POC 2 invitations in the sandbox database: active, no skip flag, invitation ids 32055, 32081, 32107, 32115, 32146, 32148, 32169 and 32171.",
+   "reproduced": "proven from the sandbox database: 8 POC 2 invitations without the flag"
   },
   "BUG-30": {
    "area": "Cell values (security)",

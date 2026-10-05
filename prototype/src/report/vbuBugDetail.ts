@@ -36,6 +36,8 @@ export interface BugDetail {
   impact: string;
   /** how to read this bug's test history, when it needs saying */
   note?: string;
+  /** replaces the run count when the runs do not show the bug */
+  reproduced?: string;
 }
 
 let cache: { mtime: number; bugs: Record<string, BugDetail> } | undefined;
@@ -112,8 +114,9 @@ export function seenFromEvidence(ev: VbuEvidence): Seen {
       : "no invitation";
     s.records.push(`vendor ${r.companyId} “${r.name}” — ${TAB[r.bscm ?? ""] ?? r.bscm ?? "no mapping"}; city ${r.city ? `${r.city} (id ${r.cityId})` : `none (city_id ${r.cityId ?? "null"})`}; ${inv}`);
   }
-  // values the upload changed on the way in (e.g. "Plot No. 100" → "Plot No. 1")
-  (ev.rows ?? []).forEach((r, i) => {
+  // values the upload changed on the way in (e.g. "Plot No. 100" → "Plot No. 1");
+  // not for two-sheet cases, whose staged rows come from both files
+  if (!ev.fixture?.file2) (ev.rows ?? []).forEach((r, i) => {
     for (const [col, got] of Object.entries(r.parsed ?? {})) {
       const at = ev.sheet?.headers.indexOf(col) ?? -1;
       if (at < 0) continue;

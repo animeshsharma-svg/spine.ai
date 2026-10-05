@@ -159,7 +159,7 @@ for (const b of bugs) {
   const all = t.reduce((n, x) => n + x.fail + x.pass, 0);
   const sees = d?.sees ?? "";
   lines.push(
-    `| [${b.id}](#${b.id.toLowerCase()}) | ${b.severity}${b.status === "SUSPECTED" ? " (suspected)" : ""} | ${md(d?.area ?? "")} | ${md(b.title)} | ${md(sees || "—")} | ${all ? `failed in ${f} of ${all} test runs` : "not run"} |`,
+    `| [${b.id}](#${b.id.toLowerCase()}) | ${b.severity}${b.status === "SUSPECTED" ? " (suspected)" : ""} | ${md(d?.area ?? "")} | ${md(b.title)} | ${md(sees || "—")} | ${d?.reproduced ?? (all ? `failed in ${f} of ${all} test runs` : "not run")} |`,
   );
 }
 lines.push("");

@@ -573,8 +573,10 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
       }
       if (bulk.kind === "errorSheetReupload") problems.push(...(await reuploadErrorSheet(api, userId, out.rows, ev)));
 
-      // What the rows created, for the report: every vendor a row named.
-      const names = [...new Set(out.rows.slice(0, 10).map((r) => String(r.data["Company Name"] ?? "")).filter(Boolean))];
+      // What the rows created, for the report: every vendor a row named — ours
+      // only (QA_Platform_…). A row named like a real vendor (the template's
+      // sample "Procol") must never pull that workspace's own vendors in.
+      const names = [...new Set(out.rows.slice(0, 10).map((r) => String(r.data["Company Name"] ?? "")).filter((n) => n.startsWith("QA_Platform_")))];
       if (!bulk.everyRow && names.length) {
         const recs: VbuEvidence["records"] = [];
         for (const n of names.slice(0, 6)) for (const v of await m.findVendorsByName(companyId, n)) recs.push(recordOf(v));
