@@ -27,6 +27,8 @@
 import type { SheetSpec, Cell } from "../../src/flows/vendorBulkUpload.js";
 
 export type Tier = "safe" | "creates" | "real-mail";
+/** a vendor that must exist before the case runs (uploaded once per run) */
+export type Baseline = "dedup" | "cityZero" | "subsidiary" | "prospect" | "fallback" | "noPincode" | "backfill" | "rejectedDup" | "vrp";
 export type Feature =
   | "vendorbulk.file"
   | "vendorbulk.access"
@@ -67,6 +69,8 @@ export interface Verify {
   minUsers?: number;
   /** the vendor must NOT exist afterwards */
   absent?: boolean;
+  /** how many category teams (Deals In) the vendor ends up in */
+  teams?: number;
 }
 
 export interface RowExpect {
@@ -113,7 +117,9 @@ export interface VbuCase {
     /** upload, download the job's error sheet, upload that back */
     | "errorSheetReupload"
     /** the single-vendor Invite Vendor call (POST /invitations/send_invite) */
-    | "manualInvite";
+    | "manualInvite"
+    /** download the workspace's template and upload it as it is (Status tripwired) */
+    | "templateUpload";
   /** which QA-doc case(s) this covers (the PR's "Vendor bulk upload + dedup — QA test cases") */
   qaDoc?: string[];
   /** who makes the request: the workspace admin (default), a QA test vendor, or a member without company:create_record */
@@ -144,12 +150,14 @@ export interface VbuCase {
   rows?: RowExpect[];
   /** rows may come back in any order (parallel workers) */
   anyOrder?: boolean;
+  /** what the Bulk Upload history (GET /v1/bulk_create_vendor_status) must count for the job */
+  statusCounts?: { total?: number; success?: number; failed?: number; already_mapped?: number };
   /** a baseline sheet that must have been uploaded (and succeeded) first, once per run */
-  baseline?: "dedup" | "cityZero" | "subsidiary" | "prospect" | "fallback";
+  baseline?: Baseline | Baseline[];
   /** kind template: which assertion */
   templateCheck?: "headers" | "sampleAligned" | "dropdowns" | "dimension" | "dataSheet" | "groups";
   /** kind errorSheet: which variant */
-  errorSheetCheck?: "noJob" | "unknownJob" | "realJob";
+  errorSheetCheck?: "noJob" | "unknownJob" | "realJob" | "profileDropdown";
 }
 
 // ── building blocks ──────────────────────────────────────────────────────
@@ -287,6 +295,7 @@ export const SECTIONS: Record<number, string> = {
   5: "Duplicates — inside one sheet and against existing vendors",
   6: "Data fidelity — what the parser does to the values",
   7: "Settings on other workspaces (regression)",
+  8: "Found by the coverage audit, not run: they mail real people, change a workspace for good, need two workspaces in sequence, or need a setting no test client has",
 };
 
 export const CASES: VbuCase[] = [
@@ -1074,7 +1083,7 @@ export const CASES: VbuCase[] = [
 
   // ════════════ 4. what a row creates ════════════
   {
-    id: "VBU-119", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates", requires: { canSkip: true },
+    id: "VBU-119", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "real-mail", requires: { canSkip: true, extraField: "Account Group" },
     title: "A full row (UK VAT) with 'Onboarding Required = No' becomes an Active vendor with every field stored", type: "Functional", priority: "P0", severity: "Critical",
     why: "The same non-PQ path as VBU-120 with a tax number the sandbox can resolve — so the creation, routing and storage can be verified even while GST rows are blocked (VBU-059).",
     steps: ["Row with UK VAT, city, address, pincode, PAN, profile 2, POC, POC 2, Account Group, MSME, bank, onboarding No", "POST", "Read the vendor, mapping and invitations"],
@@ -1084,21 +1093,21 @@ export const CASES: VbuCase[] = [
       "Account Group": "ZDGS", "MSME Registration Number": "UDYAM-MH-00-0000002", "Bank Account Number": "000000000002", "Bank IFSC Code": "QATZ0000002",
     }),
     rows: [{ status: "success", verify: { bscm: "active", invitations: 2, invitationStatus: "active", skipOnboarding: true, fields: { gst_no: "{{vatA}}", pan_no: "{{pan}}", address: "QA Full Row Road 8", city: "Mumbai", "misc.account_group": "ZDGS", "misc.msme_registration_number": "UDYAM-MH-00-0000002", "misc.bank_account_number": "000000000002", "misc.bank_ifsc_code": "QATZ0000002", "misc.pincode": "400002", "misc.category_data.key": "{{profile2}}" } } }],
-    expected: "Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2) with skip_vendor_onboarding=true; tax number, PAN, address, city, pincode (digits only) and the extra fields stored; no 'new prospect' mail.",
+    expected: "Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2), BOTH with skip_vendor_onboarding=true; tax number, PAN, address, city, pincode (digits only) and the extra fields stored; no 'new prospect' mail. Found 2026-10-05: the POC 2 invitation carries no skip flag, so the vendor-management team is mailed (BUG-29) — hence the real-mail tier.",
     oracle: "companies / buyer_seller_company_mappings / invitations rows.", rule: `${R.wrk}:92-99,141-158; ${R.send}:386-393,407-434; ${R.prMixin}:42-47; ${R.prUtils}:904-905`,
   },
   {
-    id: "VBU-120", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates", requires: { canSkip: true },
+    id: "VBU-120", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates", requires: { canSkip: true, extraField: "Account Group" },
     title: "A full row with 'Onboarding Required = No' becomes an Active vendor with every field stored", type: "Functional", priority: "P0", severity: "Critical",
     why: "The non-PQ path: skip onboarding, land straight on the Vendors tab, carry every column into the vendor record.",
-    steps: ["Row with GST, PAN, city, address, pincode, profile 2, POC, POC 2, Account Group, MSME, bank, onboarding No", "POST", "Read the vendor, mapping and invitations"],
+    steps: ["Row with GST, PAN, city, address, pincode, profile 2, POC, Account Group, MSME, bank, onboarding No (no POC 2: its invitation would mail the vendor-management team, BUG-29)", "POST", "Read the vendor, mapping and invitations"],
     sheet: one({
       ...baseRow("VBU-120"), "Vendor Profile": "{{profile2}}", "Tax Type": "GST", "Tax No.": "{{gst}}", "Business Location": "India",
-      Address: "QA Full Row Road 7", Pincode: "400001", "PAN No.": "{{pan}}", "POC 2 - Full Name": "QA Second Contact", "POC 2 - Email Address": vEmail("VBU-120", 2),
+      Address: "QA Full Row Road 7", Pincode: "400001", "PAN No.": "{{pan}}",
       "Account Group": "ZCOV", "MSME Registration Number": "UDYAM-MH-00-0000001", "Bank Account Number": "000000000001", "Bank IFSC Code": "QATZ0000001",
     }),
-    rows: [{ status: "success", verify: { bscm: "active", invitations: 2, invitationStatus: "active", skipOnboarding: true, fields: { gst_no: "{{gst}}", pan_no: "{{pan}}", address: "QA Full Row Road 7", city: "Mumbai", "misc.account_group": "ZCOV", "misc.msme_registration_number": "UDYAM-MH-00-0000001", "misc.bank_ifsc_code": "QATZ0000001", "misc.pincode": "400001", "misc.category_data.key": "{{profile2}}" } } }],
-    expected: "Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2) with skip_vendor_onboarding=true; GST, PAN, address, city and the extra fields stored; no 'new prospect' mail (skip flag).",
+    rows: [{ status: "success", verify: { bscm: "active", invitations: 1, invitationStatus: "active", skipOnboarding: true, fields: { gst_no: "{{gst}}", pan_no: "{{pan}}", address: "QA Full Row Road 7", city: "Mumbai", "misc.account_group": "ZCOV", "misc.msme_registration_number": "UDYAM-MH-00-0000001", "misc.bank_ifsc_code": "QATZ0000001", "misc.pincode": "400001", "misc.category_data.key": "{{profile2}}" } } }],
+    expected: "Row success. Vendor Active (Vendors tab); 1 invitation (the POC) with skip_vendor_onboarding=true; GST, PAN, address, city and the extra fields stored; no 'new prospect' mail (skip flag). POC 2 is left out on purpose — see VBU-119 / BUG-29.",
     oracle: "companies / buyer_seller_company_mappings / invitations rows.", rule: `${R.wrk}:92-99,141-158; ${R.send}:386-393,407-434; ${R.inv}:125-140; ${R.prMixin}:42-47 (pincode → misc.pincode)`,
   },
   {
@@ -1237,6 +1246,7 @@ export const CASES: VbuCase[] = [
 
   // ════════════ 5. duplicates ════════════
   ...dedupCases(),
+  ...gapCases(),
 
   // ════════════ 6. data fidelity ════════════
   {
@@ -1574,5 +1584,410 @@ function dedupCases(): VbuCase[] {
       expected: "HTTP 200; a second vendor (another branch) — the same answer as bulk (VBU-141).", oracle: "HTTP + vendor.",
       rule: `app/controllers/api/invitations_controller.rb send_invite (permit list has no :pincode); ${R.prDup}:27 (blank pincode = match)`,
     },
+  ];
+}
+
+// ════════════ 8. gaps from the coverage audit (2026-10-05) ════════════
+// The audit mapped 161 scenarios the backend allows (PR 16267 @65728150bc)
+// against the cases above; these are the ones no case covered. Runnable ones
+// create nothing or only QA_Platform_ test vendors with no mail to real people;
+// the rest are listed with the reason they do not run.
+
+/** GAP-36's baseline: a legacy-style vendor with NO pincode. */
+export function noPincodeBaselineRow(): Record<string, Cell> {
+  return { ...baseRow("VBU-NOPIN-BASE"), "Company Name": vName("NOPINBASE"), "POC - Email Address": `qa_vbu_${S}_nopin@example.com`,
+    "Tax Type": "VAT", "Tax No.": "{{vatK}}", "Business Location": "United Kingdom", Address: "QA Legacy Road 6", "Account Group": "ZCOV" };
+}
+/** GAP-37's baseline: the vendor whose address a blank-address row is back-filled from. */
+export function backfillBaselineRow(): Record<string, Cell> {
+  return { ...baseRow("VBU-BACKFILL-BASE"), "Company Name": vName("BACKFILLBASE"), "POC - Email Address": `qa_vbu_${S}_backfill@example.com`,
+    "Tax Type": "VAT", "Tax No.": "{{vatL}}", "Business Location": "United Kingdom", Address: "QA Backfill Road 7", Pincode: "560007", "Account Group": "ZCOV" };
+}
+/** GAP-38's baseline: a REJECTED vendor (Status rejected: no mail). */
+export function rejectedDupBaselineRow(): Record<string, Cell> {
+  return { ...baseRow("VBU-REJ-BASE"), "Company Name": vName("REJBASE"), "POC - Email Address": `qa_vbu_${S}_rejbase@example.com`, Status: "rejected",
+    "Tax Type": "VAT", "Tax No.": "{{vatM}}", "Business Location": "United Kingdom", Address: "QA Rejected Road 8", Pincode: "560008", "Account Group": "ZCOV" };
+}
+/** GAP-20/21/22's baseline: a vendor with a VRP Code and its own Vendor Code, no tax number. */
+export function vrpBaselineRow(): Record<string, Cell> {
+  return { ...baseRow("VBU-VRP-BASE"), "Company Name": vName("VRPBASE"), "POC - Email Address": `qa_vbu_${S}_vrpbase@example.com`,
+    "VRP Code": `QAVRP${S}`, "Vendor Code": `QAVCR${S}` };
+}
+
+function gapCases(): VbuCase[] {
+  const dupReq: Requires = { dupFieldsInclude: ["gst_no", "address", "pincode", "account_group"], canSkip: true };
+  const pd: Requires = { contactless: false, invitationV2: false, canSkip: true };
+  const approval = (id: string, title: string, why: string, steps: string[], expected: string, rule: string, reason: string,
+    extra: Partial<VbuCase> = {}): VbuCase => ({
+    id, section: 8, feature: "vendorbulk.onboarding", kind: "manual", tier: "real-mail", verdict: "manual", manualReason: reason,
+    title, type: "Functional", priority: "P1", severity: "High", why, steps, expected, oracle: "Job row + records (SELECT).", rule, ...extra,
+  });
+  return [
+    // ── row rules on a workspace WITHOUT contactless (PROCOL DEMO) ──
+    {
+      id: "VBU-200", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "creates", requires: pd,
+      title: "Contactless OFF: a tax number with an unknown city is refused, not saved as city 0", type: "Negative", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-07. 'Invalid City Name' fires only when Tax No. is blank (val:77); with a tax number the unknown city name is cast to city_id 0 — BUG-10 reached on a normal workspace. Status rejected keeps the row mail-free if it is wrongly created.",
+      steps: ["Row with UK VAT {{vatK}}, City 'QA Nowhere <stamp>', Status rejected, PD's required extra fields", "POST", "Read the row and the vendor"],
+      sheet: one({ ...baseRow("VBU-200"), ...PD_REQUIRED, Status: "rejected", "Tax Type": "VAT", "Tax No.": "{{vatK}}", "Business Location": "United Kingdom", City: `QA Nowhere ${S}` }),
+      rows: [{ status: "failed", error: MSG.CITY, verify: { absent: true } }],
+      expected: "Row failed 'Invalid City Name'; no vendor. Per the code: success and the vendor saved with city_id 0.",
+      oracle: "Job row + companies lookup.", rule: `${R.prVal}:35-37,77; ${R.prUtils}:892; ${R.prMixin}:27`,
+    },
+    {
+      id: "VBU-201", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "safe", requires: pd,
+      title: "Contactless OFF: a blank Vendor Profile is refused as mandatory", type: "Validation", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-08: the mandatory rule for Vendor Profile (utils:803-805) had no case on a normal workspace.",
+      steps: ["Tripwired row with Vendor Profile blank"], sheet: one(trip("VBU-201", { "Vendor Profile": "", ...PD_REQUIRED })), rows: fails(MSG.MAND),
+      expected: "Row failed 'Mandatory Item cannot be left empty'.", oracle: "Job row error.", rule: `${R.prUtils}:803-805; ${R.prVal}:33,56-58`,
+    },
+    {
+      id: "VBU-202", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "safe", requires: pd,
+      title: "Contactless OFF: a blank POC - Full Name is refused as mandatory", type: "Validation", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-09.", steps: ["Tripwired row with POC - Full Name blank"],
+      sheet: one(trip("VBU-202", { "POC - Full Name": "", ...PD_REQUIRED })), rows: fails(MSG.MAND),
+      expected: "Row failed 'Mandatory Item cannot be left empty'.", oracle: "Job row error.", rule: `${R.prUtils}:801-802`,
+    },
+    {
+      id: "VBU-203", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "safe", requires: pd,
+      title: "Contactless OFF: no tax number and no Address is refused ('Either Tax No. or …')", type: "Validation", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-10: without a tax number, City AND Address are both needed.", steps: ["Tripwired row with Address blank, no tax"],
+      sheet: one(trip("VBU-203", { Address: "", ...PD_REQUIRED })), rows: fails(MSG.EITHER),
+      expected: "Row failed 'Either Tax No. or Without Tax No. fields are needed'.", oracle: "Job row error.", rule: `${R.prVal}:27-31,51`,
+    },
+    {
+      id: "VBU-204", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "safe", requires: pd,
+      title: "Contactless OFF: Tax Type and Business Location filled but Tax No. blank", type: "Edge", priority: "P3", severity: "Low",
+      why: "Coverage audit GAP-54: with Tax No. blank the tax columns are ignored and the no-tax rule applies.",
+      steps: ["Tripwired row: Tax Type GST, Business Location India, Tax No., City and Address blank"],
+      sheet: one(trip("VBU-204", { "Tax Type": "GST", "Business Location": "India", City: "", Address: "", ...PD_REQUIRED })), rows: fails(MSG.EITHER),
+      expected: "Row failed 'Either Tax No. or Without Tax No. fields are needed'.", oracle: "Job row error.", rule: `${R.prVal}:24-31`,
+    },
+    // ── row rules, every workspace ──
+    {
+      id: "VBU-205", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "safe",
+      title: "Deals In with ANOTHER workspace's category code is refused", type: "Security", priority: "P2", severity: "Medium",
+      why: "Coverage audit GAP-13: the code must be one of this workspace's categories (val:172-179); a code copied from another client must not pass.",
+      steps: ["Tripwired row whose Deals In is a category code of the other test client (read from its own run)"],
+      sheet: one(trip("VBU-205", { "Deals In": "{{foreignCategoryUuid}}" })), rows: [{ status: "failed", errorIncludes: MSG.DEALS }],
+      expected: "Row failed 'Invalid Deals In : <that code>'.", oracle: "Job row error.", rule: `${R.prVal}:157-159,172-179`,
+    },
+    {
+      id: "VBU-206", section: 6, feature: "vendorbulk.data", kind: "bulk", tier: "safe", requires: { contactless: true },
+      title: "Contactless: the PAN is derived from the GSTIN (characters 3–12)", type: "Functional", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-18: under contactless (or vendor_invitation_v2) the PAN is filled in from the GSTIN (val:99-118).",
+      steps: ["Tripwired row with GST {{gst}}, Business Location India, PAN No. blank", "Read the staged row's data"],
+      sheet: one(trip("VBU-206", { "Tax Type": "GST", "Tax No.": "{{gst}}", "Business Location": "India" })),
+      rows: [{ status: "failed", error: MSG.STATUS, dataEquals: { pan_no: "{{pan}}" } }],
+      expected: "Row stops at the tripwire with data.pan_no = {{pan}}.", oracle: "Job row data.", rule: `${R.prVal}:99-118`,
+    },
+    {
+      id: "VBU-207", section: 6, feature: "vendorbulk.data", kind: "bulk", tier: "safe", requires: pd,
+      title: "Contactless OFF: no PAN is derived from the GSTIN", type: "Functional", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-18, the other side: on a normal workspace the PAN is not derived.",
+      steps: ["Tripwired row with GST {{gst}}, Business Location India", "Read the staged row's data"],
+      sheet: one(trip("VBU-207", { "Tax Type": "GST", "Tax No.": "{{gst}}", "Business Location": "India", ...PD_REQUIRED })),
+      rows: [{ status: "failed", error: MSG.STATUS, dataExcludes: { pan_no: "QATZQ" } }],
+      expected: "Row stops at the tripwire with no derived pan_no.", oracle: "Job row data.", rule: `${R.prVal}:99-104`,
+    },
+    {
+      id: "VBU-208", section: 6, feature: "vendorbulk.data", kind: "bulk", tier: "safe",
+      title: "A Vendor Code with a dot and trailing zeros keeps its zeros ('QA….100')", type: "Edge", priority: "P1", severity: "High",
+      why: "Coverage audit GAP-25: the same zero-stripper as BUG-09, on the vendor code — 'X.100' and 'X.1000' both become 'X.1' and collide as duplicates.",
+      steps: ["Tripwired row with Vendor Code 'QA<stamp>.100'"],
+      sheet: one(trip("VBU-208", { "Vendor Code": `QA${S}.100` })), rows: [{ status: "failed", error: MSG.STATUS, dataEquals: { "Vendor Code": `QA${S}.100` } }],
+      expected: "Staged Vendor Code unchanged.", oracle: "Job row data.", rule: `${R.parse}:176; ${R.utils}:641-647`,
+    },
+    {
+      id: "VBU-209", section: 6, feature: "vendorbulk.data", kind: "bulk", tier: "safe",
+      title: "Entity-encoded markup ('&lt;script&gt;') is not decoded into a live tag", type: "Security", priority: "P1", severity: "High",
+      why: "Coverage audit GAP-26: every cell goes through Nokogiri .text, which DECODES '&lt;script&gt;' into '<script>'. VBU-163 covers a plain tag; this is the encoded one.",
+      steps: ["Tripwired row whose Company Name starts with '&lt;script&gt;alert(1)&lt;/script&gt;'"],
+      sheet: one(trip("VBU-209", { "Company Name": `&lt;script&gt;alert(1)&lt;/script&gt;QA_Platform_VBU_${S}_209` })),
+      rows: [{ status: "failed", error: MSG.STATUS, dataExcludes: { "Company Name": "<script" } }],
+      expected: "The staged name never contains a live '<script'.", oracle: "Job row data.", rule: `${R.parse}:177`,
+    },
+    {
+      id: "VBU-210", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates",
+      title: "POC 2 email without a name is refused BEFORE the vendor is created", type: "Negative", priority: "P2", severity: "High",
+      why: "Coverage audit GAP-28, the mirror of BUG-07 (name without email). The POC 2 pair is checked after the vendor and its invite exist. No POC 2 invitation is made on this branch, so no mail.",
+      steps: ["Row with POC 2 - Email Address filled, POC 2 - Full Name blank", "POST", "Read the row and the vendor"],
+      sheet: one({ ...baseRow("VBU-210"), "POC 2 - Email Address": vEmail("VBU-210", 2) }),
+      rows: [{ status: "failed", error: MSG.POC2, verify: { absent: true } }],
+      expected: "Row failed 'Invalid Values for POC 2.' and NO vendor created.", oracle: "Job row + companies lookup.", rule: `${R.wrk}:175-179`,
+    },
+    {
+      id: "VBU-211", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", anyOrder: true,
+      title: "Two new rows in one sheet with the same Vendor Code — only one is created", type: "Negative", priority: "P1", severity: "High",
+      why: "Coverage audit GAP-24: the same per-row parallel workers as BUG-01, on the Vendor Code.",
+      steps: ["Two rows, same new Vendor Code QADUP<stamp>, different names and emails", "POST", "Read both rows"],
+      sheet: { rows: [{ ...baseRow("VBU-211"), "Vendor Code": `QADUP${S}` }, { ...baseRow("VBU-211", 2), "Vendor Code": `QADUP${S}` }] },
+      rows: [{ status: "success" }, { status: "failed", error: MSG.CODE_TAKEN }],
+      expected: "One row success, the other failed 'Vendor Code or GST Number is already taken'. Two successes = race defect.",
+      oracle: "Job rows.", rule: `app/workers/vendor_bulk_upload_master_worker_v2.rb:11-14; ${R.prSend}:261-264`,
+    },
+    {
+      id: "VBU-212", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "dedup", requires: dupReq,
+      title: "A Vendor Code that differs only in letter case is still a duplicate", type: "Negative", priority: "P2", severity: "Medium",
+      why: "Coverage audit GAP-23: the code is matched exactly (where(vendor_code:)), so 'qavc…' slips past 'QAVC…'.",
+      steps: ["Row with Vendor Code = the baseline's code in lower case, no tax number"],
+      sheet: one({ ...baseRow("VBU-212"), "Vendor Code": `qavc${S}` }), rows: [{ status: "failed", error: MSG.CODE_TAKEN, verify: { absent: true } }],
+      expected: "Row failed 'Vendor Code or GST Number is already taken'.", oracle: "Job row + companies lookup.", rule: `${R.prSend}:263-264`,
+    },
+    {
+      id: "VBU-213", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "noPincode", requires: dupReq,
+      title: "An existing vendor with NO pincode blocks a new branch that has one", type: "Functional", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-36: a blank pincode counts as a match (the PR's treat_as_match), so a pincode can never separate branches of the legacy vendors, which carry none.",
+      steps: ["Baseline vendor without pincode", "Same tax number, address and account group, a new name and email, Pincode 110001"],
+      sheet: one({ ...noPincodeBaselineRow(), "Company Name": vName("VBU-213"), "POC - Email Address": vEmail("VBU-213"), Pincode: "110001" }),
+      rows: [{ status: "failed", error: MSG.DUP_ADDR }],
+      expected: "Row failed 'Vendor with this GST and address already exists' (the PR's design: blank pincode = match).",
+      oracle: "Job row.", rule: `${R.prDup}:27,111-119`,
+      disagree: "QA doc B2 says a different pincode makes a new branch; against a vendor with no pincode it never does.",
+    },
+    {
+      id: "VBU-214", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "backfill", requires: { ...dupReq, contactless: true },
+      title: "A back-filled address with a DIFFERENT pincode makes a new branch", type: "Functional", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-37: a blank Address is filled in from the vendor with the same tax number; the pincode must still tell the branches apart (PR spec duplicate_check_integration_spec.rb:74).",
+      steps: ["Baseline vendor with pincode 560007", "Row with the same tax number, Address blank, City Mumbai, Pincode 110007"],
+      sheet: one({ "Company Name": vName("VBU-214"), "POC - Full Name": "QA Platform Tester", "POC - Email Address": vEmail("VBU-214"), "Vendor Profile": "{{profile}}",
+        "Tax Type": "VAT", "Tax No.": "{{vatL}}", "Business Location": "United Kingdom", City: "Mumbai", Pincode: "110007", "Account Group": "ZCOV", "Vendor Onboarding Required": "No" }),
+      rows: [{ status: "success" }],
+      expected: "Row success: a second vendor (another branch). Note: the back-fill also replaces the company name typed in the sheet with the existing vendor's name (send:41-51), so the new branch is not findable under the name the buyer gave it.",
+      oracle: "Job row.", rule: `${R.prSend}:41-54; ${R.prDup}:27`,
+    },
+    {
+      id: "VBU-215", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "rejectedDup", requires: dupReq,
+      title: "A Rejected vendor still blocks an exact duplicate", type: "Negative", priority: "P2", severity: "Medium",
+      why: "Coverage audit GAP-38: rejected vendors are part of the duplicate search (send:227,259,275).",
+      steps: ["Baseline vendor with Status rejected", "Exact duplicate (tax number, address, pincode, account group), new name and email"],
+      sheet: one({ ...rejectedDupBaselineRow(), Status: "", "Company Name": vName("VBU-215"), "POC - Email Address": vEmail("VBU-215") }),
+      rows: [{ status: "failed", error: MSG.DUP_ADDR }],
+      expected: "Row failed 'Vendor with this GST and address already exists'.", oracle: "Job row.", rule: `${R.prSend}:227,259,275`,
+    },
+    {
+      id: "VBU-216", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: "vrp", requires: { canSkip: true },
+      title: "A VRP Code that another vendor already has is refused", type: "Negative", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-20: the VRP Code is a unique key like the Vendor Code.",
+      steps: ["Baseline vendor with VRP Code QAVRP<stamp>", "New row with the same VRP Code"],
+      sheet: one({ ...baseRow("VBU-216"), "VRP Code": `QAVRP${S}` }), rows: [{ status: "failed", error: MSG.CODE_TAKEN, verify: { absent: true } }],
+      expected: "Row failed 'Vendor Code or GST Number is already taken'.", oracle: "Job row + companies lookup.", rule: `${R.prSend}:266-267,272,280-281`,
+    },
+    {
+      id: "VBU-217", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: ["dedup", "vrp"], requires: dupReq,
+      title: "Vendor Code of one vendor + VRP Code of another is refused", type: "Negative", priority: "P2", severity: "Medium",
+      why: "Coverage audit GAP-21.", steps: ["Both baselines exist", "Row with the dedup baseline's Vendor Code and the VRP baseline's VRP Code"],
+      sheet: one({ ...baseRow("VBU-217"), "Vendor Code": `QAVC${S}`, "VRP Code": `QAVRP${S}` }),
+      rows: [{ status: "failed", error: "Vendor code and VRP Code belong to different companies", verify: { absent: true } }],
+      expected: "Row failed 'Vendor code and VRP Code belong to different companies'.", oracle: "Job row.", rule: `${R.prSend}:269-271`,
+    },
+    {
+      id: "VBU-218", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "creates", baseline: ["dedup", "vrp"], requires: dupReq,
+      title: "Tax number of one vendor + Vendor Code of another is refused", type: "Negative", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-22.", steps: ["Both baselines exist", "Row with the dedup baseline's tax number and address and the VRP baseline's Vendor Code"],
+      sheet: one({ ...baseRow("VBU-218"), "Tax Type": "VAT", "Tax No.": "{{vatB}}", "Business Location": "United Kingdom", Address: "QA Dedup Road 12", "Vendor Code": `QAVCR${S}` }),
+      rows: [{ status: "failed", error: "Code and GST Number belong to different companies", verify: { absent: true } }],
+      expected: "Row failed 'Code and GST Number belong to different companies'.", oracle: "Job row.", rule: `${R.prSend}:274-279`,
+    },
+    {
+      id: "VBU-219", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates", requires: { canSkip: true },
+      title: "Deals In with a valid category code puts the vendor in that category's team", type: "Functional", priority: "P2", severity: "Medium",
+      why: "Coverage audit GAP-12: the category link itself (a teams row on the vendor) had no check.",
+      steps: ["Row with Deals In = one of the workspace's category codes", "POST", "Read the vendor's teams"],
+      sheet: one({ ...baseRow("VBU-219"), "Deals In": "{{categoryUuid}}" }), rows: [{ status: "success", verify: { bscm: "active", teams: 1 } }],
+      expected: "Row success; the vendor is in one category team.", oracle: "teams rows (SELECT).", rule: `app/controllers/concerns/teams_create_concern.rb:23-48`,
+    },
+    {
+      id: "VBU-220", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates", requires: { canSkip: true },
+      title: "Deals In by category NAME is either refused or linked — never accepted and dropped", type: "Negative", priority: "P1", severity: "Medium",
+      why: "Coverage audit GAP-11: a unique category name passes validation, but the worker decodes it as a code (nil), so no team is made — the category silently disappears.",
+      steps: ["Row with Deals In = a category NAME", "POST", "Read the vendor's teams"],
+      sheet: one({ ...baseRow("VBU-220"), "Deals In": "{{categoryName}}" }), rows: [{ status: "success", verify: { bscm: "active", teams: 1 } }],
+      expected: "Row success and the vendor is in that category's team (or the row is refused). Per the code: success and NO team.",
+      oracle: "teams rows (SELECT).", rule: `${R.prVal}:176-179; ${R.prUtils}:898-900; app/controllers/concerns/teams_create_concern.rb:33-40`,
+    },
+    {
+      id: "VBU-221", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates", requires: { contactless: true, canSkip: true },
+      title: "Status 'active' with Onboarding Required = Yes still makes a Prospect", type: "Functional", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-15: the worker drops Status unless it is 'rejected' (wrk:97), so 'active' changes nothing. No contact, so no invitation and no mail.",
+      steps: ["Contactless row: only Company Name, Status active, Vendor Onboarding Required Yes"],
+      sheet: one({ "Company Name": vName("VBU-221"), Status: "active", "Vendor Onboarding Required": "Yes" }),
+      rows: [{ status: "success", verify: { bscm: "invited", invitations: 0 } }],
+      expected: "Row success; the vendor is a Prospect (invited), 0 invitations.", oracle: "Mapping + invitations.", rule: `${R.wrk}:97; ${R.prSend}:400-407`,
+    },
+    {
+      id: "VBU-254", section: 2, feature: "vendorbulk.access", kind: "bulk", tier: "creates", requires: { canSkip: true }, anyOrder: true,
+      title: "The upload history counts a mixed upload correctly (Completed 1 · Failed 1)", type: "Functional", priority: "P1", severity: "Medium",
+      why: "Coverage audit S-039: the counters a buyer reads in the Bulk Upload history (ctrl:251-268) were never asserted.",
+      steps: ["One valid row (onboarding No) and one tripwired row in one sheet", "POST", "Read GET /v1/bulk_create_vendor_status for the job"],
+      sheet: { rows: [baseRow("VBU-254"), trip("VBU-254", {}, 2)] },
+      rows: [{ status: "success" }, { status: "failed", error: MSG.STATUS }],
+      statusCounts: { total: 2, success: 1, failed: 1, already_mapped: 0 },
+      expected: "History line for the job: Total 2 · Completed 1 · Failed 1 · Duplicate 0.", oracle: "Status API counters.", rule: `${R.ctrl}:251-268`,
+    },
+    // ── file, template, error sheet, access ──
+    {
+      id: "VBU-222", section: 1, feature: "vendorbulk.file", kind: "bulk", tier: "safe",
+      title: "A workbook whose FIRST sheet is an instructions sheet: the vendor sheet is still read", type: "Edge", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-47: only the first worksheet is read (parse:164-173); a buyer who adds an instructions tab in front gets HTTP 200 and nothing staged.",
+      steps: ["Sheet 1 'Instructions' with one line; sheet 2 the vendor sheet with one tripwired row"],
+      sheet: { layout: "grid", grid: [["Instructions: fill in the next sheet"]], extraSheets: { "Vendors": [
+        ["Mandatory Details"], [""],
+        ["Company Name", "City", "Address", "Vendor Profile", "POC - Full Name", "POC - Email Address", "Status", "Vendor Onboarding Required"],
+        [vName("VBU-222"), "Mumbai", "QA Test Street 1", "{{profile}}", "QA Platform Tester", vEmail("VBU-222"), TRIP_STATUS, "No"],
+      ] } },
+      rows: tripped(),
+      expected: "The vendor sheet is read (row failed 'Invalid Status'), or the file is refused with a message. Per the code: HTTP 200 and nothing staged.",
+      oracle: "Job rows.", rule: `${R.parse}:164-173`,
+    },
+    {
+      id: "VBU-223", section: 2, feature: "vendorbulk.access", kind: "templateUpload", tier: "safe", requires: { contactless: true },
+      title: "The template uploaded as downloaded gives a sensible row error", type: "Functional", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-48. A buyer who uploads the template untouched sends its sample row. The runner sets that row's Status to the tripwire first, so even a corrected template (whose sample contact is a real procol.in address) creates nothing.",
+      steps: ["Download the template", "Set the sample row's Status to QA_TRIPWIRE", "Upload it"],
+      rows: tripped(),
+      expected: "The sample row lines up with its columns, so it reaches the Status check ('Invalid Status'). Today: 'Tax Type not configured…' because the row is shifted (BUG-12).",
+      oracle: "Job row error.", rule: `${R.prTpl}:295-337; ${R.prVal}:24-25,86-95`,
+    },
+    {
+      id: "VBU-224", section: 2, feature: "vendorbulk.access", kind: "http", tier: "safe", method: "GET", path: "/v1/bulk_create_vendor_error_sheet?job_uuid=QA_NOT_A_UUID",
+      title: "Error sheet for a job id that does not decode is refused 'Insufficient parameters'", type: "Negative", priority: "P3", severity: "Low",
+      why: "Coverage audit GAP-50.", steps: ["GET /v1/bulk_create_vendor_error_sheet?job_uuid=QA_NOT_A_UUID"], httpExpected: "reject", httpMessage: MSG.INSUFFICIENT,
+      expected: "HTTP 422 'Insufficient parameters' (not 487, not 500).", oracle: "HTTP status + message.", rule: `app/controllers/concerns/params_auth.rb:74-75; ${R.ctrl}:235`,
+    },
+    {
+      id: "VBU-225", section: 2, feature: "vendorbulk.access", kind: "http", tier: "safe", actor: "member-no-company-create", method: "GET",
+      path: "/v1/bulk_create_vendor_status?as=member-without-company-create",
+      title: "A user who may not upload cannot read the upload status list", type: "Security", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-51: status, error sheet and onboarding payload are authorised like the upload (pol:128-134).",
+      steps: ["As a QA user without company:create_record: GET /v1/bulk_create_vendor_status"], httpExpected: "reject", httpMessage: "You are not authorized to perform this action",
+      expected: "HTTP 422 'You are not authorized to perform this action'.", oracle: "HTTP status + message.", rule: `${R.pol}:128-134; ${R.ctrl}:204`,
+    },
+    {
+      id: "VBU-226", section: 2, feature: "vendorbulk.access", kind: "http", tier: "safe", actor: "member-no-company-create", method: "GET",
+      path: "/v1/bulk_create_vendor_error_sheet?job_uuid=QA_NOT_A_UUID&as=member-without-company-create",
+      title: "A user who may not upload cannot download error sheets", type: "Security", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-51.", steps: ["As a QA user without company:create_record: GET the error sheet"], httpExpected: "reject", httpMessage: "You are not authorized to perform this action",
+      expected: "HTTP 422 'You are not authorized to perform this action' (checked before the job id).", oracle: "HTTP status + message.", rule: `${R.pol}:128-134; ${R.ctrl}:233`,
+    },
+    {
+      id: "VBU-227", section: 1, feature: "vendorbulk.file", kind: "bulk", tier: "safe",
+      title: "An old-format 'GST ' column (trailing space) is caught like 'GST'", type: "Edge", priority: "P3", severity: "Low",
+      why: "Coverage audit GAP-53: the old-format check compares the raw header (parse:164), so 'GST ' slips past it.",
+      steps: ["Tripwired row in a sheet that also has a 'GST ' column"],
+      sheet: { headers: ["Company Name", "Vendor Profile", "POC - Full Name", "POC - Email Address", "City", "Address", "Status", "Vendor Onboarding Required", "GST "], rows: [{ ...trip("VBU-227", {}), "GST ": "{{gst}}" }] },
+      refuse: { message: MSG.OLD_FORMAT },
+      expected: "HTTP 422 'Format is updated for bulk upload, please download the format to continue.'", oracle: "HTTP status + message.", rule: `${R.parse}:164-165`,
+    },
+    {
+      id: "VBU-228", section: 6, feature: "vendorbulk.data", kind: "bulk", tier: "safe",
+      title: "A city typed in capitals ('MUMBAI') resolves to Mumbai", type: "Functional", priority: "P3", severity: "Low",
+      why: "Coverage audit GAP-55.", steps: ["Tripwired row with City 'MUMBAI'", "Read the staged row's city_id"],
+      sheet: one(trip("VBU-228", { City: "MUMBAI" })), rows: [{ status: "failed", error: MSG.STATUS, dataEquals: { city_id: "8" } }],
+      expected: "Staged city_id = 8 (Mumbai).", oracle: "Job row data.", rule: `${R.prVal}:122-131`,
+    },
+    {
+      id: "VBU-229", section: 5, feature: "vendorbulk.dedup", kind: "bulk", tier: "safe",
+      title: "A lower-case VAT number cannot slip past the duplicate check (it is refused)", type: "Edge", priority: "P3", severity: "Low",
+      why: "Coverage audit GAP-56: the duplicate search matches gst_no exactly, so 'gb…' stored next to 'GB…' would be two vendors. The VAT pattern is upper-case only, so the row is refused before that can happen.",
+      steps: ["Tripwired row with Tax No. = {{vatB}} in lower case"],
+      sheet: one(trip("VBU-229", { "Tax Type": "VAT", "Tax No.": "{{vatBLower}}", "Business Location": "United Kingdom" })),
+      rows: fails(MSG.TAXINV),
+      expected: "Row failed 'Invalid Tax No.' (the pattern is upper-case only), so no lower-case duplicate can be stored.", oracle: "Job row error.", rule: `${R.prVal}:92-95; ${R.prSend}:275`,
+    },
+    {
+      id: "VBU-230", section: 4, feature: "vendorbulk.onboarding", kind: "bulk", tier: "creates",
+      title: "POC 2 email equal to the main POC email is refused before the vendor is created", type: "Negative", priority: "P2", severity: "Medium",
+      why: "Coverage audit GAP-27. The member invite for the same address is refused 'already invited' (688) — after the vendor and its invite exist. No VRP Code in the row: with one, the code sends a second invitation instead (778), which would mail the vendor-management team.",
+      steps: ["Row whose POC 2 - Email Address is the same as POC - Email Address", "POST", "Read the row and the vendor"],
+      sheet: one({ ...baseRow("VBU-230"), "POC 2 - Full Name": "QA Second Contact", "POC 2 - Email Address": vEmail("VBU-230") }),
+      rows: [{ status: "failed", verify: { absent: true } }],
+      expected: "Row failed (POC 2 must be a different person) and NO vendor created. Per the code: failed 'This email is already invited.' but the vendor exists.",
+      oracle: "Job row + companies lookup.", rule: `${R.wrk}:37-58,175-182; ${R.prSend}:237,241-253`,
+    },
+    {
+      id: "VBU-231", section: 2, feature: "vendorbulk.access", kind: "errorSheet", tier: "safe", errorSheetCheck: "profileDropdown",
+      title: "The error sheet's Vendor Profile dropdown sits on the Vendor Profile column", type: "Functional", priority: "P2", severity: "Low",
+      why: "Coverage audit GAP-49: the error sheet hard-codes the profile list on F4:F100 (tpl:97), but the column is E on PROCOL DEMO and H on GMMCO.",
+      steps: ["Upload a tripwired row", "Download its error sheet", "Compare the profile dropdown's range with the Vendor Profile column"],
+      sheet: one(trip("VBU-231", {})), rows: tripped(),
+      expected: "The 'Invalid Vendor Profile' dropdown covers the Vendor Profile column.", oracle: "Error sheet data validations.", rule: `${R.tpl}:97`,
+    },
+
+    // ── listed, not run: they mail real people, change GMMCO for good, or call out ──
+    approval("VBU-232", "A contactless 'rejected' row with no contact creates a user with no email — and blocks every later no-email row",
+      "Coverage audit GAP-02. create_user_for_rejected_vendor looks the email up as NULL, finds nothing and creates a user whose email is NULL; afterwards send:233 matches that user for every no-email row ('This email is already invited.'). GMMCO's 11,000-row legacy load is exactly this row type.",
+      ["Row: Company Name, Status rejected, Vendor Onboarding Required No (no contact)", "Second upload: a no-contact row"],
+      "No blank user is created and the second row succeeds. Per the code: a NULL-email user, then 'This email is already invited.' on every later no-email row.",
+      `${R.wrk}:28-35,159-161; ${R.prMixin}:14-15; ${R.prSend}:233-253`,
+      "Leaves a lasting change on the workspace (a user with no email that breaks later uploads). Run only with the workspace owner's approval; a read-only probe on 5 Oct 2026 found no such user from our runs.",
+      { severity: "Critical", priority: "P0", tier: "creates" }),
+    approval("VBU-233", "A Status=rejected row that becomes a subsidiary is not rejected",
+      "Coverage audit GAP-03: the subsidiary path ignores Status, so the mapping is active and the subsidiary is invited (mail).",
+      ["Subsidiary baseline (VBU-131's)", "Row reusing its contact email, Status rejected, a new UK VAT number"],
+      "Mapping rejected, no mail. Per the code: active or invited, and the invite and prospect mails go out.", `${R.prSend}:85-87; ${R.sub}:199-235`,
+      "Sends the invite and 'new prospect' mails to the vendor-management team (real people). Needs approval (run with --real-mail)."),
+    approval("VBU-234", "A rejected vendor with POC 2 still sends POC 2 an active invitation",
+      "Coverage audit GAP-04: the member invite ignores the rejected status and carries no skip flag.",
+      ["Row with Status rejected and POC 2 name + email"],
+      "No POC 2 invitation for a rejected vendor. Per the code: an active vendor_member_invite and the prospect mail.", `${R.wrk}:175-182; ${R.prSend}:374-381,393-398`,
+      "Mails the vendor-management team (and POC 2). Needs approval."),
+    approval("VBU-235", "A blank City/Address copies ANOTHER workspace's vendor details in",
+      "Coverage audit GAP-05: the tax-number back-fill searches every workspace (Company.active.find_by(gst_no:)), so another client's vendor name, address and city are merged in.",
+      ["On PROCOL DEMO: a vendor with UK VAT {{vatN}} and 'QA PD Leak Road 1'", "On GMMCO: a no-contact row with only that VAT number"],
+      "No data from another workspace. Per the code: the GMMCO vendor is named and addressed after the PROCOL DEMO one.", `${R.helper}:732-747; ${R.prSend}:41-54`,
+      "Needs a run across two workspaces in sequence, which the runner does not do yet. Test vendors only, no real mail — safe to build next.",
+      { tier: "creates", severity: "Critical", priority: "P0", type: "Security" }),
+    approval("VBU-236", "A new tax number with no Address triggers a live GST/VAT provider lookup",
+      "Coverage audit GAP-06: the back-fill calls the external tax-number provider when no vendor in Procol has the number.",
+      ["GMMCO row: GST {{gst}}, Business Location India, City Mumbai, Address blank, onboarding No"],
+      "Decided without a third-party call, or refused clearly. Per the code: an external lookup; the message depends on the provider.", `${R.prSend}:42-52; ${R.helper}:748-767`,
+      "Sends the tax number to an external provider. Needs approval.", { tier: "safe" }),
+    approval("VBU-237", "Same contact + Vendor Code (no tax) makes a subsidiary that inherits the original's tax number",
+      "Coverage audit GAP-31: the subsidiary copies the parent (vendor.dup) and a nil gst_no is dropped by .compact, so a second company carries the same tax number without the duplicate check ever seeing it.",
+      ["Subsidiary baseline", "Row reusing its contact email with a Vendor Code and no tax number"],
+      "Refused or created without the parent's tax number. Per the code: a subsidiary with gst_no = the parent's.", `${R.sub}:164-212; ${R.prMixin}:30,39`,
+      "The subsidiary invitation mails the vendor-management team (CODE-2). Needs approval."),
+    approval("VBU-238", "Onboarding payload + Status rejected + Yes starts onboarding for a rejected vendor",
+      "Coverage audit GAP-35.", ["VBU-134's payload; row with Status rejected, Vendor Onboarding Required Yes"],
+      "No onboarding event for a rejected vendor. Per the code: mapping rejected AND an onboarding event.", `${R.wrk}:93,195`,
+      "Starts an onboarding event (mails). Needs approval."),
+    approval("VBU-239", "A contact who is already a vendor user elsewhere is silently auto-joined",
+      "Coverage audit GAP-30: the invitation is created as accepted and the existing user gets a mapping to the new vendor without being asked.",
+      ["On PROCOL DEMO: a rejected row creates a vendor user qa_vbu_<stamp>_reg@example.com", "On GMMCO: a row with that email"],
+      "Product decision: ask the user, or auto-join. Per the code: invitation accepted, user mapped.", `${R.prSend}:69,100-108,329,341-343`,
+      "Needs a run across two workspaces in sequence. Test vendors only.", { tier: "creates" }),
+    approval("VBU-240", "A POC email that belongs to a buyer user is refused",
+      "Coverage audit GAP-29.", ["Row with Status rejected and the POC email of a buyer user"], "Row failed 'This email is already registered.'",
+      `${R.prSend}:147-167`, "Needs a buyer user that is one of OUR QA test accounts; the GMMCO admin is a real person's account, so it is never used as data.", { tier: "safe" }),
+    approval("VBU-241", "A registered contact's subsidiary with no City/Address is refused 'Incorrect details'",
+      "Coverage audit GAP-32.", ["VBU-125's vendor user exists", "Row reusing its email with a Vendor Code, no City/Address"],
+      "Row failed 'Incorrect details'.", `${R.sub}:88-96,149-160`, "Depends on another case's vendor user within the same run; not wired yet.", { tier: "safe" }),
+    approval("VBU-242", "An onboarding payload with a broken form gives a 'success' row and no event",
+      "Coverage audit GAP-34.", ["VBU-132's payload with a non-existent form id; a no-contact 'Yes' row"],
+      "Row failed (onboarding could not start). Per the code: success, Prospect, no event (only logged).", `app/workers/vendor_onboarding_event_worker.rb:36-38`,
+      "Needs a deliberately broken onboarding payload builder; not wired yet.", { tier: "creates" }),
+    approval("VBU-243", "A profile that maps to broker/brokerage takes the broker invite",
+      "Coverage audit GAP-16.", ["Row whose Vendor Profile maps to broker"], "Company category brokerage; invite type broker_invite.",
+      `${R.wrk}:115-125; ${R.prMixin}:80-93`, "Neither test client maps a profile to broker.", { tier: "creates" }),
+    approval("VBU-244", "Another user's job id is not exposed through the error sheet",
+      "Coverage audit GAP-52.", ["As user B, GET the error sheet of user A's job"], "HTTP 422 487 (no job for this user).",
+      `${R.ctrl}:236-238`, "Needs a second QA user who uploads; none exists yet.", { tier: "safe", type: "Security" }),
+    approval("VBU-245", "Read-only: a contactless blank profile stores the first 'manufacturer' mapping",
+      "Coverage audit GAP-17.", ["SELECT misc->'category_data' of VBU-121's vendor"], "The first vendor_category_type_mapping entry whose category is manufacturer.",
+      `${R.wrk}:116-130`, "A database read of another case's vendor; not wired as its own check yet.", { tier: "safe" }),
+    approval("VBU-246", "Read-only: an Active vendor raises the P2P vendor-portal request (GMMCO)",
+      "Coverage audit GAP-33.", ["SELECT external_requests p2p_boiler_plate_upsert for VBU-121's vendor"], "One request per Active vendor (none for a Prospect).",
+      `${R.bscm}:48,185-215`, "A database read of another case's vendor; not wired as its own check yet.", { tier: "safe" }),
+    ...[
+      ["VBU-247", "Duplicate fields = [gst_no] only falls back to the old rule", "GAP-39", "dup:67-74"],
+      ["VBU-248", "pan_no in the duplicate key: a different PAN makes a new vendor", "GAP-40", "dup:25"],
+      ["VBU-249", "can_skip OFF: Vendor Onboarding Required is not validated and 'No' still makes a Prospect", "GAP-42", "val:211; wrk:93"],
+      ["VBU-250", "vendor_invitation_v2 ON (contactless OFF): Profile/City/Address optional, POC email still mandatory", "GAP-43", "val; tpl:99-101; sub:116-128"],
+      ["VBU-251", "No onboarding version: a matching row is 'already_mapped' and the vendor updated", "GAP-44", "wrk:131-140; update_mapped_vendor_service.rb:12-70"],
+      ["VBU-252", "disable_manual_vendor_creation ON, as a Procol employee: upload allowed", "GAP-45", "ctrl:206"],
+      ["VBU-253", "restricted_pan_email_domains: a PAN on the wrong email domain is refused", "GAP-46", "pan_email_domain_service.rb:28-41"],
+    ].map(([id, title, gap, rule]) => approval(id, title, `Coverage audit ${gap}.`, ["See the coverage audit"], "As the audit's expected outcome.", rule,
+      "Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).", { tier: "safe", feature: "vendorbulk.settings" })),
   ];
 }

@@ -146,7 +146,7 @@ function realRange(ws: XLSX.WorkSheet): string {
 }
 
 /** SheetJS drops data validations on read, so they are read from the sheet XML. */
-function readValidations(buf: Buffer): { sqref: string; title: string }[] {
+export function readValidations(buf: Buffer): { sqref: string; title: string }[] {
   try {
     const wb = XLSX.read(buf, { type: "buffer", bookFiles: true } as any);
     const files = (wb as any).files ?? (wb as any).keys;
@@ -324,6 +324,15 @@ export function runVars(stamp: string, template?: TemplateInfo): Record<string, 
     vatH: `GB9${d4}0007`,
     vatI: `GB9${d4}0008`,
     vatJ: `GB9${d4}0009`,
+    // more tax numbers for the gap cases' own baselines (each baseline needs a
+    // tax number no other vendor carries, or the back-fill picks an arbitrary one)
+    vatK: `GB9${d4}0010`,
+    vatL: `GB9${d4}0011`,
+    vatM: `GB9${d4}0012`,
+    vatN: `GB9${d4}0013`,
+    vatO: `GB9${d4}0014`,
+    vatP: `GB9${d4}0015`,
+    vatBLower: `gb9${d4}0001`,
     /** exactly 100 / 101 characters once filled */
     vcode100: `QA${stamp}`.padEnd(100, "V"),
     profile,
@@ -441,6 +450,8 @@ export interface CreatedVendor {
   vrpCode: string | null;
   invitations: { status: string; inviteType: string; inviteInfo: string; skipVendorOnboarding: unknown; isSubsidiary: unknown }[];
   users: number;
+  /** category teams (Deals In) the vendor is in */
+  teams: number;
 }
 
 const BSCM: Record<number, string> = {
@@ -471,6 +482,11 @@ export async function findVendorsByName(workspaceId: number, name: string): Prom
       "select count(*)::int as n from user_company_mappings where company_id = $1 and status = 1",
       [r.id],
     );
+    // category teams (Deals In): a team on the vendor named after a category (teams_create_concern.rb:48)
+    const teams = await query<{ n: number }>(
+      "select count(*)::int as n from teams where company_id = $1 and product_category_ids is not null and cardinality(product_category_ids) > 0",
+      [r.id],
+    );
     out.push({
       companyId: Number(r.id),
       name: r.name,
@@ -493,6 +509,7 @@ export async function findVendorsByName(workspaceId: number, name: string): Prom
         isSubsidiary: i.other_details?.is_subsidiary,
       })),
       users: Number(users[0]?.n ?? 0),
+      teams: Number(teams[0]?.n ?? 0),
     });
   }
   return out;

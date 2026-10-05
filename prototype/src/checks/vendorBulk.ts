@@ -18,6 +18,7 @@
  * Worker-side exceptions ("Internal error …", "Vendor onboarding could not be
  * started …") are the asynchronous twin of an HTTP 500 and are reported as such.
  */
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as XLSX from "xlsx";
@@ -36,7 +37,7 @@ async function vbu(): Promise<Vbu> {
 }
 
 export interface BulkSpec {
-  kind: "http" | "bulk" | "template" | "errorSheet" | "formulaSheet" | "concurrent" | "errorSheetReupload" | "manualInvite";
+  kind: "http" | "bulk" | "template" | "errorSheet" | "formulaSheet" | "concurrent" | "errorSheetReupload" | "manualInvite" | "templateUpload";
   actor?: "seller-qa" | "member-no-company-create";
   payload?: "onboarding";
   fixture2?: string;
@@ -49,10 +50,12 @@ export interface BulkSpec {
   refuse?: { message?: string; code?: string };
   rows?: RowExpect[];
   anyOrder?: boolean;
-  /** fixture that must have been uploaded (and succeeded) first, once per run */
+  /** what the Bulk Upload history must count for the job */
+  statusCounts?: Record<string, number>;
+  /** fixture(s) that must have been uploaded (and succeeded) first, once per run; comma-separated, in order */
   baseline?: string;
   templateCheck?: string;
-  errorSheetCheck?: "noJob" | "unknownJob" | "realJob";
+  errorSheetCheck?: "noJob" | "unknownJob" | "realJob" | "profileDropdown";
   everyRow?: boolean;
 }
 interface RowExpect {
@@ -70,6 +73,7 @@ interface RowExpect {
     minUsers?: number;
     absent?: boolean;
     subsidiary?: boolean;
+    teams?: number;
   };
 }
 
@@ -197,7 +201,10 @@ async function runState(client: Client, stamp: string): Promise<RunState> {
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const template = await m.fetchTemplate(client.ctx.buyerApi);
-          return { template, vars: m.runVars(stamp, template), baselines: new Map() };
+          const vars = m.runVars(stamp, template);
+          const foreign = foreignCategoryCode(client.ctx.companyId, vars.categoryUuid);
+          if (foreign) vars.foreignCategoryUuid = foreign;
+          return { template, vars, baselines: new Map() };
         } catch (e) {
           last = (e as Error).message;
           await new Promise((r) => setTimeout(r, 2000 * attempt));
@@ -261,13 +268,19 @@ async function verifyRow(
     problems.push(`${v.invitations.length} invitation(s) (expected ${exp.invitations})`);
   if (exp.invitationStatus && own[0]?.status !== exp.invitationStatus)
     problems.push(`invitation status ${own[0]?.status ?? "none"} (expected ${exp.invitationStatus})`);
-  if (exp.skipOnboarding !== undefined && own[0] && !!own[0].skipVendorOnboarding !== exp.skipOnboarding)
-    problems.push(`invitation skip_vendor_onboarding=${String(own[0].skipVendorOnboarding)} (expected ${exp.skipOnboarding})`);
+  // EVERY invitation the row made — POC 2's member invite too: one without the
+  // flag queues the "new prospect" mail to the vendor-management team.
+  if (exp.skipOnboarding !== undefined)
+    v.invitations.forEach((inv, i) => {
+      if (!!inv.skipVendorOnboarding !== exp.skipOnboarding)
+        problems.push(`invitation ${i + 1} of ${v.invitations.length} (${inv.inviteType}) skip_vendor_onboarding=${String(inv.skipVendorOnboarding ?? "not set")} (expected ${exp.skipOnboarding})`);
+    });
   if (exp.subsidiary && !v.invitations.some((i) => i.isSubsidiary)) problems.push("no subsidiary invitation");
   const sub = v.invitations.find((i) => i.isSubsidiary);
   if (exp.subsidiary && sub && exp.skipOnboarding !== undefined && !!sub.skipVendorOnboarding !== exp.skipOnboarding)
     problems.push(`subsidiary invitation skip_vendor_onboarding=${String(sub.skipVendorOnboarding)} (expected ${exp.skipOnboarding})`);
   if (exp.minUsers !== undefined && v.users < exp.minUsers) problems.push(`${v.users} user(s) mapped (expected ≥ ${exp.minUsers})`);
+  if (exp.teams !== undefined && v.teams !== exp.teams) problems.push(`the vendor is in ${v.teams} category team(s) (expected ${exp.teams})`);
   for (const [k, want] of Object.entries(exp.fields ?? {})) {
     const got =
       k === "city" ? v.cityName :
@@ -406,7 +419,8 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
       }
 
       if (bulk.kind === "template") return finish(await templateVerdict(bulk.templateCheck ?? "headers", st, client));
-      if (bulk.kind === "errorSheet" && bulk.errorSheetCheck !== "realJob") return finish(await errorSheetVerdict(bulk, api));
+      // realJob / profileDropdown upload a sheet first and read ITS error sheet
+      if (bulk.kind === "errorSheet" && bulk.errorSheetCheck !== "realJob" && bulk.errorSheetCheck !== "profileDropdown") return finish(await errorSheetVerdict(bulk, api));
       if (!userId) return finish({ pass: false, inconclusive: true, verdict: "no users.id for this session — staged rows cannot be read" });
       // Fixtures name this workspace's own profile and category values, which
       // come from its template. Guessing them would make every row fail for
@@ -414,14 +428,14 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
       if (!st.template)
         return finish({ pass: false, inconclusive: true, verdict: `the workspace template could not be downloaded (${st.templateError}), so the per-workspace values the sheet needs are unknown — nothing was uploaded` });
 
-      if (bulk.baseline) {
-        const b = await ensureBaseline(client, stamp, (client.ctx as any).buyerUserId, bulk.baseline);
+      for (const base of (bulk.baseline ?? "").split(",").filter(Boolean)) {
+        const b = await ensureBaseline(client, stamp, (client.ctx as any).buyerUserId, base);
         if (!b.ok)
           return finish({
             pass: false,
             inconclusive: true,
             verdict:
-              `the baseline vendor (${bulk.baseline}) could not be created (${b.why}) — nothing to compare against` +
+              `the baseline vendor (${base}) could not be created (${b.why}) — nothing to compare against` +
               (b.why?.includes(TAX_TRAP) ? "; blocked by the sandbox's duplicate 'India' countries (see VBU-059)" : ""),
           });
       }
@@ -450,9 +464,15 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
         return probs.length ? finish({ pass: false, verdict: probs.join(" · ") }, detail) : finish({ pass: true, verdict: "accepted and the vendor matches" }, detail);
       }
 
-      const fx = m.loadFixture(bulk.fixture!, vars);
-      ev.fixture = { file: bulk.fixture!, bytes: fx.bytes, vars, ...(bulk.fixture2 ? { file2: bulk.fixture2 } : {}) };
+      const fx = bulk.kind === "templateUpload" ? await templateAsDownloaded(api) : m.loadFixture(bulk.fixture!, vars);
+      if ("unavailable" in fx) return finish({ pass: false, inconclusive: true, verdict: fx.unavailable });
+      if (bulk.fixture) ev.fixture = { file: bulk.fixture, bytes: fx.bytes, vars, ...(bulk.fixture2 ? { file2: bulk.fixture2 } : {}) };
       ev.sheet = sheetGrid(fx.base64);
+      // A value the case needs but this run could not supply (e.g. the other
+      // workspace's category code) would be sent as a literal "{{…}}" and could
+      // pass for the wrong reason: nothing is sent.
+      const unfilled = (ev.sheet?.rows ?? []).flat().find((c) => /\{\{\w+\}\}/.test(c));
+      if (unfilled) return finish({ pass: false, inconclusive: true, verdict: `a value this case needs is not known in this run (${unfilled.match(/\{\{\w+\}\}/)![0]}) — nothing was uploaded` });
       const excel = bulk.wrap === "dataUrl" ? `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${fx.base64}` : fx.base64;
       let extraBody: Record<string, unknown> = {};
       if (bulk.payload === "onboarding") {
@@ -460,7 +480,7 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
         if ("unavailable" in pl) return finish({ pass: false, inconclusive: true, verdict: `the onboarding payload could not be built: ${pl.unavailable}` });
         extraBody = pl;
       }
-      ev.request = { method: "POST", path: "/v1/bulk_create_vendor", body: { excel_data: `<base64 of ${bulk.fixture}, ${fx.bytes} bytes>`, ...(Object.keys(extraBody).length ? { configurations: (extraBody as any).configurations, forms: "<the template's forms>" } : {}) } };
+      ev.request = { method: "POST", path: "/v1/bulk_create_vendor", body: { excel_data: `<base64 of ${bulk.fixture ?? "the template as downloaded (Status tripwired)"}, ${fx.bytes} bytes>`, ...(Object.keys(extraBody).length ? { configurations: (extraBody as any).configurations, forms: "<the template's forms>" } : {}) } };
 
       // ── two uploads at the same moment ──
       if (bulk.kind === "concurrent") {
@@ -517,7 +537,7 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
       // The sandbox's duplicate "India" countries (see VBU-059) make the tax
       // lookup fail before the rule under test is reached. That proves nothing
       // about the case, so it is reported as blocked, not as a product verdict.
-      const taxTrap = out.rows.some((r) => r.error === TAX_TRAP) && !(bulk.rows ?? []).some((e) => e.error === TAX_TRAP) && caseId !== "VBU-059";
+      const taxTrap = out.rows.some((r) => r.error === TAX_TRAP) && !(bulk.rows ?? []).some((e) => e.error === TAX_TRAP) && caseId !== "VBU-059" && bulk.kind !== "templateUpload";
       if (taxTrap)
         return finish({ pass: false, inconclusive: true, verdict: `blocked by sandbox master data: the row stopped at "${TAX_TRAP}" before reaching the rule under test — Country.find_by(name: 'India') picks one of 36 'India' rows whose GST mapping is inactive (see VBU-059)` }, detail);
 
@@ -545,6 +565,12 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
       }
 
       if (bulk.kind === "errorSheet" || bulk.kind === "formulaSheet") problems.push(...(await errorSheetOfJob(bulk, api, out.rows.length)));
+      // the counters the buyer reads in the Bulk Upload history
+      if (bulk.statusCounts) {
+        const got: any = out.statusApi ?? {};
+        for (const [k, want] of Object.entries(bulk.statusCounts))
+          if (Number(got[k]) !== want) problems.push(`history shows ${k} = ${got[k] ?? "nothing"} (expected ${want})`);
+      }
       if (bulk.kind === "errorSheetReupload") problems.push(...(await reuploadErrorSheet(api, userId, out.rows, ev)));
 
       // What the rows created, for the report: every vendor a row named.
@@ -739,5 +765,59 @@ async function errorSheetOfJob(bulk: BulkSpec, api: any, staged: number): Promis
     const cell: any = ws[addr];
     if (cell?.f) problems.push(`the Company Name cell (${addr}) is a LIVE FORMULA "=${cell.f}" — opening the error sheet runs what the uploader typed`);
   } else if (data[0] && !String(data[0][0]).length) problems.push("first failed row has an empty Error cell");
+  if (bulk.errorSheetCheck === "profileDropdown") {
+    const m = await vbu();
+    const col = grid[hdrRow].indexOf("Vendor Profile");
+    const want = col < 0 ? null : XLSX.utils.encode_col(col);
+    const lists = m.readValidations(buf).filter((v: { title: string }) => /vendor profile/i.test(v.title));
+    if (!want) problems.push("the error sheet has no Vendor Profile column");
+    else if (!lists.length) problems.push("the error sheet has no Vendor Profile dropdown");
+    else if (!lists.some((v: { sqref: string }) => v.sqref.split(/\s+/).some((r) => r.replace(/\d+/g, "").split(":").every((c) => c === want))))
+      problems.push(`the Vendor Profile dropdown covers ${lists.map((v: { sqref: string }) => v.sqref).join(", ")} but the Vendor Profile column is ${want}`);
+  }
   return problems;
+}
+
+// ── helpers for the coverage-audit cases ─────────────────────────────────
+
+/**
+ * A category code of the OTHER test workspace, taken from its newest evidence
+ * record (the code it filled into its own sheets). Used by VBU-205: a code that
+ * belongs to another client must be refused.
+ */
+function foreignCategoryCode(companyId: number, own: string | undefined): string | undefined {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "data", "evidence");
+  if (!existsSync(dir)) return undefined;
+  for (const stamp of readdirSync(dir).filter((d) => /^\d{10,16}$/.test(d)).sort().reverse()) {
+    for (const f of readdirSync(join(dir, stamp))) {
+      try {
+        const ev = JSON.parse(readFileSync(join(dir, stamp, f), "utf8"));
+        const code = ev?.fixture?.vars?.categoryUuid;
+        if (ev.companyId !== companyId && code && code !== own) return code;
+      } catch {
+        /* a half-written record */
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The workspace's template exactly as a buyer downloads it, with ONE change:
+ * the sample row's Status is the tripwire, so even a corrected template (whose
+ * sample contact is a real procol.in address) can never create a vendor.
+ */
+async function templateAsDownloaded(api: any): Promise<{ base64: string; bytes: number } | { unavailable: string }> {
+  const r = await api.raw("GET", "/v1/bulk_create_vendor_template");
+  const url = (r.data as any)?.excel_url;
+  if (!r.ok || !url) return { unavailable: `the template could not be downloaded (HTTP ${r.status}: ${r.message ?? "no excel_url"})` };
+  const buf = Buffer.from(await (await fetch(url)).arrayBuffer());
+  const wb = XLSX.read(buf, { type: "buffer" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const grid: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  const statusCol = (grid[2] ?? []).findIndex((h) => String(h).trim() === "Status");
+  if (statusCol < 0) return { unavailable: "the template has no Status column to put the tripwire in — nothing was uploaded" };
+  ws[XLSX.utils.encode_cell({ r: 3, c: statusCol })] = { t: "s", v: "QA_TRIPWIRE" };
+  const out = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return { base64: out.toString("base64"), bytes: out.length };
 }
