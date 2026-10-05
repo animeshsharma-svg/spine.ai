@@ -405,6 +405,22 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   if (steps.length && ["go_to", "switch_company"].includes(steps[0].step) && !steps.some((s) => HEAVY_CREATE.includes(s.step)) && !has("open_create")) {
     return { plan: { ...plan, steps }, repairs };
   }
+  // The "+" (Add Stages) menu is read against the stages ALREADY on the screen, and the case
+  // names them ("a project holding one Auction stage"). Two stages is the ceiling — the "+" is
+  // then always disabled — so a plan that composes two to read what is OFFERED reads nothing.
+  // UI-CRE-004 composed rfp+rfq for "one Auction stage".
+  if (has("expect_add_stage_options") && has("compose_stages")) {
+    const m = /\b(?:holding|with|has|containing)\s+(?:only\s+)?(?:one|a single|an?)\s+(rfq|rfp|technical|auction)\b(?:\s+(?:stage|round))?/i.exec(testCase);
+    if (m) {
+      const want = m[1].toLowerCase() === "technical" ? "rfp" : m[1].toLowerCase();
+      const cs = steps[indexOf("compose_stages")];
+      const have = Array.isArray(cs.args?.stages) ? (cs.args!.stages as string[]).map((x) => String(x).toLowerCase()) : [];
+      if (have.length !== 1 || have[0] !== want) {
+        cs.args = { ...(cs.args ?? {}), stages: [want] };
+        repairs.push(`compose_stages set to [${want}] — the case starts from one ${m[1]} stage (was [${have.join(", ")}])`);
+      }
+    }
+  }
   // A plan that creates an event and then goes looking for it (events list →
   // open_event) needs it SAVED first: an unsaved create screen leaves nothing
   // to find. UI-CRE-012 (set_title → open_events_list → open_event) failed

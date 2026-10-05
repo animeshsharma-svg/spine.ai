@@ -211,20 +211,25 @@ control). These cases pin all three.
   Reading it is cheaper and more honest than inferring the rule.
 - **Setup.** A project holding one Auction stage.
 - **Steps.** Open the `+` menu.
-- **Expected.** RFQ and Technical Stage are offered. Auction is not — it is already
-  present.
-- **Oracle.** Menu item set is exactly {RFQ, Technical Stage}.
-- **Trace.** P1 · automate · `getDropdownMenu`
+- **Expected.** Only Technical Stage is offered. Auction is not (it is already present),
+  and neither is RFQ: RFQ and Auction never sit in one project (`isValidStage`).
+- **Oracle.** Menu item set is exactly {Technical Stage}.
+- **Trace.** P1 · automate · `getDropdownMenu` · `isValidStage` (projectCreation.jsx:3059)
+- **Corrected.** 5 Oct 2026 — the first version expected RFQ to be offered too; the live
+  screen and the code both say RFQ is refused while an Auction is present.
 
 #### UI-CRE-005 — Adding an Auction while an RFQ is present is refused, with a reason
 - **Why it matters.** This is the mutual exclusion, and the product explains it in
   words. A test should assert the words, because that sentence is what a buyer acts on.
-- **Setup.** A project holding one RFQ stage.
-- **Steps.** Open `+`.
-- **Expected.** Auction is absent from the menu; the disabled-state tooltip reads
-  "Remove RFQ to add Auction".
-- **Oracle.** No Auction menu item; tooltip text matches.
-- **Trace.** P1 · automate · `isValidStage`
+- **Setup.** A project holding a Technical stage and an RFQ stage.
+- **Steps.** Hover the `+`.
+- **Expected.** The `+` is disabled (two stages is the ceiling) and its tooltip reads
+  "Remove RFQ to add Auction". (With an RFQ alone, Auction is simply absent from the
+  menu and no reason is shown — the tooltip exists only at two stages.)
+- **Oracle.** `+` disabled; tooltip text matches.
+- **Trace.** P1 · automate · `isValidStage` · `getTooltipContent` (projectCreation.jsx:3184)
+- **Corrected.** 5 Oct 2026 — the first version expected the tooltip with one RFQ stage;
+  the code shows it only when two stages are present.
 
 #### UI-CRE-006 — Adding an RFQ while an Auction is present is refused, with a reason
 - **Why it matters.** The mirror of UI-CRE-005; the tooltip differs and buyers read it.
