@@ -117,6 +117,9 @@ for (const [screen, names] of Object.entries(found)) {
     // nor a time or date shown on screen (a schedule button reads "Now - 03:06 pm, 5th Oct") —
     // it is that moment's data, not a control's name
     if (/\d{1,2}:\d{2}\s*(am|pm)?|\b\d{1,2}(st|nd|rd|th)\s+[A-Z][a-z]{2}\b/i.test(n.text)) continue;
+    // nor amounts, quantities or a sheet row's values (a grid cell is a button too): "₹ 157 /KG",
+    // "72 KG", "1 / 1 100%" — and nothing that is ALL CAPS product-like text from a data row
+    if (/[₹$€]|\d\s*(kg|ea|nos|pcs|mt|ton|ltr|%)\b|^\s*[–-]\s*$|^\d[\d\s,./%]*$/i.test(n.text)) continue;
     const k = `${screen}|${n.text.toLowerCase()}`;
     if (have.has(k)) continue;
     have.add(k);
