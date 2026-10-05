@@ -620,7 +620,18 @@ async function execute(
         strategy = found.strategy;
         await hoverEl(page, found.locator);
       }
-      const r = await waitForMessage(page, kind, { want, mark: ctx.prevMark, timeoutMs: kind === "tooltip" ? 6_000 : Math.min(timeoutMs, 12_000) });
+      let r = await waitForMessage(page, kind, { want, mark: ctx.prevMark, timeoutMs: kind === "tooltip" ? 6_000 : Math.min(timeoutMs, 12_000) });
+      // The text is what the case is about; HOW the app shows it varies (many console errors are
+      // logError → a toast, not a message under the field). Accept the same text in any form,
+      // and say which form it took.
+      if (!r.matched && want && kind !== "any" && kind !== "tooltip") {
+        const anyForm = await waitForMessage(page, "any", { want, mark: ctx.prevMark, timeoutMs: 1_500 });
+        if (anyForm.matched) {
+          if (want) noteSeen(want, page.url(), `message ${anyForm.matched.kind}`);
+          return { detail: `[${anyForm.matched.kind}] ${anyForm.matched.text} (shown as ${anyForm.matched.kind}, not ${kind})`, strategy: `message ${anyForm.matched.kind}` };
+        }
+        r = { matched: null, seen: [...r.seen, ...anyForm.seen.filter((m) => !r.seen.some((x) => x.text === m.text))] };
+      }
       if (!r.matched) {
         throw new Error(
           `no ${kind === "any" ? "" : `${kind} `}message${want ? ` containing "${want}"` : ""} — ${r.seen.length ? `the app showed: ${r.seen.map((m) => `[${m.kind}] ${m.text}`).join(" | ")}` : "the app showed no message at all"}`,
