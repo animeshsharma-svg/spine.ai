@@ -2,7 +2,8 @@
  * RUN THE WRITTEN SCREEN CASES LIKE A SENIOR MANUAL QA (docs/ui-automation-design.md).
  *
  *   npx tsx scripts/run-ui-cases.ts --c 198678 --dry               which cases, in what state, on what screen
- *   npx tsx scripts/run-ui-cases.ts --c 198678 --limit 20          compile (fast tier, stored) and run 20
+ *   npx tsx scripts/run-ui-cases.ts --c 198678 --limit 20          compile (reason tier, stored) and run 20
+ *     --tier fast                   compile with the fast tier (measurement only)
  *     --ids UI-SUR-003,UI-AWD-001   exactly these catalog cases
  *     --skip-ran                    leave out cases this runner already recorded a result for
  *     --budget-min 240              stop starting new cases after this many minutes (default 240)
@@ -16,7 +17,7 @@
  *   2. uiCasePrep.ts picks the starting state and screen; a screen not in the
  *      model yet (vendor portal, PR screens) is reported as a gap, not forced;
  *   3. the plan: a passing exemplar of the very same words is reused, otherwise
- *      the compiler writes one (fast tier) with the screen assertions, the API
+ *      the compiler writes one (reason tier) with the screen assertions, the API
  *      values it can compare and the closest UI exemplars as worked examples;
  *      stored in data/compiled-plans/ui-prepared/<id>.json;
  *   4. the state is built through the API (uiSetup.ts, QA vendors only), fresh
@@ -48,6 +49,10 @@ config({ path: join(here, "..", ".env") });
 // fell to Groq (413, too large) and then Gemini — the "Slingring-first" plans were never
 // Slingring's. A batch can wait for the primary model.
 process.env.SLINGRING_FAST_TIMEOUT_MS ??= "45000";
+// The compile tier. "fast" (Slingring LUNA) declared "no step can cover this" for 43% of cases
+// (30 of 69) where Gemini had for 6% — it under-uses the generic steps. Production compiles use
+// "reason" (planner.ts); `--tier fast` keeps the cheap path for measurement.
+const COMPILE_TIER: "reason" | "fast" = process.argv.includes("--tier") && process.argv[process.argv.indexOf("--tier") + 1] === "fast" ? "fast" : "reason";
 
 const { allCases, caseAsProse } = await import("../src/checks/testCatalog.js");
 const { decideLayerSync, screenAssertions } = await import("../src/agents/layerDecider.js");
@@ -204,7 +209,7 @@ async function compiled(c: CatalogCase, p: Prep): Promise<{ plan: any; coverage:
     const d = decideLayerSync(c);
     const compileOnce = async (extra: string) => (await withWatchdog(
       compileTestCase(caseAsProse(c) + extra, "events", {
-        tier: "fast",
+        tier: COMPILE_TIER,
         ...(p.prepared
           ? {
               prepared: {
@@ -265,7 +270,7 @@ async function compiled(c: CatalogCase, p: Prep): Promise<{ plan: any; coverage:
     writeFileSync(
       f,
       JSON.stringify(
-        { meta: { caseId: c.id, title: c.title, compiledAt: new Date().toISOString(), tier: "fast", source: r.source, coverage: r.coverage, gaps: r.gaps, warnings: r.warnings ?? [], state: p.state, screen: p.screen, technical: p.technical, exemplars: near.map((n) => n.exemplar.caseId), crossCheckAdded: added }, plan: r.plan },
+        { meta: { caseId: c.id, title: c.title, compiledAt: new Date().toISOString(), tier: COMPILE_TIER, source: r.source, coverage: r.coverage, gaps: r.gaps, warnings: r.warnings ?? [], state: p.state, screen: p.screen, technical: p.technical, exemplars: near.map((n) => n.exemplar.caseId), crossCheckAdded: added }, plan: r.plan },
         null,
         1,
       ),
