@@ -23,6 +23,7 @@ import type { TestCaseRecord } from "../checks/caseLibrary.js";
 import { bugForCase, readEvidence, vbuBugs, type VbuEvidence } from "../checks/vendorBulkExtras.js";
 import { displayCase } from "../checks/caseDisplay.js";
 import { escapeHtml, humanText, renderTechFold } from "./shared.js";
+import { bugDetail, seenFromEvidence, shownLine, TRIPWIRE_NOTE, usesTripwire } from "./vbuBugDetail.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const QA_DOC_FILE = join(here, "..", "..", "config", "vbuQaDoc.json");
@@ -49,6 +50,7 @@ export const VBU_CSS = `
   .ev-bug{margin:12px 0;padding:10px 12px;border-left:4px solid #dc2626;background:rgba(220,38,38,.05);border-radius:6px;font-size:13px}
   .ev-bug.sus{border-left-color:#d97706;background:rgba(217,119,6,.06)}
   .ev-bug p{margin:4px 0}
+  .ev-bug ul.ev-list{margin:2px 0 6px 18px;padding:0}
   .ev-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
   section.vbu{margin:18px 0}
   section.vbu h2{margin-bottom:6px}
@@ -70,8 +72,17 @@ function caseBug(ev: VbuEvidence) {
 function bugBox(ev: VbuEvidence): string {
   const b = caseBug(ev);
   if (!b) return "";
+  const d = bugDetail(b.id);
+  const seen = shownLine(seenFromEvidence(ev));
   return `<div class="ev-bug ${b.status === "SUSPECTED" ? "sus" : ""}">
-    <p><b>${e(b.id)} · ${e(b.severity)}${b.status === "SUSPECTED" ? " · suspected from the code" : ""}</b> — ${e(b.title)}</p>
+    <p><b>${e(b.id)} · ${e(b.severity)}${b.status === "SUSPECTED" ? " · suspected from the code" : ""}</b> — ${e(b.title)}${d ? ` <span style="opacity:.75">(${e(d.area)})</span>` : ""}</p>
+    ${d ? `<p><b>What the buyer does:</b> ${e(d.scenario)}</p>
+    <p><b>What should happen:</b></p><ul class="ev-list">${d.expected.map((x) => `<li>${e(x)}</li>`).join("")}</ul>
+    <p><b>What happens instead:</b> ${e(d.actual)}</p>
+    <p><b>What the buyer sees:</b> ${e(d.sees)}</p>
+    ${seen ? `<p><b>In this run:</b> ${e(seen)}</p>` : ""}
+    ${usesTripwire(ev) ? `<p style="opacity:.8"><i>${e(TRIPWIRE_NOTE)}</i></p>` : ""}
+    <p><b>Why it matters:</b> ${e(d.impact)}</p>` : ""}
     <p><b>Why it happens:</b> ${e(b.cause)}</p>
     <p><b>Where:</b> <span class="ev-mono">${e(b.where)}</span></p>
     <p><b>Suggested fix:</b> ${e(b.fix)}</p>
@@ -229,7 +240,7 @@ export function renderBugsSection(rows: Row[]): string {
     return [
       `<td>${e(id === "unfiled" ? "Not filed yet" : id)}</td>`,
       td(b?.severity ?? "—"),
-      `<td class="wrap">${e(humanText(b?.title ?? cs[0].result?.verdict ?? ""))}${renderTechFold(
+      `<td class="wrap">${e(humanText(b?.title ?? cs[0].result?.verdict ?? ""))}${bugDetail(id) ? `<div class="pre" style="margin-top:4px"><b>Should:</b> ${e(bugDetail(id)!.expected.join(" "))}<br><b>Instead:</b> ${e(bugDetail(id)!.actual)}<br><b>Buyer sees:</b> ${e(bugDetail(id)!.sees)}</div>` : ""}${renderTechFold(
         [
           { label: "Suggested fix", value: fix },
           ...(b?.where ? [{ label: "Where", value: b.where, kind: "code" as const }] : []),

@@ -59,6 +59,20 @@ export function prepFor(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" 
   if (g === "UI-ENV" || g === "UI-PERM" || g === "UI-NFR")
     return { ok: false, state: "none", screen: "session", screenWhat: "sessions, permissions and load", technical, prepared: false, why: "needs another user, a second company or load — not a screen state the API setup builds" };
 
+  // THE CASE'S OWN SETUP decides first. A state the API setup cannot build yet is said
+  // plainly (couldn't tell), never replaced by a nearby state: UI-CONV-010 ("a draft RFQ") ran
+  // on a published RFQ with a bid and "found" Convert to Auction offered; UI-XDAMD-011 ("an old
+  // version") ran on a never-amended event and "found" no Send to Evaluation — both went to
+  // the to-confirm queue as if the product misbehaved.
+  const setup = String(c.setup ?? "").toLowerCase();
+  const notBuilt = (what: string): CasePrep => ({ ok: false, state: "live", screen: "summary", screenWhat: WHAT.summary, technical, prepared: true, why: `the case starts from ${what}, which the API setup does not build yet` });
+  if (/newer version|superseded|old(er)? version|previous version|amended (event|rfq|rfp)|after an amendment/.test(setup) || /on an old version|old version/.test(c.title.toLowerCase()))
+    return notBuilt("an amended event (an older version beside a newer one)");
+  if (/masking (is )?on|vendor masking enabled|isvendormaskingenabled/.test(setup)) return notBuilt("a client with vendor masking switched on");
+  if (/already[- ]converted|a converted (rfq|auction)|converted auction/.test(setup)) return notBuilt("an RFQ already converted to an auction");
+  if (/^\s*(a|an) draft (rfq|rfp|rfx|event|auction)\b/.test(setup) && !/proposal/.test(setup))
+    return r("draft", "draft", technical, "the case starts from a draft — the draft is built by API (no publish) and reopened");
+
   // RFQ → Auction conversion starts on a published RFQ (with a bid, so "use RFQ quotes" has quotes).
   if (g === "UI-CONV" || /convert(ing|ed)? (it |the rfq |an rfq )?(to|into) (an )?auction|conversion/.test(t))
     return r("bid", "summary", technical, "a conversion case — a published RFQ with a vendor's bid is built by API");
