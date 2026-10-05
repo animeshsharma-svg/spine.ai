@@ -1001,8 +1001,21 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       const want = asInt(a.count, s.lineItemsAdded || 1);
       const badge = await s.create.lineItemCountBadge();
-      expect(badge, `the toolbar should show ${want} line item(s)`).toBe(want);
-      return `badge shows ${badge}`;
+      // evidence: which products the price sheet actually lists (its "Product" column)
+      const rows = await s.page
+        .evaluate(() => {
+          const table = document.querySelector(".data-grid-container table");
+          if (!table) return [] as string[];
+          const trs = [...table.querySelectorAll("tr")];
+          const heads = [...(trs[0]?.querySelectorAll("td,th") ?? [])].map((c) => (c.textContent || "").replace(/\*/g, "").trim().toLowerCase());
+          const col = heads.findIndex((h) => /^product/.test(h));
+          if (col < 0) return [] as string[];
+          return trs.slice(1).map((tr) => ((tr.querySelectorAll("td")[col]?.textContent || "").trim())).filter(Boolean);
+        })
+        .catch(() => [] as string[]);
+      const listed = rows.length ? `; the sheet lists ${rows.map((r) => `“${r.slice(0, 40)}”`).join(", ")}` : "";
+      expect(badge, `the toolbar should show ${want} line item(s) — it shows ${badge}${listed}`).toBe(want);
+      return `badge shows ${badge}${listed}`;
     }
     case "expect_published": {
       const id = s.create.projectId();
