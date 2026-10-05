@@ -214,10 +214,18 @@ export class SingleStagePage extends BasePage {
     if (await picker.isDisabled().catch(() => true)) {
       throw new Error('"Select Templates" stayed disabled for 30s — the template list never finished loading (not evidence about the product)');
     }
-    await this.click(
-      [picker, this.page.getByText(/select templates/i)],
-      { label: "open-templates", timeout: TIMEOUTS.MEDIUM },
-    );
+    // The configuration drawer (configure_single_stage) slides shut over the picker; a click
+    // during that animation loses to the drawer's mask ("no candidate was clickable"). Wait for
+    // every drawer mask to go, then click — and once more if the first click still lost.
+    await this.page.locator(".ant-drawer-open .ant-drawer-mask, .ant-drawer-open").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    try {
+      await this.click([picker, this.page.getByText(/select templates/i)], { label: "open-templates", timeout: TIMEOUTS.MEDIUM });
+    } catch {
+      await this.dismissDistractions();
+      await this.pause(1_500);
+      await picker.scrollIntoViewIfNeeded().catch(() => {});
+      await this.click([picker, this.page.getByText(/select templates/i)], { label: "open-templates", timeout: TIMEOUTS.MEDIUM });
+    }
     // Only ever pick inside the OPEN template menu: a page-wide "first menuitem" was the left
     // sidebar ("clara"), so the step "passed" having chosen nothing. Prefer a buy / pricing
     // template; otherwise take the first real template the tenant lists (never the search row).
@@ -239,6 +247,22 @@ export class SingleStagePage extends BasePage {
       await this.pause(1000);
       await picker.hover({ timeout: 5_000 }).catch(() => {});
       preferred = menu.locator("[role='menuitem']").filter({ visible: true }).filter({ hasText: /buy|pricing|rfq|price/i }).first();
+    }
+    // Still no priced template in view: the menu lists only part of a long template list, so
+    // ask its own search box (the way a person would) before falling back to the first item —
+    // falling back picked "s1", a template with no price sheet on this auction screen.
+    if (priced && !(await preferred.count())) {
+      const search = menu.getByPlaceholder(/search template/i).first();
+      for (const word of ["buy", "price", "rfq"]) {
+        if (!(await search.isVisible().catch(() => false))) {
+          await picker.hover({ timeout: 5_000 }).catch(() => {});
+          await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+        }
+        await search.fill(word).catch(() => {});
+        await this.pause(1200);
+        preferred = menu.locator("[role='menuitem']").filter({ visible: true }).filter({ hasNot: this.page.getByPlaceholder(/search template/i) }).filter({ hasText: /buy|pricing|rfq|price/i }).first();
+        if (await preferred.count()) break;
+      }
     }
     const pick = (await preferred.count()) ? preferred : items.first();
     const name = ((await pick.innerText().catch(() => "")) || "").trim();
