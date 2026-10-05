@@ -1,4 +1,21 @@
 import { knownBugSentence } from "./knownBugs.js";
+import { bugForCase } from "../checks/vendorBulkExtras.js";
+import { bugDetail } from "./vbuBugDetail.js";
+
+/** A vendor bulk upload defect in words: what should happen, what happens, what the buyer sees. */
+function vbuExpectedActual(check: any): string[] {
+  const d = bugDetail(bugForCase(check.id)?.id ?? check.knownBug?.id ?? "");
+  const exp = String(check.expectedResult ?? check.expected).replace(/ Rule: .*$/, "");
+  if (!d) return [`Expected: ${exp}`, `Actual: ${check.verdict}`];
+  return [
+    `What the buyer does: ${d.scenario}`,
+    `Expected: ${d.expected.join(" ")}`,
+    `Actual: ${d.actual}`,
+    `What the buyer sees: ${d.sees}`,
+    `This run: ${check.verdict}`,
+    `Why it matters: ${d.impact}`,
+  ];
+}
 import { FEATURE_TREE } from "../../config/featureTree.js";
 import type { CheckResult } from "../ai/types.js";
 import type { DefectGroup } from "../agents/oracle.js";
@@ -170,8 +187,7 @@ function collect(
         ? [
             `Download the exact sheet: /api/vbu/sheet?e=${encodeURIComponent((check as { evidenceRef?: string }).evidenceRef!)}&which=main`,
             "Upload it on Vendors → Bulk Upload in the same workspace (or POST /api/v1/bulk_create_vendor with its base64 as excel_data).",
-            `Expected: ${String((check as { expectedResult?: string }).expectedResult ?? check.expected).replace(/ Rule: .*$/, "")}`,
-            `Actual: ${check.verdict}`,
+            ...vbuExpectedActual(check),
             `Full evidence (rows, records, code line): /api/test-report?run=${runId}#case-${check.id}`,
           ]
         : check.request

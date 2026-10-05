@@ -1,0 +1,325 @@
+{
+ "about": "Plain-language detail for each vendor bulk upload bug in vbuBugs.json: what the buyer does, what should happen at every place the buyer looks (the pop-up after Upload, the Bulk Upload history table, the error sheet from 'Download Excel', the vendor list), what happens instead, and why it matters. The bug sheet and the test report read this beside the live evidence of each case.",
+ "places": {
+  "popup": "The pop-up after clicking Upload. HTTP 200 shows the green 'Vendors Sheet Uploaded'; any refusal or server error shows a red pop-up with the server's message (client: uploadExcelModal.jsx:69-83, actions/index.js:21-64).",
+  "history": "The Bulk Upload history table: Status, Total, Completed, Failed, Duplicate, Created, and a 'Download Excel' button that is enabled only when Failed > 0 (client: vendorBulkUpload.jsx).",
+  "errorSheet": "The error sheet that 'Download Excel' gives: the failed rows with an Error column holding each row's message.",
+  "vendors": "The Vendors list and the vendor's record (company, mapping, invitation)."
+ },
+ "bugs": {
+  "BUG-01": {
+   "area": "Duplicate check",
+   "scenario": "One sheet lists the same NEW supplier twice: same tax number, same address, same pincode, same Account Group; only the company name and contact email differ. This is common in a large migration sheet.",
+   "expected": [
+    "Pop-up: green 'Vendors Sheet Uploaded'.",
+    "History: Total 2 · Completed 1 · Failed 1.",
+    "Error sheet, second row: 'Vendor with this GST and address already exists'.",
+    "Vendors: exactly ONE new vendor."
+   ],
+   "actual": "Both rows succeed (Completed 2, Failed 0) and two vendors are created with the same tax number and address.",
+   "impact": "The duplicate check (gst_no, address, pincode, account_group on GMMCO) is skipped exactly when it matters most, in one big sheet. GMMCO's 11,000-row load is expected to hold many duplicates, and each one becomes a twin vendor that later flows to SAP.",
+   "sees": "Green “Vendors Sheet Uploaded”; the history shows Completed 2 · Failed 0. Nothing warns that the second row is a duplicate."
+  },
+  "BUG-02": {
+   "area": "Tax number",
+   "scenario": "A vendor with Business Location 'India', Tax Type 'GST' and a valid GSTIN.",
+   "expected": [
+    "The row passes the tax check like any valid GSTIN.",
+    "Error sheet: no tax message for this row."
+   ],
+   "actual": "On some days the row fails 'Tax Type not configured for the selected Business Location' for a perfectly valid GSTIN; on other days the same sheet passes. Failed on 29 Sep and 30 Sep morning, passed on 30 Sep evening and 1 Oct.",
+   "impact": "Whether ANY Indian GST vendor can be uploaded depends on which of the 36 'India' rows in the countries table the database returns first. 55 real rows failed this way in the last 60 days.",
+   "sees": "Error sheet: “Tax Type not configured for the selected Business Location” for a valid GSTIN, on the days the trap fires."
+  },
+  "BUG-03": {
+   "area": "File check",
+   "scenario": "The upload is sent with an empty file (excel_data is an empty string, as when a 0-byte file is picked).",
+   "expected": [
+    "Server: HTTP 422 {\"error\":{\"code\":15,\"message\":\"Invalid file format\"}}, the same answer a PDF or PNG gets.",
+    "Pop-up: red 'Invalid file format'.",
+    "History: no new job."
+   ],
+   "actual": "The server crashes: HTTP 500 {\"status\":500,\"error\":\"Internal Server Error\"}. The buyer sees a red 'Internal Server Error' pop-up.",
+   "impact": "A crash instead of a clear message. The buyer cannot tell what is wrong with the file, and every attempt raises a server error alert.",
+   "sees": "Red pop-up “Internal Server Error”."
+  },
+  "BUG-04": {
+   "area": "File check",
+   "scenario": "A Word .docx file is uploaded instead of a spreadsheet (both are zip files inside).",
+   "expected": [
+    "Server: HTTP 422 'Invalid file format', as for a PDF, PNG or CSV.",
+    "Pop-up: red 'Invalid file format'.",
+    "History: no new job."
+   ],
+   "actual": "HTTP 500 {\"status\":500,\"error\":\"Internal Server Error\"}; red 'Internal Server Error' pop-up.",
+   "impact": "Same as BUG-03. Picking the wrong Office file is an easy mistake, and it crashes the request.",
+   "sees": "Red pop-up “Internal Server Error”."
+  },
+  "BUG-05": {
+   "area": "File check",
+   "scenario": "A workbook with no cells at all (a new, empty Excel file) is uploaded.",
+   "expected": [
+    "Server: HTTP 422 with a clear message such as 'The sheet has no vendor rows. Please use the template.'",
+    "Pop-up: red with that message.",
+    "History: no new job."
+   ],
+   "actual": "HTTP 500 {\"status\":500,\"error\":\"Internal Server Error\"}; red 'Internal Server Error' pop-up.",
+   "impact": "A crash on the simplest wrong file.",
+   "sees": "Red pop-up “Internal Server Error”."
+  },
+  "BUG-06": {
+   "area": "Background job",
+   "scenario": "Step 1: a contactless vendor whose City is not in Procol's city list is uploaded; it is stored with city id 0 (see BUG-10). Step 2: another row is uploaded with the same tax number, with City and Address left blank.",
+   "expected": [
+    "History: Failed 1.",
+    "Error sheet: 'Vendor with this GST and address already exists' (the blank address is filled in from the existing vendor, so it matches).",
+    "Vendors: nothing new."
+   ],
+   "actual": "The background job crashes on the missing city. The row fails with 'Internal error in sending invitation'.",
+   "impact": "The buyer gets a meaningless error that hides the real reason (a duplicate), and every such row is a background crash.",
+   "sees": "Error sheet: “Internal error in sending invitation”."
+  },
+  "BUG-07": {
+   "area": "Second contact (POC 2)",
+   "scenario": "A row with a valid main contact and a 'POC 2 - Full Name' filled in, but 'POC 2 - Email Address' left blank.",
+   "expected": [
+    "History: Failed 1, Created 0.",
+    "Error sheet: 'Invalid Values for POC 2.'",
+    "Vendors: NO vendor created and NO invitation sent, because a failed row creates nothing."
+   ],
+   "actual": "The row is marked failed with 'Invalid Values for POC 2.', but the vendor WAS created (active in Vendors) and invited.",
+   "impact": "The screen says the row failed, but a live vendor exists and an invitation was sent. When the buyer fixes the row and uploads again, it is refused as 'already exists'.",
+   "sees": "Error sheet: “Invalid Values for POC 2.”, yet the vendor appears in Vendors and has been invited."
+  },
+  "BUG-08": {
+   "area": "Company settings: extra fields",
+   "scenario": "On a workspace whose extra vendor fields are marked required (PROCOL DEMO: Contact Number, Feedback Score, Feedback Report, Non-PQ Remark), a row is uploaded with those columns empty.",
+   "expected": [
+    "History: Failed 1.",
+    "Error sheet: 'Mandatory Item cannot be left empty', as the template itself lists these columns under Mandatory Details.",
+    "Vendors: nothing created."
+   ],
+   "actual": "The row passes every check. Without our deliberate test mistake it would have created the vendor with the required fields empty.",
+   "impact": "Fields the company made mandatory, often for compliance (PQ remarks, feedback), can be skipped by bulk upload, though the manual form enforces them.",
+   "sees": "Nothing: the row is accepted with the required fields empty."
+  },
+  "BUG-09": {
+   "area": "Cell values",
+   "scenario": "Any text that contains a dot and ends in zeros, e.g. Address 'Plot No. 100' or Company Name '… Pvt. Ltd 2000'.",
+   "expected": [
+    "Vendors: stored exactly as typed, 'Plot No. 100' and '… Pvt. Ltd 2000'."
+   ],
+   "actual": "The trailing zeros are cut off as the sheet is read: the upload reads the address as 'Plot No. 1' and the name as '… Pvt. Ltd 2', which are the values the vendor would be saved with. (Our test row is stopped before creating a vendor, so the shortened value shows in the upload's row data.)",
+   "impact": "Silent data corruption in addresses and legal names, which feed POs, invoices and SAP. Nobody is told.",
+   "sees": "Nothing: the vendor is saved as “Plot No. 1” / “… Pvt. Ltd 2”."
+  },
+  "BUG-10": {
+   "area": "City",
+   "scenario": "On a contactless workspace, a vendor with no tax number and a City that is not in Procol's list ('QA Nowhere City').",
+   "expected": [
+    "History: Completed 1 (the QA doc's A5 says 'Success. Record created with no city').",
+    "Vendors: the vendor has NO city (empty, or the '-' placeholder city 38)."
+   ],
+   "actual": "The vendor is stored with city id 0, a city that does not exist.",
+   "impact": "A record that points to a missing city. Anything that reads the city later crashes; BUG-06 is one such crash.",
+   "sees": "Nothing at upload; the vendor points to a city that does not exist (city_id 0)."
+  },
+  "BUG-11": {
+   "area": "Cell values",
+   "scenario": "A company name containing '<', e.g. 'A<B Traders'.",
+   "expected": [
+    "Vendors: the name is stored as 'A<B Traders' (safely escaped wherever it is displayed)."
+   ],
+   "actual": "Everything after '<' is dropped as the sheet is read: the upload reads the name as '… A', the value the vendor would be saved with.",
+   "impact": "Names are silently cut short. Two different vendors can end up with the same short name.",
+   "sees": "Nothing: the vendor is saved as “A”."
+  },
+  "BUG-12": {
+   "area": "Template",
+   "scenario": "Download the template on a contactless workspace (GMMCO) and look at the sample row (row 4).",
+   "expected": [
+    "Row 4 lines up with its headers: Company Name = Procol, POC - Full Name = Procol Contact, POC - Email Address = example@procol.in, City = Gurgaon, Address = Platina Tower."
+   ],
+   "actual": "The sample row is shifted by several columns: Tax Type holds 'Procol Contact', Tax No. holds 'example@procol.in', Business Location holds 'manufacturer', POC - Full Name holds 'Gurgaon', POC - Email Address holds 'Platina Tower', Pincode holds the email again, and City and Address are empty. The category codes of Deals In sit under POC 2 - Full Name.",
+   "impact": "A buyer who types over the sample row uploads values in the wrong columns. The template teaches the wrong layout.",
+   "sees": "The downloaded template's example row has its values under the wrong columns."
+  },
+  "BUG-13": {
+   "area": "Template",
+   "scenario": "Download the template on a contactless workspace and open the dropdown on each column.",
+   "expected": [
+    "Vendor Profile has its own dropdown (the workspace's profiles), and so do Tax Type, Business Location, Status and Vendor Onboarding Required.",
+    "No column carries two lists."
+   ],
+   "actual": "The Vendor Profile list is placed on column D (Business Location), so D has two conflicting lists and Vendor Profile has none.",
+   "impact": "Buyers pick a profile in the Business Location column, or type a free-text profile that is then refused as 'Invalid Vendor Profile'.",
+   "sees": "In the downloaded template, Business Location offers vendor profiles and Vendor Profile has no dropdown."
+  },
+  "BUG-14": {
+   "area": "Deals In (categories)",
+   "scenario": "Deals In holds a valid category code followed by a made-up one, e.g. '<valid code>,QA_NOT_A_CATEGORY'.",
+   "expected": [
+    "History: Failed 1.",
+    "Error sheet: 'Invalid Deals In : QA_NOT_A_CATEGORY'."
+   ],
+   "actual": "Only the first code is checked. The made-up one passes and the row goes on (our test stopped it at 'Invalid Status').",
+   "impact": "Vendors are saved with categories that do not exist, or the bad codes are silently dropped. The buyer never learns that part of the list was wrong.",
+   "sees": "Nothing: the row is accepted with the unknown category."
+  },
+  "BUG-15": {
+   "area": "Company settings: Account Group",
+   "scenario": "On GMMCO, Account Group is a dropdown of 10 codes (ZCOV, ZDGS, …). A row is uploaded with Account Group 'QA_NOT_A_GROUP'.",
+   "expected": [
+    "History: Failed 1.",
+    "Error sheet: an Account Group error, e.g. 'Invalid Account Group', the same rule the single-vendor form enforces."
+   ],
+   "actual": "Any text is accepted (our test stopped it at 'Invalid Status').",
+   "impact": "Account Group feeds SAP vendor creation, so a value outside the list breaks the SAP sync later, far from the upload.",
+   "sees": "Nothing: the row is accepted with an Account Group that is not in the list."
+  },
+  "BUG-16": {
+   "area": "City",
+   "scenario": "City = 'a' (a typo or a stray letter).",
+   "expected": [
+    "Either the row fails with 'Invalid City Name', or (contactless) the vendor is stored with no city.",
+    "Never a city the buyer did not name."
+   ],
+   "actual": "The vendor is given city 62314 ('24 PARAGANAS NORTH'), the first city whose name contains 'a'.",
+   "impact": "Any typo becomes a real but wrong city, with wrong tax state and logistics data, and nobody is told.",
+   "sees": "Nothing: the vendor is saved in the city “24 PARAGANAS NORTH”."
+  },
+  "BUG-17": {
+   "area": "File check",
+   "scenario": "(a) The template with only its header rows and no vendor rows. (b) A normal spreadsheet with column names on row 1 instead of row 3.",
+   "expected": [
+    "Server: HTTP 422 with a clear message, e.g. 'No vendor rows found. Column names must be on row 3 of the template.'",
+    "Pop-up: red with that message."
+   ],
+   "actual": "HTTP 200 {\"status\":\"success\"}. The buyer sees the green 'Vendors Sheet Uploaded', but no job appears in the history and nothing is created.",
+   "impact": "The buyer is told the upload worked when nothing happened. They wait for vendors that never come.",
+   "sees": "Green “Vendors Sheet Uploaded”, then nothing: no job appears in the history."
+  },
+  "BUG-18": {
+   "area": "Template",
+   "scenario": "Download the template and open it with a tool that trusts the sheet's declared size (SheetJS, some ERP importers).",
+   "expected": [
+    "The declared range covers every column (A1:V4 on GMMCO)."
+   ],
+   "actual": "It declares A1:T4, so tools that trust it lose the last two columns (on GMMCO: Bank IFSC Code and Vendor Onboarding Required).",
+   "impact": "Mostly invisible in Excel, but scripts or systems that prepare the sheet automatically drop two columns.",
+   "sees": "Nothing in Excel; tools that trust the declared range lose the last 2 columns."
+  },
+  "BUG-19": {
+   "area": "Rows",
+   "scenario": "Two vendors with an empty row between them.",
+   "expected": [
+    "History: Total 2 (the blank row is skipped)."
+   ],
+   "actual": "Total 3. The blank row is staged as a third vendor and fails with 'Mandatory Item cannot be left empty'.",
+   "impact": "The counts and the error sheet fill with rows the buyer never wrote, and in a large sheet real errors are hard to find.",
+   "sees": "The history counts an extra row; error sheet: “Mandatory Item cannot be left empty” for a row the buyer never wrote."
+  },
+  "BUG-20": {
+   "area": "Column names",
+   "scenario": "The column name has a leading space: ' Company Name' instead of 'Company Name'.",
+   "expected": [
+    "The column is still recognised (a trailing space already is)."
+   ],
+   "actual": "The column is ignored and every row fails with 'Mandatory Item cannot be left empty'.",
+   "impact": "An invisible space makes a whole sheet fail with a message that points at the data, not at the column name.",
+   "sees": "Error sheet: “Mandatory Item cannot be left empty” on every row."
+  },
+  "BUG-21": {
+   "area": "Error sheet",
+   "scenario": "Ask for the error sheet of a job that has no failed rows (calling the API directly; the screen disables the button when Failed is 0).",
+   "expected": [
+    "Server: HTTP 422 with a message like 'This upload has no failed rows'."
+   ],
+   "actual": "HTTP 422 'You are not allowed to change the phone number.' (error 487, a message borrowed from another feature).",
+   "impact": "A wrong and confusing message for anyone using the API or an integration, and a sign the error code is being reused.",
+   "sees": "“You are not allowed to change the phone number.” (through the API; the screen disables the button)."
+  },
+  "BUG-22": {
+   "area": "Vendor Profile",
+   "scenario": "Vendor Profile is a valid profile followed by a space ('manufacturer_trader '), as often happens after copy-paste.",
+   "expected": [
+    "The profile is accepted after trimming, as Status and Vendor Onboarding Required already are."
+   ],
+   "actual": "The row fails with 'Invalid Vendor Profile'.",
+   "impact": "Valid rows are refused because of an invisible space, with a message that suggests the profile itself is wrong.",
+   "sees": "Error sheet: “Invalid Vendor Profile”."
+  },
+  "BUG-23": {
+   "area": "Email",
+   "scenario": "(a) A contact email with two dots in a row ('qa..x@example.com'). (b) A contact email whose part before '@' is over 64 characters.",
+   "expected": [
+    "History: Failed 1.",
+    "Error sheet: 'Invalid Email'."
+   ],
+   "actual": "Both emails are accepted (our test stopped them at 'Invalid Status').",
+   "impact": "Invitations go to addresses that no mail server accepts, so the vendor never gets the invite and nobody is told.",
+   "sees": "Nothing: the row is accepted and the invitation goes to an address that cannot receive mail."
+  },
+  "BUG-24": {
+   "area": "Background job",
+   "scenario": "The same user starts two uploads at the same moment (two tabs, or a double click).",
+   "expected": [
+    "History: two separate jobs, each with its own rows, counts and error sheet."
+   ],
+   "actual": "Sometimes both uploads land under ONE job id (seen on 30 Sep: job 372), so their rows, counts and error sheets are mixed. It passed on the next two tries, so it is intermittent.",
+   "impact": "The history shows wrong counts and a mixed error sheet. The buyer cannot tell which rows came from which file.",
+   "sees": "History: one job holding both files' rows and counts, and one mixed error sheet."
+  },
+  "BUG-25": {
+   "area": "Access",
+   "scenario": "A workspace user WITHOUT permission to create vendors downloads the bulk upload template.",
+   "expected": [
+    "Refused, just as the upload itself is refused for this user (422 'You are not authorized to perform this action')."
+   ],
+   "actual": "The template is served, including the workspace's category codes and vendor profile types.",
+   "impact": "Small information leak. The upload itself is protected (VBU-044 passed).",
+   "sees": "Nothing: the template downloads for a user who may not upload."
+  },
+  "BUG-26": {
+   "area": "Company settings: contactless",
+   "scenario": "On a contactless workspace (GMMCO), the ordinary Invite Vendor form is used with the contact name and email left blank.",
+   "expected": [
+    "The form still asks for a contact: HTTP 422 'Email Not Present'. Contactless was meant for bulk upload only."
+   ],
+   "actual": "The vendor is created with no contact and no invitation.",
+   "impact": "The contactless switch changes the manual form too, which nobody asked for. Vendors appear that nobody can reach.",
+   "sees": "The Invite Vendor form succeeds with no contact."
+  },
+  "BUG-27": {
+   "area": "Duplicate check (manual form)",
+   "scenario": "Using the Invite Vendor form, a second branch is invited: same tax number and address as an existing vendor, but a different pincode.",
+   "expected": [
+    "Accepted as a second branch, as bulk upload accepts it (VBU-141 passed). GMMCO's duplicate check includes pincode."
+   ],
+   "actual": "Refused: HTTP 422 'Vendor with this GST and address already exists'.",
+   "impact": "The form and the sheet disagree: the same branch is accepted in a sheet and refused in the form.",
+   "sees": "Red pop-up on the Invite Vendor form: “Vendor with this GST and address already exists”."
+  },
+  "BUG-28": {
+   "area": "Tax number",
+   "scenario": "A correct GSTIN followed by a space ('27QATZQ…1Z5 '), which happens easily when pasting into Excel.",
+   "expected": [
+    "The space is ignored and the GSTIN is accepted, as Status already is (it is trimmed)."
+   ],
+   "actual": "The row fails with 'Invalid Tax No.'",
+   "impact": "Valid vendors are refused because of an invisible space, with a message saying the tax number is wrong.",
+   "sees": "Error sheet: “Invalid Tax No.” for a correct GSTIN."
+  },
+  "CODE-2": {
+   "area": "Subsidiary",
+   "scenario": "A row whose contact email already belongs to an existing vendor, but with a different tax number, and Vendor Onboarding Required = No. It becomes a subsidiary of that vendor.",
+   "expected": [
+    "History: Completed 1, as a subsidiary.",
+    "Its invitation remembers 'no onboarding', so no 'new prospect' mail is sent."
+   ],
+   "actual": "Not run yet: it would email GMMCO's vendor-management team (real people). Reading the code, the subsidiary's invitation does not carry the 'no onboarding' flag.",
+   "impact": "Subsidiaries would be treated as prospects needing onboarding, and the team gets mails for vendors that should go straight in.",
+   "sees": "Not run: it would email real people."
+  }
+ }
+}
