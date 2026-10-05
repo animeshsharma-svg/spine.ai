@@ -411,7 +411,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // UI-CRE-004 composed rfp+rfq for "one Auction stage".
   if (has("expect_add_stage_options") && has("compose_stages")) {
     const m = /\b(?:holding|with|has|containing)\s+(?:only\s+)?(?:one|a single|an?)\s+(rfq|rfp|technical|auction)\b(?:\s+(?:stage|round))?/i.exec(testCase);
-    if (m) {
+    // "a Technical stage and an RFQ stage" names TWO — leave those plans alone
+    const two = /\b(rfq|rfp|technical|auction)\s+(?:stage|round)?\s*(?:and|plus|\+)\s+(?:one\s+|an?\s+)?(rfq|rfp|technical|auction)\b/i.test(testCase);
+    if (m && !two) {
       const want = m[1].toLowerCase() === "technical" ? "rfp" : m[1].toLowerCase();
       const cs = steps[indexOf("compose_stages")];
       const have = Array.isArray(cs.args?.stages) ? (cs.args!.stages as string[]).map((x) => String(x).toLowerCase()) : [];
