@@ -410,9 +410,12 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // then always disabled — so a plan that composes two to read what is OFFERED reads nothing.
   // UI-CRE-004 composed rfp+rfq for "one Auction stage".
   if (has("expect_add_stage_options") && has("compose_stages")) {
-    const m = /\b(?:holding|with|has|containing)\s+(?:only\s+)?(?:one|a single|an?)\s+(rfq|rfp|technical|auction)\b(?:\s+(?:stage|round))?/i.exec(testCase);
+    // read the SETUP sentence only ("Setup: …" from caseAsProse): the expected text talks about
+    // other stages too ("RFQ and Auction never sit in one project") and must not steer this
+    const setupLine = /(?:^|\n)Setup:\s*([^\n]*)/i.exec(testCase)?.[1] ?? testCase;
+    const m = /\b(?:holding|with|has|containing)\s+(?:only\s+)?(?:one|a single|an?)\s+(rfq|rfp|technical|auction)\b(?:\s+(?:stage|round))?/i.exec(setupLine);
     // "a Technical stage and an RFQ stage" names TWO — leave those plans alone
-    const two = /\b(rfq|rfp|technical|auction)\s+(?:stage|round)?\s*(?:and|plus|\+)\s+(?:one\s+|an?\s+)?(rfq|rfp|technical|auction)\b/i.test(testCase);
+    const two = /\b(rfq|rfp|technical|auction)\s+(?:stage|round)?\s*(?:and|plus|\+)\s+(?:one\s+|an?\s+)?(rfq|rfp|technical|auction)\b/i.test(setupLine);
     if (m && !two) {
       const want = m[1].toLowerCase() === "technical" ? "rfp" : m[1].toLowerCase();
       const cs = steps[indexOf("compose_stages")];
@@ -470,10 +473,17 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // testing an auction whatever the test case says. Asking for an RFQ or a
   // technical stage and getting an auction is the quietest possible wrong
   // answer: everything passes, and the thing under test was never on screen.
-  if (!has("compose_stages") && /\brfq\b|technical|\brfp\b/i.test(testCase)) {
+  // Which stages: the case's SETUP sentence when it names any (the expected text may talk
+  // about other stages — UI-CRE-004 "a project holding one Auction stage" expects RFQ to be
+  // refused, and reading the whole text composed rfp+rfq). A setup naming only an Auction
+  // keeps the screen's default Auction stage.
+  const stageSetup = /(?:^|\n)Setup:\s*([^\n]*)/i.exec(testCase)?.[1] ?? "";
+  const namesStage = /\brfq\b|technical|\brfp\b|\bauction\b/i.test(stageSetup);
+  const stageText = namesStage ? stageSetup : testCase;
+  if (!has("compose_stages") && /\brfq\b|technical|\brfp\b/i.test(stageText)) {
     const wanted: string[] = [];
-    if (/technical|\brfp\b/i.test(testCase)) wanted.push("rfp");
-    if (/\brfq\b/i.test(testCase)) wanted.push("rfq");
+    if (/technical|\brfp\b/i.test(stageText)) wanted.push("rfp");
+    if (/\brfq\b/i.test(stageText)) wanted.push("rfq");
     steps.unshift({ step: "compose_stages", args: { stages: wanted } });
     repairs.push(`added compose_stages(${wanted.join(", ")}) — the screen defaults to an Auction stage, so this test would have run against the wrong stage`);
   }
