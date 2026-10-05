@@ -298,6 +298,8 @@ export interface PricingStageArgs {
   /** auction strategy when rfxMode==="auction". */
   auctionConfig?: "rank" | "price";
   title?: string;
+  /** the round's Delivery Date (unix seconds) — sent as configurations.delivery_schedules, as the create screen does */
+  deliveryBy?: number;
 }
 
 /** Template Pricing (rfq) — also used for a standalone auction stage. Collection request [9]. */
@@ -341,6 +343,7 @@ export function buildPricingStageBody(a: PricingStageArgs) {
         auction_closing_mode: isAuction ? "lot_based" : "line_item_based",
         rfp_evaluation_mode: "lot_based",
         pickup_schedules: false,
+        ...(a.deliveryBy ? { delivery_schedules: [{ delivery_by: a.deliveryBy }] } : {}),
         bid_start_time: a.timing.bst,
         bid_end_time: a.timing.bet,
         extra_closing_time: a.timing.ect,

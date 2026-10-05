@@ -4,7 +4,7 @@ import { BasePage } from "../pages/BasePage.js";
 import type { PlanStep } from "./steps.js";
 import { SCREENS, resolveScreen, type PlanContext } from "./screens.js";
 import { EXPECTATION_NAMES } from "./expectCatalog.js";
-import { observe, waitForCalls } from "./observe.js";
+import { observe, responsesSince, waitForCalls } from "./observe.js";
 import { findVisible, describe, norm, targetFromArgs } from "./generic/find.js";
 import { waitForMessage } from "./generic/messages.js";
 import { screenReady } from "./generic/ready.js";
@@ -133,6 +133,65 @@ export async function runExpectationStep(x: ExpectCtx, step: PlanStep): Promise<
         if (desc ? c > 0 : c < 0) throw new Error(`not sorted ${desc ? "descending" : "ascending"}: "${vals[i - 1]}" then "${vals[i]}"`);
       }
       return `${vals.length} item(s) sorted ${desc ? "descending" : "ascending"}`;
+    }
+    case "expect_request": {
+      const a = (step.args ?? {}) as Record<string, unknown>;
+      const frag = String(a.path ?? "").trim();
+      if (!frag) throw new Error('expect_request needs a "path" fragment');
+      const method = a.method ? String(a.method).toUpperCase() : undefined;
+      const query = a.query ? String(a.query) : undefined;
+      const status = a.status !== undefined ? Number(a.status) : undefined;
+      // bodyContains: words the request body must carry (bodyLacks: words it must NOT carry)
+      const toList = (v: unknown) => (v === undefined ? [] : Array.isArray(v) ? v.map(String) : [String(v)]);
+      const bodyHas = toList(a.bodyContains);
+      const bodyLacks = toList(a.bodyLacks);
+      // ids in a case's path ("/v1/trade/<stage>/download") are placeholders: match the fixed parts in order
+      const parts = frag.split(/<[^>]+>|:\w+|\{\{[^}]+\}\}/).map((x) => x.trim()).filter(Boolean);
+      const hit = (r: { url: string; method: string; status: number }) => {
+        const u = new URL(r.url);
+        const path = u.pathname;
+        let from = 0;
+        for (const part of parts) {
+          const i = path.indexOf(part, from);
+          if (i < 0) return false;
+          from = i + part.length;
+        }
+        if (method && r.method !== method) return false;
+        if (query && !decodeURIComponent(u.search).includes(query)) return false;
+        if (status !== undefined ? r.status !== status : r.status < 200 || r.status >= 300) return false;
+        const b = (r as { body?: string }).body ?? "";
+        if (bodyHas.some((w) => !b.toLowerCase().includes(w.toLowerCase()))) return false;
+        if (bodyLacks.some((w) => b.toLowerCase().includes(w.toLowerCase()))) return false;
+        return true;
+      };
+      // absent:true — the screen must NOT have sent it (e.g. "no call to raise_additional_request was made").
+      // Wait a short settle window so a late call is still caught, then require none.
+      if (a.absent === true || a.absent === "true") {
+        await page.waitForTimeout(Math.min(Math.max(Number(a.timeoutMs) || 3_000, 1_000), 15_000));
+        const sent = responsesSince(page, 0).filter((r) => {
+          const u = new URL(r.url);
+          let from = 0;
+          for (const part of parts) {
+            const i = u.pathname.indexOf(part, from);
+            if (i < 0) return false;
+            from = i + part.length;
+          }
+          return (!method || r.method === method) && (!query || decodeURIComponent(u.search).includes(query));
+        });
+        if (sent.length) throw new Error(`the screen DID send ${sent.map((r) => `${r.method} ${new URL(r.url).pathname} → ${r.status}`).slice(0, 3).join("; ")}`);
+        return `the screen sent no ${method ?? ""} request to ${frag}`;
+      }
+      const deadline = Date.now() + Math.min(Math.max(Number(a.timeoutMs) || 15_000, 1_000), 60_000);
+      let found = responsesSince(page, 0).find(hit);
+      while (!found && Date.now() < deadline) {
+        await page.waitForTimeout(500);
+        found = responsesSince(page, 0).find(hit);
+      }
+      if (!found) {
+        const near = responsesSince(page, 0).filter((r) => parts.some((p) => r.url.includes(p))).slice(-3).map((r) => `${r.method} ${new URL(r.url).pathname} → ${r.status}`);
+        throw new Error(`no ${method ?? ""} request to ${frag}${query ? ` with ${query}` : ""}${status !== undefined ? ` answered ${status}` : " answered 2xx"} was sent${near.length ? ` (similar: ${near.join("; ")})` : ""}`);
+      }
+      return `the screen sent ${found.method} ${new URL(found.url).pathname} → ${found.status}`;
     }
     case "expect_screen_clean": {
       const o = await observe(page, x.stepNo, "screen-clean", { force: true });

@@ -105,6 +105,10 @@ export interface JourneyRunOptions {
   baseURL?: string;
   /** how long each round stays open, in seconds — short, so the run can wait it out (default 60) */
   stageSeconds?: number;
+  /** start bidding this many seconds from now (an "upcoming" event: published, not yet open); default 0 */
+  startDelaySec?: number;
+  /** give each pricing round a Delivery Date this many days after bidding opens (none by default) */
+  deliveryInDays?: number;
   /** also build a second copy of the event for the library cases to act on */
   buildVariationsEvent?: boolean;
   /** called as each step finishes, with the number of steps planned */
@@ -772,6 +776,7 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
               timing: ev.timing,
               stageNo,
               rfxMode: sk === "auction" ? "auction" : "rfq",
+              ...(j.opts.deliveryInDays ? { deliveryBy: ev.timing.bst + Math.round(j.opts.deliveryInDays * 86_400) } : {}),
             });
       const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.createTrade(), body);
       if (!reply.ok) return { call, reply };
@@ -1310,8 +1315,9 @@ async function bidInAuction(
  * time five seconds after the bid end and gets on with the award.
  */
 const EXTRA_CLOSE_SEC = 5;
-function journeyTiming(now: number, durSec: number): StageTiming {
-  return { bst: now, bet: now + durSec, ect: now + durSec + EXTRA_CLOSE_SEC };
+function journeyTiming(now: number, durSec: number, delaySec = 0): StageTiming {
+  const start = now + Math.max(0, Math.floor(delaySec));
+  return { bst: start, bet: start + durSec, ect: start + durSec + EXTRA_CLOSE_SEC };
 }
 
 const WAIT_CAP_MS = 5 * 60 * 1000;
@@ -2356,7 +2362,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     unit: testData.quantityUnit ?? "KG",
     price: Number(testData.bidPrice) || 100,
     stageSeconds,
-    event: { title, timing: journeyTiming(nowSec(), stageSeconds), trades: [] },
+    event: { title, timing: journeyTiming(nowSec(), stageSeconds, opts.startDelaySec ?? 0), trades: [] },
     steps: [],
     made: {},
     actors: { buyer: false },

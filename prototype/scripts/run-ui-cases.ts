@@ -51,6 +51,22 @@ const { buildUiState, qaVendorOf } = await import("../src/ui/uiSetup.js");
 const { compileTestCase } = await import("../src/agents/planner.js");
 const { closestUiExemplars, exemplarPrompt, addUiExemplar } = await import("../src/agents/uiExemplars.js");
 const { runUiPlan, readPlanResult } = await import("../src/ui/uiFlowRunner.js");
+const { isKnownLabel } = await import("../../procol-ui-tests/src/plan/generic/labels.js");
+/** Literal screen texts a plan's assertions look for that Procol is not known to render. */
+function unknownLabels(plan: any): string[] {
+  const ASSERT = new Set(["expect_text", "expect_visible", "expect_hidden", "expect_disabled", "expect_enabled", "expect_count", "expect_field_error", "click"]);
+  const out = new Set<string>();
+  for (const st of plan?.steps ?? []) {
+    if (!ASSERT.has(st?.step)) continue;
+    const a = st.args ?? {};
+    for (const v of [a.text, a.label, a.name, a.target?.name, a.target?.text, a.target?.label]) {
+      if (typeof v !== "string" || v.length < 3 || v.length > 60) continue;
+      if (/\d/.test(v) || /\{\{/.test(v)) continue; // values and placeholders come from the run, not the product's labels
+      if (!isKnownLabel(v)) out.add(v);
+    }
+  }
+  return [...out];
+}
 const { saveRun, newRunId, whenRunsSaved } = await import("../src/runStore.js");
 const { closeSpineDb } = await import("../src/db/spineDb.js");
 const { usageReport } = await import("../src/ai/llm.js");
@@ -212,6 +228,22 @@ async function compiled(c: CatalogCase, p: Prep): Promise<{ plan: any; coverage:
         r.gaps = [...(r.gaps ?? []), "a step the case needs could not be named (dropped)"];
       }
     }
+    // A screen assertion on a label Procol has never rendered (not in its source, never seen live)
+    // costs minutes of browser time and ends in "couldn't tell". Catch it here: compile once more
+    // with the screen's real labels; if it still guesses, the plan is partial and says which label.
+    if (r.plan?.steps?.length) {
+      const unknown = unknownLabels(r.plan);
+      if (unknown.length) {
+        log(`   the plan expects label(s) Procol is not known to render: ${unknown.map((u) => `“${u}”`).join(", ")} — compiling once more with the screen's real labels`);
+        const again = await compileOnce(`\nNOTE: these labels are NOT rendered by Procol (not in its source, never seen live): ${unknown.map((u) => `"${u}"`).join(", ")}. Use only labels from KNOWN LABELS for this screen; if the case's element has no known label, list it in cannotExpress.`);
+        if (again?.plan?.steps?.length) r = again;
+        const still = unknownLabels(r.plan);
+        if (still.length) {
+          r.coverage = r.coverage === "none" ? "none" : "partial";
+          r.gaps = [...(r.gaps ?? []), `expects label(s) Procol is not known to render: ${still.join(", ")}`];
+        }
+      }
+    }
   }
   // On a prepared state the event's life is fixed: steps that would change it are dropped and the plan is partial.
   if (p.prepared && r.plan?.steps?.length) {
@@ -281,15 +313,36 @@ interface Ran {
   stateWhy?: string;
   context?: any;
 }
-async function runOnce(c: CatalogCase, p: Prep, plan: any): Promise<Ran> {
+// ── shared starting states for plans that only LOOK ─────────────────────────
+// Building a state through the API and signing in costs ~25-60 s per case. A plan
+// whose every step only reads (checks, navigation, tabs, waits) cannot change the
+// event, so cases needing the same state may share one. Anything that clicks,
+// fills or submits gets its own fresh state, and a confirmation re-run (a failure
+// being repeated) always does. Live states expire fast because their clock moves.
+const READ_ONLY_STEPS = /^(expect_|open_prepared$|open_event$|open_tab$|go_to$|wait|hover$|scroll|screenshot$)/;
+const stateCache = new Map<string, { context: any; at: number }>();
+function onlyLooks(plan: any): boolean {
+  return (plan?.steps ?? []).length > 0 && plan.steps.every((st: any) => READ_ONLY_STEPS.test(String(st?.step ?? "")));
+}
+function maxAgeMs(state: string): number {
+  return /live|bid|upcoming/.test(state) ? 10 * 60_000 : 60 * 60_000;
+}
+
+async function runOnce(c: CatalogCase, p: Prep, plan: any, fresh = false): Promise<Ran> {
   const runId = `uicase-${c.id}-${Date.now().toString(36)}`;
   let context: any;
-  if (p.prepared && p.state !== "none") {
+  const key = `${p.state}|${p.technical ? "tech" : ""}`;
+  const shared = !fresh && onlyLooks(plan) ? stateCache.get(key) : undefined;
+  if (p.prepared && p.state !== "none" && shared && Date.now() - shared.at < maxAgeMs(p.state)) {
+    context = shared.context;
+    log(`   state ${p.state} shared (this plan only looks): ${context.title}`);
+  } else if (p.prepared && p.state !== "none") {
     const built = await buildUiState(COMPANY, p.state, { technical: p.technical });
     if (!built.ok || !built.context) return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: built.why ?? "the state could not be built" };
     const x = built.context;
-    context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values };
+    context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values };
     log(`   state ${p.state}${p.technical ? " (+technical)" : ""} built by API in ${Math.round(x.builtInMs / 1000)}s: ${x.title}`);
+    if (!fresh) stateCache.set(key, { context, at: Date.now() });
   }
   // A vendor-portal step signs in as the QA test vendor the API invited — never the
   // profile's default vendor. Its one-time code is resolved by the same UAT rule the
@@ -414,7 +467,7 @@ for (const c of pick) {
   const firstFindings = findingsOf(first);
   if ((v.candidate || firstFindings.length) && left() > 5 * 60_000) {
     log(`   ${v.candidate ? "it failed" : `the observation pass saw ${firstFindings.length} finding(s)`} — running it again on a second fresh state`);
-    again = await runOnce(c, p, comp.plan);
+    again = await runOnce(c, p, comp.plan, true); // a confirmation always runs on a brand-new state
     if (v.candidate) {
       const v2 = judge(again, comp.coverage, comp.gaps);
       v = v2.candidate && !v2.pass

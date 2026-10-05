@@ -405,6 +405,15 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   if (steps.length && ["go_to", "switch_company"].includes(steps[0].step) && !steps.some((s) => HEAVY_CREATE.includes(s.step)) && !has("open_create")) {
     return { plan: { ...plan, steps }, repairs };
   }
+  // A plan that creates an event and then goes looking for it (events list →
+  // open_event) needs it SAVED first: an unsaved create screen leaves nothing
+  // to find. UI-CRE-012 (set_title → open_events_list → open_event) failed
+  // with "no event titled …" — the compiler forgot the save, not the product.
+  const reopenAt = steps.findIndex((s) => s.step === "open_events_list" || s.step === "open_event");
+  if (has("open_create") && reopenAt > indexOf("open_create") && !steps.slice(0, reopenAt).some((s) => s.step === "save_draft" || s.step === "publish")) {
+    steps.splice(reopenAt, 0, { step: "save_draft" });
+    repairs.push(`added save_draft before ${steps[reopenAt + 1].step} — the event this plan creates must be saved before it can be found again`);
+  }
   const isListTest =
     steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
   if (isListTest) {
@@ -839,6 +848,58 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
           `named ${DEFAULT_VENDOR} on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain`,
         );
       }
+    }
+  }
+
+  // On the create screen Participants and Publish are LOCKED until a template is chosen and a
+  // product added ("Please choose a template and add a product" — the eRFX create-screen order).
+  // A plan that invites or publishes first can never get there: put the missing steps in front.
+  {
+    const at = (name: string) => steps.findIndex((st) => st.step === name);
+    const onCreate = at("open_create") >= 0 || at("compose_stages") >= 0 || at("configure_single_stage") >= 0;
+    const firstNeedy = steps.findIndex((st) => ["invite_vendor", "publish", "expect_published", "set_schedule"].includes(st.step));
+    if (onCreate && firstNeedy >= 0) {
+      const missing: TestPlan["steps"] = [];
+      // …unless the case leaves that step out ON PURPOSE (skip): "a stage with no template" must
+      // stay without one — putting it back turned UI-TPL-004 into an ordinary create
+      if (!skipped.has("select_template") && (at("select_template") < 0 || at("select_template") > firstNeedy)) missing.push({ step: "select_template", args: {}, note: "a template comes first on the create screen" });
+      if (!skipped.has("add_line_items") && (at("add_line_items") < 0 || at("add_line_items") > firstNeedy)) missing.push({ step: "add_line_items", args: {}, note: "a product is needed before participants or publishing" });
+      if (missing.length) {
+        steps.splice(firstNeedy, 0, ...missing);
+        repairs.push(`inserted ${missing.map((m) => m.step).join(" + ")} before ${steps[firstNeedy + missing.length].step} — the create screen locks Participants and Publish until a template is chosen and a product added`);
+      }
+      // With the template or product deliberately left out, Participants stays LOCKED, so an
+      // invite before the block assertion can only fail as "couldn't tell"; the lock itself is
+      // what the case is about, so the invite goes.
+      if (skipped.has("select_template") || skipped.has("add_line_items")) {
+        const block = steps.findIndex((st) => BLOCK_ASSERTS.includes(st.step));
+        for (let k = (block < 0 ? steps.length : block) - 1; k >= 0; k--) {
+          if (steps[k].step === "invite_vendor") {
+            steps.splice(k, 1);
+            repairs.push("dropped invite_vendor — with the template or product left out on purpose, Participants is locked, and that lock is what the case checks");
+          }
+          // and on eRFX the Items drawer is inert until a template is chosen
+          else if (steps[k].step === "add_line_items" && skipped.has("select_template") && !has("configure_single_stage")) {
+            steps.splice(k, 1);
+            repairs.push("dropped add_line_items — with no template on purpose the Items drawer is inert (eRFX)");
+          }
+        }
+      }
+    }
+  }
+
+  // The SINGLE-STAGE create screen opens with Event Type = RFP, whose templates are questionnaires
+  // with no price sheet. A priced plan must set the event type before choosing a template.
+  {
+    const oc = steps.findIndex((st) => st.step === "open_create" && /single/i.test(String((st.args as any)?.path ?? (st.args as any)?.type ?? "")));
+    const priced = steps.some((st) => ["add_line_items", "fill_sheet", "place_bid", "place_surrogate_bid"].includes(st.step));
+    const hasType = steps.some((st) => st.step === "configure_single_stage");
+    if (oc >= 0 && priced && !hasType) {
+      const eventType = /auction|knock|dutch|rank|traffic/i.test(testCase) ? "auction" : "rfq";
+      const tpl = steps.findIndex((st) => st.step === "select_template");
+      const at = tpl > oc ? tpl : oc + 1;
+      steps.splice(at, 0, { step: "configure_single_stage", args: { eventType }, note: "a priced single-stage event needs its type set before a template (the screen opens as RFP)" });
+      repairs.push(`inserted configure_single_stage{eventType:${eventType}} — the single-stage screen opens as RFP, whose templates have no price sheet`);
     }
   }
 

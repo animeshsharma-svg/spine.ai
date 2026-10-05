@@ -47,7 +47,7 @@ let catRunning = null; // the open EventSource while cases are running
 // so restoring it is a nav entry and a view block, nothing more.
 // crosscheck = UI vs API (public/crosscheck.js), product = Product knowledge (public/model.js), matrix = Bidding scenarios (public/matrix.js)
 // success = Success (public/success.js)
-const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product", "matrix", "success"];
+const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product", "matrix", "success", "history"];
 const DEFAULT_VIEW = "run";
 
 function currentView() {

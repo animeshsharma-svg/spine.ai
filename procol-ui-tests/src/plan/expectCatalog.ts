@@ -47,6 +47,13 @@ export const EXPECTATION_STEPS: StepSpec[] = [
     purpose:
       "Assert the current screen passes the observation rules: no NaN / undefined / null / raw ids on screen, no server error or page crash since the previous look.",
   },
+  {
+    name: "expect_request",
+    assertion: true,
+    purpose:
+      'Assert the screen SENT a request to the backend during this run (and how it was answered) — for cases that say "the screen calls GET /templates/…" or "POST /event_groups with …". Matches the request path (a fragment, ids may be left out), optionally its method, a query fragment and the answer status. Waits up to timeoutMs for it. It can check words in the request body (bodyContains / bodyLacks); sign-in calls are never recorded.',
+    args: { path: 'a path fragment, e.g. "/templates/excel_template"', method: '"GET" | "POST" | "PATCH" (optional)', query: "a query-string fragment (optional)", status: "expected HTTP status (optional; default any 2xx)", absent: "true = assert the screen did NOT send it (optional)", bodyContains: "word(s) the request body must carry, e.g. the remark text (optional)", bodyLacks: "word(s) it must NOT carry (optional)", timeoutMs: "optional, default 15000" },
+  },
 ];
 
 export const EXPECTATION_NAMES = EXPECTATION_STEPS.map((s) => s.name);

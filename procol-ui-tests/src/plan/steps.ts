@@ -108,6 +108,39 @@ export const STEP_CATALOG: StepSpec[] = [
     assertion: true,
   },
   {
+    name: "open_add_stage_menu",
+    purpose:
+      'On the create screen, open the "Add Stages" menu through its icon-only "+" button beside the stage tabs ("Add Stages" is the menu TITLE, never a button — do not click it). The menu lists only the stages that may still be added; a stage that may not be added is ABSENT (check with expect_hidden on its name), and the "+" tooltip says why (e.g. "Remove RFQ to add Auction"). With two stages the "+" is disabled. Leaves the menu open for expect_visible / expect_hidden / expect_text.',
+    args: {},
+  },
+  {
+    name: "expect_sheet_cells",
+    purpose:
+      'Assert which cells of the price / BOQ sheet (the data grid) a person can edit, read from the app\'s own locked-cell marking on the grid (nothing is clicked). Columns are named by their header text ("Product", "Quantity Requested", "Price", "GST", "Total Amount" …; the * is ignored). row = data row number, 1 = the first line item (the header row is never a data row). On an eRFX draft, cells filled from the line items (Product, Variant, Quantity Requested) and vendor columns (Price …) are read-only; Delivery location stays editable. Use for "product, quantity and variant stay read-only", "vendor cells are locked for the buyer", "only buyer columns are editable".',
+    args: { row: "data row number (default 1)", editable: '["Price", …] columns that must be editable (optional)', readonly: '["Product", "Quantity Requested", …] columns that must be read-only (optional)' },
+    assertion: true,
+  },
+  {
+    name: "open_event_settings",
+    purpose:
+      'On a published event\'s page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: "Reschedule Event" (only while the event is UPCOMING), "Convert to Auction" (published RFQ), "Extend Bidding Time", "Withdraw" and more. Use before click{role:"menuitem", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered. An item can be PRESENT BUT DISABLED (e.g. "Send Bulk Counter Offer" with one bid or fewer) — check that with expect_disabled{control: name}, not expect_hidden.',
+    args: {},
+  },
+  {
+    name: "reschedule_event",
+    purpose:
+      'On an UPCOMING event\'s page, open Settings → "Reschedule Event" (if the dialog is not already open), set "Make Order Live At" (date + time) and optionally the Delivery / Pickup Date, press Ok, and judge the dialog\'s own answer. Times are RELATIVE to now: start "+2h", "+1d", "-30m" — or to the event\'s CURRENT start with an S: "S+2h" (minutes round up to the picker\'s 5-minute step). The dialog\'s buttons are Cancel / Ok — never click "Save Schedule" here (that is the create screen). Refusals it shows: "Scheduled time is invalid!" (a past time) and "Schedule time should be on or before Delivery Date" (start after delivery); days before today are disabled in the calendar, which also counts as refused. expect "refused" for a negative case (add message for the words), "saved" (default) when it should go through. When it saves, the step also reads what the save SENT and checks the round keeps its length and its closing grace (against the window the API built) — keepsLength:false turns that off.',
+    args: { start: '"+2h" | "-30m" | "+3d" from now, or "S+2h" from the current start (optional)', delivery: '"+1d" relative day for Delivery / Pickup Date (optional)', expect: '"saved" (default) | "refused"', message: "words of the refusal (optional)", confirm: "false = set the fields but do not press Ok (optional)", keepsLength: "false = do not check the round length / closing grace the save sent (default checks)" },
+    assertion: true,
+  },
+  {
+    name: "expect_add_stage_options",
+    purpose:
+      'Assert what the create screen\'s icon-only "+" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the "+" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the "+" tooltip must contain (e.g. "Remove RFQ to add Auction"). To check which stages are OFFERED, compose exactly ONE stage first — with two stages the "+" is always disabled.',
+    args: { disabled: "true | false (optional)", offers: '["RFQ", "Auction", "Technical Stage"] (optional)', absent: "stage names that must not be offered (optional)", reason: "tooltip words (optional)" },
+    assertion: true,
+  },
+  {
     name: "open_stage_menu",
     purpose:
       "Open a stage tab's ⋮ overflow menu (Edit title / Delete …) and leave it open, so expect_disabled / expect_enabled can check its items. Defaults to the first stage tab.",

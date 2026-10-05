@@ -28,7 +28,7 @@ import { runEventJourney } from "../checks/eventJourney.js";
 import { journeyPlan } from "../checks/journeyModel.js";
 import { withWatchdog } from "../checks/resilience.js";
 
-export type UiState = "none" | "draft" | "live" | "bid" | "closed" | "proposal" | "awarded";
+export type UiState = "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
 export const UI_STATES: UiState[] = ["none", "draft", "live", "bid", "closed", "proposal", "awarded"];
 
 /** What the browser (and the screen assertions) get from the build. */
@@ -61,6 +61,8 @@ export interface UiSetupResult {
 
 const PREFIX: Record<Exclude<UiState, "none">, string> = {
   draft: "add_stage_pricing",
+  // published with bidding starting in 30 minutes — "Reschedule Event" is offered only then
+  upcoming: "read_back",
   live: "read_back",
   bid: "bid_submit",
   closed: "wait_close",
@@ -102,6 +104,16 @@ function valuesFrom(journey: any, client: any): Record<string, string> {
       const q = body?.line_items?.[0]?.quantity;
       if (q?.value !== undefined) v.quantity = String(q.value);
       if (q?.unitSymbol) v.unit = String(q.unitSymbol);
+    }
+    // the pricing round's window: configurations.{bid_start_time, bid_end_time, extra_closing_time}
+    // (unix s) — what a reschedule must preserve (round length, closing grace)
+    if (s.kind === "add_stage_pricing") {
+      const c = body?.configurations ?? {};
+      const [bst, bet, ect] = [Number(c.bid_start_time), Number(c.bid_end_time), Number(c.extra_closing_time)];
+      if (bst && bet) v.roundSeconds = String(bet - bst);
+      if (bet && ect) v.extraSeconds = String(ect - bet);
+      const del = c.delivery_schedules?.[0]?.delivery_by;
+      if (del) v.deliveryBy = String(del);
     }
     // the vendor's sheet: sheets.inline_components.data.<company>[0].{price,total_amount}.value
     if (s.kind === "bid_products") {
@@ -146,6 +158,9 @@ export async function buildUiState(
     r = await withWatchdog(
       runEventJourney(client, plan, {
         stageSeconds,
+        // upcoming: published, not yet open — and with a Delivery Date, so the Reschedule
+        // dialog shows that field and its "start on or before delivery" rule can be checked
+        ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),
         titlePrefix: "QA_Platform_UI",
         journeyBudgetMs: opts.budgetMs ?? 12 * 60_000,
         onLine: (l: string) => opts.onLine?.(l),

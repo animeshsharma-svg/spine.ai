@@ -371,6 +371,33 @@ export class CreateEventPage extends BasePage {
   }
 
   /**
+   * Open the "Add Stages" menu. Its trigger is an ICON-ONLY "+" button beside the
+   * stage tabs (projectCreation.jsx:3203-3231, a hover Dropdown); "Add Stages" is
+   * only the menu's group title, never a button. Stages that may not be added are
+   * left OUT of the menu, and the "+" button's tooltip says why (e.g. "Remove RFQ to
+   * add Auction"). Returns the offered stages, the tooltip and whether "+" is disabled.
+   */
+  async openAddStageMenu(): Promise<{ items: string[]; tooltip: string; buttonDisabled: boolean }> {
+    // The add-stage "+" is ICON-ONLY; other "+" buttons carry text ("+ Add Evaluator" …) and must
+    // never be mistaken for it.
+    const plus = this.page.getByRole("button", { name: /^\s*(icon:\s*)?plus\s*$/i }).filter({ visible: true }).first();
+    if (!(await plus.count())) throw new Error('no icon-only "+" (add stage) button on the create screen — it is only shown once a stage exists');
+    const buttonDisabled = await plus.isDisabled().catch(() => false);
+    await plus.hover({ force: true }).catch(() => {});
+    const menu = this.page.locator(".ant-dropdown:not(.ant-dropdown-hidden)").filter({ hasText: /Add Stages/i }).last();
+    if (!buttonDisabled) await menu.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+    const items = (await menu.locator("[role='menuitem'], .ant-dropdown-menu-item").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim()).filter(Boolean);
+    // The "+" explains itself in a tooltip ("Remove RFQ to add Auction"); a stage tab's own
+    // title tooltip ("Technical Stage", "RFQ") can be showing too — keep only an explanation.
+    await plus.hover({ force: true }).catch(() => {});
+    await this.page.waitForTimeout(700);
+    const tips = (await this.page.locator(".ant-tooltip:not(.ant-tooltip-hidden) .ant-tooltip-inner").allInnerTexts().catch(() => [] as string[])).map((t) => t.trim());
+    const tooltip = tips.find((t) => /remove|maximum|only|cannot|can't|not allowed|add/i.test(t) && !/^(technical stage|rfq|rfp|auction|rfi)$/i.test(t)) ?? "";
+    if (!buttonDisabled && !items.length) throw new Error('the "+" add-stage menu did not open (no "Add Stages" menu appeared) — not evidence about the product');
+    return { items, tooltip, buttonDisabled };
+  }
+
+  /**
    * Open a stage tab's `⋮` menu for a plan step and report what it holds.
    *
    * UI-CRE-010 checks that Delete is disabled while one stage remains; the
@@ -1391,7 +1418,8 @@ export class CreateEventPage extends BasePage {
     if (!(await search.count())) return false;
     await search.fill(name).catch(() => {});
     // Vendor search is a server round-trip; wait for rows rather than guessing.
-    await this.waitForVendorRows(TIMEOUTS.MEDIUM);
+    // UAT's vendor search can take well over 15 s to answer (a spinner sits in the dropdown).
+    await this.waitForVendorRows(TIMEOUTS.LONG);
     // Identify the vendor dropdown by its own "VENDORS" group header. Taking
     // the LAST open dropdown was wrong: filling the sheet leaves a dozen
     // non-hidden antd dropdowns behind, so `.last()` landed on a stale sheet
@@ -1464,8 +1492,10 @@ export class CreateEventPage extends BasePage {
     await this.dismissDistractions();
     await this.waitForParticipants(3_000); // let a pre-filled audience arrive before judging it
     await this.removeNonQaParticipants(qa);
-    if (!(await this.participantNames()).some((n) => isQaVendorName(n, qa))) {
-      await this.addParticipantByName(qa[0]);
+    // Try each of the client's QA vendors in turn (never anyone else) until one lands as a chip.
+    for (const name of qa.slice(0, 4)) {
+      if ((await this.participantNames()).some((n) => isQaVendorName(n, qa))) break;
+      await this.addParticipantByName(name);
     }
     await this.removeNonQaParticipants(qa);
     const names = await this.participantNames();

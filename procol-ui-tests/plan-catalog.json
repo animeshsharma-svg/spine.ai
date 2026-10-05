@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T10:22:13.216Z",
+  "generatedAt": "2026-10-05T08:48:07.931Z",
   "steps": [
     {
       "name": "open_events_list",
@@ -64,6 +64,50 @@
       "purpose": "Assert the pricing sheet's header row has rendered from the template. With no args, asserts at least one column exists; with columns, asserts each named key is present (e.g. price, quantity, buyer_hub).",
       "args": {
         "columns": "array of header keys that must be present (optional)"
+      },
+      "assertion": true
+    },
+    {
+      "name": "open_add_stage_menu",
+      "purpose": "On the create screen, open the \"Add Stages\" menu through its icon-only \"+\" button beside the stage tabs (\"Add Stages\" is the menu TITLE, never a button — do not click it). The menu lists only the stages that may still be added; a stage that may not be added is ABSENT (check with expect_hidden on its name), and the \"+\" tooltip says why (e.g. \"Remove RFQ to add Auction\"). With two stages the \"+\" is disabled. Leaves the menu open for expect_visible / expect_hidden / expect_text.",
+      "args": {}
+    },
+    {
+      "name": "expect_sheet_cells",
+      "purpose": "Assert which cells of the price / BOQ sheet (the data grid) a person can edit, read from the app's own locked-cell marking on the grid (nothing is clicked). Columns are named by their header text (\"Product\", \"Quantity Requested\", \"Price\", \"GST\", \"Total Amount\" …; the * is ignored). row = data row number, 1 = the first line item (the header row is never a data row). On an eRFX draft, cells filled from the line items (Product, Variant, Quantity Requested) and vendor columns (Price …) are read-only; Delivery location stays editable. Use for \"product, quantity and variant stay read-only\", \"vendor cells are locked for the buyer\", \"only buyer columns are editable\".",
+      "args": {
+        "row": "data row number (default 1)",
+        "editable": "[\"Price\", …] columns that must be editable (optional)",
+        "readonly": "[\"Product\", \"Quantity Requested\", …] columns that must be read-only (optional)"
+      },
+      "assertion": true
+    },
+    {
+      "name": "open_event_settings",
+      "purpose": "On a published event's page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: \"Reschedule Event\" (only while the event is UPCOMING), \"Convert to Auction\" (published RFQ), \"Extend Bidding Time\", \"Withdraw\" and more. Use before click{role:\"menuitem\", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered. An item can be PRESENT BUT DISABLED (e.g. \"Send Bulk Counter Offer\" with one bid or fewer) — check that with expect_disabled{control: name}, not expect_hidden.",
+      "args": {}
+    },
+    {
+      "name": "reschedule_event",
+      "purpose": "On an UPCOMING event's page, open Settings → \"Reschedule Event\" (if the dialog is not already open), set \"Make Order Live At\" (date + time) and optionally the Delivery / Pickup Date, press Ok, and judge the dialog's own answer. Times are RELATIVE to now: start \"+2h\", \"+1d\", \"-30m\" — or to the event's CURRENT start with an S: \"S+2h\" (minutes round up to the picker's 5-minute step). The dialog's buttons are Cancel / Ok — never click \"Save Schedule\" here (that is the create screen). Refusals it shows: \"Scheduled time is invalid!\" (a past time) and \"Schedule time should be on or before Delivery Date\" (start after delivery); days before today are disabled in the calendar, which also counts as refused. expect \"refused\" for a negative case (add message for the words), \"saved\" (default) when it should go through. When it saves, the step also reads what the save SENT and checks the round keeps its length and its closing grace (against the window the API built) — keepsLength:false turns that off.",
+      "args": {
+        "start": "\"+2h\" | \"-30m\" | \"+3d\" from now, or \"S+2h\" from the current start (optional)",
+        "delivery": "\"+1d\" relative day for Delivery / Pickup Date (optional)",
+        "expect": "\"saved\" (default) | \"refused\"",
+        "message": "words of the refusal (optional)",
+        "confirm": "false = set the fields but do not press Ok (optional)",
+        "keepsLength": "false = do not check the round length / closing grace the save sent (default checks)"
+      },
+      "assertion": true
+    },
+    {
+      "name": "expect_add_stage_options",
+      "purpose": "Assert what the create screen's icon-only \"+\" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the \"+\" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the \"+\" tooltip must contain (e.g. \"Remove RFQ to add Auction\"). To check which stages are OFFERED, compose exactly ONE stage first — with two stages the \"+\" is always disabled.",
+      "args": {
+        "disabled": "true | false (optional)",
+        "offers": "[\"RFQ\", \"Auction\", \"Technical Stage\"] (optional)",
+        "absent": "stage names that must not be offered (optional)",
+        "reason": "tooltip words (optional)"
       },
       "assertion": true
     },
@@ -549,7 +593,7 @@
       "name": "open_prepared",
       "purpose": "FIRST STEP of a case whose starting state was built through the API: open the named screen on that event (no create, no publish, no search). Waits for the API calls that feed the screen and fails as 'could not tell' if they never come.",
       "args": {
-        "screen": "one of: events_list | drafts_list | history_list | create | draft | summary | responses | overview | participants | analytics | technical | master_qcs"
+        "screen": "one of: events_list | drafts_list | history_list | create | draft | proposal | summary | responses | overview | participants | analytics | technical | master_qcs"
       }
     },
     {
@@ -557,7 +601,7 @@
       "assertion": true,
       "purpose": "Assert the browser is now on a named screen (after a click that should move it): the URL matches the screen's route and the screen is ready.",
       "args": {
-        "screen": "one of: events_list | drafts_list | history_list | create | draft | summary | responses | overview | participants | analytics | technical | master_qcs",
+        "screen": "one of: events_list | drafts_list | history_list | create | draft | proposal | summary | responses | overview | participants | analytics | technical | master_qcs",
         "path": "or: a substring the URL must contain"
       }
     },
@@ -602,6 +646,21 @@
       "name": "expect_screen_clean",
       "assertion": true,
       "purpose": "Assert the current screen passes the observation rules: no NaN / undefined / null / raw ids on screen, no server error or page crash since the previous look."
+    },
+    {
+      "name": "expect_request",
+      "assertion": true,
+      "purpose": "Assert the screen SENT a request to the backend during this run (and how it was answered) — for cases that say \"the screen calls GET /templates/…\" or \"POST /event_groups with …\". Matches the request path (a fragment, ids may be left out), optionally its method, a query fragment and the answer status. Waits up to timeoutMs for it. It can check words in the request body (bodyContains / bodyLacks); sign-in calls are never recorded.",
+      "args": {
+        "path": "a path fragment, e.g. \"/templates/excel_template\"",
+        "method": "\"GET\" | \"POST\" | \"PATCH\" (optional)",
+        "query": "a query-string fragment (optional)",
+        "status": "expected HTTP status (optional; default any 2xx)",
+        "absent": "true = assert the screen did NOT send it (optional)",
+        "bodyContains": "word(s) the request body must carry, e.g. the remark text (optional)",
+        "bodyLacks": "word(s) it must NOT carry (optional)",
+        "timeoutMs": "optional, default 15000"
+      }
     }
   ],
   "names": [
@@ -614,6 +673,11 @@
     "expect_event_status",
     "expect_template_selected",
     "expect_sheet_columns",
+    "open_add_stage_menu",
+    "expect_sheet_cells",
+    "open_event_settings",
+    "reschedule_event",
+    "expect_add_stage_options",
     "open_stage_menu",
     "expect_disabled",
     "expect_enabled",
@@ -679,7 +743,8 @@
     "expect_toast",
     "expect_api_value",
     "expect_order",
-    "expect_screen_clean"
+    "expect_screen_clean",
+    "expect_request"
   ],
   "generic": [
     "go_to",
@@ -741,7 +806,8 @@
       "Vendor Onboarding",
       "Live",
       "History",
-      "Recurring"
+      "Recurring",
+      "Drafts"
     ],
     "create_erfx": [
       "Title:",
@@ -805,6 +871,8 @@
       "Project created successfully",
       "Draft Project created successfully",
       "Draft Project updated successfully",
+      "button:Ask Clara",
+      "button:Add Attachments",
       "Items 0",
       "Schedule",
       "Schedule Event",
@@ -813,7 +881,14 @@
       "Evaluation time",
       "Mark as Recurring Event",
       "Items 1",
-      "Publish"
+      "Publish",
+      "Save Schedule",
+      "Save",
+      "Add Evaluator",
+      "Quantity",
+      "RFQ",
+      "Technical Stage",
+      "Duration"
     ],
     "line_items_drawer": [
       "Manage Line Items",
@@ -871,7 +946,23 @@
       "button:Add Bid [surrogate-bid button on each eligible vendor row of a published stage's Participants list]",
       "button:Remove Bid",
       "Search vendors",
-      "Add Bid for"
+      "Add Bid for",
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Create New Version",
+      "button:Messages",
+      "button:Settings",
+      "button:Add Weight Params",
+      "button:Add Price Cap",
+      "tab:Project Details",
+      "tab:RFQ",
+      "tab:Master QCS",
+      "tab:Responses",
+      "tab:Overview",
+      "tab:Analytics",
+      "tab:Price Trends",
+      "tab:Participant Remarks",
+      "Add Bid"
     ],
     "stage_page": [
       "Loading your event details...",
@@ -907,7 +998,15 @@
       "menuitem:Withdraw Project",
       "Overview",
       "Published Stages",
-      "Withdrawn"
+      "Withdrawn",
+      "Bid Selection Proposal",
+      "Draft",
+      "Start Awarding",
+      "Settings",
+      "Convert to Auction",
+      "Continue",
+      "Send Bulk Counter Offer",
+      "Items 1"
     ],
     "responses": [
       "button:View by",
@@ -917,7 +1016,35 @@
       "button:Reject",
       "Best Price",
       "No bids received yet.",
-      "Bids of participated vendors will be visible once the event duration is over."
+      "Bids of participated vendors will be visible once the event duration is over.",
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Create New Version",
+      "button:Messages",
+      "button:Settings",
+      "button:View by Product",
+      "button:Actions",
+      "button:Hide fields",
+      "button:vertical-switch",
+      "button:horizontal-switch",
+      "button:AAC BLOCKS",
+      "button:Gurgaon",
+      "tab:Project Details",
+      "tab:RFQ",
+      "tab:Master QCS",
+      "tab:Responses",
+      "tab:Overview",
+      "tab:Participants",
+      "tab:Analytics",
+      "tab:Price Trends",
+      "tab:Participant Remarks",
+      "Counter Offer",
+      "Settings",
+      "Convert to Auction",
+      "Use RFQ quotes as initial bids",
+      "Send",
+      "You must change atleast one column to send counter offer",
+      "Reschedule Event"
     ],
     "master_qcs": [
       "tab:Master QCS",
@@ -927,7 +1054,18 @@
       "Show awarded bids",
       "Awarding is only allowed for the latest version [tooltip on Start Awarding when not on the latest version]",
       "No bids are placed yet!",
-      "Awarding initiated successfully, redirecting to awarding flow..."
+      "Awarding initiated successfully, redirecting to awarding flow...",
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Create New Version",
+      "button:Messages",
+      "button:Hide fields",
+      "button:Download Report",
+      "button:AAC BLOCKS",
+      "tab:Project Details",
+      "tab:RFQ",
+      "Rfq Final",
+      "Other Charges"
     ],
     "single_stage": [
       "Configuration for Event",
@@ -954,7 +1092,9 @@
       "I may partially award the event to multiple",
       "Group traffic light by",
       "How will you create the Technical Stage ?",
-      "Please choose event closing mode"
+      "Please choose event closing mode",
+      "Select Templates",
+      "Buy"
     ],
     "savings_drawer": [
       "Savings Calculation",
@@ -972,12 +1112,259 @@
       "Add products to set savings data",
       "button:Add Savings"
     ],
+    "reschedule_modal": [
+      "Reschedule Event [dialog opened from the event Settings menu, only while the event is upcoming]",
+      "Make Order Live At [the new start: a date picker plus a time picker (not 'Start time')]",
+      "Delivery Date ['Pickup Date' instead for a sell event]"
+    ],
+    "create_erfx_sheet": [
+      "button:Ask Clara",
+      "button:Add Attachments",
+      "button:Add T&Cs",
+      "button:Save as draft",
+      "button:Publish",
+      "button:Rank on lot",
+      "button:Buy Template",
+      "button:Add Columns",
+      "button:Details",
+      "button:Price Components",
+      "button:Participants",
+      "button:Savings",
+      "button:Terms & Conditions",
+      "tab:Auction",
+      "Enter the title of the project",
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location",
+      "Price",
+      "Quantity Available",
+      "GST",
+      "Total Amount"
+    ],
+    "create_single": [
+      "button:Ask Clara",
+      "button:RFQ",
+      "button:Buy Template",
+      "button:Add Columns",
+      "button:Upload Sheet",
+      "button:Price Components",
+      "button:Participants",
+      "button:Savings",
+      "button:Terms & Conditions",
+      "button:Publish Event",
+      "Enter the title of this event",
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location",
+      "Price",
+      "Quantity Available",
+      "GST",
+      "Total Amount"
+    ],
+    "summary": [
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Create New Version",
+      "button:Messages",
+      "button:Overview",
+      "button:Published Stages",
+      "button:RFQ",
+      "button:Contact Info",
+      "button:Columns",
+      "tab:Project Details",
+      "tab:Master QCS",
+      "Search line items",
+      "Search participants",
+      "Stage Code",
+      "Stage Title",
+      "Pending Actions",
+      "Participants",
+      "Bidding Starts At",
+      "Bidding Ends At",
+      "Sheet Name",
+      "Actions",
+      "S No.",
+      "Line Item Name",
+      "Attachment",
+      "Material Code",
+      "Category",
+      "Requisitioner Name",
+      "Requirement Tracking Number",
+      "Fund Center",
+      "WBS",
+      "PR Creator",
+      "PR Creator Phone",
+      "PR Creator Email",
+      "Subcategory",
+      "Quantity",
+      "PR No",
+      "Item No",
+      "Item Text",
+      "Last PO Vendor Code",
+      "Last PO Vendor Name",
+      "Last PO NO",
+      "Last PO Quantity",
+      "Last PO Price",
+      "Last PO Creation Date",
+      "Assigned User",
+      "Received Date",
+      "Vendor Name",
+      "Vendor Code",
+      "Location",
+      "Type",
+      "Tags",
+      "Reason for not participating"
+    ],
+    "event_settings": [
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Create New Version",
+      "button:Messages",
+      "button:Settings",
+      "button:Actions",
+      "button:Click here",
+      "tab:Project Details",
+      "tab:RFQ",
+      "tab:Master QCS",
+      "tab:Responses",
+      "tab:Overview",
+      "tab:Participants",
+      "tab:Analytics",
+      "tab:Price Trends",
+      "tab:Participant Remarks",
+      "menuitem:Recreate Order",
+      "menuitem:Shared With",
+      "menuitem:Extend Submission Time",
+      "menuitem:Withdraw",
+      "menuitem:Convert to Auction",
+      "menuitem:Rejected Bids",
+      "menuitem:Order Activity",
+      "menuitem:Edit Evaluation Time",
+      "menuitem:Send Bulk Counter Offer"
+    ],
+    "event_settings_upcoming": [
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Create New Version",
+      "button:Messages",
+      "button:Settings",
+      "button:Actions",
+      "button:Click here",
+      "tab:Project Details",
+      "tab:RFQ",
+      "tab:Master QCS",
+      "tab:Responses",
+      "tab:Overview",
+      "tab:Participants",
+      "tab:Analytics",
+      "tab:Price Trends",
+      "tab:Participant Remarks",
+      "menuitem:Recreate Order",
+      "menuitem:Extend Submission Time",
+      "menuitem:Reschedule Event",
+      "menuitem:Withdraw",
+      "menuitem:Convert to Auction",
+      "menuitem:Rejected Bids",
+      "menuitem:Order Activity",
+      "menuitem:Edit Evaluation Time"
+    ],
+    "overview": [
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Create New Version",
+      "button:Messages",
+      "button:Settings",
+      "button:Order Details Edit",
+      "button:Edit",
+      "button:Order Configurations Edit",
+      "button:Product Sheet",
+      "button:Details",
+      "button:Terms and Conditions Edit",
+      "button:Participation Summary",
+      "button:Savings Summary Edit",
+      "button:Bidding Summary Summary for: All Vendors",
+      "button:All Vendors",
+      "tab:Project Details",
+      "tab:RFQ",
+      "tab:Master QCS",
+      "tab:Responses",
+      "tab:Overview",
+      "tab:Participants",
+      "tab:Analytics",
+      "tab:Price Trends",
+      "tab:Participant Remarks",
+      "tab:Approvals",
+      "tab:Comments",
+      "Your team members will be able to view & reply to your comments.",
+      "S no.",
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location",
+      "Price",
+      "Quantity Available",
+      "GST",
+      "Total Amount",
+      "Variant",
+      "Last Purchase Price Reference",
+      "Last Purchase Price Savings"
+    ],
+    "proposal": [
+      "button:Copy",
+      "button:Ask Clara",
+      "button:Submit Proposal",
+      "button:Document",
+      "button:Overview",
+      "button:Allocation Summary",
+      "button:Comparison Sheets",
+      "button:Participants",
+      "button:Order Allocation",
+      "button:AAC BLOCKS",
+      "Enter answer here...",
+      "Select date",
+      "Search participants",
+      "Name of the Proposed Vendor",
+      "Total Items selected",
+      "Total Amount",
+      "Letter of Award",
+      "Letter of Award Status",
+      "S No.",
+      "Vendor Name",
+      "Vendor Code",
+      "Location",
+      "Type",
+      "Tags",
+      "Reason for not participating",
+      "RFQ",
+      "Basic Details",
+      "Requirement - Purpose of this item / Service",
+      "Supply / Service Scope",
+      "Procurement Type",
+      "Repeat Order / Old PO ref.If yes (Mention the PO number in running pages),",
+      "Old PO reference Number",
+      "Prefered Specific Supplier",
+      "Drawing Availability (If yes pl. attach with this form)",
+      "If yes pl. attach with this form",
+      "Material / Services Required by date",
+      "Remarks if any",
+      "Approved Budget Cost for this Project / Job in INR",
+      "Other Comments",
+      "Rfq Final",
+      "Other Charges"
+    ],
     "awarding": [
-      "Start Awarding"
+      "Start Awarding",
+      "Bid Selection Proposal",
+      "Create Proposal"
+    ],
+    "home": [
+      "Live"
     ]
   },
   "labelCounts": {
-    "fromSource": 238,
-    "seenLive": 14
+    "fromSource": 513,
+    "seenLive": 48
   }
 }

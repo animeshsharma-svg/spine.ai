@@ -203,30 +203,53 @@ export class SingleStagePage extends BasePage {
   }
 
   /** Open the template picker and select a Buy (pricing) template. */
-  async selectBuyTemplate(): Promise<void> {
+  async selectBuyTemplate(): Promise<string> {
     await this.dismissDistractions();
-    await this.click(
-      [this.page.getByRole("button", { name: /select templates/i }), this.page.getByText(/select templates/i)],
-      { label: "open-templates", force: true, timeout: TIMEOUTS.MEDIUM },
-    );
-    const search = await this.find(
-      [this.page.getByTestId("template-search-input"), this.page.getByPlaceholder(/search template/i)],
-      { label: "template-search", timeout: TIMEOUTS.SHORT },
-    );
-    if (search) {
-      await search.fill("Buy");
-      await this.pause(700);
+    // The picker is DISABLED while its template list loads (templateSelection.jsx:137,
+    // templateListLoading). A forced click on it does nothing and the step used to "pass";
+    // wait (bounded) until it is enabled, then click it like a person.
+    const picker = this.page.getByRole("button", { name: /select templates/i }).first();
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && (await picker.isDisabled().catch(() => true))) await this.pause(500);
+    if (await picker.isDisabled().catch(() => true)) {
+      throw new Error('"Select Templates" stayed disabled for 30s — the template list never finished loading (not evidence about the product)');
     }
     await this.click(
-      [
-        this.page.getByTestId(/^template-item-/).filter({ hasText: /buy/i }),
-        this.page.getByTestId(/^template-item-/),
-        this.page.getByRole("menuitem"),
-      ],
-      { label: "template-item", timeout: TIMEOUTS.MEDIUM },
+      [picker, this.page.getByText(/select templates/i)],
+      { label: "open-templates", timeout: TIMEOUTS.MEDIUM },
     );
+    // Only ever pick inside the OPEN template menu: a page-wide "first menuitem" was the left
+    // sidebar ("clara"), so the step "passed" having chosen nothing. Prefer a buy / pricing
+    // template; otherwise take the first real template the tenant lists (never the search row).
+    // The menu built while the screen was still RFP stays in the page (hidden) after the event
+    // type changes — only the VISIBLE template menu counts.
+    await picker.hover({ timeout: 5_000 }).catch(() => {});
+    const menu = this.page.locator(".ant-dropdown").filter({ has: this.page.getByPlaceholder(/search template/i) }).filter({ visible: true }).last();
+    await menu.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+    const items = menu.locator("[role='menuitem']").filter({ visible: true }).filter({ hasNot: this.page.getByPlaceholder(/search template/i) });
+    if (!(await items.count().catch(() => 0))) throw new Error("the template menu opened with no templates in it (not evidence about the product)");
+    let preferred = items.filter({ hasText: /buy|pricing|rfq|price/i }).first();
+    // Right after the event type changes, the menu can still list the RFP questionnaires for a
+    // moment. When the screen is priced (Event Type RFQ / Auction), look again before settling.
+    // Priced unless the Event Type reads RFP / RFI (an auction reads "Rank on lot", "Price on item" …).
+    const questionnaire = await this.page.getByRole("button", { name: /^(rfp|rfi)\b/i }).first().isVisible().catch(() => false);
+    const priced = !questionnaire;
+    for (let i = 0; i < 6 && priced && !(await preferred.count()); i++) {
+      await this.page.mouse.move(0, 0).catch(() => {});
+      await this.pause(1000);
+      await picker.hover({ timeout: 5_000 }).catch(() => {});
+      preferred = menu.locator("[role='menuitem']").filter({ visible: true }).filter({ hasText: /buy|pricing|rfq|price/i }).first();
+    }
+    const pick = (await preferred.count()) ? preferred : items.first();
+    const name = ((await pick.innerText().catch(() => "")) || "").trim();
+    await pick.click({ timeout: 8_000 });
+    // Some tenants confirm a template choice in a modal — accept it.
+    const confirm = this.page.locator(".ant-modal-wrap:not([style*='display: none']) .ant-btn-primary").filter({ hasText: /ok|yes|confirm|proceed|continue/i }).first();
+    if (await confirm.isVisible().catch(() => false)) await confirm.click({ timeout: 5_000 }).catch(() => {});
+    console.log(`[single-stage] chose template "${name}"`);
     await this.waitForSpinnerHidden();
     await this.pause(1000);
+    return name;
   }
 
   /**
@@ -235,6 +258,13 @@ export class SingleStagePage extends BasePage {
    * participant_quantity. Order matters — product first (variant depends on it).
    */
   async fillFirstLineItem(searchText = "a"): Promise<void> {
+    // No price sheet on screen (e.g. the default Event Type is RFP and the template is a
+    // questionnaire): say so at once instead of waiting ~30 s on each of six cells that
+    // do not exist and then reporting the row as filled.
+    const grid = this.page.locator(".data-grid-container").first();
+    if (!(await grid.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      throw new Error("this template has no price sheet (an RFP questionnaire?) — a priced case must set the event type (RFQ / auction) before choosing a template (not evidence about the product)");
+    }
     const sheet = new InlineSheet(this.page);
     await sheet.fillCell(0, "product", { key: "product", type: "product" }, searchText);
     await this.pause(500);
@@ -259,16 +289,25 @@ export class SingleStagePage extends BasePage {
       ],
       { label: "open-participants", timeout: TIMEOUTS.MEDIUM, force: true },
     );
+    // ONLY the Participants search ("Search vendors you want to add"). A page-wide
+    // "first open select input" was the RFP template's Evaluator picker — the QA vendor's
+    // name was typed into Evaluator and the invite could never succeed.
+    const participants = this.page.locator(".ant-select").filter({ hasText: /search vendors you want to add/i }).last();
     const cb = await this.find(
       [
-        this.page.locator("input.ant-select-search__field"),
-        this.page.locator(".ant-select-open input, .ant-select-focused input"),
+        participants.locator("input.ant-select-search__field, input"),
         this.page.getByPlaceholder(/search vendors you want to add/i),
       ],
       { label: "participants-input", timeout: TIMEOUTS.MEDIUM },
     );
     if (!cb) return false;
-    await cb.fill(query);
+    // Some layouts render the search as a read-only shell around the real input:
+    // fill() then times out. Fall back to focusing it and typing, like a person.
+    const typed = await cb.fill(query, { timeout: 5_000 }).then(() => true).catch(() => false);
+    if (!typed) {
+      await cb.click({ timeout: 5_000, force: true }).catch(() => {});
+      await this.page.keyboard.type(query, { delay: 30 });
+    }
     await this.pause(1500);
     const esc = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     // Only the option that matches the name — never "the first option", which
@@ -277,6 +316,9 @@ export class SingleStagePage extends BasePage {
       [
         this.page.locator(".ant-select-dropdown [role='option']", { hasText: new RegExp(esc, "i") }),
         this.page.getByRole("option", { name: new RegExp(esc, "i") }),
+        // This screen lists vendors as MENU ITEMS under a "VENDORS" group, not as options.
+        this.page.getByRole("listbox").getByRole("menuitem", { name: new RegExp(esc, "i") }),
+        this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='menuitem'], .ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem']", { hasText: new RegExp(esc, "i") }),
         ...(allowRealVendors() ? [this.page.getByRole("option"), this.page.locator(".ant-select-item-option")] : []),
       ],
       { label: "vendor-option", timeout: TIMEOUTS.MEDIUM },
@@ -292,8 +334,15 @@ export class SingleStagePage extends BasePage {
     if (!allowRealVendors()) {
       const qa = await qaVendorNames();
       if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
-      const ok = await this.addParticipant(qa[0]);
-      if (!ok) throw new Error(`could not add the QA test vendor "${qa[0]}" — stopping so no real supplier is invited`);
+      // The event may already carry a QA vendor (the API setup invites QA vendor 1):
+      // add the first QA vendor the search still offers, never a real supplier.
+      let ok = false;
+      for (const name of qa.slice(0, 4)) {
+        ok = await this.addParticipant(name);
+        if (ok) break;
+        await this.page.keyboard.press("Escape").catch(() => {});
+      }
+      if (!ok) throw new Error(`could not add any QA test vendor (${qa.slice(0, 4).join(", ")}) — they may all be on the event already; stopping so no real supplier is invited`);
       await this.dismissDistractions();
       return;
     }

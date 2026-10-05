@@ -123,6 +123,258 @@ function onSingleStage(s: RunState): boolean {
   return /singleStage=true/i.test(url) && !/\/project\//.test(url);
 }
 
+/**
+ * The single-stage create screen, recognised by what it shows ("Event Type" + the
+ * "Select Templates" picker, no stage tab strip) as well as by its address — the
+ * address alone missed it, and the eRFX steps then "succeeded" while doing nothing.
+ */
+async function isSingleStageScreen(s: RunState): Promise<boolean> {
+  if (onSingleStage(s)) return true;
+  const url = s.page.url();
+  if (/\/project\//.test(url)) return false;
+  // /orders/quick-create serves BOTH create screens, so the address proves nothing here.
+  // By content: "Event Type" + "Publish Event", and NOT the eRFX screen's "Save as draft"
+  // (both screens show a "Select Templates" picker, so that alone proves nothing).
+  const eventType = await s.page.getByText(/^Event Type$/).first().isVisible().catch(() => false);
+  const publishEvent = await s.page.getByRole("button", { name: /^publish event$/i }).first().isVisible().catch(() => false);
+  const saveDraft = await s.page.getByRole("button", { name: /save as draft/i }).first().isVisible().catch(() => false);
+  return eventType && publishEvent && !saveDraft;
+}
+
+/**
+ * The Reschedule Event dialog (event Settings → "Reschedule Event", offered only while the
+ * event is UPCOMING) — client-dashboard views/orderDetails/rescheduleEventModal.jsx:
+ *   • "Make Order Live At" = an antd-3 DatePicker (format "Do MMM YYYY", days before today
+ *     disabled) + TimePicker ("hh:mm a", 5-minute steps);
+ *   • "Delivery Date" / "Pickup Date" picker only when the event has one;
+ *   • the field's own help text is the refusal: "Scheduled time is invalid!" (in the past) or
+ *     "Schedule time should be on or before Delivery Date"; Ok does nothing while it shows;
+ *   • buttons are Cancel / Ok (there is no "Save Schedule" here — that is the create screen).
+ * The new end keeps the round's length (end − start) — the API read-back checks that.
+ */
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const ordinal = (d: number) => `${d}${d % 10 === 1 && d !== 11 ? "st" : d % 10 === 2 && d !== 12 ? "nd" : d % 10 === 3 && d !== 13 ? "rd" : "th"}`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayWords = (t: Date) => `${ordinal(t.getDate())} ${MONTHS.at(t.getMonth())} ${t.getFullYear()}`;
+const timeWords = (t: Date) => `${pad2(t.getHours() % 12 || 12)}:${pad2(t.getMinutes())} ${t.getHours() < 12 ? "am" : "pm"}`;
+/** "+2h", "-30m", "+1d", "now" → a time; minutes rounded UP to the picker's 5-minute step. */
+function relTime(spec: unknown, base = new Date()): Date {
+  const m = /^\s*(now)?\s*([+-])?\s*(\d+)?\s*(m|min|minutes?|h|hours?|d|days?)?\s*$/i.exec(String(spec ?? "+1h"));
+  const t = new Date(base);
+  if (m && m[3]) {
+    const n = Number(m[3]) * (m[2] === "-" ? -1 : 1);
+    const unit = (m[4] ?? "m").toLowerCase()[0];
+    t.setTime(t.getTime() + n * (unit === "d" ? 864e5 : unit === "h" ? 36e5 : 6e4));
+  }
+  const step = 5 * 6e4;
+  t.setTime(Math.ceil(t.getTime() / step) * step);
+  return t;
+}
+/** "5th Oct 2026" + "02:11 pm" (the dialog's own formats) → a local time. */
+function parseDialogTime(day: string, time: string): Date | null {
+  const d = /^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3})\s+(\d{4})$/.exec(day);
+  const t = /^(\d{1,2}):(\d{2})\s*(am|pm)?$/i.exec(time);
+  if (!d || !t) return null;
+  const month = MONTHS.findIndex((m) => m.toLowerCase() === d[2].toLowerCase());
+  if (month < 0) return null;
+  let h = Number(t[1]) % 12;
+  if (/pm/i.test(t[3] ?? "")) h += 12;
+  if (!t[3]) h = Number(t[1]);
+  return new Date(Number(d[3]), month, Number(d[1]), h, Number(t[2]), 0, 0);
+}
+async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise<string> {
+  const page = s.page;
+  const dialog = page.locator(".ant-modal-content").filter({ hasText: /Reschedule Event/i }).filter({ visible: true }).first();
+  const openDialog = async () => {
+    // The Settings menu can fade shut between being read and being clicked (hover trigger),
+    // so open it and click the item straight away, up to three times.
+    let offered = "";
+    for (let attempt = 1; attempt <= 3 && !(await dialog.isVisible().catch(() => false)); attempt++) {
+      offered = (await runStep(s, { step: "open_event_settings" })) ?? "";
+      if (!/Reschedule Event/i.test(offered)) throw new Error(`"Reschedule Event" is not in the Settings menu (${offered}) — it is offered only while the event is upcoming`);
+      if (/Reschedule Event \(disabled\)/i.test(offered)) throw new Error(`"Reschedule Event" is disabled in the Settings menu (${offered})`);
+      const item = page.locator(".ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem']").filter({ hasText: /^\s*Reschedule Event\s*$/i }).filter({ visible: true }).first();
+      const clicked = await item.click({ timeout: 3_000 }).then(() => true).catch(() => item.dispatchEvent("click", undefined, { timeout: 2_000 }).then(() => true).catch(() => false));
+      if (clicked) await dialog.waitFor({ state: "visible", timeout: 8_000 }).catch(() => {});
+      else await page.mouse.move(5, 5).catch(() => {});
+    }
+    if (!(await dialog.isVisible().catch(() => false))) throw new Error(`the Reschedule Event dialog did not open after three tries (${offered}) — not evidence about the product`);
+    };
+  if (!(await dialog.isVisible().catch(() => false))) await openDialog();
+  if (process.env.UI_DUMP_DIALOG) {
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(process.env.UI_DUMP_DIALOG, (await dialog.evaluate((el) => el.outerHTML).catch(() => "")) || "");
+  }
+  const wantRefused = /^refus|^reject|^block/i.test(String(a.expect ?? ""));
+  const notes: string[] = [];
+  // The Settings dropdown fades out over the dialog and the modal zooms in, so a plain click
+  // can lose to "another element intercepts pointer events"; retry, then click through.
+  const clickInDialog = async (target: ReturnType<typeof dialog.locator>) => {
+    try {
+      await target.click({ timeout: 4_000 });
+    } catch (e) {
+      if (process.env.UI_DUMP_DIALOG) console.log(`[reschedule] plain click lost: ${String((e as Error).message).split("\n").filter((l) => /intercept|not visible|not stable|waiting/.test(l)).slice(0, 3).join(" | ")}`);
+      await target.click({ timeout: 4_000, force: true });
+    }
+  };
+  // NEVER Escape here: antd's Modal closes on Escape (and Cancel resets the fields). A click on
+  // the dialog's own title is "outside" every picker popup, so it closes them and nothing else.
+  const closePopups = async () => {
+    await dialog.locator(".ant-modal-title").first().click({ timeout: 3_000 }).catch(() => {});
+    await page.waitForTimeout(200);
+  };
+  const fieldHelp = async () => ((await dialog.locator(".ant-form-explain, .ant-form-item-explain").first().innerText().catch(() => "")) || "").trim();
+  const openPopup = (sel: string) => page.locator(sel).filter({ visible: true }).last();
+
+  // pick a calendar day by typing it into the open panel's own input (antd 3: the field
+  // itself is read-only); a disabled day leaves the panel input marked invalid.
+  const pickDay = async (picker: ReturnType<typeof dialog.locator>, when: Date): Promise<"ok" | "disabled"> => {
+    await clickInDialog(picker.locator("input").first());
+    const panelInput = openPopup(".ant-calendar-picker-container .ant-calendar-input");
+    await panelInput.waitFor({ state: "visible", timeout: 8_000 });
+    await panelInput.fill(dayWords(when));
+    await page.waitForTimeout(150);
+    const invalid = await page.locator(".ant-calendar-picker-container .ant-calendar-input-invalid, .ant-calendar-picker-container .ant-calendar-input.has-error").filter({ visible: true }).count().catch(() => 0);
+    if (invalid) {
+      await closePopups();
+      return "disabled";
+    }
+    await panelInput.press("Enter").catch(() => {});
+    await page.locator(".ant-calendar-picker-container").filter({ visible: true }).first().waitFor({ state: "hidden", timeout: 3_000 }).catch(closePopups);
+    // read the field back: a pick that did not commit must not be reported as set
+    const shown = ((await picker.locator("input").first().inputValue().catch(() => "")) || "").trim();
+    if (shown !== dayWords(when)) throw new Error(`the date picker shows “${shown}” after picking ${dayWords(when)} — the pick did not commit (not evidence about the product)`);
+    return "ok";
+  };
+
+  if (a.start !== undefined && a.start !== null && a.start !== "") {
+    // fields by their LABEL: the start field's own error text names "Delivery Date", so a
+    // text match on the whole form item picks the wrong field
+    const live = dialog.locator(".ant-form-item").filter({ has: page.locator("label", { hasText: /^\s*Make Order Live At\s*$/i }) }).first();
+    // "S+2h" = two hours after the event's CURRENT start, read from the dialog's own fields
+    let base = new Date();
+    const fromStart = /^\s*S\b/i.test(String(a.start));
+    if (fromStart) {
+      const day = ((await live.locator(".ant-calendar-picker-input").first().inputValue().catch(() => "")) || "").trim();
+      const time = ((await live.locator(".ant-time-picker-input").first().inputValue().catch(() => "")) || "").trim();
+      const cur = parseDialogTime(day, time);
+      if (!cur) throw new Error(`could not read the event's current start from the dialog (“${day}” “${time}”)`);
+      base = cur;
+      notes.push(`current start ${day} ${time}`);
+    }
+    const when = relTime(fromStart ? String(a.start).replace(/^\s*S/i, "") || "+0m" : a.start, base);
+    const dayResult = await pickDay(live.locator(".ant-calendar-picker").first(), when);
+    if (dayResult === "disabled") {
+      notes.push(`the calendar does not allow ${dayWords(when)} (that day is disabled)`);
+    } else {
+      await clickInDialog(live.locator(".ant-time-picker-input").first());
+      const tInput = openPopup(".ant-time-picker-panel .ant-time-picker-panel-input");
+      await tInput.waitFor({ state: "visible", timeout: 8_000 });
+      await tInput.fill(timeWords(when));
+      await page.waitForTimeout(150);
+      await closePopups();
+      const shown = ((await live.locator(".ant-time-picker-input").first().inputValue().catch(() => "")) || "").trim().toLowerCase();
+      if (shown && shown !== timeWords(when)) notes.push(`the time picker shows ${shown}, not ${timeWords(when)}`);
+      notes.push(`start set to ${dayWords(when)} ${timeWords(when)}`);
+    }
+  }
+  if (a.delivery !== undefined && a.delivery !== null && a.delivery !== "") {
+    const del = dialog.locator(".ant-form-item").filter({ has: page.locator("label", { hasText: /^\s*(Delivery|Pickup) Date\s*$/i }) }).first();
+    if (!(await del.count().catch(() => 0))) throw new Error("this event's Reschedule dialog has no Delivery / Pickup Date field (the event has no delivery date)");
+    const when = relTime(a.delivery);
+    const r = await pickDay(del.locator(".ant-calendar-picker").first(), when);
+    notes.push(r === "disabled" ? `the calendar does not allow delivery on ${dayWords(when)} (that day is disabled)` : `delivery set to ${dayWords(when)}`);
+  }
+
+  await page.waitForTimeout(400); // antd fades an outdated help line out — read it after the fade
+  const before = await fieldHelp();
+  const disabledDay = notes.some((n) => /is disabled/.test(n));
+  let saveCall = "";
+  let sentBody: any = null;
+  if (a.confirm !== false && !disabledDay) {
+    // the save is the event's edit call (editOrder → PATCH /trade/:id…); record its answer so a
+    // dialog that stays open can be told apart: the field's own rule vs the server refusing
+    const saved = page
+      .waitForResponse((r) => ["PATCH", "PUT"].includes(r.request().method()) && /\/trade\//.test(r.url()), { timeout: 12_000 })
+      .then(async (r) => {
+        let msg = "";
+        try {
+          const j: any = await r.json();
+          msg = String(j?.message ?? j?.error?.message ?? j?.detail ?? "").slice(0, 160);
+        } catch {
+          /* not json */
+        }
+        try {
+          sentBody = r.request().postDataJSON();
+        } catch {
+          /* not json */
+        }
+        return `${r.request().method()} ${new URL(r.url()).pathname} → HTTP ${r.status()}${msg ? ` “${msg}”` : ""}`;
+      })
+      .catch(() => "");
+    if (process.env.UI_DUMP_DIALOG) console.log(`[reschedule] before Ok: ${notes.join("; ")} | help “${before}”`);
+    await clickInDialog(dialog.getByRole("button", { name: /^\s*ok\s*$/i }).first());
+    await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    saveCall = before ? "" : await saved; // with a field error showing, Ok sends nothing
+    // a slow save closes the dialog only after its reply (and a re-fetch) — give it that long
+    if (/HTTP 2\d\d/.test(saveCall)) await dialog.waitFor({ state: "hidden", timeout: 15_000 }).catch(() => {});
+  }
+  const closed = !(await dialog.isVisible().catch(() => false));
+  const help = closed ? "" : (await fieldHelp()) || before;
+  const serverRefused = /HTTP [45]\d\d/.test(saveCall);
+  if (saveCall) notes.push(`save call ${saveCall}`);
+  // What the save SENT, against the window the API built: the round keeps its length and the
+  // closing grace shifts with it (rescheduleEventModal: newEnd = newStart + (end − start)).
+  const shape: string[] = [];
+  if (sentBody && typeof sentBody === "object") {
+    const [bst, bet, ect] = [Number(sentBody.bid_start_time), Number(sentBody.bid_end_time), Number(sentBody.extra_closing_time)];
+    const was = s.context?.values ?? {};
+    if (bst && bet) {
+      const len = bet - bst;
+      notes.push(`sent a ${Math.round(len / 60)}-minute round`);
+      if (was.roundSeconds && Number(was.roundSeconds) !== len) shape.push(`the round was ${Math.round(Number(was.roundSeconds) / 60)} min and the save sent ${Math.round(len / 60)} min`);
+    }
+    if (bet && ect && was.extraSeconds && Number(was.extraSeconds) !== ect - bet) shape.push(`the closing grace was ${was.extraSeconds}s and the save sent ${ect - bet}s`);
+  }
+  const refused = disabledDay || (!closed && !!help) || serverRefused;
+  // Read back: the screen re-fetches the event after a save — reopen the dialog and read the
+  // start it now holds (the same fields a buyer sees), then close it untouched.
+  let readBack = "";
+  if (closed && !refused && saveCall && a.start && a.readBack !== false) {
+    await page.waitForTimeout(800);
+    await openDialog();
+    const live2 = dialog.locator(".ant-form-item").filter({ has: page.locator("label", { hasText: /^\s*Make Order Live At\s*$/i }) }).first();
+    const day = ((await live2.locator(".ant-calendar-picker-input").first().inputValue().catch(() => "")) || "").trim();
+    const time = ((await live2.locator(".ant-time-picker-input").first().inputValue().catch(() => "")) || "").trim().toLowerCase();
+    readBack = `${day} ${time}`;
+    await dialog.getByRole("button", { name: /^\s*cancel\s*$/i }).first().click({ timeout: 5_000 }).catch(() => {});
+    await dialog.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
+    const want = notes.find((n) => n.startsWith("start set to "))?.replace("start set to ", "");
+    notes.push(`reopened: the event now starts ${readBack}`);
+    if (want && readBack !== want) {
+      // the screen shows server times shifted by localStorage.timeDiff (= browser clock − server
+      // clock, user/actions.js fetchTimeDiff) but the dialog SENDS the picked browser time
+      // unshifted, so a picked start comes back moved by that clock gap
+      const diff = await page.evaluate(() => window.localStorage.getItem("timeDiff")).catch(() => null);
+      const sent = Number(sentBody?.bid_start_time);
+      const sentWords = sent ? new Date(sent * 1000).toTimeString().slice(0, 8) : "?";
+      shape.push(`after saving ${want} the event shows ${readBack} — the save sent bid_start_time ${sent || "?"} (${sentWords} browser time) and the screen adds the app's clock offset timeDiff=${diff ?? "?"}s when it shows it`);
+    }
+  }
+  const seen = `${notes.join("; ")}${notes.length ? " — " : ""}${refused ? `refused${help ? `: “${help}”` : ""}` : closed ? "the dialog closed with no error (saved)" : "the dialog stayed open with no message"}`;
+  if (refused || !closed) {
+    // tidy: leave no half-filled dialog over the next step
+    await dialog.getByRole("button", { name: /^\s*cancel\s*$/i }).first().click({ timeout: 5_000 }).catch(() => {});
+  }
+  if (a.message && refused && !help.toLowerCase().includes(String(a.message).toLowerCase()) && !disabledDay) {
+    throw new Error(`the dialog refused, but its message reads “${help}”, not “${a.message}” — ${seen}`);
+  }
+  if (a.keepsLength !== false && shape.length) expect(shape, `reschedule did not keep what was picked: ${shape.join("; ")} — ${seen}`).toEqual([]);
+  if (wantRefused) expect(refused, `reschedule should be refused — ${seen}`).toBe(true);
+  else if (a.expect !== undefined || a.confirm !== false) expect(refused || !closed, `reschedule should save — ${seen}`).toBe(false);
+  return seen;
+}
+
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
@@ -197,6 +449,103 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const missing = want.filter((w) => !keys.some((k) => norm(k).includes(norm(w))));
       if (missing.length) throw new Error(`sheet columns are [${keys.join(", ")}] — missing: ${missing.join(", ")}`);
       return `sheet columns: ${keys.join(", ")}`;
+    }
+    case "open_add_stage_menu": {
+      const m = await s.create.openAddStageMenu();
+      return `add-stage menu: ${m.buttonDisabled ? "the + button is disabled" : `offers ${m.items.join(", ") || "(nothing)"}`}${m.tooltip ? `; tooltip “${m.tooltip}”` : ""}`;
+    }
+    case "expect_sheet_cells": {
+      const grid = s.page.locator(".data-grid-container table").filter({ visible: true }).first();
+      if (!(await grid.count().catch(() => 0))) throw new Error("no sheet (data grid) on this screen (not evidence about the product)");
+      const rows = grid.locator("tr");
+      const headerCells = rows.nth(0).locator("td, th");
+      const heads = (await headerCells.allInnerTexts().catch(() => [] as string[])).map((h) => h.replace(/\*/g, "").replace(/\s+/g, " ").trim().toLowerCase());
+      const rowNo = Math.max(1, Number(a.row) || 1);
+      if ((await rows.count()) <= rowNo) throw new Error(`the sheet has no data row ${rowNo} (not evidence about the product)`);
+      const colOf = (name: string) => {
+        // header text or the widget key ("delivery_location" → "delivery location")
+        const n = name.replace(/\*/g, "").replace(/_/g, " ").trim().toLowerCase();
+        let i = heads.findIndex((h) => h === n);
+        if (i < 0) i = heads.findIndex((h) => h.startsWith(n) || h.includes(n));
+        return i;
+      };
+      const problems: string[] = [];
+      const seen: string[] = [];
+      const seenDetail: string[] = [];
+      const check = async (names: unknown, wantReadonly: boolean) => {
+        for (const name of (Array.isArray(names) ? names : []) as string[]) {
+          const i = colOf(String(name));
+          if (i < 0) {
+            problems.push(`no "${name}" column (columns: ${heads.filter(Boolean).join(", ")})`);
+            continue;
+          }
+          // Procol's sheet marks locked cells with its own CSS-module classes
+          // (_cellReadOnly_…, _cellCreationReadOnly_…), seen on the live grid; the grid
+          // library's "read-only" class is matched too. Reading the class changes nothing.
+          const td = rows.nth(rowNo).locator("td").nth(i);
+          const cls = (await td.getAttribute("class").catch(() => "")) ?? "";
+          const ro = /read-?only/i.test(cls);
+          seenDetail.push(`${name}: ${ro ? "read-only" : "editable"}`);
+          seen.push(`${name} ${ro ? "read-only" : "editable"}`);
+          if (ro !== wantReadonly) problems.push(`"${name}" is ${ro ? "READ-ONLY" : "EDITABLE"}, expected ${wantReadonly ? "read-only" : "editable"}`);
+        }
+      };
+      await check(a.readonly, true);
+      await check(a.editable, false);
+      if (!seen.length && !problems.length) throw new Error('expect_sheet_cells needs "readonly" and/or "editable" column names');
+      console.log(`[sheet] row ${rowNo}: ${seenDetail.join(" | ")}`);
+      if (problems.length) throw new Error(`sheet row ${rowNo}: ${problems.join("; ")} — seen: ${seenDetail.join(" | ").slice(0, 700)}`);
+      return `sheet row ${rowNo}: ${seen.join(", ")}`;
+    }
+    case "open_event_settings": {
+      // The gear (event-settings-button) sits in a STAGE page's header; the project overview only
+      // has a "⋮". Open the first stage tab when the gear is not on screen, then fall back to "⋮".
+      let gear = s.page.getByTestId("event-settings-button").filter({ visible: true }).first();
+      if (!(await gear.count().catch(() => 0))) {
+        const tab = s.page.getByRole("tab", { name: /^(rfq|auction|rfp|technical stage|rfi)\b/i }).first();
+        if (await tab.isVisible().catch(() => false)) {
+          await tab.click({ timeout: 8_000 }).catch(() => {});
+          await gear.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+        }
+      }
+      if (!(await gear.count().catch(() => 0))) gear = s.page.locator("button:has(.anticon-more)").filter({ visible: true }).first();
+      if (!(await gear.count().catch(() => 0))) throw new Error("no Settings (gear) or ⋮ menu on this event (not evidence about the product)");
+      const menu = s.page.locator(".ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu").filter({ visible: true }).last();
+      // The menu opens on click on some event pages and on HOVER on others (antd trigger), and a
+      // click on a hover menu can toggle it shut again; try click, then hover, then click again.
+      for (const how of ["click", "hover", "click"] as const) {
+        if (how === "click") await gear.click({ timeout: 10_000 });
+        else await gear.hover({ timeout: 5_000 }).catch(() => {});
+        if (await menu.waitFor({ state: "visible", timeout: 5_000 }).then(() => true).catch(() => false)) break;
+      }
+      const rows = menu.locator("[role='menuitem']");
+      const n = await rows.count().catch(() => 0);
+      const items: string[] = [];
+      for (let i = 0; i < n; i++) {
+        const r = rows.nth(i);
+        const text = ((await r.innerText().catch(() => "")) || "").trim();
+        if (!text) continue;
+        const off = (await r.getAttribute("aria-disabled").catch(() => null)) === "true" || /disabled/.test((await r.getAttribute("class").catch(() => "")) ?? "");
+        items.push(off ? `${text} (disabled)` : text);
+      }
+      if (!items.length) throw new Error("the Settings menu did not open (not evidence about the product)");
+      return `event settings offer: ${items.join(", ")}`;
+    }
+    case "reschedule_event":
+      return rescheduleEvent(s, a);
+    case "expect_add_stage_options": {
+      const m = await s.create.openAddStageMenu();
+      const norm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim();
+      const have = m.items.map(norm);
+      const problems: string[] = [];
+      if (a.disabled === true && !m.buttonDisabled) problems.push(`the "+" is enabled (offers ${m.items.join(", ") || "nothing"})`);
+      if (a.disabled === false && m.buttonDisabled) problems.push('the "+" is disabled');
+      for (const want of (Array.isArray(a.offers) ? a.offers : []) as string[]) if (!have.some((h) => h.includes(norm(want)))) problems.push(`"${want}" is not offered`);
+      for (const no of (Array.isArray(a.absent) ? a.absent : []) as string[]) if (have.some((h) => h.includes(norm(no)))) problems.push(`"${no}" IS offered`);
+      if (a.reason && !norm(m.tooltip).includes(norm(String(a.reason)))) problems.push(`the "+" tooltip reads "${m.tooltip || "(none)"}", not "${a.reason}"`);
+      const seen = `${m.buttonDisabled ? "the + is disabled" : `offers ${m.items.join(", ") || "nothing"}`}${m.tooltip ? `; tooltip “${m.tooltip}”` : ""}`;
+      expect(problems, `add-stage menu: ${seen}`).toEqual([]);
+      return `add-stage menu as expected: ${seen}`;
     }
     case "open_stage_menu": {
       const stage = a.stage ? asStages([a.stage])[0] : undefined;
@@ -441,7 +790,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `stages: ${stages.join(", ")}`;
     }
     case "set_title": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         s.title = String(a.title ?? "") || generateEventTitle("UI_Plan");
         await s.single.setTitle(s.title);
         return `${s.title} (single-stage)`;
@@ -461,10 +810,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `on the ${stage} tab`;
     }
     case "select_template": {
-      if (onSingleStage(s)) {
-        await s.single.selectBuyTemplate();
-        s.templateName = "Buy template";
-        return "template: Buy template (single-stage)";
+      if (await isSingleStageScreen(s)) {
+        const chosen = await s.single.selectBuyTemplate();
+        // Prove it took: a button now carries the template's name, or its price sheet is on screen.
+        // (Another "Select Templates" button exists elsewhere on the page, so its presence proves nothing.)
+        let took = false;
+        for (let i = 0; i < 30 && !took; i++) {
+          took =
+            (chosen ? await s.page.getByRole("button", { name: new RegExp(chosen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").slice(0, 40), "i") }).first().isVisible().catch(() => false) : false) ||
+            (await s.page.locator(".data-grid-container").first().isVisible().catch(() => false));
+          if (!took) await s.page.waitForTimeout(500);
+        }
+        if (!took) throw new Error(`the template "${chosen}" was clicked but neither its name nor a sheet appeared within 15 s (not evidence about the product)`);
+        s.templateName = chosen;
+        return `template: ${chosen} (single-stage)`;
       }
       const chosen = await s.create.selectTemplate(a.name ? String(a.name) : undefined);
       s.templateName = chosen;
@@ -474,7 +833,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `template: ${chosen}`;
     }
     case "add_line_items": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         // The single-stage sheet takes one product row typed in place; the
         // journey that publishes single-stage events does exactly this.
         await s.single.fillFirstLineItem(String(a.product ?? a.search ?? "a"));
@@ -495,7 +854,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `${s.products.length} line item(s)`;
     }
     case "fill_sheet": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         return "sheet already filled with the line item (single-stage)";
       }
       if (!Object.keys(s.widgets).length) s.widgets = await s.create.selectFirstTemplateAndExtractWidgets();
@@ -511,7 +870,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `${n} evaluator control(s)`;
     }
     case "set_schedule": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         return "default schedule kept (single-stage sets its window on publish)";
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
@@ -589,7 +948,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       expect(s.bidSubmitted, "no bid has been placed in this plan, so there is nothing to confirm").toBe(true);
       return "the bid is submitted";
     case "invite_vendor": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         const asked = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
         // Only QA test vendors may be named (real suppliers are never invited).
         const qa = await qaVendorNames();
@@ -606,7 +965,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s)`;
     }
     case "publish":
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         await s.single.publish(s.title);
         const redirected = await s.single.waitForRedirectToProject().then(() => true).catch(() => false);
         if (!redirected) {
@@ -637,7 +996,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
 
     // ── assertions ────────────────────────────────────────────────────────
     case "expect_line_items": {
-      if (onSingleStage(s)) {
+      if (await isSingleStageScreen(s)) {
         return "single-stage sheet holds its line item (no Items badge on this screen)";
       }
       const want = asInt(a.count, s.lineItemsAdded || 1);
@@ -708,6 +1067,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // with neither is refused for participants).
         const n = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
         if (a.because && !n(refusal).includes(n(String(a.because)))) {
+          if (/created successfully|published successfully|event (is )?live/i.test(String(refusal))) {
+            throw new Error(`publishing was ALLOWED — the app said "${refusal}"; the case expects it to be refused with "${a.because}" (check the plan really built the case's starting condition)`);
+          }
           throw new Error(`publishing was blocked, but for a different reason — the app said "${refusal}"; the case expects "${a.because}"`);
         }
         return `blocked: ${refusal}`;
@@ -734,8 +1096,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "expect_stages": {
       const want = asStages(a.stages);
-      const have = await s.create.currentStages();
-      expect(have.sort()).toEqual(want.sort());
+      // The create screen paints its stage tabs after a loading spinner; reading the strip
+      // while it spins sees no stages. Wait (bounded) for the spinner to go and the tabs to settle.
+      await s.create.waitForSpinnerHidden().catch(() => {});
+      let have = await s.create.currentStages();
+      for (let i = 0; i < 10 && have.length === 0; i++) {
+        await s.create.page.waitForTimeout(1_000);
+        have = await s.create.currentStages();
+      }
+      if (have.length === 0) throw new Error("the stage tabs never rendered within 40s — the screen did not finish loading (not evidence about the product)");
+      expect(have.sort(), `the stage tabs read ${have.join(", ")}`).toEqual(want.sort());
       return `stages are ${have.join(", ")}`;
     }
     default:

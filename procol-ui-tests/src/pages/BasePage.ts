@@ -191,11 +191,12 @@ export class BasePage {
       // Any prompt from the noise list (oracle/noise.ts): take its declining or close control,
       // never "Enable" / "Allow" / "Yes". Drawers and modals the test opened are never closed.
       p
-        .locator(".ant-notification-notice, .ant-message-notice, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i], [class*='toast' i]")
+        .locator(".ant-notification-notice, .ant-message-notice, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i], [class*='toast' i], [class*='cookie' i]")
         .filter({ hasText: NOISE_CONTAINER_TEXT })
         .last()
         .locator("button, [role='button'], .anticon-close, [aria-label*='close' i]")
-        .filter({ hasNotText: /enable|allow|yes|turn on|subscribe|accept/i })
+        // never "Enable"/"Allow"/"Yes"; a cookie notice's only button ("Got it") just acknowledges it
+        .filter({ hasNotText: /enable|allow|yes|turn on|subscribe/i })
         .last(),
     ];
     let dismissed = false;

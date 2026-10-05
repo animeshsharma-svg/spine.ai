@@ -40,6 +40,8 @@ interface Net {
   method: string;
   status: number;
   at: number;
+  /** the request body as sent (truncated; never for sign-in calls, so no one-time code is kept) */
+  body?: string;
 }
 
 interface ObsState {
@@ -63,7 +65,9 @@ export function installObserver(page: Page, runId: string): void {
     const req = r.request();
     if (!["xhr", "fetch"].includes(req.resourceType())) return;
     if (s.responses.length > 2_000) s.responses.splice(0, 500);
-    s.responses.push({ url: r.url(), method: req.method(), status: r.status(), at: Date.now() });
+    const signIn = /otp|login|authenticate|token/i.test(new URL(r.url()).pathname);
+    const body = !signIn && req.method() !== "GET" ? (req.postData() ?? "").slice(0, 8_000) || undefined : undefined;
+    s.responses.push({ url: r.url(), method: req.method(), status: r.status(), at: Date.now(), ...(body ? { body } : {}) });
   });
   page.on("pageerror", (e) => s.pageErrors.push({ text: String(e?.message ?? e).slice(0, 300), at: Date.now() }));
   page.on("console", (m) => {

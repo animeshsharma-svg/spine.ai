@@ -264,16 +264,20 @@ export async function chat(messages: ChatMessage[], opts: ChatOptions = {}): Pro
   if (!chain.length) return "";
 
   let lastErr: Error | null = null;
+  const failed: string[] = [];
   for (let i = 0; i < chain.length; i++) {
     const [name, call] = chain[i];
     try {
       const text = await call();
       if (!text.trim()) throw new Error(`${name} returned no content`);
       lastProviderUsed = name;
-      if (i > 0) console.log(`[llm] ${chain[i - 1][0]} unavailable (${lastErr?.message.slice(0, 90)}) — answered with ${name}`);
+      // name EVERY provider that failed, not only the last one: "groq unavailable" alone hid
+      // that the primary (Slingring) had failed first, for a whole batch
+      if (i > 0) console.log(`[llm] ${failed.join("; ")} — answered with ${name}`);
       return text;
     } catch (err) {
       lastErr = err as Error;
+      failed.push(`${name} unavailable (${lastErr.message.replace(/\s+/g, " ").slice(0, 90)})`);
     }
   }
   // Every provider failed. Callers treat "" as "use the deterministic path".
