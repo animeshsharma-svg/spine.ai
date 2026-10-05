@@ -66,7 +66,7 @@ test("planned test case", async ({ page }) => {
   // action or an expectation (oracle/noise.ts holds the list).
   await page
     .addLocatorHandler(
-      page.locator(".ant-notification-notice, .ant-message-notice, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i]").filter({ hasText: NOISE_CONTAINER_TEXT }).first(),
+      page.locator(".ant-notification-notice, .ant-message-notice, [role='dialog'], [role='alert'], [class*='popup' i], [class*='banner' i], [class*='cookie' i]").filter({ hasText: NOISE_CONTAINER_TEXT }).first(),
       async () => {
         const closed = await base.dismissDistractions().catch(() => false);
         if (!closed) await page.keyboard.press("Escape").catch(() => {});
