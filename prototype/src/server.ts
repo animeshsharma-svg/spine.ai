@@ -555,7 +555,9 @@ const server = createServer(async (req, res) => {
         id: "API-NOMATCH",
         flowId: "api.instruction",
         module: "events",
-        scenario: text,
+        // No scenario/inputSummary line — the typed text is already right
+        // there in the box above; repeating it here was pure noise.
+        scenario: "",
         type: "functional",
         category: "Functional",
         priority: "P2",
@@ -563,10 +565,10 @@ const server = createServer(async (req, res) => {
         expected: "accept",
         inconclusive: true,
         layer: "api",
-        inputSummary: text,
+        inputSummary: "",
         httpStatus: null,
         accepted: false,
-        message: "No registered contract case matched this instruction closely enough to run for real — try rephrasing it closer to how a test case is usually titled.",
+        message: "No registered case matched closely enough — try different wording.",
         durationMs: 0,
         pass: false,
         verdict: "no matching registered case — not run",
@@ -595,7 +597,9 @@ const server = createServer(async (req, res) => {
                 id: r.id,
                 flowId: "api.instruction",
                 module: r.area || "events",
-                scenario: `“${text}” → ${r.title}`,
+                // The box above already shows what was typed — this line is
+                // just which real case it matched, not a repeat of the input.
+                scenario: r.title,
                 type: "functional",
                 category: "Functional",
                 priority: "P1",
@@ -610,7 +614,7 @@ const server = createServer(async (req, res) => {
                 durationMs: r.durationMs,
                 pass: r.status === "passed",
                 inconclusive: r.status === "skipped",
-                verdict: r.status === "passed" ? `matched registered case ${r.id} — passed` : r.status === "skipped" ? `matched ${r.id}, but skipped — ${r.reason}` : `matched ${r.id} — failed`,
+                verdict: r.status === "passed" ? `${r.id} — passed` : r.status === "skipped" ? `${r.id} — skipped: ${r.reason}` : `${r.id} — failed`,
               } satisfies CheckResult,
             });
           },
@@ -1277,7 +1281,7 @@ const server = createServer(async (req, res) => {
        * screen in the first second, with a line saying what the wait is for,
        * instead of a blank card until the first call fires.
        */
-      const plan = journeyPlan(ids);
+      const plan = journeyPlan(ids, { stopAtTicked: true });
       if (plan.wanted) {
         send("journey-plan", {
           plan,
@@ -1369,7 +1373,7 @@ const server = createServer(async (req, res) => {
             onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step: stepForClient(step), planned }),
             onLine: (line: string) => send("line", { line }),
           });
-          journey = walked.journey;
+          journey = walked.integrity ? { ...walked.journey, integrity: walked.integrity } : walked.journey;
           send("journey", { journey: { ...journey, steps: journey.steps.map(stepForClient) } });
           // The second event's ids are what `{{eventGroupUuid}}`, `{{tradeId}}`
           // and `{{lineItemUuid}}` resolve to in the cases that follow.

@@ -9,10 +9,13 @@ export function randomNumber(): number {
   return Math.floor(Math.random() * 900) + 100;
 }
 
-/** Unique, sortable, human-readable event title. */
-export function generateEventTitle(prefix = "UI_Auto_Event"): string {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").replace("Z", "");
-  return `${prefix}_${stamp}`;
+/**
+ * Every event the UI automation creates is "spine-ui-automation-<n>", on every
+ * client, so it can be told apart from API-made ones ("spine-API-automation-<n>").
+ * The prefix callers pass (which flow made it) is no longer part of the title.
+ */
+export function generateEventTitle(_prefix = "UI_Auto_Event"): string {
+  return `spine-ui-automation-${Math.floor(10_000_000 + Math.random() * 90_000_000)}`;
 }
 
 export function attachmentUrl(): string {

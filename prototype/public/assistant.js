@@ -272,7 +272,7 @@
       : "";
     box.innerHTML =
       `<div class="sx-card"><div class="sx-row"><h3 class="sx-h3 sx-grow">${turn.mode === "match" ? "Looking for matching test cases" : "Finding and running your test case"}</h3>` +
-      (turn.finished ? "" : `<button type="button" class="chip" id="as-stop">■ stop</button>`) +
+      (turn.finished ? "" : `<button type="button" class="chip" id="as-stop">${ico("square")} stop</button>`) +
       `</div><p class="sx-sub">“${esc(turn.typed)}”</p>${stepsHtml(turn)}</div>` +
       matchHtml(turn.match) +
       suggest +
@@ -288,7 +288,7 @@
     const b = q("#as-btn");
     if (b) {
       b.disabled = on;
-      b.textContent = on ? "⟳ Working…" : "🔎 Find & run this test case";
+      b.innerHTML = on ? "Working…" : ico("search") + " Find &amp; run this test case";
     }
     const m = q("#as-match");
     if (m) m.disabled = on;

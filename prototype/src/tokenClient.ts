@@ -60,9 +60,32 @@ export interface ApiError extends Error {
   body?: unknown;
 }
 
+/**
+ * Same rule as tagAutomationTitle in "procol test/src/api/client.ts" (kept in
+ * step by hand — that package is loaded dynamically): an event this platform
+ * creates is named "spine-API-automation-<n>", one number per original title.
+ */
+const GENERATED_TITLE = /^(QA_Platform_|API_Journey_|API_Test_)/;
+const EVENT_WRITE = /(^|\/)event_groups(\/[^/?]+)?\/?(\?|$)/;
+const spineTitles = new Map<string, string>();
+
+function tagAutomationTitle(method: string, path: string, body: unknown): void {
+  if (method === "GET" || !EVENT_WRITE.test(path)) return;
+  const b = body as { title?: unknown } | null;
+  if (!b || typeof b !== "object" || Array.isArray(b)) return;
+  if (typeof b.title !== "string" || !GENERATED_TITLE.test(b.title)) return;
+  let t = spineTitles.get(b.title);
+  if (!t) {
+    t = `spine-API-automation-${Math.floor(10_000_000 + Math.random() * 90_000_000)}`;
+    spineTitles.set(b.title, t);
+  }
+  b.title = t;
+}
+
 /** An api object with the same surface the checks already use. */
 function apiFor(client: TokenClient, token: string) {
   const call = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+    tagAutomationTitle(method, path, body);
     const url = `${client.apiBaseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
     const res = await fetch(url, {
       method,

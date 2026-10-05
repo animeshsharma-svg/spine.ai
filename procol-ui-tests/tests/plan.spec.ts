@@ -9,8 +9,15 @@ import { judge } from "../src/oracle/oracle.js";
 import { recordFinding } from "../src/oracle/findings.js";
 import { Watchdog } from "../src/support/watchdog.js";
 import { BasePage } from "../src/pages/BasePage.js";
-import { LoginPage } from "../src/pages/LoginPage.js";
-import { CONFIG, STORAGE_KEYS } from "../src/config.js";
+import { COMPANY_ID } from "../src/config.js";
+import { loginAsCompany, loginOnScreen } from "../src/db/dbLogin.js";
+import { closeDb } from "../src/db/multiClient.js";
+
+const companyId = COMPANY_ID ? Number(COMPANY_ID) : null;
+
+test.afterAll(async () => {
+  await closeDb().catch(() => {});
+});
 
 /**
  * Run a compiled test plan.
@@ -79,19 +86,18 @@ test("planned test case", async ({ page }) => {
   });
   watchdog.start();
 
-  // A demo wants the login SEEN. The saved session skips it, and forcing the
-  // setup project would open a second window. So: in this same window, drop
-  // the saved token, go to the login page and log in for real, then run the
-  // plan. Verification runs never set UI_SHOW_LOGIN.
+  // Sign in as the company the dashboard picked, the same way the journeys do
+  // (ui-master.spec.ts): on screen when asked (UI_SHOW_LOGIN=1), otherwise the
+  // company's session is dropped into the browser. Plans used to lean on the
+  // saved clientA session instead — which ran every plan as clientA, and once
+  // that session aged out, failed in the OTP setup before step 1.
   if (process.env.UI_SHOW_LOGIN === "1") {
     console.log("[plan] showing the login in this window before the plan runs");
-    await page.goto(CONFIG.appUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
-    await page.evaluate((k) => localStorage.removeItem(k), STORAGE_KEYS.accessToken).catch(() => {});
-    await page.context().clearCookies().catch(() => {});
-    const login = new LoginPage(page);
-    await login.goto();
-    await login.login();
-    console.log(`[plan] logged in as the buyer — ${(await login.isLoggedIn()) ? "token present" : "token NOT present"}`);
+    const who = await loginOnScreen(page, companyId);
+    console.log(`[plan] signed in — ${who.how === "on-screen" ? "on screen" : `saved session (${who.fellBackBecause ?? "screen unavailable"})`}`);
+  } else if (companyId) {
+    await loginAsCompany(page, companyId);
+    console.log(`[plan] signed in as company ${companyId}`);
   }
 
   let failure: Error | null = null;

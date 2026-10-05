@@ -1779,7 +1779,7 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
     try {
       rec.response = keepResponse(fired.reply.data, redactBody);
       const made = Object.assign({}, ...done.map((d) => d.produced ?? {})) as Record<string, string>;
-      const assertions = evaluateStepAssertions(rec, fired.reply.data, made);
+      const assertions = evaluateStepAssertions(rec, fired.reply.data, made, undefined, done);
       if (assertions) rec.assertions = assertions;
     } catch (e) {
       j.opts.onLine?.(`field checks for step ${n} could not run: ${clean(e instanceof Error ? e.message : String(e))}`);

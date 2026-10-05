@@ -6,11 +6,19 @@ const el = (tag, cls, html) => {
   if (html != null) n.innerHTML = html;
   return n;
 };
+const ico = (name) => `<svg class="ico" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const GROUP_ICON = {
+  intake: "notebook-pen", pr: "receipt", events: "clipboard-list", erfx: "map", eventfeatures: "puzzle",
+  auction: "gavel", bids: "coins", evaluation: "chart-column", negotiation: "handshake", award: "trophy",
+  po: "file-text", p2p: "truck", finance: "landmark", masterdata: "folder-open", users: "users",
+  vendors: "factory", vendorbulk: "upload", platform: "settings",
+};
+const groupIco = (g) => ico(GROUP_ICON[g.id] ?? "circle-dashed");
 const AGENT_ICON = {
-  System: "⚙️", Analyst: "🔍", Planner: "🗺️", "Test-designer": "✍️",
-  Data: "🧪", Critic: "🧑‍⚖️", Executor: "🚀", Reporter: "📝",
+  System: "settings", Analyst: "search", Planner: "map", "Test-designer": "pen-line",
+  Data: "flask-conical", Critic: "scale", Executor: "rocket", Reporter: "file-text",
 };
 
 // ── state ──
@@ -174,6 +182,15 @@ let runPlanned = 0;
 let runEmptyNote = "";
 
 /**
+ * A run that stopped mid-way WITH rows already on screen — the gap
+ * `runEmptyNote` doesn't cover, since that only ever renders in the empty
+ * state. Set by `watchStreamEnd` on an unexpected disconnect; cleared the
+ * moment a new run starts (`goToRun`). `retry` re-runs the same instruction
+ * from scratch — there is no "resume from step 17", only a clean re-run.
+ */
+let runStoppedNote = null; // { message, retry } | null
+
+/**
  * The safety net under every run.
  *
  * The spinner comes down on a `done` or `fatal` event, which assumes the
@@ -182,25 +199,46 @@ let runEmptyNote = "";
  * than nothing: it reconnects. These endpoints are one-shot, so a reconnect
  * re-runs the whole thing, firing a second set of real requests at UAT while
  * the panel still says "running…". Closing it ourselves ends the run once.
+ *
+ * `retry`, when given, is what a "stopped early" banner's re-run button calls.
  */
-function watchStreamEnd(es, onEnd) {
+function watchStreamEnd(es, onEnd, retry) {
+  // Only `finish()`-style handlers null these out on a clean end; an
+  // unexpected disconnect (this whole listener) bypasses that, which left
+  // Stop visible forever after a dropped connection.
+  const clearRunningRef = () => {
+    if (uiRunning === es) uiRunning = null;
+    if (apiRunning === es) apiRunning = null;
+    syncStopBtn();
+  };
   es.addEventListener("error", () => {
     // The `done` handler closes the stream itself, so reaching here means the
     // connection dropped rather than the run finishing.
     if (es.readyState === EventSource.CLOSED) {
+      clearRunningRef();
       runFinished();
       onEnd?.();
       return;
     }
     es.close();
-    runEmptyNote =
-      runEmptyNote ||
-      "The connection to the run was lost before it finished. Nothing was restarted — " +
-        "run it again when you are ready.";
+    const message =
+      "The connection to the run was lost before it finished — most likely the server " +
+      "restarted or the network dropped mid-run, not a test failure. Nothing was restarted " +
+      "automatically; the steps below marked ≈ simply never got a turn.";
+    runEmptyNote = runEmptyNote || message;
+    if (retry) runStoppedNote = { message, retry };
+    renderAutomation();
+    clearRunningRef();
     runFinished();
     onEnd?.();
   });
   return es;
+}
+
+/** Shown while either the API match/run or the UI plan is in flight. */
+function syncStopBtn() {
+  const b = $("#run-stop-btn");
+  if (b) b.hidden = !(uiRunning || apiRunning);
 }
 
 function goToRun(label, hint) {
@@ -212,11 +250,17 @@ function goToRun(label, hint) {
     runPendingHint = hint || "";
     runPlanned = 0;
     runEmptyNote = "";
+    runStoppedNote = null;
     runStartedAt = Date.now();
     runCurrentStep = "";
     resetJourney();
     renderAutomation();
     setRunBar(0, 0);
+    // A label means a run is starting right now — show Stop unconditionally
+    // rather than through syncStopBtn, whose uiRunning/apiRunning checks run
+    // before this run's own EventSource exists yet.
+    const stopBtn = $("#run-stop-btn");
+    if (stopBtn) stopBtn.hidden = false;
   }
 }
 
@@ -257,6 +301,7 @@ function setRunPending(label, hint) {
 /** The run has stopped: take the pulse off the nav and the spinner off the panel. */
 function runFinished() {
   document.querySelector('.nav-item[data-view="run"]')?.classList.remove("live");
+  syncStopBtn();
   if (runPending) {
     runPending = null;
     renderAutomation();
@@ -361,6 +406,22 @@ async function init() {
       filterJourneys();
     });
   }
+  // Collapsed state is set on <html> before paint (inline script in <head>),
+  // so this only ever needs to flip the class and persist it — never apply
+  // it on load, or a reload would flash expanded first.
+  $("#nav-toggle")?.addEventListener("click", () => {
+    const collapsed = document.documentElement.classList.toggle("nav-collapsed");
+    try {
+      localStorage.setItem("navCollapsed", collapsed ? "1" : "0");
+    } catch {}
+    $("#nav-toggle").textContent = collapsed ? "›" : "‹";
+    $("#nav-toggle").title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  });
+  if (document.documentElement.classList.contains("nav-collapsed") && $("#nav-toggle")) {
+    $("#nav-toggle").textContent = "›";
+    $("#nav-toggle").title = "Expand sidebar";
+  }
+
   // The chat box has three buttons for the one test case in it: run it
   // against the API, the UI, or both — each prints where it belongs (the API
   // card right here, the UI run in the Automation-run panel below). Letting
@@ -369,6 +430,22 @@ async function init() {
   $("#run-api-btn")?.addEventListener("click", () => runInstruction("api"));
   $("#run-ui-btn")?.addEventListener("click", () => runInstruction("ui"));
   $("#run-both-btn")?.addEventListener("click", () => runInstruction("both"));
+  $("#run-stop-btn")?.addEventListener("click", () => {
+    // Closing the EventSource ends the HTTP request; the server's own
+    // `req.on("close", () => stop())` is what actually kills the spawned
+    // browser — the same mechanism the UI automation drawer's stop uses.
+    if (apiRunning) {
+      apiRunning.close();
+      apiRunning = null;
+    }
+    if (uiRunning) {
+      uiRunning.close();
+      uiRunning = null;
+    }
+    runStoppedNote = null;
+    runFinished();
+    $("#status").textContent = "stopped";
+  });
   // Enter alone must stay a newline — a test case pasted in here is several
   // lines long — so the run is on the modifier, as every other composer does it.
   $("#request")?.addEventListener("keydown", (e) => {
@@ -483,7 +560,6 @@ async function init() {
     loadPoInput();
     loadCatalogue();
   });
-  $("#ui-ai")?.addEventListener("click", runAiInstruction);
   $("#f-all").addEventListener("click", () => setFilter("all"));
   $("#f-fail").addEventListener("click", () => setFilter("fail"));
   $("#t-run").addEventListener("click", runSelectedFeatures);
@@ -509,7 +585,7 @@ async function init() {
       uiRunning.close();
       uiRunning = null;
       const c = $("#ui-console");
-      if (c) c.appendChild(el("div", "note", "■ stopped by user"));
+      if (c) c.appendChild(el("div", "note", "Stopped by you"));
       document.querySelectorAll(".submodule.running").forEach((r) => r.classList.remove("running"));
     }
   });
@@ -864,7 +940,7 @@ function renderTree() {
     stepBadge.title = g.step ? `Step ${g.step} of the procure-to-pay journey` : "Set up underneath the journey, not a stage of it";
     head.appendChild(stepBadge);
 
-    head.appendChild(el("span", "module-ico", g.icon));
+    head.appendChild(el("span", "module-ico", groupIco(g)));
     head.appendChild(el("span", "module-name", esc(g.label)));
     const groupCases = g.children.reduce((n, c) => n + (c.cases || 0), 0);
     // "1/7 · 29 cases" read as a fraction of nothing. Say what is picked and
@@ -1328,7 +1404,7 @@ function syncRunButton() {
     (n, g) => n + g.children.reduce((m, c) => m + (selected.has(c.id) ? c.cases || 0 : 0), 0),
     0,
   );
-  btn.textContent = cases ? `▶ Run ${cases} selected test${cases === 1 ? "" : "s"}` : "▶ Run selected tests";
+  btn.innerHTML = ico("play") + (cases ? ` Run ${cases} selected test${cases === 1 ? "" : "s"}` : " Run selected tests");
   btn.disabled = false;
 }
 
@@ -1340,13 +1416,13 @@ function syncRunButton() {
  * could open a report about someone else's. Now they appear when a run ends,
  * and carry that run: its id for the test report, its module for the sheet.
  */
-function showReportsFor({ label, testHref, bugHref, testLabel = "📊 Test report" }) {
+function showReportsFor({ label, testHref, bugHref, testLabel = "Test report" }) {
   const bar = $("#report-bar");
   if (!bar) return;
   $("#report-bar-label").textContent = label;
   const test = $("#open-api-report");
   const bugs = $("#open-bug-sheet");
-  test.textContent = testLabel;
+  test.innerHTML = ico("chart-column") + " " + esc(testLabel);
   test.href = testHref;
   bugs.href = bugHref;
   bar.hidden = false;
@@ -1355,7 +1431,7 @@ function showReportsFor({ label, testHref, bugHref, testLabel = "📊 Test repor
   // whichever they click.
   const modalReport = $("#modal-report");
   const modalBugs = $("#modal-bugs");
-  if (modalReport) { modalReport.href = testHref; modalReport.textContent = testLabel; }
+  if (modalReport) { modalReport.href = testHref; modalReport.innerHTML = ico("chart-column") + " " + esc(testLabel); }
   if (modalBugs) modalBugs.href = bugHref;
 }
 
@@ -1616,7 +1692,7 @@ function runRfpSuite(ids) {
       const scope = `?run=${encodeURIComponent(runId)}`;
       showReportsFor({
         label: "This RFP run:",
-        testLabel: "📊 RFP test report",
+        testLabel: "RFP test report",
         testHref: `/api/rfp-report${scope}`,
         bugHref: `/api/bug-report${scope}`,
       });
@@ -1655,14 +1731,13 @@ function renderApiInstructResult(state, row) {
   box.hidden = false;
   if (state === "running") {
     box.className = "api-result running";
-    box.innerHTML = `<div class="api-result-head">⏳ Run (API) — matching &amp; running…</div>`;
+    box.innerHTML = `Matching &amp; running…`;
     return;
   }
   const badge = row.pass ? "✓ Passed" : row.inconclusive ? "– Not run" : "✗ Failed";
   box.className = `api-result ${row.pass ? "ok" : row.inconclusive ? "skip" : "bad"}`;
   box.innerHTML =
-    `<div class="api-result-head">Run (API) <span class="api-result-badge">${esc(badge)}</span></div>` +
-    `<div class="api-result-scenario">${esc(row.scenario)}</div>` +
+    `<div class="api-result-head"><span class="api-result-badge">${esc(badge)}</span>${row.scenario ? ` ${esc(row.scenario)}` : ""}</div>` +
     (row.inputSummary ? `<div class="api-result-meta">${esc(row.inputSummary)}${row.httpStatus ? ` → HTTP ${row.httpStatus}` : ""}</div>` : "") +
     `<div class="api-result-verdict">${esc(row.message || row.verdict || "")}</div>`;
 }
@@ -1672,6 +1747,14 @@ function runApiInstruction(text, onEnd) {
   const qs = new URLSearchParams({ c: String(currentClient), text });
   const es = new EventSource(`/api/run-case-api?${qs}`);
   watchStreamEnd(es);
+  apiRunning = es;
+  const stopBtn = $("#run-stop-btn");
+  if (stopBtn) stopBtn.hidden = false;
+  const end = () => {
+    apiRunning = null;
+    syncStopBtn();
+    onEnd?.();
+  };
   let lastRow = null;
   es.addEventListener("check", (ev) => {
     lastRow = JSON.parse(ev.data).check;
@@ -1679,13 +1762,13 @@ function runApiInstruction(text, onEnd) {
   });
   es.addEventListener("done", () => {
     es.close();
-    onEnd?.();
+    end();
   });
   es.addEventListener("fatal", (ev) => {
     es.close();
     const message = JSON.parse(ev.data).message || "run error";
     renderApiInstructResult("result", { pass: false, scenario: text, message, verdict: "error" });
-    onEnd?.();
+    end();
   });
 }
 
@@ -1696,6 +1779,64 @@ function runInstruction(mode) {
   if (mode === "api") return runApiInstruction(text);
   // both: API first (its own card), then the UI compiler fills the panel below.
   runApiInstruction(text, () => runTestCase());
+}
+
+/**
+ * Why a case did not run, sorted by what the reader can do about it. The
+ * runner's reasons are precise but written for whoever wrote the runner
+ * ("a request nobody perturbed", "app_auth_config.yml"); these are the same
+ * reasons for a tester.
+ */
+const SKIP_GROUPS = {
+  incomplete: { order: 0, tone: "bad", label: "The test case needs fixing",
+    what: "The case says what to change, but its request is just a normal valid one — the bad value it describes was never put in. Running it would prove nothing. Edit the case so the request carries the change, and it will run." },
+  setup: { order: 1, tone: "warn", label: "Needs a setup the run can't build yet",
+    what: "The case needs the event to be in a particular state first (an existing bid, a rejected vendor, another company's data…). The run doesn't create that state, so it waits until it can." },
+  setting: { order: 2, tone: "mute", label: "Doesn't apply to this company",
+    what: "The rule only exists when a company setting is switched a certain way, and this company has it the other way. Run it on a company with that setting." },
+  login: { order: 3, tone: "mute", label: "Can't be tried from this login",
+    what: "The app turns this kind of login away before it ever reaches the rule being tested — and doing so would sign the test out and stop every case after it. So it is held back." },
+  other: { order: 4, tone: "mute", label: "Other reasons", what: "" },
+};
+
+function skipGroup(reason) {
+  const r = reason.toLowerCase();
+  let key = "other";
+  if (r.includes("nobody perturbed") || r.includes("give the case its own body")) key = "incomplete";
+  else if (r.includes("app gate") || r.includes("not authorized to use this api") || r.includes("signs the session out") || r.includes("marks that session logged out")) key = "login";
+  else if (r.includes("only holds when") || /company setting|is (on|off) (for|here)/.test(r)) key = "setting";
+  else if (/^needs |does not build|cannot build|has no access|cannot be put there/.test(r)) key = "setup";
+  return { key, ...SKIP_GROUPS[key] };
+}
+
+/** "QA_Platform_live_add_to_closed_stage_95" → "Live add to closed stage". */
+function plainCaseTitle(t) {
+  const s = String(t).replace(/^QA_Platform_/, "").replace(/^(stg|dboq)_/, "").replace(/_\d+$/, "").replace(/_/g, " ").trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** The one line under each case: the specific thing it is waiting on. */
+function skipPlainReason(reason, key) {
+  const words = (k) => k.replace(/_/g, " ");
+  if (key === "incomplete") {
+    const m = reason.match(/the change it describes \((.+?)\) is not in the payload/);
+    return m ? `Meant to send: ${m[1]} — but the request doesn't include it.` : "Its request doesn't include the change it describes.";
+  }
+  if (key === "setting") {
+    const m = reason.match(/"([a-z0-9_]+)" is (ON|OFF)/i) || reason.match(/needs ([a-z0-9_ ]+) (ON|OFF)/i);
+    const have = /it is (ON|OFF)/i.exec(reason);
+    return m ? `Needs "${words(m[1])}" switched ${m[2].toLowerCase()}; here it is ${have ? have[1].toLowerCase() : "the other way"}.` : "A company setting is the other way here.";
+  }
+  if (key === "setup") {
+    const m = reason.match(/^needs (.+?)(?:, which| — |$)/);
+    return m ? `Needs ${m[1]}.` : "Needs a starting state the run doesn't build.";
+  }
+  if (key === "login") {
+    return /supplier app may not|vendor's session may not/i.test(reason)
+      ? "A vendor's login isn't allowed to make this call at all."
+      : "The buyer's web login isn't allowed to make this call; it needs a different app's login (e.g. the vendor or mobile app).";
+  }
+  return reason;
 }
 
 function wireRunStream(es, write, onEnd) {
@@ -1726,7 +1867,9 @@ function wireRunStream(es, write, onEnd) {
     // directly rather than through setRunPending, which would also restart
     // the elapsed clock — this is the same run, a second in.
     runPendingHint =
-      `Walking the ${journeyLive.label} journey — ${journeyLive.steps.length} steps, from signing in to awarding.`;
+      `Walking the ${journeyLive.label} journey — ${journeyLive.steps.length} steps, from signing in to ${
+        { publish: "publishing", bid: "the vendor's bid", evaluate: "evaluation" }[p.plan?.reach] ?? "awarding"
+      }.`;
     renderAutomation();
   });
   es.addEventListener("journey-step", (ev) => {
@@ -1800,17 +1943,16 @@ function wireRunStream(es, write, onEnd) {
     if (li && li.requested) {
       if (li.capped) {
         write(
-          `ℹ ${li.asked} line items was more than this company allows (max ${li.limit}) — ran with ${li.requested}`,
+          `${li.asked} line items was more than this company allows (max ${li.limit}) — ran with ${li.requested}`,
           "note",
         );
       }
+      const kept = li.held?.length ?? 0;
       write(
-        `ℹ line items per event: ${li.requested} — applied to ${li.expanded} of ${li.eligible} event-creating case(s)`,
+        `Line items per event: ${li.requested} — used by ${li.expanded} of ${li.eligible} event-creating cases` +
+          (kept ? `; the other ${kept} keep their own count because they test a specific number or a broken line item` : ""),
         "note",
       );
-      for (const h of li.held ?? []) {
-        write(`   · ${h.title} kept ${h.count} — ${h.reason}`, "note");
-      }
     }
 
     /**
@@ -1832,13 +1974,30 @@ function wireRunStream(es, write, onEnd) {
     box.innerHTML = "";
     const sum = el("summary", "", `${p.skipped.length} of ${p.cases} cases did not run — why`);
     box.appendChild(sum);
-    const list = el("ul", "skip-list");
+    // Grouped by what a reader can do about it, in plain words; the runner's
+    // own wording stays one click away for whoever is fixing the case.
+    const groups = new Map();
     for (const s of p.skipped) {
-      list.appendChild(
-        el("li", "", `<b>${esc(s.title || s.id)}</b><span>${esc(s.reason || "no reason given")}</span>`),
-      );
+      const g = skipGroup(s.reason || "");
+      if (!groups.has(g.key)) groups.set(g.key, { ...g, items: [] });
+      groups.get(g.key).items.push(s);
     }
-    box.appendChild(list);
+    for (const g of [...groups.values()].sort((a, b) => a.order - b.order)) {
+      box.appendChild(
+        el("p", `skip-group skip-${g.tone}`,
+          `<b>${esc(g.label)} · ${g.items.length}</b><span>${esc(g.what)}</span>`),
+      );
+      const list = el("ul", "skip-list");
+      for (const s of g.items) {
+        list.appendChild(
+          el("li", "",
+            `<b>${esc(plainCaseTitle(s.title || s.id))}</b>` +
+            `<span>${esc(skipPlainReason(s.reason || "", g.key))}</span>` +
+            `<details><summary>technical reason</summary>${esc(s.reason || "no reason given")}</details>`),
+        );
+      }
+      box.appendChild(list);
+    }
   });
   es.addEventListener("check", (ev) => {
     const check = JSON.parse(ev.data).check;
@@ -1857,6 +2016,7 @@ function wireRunStream(es, write, onEnd) {
   });
   es.addEventListener("done", (ev) => {
     es.close();
+    loadCaseBook();
     let d = {};
     try {
       d = JSON.parse(ev.data) || {};
@@ -2009,7 +2169,7 @@ function renderUiTree() {
     stepBadge.title = g.step ? `Step ${g.step} of the procure-to-pay journey` : "Set up underneath the journey, not a stage of it";
     head.appendChild(stepBadge);
 
-    head.appendChild(el("span", "module-ico", g.icon));
+    head.appendChild(el("span", "module-ico", groupIco(g)));
     head.appendChild(el("span", "module-name", esc(g.label)));
     head.appendChild(el("span", "module-n" + (picked ? " some" : ""),
       built.length
@@ -2136,19 +2296,19 @@ async function runSelectedUiJourneys() {
  * verdict and plain words, and keep the raw line for when something breaks.
  */
 const UI_PHASES = {
-  login: { label: "Signing in", icon: "🔑" },
-  erfx: { label: "Preparing the line items", icon: "📋" },
-  "create-event": { label: "Creating the event", icon: "🧾" },
-  "event-detail": { label: "On the event", icon: "🔎" },
-  award: { label: "Awarding", icon: "🏆" },
-  plan: { label: "Running the plan", icon: "🗺" },
-  healer: { label: "Healing a broken step", icon: "🤖" },
-  learned: { label: "Learned a locator", icon: "🧠" },
-  stuck: { label: "Stuck", icon: "🚧" },
-  oracle: { label: "Verdict", icon: "⚖️" },
-  playwright: { label: "The browser run", icon: "▶" },
-  "po-to-bill": { label: "Purchase order to bill", icon: "🧾" },
-  queue: { label: "Waiting for the browser", icon: "⏳" },
+  login: { label: "Signing in", icon: "key-round" },
+  erfx: { label: "Preparing the line items", icon: "clipboard-list" },
+  "create-event": { label: "Creating the event", icon: "receipt" },
+  "event-detail": { label: "On the event", icon: "search" },
+  award: { label: "Awarding", icon: "trophy" },
+  plan: { label: "Running the plan", icon: "map" },
+  healer: { label: "Healing a broken step", icon: "bot" },
+  learned: { label: "Learned a locator", icon: "brain" },
+  stuck: { label: "Stuck", icon: "construction" },
+  oracle: { label: "Verdict", icon: "scale" },
+  playwright: { label: "The browser run", icon: "play" },
+  "po-to-bill": { label: "Purchase order to bill", icon: "receipt" },
+  queue: { label: "Waiting for the browser", icon: "hourglass" },
 };
 
 /** Wording that reads as a sentence rather than a log line. */
@@ -2289,7 +2449,7 @@ function onQueued(es, write) {
     try {
       line = JSON.parse(ev.data).line || line;
     } catch {}
-    write?.("⏳ " + line, "note");
+    write?.(line, "note");
     setRunPending(runPending, `${line}. It starts by itself as soon as the browser is free.`);
     pushUiLine("[queue] " + line);
   });
@@ -2371,9 +2531,9 @@ function renderUiSteps() {
   for (const s of uiSteps) {
     if (s.phase !== phase) {
       phase = s.phase;
-      const meta = UI_PHASES[phase] ?? { label: phase, icon: "·" };
+      const meta = UI_PHASES[phase] ?? { label: phase, icon: "circle-dashed" };
       const head = el("div", "ui-phase");
-      head.innerHTML = `<span class="ui-phase-ico">${meta.icon}</span><span>${esc(meta.label)}</span>`;
+      head.innerHTML = `<span class="ui-phase-ico">${ico(meta.icon)}</span><span>${esc(meta.label)}</span>`;
       box.appendChild(head);
     }
     const row = el("div", "ui-step " + s.kind);
@@ -2391,6 +2551,7 @@ function renderUiSteps() {
 let uiFlows = [];
 let uiLimits = null;
 let uiRunning = null; // EventSource of the active run
+let apiRunning = null; // EventSource of the active Run (API) instruction match
 
 /**
  * What the next PO run will create, read from the suite's own input file.
@@ -2527,7 +2688,7 @@ function runPoAutomation() {
   };
 
   btn.disabled = true;
-  btn.textContent = "▶ Running…";
+  btn.innerHTML = ico("play") + " Running…";
   $("#auto-summary").textContent = "creating a purchase order…";
 
   // Always submitted for approval: a purchase order that stops after its line
@@ -2644,7 +2805,7 @@ function runPoAutomation() {
       const banner = el(
         "div",
         "bad",
-        "⚠ The account's token has expired — every call is being refused (401). Refresh it in the API suite's .env and run again.",
+        "The account's token has expired — every call is being refused (401). Refresh it in the API suite's .env and run again.",
       );
       con.insertBefore(banner, con.firstChild);
     } else if (!sawAuthFailure && /not authorized|code.{0,3}455/i.test(line)) {
@@ -2652,7 +2813,7 @@ function runPoAutomation() {
       const banner = el(
         "div",
         "bad",
-        "⚠ The login works, but this account is not allowed to read the data this flow needs " +
+        "The login works, but this account is not allowed to read the data this flow needs " +
           "(“you are not authorized to perform this action”). Nothing below was tested — the calls " +
           "were refused before the purchase order was judged. Give this login access to the " +
           "purchase-order datasources, or put a token for one that has it in the API suite's .env.",
@@ -2708,14 +2869,14 @@ function runPoAutomation() {
     es.close();
     runFinished();
     btn.disabled = false;
-    btn.textContent = "▶ Run PO automation";
+    btn.innerHTML = ico("play") + " Run PO automation";
 
     // A PO run has its own report — every phase, every call, and the curl for
     // it — so point at that rather than at the API case report.
     const scope = poRunId ? `?run=${encodeURIComponent(poRunId)}` : "";
     showReportsFor({
       label: "This PO run:",
-      testLabel: "📊 PO run report",
+      testLabel: "PO run report",
       testHref: `/api/po-report${scope}`,
       // This run's refusals, not the platform's standing sheet.
       bugHref: poRunId ? `/api/bug-report${scope}` : bugHrefForSelection(),
@@ -2737,7 +2898,7 @@ function runPoAutomation() {
       es.close();
     runFinished();
       btn.disabled = false;
-      btn.textContent = "▶ Run PO automation";
+      btn.innerHTML = ico("play") + " Run PO automation";
     }
   };
 }
@@ -2821,7 +2982,7 @@ function openJourneyReport(runId, { auto = true } = {}) {
   const url = `/api/ui-report?run=${encodeURIComponent(runId)}`;
   showReportsFor({
     label: "This journey:",
-    testLabel: "📊 UI run report",
+    testLabel: "UI run report",
     testHref: url,
     // This journey's own findings, not the all-time sheet.
     //
@@ -2881,7 +3042,7 @@ function runUiJourney(flow, onDone, opts = {}) {
   uiRunning = es;
   es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
   onQueued(es, write);
-  es.addEventListener("note", (ev) => write("⚠ " + JSON.parse(ev.data).line, "note"));
+  es.addEventListener("note", (ev) => write(JSON.parse(ev.data).line, "note"));
   es.addEventListener("log", (ev) => {
     const { line } = JSON.parse(ev.data);
     // The raw log keeps everything a reader can fall back to.
@@ -2899,7 +3060,7 @@ function runUiJourney(flow, onDone, opts = {}) {
     const { verdicts } = JSON.parse(ev.data);
     for (const v of verdicts) {
       const meta = VERDICT_META[v.kind] ?? VERDICT_META.automation_defect;
-      write(`${meta.icon} ${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
+      write(`${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
       write(`   ${v.rationale}`, "note");
       for (const e of v.evidence ?? []) write(`   • ${e}`, "note");
     }
@@ -3011,7 +3172,7 @@ function addAgentCard(e) {
   const card = el("div", "agent running");
   card.innerHTML = `
     <div class="agent-head">
-      <span class="agent-icon">${AGENT_ICON[e.agent] ?? "•"}</span>
+      <span class="agent-icon">${ico(AGENT_ICON[e.agent] ?? "bot")}</span>
       <span class="agent-name">${esc(e.agent)}</span>
       <span class="agent-title">${esc(e.title)} <span class="spinner"></span></span>
     </div>`;
@@ -3029,7 +3190,7 @@ function finishAgentCard(card, e) {
       ? `<span class="badge ok">approved</span>`
       : "";
   card.querySelector(".agent-head").innerHTML = `
-    <span class="agent-icon">${AGENT_ICON[e.agent] ?? "•"}</span>
+    <span class="agent-icon">${ico(AGENT_ICON[e.agent] ?? "bot")}</span>
     <span class="agent-name">${esc(e.agent)}${badge}</span>
     <span class="agent-title">${esc(e.title)}</span>`;
   if (e.reasoning) card.appendChild(el("div", "agent-reason", esc(e.reasoning)));
@@ -3151,7 +3312,7 @@ async function loadHistory() {
         <div class="run-meta">${esc(r.companyName ?? r.id)} · ${esc(when)} ${tag}
           ${counts}${fieldChecks}${journeyLine}</div>
         ${links ? `<div class="run-links">${links}</div>` : ""}
-        <button class="run-del" title="Remove this run from the history and from every report built on it">✕</button>`;
+        <button class="run-del" title="Remove this run from the history and from every report built on it">${ico("x")}</button>`;
       // A report link opens the report; it must not also replay the run
       // underneath it.
       for (const a of item.querySelectorAll(".run-link")) {
@@ -3209,6 +3370,13 @@ async function openRun(id, item) {
 function replayTrace(events) {
   const tl = $("#timeline");
   tl.innerHTML = "";
+  // Most saved runs (anything from Run (API)/(UI)/(Both)) have no agent
+  // trace at all — only the old orchestrator's runs do. Keep the whole
+  // section out of sight rather than show an always-empty "Agent reasoning".
+  const section = $("#agent-reasoning-section");
+  const hasTrace = (events || []).some((e) => e.agent !== "Check");
+  if (section) section.hidden = !hasTrace;
+  if (!hasTrace) return;
   let current = null;
   for (const e of events || []) {
     if (e.agent === "Check") continue; // checks live in the automation panel
@@ -3332,7 +3500,7 @@ function paintRow(node, c) {
   // A PO step is one phase of one document — there is nothing to re-run on its
   // own, so the button only appears for library checks.
   if (c.flowId && !c.noRerun) {
-    const rerun = el("button", "chk-rerun", "↻ Re-run this check live");
+    const rerun = el("button", "chk-rerun", ico("rotate-cw") + " Re-run this check live");
     rerun.addEventListener("click", (ev) => { ev.stopPropagation(); rerunCheck(c.flowId, c.id); });
     detail.appendChild(rerun);
   }
@@ -3415,6 +3583,40 @@ let journeyNode = null;
 // "issue": the call worked and the flow went on, but a check found something wrong.
 const JOURNEY_VERDICT_WORD = { worked: "Worked", issue: "Issue found", refused: "Refused", broken: "Broken", "not-run": "Not run" };
 const JOURNEY_ACTOR_WORD = { buyer: "Buyer", vendor: "Vendor", evaluator: "Evaluator", platform: "Platform" };
+
+/** id value → "the event", "the pricing round"…, from what the journey made — so a sentence never shows an id. */
+const JOURNEY_MADE_WORD = {
+  eventGroupUuid: "the event", lineItemUuid: "the line item", technicalTradeUuid: "the technical round",
+  pricingTradeUuid: "the pricing round", auctionTradeUuid: "the auction round", bidUuid: "the vendor's bid",
+  proposalUuid: "the award proposal", vendorCompanyUuid: "the vendor's company", templateResponseUuid: "the technical response",
+  evalFormUuid: "the evaluation form", techFormUuid: "the technical form", counterOfferUuid: "the counter offer",
+};
+function journeyKnownIds() {
+  const out = {};
+  const made = { ...(journeyRecord?.made || {}) };
+  for (const st of journeyStepsLive) Object.assign(made, st?.produced || {});
+  for (const [k, v] of Object.entries(made)) if (typeof v === "string" && v) out[v] = JOURNEY_MADE_WORD[k] || "the record";
+  return out;
+}
+
+/** The technical part of one journey step — request, status, the app's words, ids — for its closed "Details". */
+function journeyStepDetails(rec) {
+  const rows = [];
+  if (rec.call) rows.push({ label: "Request", value: `${rec.call.method} ${rec.call.path ?? ""}`, kind: "code" });
+  if (rec.call?.body !== undefined) rows.push({ label: "Body", value: JSON.stringify(rec.call.body, null, 2), kind: "block" });
+  if (rec.status != null) rows.push({ label: "HTTP status", value: String(rec.status), kind: "code" });
+  else if (rec.call) rows.push({ label: "HTTP status", value: "no reply", kind: "code" });
+  if (rec.ms != null) rows.push({ label: "Took", value: journeyMs(rec.ms) });
+  if (rec.message) rows.push({ label: "The app said", value: rec.message });
+  if (rec.errorCode) rows.push({ label: "Error code", value: String(rec.errorCode), kind: "code" });
+  const ids = Object.entries(rec.produced || {}).map(([k, v]) => `${k}: ${v}`).join(" · ");
+  if (ids) rows.push({ label: "Ids produced", value: ids, kind: "code" });
+  if (rec.reason && rec.verdict !== "not-run") rows.push({ label: "Runner's note", value: rec.reason });
+  const testName = `${rec.expected ?? ""} ${rec.actual ?? ""}`.match(/["“]((?:API_Journey|QA_Platform|API_Test)[^"”]*)["”]/)?.[1];
+  if (testName) rows.push({ label: "Test record name", value: testName, kind: "code" });
+  return CaseView.detailsHtml(rows);
+}
+
 
 function resetJourney() {
   journeyLive = null;
@@ -3693,7 +3895,14 @@ function renderJourney() {
       journeyNotes.map((nt) => `<div class="journey-note ${esc(nt.cls)}">${esc(nt.text)}</div>`).join("") +
       "</div>";
   }
+  // Redrawn on every progress line, so folds the reader opened are put back.
+  const foldKeys = (root) =>
+    [...root.querySelectorAll(".journey-steps > li")].flatMap((li, i) =>
+      [...li.querySelectorAll("details")].map((d, j) => [`${i}:${j}`, d]),
+    );
+  const open = new Set(foldKeys(node).filter(([, d]) => d.open).map(([k]) => k));
   node.innerHTML = html;
+  if (open.size) for (const [k, d] of foldKeys(node)) if (open.has(k)) d.open = true;
 }
 
 /**
@@ -3810,6 +4019,29 @@ function renderAutomation() {
     banner.innerHTML = `<b>Nothing was tested.</b> ${esc(refusal)}`;
   } else if (banner) {
     banner.remove();
+  }
+
+  // A run that stopped mid-way with rows already on screen: say so plainly —
+  // the ≈ rows below are not "not applicable", they never got a turn — and
+  // offer the one real recovery, a clean re-run.
+  let stopped = box.querySelector(":scope > .stopped-early");
+  if (runStoppedNote) {
+    if (!stopped) {
+      stopped = el("div", "stopped-early");
+      box.prepend(stopped);
+    }
+    stopped.innerHTML = `<b>Stopped early.</b> ${esc(runStoppedNote.message)} <button class="run-btn small retry-btn">${ico("rotate-cw")} Re-run this test case</button>`;
+    // Captured before the click, not read off runStoppedNote inside the
+    // handler — the handler clears that first, which would otherwise make
+    // Re-run silently do nothing.
+    const retry = runStoppedNote.retry;
+    stopped.querySelector(".retry-btn").onclick = () => {
+      runStoppedNote = null;
+      stopped.remove();
+      retry?.();
+    };
+  } else if (stopped) {
+    stopped.remove();
   }
 
   /**
@@ -4093,11 +4325,11 @@ function reloadForAccount() {
 }
 
 const VERDICT_META = {
-  product_defect: { icon: "🐞", label: "Product defect", cls: "v-bug" },
-  contradiction: { icon: "🕳", label: "Silent failure", cls: "v-bug" },
-  product_rejected_input: { icon: "🚧", label: "Test gap", cls: "v-gap" },
-  automation_defect: { icon: "🔧", label: "Harness", cls: "v-harness" },
-  environment: { icon: "☁️", label: "Environment", cls: "v-env" },
+  product_defect: { icon: "bug", label: "Product defect", cls: "v-bug" },
+  contradiction: { icon: "circle-dashed", label: "Silent failure", cls: "v-bug" },
+  product_rejected_input: { icon: "construction", label: "Test gap", cls: "v-gap" },
+  automation_defect: { icon: "wrench", label: "Harness", cls: "v-harness" },
+  environment: { icon: "cloud", label: "Environment", cls: "v-env" },
 };
 
 /**
@@ -4246,7 +4478,7 @@ function bugCard(g) {
 
   card.innerHTML = `
     <summary>
-      <span class="bug-kind ${meta.cls}" title="${esc(meta.label)}">${meta.icon}</span>
+      <span class="bug-kind ${meta.cls}" title="${esc(meta.label)}">${ico(meta.icon)}</span>
       <span class="bug-title">${esc(g.title)}</span>
       <span class="bug-where">${where}${more}</span>
       <span class="bug-seen">${esc(seen)}</span>
@@ -4312,101 +4544,6 @@ function initBugControls() {
 // it decides which journey and which parameters, recalls what it already knows
 // about that area, drives the real console, and returns a verdict rather than
 // an exit code.
-function runAiInstruction() {
-  // It reads the ask box on the Run view, which is not on screen from here —
-  // so an empty box has to say so rather than look like a dead button.
-  const q = $("#request").value.trim();
-  if (!q) {
-    const m = $("#ui-meta");
-    if (m) m.textContent = "type what you want tested in the Run box first";
-    return;
-  }
-  goToRun("the journey the AI picks");
-  const btn = $("#ui-ai");
-  if (btn) btn.disabled = true;
-  $("#status").textContent = "thinking…";
-
-  const con = $("#ui-console");
-  showRunLog();
-  con.innerHTML = "";
-  const write = (text, cls) => {
-    con.appendChild(el("div", cls || "", esc(text)));
-    con.scrollTop = con.scrollHeight;
-  };
-
-  const qs = new URLSearchParams({ c: String(currentClient), q });
-  // Sign in through the login screen, so the watcher sees it and the login page is tested.
-  if ($("#ui-login")?.checked) qs.set("login", "1");
-  if (customBase) qs.set("base", customBase);
-  if (!$("#ui-headed").checked) qs.set("headed", "0");
-  const es = new EventSource(`/api/ai-run?${qs}`);
-  watchStreamEnd(es);
-  uiRunning = es;
-
-  es.addEventListener("stage", (ev) => write("› " + JSON.parse(ev.data).line, "cmd"));
-  es.addEventListener("intent", (ev) => {
-    const i = JSON.parse(ev.data);
-    write(`🤖 chose ${i.flowKey} — ${i.flowLabel} (${i.source} routing)`, "ok");
-    write(`   ${i.reasoning}`, "note");
-    const params = [
-      i.lineItems ? `${i.lineItems} line items` : null,
-      i.template ? `template "${i.template}"` : null,
-      i.scheduleMinutes ? `${i.scheduleMinutes} min` : null,
-    ].filter(Boolean);
-    if (params.length) write(`   parameters: ${params.join(" · ")}`, "note");
-    // An honest run says what it did NOT test.
-    if (i.caveat) write(`⚠ ${i.caveat}`, "bad");
-    $("#status").textContent = i.flowLabel;
-  });
-  es.addEventListener("recall", (ev) => {
-    const { expectations = [], experience = [] } = JSON.parse(ev.data);
-    if (expectations.length) {
-      write("📚 what should happen here:", "cmd");
-      for (const r of expectations.slice(0, 3)) write(`   • ${r.text.slice(0, 180)}`, "note");
-    }
-    if (experience.length) {
-      write("🧠 what has broken here before:", "cmd");
-      for (const r of experience.slice(0, 3)) write(`   • ${r.text.slice(0, 180)}`, "note");
-    }
-  });
-  es.addEventListener("start", (ev) => write(JSON.parse(ev.data).line, "cmd"));
-  onQueued(es, write);
-  es.addEventListener("note", (ev) => write("⚠ " + JSON.parse(ev.data).line, "note"));
-  es.addEventListener("log", (ev) => write(JSON.parse(ev.data).line));
-  es.addEventListener("verdicts", (ev) => {
-    const { verdicts } = JSON.parse(ev.data);
-    if (!verdicts.length) write("⚖ no defects — the journey completed and every assertion held", "ok");
-    for (const v of verdicts) {
-      const meta = VERDICT_META[v.kind] ?? VERDICT_META.automation_defect;
-      write(`${meta.icon} ${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
-      write(`   ${v.rationale}`, "note");
-      for (const e of v.evidence ?? []) write(`   • ${e}`, "note");
-    }
-    loadFindings();
-  });
-  const finish = (msg, cls) => {
-    write(msg, cls);
-    if (btn) btn.disabled = false;
-    $("#status").textContent = "";
-    es.close();
-    runFinished();
-    uiRunning = null;
-    loadFindings();
-  };
-  es.addEventListener("done", (ev) => {
-    const code = JSON.parse(ev.data).exitCode;
-    finish(code === 0 ? "✓ journey passed" : `✗ journey failed (exit ${code})`, code === 0 ? "ok" : "bad");
-  });
-  es.addEventListener("run-error", (ev) => {
-    let msg = "run error";
-    try {
-      msg = JSON.parse(ev.data).line || msg;
-    } catch {}
-    finish("✗ " + msg, "bad");
-  });
-}
-
-
 /**
  * A plan step as a sentence rather than a function name.
  *
@@ -4426,9 +4563,12 @@ function planStepInWords(step) {
 // The difference from the instruction button: that one picks a pre-built
 // journey, this one builds a journey out of your words. The plan is shown
 // before it runs, because a plan you cannot inspect is a plan you cannot trust.
-function runTestCase() {
+function runTestCase(textOverride) {
   goToRun("your test case (UI)", "Compiling it into a browser step plan, then running that plan live.");
-  const q = $("#request").value.trim();
+  // A re-run re-sends the exact instruction that stopped early, regardless of
+  // whatever is in the box now — "Re-run this test case" should not silently
+  // run something you've since edited the box to say instead.
+  const q = textOverride ?? $("#request").value.trim();
   if (!q) return;
   const btn = $("#run-ui-btn");
   btn.disabled = true;
@@ -4451,7 +4591,7 @@ function runTestCase() {
   // glitch, so this is strictly better once the panel exists.
   qs.set("headed", "0");
   const es = new EventSource(`/api/plan-run?${qs}`);
-  watchStreamEnd(es);
+  watchStreamEnd(es, null, () => runTestCase(q));
   uiRunning = es;
 
   // Steps on the left (checkRows/renderAutomation, below), the actual browser
@@ -4493,7 +4633,7 @@ function runTestCase() {
     checkRows = [];
     runPending = null;
     renderAutomation();
-    write(`⛔ Not run: ${reason}`, "bad");
+    write(`Not run: ${reason}`, "bad");
     if (b.hint) write(`   ${b.hint}`, "note");
   });
   es.addEventListener("plan", (ev) => {
@@ -4524,7 +4664,7 @@ function runTestCase() {
     // These are plan steps, not checks — the generic summary calls everything
     // a check, which is the wrong noun for the one run made of steps.
     $("#auto-summary").textContent = `${p.steps.length} step${p.steps.length === 1 ? "" : "s"} to run`;
-    write(`🧪 ${p.title}  (${p.source} · ${p.steps.length} steps)`, "ok");
+    write(`${p.title}  (${p.source} · ${p.steps.length} steps)`, "ok");
     if (p.reasoning) write(`   ${p.reasoning}`, "note");
     write(`   grounded in ${p.context.expectations} rule(s) and ${p.context.experience} past finding(s)`, "note");
     p.steps.forEach((s, i) =>
@@ -4532,16 +4672,23 @@ function runTestCase() {
     );
     // Repairs are shown, never hidden: a plan the linter had to fix says the
     // compiler needs improving, and that is worth seeing.
-    if (p.coverage === "none") write(`   ⛔ cannot test this case yet — no step for: ${(p.gaps || []).join("; ") || "what it checks"}. Not running something else in its place.`, "bad");
-    else if (p.coverage === "partial") write(`   ◐ only part of this case can be tested — no step for: ${(p.gaps || []).join("; ")}`, "note");
-    for (const w of p.warnings ?? []) if (!/^cannot test|^can only test/.test(w)) write(`   ⚠ ${w}`, "note");
+    if (p.coverage === "none") write(`   Cannot test this case yet — no step for: ${(p.gaps || []).join("; ") || "what it checks"}. Not running something else in its place.`, "bad");
+    else if (p.coverage === "partial") write(`   Only part of this case can be tested — no step for: ${(p.gaps || []).join("; ")}`, "note");
+    for (const w of p.warnings ?? []) if (!/^cannot test|^can only test/.test(w)) write(`   ${w}`, "note");
   });
+  // Whether any step reported back, and the last error line seen — so a run
+  // that dies before step 1 (sign-in, setup) says so instead of "no defects".
+  let planStarted = false;
+  let planError = "";
   es.addEventListener("log", (ev) => {
     const l = JSON.parse(ev.data).line;
+    const err = l.match(/^\s*(?:Error|TimeoutError):\s*(.+)/);
+    if (err && !planError) planError = err[1].trim();
     // "[plan] 3/22 set_title ✓" — the runner's own progress, which is what
     // moves a row from waiting to running to done while you watch.
     const m = l.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/);
     if (m) {
+      planStarted = true;
       const at = Number(m[1]) - 1;
       const row = checkRows[at];
       if (row) {
@@ -4558,6 +4705,7 @@ function runTestCase() {
   });
   es.addEventListener("plan-result", (ev) => {
     const r = JSON.parse(ev.data);
+    planStarted = true;
     // The authoritative account, with a status and a reason per step.
     r.steps.forEach((s, i) => {
       const row = checkRows[i];
@@ -4582,10 +4730,13 @@ function runTestCase() {
   });
   es.addEventListener("verdicts", (ev) => {
     const { verdicts } = JSON.parse(ev.data);
-    if (!verdicts.length) write("⚖ no defects — every step held", "ok");
+    if (!verdicts.length) {
+      if (planStarted) write("No defects — every step held", "ok");
+      else write(`The run stopped before step 1, so nothing was tested${planError ? ` — ${planError}` : ""}`, "bad");
+    }
     for (const v of verdicts) {
       const meta = VERDICT_META[v.kind] ?? VERDICT_META.automation_defect;
-      write(`${meta.icon} ${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
+      write(`${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
       write(`   ${v.rationale}`, "note");
     }
     loadFindings();
@@ -4595,8 +4746,8 @@ function runTestCase() {
     btn.disabled = false;
     $("#status").textContent = "";
     es.close();
-    runFinished();
     uiRunning = null;
+    runFinished();
     loadFindings();
   };
   es.addEventListener("done", (ev) => {
@@ -4607,7 +4758,13 @@ function runTestCase() {
     // passed — and showing it as a green pass would hide a coverage gap as a
     // clean result.
     finish(
-      d.notRun ? "⛔ not tested — no step exists yet for what this case checks" : d.exitCode === 0 ? "✓ test case passed" : `✗ test case failed (exit ${d.exitCode})`,
+      d.notRun
+        ? "Not tested — no step exists yet for what this case checks"
+        : d.exitCode === 0
+          ? "✓ test case passed"
+          : !planStarted
+            ? `✗ Not tested — the run could not start${planError ? `: ${planError}` : ""}`
+            : `✗ test case failed (exit ${d.exitCode})`,
       d.notRun ? "bad" : d.exitCode === 0 ? "ok" : "bad",
     );
   });
@@ -4650,7 +4807,7 @@ async function loadStuck() {
       const card = el("div", "finding v-harness");
       card.appendChild(
         el("div", "finding-head",
-          `<span class="finding-icon">🧭</span><span class="finding-title">${esc(s.label)}</span>` +
+          `<span class="finding-icon">${ico("compass")}</span><span class="finding-title">${esc(s.label)}</span>` +
           `<span class="finding-sev">${taught ? `taught ${taught}×` : "not taught"}</span>`),
       );
       card.appendChild(el("div", "finding-meta", `${esc(s.flowKey ?? "run")} · ${esc(String(s.url).replace(/^https?:\/\/[^/]+/, ""))}`));
@@ -4665,7 +4822,7 @@ async function loadStuck() {
           `<summary>what the screen was offering</summary><div style="white-space:pre-wrap">${esc(String(s.accessibilityTree).slice(0, 1800))}</div>`));
       }
       const bar = el("div", "uibar");
-      const btn = el("button", "run-btn small", "🔧 Teach this locator");
+      const btn = el("button", "run-btn small", ico("wrench") + " Teach this locator");
       btn.addEventListener("click", () => teachStuck(s.id, btn));
       bar.appendChild(btn);
       card.appendChild(bar);
@@ -4701,7 +4858,7 @@ function teachStuck(id, btn) {
   const finish = (msg, cls) => {
     write(msg, cls);
     btn.disabled = false;
-    btn.textContent = "🔧 Teach this locator";
+    btn.innerHTML = ico("wrench") + " Teach this locator";
     es.close();
     runFinished();
     uiRunning = null;
@@ -5182,7 +5339,7 @@ function renderCatalogue() {
     if (q || module || kind) section.open = true;
     section.innerHTML =
       `<summary class="cat-group-head">` +
-      `<h2>${esc(group.icon)} ${esc(group.label)}</h2>` +
+      `<h2>${groupIco(group)} ${esc(group.label)}</h2>` +
       `<span class="cat-group-nums">` +
       `<b>${total}</b> case${total === 1 ? "" : "s"}` +
       `<span class="cat-split">${refused} should be refused · ${total - refused} accepted</span>` +
@@ -5358,7 +5515,7 @@ function initCatalog() {
     catRunning?.close();
     catRunning = null;
     $("#cat-run").disabled = false;
-    $("#cat-run").textContent = "▶ Run selected cases";
+    $("#cat-run").innerHTML = ico("play") + " Run selected cases";
   });
   $("#cat-none")?.addEventListener("click", () => {
     catPicked.clear();
@@ -5580,7 +5737,7 @@ function runPickedCases() {
     );
     badge(d.id, ok ? "PASS" : d.status === "failed" ? "FAIL" : "—", cls);
   });
-  es.addEventListener("queued", (ev) => write(`⏳ ${JSON.parse(ev.data).line}`, "queued"));
+  es.addEventListener("queued", (ev) => write(`${JSON.parse(ev.data).line}`, "queued"));
   es.addEventListener("compiled", (ev) => {
     const d = JSON.parse(ev.data);
     write(
@@ -5644,7 +5801,7 @@ function runPickedCases() {
   const finish = (msg, cls) => {
     write(msg, cls);
     btn.disabled = false;
-    btn.textContent = "▶ Run selected cases";
+    btn.innerHTML = ico("play") + " Run selected cases";
     es.close();
     catRunning = null;
     loadFindings();
@@ -5927,7 +6084,7 @@ function cbTable(cases) {
   const wrap = el("div", "cb-table-wrap");
   let html =
     `<table class="cb-table"><thead><tr><th>Case ID</th><th>Test case &amp; steps</th>` +
-    `<th>Expected result</th><th>Actual result</th><th>Result</th><th>Priority</th></tr></thead><tbody>`;
+    `<th>Expected result</th><th>Actual result</th><th>Last result</th><th>Priority</th></tr></thead><tbody>`;
   let sec = null;
   for (const c of cases) {
     if (c.section !== sec) {
@@ -5945,7 +6102,9 @@ function cbTable(cases) {
       `<td class="cb-title"><span class="cb-tt">${esc(cbPlain(c.title))}</span><div class="cb-steps">${cbSteps(c.steps)}</div>` +
       `<div class="cv-track" data-track-for="${cbAttr(c.id)}" hidden></div></td>` +
       `<td class="cb-exp">${esc(cbPlain(c.expected))}</td>` +
-      `<td class="cb-act">${actual}</td><td class="cb-res ${cls}">${ic} ${word}</td>` +
+      `<td class="cb-act">${actual}</td><td class="cb-res ${cls}">${ic} ${word}` +
+      (c.last ? `<div class="cb-when">${esc(cbWhen(c.last.at))}</div>` : "") +
+      `</td>` +
       `<td><span class="cb-pri p-${cbAttr(String(c.priority).toLowerCase())}">${esc(c.priority)}</span></td></tr>` +
       `<tr class="cb-more" hidden><td colspan="6"><b>Why it matters.</b> ${esc(cbPlain(c.why))}` +
       (c.setup ? `<br><b>Setup.</b> ${esc(cbPlain(c.setup))}` : "") +

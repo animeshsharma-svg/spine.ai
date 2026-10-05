@@ -41,6 +41,17 @@ export class CreateEventPage extends BasePage {
     super(page);
   }
 
+  /**
+   * The validation toast the quantity field showed, captured the instant it
+   * was typed — not read later by a separate assertion step. An antd message
+   * is gone in ~3 seconds; the rest of `addLineItems` (searching the product,
+   * picking a variant, saving the drawer) easily takes 20-30s on its own, so a
+   * later `expect_error` step waiting on a FRESH toast was simply too late —
+   * the real rejection had already happened and faded. This is that rejection,
+   * preserved for whichever step checks for it.
+   */
+  lastQuantityError: string | null = null;
+
   // ── line items (the "Manage Line Items" drawer) ───────────────────────────
   /**
    * The panel that the toolbar's `Items N` button opens.
@@ -126,10 +137,25 @@ export class CreateEventPage extends BasePage {
       timeout: TIMEOUTS.MEDIUM,
     });
     await this.waitForSpinnerHidden();
-    await this.lineItemsDrawer()
-      .first()
-      .waitFor({ state: "hidden", timeout: TIMEOUTS.LONG })
-      .catch(() => {});
+    // Save is where this drawer validates quantities: an invalid one keeps the
+    // drawer open and flashes "Please fill valid quantity on every line item"
+    // for about three seconds. Watch for that toast while waiting for the
+    // drawer to close, so a refusal is recorded instead of lost.
+    const drawer = this.lineItemsDrawer().first();
+    const toast = this.page.locator(".ant-message-error, .ant-notification-notice-error").first();
+    const deadline = Date.now() + TIMEOUTS.LONG;
+    while (Date.now() < deadline) {
+      if (!(await drawer.isVisible().catch(() => false))) return;
+      if (await toast.isVisible().catch(() => false)) {
+        const err = await this.errorToastText(500);
+        if (err) {
+          this.lastQuantityError ??= err;
+          console.log(`[create-event] line items not saved — the app said: ${err}`);
+        }
+        return;
+      }
+      await this.page.waitForTimeout(150);
+    }
   }
 
   async addLineItems(products: ProductInput[]): Promise<void> {
@@ -302,6 +328,11 @@ export class CreateEventPage extends BasePage {
       await qty.fill(quantity).catch(() => {});
       await p.keyboard.press("Tab").catch(() => {});
       await this.pause(200);
+      // Short wait: this validation is a client-side field check, not a
+      // network round-trip, so it shows near-instantly when it shows at all.
+      // A long wait here would tax every normal line-item add for a toast
+      // that, on a valid quantity, never comes.
+      this.lastQuantityError = await this.errorToastText(1_200).catch(() => null);
     }
   }
 

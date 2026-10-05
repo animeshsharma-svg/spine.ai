@@ -51,11 +51,24 @@ const saved = savedSessionIsFresh();
  */
 const onScreenLoginAhead = process.env.UI_SHOW_LOGIN === "1" && existsSync(AUTH_FILE);
 
+/**
+ * A dashboard run names its company (COMPANY_ID) and the spec signs in as that
+ * company itself, from the database — the saved clientA session is only the
+ * file the project loads, not who the run acts as. Refreshing it would need
+ * clientA's OTP, which a multi-client setup does not have, and would fail the
+ * run before its first step.
+ */
+const companyLoginAhead = Boolean(process.env.COMPANY_ID) && existsSync(AUTH_FILE);
+
 setup("authenticate", async ({ page }) => {
   // Skipped before the browser is needed, so no second window opens.
   setup.skip(
-    (saved.fresh || onScreenLoginAhead) && process.env.UI_FORCE_LOGIN !== "1",
-    onScreenLoginAhead && !saved.fresh ? "the journey signs in on screen itself" : saved.reason,
+    (saved.fresh || onScreenLoginAhead || companyLoginAhead) && process.env.UI_FORCE_LOGIN !== "1",
+    saved.fresh
+      ? saved.reason
+      : onScreenLoginAhead
+        ? "the journey signs in on screen itself"
+        : "the run signs in as its own company",
   );
   assertConfigured();
   const loginPage = new LoginPage(page);

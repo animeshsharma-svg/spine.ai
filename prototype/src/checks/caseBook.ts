@@ -20,6 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildJourneys } from "./journeys.js";
+import { relevantStepAssertions } from "./apiAssertions.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "..", "data", "runs");
@@ -56,7 +57,7 @@ export function lastResults(): Map<string, LastResult> {
       const j = run?.journey;
       if (!j?.steps) continue;
       for (const st of j.steps) {
-        for (const r of st.assertions?.results ?? []) {
+        for (const r of relevantStepAssertions(st).assertions?.results ?? []) {
           if (out.has(r.id)) continue;
           out.set(r.id, {
             result: r.pass === true ? "passed" : r.pass === false ? "failed" : "not-checked",

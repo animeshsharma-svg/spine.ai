@@ -198,7 +198,7 @@
             .map((r) => {
               const sug = r.uuid === t.suggested;
               const warns = r.warnings || [];
-              const wn = !r.usable ? (warns[0] ? `<div class="wn">${esc(warns[0])}</div>` : "") : warns.map((w) => `<div class="wn">⚠ ${esc(w)}</div>`).join("");
+              const wn = !r.usable ? (warns[0] ? `<div class="wn">${esc(warns[0])}</div>` : "") : warns.map((w) => `<div class="wn">${esc(w)}</div>`).join("");
               return (
                 `<button type="button" class="sx-tpl${sug ? " suggested" : ""}${r.usable ? "" : " unusable"}" ${r.usable ? `data-uuid="${esc(r.uuid)}"` : 'aria-disabled="true"'}>` +
                 `<span class="nm">${esc(r.name)}${sug ? ` <span class="sx-badge accent">Suggested</span>` : ""}</span>` +
@@ -326,11 +326,11 @@
   function templateCheckControls() {
     return (
       `<div class="sx-btnrow" id="pm-tc-controls">` +
-      `<button type="button" class="run-btn small ghost" id="pm-tc-cases">📋 Show cases</button>` +
+      `<button type="button" class="run-btn small ghost" id="pm-tc-cases">${ico("clipboard-list")} Show cases</button>` +
       `<span class="sx-chips" style="margin:0" role="radiogroup" aria-label="How many cases">` +
       `<label class="tgl-flow"><input type="radio" name="pm-tc-mode" value="sample" checked /> Sample (quick)</label>` +
       `<label class="tgl-flow"><input type="radio" name="pm-tc-mode" value="full" /> Full</label></span>` +
-      `<button type="button" class="run-btn small primary" id="pm-tc-run">🧪 Check this template</button>` +
+      `<button type="button" class="run-btn small primary" id="pm-tc-run">${ico("flask-conical")} Check this template</button>` +
       `<span class="hint" id="pm-tc-busy"></span></div>`
     );
   }
@@ -441,7 +441,7 @@
     const s = run.summary || {};
     return (
       `<div class="sx-card ${s.fail || s.serverErrors || s.gaps ? "bad" : "good"}"><div class="sx-row"><h3 class="sx-h3 sx-grow">Template check finished</h3>` +
-      (runId ? `<a class="run-btn small" href="/api/test-report?run=${encodeURIComponent(runId)}" target="_blank" rel="noopener">📊 Open report</a>` : "") +
+      (runId ? `<a class="run-btn small" href="/api/test-report?run=${encodeURIComponent(runId)}" target="_blank" rel="noopener">${ico("chart-column")} Open report</a>` : "") +
       `</div>` +
       `<div class="sx-chips"><span class="sx-chip">${esc(s.pass ?? 0)} passed</span><span class="sx-chip">${esc(s.fail ?? 0)} failed</span>` +
       `<span class="sx-chip">${esc(s.inconclusive ?? 0)} couldn't tell</span><span class="sx-chip">${esc(s.notRun ?? 0)} not run</span>` +
@@ -485,7 +485,7 @@
       box.innerHTML =
         (header ||
           `<div class="sx-card accent"><div class="sx-row"><h3 class="sx-h3 sx-grow"><span class="spin">⟳</span> Checking this template (${esc(mode === "full" ? "full" : "sample")})</h3>` +
-            `<button type="button" class="chip" id="pm-tc-stop">■ stop watching</button></div>` +
+            `<button type="button" class="chip" id="pm-tc-stop">${ico("square")} stop watching</button></div>` +
             `<p class="sx-sub">${results.length}${total ? ` of ${total}` : ""} case(s) done</p>${log}</div>`) +
         (error ? `<div class="sx-banner bad">${error}</div>` : "") +
         (results.length ? `<div class="sx-card">${results.map(tcResultHtml).join("")}</div>` : "");

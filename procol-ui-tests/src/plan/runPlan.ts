@@ -604,10 +604,15 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return "no error shown";
     }
     case "expect_error": {
-      const err = await s.create.errorToastText(5_000);
+      // A field-level toast (e.g. an invalid quantity) can easily have fired
+      // and faded well before this step runs — the step that typed the bad
+      // value already captured it the instant it appeared. Only fall back to
+      // a fresh live wait when nothing was captured earlier in the run.
+      const captured = s.create.lastQuantityError;
+      const err = captured ?? (await s.create.errorToastText(5_000));
       expect(err, "the app was expected to refuse this").toBeTruthy();
       if (a.contains) expect(err ?? "").toContain(String(a.contains));
-      return `app said: ${err}`;
+      return captured ? `app said (caught as it appeared): ${err}` : `app said: ${err}`;
     }
     case "expect_publish_blocked": {
       // Say WHY the app may have allowed it: the product audience adds vendors

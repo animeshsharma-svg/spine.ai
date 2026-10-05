@@ -252,10 +252,16 @@ export function fieldCheckTotals(journey: JourneyRecord | undefined): { total: n
     const a = st.assertions;
     if (!a?.total) continue;
     t.steps++;
-    t.total += a.total;
-    t.passed += a.passed;
-    t.failed += a.failed;
-    t.skipped += a.skipped;
+    // Counted the same way the rows below are shown: a field's presence,
+    // type and value checks are one validation, not three. Raw a.total here
+    // would say "577 field checks" while the step right below it shows a
+    // fraction of that many rows — same mismatch this merge fixed elsewhere.
+    for (const m of mergeFieldChecks(a.results, st.kind)) {
+      t.total++;
+      if (m.pass === true) t.passed++;
+      else if (m.pass === false) t.failed++;
+      else t.skipped++;
+    }
   }
   return t;
 }
@@ -277,8 +283,19 @@ export function renderFieldChecksSection(journey: JourneyRecord | undefined): st
     .filter((st) => st.assertions?.total)
     .map((st) => {
       const a = st.assertions!;
-      const rows = [...a.results].sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
       const known = { ...knownIds(journey.made), ...knownIds(st.produced) };
+      // A field's presence/type/value checks are one validation, not three —
+      // same fold the live dashboard uses, so a reader sees "the user's
+      // status is present and correct" once instead of three near-duplicate
+      // rows for it.
+      const merged = mergeFieldChecks(a.results, st.kind).sort((x, y) => Number(y.pass === false) - Number(x.pass === false));
+      const rowsHtml = merged
+        .map((m) =>
+          m.ids.length === 1
+            ? fieldCheckRow(a.results.find((r) => r.id === m.ids[0])!, st, known, true)
+            : mergedFieldCheckRow(m, a.results.filter((r) => m.ids.includes(r.id)), st, known, true),
+        )
+        .join("");
       return `
 <details class="fc-step${a.failed ? " has-fail" : ""}"${a.failed ? " open" : ""} data-verdict="${a.failed ? "fail" : "pass"}">
   <summary>
@@ -290,9 +307,7 @@ export function renderFieldChecksSection(journey: JourneyRecord | undefined): st
   </summary>
   <table class="jchecks-t fc-t">
     <thead><tr><th>Test case</th><th>Expected result</th><th>Actual result</th><th>Result</th></tr></thead>
-    <tbody>${rows
-      .map((r) => fieldCheckRow(r, st, known, true))
-      .join("")}</tbody>
+    <tbody>${rowsHtml}</tbody>
   </table>
 </details>`;
     })
@@ -609,6 +624,32 @@ function fieldCheckRow(r: FieldCheckRecord, step: JourneyStepRecord, known: Reco
     `<tr class="${filterable ? "fc-row " : ""}${cls}"${filterable ? ` data-verdict="${verdict}" data-search="${safe(search)}"` : ""}>` +
     `<td>${safe(humanText(d.title, known))}${renderTechFold(d.details, "", "Details")}</td>` +
     `<td>${safe(humanText(d.expected, known))}</td><td>${safe(humanText(d.actual, known))}</td>` +
+    `<td class="jc-res">${icon} ${word}</td></tr>`
+  );
+}
+
+/**
+ * The same presence/type/value fold as the live dashboard's "Field checks"
+ * panel (`mergeFieldChecks`/`checksTable`), applied here too — this report
+ * had its own separate renderer (`fieldCheckRow`, one row per raw check) that
+ * never got the fix, so "is returned" / "is text" / "reads X" kept showing as
+ * three rows for one field. One row per field, id-scrubbed the same as every
+ * other row in this report.
+ */
+function mergedFieldCheckRow(m: MergedRow, group: CheckRow[], step: JourneyStepRecord, known: Record<string, string>, filterable: boolean): string {
+  const cls = m.pass === true ? "ok" : m.pass === false ? "bad" : "skip";
+  const icon = m.pass === true ? "✓" : m.pass === false ? "✗" : "–";
+  const word = m.pass === true ? "Passed" : m.pass === false ? "Failed" : "Not checked";
+  const verdict = m.pass === true ? "pass" : m.pass === false ? "fail" : "notrun";
+  const title = humanText(m.title, known);
+  const expected = humanText(m.expected, known);
+  const actual = humanText(m.actual, known);
+  const details = group.map((r) => ({ label: r.id, value: `${r.op}${m.path ? ` — ${m.path}` : ""}: ${humanText(r.humanActual ?? r.actual ?? "", known)}`, kind: "code" as const }));
+  const search = `${m.ids.join(" ")} ${title} ${expected} ${actual} ${step.title} ${m.path}`.toLowerCase();
+  return (
+    `<tr class="${filterable ? "fc-row " : ""}${cls}"${filterable ? ` data-verdict="${verdict}" data-search="${safe(search)}"` : ""}>` +
+    `<td>${safe(title)}${renderTechFold(details, "", "Details")}</td>` +
+    `<td>${safe(expected)}</td><td>${safe(actual)}</td>` +
     `<td class="jc-res">${icon} ${word}</td></tr>`
   );
 }

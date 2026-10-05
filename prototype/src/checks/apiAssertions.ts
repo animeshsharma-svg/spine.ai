@@ -32,7 +32,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { JourneyStepRecord, StepKind } from "./journeyModel.js";
-import { humanActual, type ActualFacts, type HumanCase } from "./humanize.js";
+import { humanActual, rootNoun, type ActualFacts, type HumanCase } from "./humanize.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ASSERTIONS_FILE = join(here, "..", "..", "data", "api-assertions.json");
@@ -50,7 +50,8 @@ export type AssertionOp =
   | "non_empty" // array has at least one element
   | "gte" // number (or numeric string) ≥ value
   | "equals_request" // response value == this run's request body at `ref`
-  | "equals_made"; // response value == the id an earlier step produced, named `ref`
+  | "equals_made" // response value == the id an earlier step produced, named `ref`
+  | "value_matches"; // a business number (quantity, total) equals what earlier steps sent — see valueChecks
 
 export type Severity = "critical" | "major" | "minor";
 
@@ -391,6 +392,13 @@ export function loadAssertionCatalog(): AssertionCatalog | null {
     const { mtimeMs } = statSync(ASSERTIONS_FILE);
     if (cached && cached.mtime === mtimeMs) return cached.catalog;
     const catalog = JSON.parse(readFileSync(ASSERTIONS_FILE, "utf8")) as AssertionCatalog;
+    // Applied on load too, so a catalog built before the rule (or on another
+    // machine) is held to it.
+    for (const [step, sc] of Object.entries(catalog.steps)) {
+      sc.assertions = sc.assertions
+        .filter((a) => isRelevantFieldCheck(step, a.path, a.op, a.ref))
+        .map((a) => (a.human ? { ...a, human: { ...a.human, title: fixRootNoun(a.human.title, step)!, expected: fixRootNoun(a.human.expected, step)! } } : a));
+    }
     cached = { mtime: mtimeMs, catalog };
     return catalog;
   } catch {
@@ -408,6 +416,7 @@ export function evaluateStepAssertions(
   data: unknown,
   made: Record<string, string>,
   catalog: AssertionCatalog | null = loadAssertionCatalog(),
+  history: JourneyStepRecord[] = [],
 ): StepAssertions | undefined {
   if (!catalog || !rec.call || rec.verdict === "not-run") return undefined;
   const entry = catalog.steps[rec.kind];
@@ -417,6 +426,7 @@ export function evaluateStepAssertions(
   const list = rec.verdict === "worked" ? entry.assertions : entry.assertions.filter((a) => a.op === "status_2xx");
   const ctx = { data, status: rec.status ?? 0, ms: rec.ms ?? 0, body: rec.call.body, made };
   const results = list.filter((a) => !a.retired).map((a) => judge(a, ctx));
+  if (rec.verdict === "worked") results.push(...valueChecks(rec, data, history));
   return {
     total: results.length,
     passed: results.filter((x) => x.pass === true).length,
@@ -424,6 +434,105 @@ export function evaluateStepAssertions(
     skipped: results.filter((x) => x.pass === null).length,
     results,
   };
+}
+
+// ── business numbers: what was sent earlier, read back now ─────────────────
+
+/** "₹ 9,108.50" / "46" / 46 → number; anything else → undefined. */
+const num = (v: unknown): number | undefined => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+  if (typeof v !== "string") return undefined;
+  const n = Number(v.replace(/[^0-9.\-]/g, ""));
+  return v.trim() && Number.isFinite(n) ? n : undefined;
+};
+const dig = (o: unknown, path: string): unknown =>
+  path.split(".").reduce<unknown>((x, k) => (x && typeof x === "object" ? (x as Record<string, unknown>)[k] : undefined), o);
+const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+/**
+ * Value checks the response-shape catalog cannot make.
+ *
+ * The catalog proves a field is there and well-formed; it cannot know that 46 KG
+ * went in, or that ₹198 × 46 must come back as ₹9,108. These read the numbers
+ * the earlier steps SENT (their request bodies) and compare them with what this
+ * step's reply says. A number that cannot be found is "not checked", never a pass.
+ */
+export function valueChecks(rec: JourneyStepRecord, data: unknown, history: JourneyStepRecord[]): AssertionResult[] {
+  const out: AssertionResult[] = [];
+  const code = STEP_CODE[rec.kind as StepKind] ?? "STEP";
+  const add = (key: string, path: string, title: string, expected: string, pass: boolean | null, actual: string) =>
+    out.push({ id: `API-V${code}-${key}`, path, op: "value_matches", title, expected, severity: "critical", pass, actual, humanTitle: title, humanExpected: expected, humanActual: actual });
+  const sent = (kind: string) => history.find((h) => h.kind === kind)?.call?.body as Record<string, unknown> | undefined;
+  const draftLines = ((sent("create_draft")?.line_items as unknown[]) ?? []) as Array<{ quantity?: { value?: unknown; unitSymbol?: string } }>;
+
+  if (rec.kind === "create_draft") {
+    const asked = ((rec.call?.body as Record<string, unknown> | undefined)?.line_items as unknown[] | undefined)?.length;
+    const got = (dig(data, "event_group_line_item_ids") as unknown[] | undefined)?.length;
+    if (asked !== undefined)
+      add("LINES", "event_group_line_item_ids", "Every line item sent is created",
+        `The new event has ${asked} line item${asked === 1 ? "" : "s"}, one for each line item sent.`,
+        got === undefined ? null : got === asked, got === undefined ? "The reply listed no line items." : `It has ${got}.`);
+  }
+
+  if (rec.kind === "vendor_open_pricing" && draftLines.length) {
+    const rows = (dig(data, "sheets.inline_components.data.default") as Array<Record<string, any>> | undefined) ?? [];
+    const want = draftLines.map((l) => ({ q: num(l.quantity?.value), u: l.quantity?.unitSymbol }));
+    const seen = want.map((_, i) => ({ q: num(rows[i]?.creator_quantity?.value), u: rows[i]?.creator_quantity?.configuration?.unit_type as string | undefined }));
+    const show = (xs: Array<{ q?: number; u?: string }>) => xs.map((x) => `${x.q ?? "?"} ${x.u ?? ""}`.trim()).join(", ");
+    const known = seen.every((x) => x.q !== undefined);
+    add("QTY", "sheets.inline_components.data.default[*].creator_quantity.value", "The vendor sees the quantity the buyer asked for",
+      `Each line item shows the quantity sent when the event was created: ${show(want)}.`,
+      known ? want.every((w, i) => w.q === seen[i].q) : null, known ? `It showed ${show(seen)}.` : "The quantities could not be read.");
+    const unitsKnown = seen.every((x) => x.u);
+    add("UNIT", "sheets.inline_components.data.default[*].creator_quantity.configuration.unit_type", "The vendor sees the unit the buyer asked for",
+      `Each line item is in the unit sent: ${want.map((w) => w.u).join(", ")}.`,
+      unitsKnown ? want.every((w, i) => (w.u ?? "").toLowerCase() === (seen[i].u ?? "").toLowerCase()) : null,
+      unitsKnown ? `It showed ${seen.map((x) => x.u).join(", ")}.` : "The units could not be read.");
+  }
+
+  if (rec.kind === "award_proposal") {
+    const total = num(dig(data, "proposal_values.total_proposal_value"));
+    add("START", "proposal_values.total_proposal_value", "A new award proposal starts at zero",
+      "Nothing is awarded yet, so the proposal total is ₹0.", total === undefined ? null : total === 0, total === undefined ? "No total was returned." : `It was ${money(total)}.`);
+  }
+
+  if (rec.kind === "award_lines") {
+    // price per line as the vendor quoted it, keyed by the event's line item
+    const priced = new Map<string, { price?: number; gst: number }>();
+    const sheet = dig(sent("bid_products"), "sheets.inline_components.data") as Record<string, Array<Record<string, any>>> | undefined;
+    for (const rows of Object.values(sheet ?? {}))
+      for (const r of rows ?? []) {
+        const egli = r?.product?.event_group_line_item_uuid;
+        if (egli) priced.set(egli, { price: num(r?.price?.value), gst: num(r?.gst?.value) ?? 0 });
+      }
+    const awarded: Array<{ qty?: number; price?: number; gst: number }> = [];
+    const responses = (dig(rec.call?.body, "responses") as Record<string, { egli_data?: Record<string, { awarded_quantity?: unknown }> }> | undefined) ?? {};
+    for (const r of Object.values(responses))
+      for (const [egli, d] of Object.entries(r?.egli_data ?? {})) awarded.push({ qty: num(d?.awarded_quantity), ...(priced.get(egli) ?? { gst: 0 }) });
+    const total = num(dig(data, "proposal_values.total_proposal_value"));
+    const computable = awarded.length > 0 && awarded.every((a) => a.qty !== undefined && a.price !== undefined);
+    const expect = computable ? awarded.reduce((t, a) => t + a.qty! * a.price! * (1 + a.gst / 100), 0) : undefined;
+    const how = computable ? awarded.map((a) => `${a.qty} × ${money(a.price!)}${a.gst ? ` + ${a.gst}% GST` : ""}`).join(" + ") : "";
+    add("TOTAL", "proposal_values.total_proposal_value", "The award total equals the quoted price × the awarded quantity",
+      computable ? `The proposal total is ${money(expect!)} (${how}).` : "The proposal total equals the vendor's quote for the awarded quantity.",
+      expect === undefined || total === undefined ? null : Math.abs(total - expect) <= 0.5,
+      total === undefined ? "No total was returned." : expect === undefined ? `It was ${money(total)}, but the quoted price could not be read from the bid.` : `It was ${money(total)}.`);
+    const lines = num(dig(data, "proposal_values.total_awarded_line_items"));
+    if (awarded.length)
+      add("COUNT", "proposal_values.total_awarded_line_items", "Every awarded line item is counted",
+        `The proposal counts ${awarded.length} awarded line item${awarded.length === 1 ? "" : "s"}.`,
+        lines === undefined ? null : lines === awarded.length, lines === undefined ? "No count was returned." : `It counted ${lines}.`);
+  }
+
+  if (rec.kind === "award_submit") {
+    const before = num(dig(history.find((h) => h.kind === "award_lines")?.response, "proposal_values.total_proposal_value"));
+    const now = num(dig(data, "proposal_values.total_proposal_value"));
+    if (before !== undefined)
+      add("KEEP", "proposal_values.total_proposal_value", "Submitting does not change the award total",
+        `The submitted proposal still totals ${money(before)}, as when the quantity was awarded.`,
+        now === undefined ? null : Math.abs(now - before) <= 0.5, now === undefined ? "No total was returned." : `It was ${money(now)}.`);
+  }
+  return out;
 }
 
 // ── what the report keeps of a response ────────────────────────────────────
@@ -587,15 +696,9 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
     if (HINT.freeText.test(k)) s -= 25;
     return s;
   };
-  // A login response carries the signed-in session plus the whole tenant's
-  // dashboard config (default units, currency settings, permissions...). The
-  // config is real data but nothing on the sign-in screen shows it, so field
-  // checks for a login step stay scoped to the session itself: the field's
-  // root key names the person or their company.
-  const sessionOnly = LOGIN_STEPS.has(step);
   const fields = [...stats.values()]
     .filter((s) => s.parents > 0 && !s.types.has("undefined"))
-    .filter((s) => !sessionOnly || SESSION_ROOT.has(s.path.split(/[.[]/)[0]))
+    .filter((s) => isRelevantFieldCheck(step, s.path))
     .sort((a, b) => score(b.path) - score(a.path) || a.path.localeCompare(b.path));
 
   // Echo: a scalar the request sent that comes back under the same key.
@@ -605,7 +708,7 @@ export function inferStep(step: StepKind, samples: ResponseSample[], cap = 45): 
     for (const [reqPath, val] of leaves(firstOk.body)) {
       const k = lastKey(reqPath);
       for (const f of fields) {
-        if (lastKey(f.path) !== k) continue;
+        if (lastKey(f.path) !== k || !echoAligned(reqPath, f.path)) continue;
         // Same rule as evaluation: a list matches when the sent value is among its items.
         const matches = (g: unknown[], want: unknown) =>
           g.length > 0 && (f.path.includes("[*]") ? g.some((x) => JSON.stringify(x) === JSON.stringify(want)) : g.every((x) => JSON.stringify(x) === JSON.stringify(want)));
@@ -735,7 +838,68 @@ export const STEP_CAP: Partial<Record<StepKind, number>> = { buyer_login: 20, ve
 
 /** Login steps whose field checks are scoped to the session itself (see `inferStep`). */
 const LOGIN_STEPS = new Set<StepKind>(["buyer_login", "vendor_login", "evaluator_login"]);
-const SESSION_ROOT = new Set(["user", "company"]);
+// Who signed in and what they may do. Workspace settings (default units,
+// currency, delivery type) ride along on the same reply but are not sign-in.
+const SESSION_ROOT = new Set(["user", "company", "authorized_permissions"]);
+/** "" is a check on the call itself (status, speed, JSON body). */
+const isSessionPath = (path: string | undefined) => !path || SESSION_ROOT.has(path.split(/[.[]/)[0]);
+
+/**
+ * Whether a field check is about what the step did.
+ *
+ * Every reply also carries who did it (`user_details`, `creator`, `company`…),
+ * the workspace's defaults (`trade_config.default_*`, `show_*`, label styles,
+ * integration flags) and bookkeeping timestamps. Those are true on every call
+ * and say nothing about this step, yet they filled the per-step budget and
+ * buried the record's own fields. One rule for every step, so a new step or a
+ * rebuilt catalog is filtered the same way.
+ */
+const ACTOR_ROOT = new Set(["user", "user_details", "creator", "company", "owner", "created_by", "updated_by"]);
+const NOISE_KEY =
+  /^(created_at|updated_at|deleted_at|configurations|global_config|default_unit)$|^default_|^show_|^allow_duplicate_|_integration_status$|^read_only_mode$|_label_type$|^label_vs_/;
+export function isRelevantFieldCheck(step: string, path: string | undefined, op?: string, ref?: string): boolean {
+  if (!path) return true;
+  // A check that ties this reply to a record the journey made, or to what the
+  // request sent, is about this step wherever the field sits.
+  if (op === "equals_made") return true;
+  if (op === "equals_request") return !ref || echoAligned(ref, path);
+  if (LOGIN_STEPS.has(step as StepKind)) return isSessionPath(path);
+  const segs = path.split(/[.[\]*]+/).filter(Boolean);
+  if (ACTOR_ROOT.has(segs[0])) return false;
+  return !segs.some((s) => NOISE_KEY.test(s));
+}
+
+/**
+ * Whether a request field and a reply field are the same thing, not just the same key.
+ * `widgets.global_price_components[0].configuration.is_required` must not be
+ * "echoed" by `trade_config.extra_fields_for_vendor_invite[*].configuration.is_required`.
+ */
+const GENERIC_SEG = new Set(["widgets", "configuration", "configurations", "data", "sheets", "attributes", "params"]);
+export function echoAligned(reqPath: string, resPath: string): boolean {
+  const segs = (p: string) => p.split(/[.[\]*]+/).filter((x) => x && !/^\d+$/.test(x));
+  const owners = segs(reqPath).slice(0, -1).filter((x) => !GENERIC_SEG.has(x));
+  if (!owners.length) return true;
+  const res = new Set(segs(resPath));
+  return owners.some((o) => res.has(o));
+}
+
+/** Titles built before list-shaped replies had a noun read "Each 's status". */
+const fixRootNoun = (text: string | undefined, step: string) =>
+  text && /\b[Ee]ach 's /.test(text) ? text.replace(/\b([Ee])ach 's /g, (_m, e) => `${e}ach ${rootNoun(step as StepKind)}'s `) : text;
+
+/** A saved step's field-check results with the off-topic ones removed and the totals recounted. */
+export function relevantStepAssertions<T extends { kind?: string; assertions?: StepAssertions }>(step: T): T {
+  const a = step.assertions;
+  if (!a?.results || !step.kind) return step;
+  const kind = step.kind;
+  const refOf = (r: AssertionResult) => r.op === "equals_request" ? /request's `([^`]+)`/.exec(r.expected ?? "")?.[1] : undefined;
+  const results = a.results
+    .filter((r) => isRelevantFieldCheck(kind, r.path, r.op, refOf(r)))
+    .map((r) => ({ ...r, humanTitle: fixRootNoun(r.humanTitle, kind), humanExpected: fixRootNoun(r.humanExpected, kind), humanActual: fixRootNoun(r.humanActual, kind) }));
+  const passed = results.filter((r) => r.pass === true).length;
+  const failed = results.filter((r) => r.pass === false).length;
+  return { ...step, assertions: { ...a, results, total: results.length, passed, failed, skipped: results.length - passed - failed } };
+}
 
 /**
  * Build the whole catalog. Ids are stable: an assertion keeps its id across
