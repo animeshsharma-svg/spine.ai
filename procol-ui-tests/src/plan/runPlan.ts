@@ -174,18 +174,19 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
   const page = s.page;
   const dialog = page.locator(".ant-modal-content").filter({ hasText: /Reschedule Event/i }).filter({ visible: true }).first();
   if (!(await dialog.isVisible().catch(() => false))) {
-    const offered = await runStep(s, { step: "open_event_settings" });
-    const item = page.locator(".ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem']").filter({ hasText: /^\s*Reschedule Event\s*$/i }).filter({ visible: true }).first();
-    if (!(await item.count().catch(() => 0))) throw new Error(`"Reschedule Event" is not in the Settings menu (${offered}) — it is offered only while the event is upcoming`);
-    if ((await item.getAttribute("aria-disabled").catch(() => null)) === "true") throw new Error(`"Reschedule Event" is disabled in the Settings menu (${offered})`);
-    // a hover menu can start closing while the pointer travels from the gear to the item;
-    // the menu's own click handler still answers a dispatched click
-    await item.click({ timeout: 4_000 }).catch(async (e) => {
-      if (process.env.UI_DUMP_DIALOG) console.log(`[reschedule] menu click lost: ${String((e as Error).message).split("\n").filter((l) => /intercept|not visible|not stable|detached/.test(l)).slice(0, 2).join(" | ")}`);
-      await item.dispatchEvent("click");
-    });
-    await dialog.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
-    if (!(await dialog.isVisible().catch(() => false))) throw new Error("the Reschedule Event dialog did not open (not evidence about the product)");
+    // The Settings menu can fade shut between being read and being clicked (hover trigger),
+    // so open it and click the item straight away, up to three times.
+    let offered = "";
+    for (let attempt = 1; attempt <= 3 && !(await dialog.isVisible().catch(() => false)); attempt++) {
+      offered = (await runStep(s, { step: "open_event_settings" })) ?? "";
+      if (!/Reschedule Event/i.test(offered)) throw new Error(`"Reschedule Event" is not in the Settings menu (${offered}) — it is offered only while the event is upcoming`);
+      if (/Reschedule Event \(disabled\)/i.test(offered)) throw new Error(`"Reschedule Event" is disabled in the Settings menu (${offered})`);
+      const item = page.locator(".ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem']").filter({ hasText: /^\s*Reschedule Event\s*$/i }).filter({ visible: true }).first();
+      const clicked = await item.click({ timeout: 3_000 }).then(() => true).catch(() => item.dispatchEvent("click", undefined, { timeout: 2_000 }).then(() => true).catch(() => false));
+      if (clicked) await dialog.waitFor({ state: "visible", timeout: 8_000 }).catch(() => {});
+      else await page.mouse.move(5, 5).catch(() => {});
+    }
+    if (!(await dialog.isVisible().catch(() => false))) throw new Error(`the Reschedule Event dialog did not open after three tries (${offered}) — not evidence about the product`);
   }
   if (process.env.UI_DUMP_DIALOG) {
     const { writeFileSync } = await import("node:fs");
@@ -227,12 +228,17 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
     }
     await panelInput.press("Enter").catch(() => {});
     await page.locator(".ant-calendar-picker-container").filter({ visible: true }).first().waitFor({ state: "hidden", timeout: 3_000 }).catch(closePopups);
+    // read the field back: a pick that did not commit must not be reported as set
+    const shown = ((await picker.locator("input").first().inputValue().catch(() => "")) || "").trim();
+    if (shown !== dayWords(when)) throw new Error(`the date picker shows “${shown}” after picking ${dayWords(when)} — the pick did not commit (not evidence about the product)`);
     return "ok";
   };
 
   if (a.start !== undefined && a.start !== null && a.start !== "") {
     const when = relTime(a.start);
-    const live = dialog.locator(".ant-form-item").filter({ hasText: /Make Order Live At/i }).first();
+    // fields by their LABEL: the start field's own error text names "Delivery Date", so a
+    // text match on the whole form item picks the wrong field
+    const live = dialog.locator(".ant-form-item").filter({ has: page.locator("label", { hasText: /^\s*Make Order Live At\s*$/i }) }).first();
     const dayResult = await pickDay(live.locator(".ant-calendar-picker").first(), when);
     if (dayResult === "disabled") {
       notes.push(`the calendar does not allow ${dayWords(when)} (that day is disabled)`);
@@ -249,23 +255,43 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
     }
   }
   if (a.delivery !== undefined && a.delivery !== null && a.delivery !== "") {
-    const del = dialog.locator(".ant-form-item").filter({ hasText: /Delivery Date|Pickup Date/i }).first();
+    const del = dialog.locator(".ant-form-item").filter({ has: page.locator("label", { hasText: /^\s*(Delivery|Pickup) Date\s*$/i }) }).first();
     if (!(await del.count().catch(() => 0))) throw new Error("this event's Reschedule dialog has no Delivery / Pickup Date field (the event has no delivery date)");
     const when = relTime(a.delivery);
     const r = await pickDay(del.locator(".ant-calendar-picker").first(), when);
     notes.push(r === "disabled" ? `the calendar does not allow delivery on ${dayWords(when)} (that day is disabled)` : `delivery set to ${dayWords(when)}`);
   }
 
+  await page.waitForTimeout(400); // antd fades an outdated help line out — read it after the fade
   const before = await fieldHelp();
   const disabledDay = notes.some((n) => /is disabled/.test(n));
+  let saveCall = "";
   if (a.confirm !== false && !disabledDay) {
+    // the save is the event's edit call (editOrder → PATCH /trade/:id…); record its answer so a
+    // dialog that stays open can be told apart: the field's own rule vs the server refusing
+    const saved = page
+      .waitForResponse((r) => ["PATCH", "PUT"].includes(r.request().method()) && /\/trade\//.test(r.url()), { timeout: 12_000 })
+      .then(async (r) => {
+        let msg = "";
+        try {
+          const j: any = await r.json();
+          msg = String(j?.message ?? j?.error?.message ?? j?.detail ?? "").slice(0, 160);
+        } catch {
+          /* not json */
+        }
+        return `${r.request().method()} ${new URL(r.url()).pathname} → HTTP ${r.status()}${msg ? ` “${msg}”` : ""}`;
+      })
+      .catch(() => "");
     if (process.env.UI_DUMP_DIALOG) console.log(`[reschedule] before Ok: ${notes.join("; ")} | help “${before}”`);
     await clickInDialog(dialog.getByRole("button", { name: /^\s*ok\s*$/i }).first());
     await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    saveCall = before ? "" : await saved; // with a field error showing, Ok sends nothing
   }
   const closed = !(await dialog.isVisible().catch(() => false));
   const help = closed ? "" : (await fieldHelp()) || before;
-  const refused = disabledDay || (!closed && !!help);
+  const serverRefused = /HTTP [45]\d\d/.test(saveCall);
+  if (saveCall) notes.push(`save call ${saveCall}`);
+  const refused = disabledDay || (!closed && !!help) || serverRefused;
   const seen = `${notes.join("; ")}${notes.length ? " — " : ""}${refused ? `refused${help ? `: “${help}”` : ""}` : closed ? "the dialog closed with no error (saved)" : "the dialog stayed open with no message"}`;
   if (refused || !closed) {
     // tidy: leave no half-filled dialog over the next step

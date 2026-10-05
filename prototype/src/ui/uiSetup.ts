@@ -148,7 +148,9 @@ export async function buildUiState(
     r = await withWatchdog(
       runEventJourney(client, plan, {
         stageSeconds,
-        ...(state === "upcoming" ? { startDelaySec: 30 * 60 } : {}),
+        // upcoming: published, not yet open — and with a Delivery Date, so the Reschedule
+        // dialog shows that field and its "start on or before delivery" rule can be checked
+        ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),
         titlePrefix: "QA_Platform_UI",
         journeyBudgetMs: opts.budgetMs ?? 12 * 60_000,
         onLine: (l: string) => opts.onLine?.(l),

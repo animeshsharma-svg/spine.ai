@@ -1,6 +1,6 @@
 /**
  * Live probe of the reschedule_event step on a fresh UPCOMING event built through the API
- * (QA vendors only): a past start must be refused, a later start must save.
+ * (QA vendors only): a past start and a start after the Delivery Date must be refused, a later start must save.
  *   npx tsx scripts/probe-reschedule.ts [--c 198678]
  */
 import { config } from "dotenv";
@@ -28,6 +28,8 @@ const plan = {
     { step: "open_prepared", args: { screen: "summary" } },
     { step: "reschedule_event", args: { start: "-30m", expect: "refused", message: "Scheduled time is invalid" } },
     { step: "reschedule_event", args: { start: "-2d", expect: "refused" } },
+    { step: "reschedule_event", args: { start: "+3d", expect: "refused", message: "on or before" } },
+    { step: "reschedule_event", args: { start: "+3d", delivery: "+5d" } },
     { step: "reschedule_event", args: { start: "+3h" } },
   ],
 };

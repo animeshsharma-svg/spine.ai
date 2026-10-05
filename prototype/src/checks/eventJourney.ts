@@ -107,6 +107,8 @@ export interface JourneyRunOptions {
   stageSeconds?: number;
   /** start bidding this many seconds from now (an "upcoming" event: published, not yet open); default 0 */
   startDelaySec?: number;
+  /** give each pricing round a Delivery Date this many days after bidding opens (none by default) */
+  deliveryInDays?: number;
   /** also build a second copy of the event for the library cases to act on */
   buildVariationsEvent?: boolean;
   /** called as each step finishes, with the number of steps planned */
@@ -774,6 +776,7 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
               timing: ev.timing,
               stageNo,
               rfxMode: sk === "auction" ? "auction" : "rfq",
+              ...(j.opts.deliveryInDays ? { deliveryBy: ev.timing.bst + Math.round(j.opts.deliveryInDays * 86_400) } : {}),
             });
       const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.createTrade(), body);
       if (!reply.ok) return { call, reply };
