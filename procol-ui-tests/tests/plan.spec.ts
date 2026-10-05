@@ -95,6 +95,28 @@ test("planned test case", async ({ page }) => {
   let result;
   try {
     result = await runPlan(page, plan);
+    // Screen crawl (UI_CRAWL_OUT=<file>): record every control name on the screen the plan
+    // ended on — buttons, tabs, menu items, field labels, placeholders, grid headers — so the
+    // compiler names things the way the product does (scripts/crawl-screens.ts merges them).
+    if (process.env.UI_CRAWL_OUT) {
+      const names = await page.evaluate(() => {
+        const clean = (t: string | null | undefined) => (t ?? "").replace(/\s+/g, " ").trim();
+        const visible = (el: Element) => { const r = (el as HTMLElement).getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+        const out: Array<{ kind: string; text: string }> = [];
+        const add = (kind: string, t: string) => { const x = clean(t); if (x && x.length <= 80 && !/^\d+([.,]\d+)?$/.test(x)) out.push({ kind, text: x }); };
+        document.querySelectorAll("button, [role='button']").forEach((el) => visible(el) && add("button", (el as HTMLElement).innerText || el.getAttribute("aria-label") || ""));
+        document.querySelectorAll("[role='tab']").forEach((el) => visible(el) && add("tab", (el as HTMLElement).innerText));
+        document.querySelectorAll("[role='menuitem']").forEach((el) => visible(el) && add("menuitem", (el as HTMLElement).innerText));
+        document.querySelectorAll("label, .ant-form-item-label").forEach((el) => visible(el) && add("label", (el as HTMLElement).innerText));
+        document.querySelectorAll("input[placeholder], textarea[placeholder]").forEach((el) => visible(el) && add("placeholder", el.getAttribute("placeholder") || ""));
+        document.querySelectorAll("th, .data-grid-container table tr:first-child td").forEach((el) => visible(el) && add("column", (el as HTMLElement).innerText.replace(/\*/g, "")));
+        document.querySelectorAll("h1, h2, h3, .ant-drawer-title, .ant-modal-title").forEach((el) => visible(el) && add("heading", (el as HTMLElement).innerText));
+        const seen = new Set<string>();
+        return out.filter((o) => { const k = `${o.kind}|${o.text}`; if (seen.has(k)) return false; seen.add(k); return true; });
+      });
+      const { appendFileSync } = await import("node:fs");
+      appendFileSync(process.env.UI_CRAWL_OUT, JSON.stringify({ url: new URL(page.url()).pathname, at: new Date().toISOString(), names }) + "\n");
+    }
     // Debug only (UI_DUMP_SHEET=1): print the sheet grid's real DOM and what a double-click does.
     if (process.env.UI_DUMP_SHEET === "1") {
       const dump = await page.evaluate(async () => {
