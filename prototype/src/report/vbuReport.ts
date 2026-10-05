@@ -82,7 +82,8 @@ function bugBox(ev: VbuEvidence): string {
     <p><b>What the buyer sees:</b> ${e(d.sees)}</p>
     ${seen ? `<p><b>In this run:</b> ${e(seen)}</p>` : ""}
     ${usesTripwire(ev) ? `<p style="opacity:.8"><i>${e(TRIPWIRE_NOTE)}</i></p>` : ""}
-    <p><b>Why it matters:</b> ${e(d.impact)}</p>` : ""}
+    <p><b>Why it matters:</b> ${e(d.impact)}</p>
+    ${d.note ? `<p style="opacity:.85"><b>Note:</b> ${e(d.note)}</p>` : ""}` : ""}
     <p><b>Why it happens:</b> ${e(b.cause)}</p>
     <p><b>Where:</b> <span class="ev-mono">${e(b.where)}</span></p>
     <p><b>Suggested fix:</b> ${e(b.fix)}</p>

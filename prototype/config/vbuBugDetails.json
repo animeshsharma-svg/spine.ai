@@ -9,14 +9,14 @@
  "bugs": {
   "BUG-01": {
    "area": "Duplicate check",
-   "scenario": "One sheet lists the same NEW supplier twice: same tax number, same address, same pincode, same Account Group; only the company name and contact email differ. This is common in a large migration sheet.",
+   "scenario": "One sheet lists the same NEW supplier twice: (a) same tax number, address, pincode and Account Group, or (b) the same new Vendor Code. Only the company name and contact email differ. This is common in a large migration sheet.",
    "expected": [
     "Pop-up: green 'Vendors Sheet Uploaded'.",
     "History: Total 2 · Completed 1 · Failed 1.",
-    "Error sheet, second row: 'Vendor with this GST and address already exists'.",
+    "Error sheet, second row: 'Vendor with this GST and address already exists' (a) or 'Vendor Code or GST Number is already taken' (b).",
     "Vendors: exactly ONE new vendor."
    ],
-   "actual": "Both rows succeed (Completed 2, Failed 0) and two vendors are created with the same tax number and address.",
+   "actual": "Sometimes both rows succeed (Completed 2, Failed 0), creating two vendors with the same tax number and address, or the same Vendor Code. It depends on timing: the two rows are checked in parallel. It failed on 29 Sep and 1 Oct (tax number) and on 5 Oct on PROCOL DEMO (Vendor Code), and passed on other runs.",
    "impact": "The duplicate check (gst_no, address, pincode, account_group on GMMCO) is skipped exactly when it matters most, in one big sheet. GMMCO's 11,000-row load is expected to hold many duplicates, and each one becomes a twin vendor that later flows to SAP.",
    "sees": "Green “Vendors Sheet Uploaded”; the history shows Completed 2 · Failed 0. Nothing warns that the second row is a duplicate."
   },
@@ -81,15 +81,15 @@
   },
   "BUG-07": {
    "area": "Second contact (POC 2)",
-   "scenario": "A row with a valid main contact and a 'POC 2 - Full Name' filled in, but 'POC 2 - Email Address' left blank.",
+   "scenario": "A row with a valid main contact and a POC 2 that is wrong in one of three ways: (a) POC 2 - Full Name filled but its email blank, (b) POC 2 - Email Address filled but its name blank, or (c) the POC 2 email is the same as the main contact's.",
    "expected": [
     "History: Failed 1, Created 0.",
-    "Error sheet: 'Invalid Values for POC 2.'",
+    "Error sheet: 'Invalid Values for POC 2.' (a, b), or a clear message that POC 2 must be a different person (c).",
     "Vendors: NO vendor created and NO invitation sent, because a failed row creates nothing."
    ],
-   "actual": "The row is marked failed with 'Invalid Values for POC 2.', but the vendor WAS created (active in Vendors) and invited.",
+   "actual": "The row is marked failed ('Invalid Values for POC 2.' for a and b, 'This email is already invited.' for c), but the vendor WAS created (active in Vendors) and its main contact invited.",
    "impact": "The screen says the row failed, but a live vendor exists and an invitation was sent. When the buyer fixes the row and uploads again, it is refused as 'already exists'.",
-   "sees": "Error sheet: “Invalid Values for POC 2.”, yet the vendor appears in Vendors and has been invited."
+   "sees": "Error sheet: “Invalid Values for POC 2.” or “This email is already invited.”, yet the vendor appears in Vendors and has been invited."
   },
   "BUG-08": {
    "area": "Company settings: extra fields",
@@ -105,22 +105,22 @@
   },
   "BUG-09": {
    "area": "Cell values",
-   "scenario": "Any text that contains a dot and ends in zeros, e.g. Address 'Plot No. 100' or Company Name '… Pvt. Ltd 2000'.",
+   "scenario": "Any text that contains a dot and ends in zeros: Address 'Plot No. 100', Company Name '… Pvt. Ltd 2000', or a Vendor Code 'QA….100'.",
    "expected": [
     "Vendors: stored exactly as typed, 'Plot No. 100' and '… Pvt. Ltd 2000'."
    ],
-   "actual": "The trailing zeros are cut off as the sheet is read: the upload reads the address as 'Plot No. 1' and the name as '… Pvt. Ltd 2', which are the values the vendor would be saved with. (Our test row is stopped before creating a vendor, so the shortened value shows in the upload's row data.)",
+   "actual": "The trailing zeros are cut off as the sheet is read: the upload reads the address as 'Plot No. 1' and the name as '… Pvt. Ltd 2', which are the values the vendor would be saved with. (Our test row is stopped before creating a vendor, so the shortened value shows in the upload's row data.) The Vendor Code 'QA….100' is read as 'QA….1', so 'X.100' and 'X.1000' collide as duplicates.",
    "impact": "Silent data corruption in addresses and legal names, which feed POs, invoices and SAP. Nobody is told.",
    "sees": "Nothing: the vendor is saved as “Plot No. 1” / “… Pvt. Ltd 2”."
   },
   "BUG-10": {
    "area": "City",
-   "scenario": "On a contactless workspace, a vendor with no tax number and a City that is not in Procol's list ('QA Nowhere City').",
+   "scenario": "(a) On a contactless workspace (GMMCO), a vendor with no tax number and a City that is not in Procol's list. (b) On a normal workspace (PROCOL DEMO), a vendor WITH a tax number and an unknown City.",
    "expected": [
-    "History: Completed 1 (the QA doc's A5 says 'Success. Record created with no city').",
-    "Vendors: the vendor has NO city (empty, or the '-' placeholder city 38)."
+    "(a) History: Completed 1 (the QA doc's A5 says 'Success. Record created with no city'), and the vendor has NO city (empty, or the '-' placeholder city 38).",
+    "(b) History: Failed 1; error sheet 'Invalid City Name', as for a row without a tax number."
    ],
-   "actual": "The vendor is stored with city id 0, a city that does not exist.",
+   "actual": "In both cases the vendor is saved with city id 0, a city that does not exist. On PROCOL DEMO the row is not even refused.",
    "impact": "A record that points to a missing city. Anything that reads the city later crashes; BUG-06 is one such crash.",
    "sees": "Nothing at upload; the vendor points to a city that does not exist (city_id 0)."
   },
@@ -190,7 +190,7 @@
   },
   "BUG-17": {
    "area": "File check",
-   "scenario": "(a) The template with only its header rows and no vendor rows. (b) A normal spreadsheet with column names on row 1 instead of row 3.",
+   "scenario": "(a) The template with only its header rows and no vendor rows. (b) A normal spreadsheet with column names on row 1 instead of row 3. (c) A workbook whose FIRST sheet is an instructions sheet, with the vendor sheet second.",
    "expected": [
     "Server: HTTP 422 with a clear message, e.g. 'No vendor rows found. Column names must be on row 3 of the template.'",
     "Pop-up: red with that message."
@@ -320,6 +320,70 @@
    "actual": "Not run yet: it would email GMMCO's vendor-management team (real people). Reading the code, the subsidiary's invitation does not carry the 'no onboarding' flag.",
    "impact": "Subsidiaries would be treated as prospects needing onboarding, and the team gets mails for vendors that should go straight in.",
    "sees": "Not run: it would email real people."
+  },
+  "BUG-29": {
+   "area": "Second contact (POC 2)",
+   "scenario": "A row with Vendor Onboarding Required = No (the vendor goes straight to Vendors, no onboarding) that also has a second contact: POC 2 - Full Name and POC 2 - Email Address.",
+   "expected": [
+    "History: Completed 1.",
+    "Vendors: the vendor is Active, with two invitations (POC and POC 2), BOTH marked 'skip onboarding'.",
+    "No 'new prospect added' mail to the vendor-management team, because the vendor skips onboarding."
+   ],
+   "actual": "The main invitation is marked 'skip onboarding', but the POC 2 invitation is not. The backend therefore queues the 'new prospect added' mail to every vendor-management user of the workspace, for a vendor that is not a prospect.",
+   "sees": "Nothing on the upload screen. The vendor-management team receives a 'new prospect' mail for a vendor that went straight to Vendors.",
+   "impact": "Every non-PQ vendor uploaded with a second contact sends a false 'new prospect' mail to the vendor-management team. In GMMCO's large migration that could be hundreds of mails. Our own test runs created 8 such invitations on 29-30 Sep, before the case was moved to the approval-only tier.",
+   "note": "VBU-119 and VBU-120 were recorded as PASSED on 29-30 Sep because the runner then checked only the first invitation's skip flag. It now checks every invitation (5 Oct). VBU-119 is now approval-only, and VBU-120 no longer has a POC 2. The proof is the 8 POC 2 invitations in the sandbox database: active, no skip flag, invitation ids 32055, 32081, 32107, 32115, 32146, 32148, 32169 and 32171."
+  },
+  "BUG-30": {
+   "area": "Cell values (security)",
+   "scenario": "A cell holding HTML-encoded markup, e.g. Company Name '&lt;script&gt;alert(1)&lt;/script&gt;Acme'. This can be pasted from a web page or typed on purpose.",
+   "expected": [
+    "The name is stored exactly as typed (the characters & l t ;), and shown escaped everywhere."
+   ],
+   "actual": "The upload decodes it: the name is read as '<script>alert(1)</script>Acme', a live tag. A plain '<script>' is stripped (VBU-163), but the encoded form comes out as a working tag.",
+   "sees": "Nothing at upload. The vendor's name holds a <script> tag that any screen, mail or PDF that does not escape names would run.",
+   "impact": "Stored markup injection. Whether it runs depends on every place that later shows the vendor's name; the upload should never create markup that was not typed."
+  },
+  "BUG-31": {
+   "area": "Duplicate check (Vendor Code)",
+   "scenario": "A vendor with Vendor Code 'QAVC123' exists; a new row uses 'qavc123'.",
+   "expected": [
+    "History: Failed 1.",
+    "Error sheet: 'Vendor Code or GST Number is already taken'."
+   ],
+   "actual": "Accepted: a second vendor is created with the code 'qavc123'.",
+   "sees": "Nothing: two vendors whose codes differ only in letter case.",
+   "impact": "Vendor codes are meant to be unique (they often mirror SAP codes); a case slip creates a duplicate supplier."
+  },
+  "BUG-32": {
+   "area": "Deals In (categories)",
+   "scenario": "Deals In holds a category NAME (e.g. 'Screw') instead of its code.",
+   "expected": [
+    "Either the row is refused with 'Invalid Deals In : Screw', or the vendor is put in the 'Screw' category."
+   ],
+   "actual": "The row is accepted and the vendor is created, but it is in no category: the name passes the check, then becomes nothing.",
+   "sees": "Nothing: the vendor appears without the category the buyer gave it.",
+   "impact": "Vendors silently lose their categories, so they are missed when RFQs are sent by category."
+  },
+  "BUG-33": {
+   "area": "File check",
+   "scenario": "An old-format sheet whose 'GST' column header carries a trailing space ('GST ').",
+   "expected": [
+    "Server: HTTP 422 'Format is updated for bulk upload, please download the format to continue.', as for 'GST'."
+   ],
+   "actual": "The file is accepted and the old GST column is ignored.",
+   "sees": "Green “Vendors Sheet Uploaded”; the GST values in the old column are dropped.",
+   "impact": "A buyer using an old sheet loses the tax numbers without being told to download the new format."
+  },
+  "BUG-34": {
+   "area": "Error sheet",
+   "scenario": "Download the error sheet of an upload with failed rows and open the dropdowns.",
+   "expected": [
+    "The Vendor Profile column (H on GMMCO, E on PROCOL DEMO) offers the workspace's profiles."
+   ],
+   "actual": "The profile list sits on column F (F4:F100) whichever column Vendor Profile is in.",
+   "sees": "In the error sheet, an unrelated column offers vendor profiles and Vendor Profile has no dropdown.",
+   "impact": "The sheet meant for fixing rows invites wrong values; re-uploading it can fail again on 'Invalid Vendor Profile'."
   }
  }
 }

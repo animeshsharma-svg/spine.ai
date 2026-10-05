@@ -173,6 +173,7 @@ for (const b of bugs) {
     lines.push("**What should happen:**", "", ...d.expected.map((x) => `- ${x}`), "");
     lines.push(`**What happens instead.** ${d.actual}`, "");
     lines.push(`**What the buyer sees.** ${d.sees}`, "");
+    if (d.note) lines.push(`> **Note on the test history.** ${d.note}`, "");
     lines.push(`**Why it matters.** ${d.impact}`, "");
   }
   lines.push(`**Cause in the code.** ${b.cause}`, "", `**Where:** \`${b.where}\``, "", `**Suggested fix.** ${b.fix}`, "");

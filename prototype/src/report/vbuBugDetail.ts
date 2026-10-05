@@ -34,6 +34,8 @@ export interface BugDetail {
   /** the symptom a real buyer sees (without the test's tripwire) */
   sees: string;
   impact: string;
+  /** how to read this bug's test history, when it needs saying */
+  note?: string;
 }
 
 let cache: { mtime: number; bugs: Record<string, BugDetail> } | undefined;
