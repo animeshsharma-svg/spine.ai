@@ -405,6 +405,15 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   if (steps.length && ["go_to", "switch_company"].includes(steps[0].step) && !steps.some((s) => HEAVY_CREATE.includes(s.step)) && !has("open_create")) {
     return { plan: { ...plan, steps }, repairs };
   }
+  // A plan that creates an event and then goes looking for it (events list →
+  // open_event) needs it SAVED first: an unsaved create screen leaves nothing
+  // to find. UI-CRE-012 (set_title → open_events_list → open_event) failed
+  // with "no event titled …" — the compiler forgot the save, not the product.
+  const reopenAt = steps.findIndex((s) => s.step === "open_events_list" || s.step === "open_event");
+  if (has("open_create") && reopenAt > indexOf("open_create") && !steps.slice(0, reopenAt).some((s) => s.step === "save_draft" || s.step === "publish")) {
+    steps.splice(reopenAt, 0, { step: "save_draft" });
+    repairs.push(`added save_draft before ${steps[reopenAt + 1].step} — the event this plan creates must be saved before it can be found again`);
+  }
   const isListTest =
     steps.some((s) => LIST_STEPS.includes(s.step)) && !steps.some((s) => CREATE_SCREEN_STEPS.includes(s.step));
   if (isListTest) {
