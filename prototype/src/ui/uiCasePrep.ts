@@ -75,6 +75,8 @@ export function prepFor(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" 
 
   // Awarding, comparison, counter offers — need a bid.
   if (/award|proposal|approval|nfa\b|bid selection/.test(t) || g === "UI-AWD" || g === "UI-XDAPR") {
+    if (/proposal page|proposal('s)? (overview|allocation|participants|note|order allocation|summary|workflow)|note for approval|allocation summary|discard(ing)? the (draft )?proposal|bid selection proposal/.test(t))
+      return r("proposal", "proposal", technical, "a case on the award proposal page — the event is built closed with a draft proposal, opened at that proposal");
     if (/draft proposal (exists|is open)|proposal exists|existing (draft )?proposal|re-?enters?|submit(ting)? the proposal|approval (step|workflow|flow)|approvers?/.test(t))
       return r("proposal", "master_qcs", technical, "a case about an existing award proposal — the event is built closed with a draft proposal");
     return r(/closed|after (the )?end|ended|start awarding|award/.test(t) ? "closed" : "bid", "master_qcs", technical, "an award/approval case — the event is built with a bid and closed");

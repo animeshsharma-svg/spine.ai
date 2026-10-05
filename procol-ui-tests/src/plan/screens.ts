@@ -12,6 +12,8 @@ export interface PlanContext {
   eventGroupUuid?: string;
   stageUuid?: string;
   technicalStageUuid?: string;
+  /** the award proposal the API setup created (state "proposal") */
+  proposalUuid?: string;
   title?: string;
   vendorName?: string;
   vendorEmail?: string;
@@ -46,6 +48,8 @@ export const SCREENS: Record<string, ScreenSpec> = {
     lands: /\/orders\/quick-create\?.*projectId=/,
     what: "the draft event's create screen",
   },
+  // the award proposal (Master QCS → Bid Selection Proposal), crosscheck/screens.ts:248-253
+  proposal: { path: "/project/{eg}/proposal/{proposal}", feeds: ["/api/proposal/{proposal}$"], needs: ["proposal", "awarded"], lands: /\/proposal\//, what: "the award proposal page" },
   summary: { path: "/project/{eg}/details", feeds: ["/api/event_groups/{eg}$", "/get_line_items"], needs: ANY_EVENT, lands: /\/project\/[^/]+\/details/, what: "the event's summary" },
   responses: { path: "/project/{eg}/{stage}?tab=compare", feeds: ["/trade/{stage}/schema"], needs: ANY_EVENT, lands: /\/project\/[^/]+\/[^/?]+\?tab=compare/, what: "the pricing round's Responses (comparison)" },
   overview: { path: "/project/{eg}/{stage}?tab=order_info", feeds: ["/trade/{stage}/event_summary"], needs: ANY_EVENT, lands: /tab=order_info/, what: "the pricing round's Overview" },
@@ -63,16 +67,16 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export function resolveScreen(name: string, ctx: PlanContext): { path: string; feeds: RegExp[]; spec: ScreenSpec } {
   const spec = SCREENS[name];
   if (!spec) throw new Error(`no screen "${name}" in the screen model — known: ${SCREEN_NAMES.join(", ")}`);
-  const ids: Record<string, string | undefined> = { eg: ctx.eventGroupUuid, stage: ctx.stageUuid, tstage: ctx.technicalStageUuid };
+  const ids: Record<string, string | undefined> = { eg: ctx.eventGroupUuid, stage: ctx.stageUuid, tstage: ctx.technicalStageUuid, proposal: ctx.proposalUuid };
   const fill = (t: string, forRegex: boolean) =>
-    t.replace(/\{(eg|stage|tstage)\}/g, (_m, k: string) => {
+    t.replace(/\{(eg|stage|tstage|proposal)\}/g, (_m, k: string) => {
       const v = ids[k];
-      if (!v) throw new Error(`the screen "${name}" needs the ${k === "eg" ? "event" : k === "stage" ? "pricing round" : "technical round"} id, and the API setup did not build one (state ${ctx.state ?? "none"})`);
+      if (!v) throw new Error(`the screen "${name}" needs the ${k === "eg" ? "event" : k === "stage" ? "pricing round" : k === "proposal" ? "award proposal" : "technical round"} id, and the API setup did not build one (state ${ctx.state ?? "none"})`);
       return forRegex ? esc(encodeURIComponent(v)) + "|" + esc(v) : encodeURIComponent(v);
     });
   const feeds = spec.feeds.map((f) => {
     // An id may appear encoded or not in the request; accept either.
-    const src = f.replace(/\{(eg|stage|tstage)\}/g, (m) => `(?:${fill(m, true)})`);
+    const src = f.replace(/\{(eg|stage|tstage|proposal)\}/g, (m) => `(?:${fill(m, true)})`);
     return new RegExp(src.replace(/\$$/, "(\\?|$)"));
   });
   return { path: fill(spec.path, false), feeds, spec };
