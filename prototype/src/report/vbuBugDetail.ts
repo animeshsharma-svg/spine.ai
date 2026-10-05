@@ -52,6 +52,9 @@ export function bugDetail(bugId: string): BugDetail | undefined {
   return cache.bugs[bugId];
 }
 
+/** A verdict as shared: no ids of real people (an early run named the member whose session it used). */
+const cleanVerdict = (t: string) => t.replace(/\s*\(user \d+\)/g, "");
+
 /** What the sandbox did, by the place the buyer would see it. */
 export interface Seen {
   /** the server's answer, e.g. 'HTTP 500 {"status":500,"error":"Internal Server Error"}' */
@@ -98,7 +101,7 @@ function serverLine(status: number | undefined, message: string | null | undefin
 
 export function seenFromEvidence(ev: VbuEvidence): Seen {
   const path = ev.request?.path ?? "";
-  const s: Seen = { errorSheet: [], records: [], changed: [], verdict: ev.verdict.text };
+  const s: Seen = { errorSheet: [], records: [], changed: [], verdict: cleanVerdict(ev.verdict.text) };
   s.server = serverLine(ev.http?.status, ev.http?.message, path);
   s.popup = popupFor(ev.http?.status, ev.http?.message, path);
   const st: any = ev.job?.statusApi;
@@ -135,7 +138,7 @@ export function seenFromResult(r: { httpStatus?: number | null; message?: string
   return {
     server: serverLine(status, msg, path),
     popup: popupFor(status, msg, path),
-    errorSheet: [], records: [], changed: [], verdict: r.verdict ?? "",
+    errorSheet: [], records: [], changed: [], verdict: cleanVerdict(r.verdict ?? ""),
   };
 }
 

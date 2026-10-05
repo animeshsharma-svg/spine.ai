@@ -1661,7 +1661,7 @@ Files: the dashboard serves the exact file at `/api/vbu/sheet?e=1791195995180/VB
 - **Server answer:** `HTTP 200`
 - **On screen:** the template downloads
 - **Created:** nothing
-- **Test verdict:** SERVED a request this user may not make (HTTP 200) — as workspace member without company:create_record (user 20062)
+- **Test verdict:** SERVED a request this user may not make (HTTP 200) — as workspace member without company:create_record
 
 ---
 
