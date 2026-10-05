@@ -410,9 +410,12 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // then always disabled — so a plan that composes two to read what is OFFERED reads nothing.
   // UI-CRE-004 composed rfp+rfq for "one Auction stage".
   if (has("expect_add_stage_options") && has("compose_stages")) {
-    const m = /\b(?:holding|with|has|containing)\s+(?:only\s+)?(?:one|a single|an?)\s+(rfq|rfp|technical|auction)\b(?:\s+(?:stage|round))?/i.exec(testCase);
+    // read the SETUP sentence only ("Setup: …" from caseAsProse): the expected text talks about
+    // other stages too ("RFQ and Auction never sit in one project") and must not steer this
+    const setupLine = /(?:^|\n)Setup:\s*([^\n]*)/i.exec(testCase)?.[1] ?? testCase;
+    const m = /\b(?:holding|with|has|containing)\s+(?:only\s+)?(?:one|a single|an?)\s+(rfq|rfp|technical|auction)\b(?:\s+(?:stage|round))?/i.exec(setupLine);
     // "a Technical stage and an RFQ stage" names TWO — leave those plans alone
-    const two = /\b(rfq|rfp|technical|auction)\s+(?:stage|round)?\s*(?:and|plus|\+)\s+(?:one\s+|an?\s+)?(rfq|rfp|technical|auction)\b/i.test(testCase);
+    const two = /\b(rfq|rfp|technical|auction)\s+(?:stage|round)?\s*(?:and|plus|\+)\s+(?:one\s+|an?\s+)?(rfq|rfp|technical|auction)\b/i.test(setupLine);
     if (m && !two) {
       const want = m[1].toLowerCase() === "technical" ? "rfp" : m[1].toLowerCase();
       const cs = steps[indexOf("compose_stages")];
