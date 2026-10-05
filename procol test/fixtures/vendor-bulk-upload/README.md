@@ -88,7 +88,7 @@ data from row 4, as the backend reads it.
 | `VBU-110.xlsx` | VBU-110 | A 101-character Vendor Code is refused before anything is created | creates |
 | `VBU-111.xlsx` | VBU-111 | A 100-character Vendor Code is accepted | creates |
 | `VBU-112.xlsx` | VBU-112 | An Account Group that is not one of the dropdown's options is refused | safe |
-| `VBU-119.xlsx` | VBU-119 | A full row (UK VAT) with 'Onboarding Required = No' becomes an Active vendor with every field stored | creates |
+| `VBU-119.xlsx` | VBU-119 | A full row (UK VAT) with 'Onboarding Required = No' becomes an Active vendor with every field stored | real-mail |
 | `VBU-120.xlsx` | VBU-120 | A full row with 'Onboarding Required = No' becomes an Active vendor with every field stored | creates |
 | `VBU-121.xlsx` | VBU-121 | Company Name only + 'No' creates an Active vendor with NO invitation | creates |
 | `VBU-122.xlsx` | VBU-122 | Company Name only, onboarding left blank → Prospect, still no mail | creates |
@@ -123,6 +123,35 @@ data from row 4, as the backend reads it.
 | `VBU-158.xlsx` | VBU-158 | Old rule, same-GST-multiple-addresses OFF: any repeated tax number is blocked | creates |
 | `VBU-159.xlsx` | VBU-159 | A duplicate-field list without gst_no is ignored (old rule applies) | creates |
 | `VBU-138.xlsx` | VBU-138 | A duplicate-field list naming an unknown field is ignored (old rule applies) | creates |
+| `VBU-200.xlsx` | VBU-200 | Contactless OFF: a tax number with an unknown city is refused, not saved as city 0 | creates |
+| `VBU-201.xlsx` | VBU-201 | Contactless OFF: a blank Vendor Profile is refused as mandatory | safe |
+| `VBU-202.xlsx` | VBU-202 | Contactless OFF: a blank POC - Full Name is refused as mandatory | safe |
+| `VBU-203.xlsx` | VBU-203 | Contactless OFF: no tax number and no Address is refused ('Either Tax No. or …') | safe |
+| `VBU-204.xlsx` | VBU-204 | Contactless OFF: Tax Type and Business Location filled but Tax No. blank | safe |
+| `VBU-205.xlsx` | VBU-205 | Deals In with ANOTHER workspace's category code is refused | safe |
+| `VBU-206.xlsx` | VBU-206 | Contactless: the PAN is derived from the GSTIN (characters 3–12) | safe |
+| `VBU-207.xlsx` | VBU-207 | Contactless OFF: no PAN is derived from the GSTIN | safe |
+| `VBU-208.xlsx` | VBU-208 | A Vendor Code with a dot and trailing zeros keeps its zeros ('QA….100') | safe |
+| `VBU-209.xlsx` | VBU-209 | Entity-encoded markup ('&lt;script&gt;') is not decoded into a live tag | safe |
+| `VBU-210.xlsx` | VBU-210 | POC 2 email without a name is refused BEFORE the vendor is created | creates |
+| `VBU-211.xlsx` | VBU-211 | Two new rows in one sheet with the same Vendor Code — only one is created | creates |
+| `VBU-212.xlsx` | VBU-212 | A Vendor Code that differs only in letter case is still a duplicate | creates |
+| `VBU-213.xlsx` | VBU-213 | An existing vendor with NO pincode blocks a new branch that has one | creates |
+| `VBU-214.xlsx` | VBU-214 | A back-filled address with a DIFFERENT pincode makes a new branch | creates |
+| `VBU-215.xlsx` | VBU-215 | A Rejected vendor still blocks an exact duplicate | creates |
+| `VBU-216.xlsx` | VBU-216 | A VRP Code that another vendor already has is refused | creates |
+| `VBU-217.xlsx` | VBU-217 | Vendor Code of one vendor + VRP Code of another is refused | creates |
+| `VBU-218.xlsx` | VBU-218 | Tax number of one vendor + Vendor Code of another is refused | creates |
+| `VBU-219.xlsx` | VBU-219 | Deals In with a valid category code puts the vendor in that category's team | creates |
+| `VBU-220.xlsx` | VBU-220 | Deals In by category NAME is either refused or linked — never accepted and dropped | creates |
+| `VBU-221.xlsx` | VBU-221 | Status 'active' with Onboarding Required = Yes still makes a Prospect | creates |
+| `VBU-254.xlsx` | VBU-254 | The upload history counts a mixed upload correctly (Completed 1 · Failed 1) | creates |
+| `VBU-222.xlsx` | VBU-222 | A workbook whose FIRST sheet is an instructions sheet: the vendor sheet is still read | safe |
+| `VBU-227.xlsx` | VBU-227 | An old-format 'GST ' column (trailing space) is caught like 'GST' | safe |
+| `VBU-228.xlsx` | VBU-228 | A city typed in capitals ('MUMBAI') resolves to Mumbai | safe |
+| `VBU-229.xlsx` | VBU-229 | A lower-case VAT number cannot slip past the duplicate check (it is refused) | safe |
+| `VBU-230.xlsx` | VBU-230 | POC 2 email equal to the main POC email is refused before the vendor is created | creates |
+| `VBU-231.xlsx` | VBU-231 | The error sheet's Vendor Profile dropdown sits on the Vendor Profile column | safe |
 | `VBU-160.xlsx` | VBU-160 | An address ending in zeros keeps them ('Plot No. 100') | safe |
 | `VBU-161.xlsx` | VBU-161 | A company name ending in zeros keeps them ('… Pvt. Ltd 2000') | safe |
 | `VBU-162.xlsx` | VBU-162 | A '<' in a company name does not cut the name short | safe |
@@ -141,3 +170,7 @@ data from row 4, as the backend reads it.
 | `VBU-SUB-BASE.xlsx` | subsidiary baseline | the vendor whose contact email VBU-131 reuses | creates |
 | `VBU-PROSPECT-BASE.xlsx` | prospect baseline | a contactless Prospect (no email, no invitation) | creates |
 | `VBU-FALLBACK-BASE.xlsx` | fallback baseline | the vendor the old-rule duplicate cases compare against | creates |
+| `VBU-NOPIN-BASE.xlsx` | noPincode baseline | a legacy-style vendor with no pincode (VBU-213) | creates |
+| `VBU-BACKFILL-BASE.xlsx` | backfill baseline | the vendor a blank-address row is back-filled from (VBU-214) | creates |
+| `VBU-REJ-BASE.xlsx` | rejectedDup baseline | a rejected vendor that must still block duplicates (VBU-215) | creates |
+| `VBU-VRP-BASE.xlsx` | vrp baseline | a vendor with a VRP Code and its own Vendor Code (VBU-216/217/218) | creates |

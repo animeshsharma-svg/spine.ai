@@ -7,9 +7,10 @@
    "status": "OPEN",
    "found": "2026-09-29",
    "cases": [
-    "VBU-151"
+    "VBU-151",
+    "VBU-211"
    ],
-   "title": "Two identical new vendors in one sheet are both created",
+   "title": "Two identical new vendors in one sheet are both created (same tax number + address, or same Vendor Code)",
    "where": "app/workers/vendor_bulk_upload_master_worker_v2.rb:11-14; PR16267 app/services/invitation/send_service.rb:274-298",
    "cause": "Each row runs in its own background job at the same time and the duplicate check only sees vendors already saved, so rows of one sheet never see each other.",
    "fix": "Drop or fail in-sheet duplicates by the configured key before queueing, or lock per workspace + tax number around the check and the insert."
@@ -23,8 +24,8 @@
     "VBU-059"
    ],
    "title": "GST rows fail 'Tax Type not configured for the selected Business Location' at random",
-   "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86-88; countries table (36 rows named India)",
-   "cause": "Country.find_by(name: 'India') has no order or status filter; the sandbox has 36 'India' countries and only ids 108 and 270 have an active GST setting.",
+   "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:86-88; countries table (37 rows named India on 5 Oct 2026)",
+   "cause": "Country.find_by(name: 'India') has no order or status filter. On 5 Oct 2026 the sandbox had 37 'India' countries; only ids 108, 270 and 299 have an active GST mapping. Which row the database returns first decides the outcome: on 29-30 Sep it was one without a mapping, on 5 Oct it was 299, so the same sheet passed.",
    "fix": "Look the mapping up through the active TaxTypeCountryMapping joined on country and tax type names; clean the duplicate countries; check production."
   },
   {
@@ -85,11 +86,13 @@
    "status": "OPEN",
    "found": "2026-09-29",
    "cases": [
-    "VBU-128"
+    "VBU-128",
+    "VBU-210",
+    "VBU-230"
    ],
-   "title": "POC 2 name without email: row 'failed' but the vendor was created and invited",
+   "title": "POC 2 problems: the row says 'failed' but the vendor was created and invited",
    "where": "app/workers/vendor_bulk_upload_worker_v2.rb:141-158 then :175-179",
-   "cause": "The worker sends the invite first and checks the POC 2 pair afterwards.",
+   "cause": "The worker sends the invite first and checks POC 2 afterwards: a POC 2 name without an email (or an email without a name) fails the pair check at :175-179, and a POC 2 email equal to the main one fails the member invite ('This email is already invited.') — each time after the vendor and its main invitation exist.",
    "fix": "Check the POC 2 name/email pair in the row check, before anything is created."
   },
   {
@@ -112,7 +115,8 @@
    "found": "2026-09-29",
    "cases": [
     "VBU-160",
-    "VBU-161"
+    "VBU-161",
+    "VBU-208"
    ],
    "title": "Trailing zeros removed from any text containing a dot ('Plot No. 100' → 'Plot No. 1')",
    "where": "app/services/conversions/excel_to_json_conversion_service.rb:176; app/controllers/concerns/utils.rb:641-647",
@@ -125,11 +129,12 @@
    "status": "OPEN",
    "found": "2026-09-29",
    "cases": [
-    "VBU-075"
+    "VBU-075",
+    "VBU-200"
    ],
    "title": "Unknown city stored as city_id 0 (a city that does not exist)",
    "where": "app/controllers/concerns/utils.rb get_vendor_bulk_upload_params_hash_v2; vpc_params_mixin.rb:27",
-   "cause": "The City column is mapped to city_id and carries the city NAME; when it does not resolve, the text reaches the company and is cast to 0.",
+   "cause": "The City column is mapped to city_id and carries the city NAME; when it does not resolve, the text reaches the company and is cast to 0. On a workspace without contactless the same happens to any row WITH a tax number: 'Invalid City Name' fires only when Tax No. is blank (vendor_bulk_upload_validation_service_v2.rb:77), so the unknown city name is cast to city_id 0 (VBU-200, PROCOL DEMO).",
    "fix": "Drop the unresolved city name so the fallback applies (or store null)."
   },
   {
@@ -151,7 +156,8 @@
    "status": "OPEN",
    "found": "2026-09-29",
    "cases": [
-    "VBU-031"
+    "VBU-031",
+    "VBU-223"
    ],
    "title": "Template sample row is shifted against its headers",
    "where": "PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:295-336",
@@ -217,7 +223,8 @@
    "found": "2026-09-29",
    "cases": [
     "VBU-013",
-    "VBU-014"
+    "VBU-014",
+    "VBU-222"
    ],
    "title": "A sheet with no vendor rows answers success and creates nothing",
    "where": "app/services/conversions/excel_to_json_conversion_service.rb:168-181; app/helpers/api/companies_helper.rb:680-714",
@@ -380,6 +387,84 @@
    "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92",
    "cause": "verify_tax_no matches the raw cell (line_item[\"Tax No.\"].match?(regex)) against an anchored regex without trimming it, while the same service trims Status and the other fields (.to_s.strip). A space picked up when pasting into Excel makes a valid GSTIN fail.",
    "fix": "Strip (and upcase) Tax No. before the regex check and store the trimmed value in tax_no."
+  },
+  {
+   "id": "BUG-29",
+   "severity": "High",
+   "status": "OPEN",
+   "found": "2026-10-05",
+   "cases": [
+    "VBU-119"
+   ],
+   "title": "A 'No onboarding' vendor's second contact (POC 2) triggers the 'new prospect' mail to the vendor-management team",
+   "where": "app/workers/vendor_bulk_upload_worker_v2.rb:38-44; app/models/invitations.rb:46,135-138",
+   "cause": "The POC 2 member invitation is built from invite_type, name, email, company_id and vrp_code only, so its other_details has no skip_vendor_onboarding. Every active invitation on a v2-onboarding workspace without that flag queues new_prospect_added_to_vendor_management_team (invitations.rb:135-138), so a vendor that skips onboarding is announced as a new prospect. Seen in the sandbox database: 8 active vendor_member_invite rows from our VBU-119/VBU-120 runs (6 on GMMCO, 2 on PROCOL DEMO, 29-30 Sep) without the flag; neither workspace has stopping_invite_for_onboarding_team.",
+   "fix": "Give the POC 2 invitation the same skip_vendor_onboarding as the row's main invitation (and no POC 2 invitation at all for a rejected vendor)."
+  },
+  {
+   "id": "BUG-30",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-10-05",
+   "cases": [
+    "VBU-209"
+   ],
+   "title": "Entity-encoded markup in a cell ('&lt;script&gt;') is decoded into a live <script> tag",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:177",
+   "cause": "Every cell is passed through Nokogiri::HTML(value).text. For a plain tag that strips it (VBU-163 passes), but HTML entities are DECODED: '&lt;script&gt;alert(1)&lt;/script&gt;Name' is stored as '<script>alert(1)</script>Name'. The upload turns harmless text into markup.",
+   "fix": "Do not run cells through an HTML parser; keep the text as typed and escape it wherever it is displayed (mails, PDFs, exports)."
+  },
+  {
+   "id": "BUG-31",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-10-05",
+   "cases": [
+    "VBU-212"
+   ],
+   "title": "A Vendor Code that differs only in letter case is not seen as a duplicate",
+   "where": "app/services/invitation/send_service.rb:263-264",
+   "cause": "Existing vendor codes are matched exactly (where(vendor_code:)), so 'qavc…' passes next to 'QAVC…' and a second vendor is created.",
+   "fix": "Compare vendor codes case-insensitively (and trim them), or store them in one case."
+  },
+  {
+   "id": "BUG-32",
+   "severity": "Medium",
+   "status": "OPEN",
+   "found": "2026-10-05",
+   "cases": [
+    "VBU-220"
+   ],
+   "title": "Deals In by category NAME passes the check but the vendor is never put in that category",
+   "where": "app/services/validations/vendor_bulk_upload_validation_service_v2.rb:176-179; app/controllers/concerns/utils.rb:898-900",
+   "cause": "The row check accepts a category code OR a unique category name, but the worker decodes every value as a code; a name decodes to nil, ProductCategory.where(id: [nil]) is empty and no category team is made.",
+   "fix": "Turn names into ids in the row check (or refuse names); never accept a value the worker cannot use."
+  },
+  {
+   "id": "BUG-33",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-10-05",
+   "cases": [
+    "VBU-227"
+   ],
+   "title": "An old-format 'GST ' column with a trailing space is not caught by the format check",
+   "where": "app/services/conversions/excel_to_json_conversion_service.rb:164-165",
+   "cause": "The old-format check compares the raw header text with 'GST', 'POC - Phone Number' and 'POC 2 - Mobile'; headers are trimmed only later, so 'GST ' slips past it.",
+   "fix": "Trim the headers before the old-format check."
+  },
+  {
+   "id": "BUG-34",
+   "severity": "Low",
+   "status": "OPEN",
+   "found": "2026-10-05",
+   "cases": [
+    "VBU-231"
+   ],
+   "title": "The error sheet's Vendor Profile dropdown sits on the wrong column",
+   "where": "app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:97",
+   "cause": "The error sheet puts the profile list on the fixed range F4:F100, but the Vendor Profile column is H on GMMCO and E on PROCOL DEMO, so the buyer fixing rows gets a profile list on an unrelated column and none on Vendor Profile.",
+   "fix": "Place the dropdown by the Vendor Profile header's position, as the template should (see BUG-13)."
   }
  ]
 }

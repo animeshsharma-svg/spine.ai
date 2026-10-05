@@ -127,7 +127,7 @@ if (DRY) {
   for (const c of pick) {
     const d = decideLayerSync(c);
     const p = prepFor(c);
-    console.log(`  ${c.priority} ${c.id.padEnd(15)} ${d.layer.padEnd(4)} ${p.ok ? `${p.state}/${p.screen}${p.technical ? " +technical" : ""}` : `GAP: ${p.why}`}  ${c.title.slice(0, 70)}`);
+    console.log(`  ${c.priority} ${c.id.padEnd(15)} ${d.layer.padEnd(4)} ${p.ok ? `${p.state}/${p.screen}${p.technical ? " +technical" : ""}${p.auction ? " auction" : ""}` : `GAP: ${p.why}`}  ${c.title.slice(0, 70)}`);
   }
   process.exit(0);
 }
@@ -331,17 +331,17 @@ function maxAgeMs(state: string): number {
 async function runOnce(c: CatalogCase, p: Prep, plan: any, fresh = false): Promise<Ran> {
   const runId = `uicase-${c.id}-${Date.now().toString(36)}`;
   let context: any;
-  const key = `${p.state}|${p.technical ? "tech" : ""}`;
+  const key = `${p.state}|${p.technical ? "tech" : ""}|${p.auction ? "auction" : ""}`;
   const shared = !fresh && onlyLooks(plan) ? stateCache.get(key) : undefined;
   if (p.prepared && p.state !== "none" && shared && Date.now() - shared.at < maxAgeMs(p.state)) {
     context = shared.context;
     log(`   state ${p.state} shared (this plan only looks): ${context.title}`);
   } else if (p.prepared && p.state !== "none") {
-    const built = await buildUiState(COMPANY, p.state, { technical: p.technical });
+    const built = await buildUiState(COMPANY, p.state, { technical: p.technical, auction: p.auction });
     if (!built.ok || !built.context) return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: built.why ?? "the state could not be built" };
     const x = built.context;
     context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values };
-    log(`   state ${p.state}${p.technical ? " (+technical)" : ""} built by API in ${Math.round(x.builtInMs / 1000)}s: ${x.title}`);
+    log(`   state ${p.state}${p.technical ? " (+technical)" : ""}${p.auction ? " (auction)" : ""} built by API in ${Math.round(x.builtInMs / 1000)}s: ${x.title}`);
     if (!fresh) stateCache.set(key, { context, at: Date.now() });
   }
   // A vendor-portal step signs in as the QA test vendor the API invited — never the

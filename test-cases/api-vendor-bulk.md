@@ -338,6 +338,22 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Oracle.** vendor_bulk_upload_jobs.job_id of both rows.
 - **Trace.** P1 · automate · `VBU-024` · `app/helpers/api/companies_helper.rb:684`
 
+#### API-XVBU-222 — A workbook whose FIRST sheet is an instructions sheet: the vendor sheet is still read
+- **Why it matters.** Coverage audit GAP-47: only the first worksheet is read (parse:164-173); a buyer who adds an instructions tab in front gets HTTP 200 and nothing staged.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-222.xlsx`.
+- **Steps.** 1. Sheet 1 'Instructions' with one line; sheet 2 the vendor sheet with one tripwired row
+- **Expected.** The vendor sheet is read (row failed 'Invalid Status'), or the file is refused with a message. Per the code: HTTP 200 and nothing staged.
+- **Oracle.** Job rows.
+- **Trace.** P2 · automate · `VBU-222` · `app/services/conversions/excel_to_json_conversion_service.rb:164-173`
+
+#### API-XVBU-227 — An old-format 'GST ' column (trailing space) is caught like 'GST'
+- **Why it matters.** Coverage audit GAP-53: the old-format check compares the raw header (parse:164), so 'GST ' slips past it.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-227.xlsx`.
+- **Steps.** 1. Tripwired row in a sheet that also has a 'GST ' column
+- **Expected.** HTTP 422 'Format is updated for bulk upload, please download the format to continue.'
+- **Oracle.** HTTP status + message.
+- **Trace.** P3 · automate · `VBU-227` · `app/services/conversions/excel_to_json_conversion_service.rb:164-165`
+
 ## 2. Who may upload, and the template / status / error-sheet endpoints
 
 #### API-XVBU-030 — The template carries every column this workspace needs
@@ -494,6 +510,54 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Expected.** The job shows an Error tag (or its failed count stands out). Today: 'Completed'.
 - **Oracle.** Tag on the job row.
 - **Trace.** P3 · manual · `VBU-048` · `procol-client-dashboard/src/redux/vendors/index.js:4-9, 53-64`
+
+#### API-XVBU-254 — The upload history counts a mixed upload correctly (Completed 1 · Failed 1)
+- **Why it matters.** Coverage audit S-039: the counters a buyer reads in the Bulk Upload history (ctrl:251-268) were never asserted.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-254.xlsx`.
+- **Steps.** 1. One valid row (onboarding No) and one tripwired row in one sheet 2. POST 3. Read GET /v1/bulk_create_vendor_status for the job
+- **Expected.** History line for the job: Total 2 · Completed 1 · Failed 1 · Duplicate 0.
+- **Oracle.** Status API counters.
+- **Trace.** P1 · automate · `VBU-254` · `app/controllers/api/v1/companies_controller.rb:251-268`
+
+#### API-XVBU-223 — The template uploaded as downloaded gives a sensible row error
+- **Why it matters.** Coverage audit GAP-48. A buyer who uploads the template untouched sends its sample row. The runner sets that row's Status to the tripwire first, so even a corrected template (whose sample contact is a real procol.in address) creates nothing.
+- **Setup.** gate: allow_contactless_vendor_upload is on. Data: creates nothing (every row stops in validation).
+- **Steps.** 1. Download the template 2. Set the sample row's Status to QA_TRIPWIRE 3. Upload it
+- **Expected.** The sample row lines up with its columns, so it reaches the Status check ('Invalid Status'). Today: 'Tax Type not configured…' because the row is shifted (BUG-12).
+- **Oracle.** Job row error.
+- **Trace.** P2 · automate · `VBU-223` · `PR16267 app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:295-337; PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:24-25,86-95`
+
+#### API-XVBU-224 — Error sheet for a job id that does not decode is refused 'Insufficient parameters'
+- **Why it matters.** Coverage audit GAP-50.
+- **Setup.** Data: creates nothing (every row stops in validation).
+- **Steps.** 1. GET /v1/bulk_create_vendor_error_sheet?job_uuid=QA_NOT_A_UUID
+- **Expected.** HTTP 422 'Insufficient parameters' (not 487, not 500).
+- **Oracle.** HTTP status + message.
+- **Trace.** P3 · automate · `VBU-224` · `app/controllers/concerns/params_auth.rb:74-75; app/controllers/api/v1/companies_controller.rb:235`
+
+#### API-XVBU-225 — A user who may not upload cannot read the upload status list
+- **Why it matters.** Coverage audit GAP-51: status, error sheet and onboarding payload are authorised like the upload (pol:128-134).
+- **Setup.** Data: creates nothing (every row stops in validation).
+- **Steps.** 1. As a QA user without company:create_record: GET /v1/bulk_create_vendor_status
+- **Expected.** HTTP 422 'You are not authorized to perform this action'.
+- **Oracle.** HTTP status + message.
+- **Trace.** P2 · automate · `VBU-225` · `app/policies/company_policy.rb:128-134; app/controllers/api/v1/companies_controller.rb:204`
+
+#### API-XVBU-226 — A user who may not upload cannot download error sheets
+- **Why it matters.** Coverage audit GAP-51.
+- **Setup.** Data: creates nothing (every row stops in validation).
+- **Steps.** 1. As a QA user without company:create_record: GET the error sheet
+- **Expected.** HTTP 422 'You are not authorized to perform this action' (checked before the job id).
+- **Oracle.** HTTP status + message.
+- **Trace.** P2 · automate · `VBU-226` · `app/policies/company_policy.rb:128-134; app/controllers/api/v1/companies_controller.rb:233`
+
+#### API-XVBU-231 — The error sheet's Vendor Profile dropdown sits on the Vendor Profile column
+- **Why it matters.** Coverage audit GAP-49: the error sheet hard-codes the profile list on F4:F100 (tpl:97), but the column is E on PROCOL DEMO and H on GMMCO.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-231.xlsx`.
+- **Steps.** 1. Upload a tripwired row 2. Download its error sheet 3. Compare the profile dropdown's range with the Vendor Profile column
+- **Expected.** The 'Invalid Vendor Profile' dropdown covers the Vendor Profile column.
+- **Oracle.** Error sheet data validations.
+- **Trace.** P2 · automate · `VBU-231` · `app/services/procol_excel/vendor_bulk_upload_excel_service_v2.rb:97`
 
 ## 3. Row rules — every column
 
@@ -950,22 +1014,70 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **QA doc.** Covers A7 of the PR's QA document.
 - **Trace.** P1 · automate · `VBU-112` · `app/services/vpc_network/concerns/vpc_params_mixin.rb:41-60 (stores any value); custom config extra_fields_for_vendor_invite type=dropdown`
 
+#### API-XVBU-200 — Contactless OFF: a tax number with an unknown city is refused, not saved as city 0
+- **Why it matters.** Coverage audit GAP-07. 'Invalid City Name' fires only when Tax No. is blank (val:77); with a tax number the unknown city name is cast to city_id 0 — BUG-10 reached on a normal workspace. Status rejected keeps the row mail-free if it is wrongly created.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-200.xlsx`.
+- **Steps.** 1. Row with UK VAT {{vatK}}, City 'QA Nowhere <stamp>', Status rejected, PD's required extra fields 2. POST 3. Read the row and the vendor
+- **Expected.** Row failed 'Invalid City Name'; no vendor. Per the code: success and the vendor saved with city_id 0.
+- **Oracle.** Job row + companies lookup.
+- **Trace.** P1 · automate · `VBU-200` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:35-37,77; PR16267 app/controllers/concerns/utils.rb:892; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:27`
+
+#### API-XVBU-201 — Contactless OFF: a blank Vendor Profile is refused as mandatory
+- **Why it matters.** Coverage audit GAP-08: the mandatory rule for Vendor Profile (utils:803-805) had no case on a normal workspace.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-201.xlsx`.
+- **Steps.** 1. Tripwired row with Vendor Profile blank
+- **Expected.** Row failed 'Mandatory Item cannot be left empty'.
+- **Oracle.** Job row error.
+- **Trace.** P1 · automate · `VBU-201` · `PR16267 app/controllers/concerns/utils.rb:803-805; PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:33,56-58`
+
+#### API-XVBU-202 — Contactless OFF: a blank POC - Full Name is refused as mandatory
+- **Why it matters.** Coverage audit GAP-09.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-202.xlsx`.
+- **Steps.** 1. Tripwired row with POC - Full Name blank
+- **Expected.** Row failed 'Mandatory Item cannot be left empty'.
+- **Oracle.** Job row error.
+- **Trace.** P1 · automate · `VBU-202` · `PR16267 app/controllers/concerns/utils.rb:801-802`
+
+#### API-XVBU-203 — Contactless OFF: no tax number and no Address is refused ('Either Tax No. or …')
+- **Why it matters.** Coverage audit GAP-10: without a tax number, City AND Address are both needed.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-203.xlsx`.
+- **Steps.** 1. Tripwired row with Address blank, no tax
+- **Expected.** Row failed 'Either Tax No. or Without Tax No. fields are needed'.
+- **Oracle.** Job row error.
+- **Trace.** P2 · automate · `VBU-203` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:27-31,51`
+
+#### API-XVBU-204 — Contactless OFF: Tax Type and Business Location filled but Tax No. blank
+- **Why it matters.** Coverage audit GAP-54: with Tax No. blank the tax columns are ignored and the no-tax rule applies.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-204.xlsx`.
+- **Steps.** 1. Tripwired row: Tax Type GST, Business Location India, Tax No., City and Address blank
+- **Expected.** Row failed 'Either Tax No. or Without Tax No. fields are needed'.
+- **Oracle.** Job row error.
+- **Trace.** P3 · automate · `VBU-204` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:24-31`
+
+#### API-XVBU-205 — Deals In with ANOTHER workspace's category code is refused
+- **Why it matters.** Coverage audit GAP-13: the code must be one of this workspace's categories (val:172-179); a code copied from another client must not pass.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-205.xlsx`.
+- **Steps.** 1. Tripwired row whose Deals In is a category code of the other test client (read from its own run)
+- **Expected.** Row failed 'Invalid Deals In : <that code>'.
+- **Oracle.** Job row error.
+- **Trace.** P2 · automate · `VBU-205` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:157-159,172-179`
+
 ## 4. What a row creates: Prospect vs Vendor, Status, POC 2
 
 #### API-XVBU-119 — A full row (UK VAT) with 'Onboarding Required = No' becomes an Active vendor with every field stored
 - **Why it matters.** The same non-PQ path as VBU-120 with a tax number the sandbox can resolve — so the creation, routing and storage can be verified even while GST rows are blocked (VBU-059).
-- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-119.xlsx`.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-119.xlsx`.
 - **Steps.** 1. Row with UK VAT, city, address, pincode, PAN, profile 2, POC, POC 2, Account Group, MSME, bank, onboarding No 2. POST 3. Read the vendor, mapping and invitations
-- **Expected.** Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2) with skip_vendor_onboarding=true; tax number, PAN, address, city, pincode (digits only) and the extra fields stored; no 'new prospect' mail.
+- **Expected.** Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2), BOTH with skip_vendor_onboarding=true; tax number, PAN, address, city, pincode (digits only) and the extra fields stored; no 'new prospect' mail. Found 2026-10-05: the POC 2 invitation carries no skip flag, so the vendor-management team is mailed (BUG-29) — hence the real-mail tier.
 - **Oracle.** companies / buyer_seller_company_mappings / invitations rows.
 - **QA doc.** Covers A6, A7, D2 of the PR's QA document.
 - **Trace.** P0 · automate · `VBU-119` · `app/workers/vendor_bulk_upload_worker_v2.rb:92-99,141-158; app/services/invitation/send_service.rb:386-393,407-434; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47; PR16267 app/controllers/concerns/utils.rb:904-905`
 
 #### API-XVBU-120 — A full row with 'Onboarding Required = No' becomes an Active vendor with every field stored
 - **Why it matters.** The non-PQ path: skip onboarding, land straight on the Vendors tab, carry every column into the vendor record.
-- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-120.xlsx`.
-- **Steps.** 1. Row with GST, PAN, city, address, pincode, profile 2, POC, POC 2, Account Group, MSME, bank, onboarding No 2. POST 3. Read the vendor, mapping and invitations
-- **Expected.** Row success. Vendor Active (Vendors tab); 2 invitations (POC + POC 2) with skip_vendor_onboarding=true; GST, PAN, address, city and the extra fields stored; no 'new prospect' mail (skip flag).
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-120.xlsx`.
+- **Steps.** 1. Row with GST, PAN, city, address, pincode, profile 2, POC, Account Group, MSME, bank, onboarding No (no POC 2: its invitation would mail the vendor-management team, BUG-29) 2. POST 3. Read the vendor, mapping and invitations
+- **Expected.** Row success. Vendor Active (Vendors tab); 1 invitation (the POC) with skip_vendor_onboarding=true; GST, PAN, address, city and the extra fields stored; no 'new prospect' mail (skip flag). POC 2 is left out on purpose — see VBU-119 / BUG-29.
 - **Oracle.** companies / buyer_seller_company_mappings / invitations rows.
 - **QA doc.** Covers A2 of the PR's QA document.
 - **Trace.** P0 · automate · `VBU-120` · `app/workers/vendor_bulk_upload_worker_v2.rb:92-99,141-158; app/services/invitation/send_service.rb:386-393,407-434; app/models/invitations.rb:125-140; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:42-47 (pincode → misc.pincode)`
@@ -1088,6 +1200,46 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Spec vs code.** QA doc D7: 'Manual Invite Vendor form, normal vendor → Unchanged'. The PR changes it for contactless workspaces.
 - **QA doc.** Covers D7 of the PR's QA document.
 - **Trace.** P1 · automate · `VBU-133` · `PR16267 app/services/invitation/send_service.rb:351-354 (workspace-wide), 309, 332, 457; app/controllers/api/invitations_controller.rb send_invite`
+
+#### API-XVBU-210 — POC 2 email without a name is refused BEFORE the vendor is created
+- **Why it matters.** Coverage audit GAP-28, the mirror of BUG-07 (name without email). The POC 2 pair is checked after the vendor and its invite exist. No POC 2 invitation is made on this branch, so no mail.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-210.xlsx`.
+- **Steps.** 1. Row with POC 2 - Email Address filled, POC 2 - Full Name blank 2. POST 3. Read the row and the vendor
+- **Expected.** Row failed 'Invalid Values for POC 2.' and NO vendor created.
+- **Oracle.** Job row + companies lookup.
+- **Trace.** P2 · automate · `VBU-210` · `app/workers/vendor_bulk_upload_worker_v2.rb:175-179`
+
+#### API-XVBU-219 — Deals In with a valid category code puts the vendor in that category's team
+- **Why it matters.** Coverage audit GAP-12: the category link itself (a teams row on the vendor) had no check.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-219.xlsx`.
+- **Steps.** 1. Row with Deals In = one of the workspace's category codes 2. POST 3. Read the vendor's teams
+- **Expected.** Row success; the vendor is in one category team.
+- **Oracle.** teams rows (SELECT).
+- **Trace.** P2 · automate · `VBU-219` · `app/controllers/concerns/teams_create_concern.rb:23-48`
+
+#### API-XVBU-220 — Deals In by category NAME is either refused or linked — never accepted and dropped
+- **Why it matters.** Coverage audit GAP-11: a unique category name passes validation, but the worker decodes it as a code (nil), so no team is made — the category silently disappears.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-220.xlsx`.
+- **Steps.** 1. Row with Deals In = a category NAME 2. POST 3. Read the vendor's teams
+- **Expected.** Row success and the vendor is in that category's team (or the row is refused). Per the code: success and NO team.
+- **Oracle.** teams rows (SELECT).
+- **Trace.** P1 · automate · `VBU-220` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:176-179; PR16267 app/controllers/concerns/utils.rb:898-900; app/controllers/concerns/teams_create_concern.rb:33-40`
+
+#### API-XVBU-221 — Status 'active' with Onboarding Required = Yes still makes a Prospect
+- **Why it matters.** Coverage audit GAP-15: the worker drops Status unless it is 'rejected' (wrk:97), so 'active' changes nothing. No contact, so no invitation and no mail.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-221.xlsx`.
+- **Steps.** 1. Contactless row: only Company Name, Status active, Vendor Onboarding Required Yes
+- **Expected.** Row success; the vendor is a Prospect (invited), 0 invitations.
+- **Oracle.** Mapping + invitations.
+- **Trace.** P2 · automate · `VBU-221` · `app/workers/vendor_bulk_upload_worker_v2.rb:97; PR16267 app/services/invitation/send_service.rb:400-407`
+
+#### API-XVBU-230 — POC 2 email equal to the main POC email is refused before the vendor is created
+- **Why it matters.** Coverage audit GAP-27. The member invite for the same address is refused 'already invited' (688) — after the vendor and its invite exist. No VRP Code in the row: with one, the code sends a second invitation instead (778), which would mail the vendor-management team.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-230.xlsx`.
+- **Steps.** 1. Row whose POC 2 - Email Address is the same as POC - Email Address 2. POST 3. Read the row and the vendor
+- **Expected.** Row failed (POC 2 must be a different person) and NO vendor created. Per the code: failed 'This email is already invited.' but the vendor exists.
+- **Oracle.** Job row + companies lookup.
+- **Trace.** P2 · automate · `VBU-230` · `app/workers/vendor_bulk_upload_worker_v2.rb:37-58,175-182; PR16267 app/services/invitation/send_service.rb:237,241-253`
 
 ## 5. Duplicates — inside one sheet and against existing vendors
 
@@ -1287,7 +1439,120 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **QA doc.** Covers B2-form, B-form of the PR's QA document.
 - **Trace.** P0 · automate · `VBU-136` · `app/controllers/api/invitations_controller.rb send_invite (permit list has no :pincode); PR16267 app/services/vendors/duplicate_check_fields.rb:27 (blank pincode = match)`
 
+#### API-XVBU-211 — Two new rows in one sheet with the same Vendor Code — only one is created
+- **Why it matters.** Coverage audit GAP-24: the same per-row parallel workers as BUG-01, on the Vendor Code.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-211.xlsx`.
+- **Steps.** 1. Two rows, same new Vendor Code QADUP<stamp>, different names and emails 2. POST 3. Read both rows
+- **Expected.** One row success, the other failed 'Vendor Code or GST Number is already taken'. Two successes = race defect.
+- **Oracle.** Job rows.
+- **Trace.** P1 · automate · `VBU-211` · `app/workers/vendor_bulk_upload_master_worker_v2.rb:11-14; PR16267 app/services/invitation/send_service.rb:261-264`
+
+#### API-XVBU-212 — A Vendor Code that differs only in letter case is still a duplicate
+- **Why it matters.** Coverage audit GAP-23: the code is matched exactly (where(vendor_code:)), so 'qavc…' slips past 'QAVC…'.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-212.xlsx`.
+- **Steps.** 1. Row with Vendor Code = the baseline's code in lower case, no tax number
+- **Expected.** Row failed 'Vendor Code or GST Number is already taken'.
+- **Oracle.** Job row + companies lookup.
+- **Trace.** P2 · automate · `VBU-212` · `PR16267 app/services/invitation/send_service.rb:263-264`
+
+#### API-XVBU-213 — An existing vendor with NO pincode blocks a new branch that has one
+- **Why it matters.** Coverage audit GAP-36: a blank pincode counts as a match (the PR's treat_as_match), so a pincode can never separate branches of the legacy vendors, which carry none.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-213.xlsx`.
+- **Steps.** 1. Baseline vendor without pincode 2. Same tax number, address and account group, a new name and email, Pincode 110001
+- **Expected.** Row failed 'Vendor with this GST and address already exists' (the PR's design: blank pincode = match).
+- **Oracle.** Job row.
+- **Spec vs code.** QA doc B2 says a different pincode makes a new branch; against a vendor with no pincode it never does.
+- **Trace.** P1 · automate · `VBU-213` · `PR16267 app/services/vendors/duplicate_check_fields.rb:27,111-119`
+
+#### API-XVBU-214 — A back-filled address with a DIFFERENT pincode makes a new branch
+- **Why it matters.** Coverage audit GAP-37: a blank Address is filled in from the vendor with the same tax number; the pincode must still tell the branches apart (PR spec duplicate_check_integration_spec.rb:74).
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-214.xlsx`.
+- **Steps.** 1. Baseline vendor with pincode 560007 2. Row with the same tax number, Address blank, City Mumbai, Pincode 110007
+- **Expected.** Row success: a second vendor (another branch). Note: the back-fill also replaces the company name typed in the sheet with the existing vendor's name (send:41-51), so the new branch is not findable under the name the buyer gave it.
+- **Oracle.** Job row.
+- **Trace.** P1 · automate · `VBU-214` · `PR16267 app/services/invitation/send_service.rb:41-54; PR16267 app/services/vendors/duplicate_check_fields.rb:27`
+
+#### API-XVBU-215 — A Rejected vendor still blocks an exact duplicate
+- **Why it matters.** Coverage audit GAP-38: rejected vendors are part of the duplicate search (send:227,259,275).
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-215.xlsx`.
+- **Steps.** 1. Baseline vendor with Status rejected 2. Exact duplicate (tax number, address, pincode, account group), new name and email
+- **Expected.** Row failed 'Vendor with this GST and address already exists'.
+- **Oracle.** Job row.
+- **Trace.** P2 · automate · `VBU-215` · `PR16267 app/services/invitation/send_service.rb:227,259,275`
+
+#### API-XVBU-216 — A VRP Code that another vendor already has is refused
+- **Why it matters.** Coverage audit GAP-20: the VRP Code is a unique key like the Vendor Code.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2). Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-216.xlsx`.
+- **Steps.** 1. Baseline vendor with VRP Code QAVRP<stamp> 2. New row with the same VRP Code
+- **Expected.** Row failed 'Vendor Code or GST Number is already taken'.
+- **Oracle.** Job row + companies lookup.
+- **Trace.** P1 · automate · `VBU-216` · `PR16267 app/services/invitation/send_service.rb:266-267,272,280-281`
+
+#### API-XVBU-217 — Vendor Code of one vendor + VRP Code of another is refused
+- **Why it matters.** Coverage audit GAP-21.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-217.xlsx`.
+- **Steps.** 1. Both baselines exist 2. Row with the dedup baseline's Vendor Code and the VRP baseline's VRP Code
+- **Expected.** Row failed 'Vendor code and VRP Code belong to different companies'.
+- **Oracle.** Job row.
+- **Trace.** P2 · automate · `VBU-217` · `PR16267 app/services/invitation/send_service.rb:269-271`
+
+#### API-XVBU-218 — Tax number of one vendor + Vendor Code of another is refused
+- **Why it matters.** Coverage audit GAP-22.
+- **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-218.xlsx`.
+- **Steps.** 1. Both baselines exist 2. Row with the dedup baseline's tax number and address and the VRP baseline's Vendor Code
+- **Expected.** Row failed 'Code and GST Number belong to different companies'.
+- **Oracle.** Job row.
+- **Trace.** P1 · automate · `VBU-218` · `PR16267 app/services/invitation/send_service.rb:274-279`
+
+#### API-XVBU-229 — A lower-case VAT number cannot slip past the duplicate check (it is refused)
+- **Why it matters.** Coverage audit GAP-56: the duplicate search matches gst_no exactly, so 'gb…' stored next to 'GB…' would be two vendors. The VAT pattern is upper-case only, so the row is refused before that can happen.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-229.xlsx`.
+- **Steps.** 1. Tripwired row with Tax No. = {{vatB}} in lower case
+- **Expected.** Row failed 'Invalid Tax No.' (the pattern is upper-case only), so no lower-case duplicate can be stored.
+- **Oracle.** Job row error.
+- **Trace.** P3 · automate · `VBU-229` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92-95; PR16267 app/services/invitation/send_service.rb:275`
+
 ## 6. Data fidelity — what the parser does to the values
+
+#### API-XVBU-206 — Contactless: the PAN is derived from the GSTIN (characters 3–12)
+- **Why it matters.** Coverage audit GAP-18: under contactless (or vendor_invitation_v2) the PAN is filled in from the GSTIN (val:99-118).
+- **Setup.** gate: allow_contactless_vendor_upload is on. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-206.xlsx`.
+- **Steps.** 1. Tripwired row with GST {{gst}}, Business Location India, PAN No. blank 2. Read the staged row's data
+- **Expected.** Row stops at the tripwire with data.pan_no = {{pan}}.
+- **Oracle.** Job row data.
+- **Trace.** P1 · automate · `VBU-206` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:99-118`
+
+#### API-XVBU-207 — Contactless OFF: no PAN is derived from the GSTIN
+- **Why it matters.** Coverage audit GAP-18, the other side: on a normal workspace the PAN is not derived.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-207.xlsx`.
+- **Steps.** 1. Tripwired row with GST {{gst}}, Business Location India 2. Read the staged row's data
+- **Expected.** Row stops at the tripwire with no derived pan_no.
+- **Oracle.** Job row data.
+- **Trace.** P2 · automate · `VBU-207` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:99-104`
+
+#### API-XVBU-208 — A Vendor Code with a dot and trailing zeros keeps its zeros ('QA….100')
+- **Why it matters.** Coverage audit GAP-25: the same zero-stripper as BUG-09, on the vendor code — 'X.100' and 'X.1000' both become 'X.1' and collide as duplicates.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-208.xlsx`.
+- **Steps.** 1. Tripwired row with Vendor Code 'QA<stamp>.100'
+- **Expected.** Staged Vendor Code unchanged.
+- **Oracle.** Job row data.
+- **Trace.** P1 · automate · `VBU-208` · `app/services/conversions/excel_to_json_conversion_service.rb:176; app/controllers/concerns/utils.rb:641-647`
+
+#### API-XVBU-209 — Entity-encoded markup ('&lt;script&gt;') is not decoded into a live tag
+- **Why it matters.** Coverage audit GAP-26: every cell goes through Nokogiri .text, which DECODES '&lt;script&gt;' into '<script>'. VBU-163 covers a plain tag; this is the encoded one.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-209.xlsx`.
+- **Steps.** 1. Tripwired row whose Company Name starts with '&lt;script&gt;alert(1)&lt;/script&gt;'
+- **Expected.** The staged name never contains a live '<script'.
+- **Oracle.** Job row data.
+- **Trace.** P1 · automate · `VBU-209` · `app/services/conversions/excel_to_json_conversion_service.rb:177`
+
+#### API-XVBU-228 — A city typed in capitals ('MUMBAI') resolves to Mumbai
+- **Why it matters.** Coverage audit GAP-55.
+- **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-228.xlsx`.
+- **Steps.** 1. Tripwired row with City 'MUMBAI' 2. Read the staged row's city_id
+- **Expected.** Staged city_id = 8 (Mumbai).
+- **Oracle.** Job row data.
+- **Trace.** P3 · automate · `VBU-228` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:122-131`
 
 #### API-XVBU-160 — An address ending in zeros keeps them ('Plot No. 100')
 - **Why it matters.** Every cell goes through strip_trailing_zero, meant for '84149090.0'. Any value that contains a dot and ends in zeros loses them: 'Plot No. 100' becomes 'Plot No. 1'.
@@ -1397,3 +1662,181 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Expected.** Row failed 'Invalid City Name'.
 - **Oracle.** Job row error.
 - **Trace.** P1 · automate · `VBU-183` · `app/services/validations/vendor_bulk_upload_validation_service_v2.rb:73-75`
+
+## 8. Found by the coverage audit, not run: they mail real people, change a workspace for good, need two workspaces in sequence, or need a setting no test client has
+
+#### API-XVBU-232 — A contactless 'rejected' row with no contact creates a user with no email — and blocks every later no-email row
+- **Why it matters.** Coverage audit GAP-02. create_user_for_rejected_vendor looks the email up as NULL, finds nothing and creates a user whose email is NULL; afterwards send:233 matches that user for every no-email row ('This email is already invited.'). GMMCO's 11,000-row legacy load is exactly this row type.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Not automated: Leaves a lasting change on the workspace (a user with no email that breaks later uploads). Run only with the workspace owner's approval; a read-only probe on 5 Oct 2026 found no such user from our runs.
+- **Steps.** 1. Row: Company Name, Status rejected, Vendor Onboarding Required No (no contact) 2. Second upload: a no-contact row
+- **Expected.** No blank user is created and the second row succeeds. Per the code: a NULL-email user, then 'This email is already invited.' on every later no-email row.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P0 · manual · `VBU-232` · `app/workers/vendor_bulk_upload_worker_v2.rb:28-35,159-161; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:14-15; PR16267 app/services/invitation/send_service.rb:233-253`
+
+#### API-XVBU-233 — A Status=rejected row that becomes a subsidiary is not rejected
+- **Why it matters.** Coverage audit GAP-03: the subsidiary path ignores Status, so the mapping is active and the subsidiary is invited (mail).
+- **Setup.** Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1. Not automated: Sends the invite and 'new prospect' mails to the vendor-management team (real people). Needs approval (run with --real-mail).
+- **Steps.** 1. Subsidiary baseline (VBU-131's) 2. Row reusing its contact email, Status rejected, a new UK VAT number
+- **Expected.** Mapping rejected, no mail. Per the code: active or invited, and the invite and prospect mails go out.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-233` · `PR16267 app/services/invitation/send_service.rb:85-87; app/services/vpc_network/subsidiary_service.rb:199-235`
+
+#### API-XVBU-234 — A rejected vendor with POC 2 still sends POC 2 an active invitation
+- **Why it matters.** Coverage audit GAP-04: the member invite ignores the rejected status and carries no skip flag.
+- **Setup.** Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1. Not automated: Mails the vendor-management team (and POC 2). Needs approval.
+- **Steps.** 1. Row with Status rejected and POC 2 name + email
+- **Expected.** No POC 2 invitation for a rejected vendor. Per the code: an active vendor_member_invite and the prospect mail.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-234` · `app/workers/vendor_bulk_upload_worker_v2.rb:175-182; PR16267 app/services/invitation/send_service.rb:374-381,393-398`
+
+#### API-XVBU-235 — A blank City/Address copies ANOTHER workspace's vendor details in
+- **Why it matters.** Coverage audit GAP-05: the tax-number back-fill searches every workspace (Company.active.find_by(gst_no:)), so another client's vendor name, address and city are merged in.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Not automated: Needs a run across two workspaces in sequence, which the runner does not do yet. Test vendors only, no real mail — safe to build next.
+- **Steps.** 1. On PROCOL DEMO: a vendor with UK VAT {{vatN}} and 'QA PD Leak Road 1' 2. On GMMCO: a no-contact row with only that VAT number
+- **Expected.** No data from another workspace. Per the code: the GMMCO vendor is named and addressed after the PROCOL DEMO one.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P0 · manual · `VBU-235` · `app/helpers/api/companies_helper.rb:732-747; PR16267 app/services/invitation/send_service.rb:41-54`
+
+#### API-XVBU-236 — A new tax number with no Address triggers a live GST/VAT provider lookup
+- **Why it matters.** Coverage audit GAP-06: the back-fill calls the external tax-number provider when no vendor in Procol has the number.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Sends the tax number to an external provider. Needs approval.
+- **Steps.** 1. GMMCO row: GST {{gst}}, Business Location India, City Mumbai, Address blank, onboarding No
+- **Expected.** Decided without a third-party call, or refused clearly. Per the code: an external lookup; the message depends on the provider.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-236` · `PR16267 app/services/invitation/send_service.rb:42-52; app/helpers/api/companies_helper.rb:748-767`
+
+#### API-XVBU-237 — Same contact + Vendor Code (no tax) makes a subsidiary that inherits the original's tax number
+- **Why it matters.** Coverage audit GAP-31: the subsidiary copies the parent (vendor.dup) and a nil gst_no is dropped by .compact, so a second company carries the same tax number without the duplicate check ever seeing it.
+- **Setup.** Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1. Not automated: The subsidiary invitation mails the vendor-management team (CODE-2). Needs approval.
+- **Steps.** 1. Subsidiary baseline 2. Row reusing its contact email with a Vendor Code and no tax number
+- **Expected.** Refused or created without the parent's tax number. Per the code: a subsidiary with gst_no = the parent's.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-237` · `app/services/vpc_network/subsidiary_service.rb:164-212; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:30,39`
+
+#### API-XVBU-238 — Onboarding payload + Status rejected + Yes starts onboarding for a rejected vendor
+- **Why it matters.** Coverage audit GAP-35.
+- **Setup.** Data: creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1. Not automated: Starts an onboarding event (mails). Needs approval.
+- **Steps.** 1. VBU-134's payload; row with Status rejected, Vendor Onboarding Required Yes
+- **Expected.** No onboarding event for a rejected vendor. Per the code: mapping rejected AND an onboarding event.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-238` · `app/workers/vendor_bulk_upload_worker_v2.rb:93,195`
+
+#### API-XVBU-239 — A contact who is already a vendor user elsewhere is silently auto-joined
+- **Why it matters.** Coverage audit GAP-30: the invitation is created as accepted and the existing user gets a mapping to the new vendor without being asked.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Not automated: Needs a run across two workspaces in sequence. Test vendors only.
+- **Steps.** 1. On PROCOL DEMO: a rejected row creates a vendor user qa_vbu_<stamp>_reg@example.com 2. On GMMCO: a row with that email
+- **Expected.** Product decision: ask the user, or auto-join. Per the code: invitation accepted, user mapped.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-239` · `PR16267 app/services/invitation/send_service.rb:69,100-108,329,341-343`
+
+#### API-XVBU-240 — A POC email that belongs to a buyer user is refused
+- **Why it matters.** Coverage audit GAP-29.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a buyer user that is one of OUR QA test accounts; the GMMCO admin is a real person's account, so it is never used as data.
+- **Steps.** 1. Row with Status rejected and the POC email of a buyer user
+- **Expected.** Row failed 'This email is already registered.'
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-240` · `PR16267 app/services/invitation/send_service.rb:147-167`
+
+#### API-XVBU-241 — A registered contact's subsidiary with no City/Address is refused 'Incorrect details'
+- **Why it matters.** Coverage audit GAP-32.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Depends on another case's vendor user within the same run; not wired yet.
+- **Steps.** 1. VBU-125's vendor user exists 2. Row reusing its email with a Vendor Code, no City/Address
+- **Expected.** Row failed 'Incorrect details'.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-241` · `app/services/vpc_network/subsidiary_service.rb:88-96,149-160`
+
+#### API-XVBU-242 — An onboarding payload with a broken form gives a 'success' row and no event
+- **Why it matters.** Coverage audit GAP-34.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Not automated: Needs a deliberately broken onboarding payload builder; not wired yet.
+- **Steps.** 1. VBU-132's payload with a non-existent form id; a no-contact 'Yes' row
+- **Expected.** Row failed (onboarding could not start). Per the code: success, Prospect, no event (only logged).
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-242` · `app/workers/vendor_onboarding_event_worker.rb:36-38`
+
+#### API-XVBU-243 — A profile that maps to broker/brokerage takes the broker invite
+- **Why it matters.** Coverage audit GAP-16.
+- **Setup.** Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Not automated: Neither test client maps a profile to broker.
+- **Steps.** 1. Row whose Vendor Profile maps to broker
+- **Expected.** Company category brokerage; invite type broker_invite.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-243` · `app/workers/vendor_bulk_upload_worker_v2.rb:115-125; PR16267 app/services/vpc_network/concerns/vpc_params_mixin.rb:80-93`
+
+#### API-XVBU-244 — Another user's job id is not exposed through the error sheet
+- **Why it matters.** Coverage audit GAP-52.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a second QA user who uploads; none exists yet.
+- **Steps.** 1. As user B, GET the error sheet of user A's job
+- **Expected.** HTTP 422 487 (no job for this user).
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-244` · `app/controllers/api/v1/companies_controller.rb:236-238`
+
+#### API-XVBU-245 — Read-only: a contactless blank profile stores the first 'manufacturer' mapping
+- **Why it matters.** Coverage audit GAP-17.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: A database read of another case's vendor; not wired as its own check yet.
+- **Steps.** 1. SELECT misc->'category_data' of VBU-121's vendor
+- **Expected.** The first vendor_category_type_mapping entry whose category is manufacturer.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-245` · `app/workers/vendor_bulk_upload_worker_v2.rb:116-130`
+
+#### API-XVBU-246 — Read-only: an Active vendor raises the P2P vendor-portal request (GMMCO)
+- **Why it matters.** Coverage audit GAP-33.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: A database read of another case's vendor; not wired as its own check yet.
+- **Steps.** 1. SELECT external_requests p2p_boiler_plate_upsert for VBU-121's vendor
+- **Expected.** One request per Active vendor (none for a Prospect).
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-246` · `app/models/buyer_seller_company_mapping.rb:48,185-215`
+
+#### API-XVBU-247 — Duplicate fields = [gst_no] only falls back to the old rule
+- **Why it matters.** Coverage audit GAP-39.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).
+- **Steps.** 1. See the coverage audit
+- **Expected.** As the audit's expected outcome.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-247` · `dup:67-74`
+
+#### API-XVBU-248 — pan_no in the duplicate key: a different PAN makes a new vendor
+- **Why it matters.** Coverage audit GAP-40.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).
+- **Steps.** 1. See the coverage audit
+- **Expected.** As the audit's expected outcome.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-248` · `dup:25`
+
+#### API-XVBU-249 — can_skip OFF: Vendor Onboarding Required is not validated and 'No' still makes a Prospect
+- **Why it matters.** Coverage audit GAP-42.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).
+- **Steps.** 1. See the coverage audit
+- **Expected.** As the audit's expected outcome.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-249` · `val:211; wrk:93`
+
+#### API-XVBU-250 — vendor_invitation_v2 ON (contactless OFF): Profile/City/Address optional, POC email still mandatory
+- **Why it matters.** Coverage audit GAP-43.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).
+- **Steps.** 1. See the coverage audit
+- **Expected.** As the audit's expected outcome.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-250` · `val; tpl:99-101; sub:116-128`
+
+#### API-XVBU-251 — No onboarding version: a matching row is 'already_mapped' and the vendor updated
+- **Why it matters.** Coverage audit GAP-44.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).
+- **Steps.** 1. See the coverage audit
+- **Expected.** As the audit's expected outcome.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-251` · `wrk:131-140; update_mapped_vendor_service.rb:12-70`
+
+#### API-XVBU-252 — disable_manual_vendor_creation ON, as a Procol employee: upload allowed
+- **Why it matters.** Coverage audit GAP-45.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).
+- **Steps.** 1. See the coverage audit
+- **Expected.** As the audit's expected outcome.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-252` · `ctrl:206`
+
+#### API-XVBU-253 — restricted_pan_email_domains: a PAN on the wrong email domain is refused
+- **Why it matters.** Coverage audit GAP-46.
+- **Setup.** Data: creates nothing (every row stops in validation). Not automated: Needs a workspace with this setting; neither test client has it (the settings are the owner's to change).
+- **Steps.** 1. See the coverage audit
+- **Expected.** As the audit's expected outcome.
+- **Oracle.** Job row + records (SELECT).
+- **Trace.** P1 · manual · `VBU-253` · `pan_email_domain_service.rb:28-41`

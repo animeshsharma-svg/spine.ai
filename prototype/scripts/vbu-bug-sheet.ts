@@ -159,7 +159,7 @@ for (const b of bugs) {
   const all = t.reduce((n, x) => n + x.fail + x.pass, 0);
   const sees = d?.sees ?? "";
   lines.push(
-    `| [${b.id}](#${b.id.toLowerCase()}) | ${b.severity}${b.status === "SUSPECTED" ? " (suspected)" : ""} | ${md(d?.area ?? "")} | ${md(b.title)} | ${md(sees || "—")} | ${all ? `failed in ${f} of ${all} test runs` : "not run"} |`,
+    `| [${b.id}](#${b.id.toLowerCase()}) | ${b.severity}${b.status === "SUSPECTED" ? " (suspected)" : ""} | ${md(d?.area ?? "")} | ${md(b.title)} | ${md(sees || "—")} | ${d?.reproduced ?? (all ? `failed in ${f} of ${all} test runs` : "not run")} |`,
   );
 }
 lines.push("");
@@ -173,6 +173,7 @@ for (const b of bugs) {
     lines.push("**What should happen:**", "", ...d.expected.map((x) => `- ${x}`), "");
     lines.push(`**What happens instead.** ${d.actual}`, "");
     lines.push(`**What the buyer sees.** ${d.sees}`, "");
+    if (d.note) lines.push(`> **Note on the test history.** ${d.note}`, "");
     lines.push(`**Why it matters.** ${d.impact}`, "");
   }
   lines.push(`**Cause in the code.** ${b.cause}`, "", `**Where:** \`${b.where}\``, "", `**Suggested fix.** ${b.fix}`, "");

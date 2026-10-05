@@ -130,7 +130,7 @@ function valuesFrom(journey: any, client: any): Record<string, string> {
 export async function buildUiState(
   companyId: number,
   state: UiState,
-  opts: { technical?: boolean; budgetMs?: number; onLine?: (l: string) => void } = {},
+  opts: { technical?: boolean; auction?: boolean; budgetMs?: number; onLine?: (l: string) => void } = {},
 ): Promise<UiSetupResult> {
   const t0 = Date.now();
   if (state === "none") return { ok: true, context: { state, technical: false, companyId, made: {}, values: {}, builtInMs: 0 } };
@@ -146,7 +146,8 @@ export async function buildUiState(
   if (!/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(email)) {
     return { ok: false, why: `client ${companyId} has no QA test vendor to bid with (${client?.ctx?.noQaVendor ?? "none configured"}) — refusing to build with a real supplier` };
   }
-  const plan = journeyPlan([technical ? "events.rfp_rfq" : "events.rfq_only"]);
+  // an auction case gets a live auction round (behind a technical round when it needs one)
+  const plan = journeyPlan([opts.auction ? (technical ? "events.rfp_auction" : "events.auction_only") : technical ? "events.rfp_rfq" : "events.rfq_only"]);
   const stop = plan.steps.indexOf(PREFIX[state] as any);
   if (stop < 0) return { ok: false, why: `the journey has no step "${PREFIX[state]}" for state ${state}` };
   plan.steps = plan.steps.slice(0, stop + 1);

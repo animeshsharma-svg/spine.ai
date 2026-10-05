@@ -894,7 +894,9 @@ export function buildChecksFromCases(
       }
     }
     let caseCtx: DynamicContext =
-      c.bulk?.fixture ? { ...fullCtx, vbuSheet: `<base64 of procol test/fixtures/vendor-bulk-upload/${c.bulk.fixture}, filled per run>` } : fullCtx;
+      c.bulk?.fixture ? { ...fullCtx, vbuSheet: `<base64 of procol test/fixtures/vendor-bulk-upload/${c.bulk.fixture}, filled per run>` }
+      : c.bulk?.kind === "templateUpload" ? { ...fullCtx, vbuSheet: "<base64 of the workspace's template as downloaded, Status tripwired>" }
+      : fullCtx;
     // A draft-stage case addresses its OWN draft, built when it runs.
     const ownDraft = needsOwnDraft(c);
     if (ownDraft) caseCtx = { ...caseCtx, eventGroupUuid: DRAFT_EG, lineItemUuid: DRAFT_LI } as DynamicContext;
@@ -958,7 +960,9 @@ export function buildChecksFromCases(
       // Waiting on a record, or genuinely unrunnable? Only the first is worth
       // retrying once earlier cases in this run have created something.
       const waiting = reason?.match(/^unresolved placeholder\(s\):\s*(.+)$/);
-      if (waiting) {
+      // A vendor bulk case carries its own data; nothing an earlier case creates
+      // can unblock it, so it is reported (never dropped in silence).
+      if (waiting && !c.bulk) {
         deferred.push({ record: c, needs: waiting[1].split(",").map((n) => n.trim()).filter(Boolean) });
       } else {
         skipped.push({ id: c.id, title: c.title, reason: reason ?? "not runnable here" });

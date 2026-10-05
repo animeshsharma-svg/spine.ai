@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildWorkbook, VBU_FIXTURE_DIR } from "../../src/flows/vendorBulkUpload.js";
-import { CASES, QA_DOC, SECTIONS, cityZeroBaselineRow, dedupBaselineRow, fallbackBaselineRow, prospectBaselineRow, subsidiaryBaselineRow, type VbuCase } from "./spec.js";
+import { CASES, QA_DOC, SECTIONS, backfillBaselineRow, cityZeroBaselineRow, dedupBaselineRow, fallbackBaselineRow, noPincodeBaselineRow, prospectBaselineRow, rejectedDupBaselineRow, subsidiaryBaselineRow, vrpBaselineRow, type VbuCase } from "./spec.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..", "..");
@@ -32,6 +32,10 @@ const BASELINES: Record<string, { file: string; row: () => Record<string, unknow
   subsidiary: { file: "VBU-SUB-BASE.xlsx", row: subsidiaryBaselineRow, what: "the vendor whose contact email VBU-131 reuses" },
   prospect: { file: "VBU-PROSPECT-BASE.xlsx", row: prospectBaselineRow, what: "a contactless Prospect (no email, no invitation)" },
   fallback: { file: "VBU-FALLBACK-BASE.xlsx", row: fallbackBaselineRow, what: "the vendor the old-rule duplicate cases compare against" },
+  noPincode: { file: "VBU-NOPIN-BASE.xlsx", row: noPincodeBaselineRow, what: "a legacy-style vendor with no pincode (VBU-213)" },
+  backfill: { file: "VBU-BACKFILL-BASE.xlsx", row: backfillBaselineRow, what: "the vendor a blank-address row is back-filled from (VBU-214)" },
+  rejectedDup: { file: "VBU-REJ-BASE.xlsx", row: rejectedDupBaselineRow, what: "a rejected vendor that must still block duplicates (VBU-215)" },
+  vrp: { file: "VBU-VRP-BASE.xlsx", row: vrpBaselineRow, what: "a vendor with a VRP Code and its own Vendor Code (VBU-216/217/218)" },
 };
 /** QA-doc refs per case, from the QA_DOC map (plus any set on the case itself). */
 const qaDocOf = (c: VbuCase): string[] => [...new Set([...(c.qaDoc ?? []), ...Object.entries(QA_DOC).filter(([, v]) => v.cases.includes(c.id)).map(([k]) => k)])];
@@ -58,6 +62,9 @@ const tierText: Record<string, string> = {
   creates: "creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com",
   "real-mail": "creates a Prospect — the backend emails the workspace's vendor-management team (real people on the sandbox); runs only with realMail=1",
 };
+
+/** error-sheet cases that upload a sheet first and read that job's error sheet */
+const uploadsFirst = (c: VbuCase) => c.errorSheetCheck === "realJob" || c.errorSheetCheck === "profileDropdown";
 
 function toRunnable(c: VbuCase): Record<string, unknown> {
   const pre = [requiresText(c), `Data: ${tierText[c.tier]}.`, c.setup].filter(Boolean).join(" ");
@@ -98,9 +105,9 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
   const path =
     c.kind === "manualInvite" ? "/invitations/send_invite" :
     c.kind === "template" ? "/v1/bulk_create_vendor_template" :
-    c.kind === "errorSheet" && c.errorSheetCheck !== "realJob" ? "/v1/bulk_create_vendor_error_sheet" :
+    c.kind === "errorSheet" && !uploadsFirst(c) ? "/v1/bulk_create_vendor_error_sheet" :
     "/v1/bulk_create_vendor";
-  const method = c.kind === "template" || (c.kind === "errorSheet" && c.errorSheetCheck !== "realJob") ? "GET" : "POST";
+  const method = c.kind === "template" || (c.kind === "errorSheet" && !uploadsFirst(c)) ? "GET" : "POST";
   return {
     ...common,
     method,
@@ -118,7 +125,9 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
       refuse: c.refuse,
       rows: c.rows,
       anyOrder: c.anyOrder,
-      baseline: c.baseline ? BASELINES[c.baseline].file : undefined,
+      statusCounts: c.statusCounts,
+      // several baselines are uploaded in order, comma-separated
+      baseline: c.baseline ? [c.baseline].flat().map((b) => BASELINES[b].file).join(",") : undefined,
       actor: c.actor,
       payload: c.payload,
       fixture2: c.sheet2 ? `${c.id}-b.xlsx` : undefined,

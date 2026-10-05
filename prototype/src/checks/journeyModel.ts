@@ -30,7 +30,7 @@ import type { StepAssertions } from "./apiAssertions.js";
 
 // ── the event types a run can build ────────────────────────────────────────
 
-export type EventType = "rfp_only" | "rfq_only" | "rfp_rfq" | "rfp_auction";
+export type EventType = "rfp_only" | "rfq_only" | "rfp_rfq" | "rfp_auction" | "auction_only";
 export type StageKind = "rfp" | "rfq" | "auction";
 
 export const EVENT_TYPES: Record<
@@ -41,6 +41,9 @@ export const EVENT_TYPES: Record<
   rfq_only: { label: "RFQ only", stages: ["rfq"], feature: "events.rfq_only" },
   rfp_rfq: { label: "Technical + RFQ", stages: ["rfp", "rfq"], feature: "events.rfp_rfq" },
   rfp_auction: { label: "Technical + Auction", stages: ["rfp", "auction"], feature: "events.rfp_auction" },
+  // a standalone live auction (buildPricingStageBody with rfx_mode auction) — the screen
+  // cases about auctions need one; no technical round in front of it
+  auction_only: { label: "Auction only", stages: ["auction"], feature: "events.auction_only" },
 };
 
 /** What a round is called to a buyer, not on the wire. */
