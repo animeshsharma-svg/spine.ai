@@ -114,6 +114,13 @@ export const STEP_CATALOG: StepSpec[] = [
     args: {},
   },
   {
+    name: "expect_sheet_cells",
+    purpose:
+      'Assert which cells of the price / BOQ sheet (the data grid) a person can edit, read from the app\'s own locked-cell marking on the grid (nothing is clicked). Columns are named by their header text ("Product", "Quantity Requested", "Price", "GST", "Total Amount" …; the * is ignored). row = data row number, 1 = the first line item (the header row is never a data row). On an eRFX draft, cells filled from the line items (Product, Variant, Quantity Requested) and vendor columns (Price …) are read-only; Delivery location stays editable. Use for "product, quantity and variant stay read-only", "vendor cells are locked for the buyer", "only buyer columns are editable".',
+    args: { row: "data row number (default 1)", editable: '["Price", …] columns that must be editable (optional)', readonly: '["Product", "Quantity Requested", …] columns that must be read-only (optional)' },
+    assertion: true,
+  },
+  {
     name: "open_event_settings",
     purpose:
       'On a published event\'s page, open its Settings (gear) menu — data-testid event-settings-button — and leave it open. It holds the event actions: "Reschedule Event" (only while the event is UPCOMING), "Convert to Auction" (published RFQ), "Extend Bidding Time", "Withdraw" and more. Use before click{role:"menuitem", name:…}; expect_visible / expect_hidden on menuitem names then checks what is offered. An item can be PRESENT BUT DISABLED (e.g. "Send Bulk Counter Offer" with one bid or fewer) — check that with expect_disabled{control: name}, not expect_hidden.',

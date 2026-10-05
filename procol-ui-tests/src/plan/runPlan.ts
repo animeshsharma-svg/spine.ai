@@ -220,6 +220,49 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const m = await s.create.openAddStageMenu();
       return `add-stage menu: ${m.buttonDisabled ? "the + button is disabled" : `offers ${m.items.join(", ") || "(nothing)"}`}${m.tooltip ? `; tooltip “${m.tooltip}”` : ""}`;
     }
+    case "expect_sheet_cells": {
+      const grid = s.page.locator(".data-grid-container table").filter({ visible: true }).first();
+      if (!(await grid.count().catch(() => 0))) throw new Error("no sheet (data grid) on this screen (not evidence about the product)");
+      const rows = grid.locator("tr");
+      const headerCells = rows.nth(0).locator("td, th");
+      const heads = (await headerCells.allInnerTexts().catch(() => [] as string[])).map((h) => h.replace(/\*/g, "").replace(/\s+/g, " ").trim().toLowerCase());
+      const rowNo = Math.max(1, Number(a.row) || 1);
+      if ((await rows.count()) <= rowNo) throw new Error(`the sheet has no data row ${rowNo} (not evidence about the product)`);
+      const colOf = (name: string) => {
+        // header text or the widget key ("delivery_location" → "delivery location")
+        const n = name.replace(/\*/g, "").replace(/_/g, " ").trim().toLowerCase();
+        let i = heads.findIndex((h) => h === n);
+        if (i < 0) i = heads.findIndex((h) => h.startsWith(n) || h.includes(n));
+        return i;
+      };
+      const problems: string[] = [];
+      const seen: string[] = [];
+      const seenDetail: string[] = [];
+      const check = async (names: unknown, wantReadonly: boolean) => {
+        for (const name of (Array.isArray(names) ? names : []) as string[]) {
+          const i = colOf(String(name));
+          if (i < 0) {
+            problems.push(`no "${name}" column (columns: ${heads.filter(Boolean).join(", ")})`);
+            continue;
+          }
+          // Procol's sheet marks locked cells with its own CSS-module classes
+          // (_cellReadOnly_…, _cellCreationReadOnly_…), seen on the live grid; the grid
+          // library's "read-only" class is matched too. Reading the class changes nothing.
+          const td = rows.nth(rowNo).locator("td").nth(i);
+          const cls = (await td.getAttribute("class").catch(() => "")) ?? "";
+          const ro = /read-?only/i.test(cls);
+          seenDetail.push(`${name}: ${ro ? "read-only" : "editable"}`);
+          seen.push(`${name} ${ro ? "read-only" : "editable"}`);
+          if (ro !== wantReadonly) problems.push(`"${name}" is ${ro ? "READ-ONLY" : "EDITABLE"}, expected ${wantReadonly ? "read-only" : "editable"}`);
+        }
+      };
+      await check(a.readonly, true);
+      await check(a.editable, false);
+      if (!seen.length && !problems.length) throw new Error('expect_sheet_cells needs "readonly" and/or "editable" column names');
+      console.log(`[sheet] row ${rowNo}: ${seenDetail.join(" | ")}`);
+      if (problems.length) throw new Error(`sheet row ${rowNo}: ${problems.join("; ")} — seen: ${seenDetail.join(" | ").slice(0, 700)}`);
+      return `sheet row ${rowNo}: ${seen.join(", ")}`;
+    }
     case "open_event_settings": {
       // The gear (event-settings-button) sits in a STAGE page's header; the project overview only
       // has a "⋮". Open the first stage tab when the gear is not on screen, then fall back to "⋮".

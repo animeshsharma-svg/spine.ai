@@ -95,6 +95,26 @@ test("planned test case", async ({ page }) => {
   let result;
   try {
     result = await runPlan(page, plan);
+    // Debug only (UI_DUMP_SHEET=1): print the sheet grid's real DOM and what a double-click does.
+    if (process.env.UI_DUMP_SHEET === "1") {
+      const dump = await page.evaluate(async () => {
+        const table = document.querySelector(".data-grid-container table");
+        if (!table) return "no grid";
+        const rows = [...table.querySelectorAll("tr")];
+        const heads = [...rows[0].querySelectorAll("td,th")].map((c) => (c.textContent || "").trim());
+        const cells = rows[1] ? [...rows[1].querySelectorAll("td")] : [];
+        return JSON.stringify({ heads, cells: cells.slice(0, 10).map((c, i) => ({ i, head: heads[i], cls: c.className, inner: c.innerHTML.slice(0, 140) })) }, null, 1);
+      });
+      console.log("SHEETDUMP", dump);
+      for (const i of [2, 4, 8]) {
+        const td = page.locator(".data-grid-container table tr").nth(1).locator("td").nth(i);
+        await td.dblclick().catch(() => {});
+        await page.waitForTimeout(700);
+        const after = await td.evaluate((el) => ({ cls: el.className, inner: el.innerHTML.slice(0, 200), active: document.activeElement ? `${document.activeElement.tagName}.${(document.activeElement as HTMLElement).className}` : null, activeIn: el.contains(document.activeElement) }));
+        console.log("DBLCLICK", i, JSON.stringify(after));
+        await page.keyboard.press("Escape");
+      }
+    }
     if (!result.passed) {
       const bad = result.steps.find((s) => s.status === "failed");
       failure = new Error(`step "${bad?.step}" failed: ${bad?.detail}`);
