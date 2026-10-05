@@ -446,6 +446,7 @@ const TITLE_TAG: Record<EventType, string> = {
   rfq_only: "RFQ_only",
   rfp_rfq: "RFP_RFQ",
   rfp_auction: "RFP_Auction",
+  auction_only: "Auction_only",
 };
 
 const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;

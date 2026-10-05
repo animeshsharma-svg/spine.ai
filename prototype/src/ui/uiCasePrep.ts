@@ -18,6 +18,8 @@ export interface CasePrep {
   screen: string;
   screenWhat: string;
   technical: boolean;
+  /** the pricing round is a live AUCTION (auction_only / rfp_auction journey), not an RFQ */
+  auction?: boolean;
   /** true when the plan opens a screen on an API-built event (open_prepared); false for a fresh create screen / list */
   prepared: boolean;
   why: string;
@@ -47,6 +49,16 @@ const r = (state: UiState, screen: string, technical: boolean, why: string): Cas
 });
 
 export function prepFor(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "steps" | "expected">): CasePrep {
+  const p = prepCore(c);
+  // A case whose own setup starts from an auction (and is not a conversion — that starts from
+  // an RFQ) gets a live auction round instead of an RFQ.
+  const setup = String(c.setup ?? "").toLowerCase();
+  if (p.ok && p.prepared && p.state !== "draft" && /\bauction\b/.test(setup) && !/convert|conversion|rfq/.test(setup) && c.group !== "UI-CONV")
+    return { ...p, auction: true, why: `${p.why} (as a live auction round)` };
+  return p;
+}
+
+function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "steps" | "expected">): CasePrep {
   const t = `${c.title} ${c.setup} ${c.steps} ${c.expected}`.toLowerCase();
   const technical = /\btechnical (round|stage|bid|response|evaluation)|\brfp (round|stage)|technical \+ rfq|evaluator|questionnaire|vendor assessment/.test(t);
   const g = c.group;
@@ -70,6 +82,9 @@ export function prepFor(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" 
     return notBuilt("an amended event (an older version beside a newer one)");
   if (/masking (is )?on|vendor masking enabled|isvendormaskingenabled/.test(setup)) return notBuilt("a client with vendor masking switched on");
   if (/already[- ]converted|a converted (rfq|auction)|converted auction/.test(setup)) return notBuilt("an RFQ already converted to an auction");
+  if (/withdrawn/.test(setup)) return notBuilt("a withdrawn event");
+  // auction SUBTYPES the API body does not choose yet (it builds a price-based english auction)
+  if (/dutch|knock-?out|japanese/.test(setup)) return notBuilt("a dutch / knockout auction (the API setup builds a standard price auction)");
   if (/^\s*(a|an) draft (rfq|rfp|rfx|event|auction)\b/.test(setup) && !/proposal/.test(setup))
     return r("draft", "draft", technical, "the case starts from a draft — the draft is built by API (no publish) and reopened");
 
