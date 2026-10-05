@@ -860,11 +860,30 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const firstNeedy = steps.findIndex((st) => ["invite_vendor", "publish", "expect_published", "set_schedule"].includes(st.step));
     if (onCreate && firstNeedy >= 0) {
       const missing: TestPlan["steps"] = [];
-      if (at("select_template") < 0 || at("select_template") > firstNeedy) missing.push({ step: "select_template", args: {}, note: "a template comes first on the create screen" });
-      if (at("add_line_items") < 0 || at("add_line_items") > firstNeedy) missing.push({ step: "add_line_items", args: {}, note: "a product is needed before participants or publishing" });
+      // …unless the case leaves that step out ON PURPOSE (skip): "a stage with no template" must
+      // stay without one — putting it back turned UI-TPL-004 into an ordinary create
+      if (!skipped.has("select_template") && (at("select_template") < 0 || at("select_template") > firstNeedy)) missing.push({ step: "select_template", args: {}, note: "a template comes first on the create screen" });
+      if (!skipped.has("add_line_items") && (at("add_line_items") < 0 || at("add_line_items") > firstNeedy)) missing.push({ step: "add_line_items", args: {}, note: "a product is needed before participants or publishing" });
       if (missing.length) {
         steps.splice(firstNeedy, 0, ...missing);
         repairs.push(`inserted ${missing.map((m) => m.step).join(" + ")} before ${steps[firstNeedy + missing.length].step} — the create screen locks Participants and Publish until a template is chosen and a product added`);
+      }
+      // With the template or product deliberately left out, Participants stays LOCKED, so an
+      // invite before the block assertion can only fail as "couldn't tell"; the lock itself is
+      // what the case is about, so the invite goes.
+      if (skipped.has("select_template") || skipped.has("add_line_items")) {
+        const block = steps.findIndex((st) => BLOCK_ASSERTS.includes(st.step));
+        for (let k = (block < 0 ? steps.length : block) - 1; k >= 0; k--) {
+          if (steps[k].step === "invite_vendor") {
+            steps.splice(k, 1);
+            repairs.push("dropped invite_vendor — with the template or product left out on purpose, Participants is locked, and that lock is what the case checks");
+          }
+          // and on eRFX the Items drawer is inert until a template is chosen
+          else if (steps[k].step === "add_line_items" && skipped.has("select_template") && !has("configure_single_stage")) {
+            steps.splice(k, 1);
+            repairs.push("dropped add_line_items — with no template on purpose the Items drawer is inert (eRFX)");
+          }
+        }
       }
     }
   }

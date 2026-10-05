@@ -36,6 +36,7 @@ const TARGETS: Target[] = [
   { screen: "create_erfx", state: "none", steps: [{ step: "open_create", args: { path: "erfx" } }] },
   { screen: "create_erfx_sheet", state: "none", steps: [{ step: "open_create", args: { path: "erfx" } }, { step: "set_title", args: { title: "QA_Platform_crawl" } }, { step: "select_template", args: {} }, { step: "add_line_items", args: { count: 1 } }] },
   { screen: "create_single", state: "none", steps: [{ step: "open_create", args: { path: "single-stage" } }, { step: "configure_single_stage", args: { eventType: "rfq" } }, { step: "select_template", args: {} }] },
+  { screen: "create_single_auction", state: "none", steps: [{ step: "open_create", args: { path: "single-stage" } }, { step: "configure_single_stage", args: { eventType: "auction", auctionSubtype: "traffic_light", awarding: "lot" } }] },
   { screen: "summary", state: "live", steps: [{ step: "open_prepared", args: { screen: "summary" } }] },
   { screen: "event_settings", state: "live", steps: [{ step: "open_prepared", args: { screen: "summary" } }, { step: "open_event_settings", args: {} }] },
   { screen: "event_settings_upcoming", state: "upcoming", steps: [{ step: "open_prepared", args: { screen: "summary" } }, { step: "open_event_settings", args: {} }] },
@@ -113,6 +114,9 @@ for (const [screen, names] of Object.entries(found)) {
     // the label list is committed: never keep anything that could be a person's data or a
     // run's own record (emails, long numbers such as phones / ids, our test event titles)
     if (/@|\d{5,}|QA_Platform|UI_Plan|API_Test|API_Journey|RFX-\d|RFQ-\d|RFP-\d|RA-\d/.test(n.text)) continue;
+    // nor a time or date shown on screen (a schedule button reads "Now - 03:06 pm, 5th Oct") —
+    // it is that moment's data, not a control's name
+    if (/\d{1,2}:\d{2}\s*(am|pm)?|\b\d{1,2}(st|nd|rd|th)\s+[A-Z][a-z]{2}\b/i.test(n.text)) continue;
     const k = `${screen}|${n.text.toLowerCase()}`;
     if (have.has(k)) continue;
     have.add(k);
