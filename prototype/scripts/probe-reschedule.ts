@@ -29,13 +29,16 @@ const plan = {
     { step: "reschedule_event", args: { start: "-30m", expect: "refused", message: "Scheduled time is invalid" } },
     { step: "reschedule_event", args: { start: "-2d", expect: "refused" } },
     { step: "reschedule_event", args: { start: "+3d", expect: "refused", message: "on or before" } },
-    { step: "reschedule_event", args: { start: "+3d", delivery: "+5d" } },
-    { step: "reschedule_event", args: { start: "+3h" } },
+    { step: "reschedule_event", args: { start: "+3d", delivery: "+5d", readBack: false } },
+    { step: "reschedule_event", args: { start: "+3h", readBack: false } },
+    { step: "reschedule_event", args: { start: "S+2h", readBack: false } },
+    // read-back on: shows the clock-offset defect whenever the browser and server clocks differ
+    { step: "reschedule_event", args: { start: "S+1h" } },
   ],
 };
 await new Promise<void>((resolve) => {
   runUiPlan({ plan, companyId: COMPANY, runId: `probe-${Date.now().toString(36)}`, headed: false }, (e: any) => {
-    if (e.type === "log" && /\[plan\]|\[reschedule\]|Error|✗/.test(e.line ?? "")) console.log(String(e.line).trim().slice(0, 260));
+    if (e.type === "log" && /\[plan\]|\[reschedule\]|Error|✗/.test(e.line ?? "")) console.log(String(e.line).trim().slice(0, 900));
     if (e.type === "done" || e.type === "run-error") {
       console.log(`exit ${e.exitCode ?? "?"}`);
       resolve();

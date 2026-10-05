@@ -170,10 +170,22 @@ function relTime(spec: unknown, base = new Date()): Date {
   t.setTime(Math.ceil(t.getTime() / step) * step);
   return t;
 }
+/** "5th Oct 2026" + "02:11 pm" (the dialog's own formats) → a local time. */
+function parseDialogTime(day: string, time: string): Date | null {
+  const d = /^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3})\s+(\d{4})$/.exec(day);
+  const t = /^(\d{1,2}):(\d{2})\s*(am|pm)?$/i.exec(time);
+  if (!d || !t) return null;
+  const month = MONTHS.findIndex((m) => m.toLowerCase() === d[2].toLowerCase());
+  if (month < 0) return null;
+  let h = Number(t[1]) % 12;
+  if (/pm/i.test(t[3] ?? "")) h += 12;
+  if (!t[3]) h = Number(t[1]);
+  return new Date(Number(d[3]), month, Number(d[1]), h, Number(t[2]), 0, 0);
+}
 async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise<string> {
   const page = s.page;
   const dialog = page.locator(".ant-modal-content").filter({ hasText: /Reschedule Event/i }).filter({ visible: true }).first();
-  if (!(await dialog.isVisible().catch(() => false))) {
+  const openDialog = async () => {
     // The Settings menu can fade shut between being read and being clicked (hover trigger),
     // so open it and click the item straight away, up to three times.
     let offered = "";
@@ -187,7 +199,8 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
       else await page.mouse.move(5, 5).catch(() => {});
     }
     if (!(await dialog.isVisible().catch(() => false))) throw new Error(`the Reschedule Event dialog did not open after three tries (${offered}) — not evidence about the product`);
-  }
+    };
+  if (!(await dialog.isVisible().catch(() => false))) await openDialog();
   if (process.env.UI_DUMP_DIALOG) {
     const { writeFileSync } = await import("node:fs");
     writeFileSync(process.env.UI_DUMP_DIALOG, (await dialog.evaluate((el) => el.outerHTML).catch(() => "")) || "");
@@ -235,10 +248,21 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
   };
 
   if (a.start !== undefined && a.start !== null && a.start !== "") {
-    const when = relTime(a.start);
     // fields by their LABEL: the start field's own error text names "Delivery Date", so a
     // text match on the whole form item picks the wrong field
     const live = dialog.locator(".ant-form-item").filter({ has: page.locator("label", { hasText: /^\s*Make Order Live At\s*$/i }) }).first();
+    // "S+2h" = two hours after the event's CURRENT start, read from the dialog's own fields
+    let base = new Date();
+    const fromStart = /^\s*S\b/i.test(String(a.start));
+    if (fromStart) {
+      const day = ((await live.locator(".ant-calendar-picker-input").first().inputValue().catch(() => "")) || "").trim();
+      const time = ((await live.locator(".ant-time-picker-input").first().inputValue().catch(() => "")) || "").trim();
+      const cur = parseDialogTime(day, time);
+      if (!cur) throw new Error(`could not read the event's current start from the dialog (“${day}” “${time}”)`);
+      base = cur;
+      notes.push(`current start ${day} ${time}`);
+    }
+    const when = relTime(fromStart ? String(a.start).replace(/^\s*S/i, "") || "+0m" : a.start, base);
     const dayResult = await pickDay(live.locator(".ant-calendar-picker").first(), when);
     if (dayResult === "disabled") {
       notes.push(`the calendar does not allow ${dayWords(when)} (that day is disabled)`);
@@ -292,6 +316,8 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
     await clickInDialog(dialog.getByRole("button", { name: /^\s*ok\s*$/i }).first());
     await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
     saveCall = before ? "" : await saved; // with a field error showing, Ok sends nothing
+    // a slow save closes the dialog only after its reply (and a re-fetch) — give it that long
+    if (/HTTP 2\d\d/.test(saveCall)) await dialog.waitFor({ state: "hidden", timeout: 15_000 }).catch(() => {});
   }
   const closed = !(await dialog.isVisible().catch(() => false));
   const help = closed ? "" : (await fieldHelp()) || before;
@@ -311,6 +337,30 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
     if (bet && ect && was.extraSeconds && Number(was.extraSeconds) !== ect - bet) shape.push(`the closing grace was ${was.extraSeconds}s and the save sent ${ect - bet}s`);
   }
   const refused = disabledDay || (!closed && !!help) || serverRefused;
+  // Read back: the screen re-fetches the event after a save — reopen the dialog and read the
+  // start it now holds (the same fields a buyer sees), then close it untouched.
+  let readBack = "";
+  if (closed && !refused && saveCall && a.start && a.readBack !== false) {
+    await page.waitForTimeout(800);
+    await openDialog();
+    const live2 = dialog.locator(".ant-form-item").filter({ has: page.locator("label", { hasText: /^\s*Make Order Live At\s*$/i }) }).first();
+    const day = ((await live2.locator(".ant-calendar-picker-input").first().inputValue().catch(() => "")) || "").trim();
+    const time = ((await live2.locator(".ant-time-picker-input").first().inputValue().catch(() => "")) || "").trim().toLowerCase();
+    readBack = `${day} ${time}`;
+    await dialog.getByRole("button", { name: /^\s*cancel\s*$/i }).first().click({ timeout: 5_000 }).catch(() => {});
+    await dialog.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
+    const want = notes.find((n) => n.startsWith("start set to "))?.replace("start set to ", "");
+    notes.push(`reopened: the event now starts ${readBack}`);
+    if (want && readBack !== want) {
+      // the screen shows server times shifted by localStorage.timeDiff (= browser clock − server
+      // clock, user/actions.js fetchTimeDiff) but the dialog SENDS the picked browser time
+      // unshifted, so a picked start comes back moved by that clock gap
+      const diff = await page.evaluate(() => window.localStorage.getItem("timeDiff")).catch(() => null);
+      const sent = Number(sentBody?.bid_start_time);
+      const sentWords = sent ? new Date(sent * 1000).toTimeString().slice(0, 8) : "?";
+      shape.push(`after saving ${want} the event shows ${readBack} — the save sent bid_start_time ${sent || "?"} (${sentWords} browser time) and the screen adds the app's clock offset timeDiff=${diff ?? "?"}s when it shows it`);
+    }
+  }
   const seen = `${notes.join("; ")}${notes.length ? " — " : ""}${refused ? `refused${help ? `: “${help}”` : ""}` : closed ? "the dialog closed with no error (saved)" : "the dialog stayed open with no message"}`;
   if (refused || !closed) {
     // tidy: leave no half-filled dialog over the next step
@@ -319,7 +369,7 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
   if (a.message && refused && !help.toLowerCase().includes(String(a.message).toLowerCase()) && !disabledDay) {
     throw new Error(`the dialog refused, but its message reads “${help}”, not “${a.message}” — ${seen}`);
   }
-  if (a.keepsLength !== false && shape.length) expect(shape, `reschedule changed the round's shape — ${seen}`).toEqual([]);
+  if (a.keepsLength !== false && shape.length) expect(shape, `reschedule did not keep what was picked: ${shape.join("; ")} — ${seen}`).toEqual([]);
   if (wantRefused) expect(refused, `reschedule should be refused — ${seen}`).toBe(true);
   else if (a.expect !== undefined || a.confirm !== false) expect(refused || !closed, `reschedule should save — ${seen}`).toBe(false);
   return seen;
