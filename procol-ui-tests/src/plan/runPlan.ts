@@ -266,6 +266,7 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
   const before = await fieldHelp();
   const disabledDay = notes.some((n) => /is disabled/.test(n));
   let saveCall = "";
+  let sentBody: any = null;
   if (a.confirm !== false && !disabledDay) {
     // the save is the event's edit call (editOrder → PATCH /trade/:id…); record its answer so a
     // dialog that stays open can be told apart: the field's own rule vs the server refusing
@@ -276,6 +277,11 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
         try {
           const j: any = await r.json();
           msg = String(j?.message ?? j?.error?.message ?? j?.detail ?? "").slice(0, 160);
+        } catch {
+          /* not json */
+        }
+        try {
+          sentBody = r.request().postDataJSON();
         } catch {
           /* not json */
         }
@@ -291,6 +297,19 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
   const help = closed ? "" : (await fieldHelp()) || before;
   const serverRefused = /HTTP [45]\d\d/.test(saveCall);
   if (saveCall) notes.push(`save call ${saveCall}`);
+  // What the save SENT, against the window the API built: the round keeps its length and the
+  // closing grace shifts with it (rescheduleEventModal: newEnd = newStart + (end − start)).
+  const shape: string[] = [];
+  if (sentBody && typeof sentBody === "object") {
+    const [bst, bet, ect] = [Number(sentBody.bid_start_time), Number(sentBody.bid_end_time), Number(sentBody.extra_closing_time)];
+    const was = s.context?.values ?? {};
+    if (bst && bet) {
+      const len = bet - bst;
+      notes.push(`sent a ${Math.round(len / 60)}-minute round`);
+      if (was.roundSeconds && Number(was.roundSeconds) !== len) shape.push(`the round was ${Math.round(Number(was.roundSeconds) / 60)} min and the save sent ${Math.round(len / 60)} min`);
+    }
+    if (bet && ect && was.extraSeconds && Number(was.extraSeconds) !== ect - bet) shape.push(`the closing grace was ${was.extraSeconds}s and the save sent ${ect - bet}s`);
+  }
   const refused = disabledDay || (!closed && !!help) || serverRefused;
   const seen = `${notes.join("; ")}${notes.length ? " — " : ""}${refused ? `refused${help ? `: “${help}”` : ""}` : closed ? "the dialog closed with no error (saved)" : "the dialog stayed open with no message"}`;
   if (refused || !closed) {
@@ -300,6 +319,7 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
   if (a.message && refused && !help.toLowerCase().includes(String(a.message).toLowerCase()) && !disabledDay) {
     throw new Error(`the dialog refused, but its message reads “${help}”, not “${a.message}” — ${seen}`);
   }
+  if (a.keepsLength !== false && shape.length) expect(shape, `reschedule changed the round's shape — ${seen}`).toEqual([]);
   if (wantRefused) expect(refused, `reschedule should be refused — ${seen}`).toBe(true);
   else if (a.expect !== undefined || a.confirm !== false) expect(refused || !closed, `reschedule should save — ${seen}`).toBe(false);
   return seen;

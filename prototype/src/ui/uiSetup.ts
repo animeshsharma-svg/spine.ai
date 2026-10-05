@@ -105,6 +105,16 @@ function valuesFrom(journey: any, client: any): Record<string, string> {
       if (q?.value !== undefined) v.quantity = String(q.value);
       if (q?.unitSymbol) v.unit = String(q.unitSymbol);
     }
+    // the pricing round's window: configurations.{bid_start_time, bid_end_time, extra_closing_time}
+    // (unix s) — what a reschedule must preserve (round length, closing grace)
+    if (s.kind === "add_stage_pricing") {
+      const c = body?.configurations ?? {};
+      const [bst, bet, ect] = [Number(c.bid_start_time), Number(c.bid_end_time), Number(c.extra_closing_time)];
+      if (bst && bet) v.roundSeconds = String(bet - bst);
+      if (bet && ect) v.extraSeconds = String(ect - bet);
+      const del = c.delivery_schedules?.[0]?.delivery_by;
+      if (del) v.deliveryBy = String(del);
+    }
     // the vendor's sheet: sheets.inline_components.data.<company>[0].{price,total_amount}.value
     if (s.kind === "bid_products") {
       const rows = body?.sheets?.inline_components?.data;
