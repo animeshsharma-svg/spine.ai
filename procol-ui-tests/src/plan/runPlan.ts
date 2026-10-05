@@ -141,6 +141,144 @@ async function isSingleStageScreen(s: RunState): Promise<boolean> {
   return eventType && publishEvent && !saveDraft;
 }
 
+/**
+ * The Reschedule Event dialog (event Settings → "Reschedule Event", offered only while the
+ * event is UPCOMING) — client-dashboard views/orderDetails/rescheduleEventModal.jsx:
+ *   • "Make Order Live At" = an antd-3 DatePicker (format "Do MMM YYYY", days before today
+ *     disabled) + TimePicker ("hh:mm a", 5-minute steps);
+ *   • "Delivery Date" / "Pickup Date" picker only when the event has one;
+ *   • the field's own help text is the refusal: "Scheduled time is invalid!" (in the past) or
+ *     "Schedule time should be on or before Delivery Date"; Ok does nothing while it shows;
+ *   • buttons are Cancel / Ok (there is no "Save Schedule" here — that is the create screen).
+ * The new end keeps the round's length (end − start) — the API read-back checks that.
+ */
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const ordinal = (d: number) => `${d}${d % 10 === 1 && d !== 11 ? "st" : d % 10 === 2 && d !== 12 ? "nd" : d % 10 === 3 && d !== 13 ? "rd" : "th"}`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayWords = (t: Date) => `${ordinal(t.getDate())} ${MONTHS.at(t.getMonth())} ${t.getFullYear()}`;
+const timeWords = (t: Date) => `${pad2(t.getHours() % 12 || 12)}:${pad2(t.getMinutes())} ${t.getHours() < 12 ? "am" : "pm"}`;
+/** "+2h", "-30m", "+1d", "now" → a time; minutes rounded UP to the picker's 5-minute step. */
+function relTime(spec: unknown, base = new Date()): Date {
+  const m = /^\s*(now)?\s*([+-])?\s*(\d+)?\s*(m|min|minutes?|h|hours?|d|days?)?\s*$/i.exec(String(spec ?? "+1h"));
+  const t = new Date(base);
+  if (m && m[3]) {
+    const n = Number(m[3]) * (m[2] === "-" ? -1 : 1);
+    const unit = (m[4] ?? "m").toLowerCase()[0];
+    t.setTime(t.getTime() + n * (unit === "d" ? 864e5 : unit === "h" ? 36e5 : 6e4));
+  }
+  const step = 5 * 6e4;
+  t.setTime(Math.ceil(t.getTime() / step) * step);
+  return t;
+}
+async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise<string> {
+  const page = s.page;
+  const dialog = page.locator(".ant-modal-content").filter({ hasText: /Reschedule Event/i }).filter({ visible: true }).first();
+  if (!(await dialog.isVisible().catch(() => false))) {
+    const offered = await runStep(s, { step: "open_event_settings" });
+    const item = page.locator(".ant-dropdown:not(.ant-dropdown-hidden) [role='menuitem']").filter({ hasText: /^\s*Reschedule Event\s*$/i }).filter({ visible: true }).first();
+    if (!(await item.count().catch(() => 0))) throw new Error(`"Reschedule Event" is not in the Settings menu (${offered}) — it is offered only while the event is upcoming`);
+    if ((await item.getAttribute("aria-disabled").catch(() => null)) === "true") throw new Error(`"Reschedule Event" is disabled in the Settings menu (${offered})`);
+    // a hover menu can start closing while the pointer travels from the gear to the item;
+    // the menu's own click handler still answers a dispatched click
+    await item.click({ timeout: 4_000 }).catch(async (e) => {
+      if (process.env.UI_DUMP_DIALOG) console.log(`[reschedule] menu click lost: ${String((e as Error).message).split("\n").filter((l) => /intercept|not visible|not stable|detached/.test(l)).slice(0, 2).join(" | ")}`);
+      await item.dispatchEvent("click");
+    });
+    await dialog.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+    if (!(await dialog.isVisible().catch(() => false))) throw new Error("the Reschedule Event dialog did not open (not evidence about the product)");
+  }
+  if (process.env.UI_DUMP_DIALOG) {
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(process.env.UI_DUMP_DIALOG, (await dialog.evaluate((el) => el.outerHTML).catch(() => "")) || "");
+  }
+  const wantRefused = /^refus|^reject|^block/i.test(String(a.expect ?? ""));
+  const notes: string[] = [];
+  // The Settings dropdown fades out over the dialog and the modal zooms in, so a plain click
+  // can lose to "another element intercepts pointer events"; retry, then click through.
+  const clickInDialog = async (target: ReturnType<typeof dialog.locator>) => {
+    try {
+      await target.click({ timeout: 4_000 });
+    } catch (e) {
+      if (process.env.UI_DUMP_DIALOG) console.log(`[reschedule] plain click lost: ${String((e as Error).message).split("\n").filter((l) => /intercept|not visible|not stable|waiting/.test(l)).slice(0, 3).join(" | ")}`);
+      await target.click({ timeout: 4_000, force: true });
+    }
+  };
+  // NEVER Escape here: antd's Modal closes on Escape (and Cancel resets the fields). A click on
+  // the dialog's own title is "outside" every picker popup, so it closes them and nothing else.
+  const closePopups = async () => {
+    await dialog.locator(".ant-modal-title").first().click({ timeout: 3_000 }).catch(() => {});
+    await page.waitForTimeout(200);
+  };
+  const fieldHelp = async () => ((await dialog.locator(".ant-form-explain, .ant-form-item-explain").first().innerText().catch(() => "")) || "").trim();
+  const openPopup = (sel: string) => page.locator(sel).filter({ visible: true }).last();
+
+  // pick a calendar day by typing it into the open panel's own input (antd 3: the field
+  // itself is read-only); a disabled day leaves the panel input marked invalid.
+  const pickDay = async (picker: ReturnType<typeof dialog.locator>, when: Date): Promise<"ok" | "disabled"> => {
+    await clickInDialog(picker.locator("input").first());
+    const panelInput = openPopup(".ant-calendar-picker-container .ant-calendar-input");
+    await panelInput.waitFor({ state: "visible", timeout: 8_000 });
+    await panelInput.fill(dayWords(when));
+    await page.waitForTimeout(150);
+    const invalid = await page.locator(".ant-calendar-picker-container .ant-calendar-input-invalid, .ant-calendar-picker-container .ant-calendar-input.has-error").filter({ visible: true }).count().catch(() => 0);
+    if (invalid) {
+      await closePopups();
+      return "disabled";
+    }
+    await panelInput.press("Enter").catch(() => {});
+    await page.locator(".ant-calendar-picker-container").filter({ visible: true }).first().waitFor({ state: "hidden", timeout: 3_000 }).catch(closePopups);
+    return "ok";
+  };
+
+  if (a.start !== undefined && a.start !== null && a.start !== "") {
+    const when = relTime(a.start);
+    const live = dialog.locator(".ant-form-item").filter({ hasText: /Make Order Live At/i }).first();
+    const dayResult = await pickDay(live.locator(".ant-calendar-picker").first(), when);
+    if (dayResult === "disabled") {
+      notes.push(`the calendar does not allow ${dayWords(when)} (that day is disabled)`);
+    } else {
+      await clickInDialog(live.locator(".ant-time-picker-input").first());
+      const tInput = openPopup(".ant-time-picker-panel .ant-time-picker-panel-input");
+      await tInput.waitFor({ state: "visible", timeout: 8_000 });
+      await tInput.fill(timeWords(when));
+      await page.waitForTimeout(150);
+      await closePopups();
+      const shown = ((await live.locator(".ant-time-picker-input").first().inputValue().catch(() => "")) || "").trim().toLowerCase();
+      if (shown && shown !== timeWords(when)) notes.push(`the time picker shows ${shown}, not ${timeWords(when)}`);
+      notes.push(`start set to ${dayWords(when)} ${timeWords(when)}`);
+    }
+  }
+  if (a.delivery !== undefined && a.delivery !== null && a.delivery !== "") {
+    const del = dialog.locator(".ant-form-item").filter({ hasText: /Delivery Date|Pickup Date/i }).first();
+    if (!(await del.count().catch(() => 0))) throw new Error("this event's Reschedule dialog has no Delivery / Pickup Date field (the event has no delivery date)");
+    const when = relTime(a.delivery);
+    const r = await pickDay(del.locator(".ant-calendar-picker").first(), when);
+    notes.push(r === "disabled" ? `the calendar does not allow delivery on ${dayWords(when)} (that day is disabled)` : `delivery set to ${dayWords(when)}`);
+  }
+
+  const before = await fieldHelp();
+  const disabledDay = notes.some((n) => /is disabled/.test(n));
+  if (a.confirm !== false && !disabledDay) {
+    if (process.env.UI_DUMP_DIALOG) console.log(`[reschedule] before Ok: ${notes.join("; ")} | help “${before}”`);
+    await clickInDialog(dialog.getByRole("button", { name: /^\s*ok\s*$/i }).first());
+    await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+  }
+  const closed = !(await dialog.isVisible().catch(() => false));
+  const help = closed ? "" : (await fieldHelp()) || before;
+  const refused = disabledDay || (!closed && !!help);
+  const seen = `${notes.join("; ")}${notes.length ? " — " : ""}${refused ? `refused${help ? `: “${help}”` : ""}` : closed ? "the dialog closed with no error (saved)" : "the dialog stayed open with no message"}`;
+  if (refused || !closed) {
+    // tidy: leave no half-filled dialog over the next step
+    await dialog.getByRole("button", { name: /^\s*cancel\s*$/i }).first().click({ timeout: 5_000 }).catch(() => {});
+  }
+  if (a.message && refused && !help.toLowerCase().includes(String(a.message).toLowerCase()) && !disabledDay) {
+    throw new Error(`the dialog refused, but its message reads “${help}”, not “${a.message}” — ${seen}`);
+  }
+  if (wantRefused) expect(refused, `reschedule should be refused — ${seen}`).toBe(true);
+  else if (a.expect !== undefined || a.confirm !== false) expect(refused || !closed, `reschedule should save — ${seen}`).toBe(false);
+  return seen;
+}
+
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
@@ -276,9 +414,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       if (!(await gear.count().catch(() => 0))) gear = s.page.locator("button:has(.anticon-more)").filter({ visible: true }).first();
       if (!(await gear.count().catch(() => 0))) throw new Error("no Settings (gear) or ⋮ menu on this event (not evidence about the product)");
-      await gear.click({ timeout: 10_000 });
       const menu = s.page.locator(".ant-dropdown:not(.ant-dropdown-hidden) .ant-dropdown-menu").filter({ visible: true }).last();
-      await menu.waitFor({ state: "visible", timeout: 8_000 }).catch(() => {});
+      // The menu opens on click on some event pages and on HOVER on others (antd trigger), and a
+      // click on a hover menu can toggle it shut again; try click, then hover, then click again.
+      for (const how of ["click", "hover", "click"] as const) {
+        if (how === "click") await gear.click({ timeout: 10_000 });
+        else await gear.hover({ timeout: 5_000 }).catch(() => {});
+        if (await menu.waitFor({ state: "visible", timeout: 5_000 }).then(() => true).catch(() => false)) break;
+      }
       const rows = menu.locator("[role='menuitem']");
       const n = await rows.count().catch(() => 0);
       const items: string[] = [];
@@ -292,6 +435,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!items.length) throw new Error("the Settings menu did not open (not evidence about the product)");
       return `event settings offer: ${items.join(", ")}`;
     }
+    case "reschedule_event":
+      return rescheduleEvent(s, a);
     case "expect_add_stage_options": {
       const m = await s.create.openAddStageMenu();
       const norm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim();

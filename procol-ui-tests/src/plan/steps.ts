@@ -127,6 +127,13 @@ export const STEP_CATALOG: StepSpec[] = [
     args: {},
   },
   {
+    name: "reschedule_event",
+    purpose:
+      'On an UPCOMING event\'s page, open Settings → "Reschedule Event" (if the dialog is not already open), set "Make Order Live At" (date + time) and optionally the Delivery / Pickup Date, press Ok, and judge the dialog\'s own answer. Times are RELATIVE to now: start "+2h", "+1d", "-30m" (minutes round up to the picker\'s 5-minute step). The dialog\'s buttons are Cancel / Ok — never click "Save Schedule" here (that is the create screen). Refusals it shows: "Scheduled time is invalid!" (a past time) and "Schedule time should be on or before Delivery Date" (start after delivery); days before today are disabled in the calendar, which also counts as refused. expect "refused" for a negative case (add message for the words), "saved" (default) when it should go through. The new end keeping the round\'s length is an API read-back, not a screen step.',
+    args: { start: '"+2h" | "-30m" | "+3d" (optional)', delivery: '"+1d" relative day for Delivery / Pickup Date (optional)', expect: '"saved" (default) | "refused"', message: "words of the refusal (optional)", confirm: "false = set the fields but do not press Ok (optional)" },
+    assertion: true,
+  },
+  {
     name: "expect_add_stage_options",
     purpose:
       'Assert what the create screen\'s icon-only "+" (Add Stages) menu allows, read from the menu itself (never use expect_visible / expect_disabled for stage names — the stage TABS carry the same names). disabled:true = the "+" is disabled (e.g. two stages is the ceiling); offers = stage names the menu must list; absent = stage names it must NOT list; reason = words the "+" tooltip must contain (e.g. "Remove RFQ to add Auction"). To check which stages are OFFERED, compose exactly ONE stage first — with two stages the "+" is always disabled.',
