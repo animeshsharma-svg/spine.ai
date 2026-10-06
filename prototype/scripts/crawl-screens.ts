@@ -44,6 +44,7 @@ const TARGETS: Target[] = [
   { screen: "overview", state: "live", steps: [{ step: "open_prepared", args: { screen: "overview" } }] },
   { screen: "responses", state: "bid", steps: [{ step: "open_prepared", args: { screen: "responses" } }] },
   { screen: "master_qcs", state: "bid", steps: [{ step: "open_prepared", args: { screen: "master_qcs" } }] },
+  { screen: "master_qcs", state: "awarded", steps: [{ step: "open_prepared", args: { screen: "master_qcs" } }] },
   { screen: "proposal", state: "awarded", steps: [{ step: "open_prepared", args: { screen: "proposal" } }] },
   { screen: "proposal", state: "proposal", steps: [{ step: "open_prepared", args: { screen: "proposal" } }] },
 ];
