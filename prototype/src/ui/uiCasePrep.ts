@@ -86,7 +86,16 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
   // into the client's approval workflow (eventJourney award_submit) and keeps its id, so the
   // proposal page opens on a requested / in-approval proposal.
   if (/(in[- ]approval|requested|submitted (for|into) (an? )?approval|pending approval|awaiting approval|sent for approval|approval (is )?pending|under approval)/.test(setup) && /proposal|award/.test(setup))
-    return r("awarded", "proposal", technical, "the case starts from an award proposal submitted for approval — built by API (award submitted into the approval workflow)");
+  {
+    // …and opens the screen the case is ABOUT: a "not offered while in approval" check on a page
+    // that never shows that control is a vacuous pass (UI-XDNEG-002 "passed" by finding no Counter
+    // Offer on the proposal page — Counter Offer lives on the round's Responses).
+    const t2 = `${c.title} ${c.steps} ${c.expected}`.toLowerCase();
+    const screen = /counter offer|negotiat|responses|comparison|bid(s)? (list|table)/.test(t2) ? "responses"
+      : /master qcs|\bqcs\b|start awarding|award(ing)? (is |button|action)|allocat(e|ing) a line/.test(t2) ? "master_qcs"
+      : "proposal";
+    return r("awarded", screen, technical, `the case starts from an award proposal submitted for approval — built by API (award submitted into the approval workflow); opened on ${WHAT[screen] ?? "the award proposal page"}`);
+  }
   if (/withdrawn/.test(setup)) return notBuilt("a withdrawn event");
   // auction SUBTYPES the API body does not choose yet (it builds a price-based english auction)
   if (/dutch|knock-?out|japanese/.test(setup)) return notBuilt("a dutch / knockout auction (the API setup builds a standard price auction)");

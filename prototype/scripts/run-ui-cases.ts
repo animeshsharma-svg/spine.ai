@@ -62,7 +62,7 @@ const { buildUiState, qaVendorOf } = await import("../src/ui/uiSetup.js");
 const { compileTestCase } = await import("../src/agents/planner.js");
 const { closestUiExemplars, exemplarPrompt, addUiExemplar } = await import("../src/agents/uiExemplars.js");
 const { runUiPlan, readPlanResult } = await import("../src/ui/uiFlowRunner.js");
-const { isKnownLabel } = await import("../../procol-ui-tests/src/plan/generic/labels.js");
+const { isKnownLabel, knownOnScreen } = await import("../../procol-ui-tests/src/plan/generic/labels.js");
 /** Literal screen texts a plan's assertions look for that Procol is not known to render. */
 function unknownLabels(plan: any): string[] {
   const ASSERT = new Set(["expect_text", "expect_visible", "expect_hidden", "expect_disabled", "expect_enabled", "expect_count", "expect_field_error", "click"]);
@@ -254,6 +254,24 @@ async function compiled(c: CatalogCase, p: Prep): Promise<{ plan: any; coverage:
           r.gaps = [...(r.gaps ?? []), `expects label(s) Procol is not known to render: ${still.join(", ")}`];
         }
       }
+    }
+  }
+  // An ABSENCE check proves something only where the control is normally shown. "Counter Offer is
+  // absent on the proposal page" passed UI-XDNEG-002 vacuously — Counter Offer lives on Responses.
+  // A control known elsewhere but never seen on this screen: the check stays, the plan is partial.
+  if (r.plan?.steps?.length) {
+    const vacuous: string[] = [];
+    for (const st of r.plan.steps) {
+      const a = st.args ?? {};
+      const absent = st.step === "expect_hidden" || (st.step === "expect_count" && Number(a.count) === 0);
+      if (!absent) continue;
+      const name = a.target?.name ?? a.target?.text ?? a.target?.label ?? a.name ?? a.text;
+      if (typeof name !== "string" || name.length < 3) continue;
+      if (isKnownLabel(name) && knownOnScreen(name, p.screen) === false) vacuous.push(name);
+    }
+    if (vacuous.length) {
+      r.coverage = r.coverage === "none" ? "none" : "partial";
+      r.gaps = [...(r.gaps ?? []), `checks that ${vacuous.map((v) => `“${v}”`).join(", ")} is absent on ${p.screenWhat}, where it is never shown — that proves nothing`];
     }
   }
   // On a prepared state the event's life is fixed: steps that would change it are dropped and the plan is partial.
