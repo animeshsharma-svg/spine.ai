@@ -82,6 +82,11 @@ function prepCore(c: Pick<CatalogCase, "id" | "group" | "title" | "setup" | "ste
     return notBuilt("an amended event (an older version beside a newer one)");
   if (/masking (is )?on|vendor masking enabled|isvendormaskingenabled/.test(setup)) return notBuilt("a client with vendor masking switched on");
   if (/already[- ]converted|a converted (rfq|auction)|converted auction/.test(setup)) return notBuilt("an RFQ already converted to an auction");
+  // An award proposal already SUBMITTED for approval: the "awarded" state submits the proposal
+  // into the client's approval workflow (eventJourney award_submit) and keeps its id, so the
+  // proposal page opens on a requested / in-approval proposal.
+  if (/(in[- ]approval|requested|submitted (for|into) (an? )?approval|pending approval|awaiting approval|sent for approval|approval (is )?pending|under approval)/.test(setup) && /proposal|award/.test(setup))
+    return r("awarded", "proposal", technical, "the case starts from an award proposal submitted for approval — built by API (award submitted into the approval workflow)");
   if (/withdrawn/.test(setup)) return notBuilt("a withdrawn event");
   // auction SUBTYPES the API body does not choose yet (it builds a price-based english auction)
   if (/dutch|knock-?out|japanese/.test(setup)) return notBuilt("a dutch / knockout auction (the API setup builds a standard price auction)");
