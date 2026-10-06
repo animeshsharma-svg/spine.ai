@@ -148,6 +148,7 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
     ...(sendTemperature ? { temperature: opts.temperature ?? 0.3 } : {}),
     max_tokens: (opts.maxTokens ?? 900) + REASONING_ALLOWANCE,
   });
+  if (process.env.SLINGRING_LOG_SIZE) console.log(`[llm] slingring ${model}: ${messages.reduce((n, m) => n + String(m.content ?? "").length, 0)} chars in, deadline ${deadline}ms`);
   for (let attempt = 0; attempt < 2; attempt++) {
     const stop = AbortSignal.timeout(deadline);
     let res: Response;

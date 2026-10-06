@@ -1,3 +1,4 @@
+import { isNoiseMessage } from "../oracle/noise.js";
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { recordStuck } from "../oracle/stuck.js";
@@ -189,8 +190,22 @@ export class SingleStagePage extends BasePage {
       label: "config-save",
       timeout: TIMEOUTS.MEDIUM,
     });
-    // Drawer closes on save.
+    // Drawer closes on save — unless the app REFUSED the configuration (e.g. a traffic-light
+    // range whose lower bound is above the upper): then the drawer stays open with its own
+    // message. Report that refusal instead of carrying on under an open drawer (the next step
+    // then failed as "the template picker is not clickable", hiding the app's answer).
     await this.pause(800);
+    const stillOpen = await d.isVisible().catch(() => false);
+    if (stillOpen) {
+      const said = ((await d.locator(".ant-form-explain, .ant-form-item-explain, .ant-form-item-explain-error, .ant-typography-danger, [role='alert'], .ant-message-error, [class*='error' i]").allInnerTexts().catch(() => [])) as string[])
+        .map((x) => x.trim()).filter(Boolean);
+      const toast = ((await this.page.locator(".ant-message-notice, .ant-notification-notice").allInnerTexts().catch(() => [])) as string[]).map((x) => x.trim()).filter(Boolean);
+      const msg = [...new Set([...said, ...toast])].filter((x) => !isNoiseMessage(x)).join(" · ").slice(0, 240);
+      // no message element: say what the drawer reads near its range fields, so a person can see
+      // whether the refusal is explained at all
+      const near = msg ? "" : (((await d.innerText().catch(() => "")) || "").replace(/\s+/g, " ").match(/Group traffic light by.{0,320}/i)?.[0] ?? "");
+      throw new Error(`the app refused the single-stage configuration on Save — the drawer stayed open${msg ? `: “${msg}”` : ` with no message element${near ? ` (the drawer reads: “${near.trim()}”)` : ""}`}`);
+    }
     await this.dismissDistractions();
   }
 
