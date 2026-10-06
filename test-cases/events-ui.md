@@ -464,15 +464,16 @@ deciding how to fill them.
   (`sheet-cell-0-*`) matches the template's widget keys.
 - **Trace.** P0 · automate · `CreateEventPage.selectFirstTemplateAndExtractWidgets`
 
-#### UI-TPL-002 — The `Items` button is inert until a template exists
-- **Why it matters.** This is *the* ordering rule. Clicking Items first is a no-op, and
-  the run stalls showing `Items 0` while looking like a broken line-item picker.
+#### UI-TPL-002 — The `Items` button opens Manage Line Items even before a template exists
+- **Why it matters.** The old ordering rule ("Items is a no-op until a template is
+  chosen") no longer holds; a test or a buyer guide that still assumes it is wrong.
 - **Setup.** A fresh stage with no template.
 - **Steps.** Click the toolbar `Items 0` button.
-- **Expected.** Nothing opens (or a tooltip explains a template is needed first).
-- **Oracle.** No drawer with the "Search and add line items" combobox appears; after a
-  template is chosen the same click opens it.
-- **Trace.** P0 · automate · create-screen-contract.md §Ordering.1
+- **Expected.** Manage Line Items opens (records current behaviour).
+- **Oracle.** The drawer titled "Manage Line Items" appears with no template chosen.
+- **Trace.** P0 · automate · projectCreation.jsx ~3330 (the Items onClick is unconditional)
+- **Corrected.** 6 Oct 2026 — the first version expected nothing to open; the live screen
+  (twice, on fresh create screens) and the code both open the drawer.
 
 #### UI-TPL-003 — Changing a chosen template asks before it discards sheet data
 - **Why it matters.** Changing the schema throws away the values entered under the old
