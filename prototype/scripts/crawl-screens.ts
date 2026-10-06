@@ -31,7 +31,7 @@ const LABELS = join(here, "..", "..", "procol-ui-tests", "src", "plan", "generic
 const OUT = join(here, "..", "..", "procol-ui-tests", ".plans", `crawl-${Date.now()}.jsonl`);
 const log = (s: string) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${s}`);
 
-type Target = { screen: string; state: "none" | "upcoming" | "live" | "bid" | "proposal"; technical?: boolean; steps: Array<Record<string, unknown>> };
+type Target = { screen: string; state: "none" | "upcoming" | "live" | "bid" | "proposal" | "awarded"; technical?: boolean; steps: Array<Record<string, unknown>> };
 const TARGETS: Target[] = [
   { screen: "create_erfx", state: "none", steps: [{ step: "open_create", args: { path: "erfx" } }] },
   { screen: "create_erfx_sheet", state: "none", steps: [{ step: "open_create", args: { path: "erfx" } }, { step: "set_title", args: { title: "QA_Platform_crawl" } }, { step: "select_template", args: {} }, { step: "add_line_items", args: { count: 1 } }] },
@@ -44,6 +44,7 @@ const TARGETS: Target[] = [
   { screen: "overview", state: "live", steps: [{ step: "open_prepared", args: { screen: "overview" } }] },
   { screen: "responses", state: "bid", steps: [{ step: "open_prepared", args: { screen: "responses" } }] },
   { screen: "master_qcs", state: "bid", steps: [{ step: "open_prepared", args: { screen: "master_qcs" } }] },
+  { screen: "proposal", state: "awarded", steps: [{ step: "open_prepared", args: { screen: "proposal" } }] },
   { screen: "proposal", state: "proposal", steps: [{ step: "open_prepared", args: { screen: "proposal" } }] },
 ];
 
@@ -120,6 +121,9 @@ for (const [screen, names] of Object.entries(found)) {
     // nor amounts, quantities or a sheet row's values (a grid cell is a button too): "₹ 157 /KG",
     // "72 KG", "1 / 1 100%" — and nothing that is ALL CAPS product-like text from a data row
     if (/[₹$€]|\d\s*(kg|ea|nos|pcs|mt|ton|ltr|%)\b|^\s*[–-]\s*$|^\d[\d\s,./%]*$/i.test(n.text)) continue;
+    // nor a product name from a data row (ALL CAPS, several words: "AAC BLOCKS") or a count
+    // ("9 hidden fields")
+    if ((/^[A-Z0-9][A-Z0-9 ()&./-]*\s[A-Z0-9 ()&./-]+$/.test(n.text) && n.text === n.text.toUpperCase() && n.text.length >= 6) || /^\d+\s+\w+/.test(n.text)) continue;
     const k = `${screen}|${n.text.toLowerCase()}`;
     if (have.has(k)) continue;
     have.add(k);
