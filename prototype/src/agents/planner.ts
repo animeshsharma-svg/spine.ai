@@ -165,7 +165,7 @@ NEGATIVE TESTS — when the case says the app SHOULD REFUSE something:
 - Every rule above about what a publish needs describes a plan meant to SUCCEED. A refusal test is deliberately incomplete in exactly one way, and complete in every other.
 - The default stage is AUCTION. So: a test about an RFQ, a technical/RFP stage, or any two-stage event MUST call compose_stages. Only a plain auction test may omit it.
 - compose_stages before anything stage-specific. The screen starts with ONE Auction stage; asking for RFQ or a technical stage is a real change. RFQ and Auction cannot coexist. At most two stages.
-- select_template BEFORE add_line_items: the Items drawer is inert until a template is chosen.
+- select_template BEFORE add_line_items on an ordinary create: the template decides the price sheet. (Items itself opens without a template — UI-TPL-002 — so a "no template" case can still add products.)
 - fill_sheet after add_line_items.
 - On a technical (rfp) stage: fill_questionnaires AND assign_evaluator, or publish is refused.
 - set_schedule before publish: the schedule looks set but is not committed until saved.
@@ -905,11 +905,6 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
           if (steps[k].step === "invite_vendor") {
             steps.splice(k, 1);
             repairs.push("dropped invite_vendor — with the template or product left out on purpose, Participants is locked, and that lock is what the case checks");
-          }
-          // and on eRFX the Items drawer is inert until a template is chosen
-          else if (steps[k].step === "add_line_items" && skipped.has("select_template") && !has("configure_single_stage")) {
-            steps.splice(k, 1);
-            repairs.push("dropped add_line_items — with no template on purpose the Items drawer is inert (eRFX)");
           }
         }
       }
