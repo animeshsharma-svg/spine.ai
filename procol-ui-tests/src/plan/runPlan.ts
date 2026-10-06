@@ -94,6 +94,9 @@ interface RunState {
   stepNo: number;
   /** The project id this plan published, so returning to it is a route, not a search. */
   projectId?: string;
+  /** The app refused an EARLIER step (e.g. the configuration drawer would not save) — a later
+   *  block assertion judges this refusal instead of a publish that can no longer be reached. */
+  earlyRefusal?: string;
 }
 
 const asInt = (v: unknown, fallback: number): number => {
@@ -1034,6 +1037,15 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return `app said: ${err}`;
     }
     case "expect_publish_blocked": {
+      if (s.earlyRefusal) {
+        // Blocked before publish could be reached. Judge the app's words against the reason.
+        const said = (/“([^”]*)”/.exec(s.earlyRefusal)?.[1] ?? /reads: “([^”]*)/.exec(s.earlyRefusal)?.[1] ?? s.earlyRefusal).toLowerCase();
+        const because = String(a.because ?? "").toLowerCase().trim();
+        if (because && !said.includes(because)) {
+          throw new Error(`publishing was blocked earlier, but the app's words do not name the reason — the case expects "${because}"; ${s.earlyRefusal}`);
+        }
+        return `blocked before publish — ${s.earlyRefusal}`;
+      }
       // Say WHY the app may have allowed it: the product audience adds vendors
       // from the line items on its own, so "no participants" is often untrue.
       const participants = await s.create.participantCount().catch(() => -1);
@@ -1161,9 +1173,17 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     if (o?.findings.length) console.log(`[observe] after ${name}: ${o.findings.map((f) => `${f.rule}: ${f.detail}`).join(" | ").slice(0, 300)}`);
   };
   let failed = false;
+  /** index of the block assertion to jump to after an early refusal */
+  let jumpTo = -1;
+  const BLOCK_ASSERTIONS = ["expect_publish_blocked", "expect_error", "expect_message"];
 
   for (const [i, step] of plan.steps.entries()) {
     const started = Date.now();
+    if (jumpTo > i) {
+      results.push({ step: step.step, args: step.args, status: "skipped", detail: "not reached — the app refused an earlier step, which the block assertion below judges", ms: 0 });
+      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} — not reached (the app refused earlier)`);
+      continue;
+    }
     if (failed) {
       // Once a step fails the page is in an unknown state; running the rest
       // would produce failures that say nothing about the product.
@@ -1191,6 +1211,16 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         .map((l) => l.trim())
         .find((l) => l.startsWith("- waiting for") || l.startsWith("- locator"));
       const detail = selector ? `${first} — ${selector.replace(/^-\s*/, "")}` : first;
+      // The APP refused this step (not the automation failing to perform it) and the case goes on
+      // to assert a block: that refusal IS the block — judge it there rather than stopping here.
+      const later = /^the app refused/i.test(first) ? plan.steps.findIndex((st, k) => k > i && BLOCK_ASSERTIONS.includes(st.step)) : -1;
+      if (later > i) {
+        s.earlyRefusal = first;
+        jumpTo = later;
+        results.push({ step: step.step, args: step.args, status: "ok", detail: `refused by the app — ${first}`, ms: Date.now() - started });
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ refused by the app (the case asserts a block at step ${later + 1}) — ${first}`);
+        continue;
+      }
       results.push({ step: step.step, args: step.args, status: "failed", detail, ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${detail}`);
       await look(i, step.step, true);
