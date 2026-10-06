@@ -2,8 +2,8 @@
  * RUN THE WRITTEN SCREEN CASES LIKE A SENIOR MANUAL QA (docs/ui-automation-design.md).
  *
  *   npx tsx scripts/run-ui-cases.ts --c 198678 --dry               which cases, in what state, on what screen
- *   npx tsx scripts/run-ui-cases.ts --c 198678 --limit 20          compile (reason tier, stored) and run 20
- *     --tier fast                   compile with the fast tier (measurement only)
+ *   npx tsx scripts/run-ui-cases.ts --c 198678 --limit 20          compile (fast tier, stored) and run 20
+ *     --tier reason                 compile with the reason tier (costly — ~$0.6 a case)
  *     --ids UI-SUR-003,UI-AWD-001   exactly these catalog cases
  *     --skip-ran                    leave out cases this runner already recorded a result for
  *     --budget-min 240              stop starting new cases after this many minutes (default 240)
@@ -17,7 +17,7 @@
  *   2. uiCasePrep.ts picks the starting state and screen; a screen not in the
  *      model yet (vendor portal, PR screens) is reported as a gap, not forced;
  *   3. the plan: a passing exemplar of the very same words is reused, otherwise
- *      the compiler writes one (reason tier) with the screen assertions, the API
+ *      the compiler writes one (fast tier) with the screen assertions, the API
  *      values it can compare and the closest UI exemplars as worked examples;
  *      stored in data/compiled-plans/ui-prepared/<id>.json;
  *   4. the state is built through the API (uiSetup.ts, QA vendors only), fresh
@@ -49,10 +49,11 @@ config({ path: join(here, "..", ".env") });
 // fell to Groq (413, too large) and then Gemini — the "Slingring-first" plans were never
 // Slingring's. A batch can wait for the primary model.
 process.env.SLINGRING_FAST_TIMEOUT_MS ??= "45000";
-// The compile tier. "fast" (Slingring LUNA) declared "no step can cover this" for 43% of cases
-// (30 of 69) where Gemini had for 6% — it under-uses the generic steps. Production compiles use
-// "reason" (planner.ts); `--tier fast` keeps the cheap path for measurement.
-const COMPILE_TIER: "reason" | "fast" = process.argv.includes("--tier") && process.argv[process.argv.indexOf("--tier") + 1] === "fast" ? "fast" : "reason";
+// The compile tier. "fast" (Slingring LUNA) by default. The reason tier was tried on 2026-10-05
+// on the 146 hardest cases: it gave up ("no step can cover this") on 65% of them against the fast
+// tier's 43% — the give-up rate belongs to those cases, not the tier — and cost ~$90 at $50 per
+// million tokens. `--tier reason` keeps it available for a case worth it.
+const COMPILE_TIER: "reason" | "fast" = process.argv.includes("--tier") && process.argv[process.argv.indexOf("--tier") + 1] === "reason" ? "reason" : "fast";
 
 const { allCases, caseAsProse } = await import("../src/checks/testCatalog.js");
 const { decideLayerSync, screenAssertions } = await import("../src/agents/layerDecider.js");
@@ -61,7 +62,7 @@ const { buildUiState, qaVendorOf } = await import("../src/ui/uiSetup.js");
 const { compileTestCase } = await import("../src/agents/planner.js");
 const { closestUiExemplars, exemplarPrompt, addUiExemplar } = await import("../src/agents/uiExemplars.js");
 const { runUiPlan, readPlanResult } = await import("../src/ui/uiFlowRunner.js");
-const { isKnownLabel } = await import("../../procol-ui-tests/src/plan/generic/labels.js");
+const { isKnownLabel, knownOnScreen } = await import("../../procol-ui-tests/src/plan/generic/labels.js");
 /** Literal screen texts a plan's assertions look for that Procol is not known to render. */
 function unknownLabels(plan: any): string[] {
   const ASSERT = new Set(["expect_text", "expect_visible", "expect_hidden", "expect_disabled", "expect_enabled", "expect_count", "expect_field_error", "click"]);
@@ -253,6 +254,24 @@ async function compiled(c: CatalogCase, p: Prep): Promise<{ plan: any; coverage:
           r.gaps = [...(r.gaps ?? []), `expects label(s) Procol is not known to render: ${still.join(", ")}`];
         }
       }
+    }
+  }
+  // An ABSENCE check proves something only where the control is normally shown. "Counter Offer is
+  // absent on the proposal page" passed UI-XDNEG-002 vacuously — Counter Offer lives on Responses.
+  // A control known elsewhere but never seen on this screen: the check stays, the plan is partial.
+  if (r.plan?.steps?.length) {
+    const vacuous: string[] = [];
+    for (const st of r.plan.steps) {
+      const a = st.args ?? {};
+      const absent = st.step === "expect_hidden" || (st.step === "expect_count" && Number(a.count) === 0);
+      if (!absent) continue;
+      const name = a.target?.name ?? a.target?.text ?? a.target?.label ?? a.name ?? a.text;
+      if (typeof name !== "string" || name.length < 3) continue;
+      if (isKnownLabel(name) && knownOnScreen(name, p.screen) === false) vacuous.push(name);
+    }
+    if (vacuous.length) {
+      r.coverage = r.coverage === "none" ? "none" : "partial";
+      r.gaps = [...(r.gaps ?? []), `checks that ${vacuous.map((v) => `“${v}”`).join(", ")} is absent on ${p.screenWhat}, where it is never shown — that proves nothing`];
     }
   }
   // On a prepared state the event's life is fixed: steps that would change it are dropped and the plan is partial.

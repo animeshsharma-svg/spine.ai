@@ -121,3 +121,28 @@ export function labelsForPrompt(): Record<string, string[]> {
   for (const l of seenLabels()) (by[l.screen] ??= new Set()).add(l.text);
   return Object.fromEntries(Object.entries(by).map(([k, v]) => [k, [...v]]));
 }
+
+/**
+ * Is this label known ON THIS SCREEN? null when the screen has not been crawled enough to say
+ * (fewer than 15 labels). Used to stop vacuous "absent" passes: "Counter Offer is not shown on
+ * the proposal page" proves nothing when Counter Offer has never been seen on that page.
+ * A screen also counts the panels that open on it (Settings menu, drawers, the stage page).
+ */
+const RELATED: Record<string, string[]> = {
+  summary: ["summary", "event_settings", "event_settings_upcoming", "stage_page", "reschedule_modal"],
+  responses: ["responses", "stage_page"],
+  overview: ["overview", "stage_page"],
+  participants: ["participants", "stage_page"],
+  master_qcs: ["master_qcs", "stage_page"],
+  proposal: ["proposal"],
+  create: ["create_erfx", "create_erfx_sheet", "line_items_drawer", "schedule_drawer", "savings_drawer", "single_stage", "create_single", "create_single_auction"],
+  draft: ["create_erfx", "create_erfx_sheet", "line_items_drawer", "schedule_drawer", "savings_drawer"],
+  events_list: ["events_list"],
+};
+export function knownOnScreen(text: string, screen: string): boolean | null {
+  const screens = RELATED[screen] ?? [screen];
+  const here = [...knownLabels(), ...seenLabels()].filter((l) => screens.includes(l.screen)).map((l) => n(l.text)).filter(Boolean);
+  if (here.length < 15) return null;
+  const t = n(text);
+  return here.some((k) => k === t || (t.length >= 3 && k.includes(t)) || (k.length >= 4 && t.includes(k)));
+}

@@ -3111,9 +3111,12 @@ it makes Create Proposal refuse with "Please award for at least one Vendor".
 - **Why it matters.** Two live proposals on one event would award it twice.
 - **Setup.** An event with a submitted (requested) proposal.
 - **Steps.** Try to start a new award.
-- **Expected.** Blocked, with the existing proposal offered instead.
-- **Oracle.** No second proposal is created. Pairs with API-AWD-005.
-- **Trace.** P0 · automate-later · `is_awarding_allowed?`
+- **Expected.** Blocked, with the existing proposal offered instead: Master QCS does not
+  show "Start Awarding" at all and shows the proposal's status "Approval in Progress".
+- **Oracle.** No "Start Awarding" button; the status "Approval in Progress" is shown; no
+  second proposal is created. Pairs with API-AWD-005.
+- **Trace.** P0 · automate-later · `is_awarding_allowed?` · masterQcs.jsx:286
+  (`showAwardingButton = !isObject(currentProposal)`), PROPOSAL_STATUS_COPY.requested
 
 #### UI-AWD-007 — Awarding is blocked while this user holds a draft proposal
 - **Why it matters.** The gate is per-user for drafts, which is subtly different from
