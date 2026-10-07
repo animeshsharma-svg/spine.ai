@@ -18,10 +18,7 @@
  * and retrieval refuses to compare across a mismatch rather than returning
  * confident nonsense.
  */
-import { pipeline, env } from "@xenova/transformers";
 import { AI } from "../../config/settings.js";
-
-env.allowLocalModels = true;
 
 type Provider = "slingring" | "local";
 
@@ -69,6 +66,13 @@ let extractor: Extractor | undefined;
 
 async function getExtractor(): Promise<Extractor> {
   if (!extractor) {
+    // Loaded on first use, not at import: the library pulls in `sharp`, a native module that
+    // only works after its install script has built it. Importing it at the top crashed every
+    // process that merely imported the memory (CI installs with --ignore-scripts, so the unit
+    // tests failed on load) even when Slingring does the embedding and the local model is
+    // never touched.
+    const { pipeline, env } = await import("@xenova/transformers");
+    env.allowLocalModels = true;
     extractor = (await pipeline("feature-extraction", AI.embeddings.model)) as unknown as Extractor;
   }
   return extractor;

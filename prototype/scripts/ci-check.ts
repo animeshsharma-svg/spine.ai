@@ -65,11 +65,18 @@ function typecheck(dir: string, label: string): () => Promise<CheckResult> {
 
 // ── 2. the written catalog is in step with its markdown ─────────────────────
 
-/** A catalog file without its timestamp, for comparing two builds. */
+/**
+ * A catalog file without what changes from run to run, for comparing two builds: its
+ * timestamp, and every `runnable` flag / count. `runnable` comes from case routing, which
+ * also reads run results (data/vocabulary-gaps.json is rewritten by every screen run), so
+ * a checkout whose runs moved that file built a different catalog from the same markdown
+ * and failed this check for everyone. What the check guards is the written cases: ids,
+ * text, journeys, no orphans, no duplicates.
+ */
 function stable(file: string): string {
   const j = JSON.parse(readFileSync(file, "utf8"));
   delete j.generatedAt;
-  return JSON.stringify(j);
+  return JSON.stringify(j, (k, v) => (k === "runnable" || k === "routeKind" ? undefined : v));
 }
 
 async function checkCatalog(): Promise<CheckResult> {
