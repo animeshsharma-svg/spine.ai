@@ -152,6 +152,10 @@ export interface UiRunOptions {
   lineItems?: number;
   /** Line items for a BOQ event. */
   boqItems?: number;
+  /** Line-item quantity: "5" for every line, or "5,10,2.5" one per line. */
+  quantity?: string;
+  /** How many QA vendors to invite. */
+  vendors?: number;
   /** Template to pick, by name substring. Journey takes the first otherwise. */
   template?: string;
   /** Event duration in minutes — the journey edits the schedule window. */
@@ -430,6 +434,8 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   };
   if (opts.lineItems && opts.lineItems > 0) env.UI_LINE_ITEMS = String(opts.lineItems);
   if (opts.boqItems && opts.boqItems > 0) env.UI_BOQ_ITEMS = String(opts.boqItems);
+  if (opts.quantity) env.UI_QUANTITY = opts.quantity;
+  if (opts.vendors && opts.vendors > 0) env.UI_VENDOR_COUNT = String(opts.vendors);
   // The capability map lists every journey on every run, which makes it look
   // like everything is executing. We only want the one we picked.
   env.UI_QUIET_MAP = "1";
@@ -441,6 +447,8 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   // The spec reads this and signs in through the login screen (see
   // `loginOnScreen` in the UI suite) instead of injecting a session.
   if (opts.showLogin) env.UI_SHOW_LOGIN = "1";
+  // The dashboard shows the browser beside the steps from these frames.
+  env.UI_LIVE_FRAMES = "1";
   // Turn the AI healer on whenever a Gemini key is available. It only engages
   // after the deterministic locators have all failed, so it costs nothing on a
   // healthy run and rescues a run when a selector has drifted.
@@ -451,6 +459,8 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
       COMPANY_ID: env.COMPANY_ID,
       UI_LINE_ITEMS: env.UI_LINE_ITEMS,
       UI_BOQ_ITEMS: env.UI_BOQ_ITEMS,
+      UI_QUANTITY: env.UI_QUANTITY,
+      UI_VENDOR_COUNT: env.UI_VENDOR_COUNT,
       UI_AI_HEAL: env.UI_AI_HEAL,
       UI_TEMPLATE: env.UI_TEMPLATE,
       UI_SCHEDULE_MINUTES: env.UI_SCHEDULE_MINUTES,

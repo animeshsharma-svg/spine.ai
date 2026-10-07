@@ -135,6 +135,37 @@ export function applyLineItemCount(
 }
 
 /**
+ * Cases whose subject is the quantity (or its unit) keep the value they were
+ * written with — "a quantity of abc is refused" means nothing once the run
+ * types 5 over it. Same principle as COUNT_OWNED: deliberately broad.
+ */
+const QTY_OWNED = /quantit|\bqty\b|\buom\b|\bunit\b|zero|negative|decimal|huge|non[\s-]?numeric|rate[\s-]?only/i;
+
+/**
+ * The dashboard's quantities written onto a body's line items: one value for
+ * all, or one per line (the last value repeats if the list is short). Only a
+ * plain seed whose quantity is an ordinary positive number is touched.
+ */
+function applyQuantities(
+  record: Pick<TestCaseRecord, "title" | "expectedResult" | "steps">,
+  body: unknown,
+  quantities: number[],
+): unknown | undefined {
+  const b = body as Record<string, unknown> | undefined;
+  const items = b?.line_items;
+  if (!b || !Array.isArray(items) || !items.length || !quantities.length) return undefined;
+  const words = [record.title, record.expectedResult, ...(record.steps ?? [])].join(" ");
+  if (QTY_OWNED.test(words)) return undefined;
+  if (items.some((it) => seedRefusal(it) || !(Number((it as any).quantity?.value) > 0))) return undefined;
+  const line_items = items.map((it, i) => {
+    const row = it as Record<string, any>;
+    const q = quantities[Math.min(i, quantities.length - 1)];
+    return { ...row, quantity: { ...row.quantity, value: q } };
+  });
+  return { ...b, line_items };
+}
+
+/**
  * Applies the count across a whole case set and reports what it did.
  *
  * The report is the point. A knob that silently applies to some cases and not
@@ -144,23 +175,27 @@ export function applyLineItemCount(
 export function planLineItems(
   records: Array<Pick<TestCaseRecord, "id" | "title" | "expectedResult" | "steps" | "body">>,
   requested: number | undefined,
-): { bodies: Map<string, unknown>; expanded: number; held: HeldCase[]; eligible: number } {
+  quantities: number[] = [],
+): { bodies: Map<string, unknown>; expanded: number; held: HeldCase[]; eligible: number; quantified: number } {
   const bodies = new Map<string, unknown>();
   const held: HeldCase[] = [];
   let expanded = 0;
   let eligible = 0;
+  let quantified = 0;
 
   for (const record of records) {
     const body = record.body as Record<string, unknown> | undefined;
     if (!body || !Array.isArray(body.line_items)) continue;
     eligible++;
     const outcome = applyLineItemCount(record, requested);
-    bodies.set(record.id, outcome.body);
+    const withQty = applyQuantities(record, outcome.body, quantities);
+    if (withQty) quantified++;
+    bodies.set(record.id, withQty ?? outcome.body);
     if (outcome.held) {
       held.push({ id: record.id, title: record.title, count: outcome.count ?? 1, reason: outcome.held });
     } else if (outcome.count === requested && requested !== undefined) {
       expanded++;
     }
   }
-  return { bodies, expanded, held, eligible };
+  return { bodies, expanded, held, eligible, quantified };
 }

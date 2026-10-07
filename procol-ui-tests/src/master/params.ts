@@ -56,10 +56,20 @@ export interface ProductSpec {
 export function buildProducts(count: number): ProductSpec[] {
   const letters = "abcdefghijklmnopqrstuvwxyz";
   const n = Math.max(1, count);
+  const asked = quantityList();
   return Array.from({ length: n }, (_, i) => ({
     searchText: letters[i % letters.length],
-    quantity: String((i + 1) * 10),
+    // The dashboard's quantity: one value for every line, or one per line.
+    quantity: asked.length ? asked[asked.length === 1 ? 0 : Math.min(i, asked.length - 1)] : String((i + 1) * 10),
   }));
+}
+
+/** UI_QUANTITY: "5" for every line item, or "5,10,2.5" one per line. Empty = the 10, 20, 30… default. */
+export function quantityList(): string[] {
+  return (process.env.UI_QUANTITY ?? "")
+    .split(",")
+    .map((q) => q.trim())
+    .filter(Boolean);
 }
 
 /** Line items for a normal event, ready to hand to createAndPublishErfx. */

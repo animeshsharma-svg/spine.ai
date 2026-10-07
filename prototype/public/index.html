@@ -124,7 +124,11 @@
         <a class="nav-item" href="#/api" data-view="api" title="API automation"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-zap"/></svg></span><span>API automation</span></a>
         <a class="nav-item" href="#/matrix" data-view="matrix" title="Bidding scenarios"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-scale"/></svg></span><span>Bidding scenarios</span></a>
         <a class="nav-item" href="#/ui" data-view="ui" title="UI automation"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-monitor"/></svg></span><span>UI automation</span></a>
-        <a class="nav-item" href="#/journeys" data-view="journeys" title="Journeys"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg></span><span>Journeys</span></a>
+        <!-- Hidden for now (Aanya, 2026-10-06): it repeated the Test catalogue in
+             journey order and read as noise to a first-time user. The page is kept
+             as it was — remove `hidden` here and "journeys" from HIDDEN_VIEWS in
+             app.js to bring it back unchanged. -->
+        <a class="nav-item" href="#/journeys" data-view="journeys" title="Journeys" hidden><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg></span><span>Journeys</span></a>
         <a class="nav-item" href="#/cases" data-view="cases" title="Test catalogue"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-folder-open"/></svg></span><span>Test catalogue</span></a>
         <a class="nav-item" href="#/reports" data-view="reports" title="Reports"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>Reports</span></a>
         <a class="nav-item" href="#/crosscheck" data-view="crosscheck" title="UI vs API"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left-right"/></svg></span><span>UI vs API</span></a>
@@ -205,6 +209,7 @@
             <span id="status" class="run-status"></span>
           </div>
           <div id="api-instruct-result" class="api-result" hidden></div>
+          <div id="ui-instruct-result" class="api-result" hidden></div>
         </div>
         <!-- The assistant's answer: progress, matches, results, a new draft (public/assistant.js) —
              a separate system from the Run (API)/(UI)/(Both) buttons above; hidden for now, not removed. -->
@@ -239,8 +244,12 @@
              here (see plan.spec.ts's "[frame]" lines) instead of only being
              watchable in the separate native browser window. -->
         <div class="run-split">
-          <div id="automation" class="automation">
-            <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
+          <!-- Left: the run's rows, or a journey's steps; right: the browser. -->
+          <div class="run-left">
+            <div id="automation" class="automation">
+              <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
+            </div>
+            <div id="ui-steps" class="ui-steps" hidden></div>
           </div>
           <div id="live-frame-panel" class="live-frame-panel" hidden>
             <div class="live-frame-head">Live browser</div>
@@ -250,7 +259,6 @@
 
         <!-- A journey, read as a journey. The raw Playwright output is still
              one click away, because when something breaks that is what you need. -->
-        <div id="ui-steps" class="ui-steps" hidden></div>
         <details id="ui-raw" class="ui-raw" hidden>
           <summary><span class="ui-raw-label">Raw output</span><span class="ui-raw-n" id="ui-raw-n"></span></summary>
           <div id="ui-console" class="ui-console"></div>
@@ -317,12 +325,18 @@
                    #api-qty keeps the value the run sends: "5" or "5,10,2.5". -->
               <span class="li-field qty-group" id="api-qty-field" hidden>
                 <span class="qty-label">quantity</span>
-                <label class="qty-same" title="Give every line item the same quantity"><input type="checkbox" id="api-qty-same" checked /> same for all</label>
+                <!-- Two named choices, so the current mode is always readable.
+                     #api-qty-same keeps the state the rest of the code reads. -->
+                <span class="qty-mode" id="api-qty-mode" role="radiogroup" aria-label="Quantity per line item">
+                  <button type="button" class="qty-mode-btn" data-same="1" role="radio">Same for all</button>
+                  <button type="button" class="qty-mode-btn" data-same="0" role="radio">Per line item</button>
+                </span>
+                <input type="checkbox" id="api-qty-same" checked hidden />
                 <span id="api-qty-boxes" class="qty-boxes"></span>
                 <input type="hidden" id="api-qty" value="5" />
               </span>
-              <label class="li-field" id="api-vendors-field" hidden title="How many vendors the event is sent to">vendors
-                <input type="number" id="api-vendors" min="1" max="50" value="3" />
+              <label class="li-field" id="api-vendors-field" hidden title="How many vendors the event is sent to">vendors invited
+                <input type="number" id="api-vendors" min="1" max="50" value="1" />
               </label>
               <label class="li-field" id="api-sb-field" hidden title="How many of the invited vendors the buyer places a surrogate bid for">surrogate bids
                 <input type="number" id="api-sb" min="1" max="50" value="1" />
@@ -331,6 +345,7 @@
                 <input type="number" id="api-vb" min="1" max="50" value="1" />
               </label>
               <span class="li-note" id="api-li-note"></span>
+              <div class="input-errors" id="api-input-errors" role="alert" hidden></div>
               <!-- Edge / negative cases change ONE thing a working request sends
                    and expect a refusal; they act on a second copy of the event. -->
               <label class="li-field" title="Also run the edge and negative cases for the ticked features — each changes one field of a working request and expects the backend to refuse it. They act on a second copy of the event, so the journey's own event is untouched.">
@@ -390,16 +405,32 @@
                 <input type="number" id="li-normal" min="1" value="1" />
                 <span id="li-normal-max" class="li-max"></span>
               </label>
+              <!-- Same control as the API row: one quantity for all, or a box per
+                   line item. #ui-qty keeps what the run sends: "10" or "10,20,30". -->
+              <span class="li-field qty-group" id="ui-qty-field">
+                <span class="qty-label">quantity</span>
+                <span class="qty-mode" id="ui-qty-mode" role="radiogroup" aria-label="Quantity per line item">
+                  <button type="button" class="qty-mode-btn" data-same="1" role="radio">Same for all</button>
+                  <button type="button" class="qty-mode-btn" data-same="0" role="radio">Per line item</button>
+                </span>
+                <input type="checkbox" id="ui-qty-same" checked hidden />
+                <span id="ui-qty-boxes" class="qty-boxes"></span>
+                <input type="hidden" id="ui-qty" value="10" />
+              </span>
+              <label class="li-field" id="ui-vendors-field" title="How many QA test vendors the event is sent to">vendors invited
+                <input type="number" id="ui-vendors" min="1" max="50" value="1" />
+              </label>
               <label class="li-field" id="li-boq-field" title="How many rows to put on a BOQ (bill of quantities) event">BOQ items
                 <input type="number" id="li-boq" min="1" value="10" />
                 <span id="li-boq-max" class="li-max"></span>
               </label>
-              <label class="tgl-flow" title="On: a browser window opens and you watch it work. Off: it runs invisibly, which is faster.">
+              <label class="tgl-flow" title="On: the browser is shown live beside the steps as it works. Off: steps only.">
                 <input type="checkbox" id="ui-headed" checked /> <span>show the browser</span>
               </label>
               <label class="tgl-flow" title="On: the journey signs in through the login screen — phone number, one-time code, Login — so you see the sign-in and the login page itself is tested. Off: it starts already signed in with a saved session, which is faster.">
                 <input type="checkbox" id="ui-login" checked /> <span>sign in on screen</span>
               </label>
+              <div class="input-errors" id="ui-input-errors" role="alert" hidden></div>
             </div>
             </div>
             <p class="scope-note" id="ui-note" hidden></p>

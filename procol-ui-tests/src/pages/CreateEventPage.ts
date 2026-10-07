@@ -5,7 +5,7 @@ import { TIMEOUTS } from "../config.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError } from "../db/qaVendors.js";
 import { InlineSheet, WidgetConfig } from "../helpers/inlineSheet.js";
 import { forEachSequential } from "../helpers/data.js";
-import { templateChoice, scheduleMinutes } from "../master/params.js";
+import { templateChoice, scheduleMinutes, vendorCount } from "../master/params.js";
 import { heal, healerEnabled } from "../ai/healer.js";
 
 export type StageKey = "rfp" | "rfq" | "auction";
@@ -1495,8 +1495,17 @@ export class CreateEventPage extends BasePage {
     await this.dismissDistractions();
     await this.waitForParticipants(3_000); // let a pre-filled audience arrive before judging it
     await this.removeNonQaParticipants(qa);
-    if (!(await this.participantNames()).some((n) => isQaVendorName(n, qa))) {
-      await this.addParticipantByName(qa[0]);
+    // As many QA vendors as the run asked for (the dashboard's "vendors";
+    // UI_VENDOR_COUNT), never more than this company has.
+    const want = Math.min(vendorCount() ?? 1, qa.length);
+    if ((vendorCount() ?? 1) > qa.length) {
+      console.log(`[create-event] asked for ${vendorCount()} vendors; this company has ${qa.length} QA test vendor(s), inviting ${qa.length}`);
+    }
+    for (const name of qa) {
+      const present = (await this.participantNames()).filter((n) => isQaVendorName(n, qa));
+      if (present.length >= want) break;
+      if (present.some((n) => isQaVendorName(n, [name]))) continue;
+      await this.addParticipantByName(name);
     }
     await this.removeNonQaParticipants(qa);
     const names = await this.participantNames();

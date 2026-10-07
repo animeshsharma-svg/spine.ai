@@ -34,7 +34,7 @@ import { classify, redactSecrets, type CheckOutcome } from "./engine.js";
 import { appOf, appRefusal } from "./appAccess.js";
 import { EVENT_TYPES, type JourneyPlan, type JourneyRecord, type StepKind } from "./journeyModel.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./eventJourney.js";
-import { listQaVendors, vendorClient, type QaVendor } from "./matrixVendors.js";
+import { listQaVendors, qaVendorsFor, vendorClient, type QaVendor } from "./matrixVendors.js";
 import { FORMATS } from "./apiAssertions.js";
 import { backoffMs, withWatchdog } from "./resilience.js";
 import { newRunId, saveRun } from "../runStore.js";
@@ -337,7 +337,7 @@ const SETUP_BUDGET_MS = 12 * 60_000;
 const WAIT_CAP_MS = 6 * 60_000;
 
 /** Build the recipe on a fresh record. Never throws. */
-async function buildSetup(rc: RunCtx, recipe: Recipe): Promise<SetupInstance> {
+async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number): Promise<SetupInstance> {
   const t0 = Date.now();
   const cat = rc.client.ctx.catalog ?? {};
   const cfg = await Config();
@@ -387,6 +387,7 @@ async function buildSetup(rc: RunCtx, recipe: Recipe): Promise<SetupInstance> {
         baseURL: rc.baseURL,
         stageSeconds,
         journeyBudgetMs: SETUP_BUDGET_MS,
+        ...(lineItems && lineItems > 1 ? { lineItemCount: lineItems } : {}),
         ...(v1 ? { choose: { vendor: { uuid: v1.vendorCompanyUuid, email: v1.email, name: `QA vendor ${v1.n}` } } } : {}),
         onStep: (st) => rc.onLine(`  setup · ${st.title}: ${st.verdict} — ${st.actual}`),
         onLine: (l) => rc.onLine(`  setup · ${l}`),
@@ -669,7 +670,7 @@ async function attempt(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReu
 
   // ── setup (fresh, or reused only by a read-only plan) ──
   const readOnly = plan.act.every((a) => OPS[a.op]?.kind === "read");
-  const key = `${rc.companyId}:${recipe.id}`;
+  const key = `${rc.companyId}:${recipe.id}:${plan.setup.lineItems ?? 1}`;
   let inst: SetupInstance;
   let reused = false;
   const cached = opts.setupCache?.get(key);
@@ -678,7 +679,7 @@ async function attempt(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReu
     reused = true;
     rc.onLine(`Setup: reusing the ${recipe.id} record another read-only plan built (nothing in this plan writes).`);
   } else {
-    inst = await buildSetup(rc, recipe);
+    inst = await buildSetup(rc, recipe, plan.setup.lineItems);
     if (inst.result.ok && opts.setupCache && readOnly) opts.setupCache.set(key, inst);
   }
   const setup: SetupResult = { ...inst.result, ...(reused ? { reused: true } : {}) };
@@ -1053,7 +1054,7 @@ export async function runApiPlan(plan: ApiPlan, opts: PlanRunOptions): Promise<P
       return r;
     }
   }
-  const vendors = await listQaVendors(opts.companyId).catch(() => [] as QaVendor[]);
+  const vendors = await qaVendorsFor(opts.companyId, client?.ctx?.buyerApi, 4).catch(() => [] as QaVendor[]);
   const rc: RunCtx = { companyId: opts.companyId, baseURL: opts.baseURL, client, vendors, apis: new Map(), onLine, reopened: 0 };
   let result: PlanRunResult;
   try {

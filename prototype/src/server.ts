@@ -36,6 +36,9 @@ import { saveTrail, readTrail, deleteTrail, listTrails } from "./ui/trailStore.j
 import { DEFAULT_CLIENT } from "../config/settings.js";
 import { isTokenClient, tokenClient } from "../config/tokenClients.js";
 import { readEnvVar, readToken, tokenClientChoices } from "./tokenClient.js";
+import { qaVendorsFor } from "./checks/matrixVendors.js";
+import { compileApiPlan, applyLineItemCount } from "./agents/apiPlanner.js";
+import { runApiPlan, planCheckResults } from "./checks/apiPlanRunner.js";
 import { inputProblem, latestRfpRunId, readRfpRun, readRfpRunHtml, rfpFeatureCases, rfpJourney, rfpReady, runRfp } from "./rfpRunner.js";
 import { defectsFromRfpRun } from "./report/rfpDefects.js";
 import { saveRun, listRuns, getRun, newRunId, deleteRun } from "./runStore.js";
@@ -151,6 +154,32 @@ function suiteFile(name: string): string | undefined {
   if (found.length <= 1) return found[0];
   return found.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
 }
+/**
+ * A typed case that asks for more line items than this company allows is a
+ * test of the limit, not of publishing: "67 line items on a 65-max company"
+ * passes when the app REFUSES. The compiler cannot know the company's ceiling,
+ * so it plans a normal publish and the run fails on the app doing its job.
+ * Rewrite the ending to expect the refusal, and say so on the plan.
+ * Returns the note, or null when the plan is within the limit.
+ */
+function expectRefusalOverLimit(plan: { steps: Array<{ step: string; args?: Record<string, unknown>; note?: string }> }, limit: number): string | null {
+  if (!limit) return null;
+  const total = plan.steps
+    .filter((st) => st.step === "add_line_items")
+    .reduce((n, st) => n + (Number(st.args?.count) || 1), 0);
+  if (total <= limit) return null;
+  const at = plan.steps.findIndex((st) => st.step === "publish");
+  if (at < 0) return null;
+  // publish + its success check become one "publishing is refused" check.
+  const rest = plan.steps.slice(at + 1).filter((st) => st.step !== "expect_published" && st.step !== "expect_no_error");
+  plan.steps = [
+    ...plan.steps.slice(0, at),
+    { step: "expect_publish_blocked", args: {}, note: `${total} line items is over this company's maximum of ${limit}, so the app must refuse to publish.` },
+    ...rest,
+  ];
+  return `This company allows at most ${limit} line items per event and the case asks for ${total}, so the test expects publishing to be refused.`;
+}
+
 const PORT = Number(process.env.PORT ?? 4300);
 
 // Curated demo clients (PROCOL DEMO is the known-fresh default).
@@ -580,9 +609,46 @@ const server = createServer(async (req, res) => {
         }
         const match = await matchApiCase(text);
         if (!match) {
-          send("plan", { cases: 1, runnable: 0, skipped: [{ id: "API-NOMATCH", title: text, reason: "no registered case matched" }] });
-          send("check", { check: noMatchRow() });
-          send("done", { ok: true, total: 0 });
+          /**
+           * No library case says this — so write the API test from the text,
+           * the way Run (UI) compiles browser steps: the API test compiler
+           * plans setup → requests → read-backs, and the plan runner sends
+           * them for real. Only a plan the compiler can stand behind runs;
+           * otherwise the reply says what it could not express.
+           */
+          send("line", { line: "No ready-made case matches — writing an API test from your sentence…" });
+          const compiled = applyLineItemCount(await compileApiPlan({ text }, { llm: true, allowReason: false }).catch(() => null as any));
+          if (!compiled?.plan || compiled.coverage === "none" || compiled.errors?.length) {
+            const row = noMatchRow();
+            row.message = compiled?.gaps?.length
+              ? `Could not write an API test for this: ${compiled.gaps.join("; ")}.`
+              : row.message;
+            send("plan", { cases: 1, runnable: 0, skipped: [{ id: "API-NOMATCH", title: text, reason: row.message }] });
+            send("check", { check: row });
+            send("done", { ok: true, total: 0 });
+            return res.end();
+          }
+          const plan = compiled.plan;
+          plan.caseId = plan.caseId ?? "API-TYPED";
+          // Same rule as Run (UI): over the company's line-item ceiling, a
+          // publish is expected to be refused.
+          const limit = await openClientContext(c, baseOverride(url))
+            .then(async (cl) => {
+              const cfg = await loadCompanyConfig(cl, c).catch(() => null);
+              await cl.dispose().catch(() => {});
+              return Number(cfg?.flags?.allowed_maximum_line_items?.non_boq) || 0;
+            })
+            .catch(() => 0);
+          const n = plan.setup.lineItems ?? 1;
+          if (limit && n > limit && plan.act.some((a) => a.op === "publish_event")) {
+            plan.expected = { outcome: "reject" };
+            send("line", { line: `This company allows at most ${limit} line items and the test asks for ${n}, so publishing is expected to be refused.` });
+          }
+          if (compiled.gaps.length) send("line", { line: `Not covered by this API test: ${compiled.gaps.join("; ")}.` });
+          send("plan", { cases: 1, runnable: 1, skipped: [] });
+          const result = await runApiPlan(plan, { companyId: c, baseURL: baseOverride(url), confirm: false, onLine: (line) => send("line", { line }) });
+          for (const check of planCheckResults(result)) send("check", { check });
+          send("done", { ok: true, total: 1 });
           return res.end();
         }
         send("plan", { cases: 1, runnable: 1, skipped: [] });
@@ -888,6 +954,9 @@ const server = createServer(async (req, res) => {
       const flowKey = url.searchParams.get("flow") ?? "";
       const wantItems = Number(url.searchParams.get("lineItems") ?? "") || undefined;
       const wantBoq = Number(url.searchParams.get("boqItems") ?? "") || undefined;
+      // "5" or "5,10,2.5" — kept as typed; the journey types each value into the app.
+      const wantQty = (url.searchParams.get("qty") ?? "").replace(/[^0-9.,-]/g, "") || undefined;
+      const wantVendors = Math.max(1, Math.min(50, Number(url.searchParams.get("vendors")) || 1));
       const headed = url.searchParams.get("headed") !== "0";
       // "sign in on screen": the journey goes through the login page instead
       // of starting already signed in. Opt-in on the wire so older callers of
@@ -927,6 +996,8 @@ const server = createServer(async (req, res) => {
           runId: uiRunId,
           lineItems: wantItems ? normal.value : undefined,
           boqItems: wantBoq ? boq.value : undefined,
+          quantity: wantQty,
+          vendors: wantVendors,
           headed,
           showLogin,
         },
@@ -1073,7 +1144,21 @@ const server = createServer(async (req, res) => {
 
       try {
         send("stage", { name: "compile", line: `Compiling: "${testCase.slice(0, 120)}"` });
+        // The company's line-item ceiling, read alongside the compile: the
+        // compiler does not know it, and a case over it is a refusal test.
+        const limitP = openClientContext(c, baseOverride(url))
+          .then(async (cl) => {
+            const cfg = await loadCompanyConfig(cl, c).catch(() => null);
+            await cl.dispose().catch(() => {});
+            return Number(cfg?.flags?.allowed_maximum_line_items?.non_boq) || 0;
+          })
+          .catch(() => 0);
         const compiled = await compileTestCase(testCase);
+        const overLimit = expectRefusalOverLimit(compiled.plan, await limitP);
+        if (overLimit) {
+          compiled.warnings = [...(compiled.warnings ?? []), overLimit];
+          compiled.reasoning = `${compiled.reasoning ? compiled.reasoning + " " : ""}${overLimit}`;
+        }
         send("plan", {
           title: compiled.plan.title,
           steps: compiled.plan.steps,
@@ -1366,10 +1451,33 @@ const server = createServer(async (req, res) => {
           if (edgeCount) send("line", { line: `${edgeCount} edge / negative case(s) will run after the journey, on a second copy of the event.` });
           // The plan itself was sent before the client opened, so the list was
           // on screen while the session was being made.
+          // The dashboard's quantity and vendor count. The journey's event has one
+          // line item, so it takes the first quantity; extra vendors come from
+          // this workspace's QA vendor pool and are invited only — the first
+          // vendor is still the one that signs in and bids.
+          const journeyQty = Number(String(url.searchParams.get("qty") ?? "").split(",")[0]) || undefined;
+          const wantVendors = Math.max(1, Math.min(50, Number(url.searchParams.get("vendors")) || 1));
+          let alsoInvite: string[] = [];
+          if (wantVendors > 1) {
+            const first = client.ctx?.vendor?.uuid;
+            const pool = (await qaVendorsFor(c, client.ctx?.buyerApi, wantVendors + 1).catch(() => []))
+              .map((v) => v.vendorCompanyUuid)
+              .filter((u) => u && u !== first);
+            alsoInvite = pool.slice(0, wantVendors - 1);
+            const got = alsoInvite.length + 1;
+            send("line", {
+              line: got < wantVendors
+                ? `Asked for ${wantVendors} vendors; this company has ${got} QA vendor${got === 1 ? "" : "s"} to invite, so the event goes to ${got}.`
+                : `The event is sent to ${wantVendors} QA vendors; the first one signs in and bids.`,
+            });
+          }
+          if (journeyQty) send("line", { line: `Line item quantity: ${journeyQty}.` });
           const walked = await runEventJourney(client, plan, {
             baseURL: baseOverride(url),
             stageSeconds: Number(url.searchParams.get("stageSeconds")) || 45,
             buildVariationsEvent: false,
+            quantity: journeyQty,
+            alsoInvite,
             onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step: stepForClient(step), planned }),
             onLine: (line: string) => send("line", { line }),
           });
@@ -1456,14 +1564,24 @@ const server = createServer(async (req, res) => {
           "non_boq",
         );
         const wantLineItems = askedLineItems ? lineItemCap.value : undefined;
+        // "5" for every line, or "5,10,2.5" one per line — positive numbers only.
+        const wantQuantities = String(url.searchParams.get("qty") ?? "")
+          .split(",")
+          .map((q) => Number(q.trim()))
+          .filter((q) => Number.isFinite(q) && q > 0);
 
         const { checks, skipped, deferred, lineItems } = buildChecksFromCases(
           client,
           cases,
           caseCtx,
           actor,
-          { lineItems: wantLineItems },
+          { lineItems: wantLineItems, quantities: wantQuantities },
         );
+        if (wantQuantities.length && lineItems.quantified) {
+          send("line", {
+            line: `Quantities ${wantQuantities.join(", ")} written on the line items of ${lineItems.quantified} case(s); cases about quantity itself keep their own.`,
+          });
+        }
         /**
          * Ids created by this run, for the cases that come after.
          *

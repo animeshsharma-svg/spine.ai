@@ -1,0 +1,137 @@
+{
+  "_about": "Corrections to library cases that the borrowed-request check found sending the same request as a sibling (caseLibrary.ts borrowedRequests). Kept apart from api-cases.json, which scripts/build-cases.mjs regenerates. replace: the request the case should send. runAsWritten: the request is right; the sibling is about a different state, or a company-setting gate decides where it applies. needsState: the request is right but needs a starting state the run cannot build.",
+  "replace": {
+    "API-EG-015": {
+      "method": "POST",
+      "path": "/event_groups",
+      "body": {
+        "status": "draft",
+        "title": "QA_Platform_SHARED_A_negative_quantity_is_refused_{{stamp}}",
+        "line_items": [
+          {
+            "product_uuid": "{{productUuid}}",
+            "product_quality_uuid": "{{productQualityUuid}}",
+            "quantity": {
+              "unitSymbol": "Nos",
+              "value": -5
+            }
+          }
+        ]
+      },
+      "title": "A negative quantity is refused",
+      "steps": [
+        "1. `POST` with `quantity.value` of `-5`."
+      ],
+      "expectedResult": "Refused. Nothing created."
+    },
+    "EVT-LIFE-001": {
+      "method": "GET",
+      "path": "/event_groups/WrongUuid1=",
+      "body": null
+    },
+    "EVT-TPL-001": {
+      "method": "GET",
+      "path": "/trade/WrongUuid1=?response_type=template",
+      "body": null
+    },
+    "AUC-CONV-001": {
+      "method": "POST",
+      "path": "/trade/move_to_auction",
+      "body": {
+        "trade_request_id": "WrongUuid1=",
+        "auction_config": "rank",
+        "title": "QA_Platform_Convert_Ghost_Trade_{{stamp}}"
+      }
+    },
+    "EDGE-BID-049": {
+      "method": "POST",
+      "path": "/v1/bids",
+      "body": {
+        "trade_request_uuid": "{{pricingTradeUuid}}",
+        "company_uuid": "{{vendorUuid}}",
+        "currency_preference": {
+          "name": "Indian Rupees (INR)",
+          "code": "INR",
+          "symbol": "₹",
+          "rateInBase": 1,
+          "adjustedPrecision": 2,
+          "defaultPrecision": 2,
+          "numberSystem": "INDIAN",
+          "currencyLabel": "₹"
+        },
+        "broker_company_uuid": false
+      },
+      "preconditions": "Session: the invited VENDOR user of {{vendorUuid}} (not the buyer). {{pricingTradeUuid}} is the journey's own pricing stage, bid_end_time passed."
+    }
+  },
+  "runAsWritten": [
+    "API-EG-005",
+    "AWD-PROP-003",
+    "AWD-SUB-002",
+    "EDGE-AWD-119",
+    "EDGE-AWD-140",
+    "EDGE-BID-030",
+    "EDGE-DBOQ-001",
+    "EDGE-DBOQ-003",
+    "VBU-043"
+  ],
+  "needsState": {
+    "EVT-PUB-002": "needs a second version of the event so this one is superseded",
+    "EVT-LIFE-002": "needs an event group owned by another company",
+    "EVT-LIFE-003": "needs an unauthenticated caller (no session token)",
+    "EVT-TPL-003": "needs a second company with its own awarded orders",
+    "AUC-CONV-002": "needs a live auction stage",
+    "AUC-CONV-004": "needs a second version of the event so this one is superseded",
+    "EVAL-SCORE-001": "needs the evaluator's own session on a technical stage past its window",
+    "AWD-PROP-002": "needs a second version of the event so this one is superseded",
+    "AWD-SUB-001": "needs a draft proposal with no vendor awarded",
+    "AWD-SUB-004": "needs the vendor's session on a buyer-only endpoint, which the run never sends",
+    "USR-PRM-001": "needs an unauthenticated caller (no session token)",
+    "USR-PRM-003": "needs a buyer without product_category create_record permission who is not super admin",
+    "VEN-MAP-004": "needs a vendor mapped only to another workspace",
+    "VEN-MAP-005": "needs is_vendor_entity_mapping_enabled off for the workspace",
+    "EDGE-AWD-014": "needs a technical stage whose config has no evaluation score label mapping",
+    "EDGE-AWD-018": "needs a technical stage still accepting responses",
+    "EDGE-AWD-020": "needs a draft technical (RFP) stage",
+    "EDGE-AWD-022": "needs an invited vendor with no technical response on the closed RFP stage",
+    "EDGE-AWD-023": "needs two identical evaluations fired within three seconds",
+    "EDGE-AWD-046": "needs a pending re-evaluation addressed to a second evaluator",
+    "EDGE-AWD-055": "needs a bid with a pending counter offer on it",
+    "EDGE-AWD-056": "needs a bid that has been awarded (selected)",
+    "EDGE-AWD-057": "needs the vendor's draft (never submitted) bid",
+    "EDGE-AWD-058": "needs a buyer of a different company with trade rights",
+    "EDGE-AWD-063": "needs an active bid with no pending counter offer",
+    "EDGE-AWD-080": "needs a draft RFQ stage",
+    "EDGE-AWD-090": "needs a draft event",
+    "EDGE-AWD-100": "needs an invited vendor that never bid, on the proposal's event",
+    "EDGE-AWD-101": "needs a vendor that bid on the RFQ but not on the auction it was converted to",
+    "EDGE-AWD-102": "needs the vendor's latest-stage bid revoked or rejected",
+    "EDGE-AWD-103": "needs a two-line event where the vendor quoted only the other line",
+    "EDGE-AWD-114": "needs restrict_awarding_for_tna_vendors on and the vendor's line scored Regret",
+    "EDGE-AWD-116": "needs a draft proposal created by another buyer of the company",
+    "EDGE-AWD-120": "needs a draft proposal whose only allocation was removed",
+    "EDGE-AWD-124": "needs a populated draft proposal on a company with award approval configured",
+    "EDGE-AWD-129": "needs a proposal awarding a bid the vendor has since revised",
+    "EDGE-AWD-132": "needs a company with no letter-of-award template",
+    "EDGE-BID-020": "needs a restricted stage whose audience leaves out a vendor mapped to the buyer",
+    "EDGE-BID-021": "needs a draft stage with the vendor already in its audience",
+    "EDGE-BID-022": "needs a draft stage with the vendor already in its audience",
+    "EDGE-BID-029": "needs a published technical stage whose window has not opened yet",
+    "EDGE-BID-047": "needs a second version of the event so this one is superseded",
+    "EDGE-BID-048": "needs a published RFQ stage whose window has not opened yet",
+    "EDGE-BID-050": "needs a draft RFQ stage with the vendor already in its audience",
+    "EDGE-BID-052": "needs lock_quote_after_submission on and the vendor's active bid on the live stage",
+    "EDGE-BID-053": "needs the vendor's previous bid on the stage revoked",
+    "EDGE-PUB-013": "needs a draft event whose RFP stage ends after its RFQ stage",
+    "EDGE-PUB-040": "needs an RFQ stage that is already closed",
+    "EDGE-PUB-043": "needs a stage with is_user_allowed_to_modify_audience off and a non-super-admin caller",
+    "EDGE-PUB-079": "needs a selected or requested proposal on the event",
+    "EDGE-PUB-083": "needs a vendor mapped to the buyer but on no stage's audience",
+    "EDGE-PUB-084": "needs a second buyer of the company who is not the draft's owner",
+    "EDGE-PUB-085": "needs restrict_event_visibility_to_owner on and a non-owner buyer with no share",
+    "EDGE-PUB-097": "needs an event that has been versioned once already",
+    "EDGE-PUB-101": "needs a draft event",
+    "EDGE-PUB-104": "needs a second version of the event so this one is superseded",
+    "EDGE-PUB-105": "needs a second version of the event so this one is superseded"
+  }
+}

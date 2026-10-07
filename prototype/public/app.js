@@ -58,8 +58,16 @@ let catRunning = null; // the open EventSource while cases are running
 const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product", "matrix", "success"];
 const DEFAULT_VIEW = "run";
 
+/**
+ * Views kept but not shown. An old link or bookmark lands on the page that
+ * holds the same cases instead. Remove a name here (and `hidden` on its nav
+ * link in index.html) to bring the view back exactly as it was.
+ */
+const HIDDEN_VIEWS = { journeys: "cases" };
+
 function currentView() {
   const want = (location.hash.replace(/^#\/?/, "") || DEFAULT_VIEW).split("/")[0];
+  if (HIDDEN_VIEWS[want]) return HIDDEN_VIEWS[want];
   return VIEWS.includes(want) ? want : DEFAULT_VIEW;
 }
 
@@ -254,6 +262,9 @@ function goToRun(label, hint) {
     runStartedAt = Date.now();
     runCurrentStep = "";
     resetJourney();
+    // A new run starts with no browser picture; the run that has one sends it.
+    const framePanel = $("#live-frame-panel");
+    if (framePanel) framePanel.hidden = true;
     renderAutomation();
     setRunBar(0, 0);
     // A label means a run is starting right now — show Stop unconditionally
@@ -562,7 +573,9 @@ async function init() {
   });
   $("#f-all").addEventListener("click", () => setFilter("all"));
   $("#f-fail").addEventListener("click", () => setFilter("fail"));
-  $("#t-run").addEventListener("click", runSelectedFeatures);
+  $("#t-run").addEventListener("click", () => {
+    if (!validateApiInputs().length) runSelectedFeatures();
+  });
   $("#t-none").addEventListener("click", () => {
     selected.clear();
     renderTree();
@@ -575,7 +588,36 @@ async function init() {
   $("#api-sb")?.addEventListener("input", syncApiInputs);
   $("#api-vb")?.addEventListener("input", syncApiInputs);
   $("#api-qty-same")?.addEventListener("change", syncApiInputs);
-  $("#ui-run-sel").addEventListener("click", runSelectedUiJourneys);
+  document.querySelectorAll("#api-qty-mode .qty-mode-btn").forEach((b) =>
+    b.addEventListener("click", () => {
+      const same = $("#api-qty-same");
+      if (!same) return;
+      same.checked = b.dataset.same === "1";
+      same.dispatchEvent(new Event("change"));
+    }),
+  );
+  $("#ui-run-sel").addEventListener("click", () => {
+    if (!validateUiInputs().length) runSelectedUiJourneys();
+  });
+  ["#li-boq", "#ui-vendors"].forEach((id) => $(id)?.addEventListener("input", validateUiInputs));
+  // The quantity boxes follow the line-item count, as on the API row.
+  $("#li-normal")?.addEventListener("input", () => {
+    renderUiQtyBoxes();
+    validateUiInputs();
+  });
+  $("#ui-qty-same")?.addEventListener("change", () => {
+    renderUiQtyBoxes();
+    validateUiInputs();
+  });
+  document.querySelectorAll("#ui-qty-mode .qty-mode-btn").forEach((b) =>
+    b.addEventListener("click", () => {
+      const same = $("#ui-qty-same");
+      if (!same) return;
+      same.checked = b.dataset.same === "1";
+      same.dispatchEvent(new Event("change"));
+    }),
+  );
+  renderUiQtyBoxes();
   $("#ui-none").addEventListener("click", () => {
     uiSelected.clear();
     renderUiTree();
@@ -740,6 +782,11 @@ async function loadFeatures() {
       if ($("#api-sb")) $("#api-sb").value = String(kept.surrogateBids ?? d.surrogateBids ?? 1);
       if ($("#api-vb")) $("#api-vb").value = String(kept.vendorBids ?? d.vendorBids ?? 1);
       if ($("#api-qty-same")) $("#api-qty-same").checked = kept.qtySame !== false && !String(kept.quantities ?? "").includes(",");
+    }
+    // Leaving a suite account: the journey's own defaults, not the suite's numbers.
+    if (!featureSuite && wasSuite) {
+      if ($("#api-qty")) $("#api-qty").value = "5";
+      if ($("#api-vendors")) $("#api-vendors").value = "1";
     }
     setNavCount("api", totalCases);
     /**
@@ -1132,7 +1179,13 @@ function apiLineItemCases() {
   return n;
 }
 
+/** Every change to the API row: redraw it, then check its settings. */
 function syncApiInputs() {
+  drawApiInputs();
+  validateApiInputs();
+}
+
+function drawApiInputs() {
   const wrap = $("#api-inputs");
   if (!wrap) return;
   if (featureSuite) {
@@ -1155,9 +1208,10 @@ function syncApiInputs() {
   const note = $("#api-li-note");
   const qtyField = $("#api-qty-field");
   const vendorsField = $("#api-vendors-field");
-  if (qtyField) qtyField.hidden = !featureSuite;
-  if (featureSuite) renderQtyBoxes();
-  if (vendorsField) vendorsField.hidden = !featureSuite;
+  // Every account: one quantity for all, or (untick "same for all") a box per line item.
+  if (qtyField) qtyField.hidden = false;
+  renderQtyBoxes();
+  if (vendorsField) vendorsField.hidden = false;
   // Only when the surrogate bid is ticked: otherwise the run stops at the publish.
   const sbField = $("#api-sb-field");
   const surrogateOn = !!featureSuite && selected.has("bids.surrogate");
@@ -1193,7 +1247,13 @@ function syncApiInputs() {
     note.textContent = "";
     return;
   }
-  const n = Math.max(1, Number($("#api-line-items")?.value) || 1);
+  const liEl = $("#api-line-items");
+  const n = Math.max(1, Number(liEl?.value) || 1);
+  // An out-of-range count is the validator's to explain; don't restate it as a plan.
+  if (Number(liEl?.max) && n > Number(liEl.max)) {
+    note.textContent = "";
+    return;
+  }
   note.textContent =
     `${cases} of the ticked case${cases === 1 ? "" : "s"} build an event — each will send ` +
     `${n} line item${n === 1 ? "" : "s"}. Cases written around a count of their own keep it, ` +
@@ -1396,6 +1456,113 @@ function wireReportLink(id, href, mode) {
   });
 }
 
+/**
+ * RUN SETTINGS ARE CHECKED, NOT TESTED.
+ *
+ * Line items, quantity and vendors say how to build a VALID event so the run
+ * can test everything else. A bad value here would make every case fail for
+ * the wrong reason, so it is refused as it is typed: the box turns red, the
+ * reason is said under the row, and Run waits until it is fixed. Bad values
+ * as test DATA are the test cases' job (66 lines, -5, "abc" all have cases).
+ */
+function inputProblems(fields) {
+  const problems = [];
+  for (const f of fields) {
+    const input = f.el;
+    if (!input) continue;
+    const msg = f.check(String(input.value ?? "").trim());
+    input.classList.toggle("invalid", !!msg);
+    input.setAttribute("aria-invalid", msg ? "true" : "false");
+    if (msg) problems.push(msg);
+  }
+  return problems;
+}
+
+function wholeIn(label, lo, hi) {
+  return (v) => {
+    const n = Number(v);
+    if (v === "" || !Number.isInteger(n)) return `${label}: enter a whole number${hi ? ` from ${lo} to ${hi}` : ` of ${lo} or more`}.`;
+    if (n < lo || (hi && n > hi)) return `${label}: ${n} is out of range — ${hi ? `${lo} to ${hi}` : `${lo} or more`}${f_maxNote(label, hi)}.`;
+    return null;
+  };
+}
+const f_maxNote = (label, hi) => (hi && /line items|BOQ/i.test(label) ? " for this company" : "");
+
+function positiveQty(label) {
+  return (v) => {
+    if (v === "") return `${label}: enter a quantity above 0.`;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return `${label}: “${v}” is not a quantity above 0 (decimals like 2.5 are fine).`;
+    return null;
+  };
+}
+
+function showInputErrors(box, problems) {
+  if (!box) return;
+  box.hidden = !problems.length;
+  box.innerHTML = problems.length
+    ? `<b>Fix ${problems.length === 1 ? "this" : "these"} to run:</b><ul>${problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`
+    : "";
+}
+
+/** The API row: line items, each quantity box, vendors. Disables Run while wrong. */
+function validateApiInputs() {
+  const wrap = $("#api-inputs");
+  let problems = [];
+  if (wrap && !wrap.hidden) {
+    const li = $("#api-line-items");
+    const max = Number(li?.max) || 0;
+    const fields = [
+      { el: li, check: wholeIn("Line items", 1, max || undefined) },
+      { el: $("#api-vendors"), check: wholeIn("Vendors invited", 1, 50) },
+    ];
+    const boxes = [...document.querySelectorAll("#api-qty-boxes input")];
+    boxes.forEach((b, i) =>
+      fields.push({ el: b, check: positiveQty(boxes.length > 1 ? `Quantity, item ${i + 1}` : "Quantity") }),
+    );
+    problems = inputProblems(fields);
+  }
+  showInputErrors($("#api-input-errors"), problems);
+  const btn = $("#t-run");
+  if (btn) {
+    btn.disabled = problems.length > 0;
+    btn.title = problems.length ? "Fix the settings in red first" : "Runs the ready-made test cases for everything ticked below";
+  }
+  return problems;
+}
+
+/** The UI row: line items (and BOQ items when shown), quantity list, vendors. */
+function validateUiInputs() {
+  // Nothing ticked that builds an event: no settings to check.
+  if ($("#ui-inputs")?.hidden) {
+    showInputErrors($("#ui-input-errors"), []);
+    const btn = $("#ui-run-sel");
+    if (btn) btn.disabled = false;
+    return [];
+  }
+  const visible = (id) => {
+    const f = $(id);
+    return f && !f.hidden && f.offsetParent !== null;
+  };
+  const liEl = $("#li-normal");
+  const fields = [];
+  if (visible("#li-normal-field")) fields.push({ el: liEl, check: wholeIn("Line items", 1, Number(liEl?.max) || undefined) });
+  if (visible("#li-boq-field")) fields.push({ el: $("#li-boq"), check: wholeIn("BOQ items", 1, Number($("#li-boq")?.max) || undefined) });
+  fields.push({ el: $("#ui-vendors"), check: wholeIn("Vendors invited", 1, 50) });
+  const qtyBoxes = [...document.querySelectorAll("#ui-qty-boxes input")];
+  qtyBoxes.forEach((b, i) =>
+    fields.push({ el: b, check: positiveQty(qtyBoxes.length > 1 ? `Quantity, item ${i + 1}` : "Quantity") }),
+  );
+  const problems = inputProblems(fields);
+  showInputErrors($("#ui-input-errors"), problems);
+  const btn = $("#ui-run-sel");
+  if (btn) {
+    btn.disabled = problems.length > 0;
+    btn.title = problems.length ? "Fix the settings in red first" : "Runs the browser journeys for everything ticked below";
+  }
+  return problems;
+}
+
 /** Keeps the run button honest about how much work it is about to do. */
 function syncRunButton() {
   const btn = $("#t-run");
@@ -1405,7 +1572,7 @@ function syncRunButton() {
     0,
   );
   btn.innerHTML = ico("play") + (cases ? ` Run ${cases} selected test${cases === 1 ? "" : "s"}` : " Run selected tests");
-  btn.disabled = false;
+  validateApiInputs();
 }
 
 /**
@@ -1449,36 +1616,57 @@ function bugHrefForSelection() {
  * box when "same for all" is ticked; #api-qty holds what the run sends —
  * "5" for all, or "5,10" one per item.
  */
-function renderQtyBoxes() {
-  const wrap = $("#api-qty-boxes");
-  const hidden = $("#api-qty");
+function renderQtyBoxesFor(prefix, countSel, onChange) {
+  const wrap = $(`#${prefix}-qty-boxes`);
+  const hidden = $(`#${prefix}-qty`);
   if (!wrap || !hidden) return;
-  const n = Math.max(1, Math.min(50, Number($("#api-line-items")?.value) || 1));
-  const same = $("#api-qty-same")?.checked !== false;
-  const current = String(hidden.value || "5").split(",").map((x) => x.trim()).filter(Boolean);
+  // Never more boxes than the company allows: an out-of-range count is
+  // reported by the validator, not drawn as 90 boxes the run would refuse.
+  const ceiling = Number($(countSel)?.max) || 100;
+  const typed = Number($(countSel)?.value);
+  const n = Number.isInteger(typed) && typed >= 1 ? Math.min(typed, ceiling) : 1;
+  // With one line item there is nothing to choose between.
+  const mode = $(`#${prefix}-qty-mode`);
+  if (mode) mode.hidden = n === 1;
+  const same = n === 1 || $(`#${prefix}-qty-same`)?.checked !== false;
+  mode?.querySelectorAll(".qty-mode-btn").forEach((b) => {
+    const on = (b.dataset.same === "1") === same;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", String(on));
+  });
+  const current = String(hidden.value || (prefix === "ui" ? "10" : "5")).split(",").map((x) => x.trim()).filter(Boolean);
   const want = same ? 1 : n;
   // Keep what was typed; a new box starts from the first quantity.
-  const values = Array.from({ length: want }, (_, i) => current[i] ?? current[0] ?? "5");
+  const values = Array.from({ length: want }, (_, i) => current[i] ?? current[0] ?? (prefix === "ui" ? "10" : "5"));
   if (wrap.children.length !== want || wrap.dataset.same !== String(same)) {
     wrap.innerHTML = "";
     wrap.dataset.same = String(same);
     values.forEach((v, i) => {
       const box = el("label", "qty-box");
-      box.textContent = same ? "each" : `item ${i + 1}`;
+      if (!same) box.textContent = `Item ${i + 1}`;
       const input = el("input");
       input.type = "number";
       input.min = "0";
       input.step = "any";
       input.value = v;
+      input.setAttribute("aria-label", same ? "Quantity for every line item" : `Quantity for line item ${i + 1}`);
       input.addEventListener("input", () => {
         hidden.value = [...wrap.querySelectorAll("input")].map((x) => x.value.trim()).join(",");
-        syncApiInputs();
+        onChange();
       });
       box.appendChild(input);
       wrap.appendChild(box);
     });
   }
   hidden.value = [...wrap.querySelectorAll("input")].map((x) => x.value.trim()).join(",");
+}
+
+function renderQtyBoxes() {
+  renderQtyBoxesFor("api", "#api-line-items", syncApiInputs);
+}
+
+function renderUiQtyBoxes() {
+  renderQtyBoxesFor("ui", "#li-normal", validateUiInputs);
 }
 
 /** The RFP suite's own rules for its inputs, said before a run is started. Null when fine. */
@@ -1516,6 +1704,9 @@ function runSelectedFeatures() {
   if (apiLineItemCases()) {
     qs.set("lineItems", String(Math.max(1, Number($("#api-line-items")?.value) || 1)));
     if ($("#api-edges") && !$("#api-edges").checked) qs.set("edges", "0");
+    const qty = String($("#api-qty")?.value ?? "").trim();
+    if (qty) qs.set("qty", qty);
+    qs.set("vendors", String(Math.max(1, Number($("#api-vendors")?.value) || 1)));
   }
   $("#auto-summary").textContent = `starting ${ids.length} feature(s)…`;
   // One-line notes about the run (line-item caps, skips, wait progress) go
@@ -2125,6 +2316,7 @@ function syncUiInputs() {
   // The whole row goes when neither field applies, so the drawer does not
   // carry an empty strip of controls.
   wrap.hidden = !usesLineItems && !usesBoq;
+  validateUiInputs();
 }
 
 function renderUiTree() {
@@ -2211,7 +2403,9 @@ function renderUiTree() {
       const name = el("span", "sub-name");
       name.innerHTML = esc(f.label) + (available
         ? ` <span class="sub-tag e2e" title="browser journey: ${esc(f.uiFlow)}">${esc(f.uiFlow)}</span>`
-        : ' <span class="sub-tag notbuilt" title="no browser journey built for this feature yet">not built</span>') +
+        : f.uiCoveredBy
+          ? ` <span class="sub-tag covered" title="no journey of its own — it is done as part of ${esc(f.uiCoveredBy)}">covered by ${esc(f.uiCoveredBy)}</span>`
+          : ' <span class="sub-tag notbuilt" title="no browser journey built for this feature yet">not built</span>') +
         (heldBy
           ? ` <span class="sub-tag held" title="${esc(
               `An event has one type. “${heldBy.label}” is picked for this run; untick it to choose this one.`,
@@ -2930,6 +3124,7 @@ async function loadUiFlows() {
     $("#li-normal-max").textContent = nonBoq ? `max ${nonBoq}` : "";
     $("#li-boq-max").textContent = boq ? `max ${boq}` : "";
     if (nonBoq) $("#li-normal").max = nonBoq;
+    renderUiQtyBoxes();
     // The API side reads the same ceiling. The server clamps to it regardless,
     // but showing it here means nobody types 50 and waits for a run to explain.
     const apiMax = $("#api-li-max");
@@ -3026,12 +3221,30 @@ function runUiJourney(flow, onDone, opts = {}) {
   if (flow.usesLineItems) {
     if (flow.boq) qs.set("boqItems", $("#li-boq").value || "1");
     else qs.set("lineItems", $("#li-normal").value || "1");
+    const qty = String($("#ui-qty")?.value ?? "").trim();
+    if (qty) qs.set("qty", qty);
   }
-  if (!$("#ui-headed").checked) qs.set("headed", "0");
+  qs.set("vendors", String(Math.max(1, Number($("#ui-vendors")?.value) || 1)));
+  // Watched in the live panel beside the steps, like Run (UI): always headless,
+  // because a real window and the screenshot feed fight each other (stutter).
+  // "show the browser" now means that panel.
+  qs.set("headed", "0");
+  const showFrames = $("#ui-headed")?.checked !== false;
   // Sign in through the login screen, so the watcher sees it and the login page is tested.
   if ($("#ui-login")?.checked) qs.set("login", "1");
 
   const es = new EventSource(`/api/ui-run?${qs}`);
+  const framePanel = $("#live-frame-panel");
+  const frameImg = $("#live-frame");
+  if (framePanel) framePanel.hidden = true;
+  if (frameImg) frameImg.removeAttribute("src");
+  es.addEventListener("frame", (ev) => {
+    if (!showFrames || !frameImg) return;
+    const { frame } = JSON.parse(ev.data);
+    if (!frame) return;
+    frameImg.src = `data:image/jpeg;base64,${frame}`;
+    if (framePanel) framePanel.hidden = false;
+  });
   // A stream that dies mid-journey resolves the sequence too, or the run after
   // it would never start and the panel would wait on a journey that is gone.
   watchStreamEnd(es, () => {
@@ -4563,6 +4776,58 @@ function planStepInWords(step) {
 // The difference from the instruction button: that one picks a pre-built
 // journey, this one builds a journey out of your words. The plan is shown
 // before it runs, because a plan you cannot inspect is a plan you cannot trust.
+/**
+ * The answer to a Run (UI), under the box it was typed in — the same place the
+ * API card answers. The step table further down is the evidence; this is the
+ * reply: did it work, what did the app say, and where it stopped if not.
+ */
+function renderUiInstructResult(state, d = {}) {
+  const box = $("#ui-instruct-result");
+  if (!box) return;
+  box.hidden = false;
+  const title = d.title ? ` ${esc(d.title)}` : "";
+  if (state === "running") {
+    box.className = "api-result running";
+    box.innerHTML = `<div class="api-result-head"><span class="api-result-badge">UI</span>${title || " Compiling it into browser steps…"}</div>` +
+      `<div class="api-result-verdict">Running it in the browser…</div>`;
+    return;
+  }
+  const steps = d.steps ?? [];
+  const n = steps.length;
+  const okCount = steps.filter((s) => s.status === "ok").length;
+  const said = (s) => String(s?.detail ?? "").replace(/^app said(?: \([^)]*\))?:\s*/i, "");
+  let cls, badge, lines;
+  if (state === "notrun") {
+    cls = "skip";
+    badge = "– Not tested (UI)";
+    lines = [d.reason || "The run could not start."];
+  } else if (d.passed) {
+    cls = "ok";
+    badge = "✓ Passed (UI)";
+    const expectStep = [...steps].reverse().find((s) => /^expect/.test(s.step));
+    const made = steps.find((s) => s.step === "set_title" && s.detail);
+    lines = [`It worked as expected — all ${n} step${n === 1 ? "" : "s"} passed.`];
+    if (expectStep?.detail) lines.push(/error|blocked|refus/.test(expectStep.step) ? `The app refused it, as it should: “${said(expectStep)}”.` : `Checked: ${said(expectStep)}.`);
+    if (made) lines.push(`Test event: ${made.detail}.`);
+  } else {
+    cls = "bad";
+    badge = "✗ Failed (UI)";
+    const at = steps.findIndex((s) => s.status === "failed");
+    lines = at >= 0
+      ? [`It stopped at step ${at + 1} of ${n} — ${planStepInWords(steps[at])}.`, steps[at].detail ? `What happened: ${steps[at].detail}.` : ""]
+      : [d.reason || `${okCount} of ${n} steps passed.`];
+  }
+  box.className = `api-result ${cls}`;
+  box.innerHTML =
+    `<div class="api-result-head"><span class="api-result-badge">${esc(badge)}</span>${title}</div>` +
+    lines.filter(Boolean).map((l) => `<div class="api-result-verdict">${esc(l)}</div>`).join("") +
+    (n
+      ? `<details class="api-result-steps"><summary>${okCount} of ${n} steps passed — show them</summary><ol>${steps
+          .map((s) => `<li>${s.status === "ok" ? "✓" : s.status === "failed" ? "✗" : "–"} ${esc(planStepInWords(s))}${s.detail ? ` <span>— ${esc(s.detail)}</span>` : ""}</li>`)
+          .join("")}</ol></details>`
+      : "");
+}
+
 function runTestCase(textOverride) {
   goToRun("your test case (UI)", "Compiling it into a browser step plan, then running that plan live.");
   // A re-run re-sends the exact instruction that stopped early, regardless of
@@ -4573,8 +4838,10 @@ function runTestCase(textOverride) {
   const btn = $("#run-ui-btn");
   btn.disabled = true;
   $("#status").textContent = "compiling & running…";
+  renderUiInstructResult("running");
 
   const con = $("#ui-console");
+  resetUiSteps();
   showRunLog();
   con.innerHTML = "";
   const write = (text, cls) => {
@@ -4635,9 +4902,12 @@ function runTestCase(textOverride) {
     renderAutomation();
     write(`Not run: ${reason}`, "bad");
     if (b.hint) write(`   ${b.hint}`, "note");
+    renderUiInstructResult("notrun", { reason: reason.charAt(0).toUpperCase() + reason.slice(1) + "." });
   });
   es.addEventListener("plan", (ev) => {
     const p = JSON.parse(ev.data);
+    planTitle = p.title || "";
+    renderUiInstructResult("running", { title: planTitle });
     /**
      * THE PLAN BECOMES ROWS, the same as every other run.
      *
@@ -4680,6 +4950,8 @@ function runTestCase(textOverride) {
   // that dies before step 1 (sign-in, setup) says so instead of "no defects".
   let planStarted = false;
   let planError = "";
+  let planTitle = "";
+  let planResult = null;
   es.addEventListener("log", (ev) => {
     const l = JSON.parse(ev.data).line;
     const err = l.match(/^\s*(?:Error|TimeoutError):\s*(.+)/);
@@ -4706,6 +4978,7 @@ function runTestCase(textOverride) {
   es.addEventListener("plan-result", (ev) => {
     const r = JSON.parse(ev.data);
     planStarted = true;
+    planResult = r;
     // The authoritative account, with a status and a reason per step.
     r.steps.forEach((s, i) => {
       const row = checkRows[i];
@@ -4752,6 +5025,9 @@ function runTestCase(textOverride) {
   };
   es.addEventListener("done", (ev) => {
     const d = JSON.parse(ev.data);
+    if (d.notRun) renderUiInstructResult("notrun", { title: planTitle, reason: "No step exists yet in the automation for what this case checks, so nothing was run in its place." });
+    else if (!planStarted) renderUiInstructResult("notrun", { title: planTitle, reason: `The run could not start${planError ? `: ${planError}` : "."}` });
+    else renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: d.exitCode === 0 && planResult?.passed !== false });
     // The compiler itself can refuse to run: no step exists yet for the thing
     // the case checks, so it ran nothing rather than a substitute. Exit 0 in
     // that case means "nothing broke while doing nothing" — the opposite of
@@ -4771,6 +5047,7 @@ function runTestCase(textOverride) {
   es.addEventListener("run-error", (ev) => {
     let msg = "run error";
     try { msg = JSON.parse(ev.data).line || msg; } catch {}
+    renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: false, reason: `The run broke: ${msg}` });
     finish("✗ " + msg, "bad");
   });
 }

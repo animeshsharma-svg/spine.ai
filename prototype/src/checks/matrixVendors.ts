@@ -88,6 +88,32 @@ export async function readVendorState(workspaceId: number, email: string, name: 
   };
 }
 
+/**
+ * QA vendors for a workspace, wherever they can be found: the spine DB's
+ * recorded pool first, else Procol's own database through the sibling's
+ * lookup (the one the journeys already use for their vendor). Without the
+ * fallback, a machine with no SPINE_DB_URL saw zero QA vendors everywhere
+ * the pool was asked — the plan runner refused to build any event.
+ */
+export async function qaVendorsFor(workspaceId: number, buyerApi: unknown, limit = 4): Promise<QaVendor[]> {
+  const recorded = await listQaVendors(workspaceId).catch(() => [] as QaVendor[]);
+  if (recorded.length || !buyerApi) return recorded;
+  const { listQaVendors: fromProcolDb } = await imp("flows/vendors.ts");
+  const found: Array<{ uuid: string; name?: string; email?: string }> = await fromProcolDb(buyerApi, workspaceId, limit).catch(() => []);
+  return found
+    .filter((v) => v.uuid && v.email)
+    .map((v, i) => ({
+      workspaceId,
+      vendorCompanyId: 0,
+      vendorCompanyUuid: v.uuid,
+      email: v.email!,
+      name: v.name ?? v.email!,
+      n: i + 1,
+      stamp: "",
+      loginOk: true,
+    }));
+}
+
 /** The QA vendors recorded for a workspace that last signed in fine (spine DB), oldest first. */
 export async function listQaVendors(workspaceId: number): Promise<QaVendor[]> {
   const db = await spineDb();

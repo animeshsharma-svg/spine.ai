@@ -5,6 +5,7 @@ import { InlineSheet } from "../helpers/inlineSheet.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { randomNumber } from "../helpers/data.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError } from "../db/qaVendors.js";
+import { vendorCount } from "../master/params.js";
 
 export type EventType = "rfq" | "rfp" | "auction";
 export type AuctionSubtype = "rank" | "price" | "traffic_light";
@@ -292,8 +293,12 @@ export class SingleStagePage extends BasePage {
     if (!allowRealVendors()) {
       const qa = await qaVendorNames();
       if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
-      const ok = await this.addParticipant(qa[0]);
-      if (!ok) throw new Error(`could not add the QA test vendor "${qa[0]}" — stopping so no real supplier is invited`);
+      // As many as the run asked for (UI_VENDOR_COUNT), never more than exist.
+      const want = Math.max(1, Math.min(vendorCount() ?? 1, qa.length));
+      for (const name of qa.slice(0, want)) {
+        const ok = await this.addParticipant(name);
+        if (!ok) throw new Error(`could not add the QA test vendor "${name}" — stopping so no real supplier is invited`);
+      }
       await this.dismissDistractions();
       return;
     }

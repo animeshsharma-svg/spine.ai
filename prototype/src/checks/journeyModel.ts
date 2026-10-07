@@ -384,8 +384,8 @@ export interface JourneyPlan {
   label: string;
   stages: StageKind[];
   features: JourneyFeatures;
-  /** the furthest lifecycle stage the journey walks to */
-  reach: JourneyReach;
+  /** the furthest lifecycle stage the journey walks to (absent: the whole walk) */
+  reach?: JourneyReach;
   /** the steps this plan will attempt, in order */
   steps: StepKind[];
 }

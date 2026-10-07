@@ -40,6 +40,31 @@ const LIB_PATH = join(here, "..", "..", "data", "api-cases.json");
  * out of api-cases.json so regenerating that file never drops them.
  */
 const EXTRA_DIR = join(here, "..", "..", "data", "api-cases-extra");
+const FIXES_PATH = join(here, "..", "..", "data", "case-fixes.json");
+
+/**
+ * Corrections to cases the borrowed-request check caught (data/case-fixes.json),
+ * kept apart from api-cases.json because scripts/build-cases.mjs regenerates
+ * that file. `replace` is the request a case should really send; `runAsWritten`
+ * clears a case whose sibling is about a different state; `needsState` says what
+ * starting state a case needs that the run does not build.
+ */
+interface CaseFixes {
+  replace: Record<string, Partial<TestCaseRecord>>;
+  runAsWritten: string[];
+  needsState: Record<string, string>;
+}
+let FIXES: CaseFixes | null = null;
+function caseFixes(): CaseFixes {
+  if (FIXES) return FIXES;
+  try {
+    const f = JSON.parse(readFileSync(FIXES_PATH, "utf8"));
+    FIXES = { replace: f.replace ?? {}, runAsWritten: f.runAsWritten ?? [], needsState: f.needsState ?? {} };
+  } catch {
+    FIXES = { replace: {}, runAsWritten: [], needsState: {} };
+  }
+  return FIXES;
+}
 
 /** Placeholders a case may use — anything else could never be filled in. */
 const KNOWN_PLACEHOLDERS = new Set([
@@ -270,7 +295,9 @@ export function loadCases(): TestCaseRecord[] {
     // The main library wins on an id clash; extra files only add.
     const seen = new Set(base.map((c) => c?.id));
     const list = [...base, ...readExtraCases().filter((c) => c?.id && !seen.has(c.id) && (seen.add(c.id), true))];
-    const shaped = list.filter((c) => c && c.id && c.feature && c.path && c.method);
+    const fixes = caseFixes().replace;
+    const fixed = list.map((c) => (c?.id && fixes[c.id] ? { ...c, ...fixes[c.id] } : c));
+    const shaped = fixed.filter((c) => c && c.id && c.feature && c.path && c.method);
     HELD = shaped.filter(bodyIsAParaphrase);
     CACHE = shaped.filter((c) => !bodyIsAParaphrase(c));
     if (HELD.length) {
@@ -386,6 +413,9 @@ function borrowedRequests(): Map<string, string> {
     // name; a sibling with the same request is about a DIFFERENT state (and is
     // held for it, see STATE_NOT_BUILT), so the request is not borrowed.
     if (SANDBOX_PUB_CASES.has(c.id)) continue;
+    // Reviewed: the request is right as written, or the case waits on a state.
+    const fx = caseFixes();
+    if (fx.runAsWritten.includes(c.id) || fx.needsState[c.id]) continue;
     const twin = (byShape.get(shape(c)) ?? []).find((o) => o.id !== c.id && o.expected !== "reject");
     if (!twin) continue;
     reasons.set(
@@ -456,7 +486,7 @@ export function unrunnableReason(c: TestCaseRecord): string | null {
     /^\s*Draft event group \{\{eventGroupUuid\}\} that already has/i.test(c.preconditions ?? "")
   )
     return "needs a draft event that already carries a round of its own (an earlier draft RFQ round with its own window), which this run does not build — on an empty draft it would test a different rule, so it is not run";
-  const state = STATE_NOT_BUILT[c.id];
+  const state = STATE_NOT_BUILT[c.id] ?? caseFixes().needsState[c.id];
   if (state)
     return `${state}, which a fresh copy of the event does not have and this run cannot build in one step — on a fresh copy it would test a different rule, so it is not run`;
   const who = actorOfCase(c);
@@ -795,12 +825,12 @@ export function buildChecksFromCases(
   ctx: DynamicContext = {},
   actor: Actor = {},
   /** How many line items events created by this run should carry. */
-  options: { lineItems?: number } = {},
+  options: { lineItems?: number; quantities?: number[] } = {},
 ): {
   checks: Check[];
   skipped: { id: string; title: string; reason: string }[];
   /** What the line-item count actually did to this case set. */
-  lineItems: { requested?: number; eligible: number; expanded: number; held: HeldCase[] };
+  lineItems: { requested?: number; eligible: number; expanded: number; held: HeldCase[]; quantified: number };
   /**
    * Cases blocked ONLY on a record an earlier case creates.
    *
@@ -824,7 +854,7 @@ export function buildChecksFromCases(
 
   // Worked out once, over the whole set, so the run can say how many cases the
   // requested count reached and which kept their own — see `lineItems.ts`.
-  const lineItemPlan = planLineItems(cases, options.lineItems);
+  const lineItemPlan = planLineItems(cases, options.lineItems, options.quantities);
 
   /**
    * Pull the exact server message out of a case's documented expectedResult.
@@ -974,6 +1004,7 @@ export function buildChecksFromCases(
       eligible: lineItemPlan.eligible,
       expanded: lineItemPlan.expanded,
       held: lineItemPlan.held,
+      quantified: lineItemPlan.quantified,
     },
   };
 }
