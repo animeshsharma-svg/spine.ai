@@ -26,6 +26,13 @@ export async function toastMark(page: Page): Promise<number> {
   return page.evaluate(() => ((window as any).__qaToasts ?? []).length).catch(() => 0);
 }
 
+/** What the app said since `mark` — toasts the in-page journal caught, plus error messages still on screen. */
+export async function appMessagesSince(page: Page, mark: number): Promise<SeenMessage[]> {
+  const out = await journalSince(page, mark);
+  for (const m of await visibleMessages(page, "error")) if (!out.some((o) => o.text === m.text)) out.push(m);
+  return out;
+}
+
 async function journalSince(page: Page, mark: number): Promise<SeenMessage[]> {
   const list = (await page.evaluate(() => (window as any).__qaToasts ?? []).catch(() => [])) as Array<{ severity: string; text: string }>;
   return list

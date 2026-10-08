@@ -5036,17 +5036,35 @@ function renderUiInstructResult(state, d = {}) {
       ? [`It stopped at step ${at + 1} of ${n} — ${planStepInWords(steps[at])}.`, steps[at].detail ? `What happened: ${steps[at].detail}.` : ""]
       : [d.reason || `${okCount} of ${n} steps passed.`];
   }
+  // What the person would have seen: the failing step's screenshot, the app's own words, and
+  // the rule in the app's code they come from — and any step the run recovered, with why.
+  const failedStep = steps.find((s) => s.status === "failed");
+  const ev = failedStep?.evidence;
+  const recovered = steps.filter((s) => s.recovered);
+  const evidenceHtml =
+    (recovered.length
+      ? recovered.map((s) => `<div class="api-result-note">↻ ${esc(planStepInWords(s))}: the app refused “${esc(s.recovered.appSaid)}” — its rule (${esc(s.recovered.rule)}). ${esc(s.recovered.why)}. spine.ai did: ${esc(s.recovered.did.join("; "))}, then retried.</div>`).join("")
+      : "") +
+    (ev
+      ? `<div class="api-result-evidence">` +
+        (ev.appSaid?.length ? `<div><b>The app said:</b> ${ev.appSaid.map((t) => `“${esc(t)}”`).join(" · ")}</div>` : "") +
+        (ev.rule ? `<div><b>Its rule:</b> ${esc(ev.rule.source)}${ev.rule.condition ? ` — <code>${esc(ev.rule.condition)}</code>` : ""}</div>` : ev.appSaid?.length ? `<div><b>Not one of the app's known rules</b> — a fresh re-run decides whether it is a product problem.</div>` : "") +
+        (ev.url ? `<div><b>Page:</b> ${esc(ev.url)}</div>` : "") +
+        (ev.screenshot ? `<a href="/api/ui-evidence?path=${encodeURIComponent(ev.screenshot)}" target="_blank" rel="noopener"><img class="api-result-shot" alt="The screen when the step failed" src="/api/ui-evidence?path=${encodeURIComponent(ev.screenshot)}"></a>` : "") +
+        `</div>`
+      : "");
   box.className = `api-result ${cls}`;
   box.innerHTML =
     `<div class="api-result-head"><span class="api-result-badge">${esc(badge)}</span>${title}</div>` +
     lines.filter(Boolean).map((l) => `<div class="api-result-verdict">${esc(l)}</div>`).join("") +
+    evidenceHtml +
     (n
       ? `<details class="api-result-steps"><summary>${okCount} of ${n} steps passed — show them</summary><ol>${steps
           .map((s) => `<li>${s.status === "ok" ? "✓" : s.status === "failed" ? "✗" : "–"} ${esc(planStepInWords(s))}${s.detail ? ` <span>— ${esc(s.detail)}</span>` : ""}</li>`)
           .join("")}</ol></details>`
       : "");
   // The same answer closes the session's turn: green DONE, red FAILED, grey NOT TESTED.
-  window.spineSession?.uiResult({ cls, title: d.title || "", lines: lines.filter(Boolean) });
+  window.spineSession?.uiResult({ cls, title: d.title || "", lines: lines.filter(Boolean), html: evidenceHtml });
 }
 
 function runTestCase(textOverride) {

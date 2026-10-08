@@ -15,7 +15,8 @@ import { buildProducts } from "../master/params.js";
 import { WidgetConfig } from "../helpers/inlineSheet.js";
 import { PlanStep, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
-import { toastMark } from "./generic/messages.js";
+import { toastMark, appMessagesSince } from "./generic/messages.js";
+import { appRuleFor, recoveryFor } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
 import { runExpectationStep } from "./expectations.js";
@@ -44,6 +45,17 @@ export interface StepResult {
   /** For generic steps: which locator strategy found the element (role+name, label, text, healer…). */
   strategy?: string;
   ms: number;
+  /** What the person would have seen when this step failed or was recovered. */
+  evidence?: {
+    screenshot?: string;
+    url?: string;
+    /** the app's own words while the step ran (toasts, inline errors) */
+    appSaid?: string[];
+    /** the app rule those words come from, from its code (oracle/appRules.json) */
+    rule?: { message: string; source: string; condition?: string };
+  };
+  /** The run broke one of the app's rules by its own setup, satisfied it, and retried. */
+  recovered?: { appSaid: string; rule: string; why: string; did: string[] };
 }
 
 export interface PlanResult {
@@ -1189,6 +1201,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     if (o?.findings.length) console.log(`[observe] after ${name}: ${o.findings.map((f) => `${f.rule}: ${f.detail}`).join(" | ").slice(0, 300)}`);
   };
   let failed = false;
+  let recoveries = 0;
+  const recoveredRules = new Set<string>();
+  const BLOCK_ASSERTION_STEPS = new Set(["expect_publish_blocked", "expect_error", "expect_message", "attempt", "expect_field_error"]);
   /** index of the block assertion to jump to after an early refusal */
   let jumpTo = -1;
   const BLOCK_ASSERTIONS = ["expect_publish_blocked", "expect_error", "expect_message"];
@@ -1233,6 +1248,52 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         .map((l) => l.trim())
         .find((l) => l.startsWith("- waiting for") || l.startsWith("- locator"));
       const detail = selector ? `${first} — ${selector.replace(/^-\s*/, "")}` : first;
+      // What did the app SAY while this step ran — and is it one of its own rules?
+      const said = [
+        ...((/rejected by the app:\s*(.+)$/i.exec(first)?.[1] ?? "").trim() ? [/rejected by the app:\s*(.+)$/i.exec(first)![1].trim()] : []),
+        ...(await appMessagesSince(page, s.curMark).catch(() => [])).map((m) => m.text),
+      ].filter((t, k, all) => t && all.indexOf(t) === k);
+      const ruled = said.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
+
+      // RECOVER: the case is positive (it asserts no refusal), the app refused by a rule the
+      // run's own setup broke, and the code says how to satisfy it — do that, retry the step
+      // once, and say so. Never for a case that is testing the refusal, never twice for the
+      // same rule, at most two recoveries a run.
+      const negative = plan.steps.some((st) => BLOCK_ASSERTION_STEPS.has(st.step) || st.step === "skip");
+      const recovery = ruled ? recoveryFor(ruled.t) : null;
+      if (ruled && recovery && !negative && recoveries < 2 && !recoveredRules.has(ruled.rule!.message)) {
+        recoveries++;
+        recoveredRules.add(ruled.rule!.message);
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ↻ the app refused: "${ruled.t}" — its rule (${ruled.rule!.source}); ${recovery.why}. Doing ${recovery.steps.map((x) => x.step).join(" + ")}, then retrying`);
+        const did: string[] = [];
+        let recoveredOk = true;
+        for (const rs of recovery.steps) {
+          try {
+            const d = await runStep(s, rs);
+            did.push(`${rs.step}${d ? `: ${d}` : ""}`);
+          } catch (re) {
+            did.push(`${rs.step} could not run: ${(re instanceof Error ? re.message : String(re)).split("\n")[0]}`);
+            recoveredOk = false;
+            break;
+          }
+        }
+        if (recoveredOk) {
+          try {
+            s.prevMark = s.curMark;
+            s.curMark = await toastMark(s.page);
+            const detail2 = await runStep(s, step);
+            const rec = { appSaid: ruled.t, rule: ruled.rule!.source, why: recovery.why, did };
+            results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: the app refused "${ruled.t}" (${ruled.rule!.source}); ${recovery.why}`, recovered: rec, ms: Date.now() - started });
+            console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail2 ?? ""} (after recovering from "${ruled.t}")`);
+            await look(i, step.step, false);
+            continue;
+          } catch (retryErr) {
+            const m2 = (retryErr instanceof Error ? retryErr.message : String(retryErr)).split("\n")[0];
+            console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ still refused after recovering (${did.join("; ")}): ${m2}`);
+          }
+        }
+      }
+
       // The APP refused this step (not the automation failing to perform it) and the case goes on
       // to assert a block: that refusal IS the block — judge it there rather than stopping here.
       const later = /^the app refused/i.test(first) ? plan.steps.findIndex((st, k) => k > i && BLOCK_ASSERTIONS.includes(st.step)) : -1;
@@ -1243,9 +1304,20 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ refused by the app (the case asserts a block at step ${later + 1}) — ${first}`);
         continue;
       }
-      results.push({ step: step.step, args: step.args, status: "failed", detail, ms: Date.now() - started });
-      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${detail}`);
+      const ruleNote = ruled ? ` — the app's own rule (${ruled.rule!.source})${recovery ? "" : "; no known way for the run to satisfy it"}` : said.length ? ` — the app said "${said[0]}", which is not one of its known rules` : "";
+      const failedAt = results.length;
+      results.push({ step: step.step, args: step.args, status: "failed", detail: detail + ruleNote, ms: Date.now() - started });
+      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${detail}${ruleNote}`);
+      const before = observations.length;
       await look(i, step.step, true);
+      const shot = observations.slice(before).find((o) => o.screenshot)?.screenshot;
+      results[failedAt].evidence = {
+        ...(shot ? { screenshot: shot } : {}),
+        url: page.url(),
+        ...(said.length ? { appSaid: said.slice(0, 5) } : {}),
+        ...(ruled ? { rule: { message: ruled.rule!.message, source: ruled.rule!.source, ...(ruled.rule!.condition ? { condition: ruled.rule!.condition } : {}) } } : {}),
+      };
+      if (shot) console.log(`[plan] evidence: ${shot}`);
       failed = true;
     }
   }

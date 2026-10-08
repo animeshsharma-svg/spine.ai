@@ -1,3 +1,4 @@
+import { appRuleFor } from "./appRules.js";
 import { Evidence, HttpFailure } from "./evidence.js";
 
 /**
@@ -125,15 +126,36 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
     };
   }
 
-  // 4. Any other error toast: the app complained but not about our input.
+  // 4a. A message from the app's own rule catalog (appRules.json, generated from the
+  //     dashboard's code) is the app enforcing that rule — never, by itself, a defect.
+  //     "RFP duration exceeds RFQ end time" was reported as a high product defect because
+  //     its words matched no validation pattern (8 Oct 2026); it is projectCreation.jsx:1621.
+  const ruled = errorToasts.map((t) => ({ t, rule: appRuleFor(t.text) })).find((x) => x.rule);
+  if (ruled && ruled.rule) {
+    return {
+      kind: "product_rejected_input",
+      severity: "medium",
+      title: `${evidence.flowKey}: the app refused it by its own rule — "${ruled.t.text}"`,
+      rationale:
+        `"${ruled.t.text}" is a rule the app enforces (${ruled.rule.source}${ruled.rule.condition ? `, when ${ruled.rule.condition}` : ""}). ` +
+        `The product behaved as built: either the run's setup broke this rule, or the case expected this refusal.`,
+      smokingGun: { toast: ruled.t.text },
+      reproduction: steps,
+      actionable: false,
+    };
+  }
+
+  // 4b. Any other error toast: words the app's code does not explain. That can point at the
+  //     product, but only a fresh-state re-run that shows it again makes it a defect.
   if (errorToasts.length) {
     return {
       kind: "product_defect",
-      severity: "high",
-      title: `${evidence.flowKey}: app reported "${errorToasts[0].text}"`,
+      severity: "medium",
+      title: `${evidence.flowKey}: app reported "${errorToasts[0].text}" — not one of its own rules`,
       rationale:
-        `The application raised the error "${errorToasts[0].text}" with no failing HTTP call and no ` +
-        `input-validation wording, which points at the product rather than the test data.`,
+        `The application showed "${errorToasts[0].text}" with no failing HTTP call. These words are not in the ` +
+        `app's rule catalog (generated from its code), so they are not a known validation; a fresh-state ` +
+        `re-run decides whether it is a product defect.`,
       smokingGun: { toast: errorToasts[0].text },
       reproduction: steps,
       actionable: true,

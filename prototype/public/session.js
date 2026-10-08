@@ -499,7 +499,7 @@
    * The box a run ends on. `key` names the part of the turn it closes ("API",
    * "UI", a journey) so a part that reports twice replaces its own box.
    */
-  function end({ tone = "ok", key = "", title = "", lines = [], links = [] } = {}) {
+  function end({ tone = "ok", key = "", title = "", lines = [], links = [], html = "" } = {}) {
     if (!S.on || !el.end) return;
     stopWorking();
     const k = key || "run";
@@ -513,6 +513,7 @@
       (key ? `<span class="ss-call-k">${h(key)}</span>` : "") + `</div>` +
       (title ? `<div class="ss-call-t">${h(title)}</div>` : "") +
       lines.filter(Boolean).map((l) => `<p>${h(l)}</p>`).join("") +
+      (html || "") +
       (links.length
         ? `<div class="ss-call-links">${links
             .map((a) => `<a href="${h(a.href)}" target="_blank" rel="noopener">${icon(a.icon || "file-text")}${h(a.label)}</a>`)
@@ -589,10 +590,13 @@
   }
 
   // ── the typed UI case: the answer renderUiInstructResult already words ───
-  function uiResult({ cls, title, lines = [] }) {
+  // `html`: the evidence block app.js builds for a screen run (the failing step's screenshot,
+  // the app's own words, the rule in its code, any step the run recovered) — every value in
+  // it is escaped there.
+  function uiResult({ cls, title, lines = [], html = "" }) {
     if (!S.on) return;
     const tone = cls === "ok" ? "ok" : cls === "skip" ? "skip" : "bad";
-    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1) });
+    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), html });
   }
 
   // ── a browser journey (/api/ui-run) ──────────────────────────────────────
