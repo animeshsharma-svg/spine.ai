@@ -140,6 +140,13 @@ export class EventsPage extends BasePage {
     await this.dismissDistractions();
 
     if (!(await this.onCreateScreen())) {
+      // On /login the browser was never signed in; blaming the Create Event
+      // control sends whoever reads this to the wrong screen.
+      if (new URL(this.page.url()).pathname.includes("/login")) {
+        throw new Error(
+          `could not reach the ${path} create screen — the browser is on the login page, so it was not signed in.`,
+        );
+      }
       throw new Error(
         `could not reach the ${path} create screen — still on ${this.page.url()}. ` +
           `The "Create Event" control or its menu labels may have changed again.`,

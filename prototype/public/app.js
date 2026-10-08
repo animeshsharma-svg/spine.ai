@@ -54,9 +54,21 @@ let catRunning = null; // the open EventSource while cases are running
 // Purchase-to-bill is off the nav for now: its runner and endpoints stay,
 // so restoring it is a nav entry and a view block, nothing more.
 // crosscheck = UI vs API (public/crosscheck.js), product = Product knowledge (public/model.js), matrix = Bidding scenarios (public/matrix.js)
-// success = Success (public/success.js)
-const VIEWS = ["run", "api", "ui", "journeys", "cases", "reports", "bugs", "crosscheck", "product", "matrix", "success"];
-const DEFAULT_VIEW = "run";
+// success = Success (public/success.js), home = Home (public/home.js),
+// welcome = the landing page, login = sign in (both public/welcome.js — no app shell)
+// plan = Plan a run (public/plan.js), which replaced API automation and UI automation
+// sessions = every run kept, as sessions (public/sessions.js), which replaced Reports
+const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "crosscheck", "product", "matrix", "success"];
+
+/**
+ * Old addresses that now live elsewhere: the hash is rewritten, so a bookmark
+ * to API automation or UI automation lands on Plan a run. (The two views stay
+ * in the page, hidden: their inputs and run functions are what Plan drives.)
+ * Reports is Sessions now; its view stays in the page, unreached, because
+ * loadHistory() still writes into it.
+ */
+const REDIRECTS = { api: "plan", ui: "plan", reports: "sessions" };
+const DEFAULT_VIEW = "home";
 
 /**
  * Views kept but not shown. An old link or bookmark lands on the page that
@@ -65,10 +77,26 @@ const DEFAULT_VIEW = "run";
  */
 const HIDDEN_VIEWS = { journeys: "cases" };
 
+/**
+ * Addresses that show an existing view under their own name, so the address
+ * bar says what the reader is looking at. A session (#/session/{id}) is the
+ * Run screen with that run in it (public/home.js opens it); the list of them
+ * is its own view, #/sessions.
+ */
+const VIEW_ALIASES = { session: "run" };
+
 function currentView() {
-  const want = (location.hash.replace(/^#\/?/, "") || DEFAULT_VIEW).split("/")[0];
+  // "#/login?next=…" names the view "login": a query after the name is not part of it.
+  const want = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || DEFAULT_VIEW;
   if (HIDDEN_VIEWS[want]) return HIDDEN_VIEWS[want];
+  if (VIEW_ALIASES[want]) return VIEW_ALIASES[want];
   return VIEWS.includes(want) ? want : DEFAULT_VIEW;
+}
+
+/** Where the run in this tab lives: its session's address, or the Run screen. */
+function sessionHash() {
+  const id = window.spineSession?.id;
+  return id ? `#/session/${encodeURIComponent(id)}` : "#/run";
 }
 
 function showView(name) {
@@ -76,13 +104,18 @@ function showView(name) {
     section.classList.toggle("active", section.dataset.view === name);
   }
   for (const link of document.querySelectorAll(".nav-item")) {
-    const on = link.dataset.view === name;
+    // `data-also` lets one nav entry stand for several views: "Plan a run"
+    // is API automation and UI automation, two screens behind one entry.
+    const on = link.dataset.view === name || (link.dataset.also ?? "").split(" ").includes(name);
     link.classList.toggle("active", on);
     if (on) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
-  // A view change is a navigation: start at the top of the new one.
-  document.querySelector(".views")?.scrollTo({ top: 0, behavior: "instant" });
+  // The shell reads this to size the content column (Home is narrower).
+  document.documentElement.dataset.view = name;
+  // A view change is a navigation: start at the top of the new one. The page
+  // itself scrolls now, not a pane inside it.
+  window.scrollTo({ top: 0, behavior: "instant" });
   document.title = name === DEFAULT_VIEW ? "spine.ai" : `spine.ai · ${name}`;
 }
 
@@ -249,10 +282,22 @@ function syncStopBtn() {
   if (b) b.hidden = !(uiRunning || apiRunning);
 }
 
+/**
+ * Whether a run started from this page is still in flight.
+ *
+ * This used to live only as the `.live` class on the Run nav link; the
+ * sidebar no longer has that link (the running pill at its foot replaces
+ * it), so the state is kept here. The stale-build reload and Home both read it.
+ */
+let runLive = false;
+
 function goToRun(label, hint) {
-  if (currentView() !== "run") location.hash = "#/run";
-  const link = document.querySelector('.nav-item[data-view="run"]');
-  link?.classList.add("live");
+  // A run nobody asked for in words (the PO flow, a catalogue pick) still opens a session turn.
+  // Opened first, so the address below can name the session.
+  if (label) window.spineSession?.ensure({ text: `Run ${label}` });
+  if (currentView() !== "run") location.hash = sessionHash();
+  runLive = true;
+  document.querySelector('.nav-item[data-view="run"]')?.classList.add("live");
   if (label) {
     runPending = label;
     runPendingHint = hint || "";
@@ -311,8 +356,10 @@ function setRunPending(label, hint) {
 
 /** The run has stopped: take the pulse off the nav and the spinner off the panel. */
 function runFinished() {
+  runLive = false;
   document.querySelector('.nav-item[data-view="run"]')?.classList.remove("live");
   syncStopBtn();
+  window.spineSession?.idle();
   if (runPending) {
     runPending = null;
     renderAutomation();
@@ -358,9 +405,24 @@ function tickRunCard() {
 setInterval(tickRunCard, 1000);
 
 function initRouter() {
-  window.addEventListener("hashchange", () => showView(currentView()));
-  if (!location.hash) location.replace(`#/${DEFAULT_VIEW}`);
-  showView(currentView());
+  // Signed out, a route lands on the landing page or sign-in; signed in, never
+  // on sign-in (the rules are in index.html's head script, window.spineAuth).
+  const route = () => {
+    const go = window.spineAuth?.resolve(location.hash);
+    if (go) {
+      location.replace(go); // fires hashchange again, which shows it
+      return;
+    }
+    const moved = REDIRECTS[location.hash.replace(/^#\/?/, "").split(/[/?]/)[0]];
+    if (moved) {
+      location.replace(`#/${moved}`);
+      return;
+    }
+    showView(currentView());
+  };
+  window.addEventListener("hashchange", route);
+  if (!location.hash) location.replace(window.spineAuth?.resolve("") ?? `#/${DEFAULT_VIEW}`);
+  route();
 }
 
 /**
@@ -380,12 +442,10 @@ function syncNav() {
     }
     el.textContent = text;
   };
-  const apiCases = featureGroups.reduce(
-    (n, g) => n + g.children.reduce((m, c) => m + (selected.has(c.id) ? c.cases || 0 : 0), 0),
-    0,
-  );
-  badge("api", apiCases ? String(apiCases) : "");
-  badge("ui", uiSelected.size ? String(uiSelected.size) : "");
+  // "Plan a run": the features picked for the next run (not the "always runs"
+  // steps, which follow a pick rather than being one).
+  const picked = pickedFeatureCount();
+  badge("plan", picked ? String(picked) : "");
   badge("run", checkRows.length ? String(checkRows.length) : "");
 }
 
@@ -454,6 +514,7 @@ async function init() {
       uiRunning = null;
     }
     runStoppedNote = null;
+    window.spineSession?.stopped();
     runFinished();
     $("#status").textContent = "stopped";
   });
@@ -739,6 +800,20 @@ async function runFlowDirect(flowId, badge) {
 // ── feature tree: what to test ────────────────────────────────────────────
 let featureGroups = [];
 let selected = new Set();
+/** "loading" | "ready" | "error" — Plan a run draws its list from this. */
+let featuresState = "loading";
+
+/** Features picked for the next run: the selection minus the "always runs" steps. */
+function pickedFeatureCount() {
+  let n = 0;
+  for (const g of featureGroups) for (const f of g.children) if (selected.has(f.id) && !f.prerequisite) n++;
+  return n;
+}
+
+/** Tells Plan a run (public/plan.js) that features, journeys or the account changed. */
+function planChanged() {
+  window.spinePlan?.render();
+}
 /**
  * Set when this account's tests are a suite of their own (the RFP suite):
  * its tree comes from the suite, and "Run" hands the ticked parts to it.
@@ -748,6 +823,8 @@ let featureSuite = null;
 async function loadFeatures() {
   const box = $("#tree");
   box.innerHTML = "";
+  featuresState = "loading";
+  planChanged();
   // Say what the wait is for. The first read of a company's configuration is a
   // live round trip and can take half a minute; a bare spinner reads as broken.
   box.appendChild(
@@ -798,7 +875,19 @@ async function loadFeatures() {
      * question instead of answering it for you.
      */
     void defaults;
-    selected = new Set();
+    /**
+     * A client change keeps the picks that still apply here — the same
+     * feature, with tests, switched on for this company — and drops the rest.
+     * (The first load starts empty because nothing has been picked yet.)
+     */
+    const stillHere = new Set();
+    for (const g of groups) {
+      for (const f of g.children) {
+        if (f.cases > 0 && f.config?.state !== "off" && !f.prerequisite) stillHere.add(f.id);
+      }
+    }
+    selected = new Set([...selected].filter((id) => stillHere.has(id)));
+    featuresState = "ready";
 
     // Some accounts only cover part of the product. Say so above the tree,
     // otherwise a short list reads as something failing to load.
@@ -838,6 +927,8 @@ async function loadFeatures() {
   } catch {
     box.innerHTML = "";
     box.appendChild(el("div", "empty", "Could not load the feature list."));
+    featuresState = "error";
+    planChanged();
   }
 }
 
@@ -1108,6 +1199,7 @@ function renderTree() {
     meta.textContent = pickedFeatures
       ? `${pickedFeatures} picked · ${pickedCases} test${pickedCases === 1 ? "" : "s"} will run`
       : "nothing picked yet";
+  planChanged();
 }
 
 /**
@@ -1318,6 +1410,12 @@ async function showRunComplete({
    */
   journey = null,
 }) {
+  // On the Run screen the run already ends in its session, so the result goes
+  // there as its DONE / FAILED box instead of a modal over it.
+  if (window.spineSession?.showing()) {
+    window.spineSession.runEnd({ total, passed, failed, skipped, error, journey, subtitle, kind });
+    return;
+  }
   const modal = $("#modal");
   const journeyStopped = !!(journey && journey.stoppedAt);
   const ok = !error && failed === 0 && !journeyStopped;
@@ -1693,6 +1791,12 @@ function runSelectedFeatures() {
     $("#auto-summary").textContent = "tick at least one feature first";
     return;
   }
+  const names = ids.map(featureLabel);
+  window.spineSession?.begin({
+    kind: "features",
+    mode: "api",
+    text: `Run the API tests for ${names.length > 4 ? `${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : names.join(", ")}`,
+  });
   goToRun(`${ids.length} feature${ids.length === 1 ? "" : "s"} · API tests`);
   checkRows = [];
   renderAutomation();
@@ -1739,6 +1843,11 @@ function runRfpSuite(ids) {
   const planned = parts.reduce((sum, f) => sum + (f.cases || 0), 0) +
     // The publish flow (Technical / RFP only) runs whether or not it was ticked.
     (parts.some((f) => f.id === "events.rfp_only") ? 0 : featureGroups.flatMap((g) => g.children).find((f) => f.id === "events.rfp_only")?.cases || 0);
+  window.spineSession?.begin({
+    kind: "features",
+    mode: "api",
+    text: `Publish a real RFP event and run the cases for ${parts.map((f) => f.label).join(" + ")} — ${n} line item${n === 1 ? "" : "s"}, ${vendors} vendor${vendors === 1 ? "" : "s"}`,
+  });
   goToRun(`RFP event publish · ${parts.map((f) => f.label).join(" + ")}`, "publishing a real RFP event on the account, then running each case in turn");
   checkRows = [];
   runPlanned = planned;
@@ -1935,21 +2044,38 @@ function renderApiInstructResult(state, row) {
 
 function runApiInstruction(text, onEnd) {
   renderApiInstructResult("running");
+  window.spineSession?.working("Matching it to the case library");
   const qs = new URLSearchParams({ c: String(currentClient), text });
   const es = new EventSource(`/api/run-case-api?${qs}`);
   watchStreamEnd(es);
   apiRunning = es;
   const stopBtn = $("#run-stop-btn");
   if (stopBtn) stopBtn.hidden = false;
-  const end = () => {
+  // Every check this stream sent, for the session's closing box.
+  const rows = [];
+  const end = (error) => {
     apiRunning = null;
     syncStopBtn();
-    onEnd?.();
+    window.spineSession?.apiEnd(rows, error);
+    // Run (Both) goes on to the browser part; Run (API) is over here.
+    if (onEnd) onEnd();
+    else window.spineSession?.idle();
   };
   let lastRow = null;
+  es.addEventListener("line", (ev) => {
+    const line = String(JSON.parse(ev.data).line ?? "").trim();
+    if (!line) return;
+    // What the run could not cover is worth keeping; progress only replaces the clock's words.
+    if (/^(not covered|this company allows)/i.test(line)) window.spineSession?.note(line, "info");
+    else window.spineSession?.working(line);
+  });
   es.addEventListener("check", (ev) => {
     lastRow = JSON.parse(ev.data).check;
     renderApiInstructResult("result", lastRow);
+    const at = rows.findIndex((r) => r.id === lastRow.id);
+    if (at >= 0) rows[at] = lastRow;
+    else rows.push(lastRow);
+    window.spineSession?.apiCheck(lastRow);
   });
   es.addEventListener("done", () => {
     es.close();
@@ -1959,13 +2085,16 @@ function runApiInstruction(text, onEnd) {
     es.close();
     const message = JSON.parse(ev.data).message || "run error";
     renderApiInstructResult("result", { pass: false, scenario: text, message, verdict: "error" });
-    end();
+    end(message);
   });
 }
 
 function runInstruction(mode) {
   const text = $("#request").value.trim();
   if (!text) return;
+  // The ask opens a turn on the Run screen's session (public/session.js) —
+  // a new session, or the next turn of this one when it came from its composer.
+  window.spineSession?.begin({ text, mode, kind: "typed" });
   if (mode === "ui") return runTestCase();
   if (mode === "api") return runApiInstruction(text);
   // both: API first (its own card), then the UI compiler fills the panel below.
@@ -1998,6 +2127,15 @@ function skipGroup(reason) {
   else if (r.includes("only holds when") || /company setting|is (on|off) (for|here)/.test(r)) key = "setting";
   else if (/^needs |does not build|cannot build|has no access|cannot be put there/.test(r)) key = "setup";
   return { key, ...SKIP_GROUPS[key] };
+}
+
+/**
+ * The compiler's gaps as one list. Each gap is often a whole sentence ending
+ * in a full stop, so joined as they came they read "login.; The missing…"
+ * and end "assertion.." — the stops come off before the join.
+ */
+function gapWords(gaps) {
+  return (gaps || []).map((g) => String(g).trim().replace(/[\s.;,]+$/, "")).filter(Boolean).join("; ");
 }
 
 /** "QA_Platform_live_add_to_closed_stage_95" → "Live add to closed stage". */
@@ -2067,6 +2205,20 @@ function wireRunStream(es, write, onEnd) {
     const { step, planned } = JSON.parse(ev.data);
     if (!step) return;
     journeyStepsLive[step.n - 1] = step;
+    if (step.call) {
+      window.spineSession?.request({
+        key: `journey:${step.n}`,
+        method: step.call.method,
+        path: step.call.path,
+        status: step.status,
+        ms: step.ms,
+        title: `${step.n}. ${step.title}`,
+        pass: step.verdict === "worked" ? true : step.verdict === "broken" ? false : null,
+        body: step.call.body,
+        reply: step.response,
+        message: step.message,
+      });
+    }
     if (planned) journeyPlanned = planned;
     journeyProgress = "";
     // The card's "Currently:" line names what is in flight NOW — the next
@@ -2196,6 +2348,19 @@ function wireRunStream(es, write, onEnd) {
     if (i >= 0) checkRows[i] = check;
     else checkRows.push(check);
     renderAutomation();
+    if (check.request?.method) {
+      window.spineSession?.request({
+        key: `check:${check.id}`,
+        method: check.request.method,
+        path: check.request.path,
+        status: check.httpStatus,
+        ms: check.durationMs,
+        title: `${check.id} · ${check.scenario || ""}`,
+        pass: check.inconclusive ? null : !!check.pass,
+        body: check.request.body,
+        message: check.message,
+      });
+    }
   });
   es.addEventListener("progress", (ev) => {
     const p = JSON.parse(ev.data);
@@ -2443,6 +2608,12 @@ async function runSelectedUiJourneys() {
     if (m) m.textContent = "tick at least one feature that has a journey";
     return;
   }
+  const journeyNames = keys.map((k) => uiFlows.find((f) => f.key === k)?.label || k);
+  window.spineSession?.begin({
+    kind: "journeys",
+    mode: "ui",
+    text: `Run in the browser: ${journeyNames.join(", ")}`,
+  });
   goToRun(
     `${keys.length} browser journey${keys.length === 1 ? "" : "s"}`,
     "A real browser is driving Procol. Watch it in the run log below — a journey reports there, " +
@@ -2644,6 +2815,7 @@ function onQueued(es, write) {
       line = JSON.parse(ev.data).line || line;
     } catch {}
     write?.(line, "note");
+    window.spineSession?.working(`${line} — it starts by itself as soon as the browser is free`);
     setRunPending(runPending, `${line}. It starts by itself as soon as the browser is free.`);
     pushUiLine("[queue] " + line);
   });
@@ -2743,6 +2915,8 @@ function renderUiSteps() {
 
 // ── browser journeys: run the real Playwright UI flows from a button ──────
 let uiFlows = [];
+/** Whether this account's browser journeys have been read yet (Plan a run waits for it). */
+let uiFlowsLoaded = false;
 let uiLimits = null;
 let uiRunning = null; // EventSource of the active run
 let apiRunning = null; // EventSource of the active Run (API) instruction match
@@ -2798,6 +2972,7 @@ async function loadPoInput() {
     if (!info.account) {
       bar.hidden = true;
       setSingleRunner(false);
+      planChanged();
       return;
     }
     bar.hidden = false;
@@ -2863,9 +3038,11 @@ async function loadPoInput() {
       sibling.hidden = false;
     }
     setSingleRunner(true);
+    planChanged();
   } catch {
     bar.hidden = true;
     setSingleRunner(false);
+    planChanged();
   }
 }
 
@@ -3099,11 +3276,13 @@ function runPoAutomation() {
 
 async function loadUiFlows() {
   const box = $("#ui-tree");
+  uiFlowsLoaded = false;
   try {
     const { flows, limits, erfxMode, boqAllowed, note } = await (
       await fetch("/api/ui-flows?c=" + currentClient + baseParam())
     ).json();
     uiFlows = flows;
+    uiFlowsLoaded = true;
     setNavCount("ui", flows.length);
     uiLimits = limits;
     uiBoqAllowed = boqAllowed ?? null;
@@ -3148,9 +3327,12 @@ async function loadUiFlows() {
         (boqAllowed === true ? " · BOQ on" : boqAllowed === false ? " · BOQ off" : "") +
         ` · ${flows.length} journey${flows.length === 1 ? "" : "s"} built`;
     }
+    planChanged();
   } catch {
     box.innerHTML = "";
     box.appendChild(el("div", "empty", "Could not load browser journeys."));
+    uiFlowsLoaded = true;
+    planChanged();
   }
 }
 
@@ -3187,7 +3369,9 @@ function openJourneyReport(runId, { auto = true } = {}) {
     // journey. The server resolves this id against the journey's findings.
     bugHref: `/api/bug-report?run=${encodeURIComponent(runId)}`,
   });
-  if (auto) window.open(url, "_blank", "noopener");
+  // Watching the run in its session, the report is a link on the journey's
+  // DONE / FAILED box rather than a tab that takes the screen away.
+  if (auto && !window.spineSession?.showing()) window.open(url, "_blank", "noopener");
 }
 
 function runUiJourney(flow, onDone, opts = {}) {
@@ -3244,6 +3428,7 @@ function runUiJourney(flow, onDone, opts = {}) {
     if (!frame) return;
     frameImg.src = `data:image/jpeg;base64,${frame}`;
     if (framePanel) framePanel.hidden = false;
+    window.spineSession?.frame();
   });
   // A stream that dies mid-journey resolves the sequence too, or the run after
   // it would never start and the panel would wait on a journey that is gone.
@@ -3276,6 +3461,7 @@ function runUiJourney(flow, onDone, opts = {}) {
       write(`${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
       write(`   ${v.rationale}`, "note");
       for (const e of v.evidence ?? []) write(`   • ${e}`, "note");
+      window.spineSession?.note(`${v.title} — ${v.rationale}`, v.actionable ? "bad" : "info", meta.label);
     }
     loadFindings();
   });
@@ -3294,6 +3480,7 @@ function runUiJourney(flow, onDone, opts = {}) {
     btn.classList.remove("running");
     btn.classList.add("bad");
     es.close();
+    window.spineSession?.journeyEnd({ label: flow.label || flow.key, code: 1, runId, error: msg });
     if (!opts.partOfSequence) runFinished();
     uiRunning = null;
     const showsThisOne = opts.autoOpen !== false;
@@ -3308,6 +3495,7 @@ function runUiJourney(flow, onDone, opts = {}) {
     btn.classList.remove("running");
     btn.classList.add(code === 0 ? "ok" : "bad");
     es.close();
+    window.spineSession?.journeyEnd({ label: flow.label || flow.key, code, runId, took: elapsedInWords(Date.now() - runStartedAt) });
     if (!opts.partOfSequence) runFinished();
     uiRunning = null;
     loadFindings();
@@ -3535,7 +3723,11 @@ async function loadHistory() {
         // Only an API run has checks to replay into the panel. Opening a
         // journey or a PO run that way showed an empty panel and looked broken;
         // their report IS their result, so go straight to it.
-        if (r.kind === "api" || !r.kind) return openRun(r.id, item);
+        // It opens at its own address (#/session/{id}), which replays it there.
+        if (r.kind === "api" || !r.kind) {
+          location.hash = `#/session/${encodeURIComponent(r.id)}`;
+          return;
+        }
         const first = (r.reports ?? [])[0];
         if (first) window.open(first.href, "_blank", "noopener");
       });
@@ -3561,6 +3753,23 @@ async function loadHistory() {
   }
 }
 
+/**
+ * What a saved run was asked to do, in words a reader knows: feature names
+ * instead of "features: events.type_rules, …", no "api plan:" prefix.
+ */
+function askedInWords(request) {
+  const q = String(request ?? "").trim();
+  const feats = q.match(/^features:\s*(.+)$/i)?.[1];
+  if (feats) {
+    const names = feats.split(",").map((s) => featureLabel(s.trim()).split(" › ").pop()).filter(Boolean);
+    const shown = names.length > 5 ? `${names.slice(0, 5).join(", ")} and ${names.length - 5} more` : names.join(", ");
+    return `Run the API tests for ${shown}`;
+  }
+  const journey = q.match(/^browser journey:\s*(.+)$/i)?.[1];
+  if (journey) return `Run in the browser: ${featureLabel(journey.trim()).split(" › ").pop()}`;
+  return q.replace(/^(api plan|api|ui)\s*:\s*/i, "") || "Saved run";
+}
+
 async function openRun(id, item) {
   document.querySelectorAll(".run-item.active").forEach((n) => n.classList.remove("active"));
   item?.classList.add("active");
@@ -3569,11 +3778,14 @@ async function openRun(id, item) {
     const rec = await (await fetch("/api/runs/" + encodeURIComponent(id))).json();
     execData = { flowResults: rec.flowResults };
     designedCases = null;
+    // A saved run opens as a finished session turn: what was asked, then what it did.
+    window.spineSession?.begin({ kind: "features", mode: "api", text: askedInWords(rec.request), replay: true, id });
     checkRows = rec.checkResults || [];
     journeyFromRecord(rec.journey);
     renderAutomation();
     replayTrace(rec.events);
     renderReport(rec.report);
+    window.spineSession?.replayed(rec);
   } catch {
     if ($("#report")) $("#report").innerHTML = "";
   }
@@ -3886,6 +4098,13 @@ function journeyMs(ms) {
 }
 
 /**
+ * Field checks are still run and kept in every report, but not shown on the
+ * journey for now (Aanya, 2026-10-08: "remove for now", she will say when to
+ * bring them back). true puts the tally and each step's checks back.
+ */
+const SHOW_FIELD_CHECKS = false;
+
+/**
  * Postman-style "Tests" for one journey step: the field-level assertions the
  * runner evaluated against the live reply. Failed first, then the rest.
  */
@@ -4025,7 +4244,7 @@ function renderJourney() {
         (refused ? ` · ${refused} refused` : "") +
         (broken ? ` · ${broken} broken` : "") +
         (notRun ? ` · ${notRun} not run` : "") +
-        (checks.n ? ` · field checks ${checks.ok}/${checks.n}${checks.bad ? ` (${checks.bad} failed)` : ""}` : "")
+        (SHOW_FIELD_CHECKS && checks.n ? ` · field checks ${checks.ok}/${checks.n}${checks.bad ? ` (${checks.bad} failed)` : ""}` : "")
       : `${total} step${total === 1 ? "" : "s"} planned`;
     html +=
       `<div class="journey-head"><b>The journey this run walks${journeyLive?.label ? ` — ${esc(journeyLive.label)}` : ""}</b>` +
@@ -4066,7 +4285,7 @@ function renderJourney() {
           (rec.actual ? `<div class="jstep-actual"><span class="cv-k">What happened</span>${esc(CaseView.scrub(rec.actual, known))}</div>` : "") +
           reason +
           (took ? `<div class="jstep-call">${esc(took)}</div>` : "") +
-          (rec.assertions ? journeyChecksHtml(rec.assertions, known) : "") +
+          (SHOW_FIELD_CHECKS && rec.assertions ? journeyChecksHtml(rec.assertions, known) : "") +
           journeyStepDetails(rec) +
           `</div><span class="jstep-verdict">${esc(JOURNEY_VERDICT_WORD[rec.verdict] ?? rec.verdict)}</span></li>`;
       } else if (i === current) {
@@ -4826,6 +5045,8 @@ function renderUiInstructResult(state, d = {}) {
           .map((s) => `<li>${s.status === "ok" ? "✓" : s.status === "failed" ? "✗" : "–"} ${esc(planStepInWords(s))}${s.detail ? ` <span>— ${esc(s.detail)}</span>` : ""}</li>`)
           .join("")}</ol></details>`
       : "");
+  // The same answer closes the session's turn: green DONE, red FAILED, grey NOT TESTED.
+  window.spineSession?.uiResult({ cls, title: d.title || "", lines: lines.filter(Boolean) });
 }
 
 function runTestCase(textOverride) {
@@ -4839,10 +5060,12 @@ function runTestCase(textOverride) {
   btn.disabled = true;
   $("#status").textContent = "compiling & running…";
   renderUiInstructResult("running");
+  window.spineSession?.working("Compiling your test case into browser steps");
 
   const con = $("#ui-console");
   resetUiSteps();
-  showRunLog();
+  // Folded: the session narrates the plan step by step; the raw lines stay one click away.
+  showRunLog({ collapsed: true });
   con.innerHTML = "";
   const write = (text, cls) => {
     con.appendChild(el("div", cls || "", esc(text)));
@@ -4871,9 +5094,14 @@ function runTestCase(textOverride) {
     if (!frame || !frameImg) return;
     frameImg.src = `data:image/jpeg;base64,${frame}`;
     if (framePanel) framePanel.hidden = false;
+    window.spineSession?.frame();
   });
 
-  es.addEventListener("stage", (ev) => write("› " + JSON.parse(ev.data).line, "cmd"));
+  es.addEventListener("stage", (ev) => {
+    const st = JSON.parse(ev.data);
+    write("› " + st.line, "cmd");
+    if (st.name === "execute") window.spineSession?.working(st.line);
+  });
   onQueued(es, write);
   /**
    * The compiler could not turn the text into steps, so the server stopped
@@ -4902,11 +5130,13 @@ function runTestCase(textOverride) {
     renderAutomation();
     write(`Not run: ${reason}`, "bad");
     if (b.hint) write(`   ${b.hint}`, "note");
+    window.spineSession?.note([b.covers, b.hint].filter(Boolean).join(" "), "warn");
     renderUiInstructResult("notrun", { reason: reason.charAt(0).toUpperCase() + reason.slice(1) + "." });
   });
   es.addEventListener("plan", (ev) => {
     const p = JSON.parse(ev.data);
     planTitle = p.title || "";
+    planGaps = p.coverage === "none" ? p.gaps || [] : [];
     renderUiInstructResult("running", { title: planTitle });
     /**
      * THE PLAN BECOMES ROWS, the same as every other run.
@@ -4942,15 +5172,18 @@ function runTestCase(textOverride) {
     );
     // Repairs are shown, never hidden: a plan the linter had to fix says the
     // compiler needs improving, and that is worth seeing.
-    if (p.coverage === "none") write(`   Cannot test this case yet — no step for: ${(p.gaps || []).join("; ") || "what it checks"}. Not running something else in its place.`, "bad");
-    else if (p.coverage === "partial") write(`   Only part of this case can be tested — no step for: ${(p.gaps || []).join("; ")}`, "note");
+    if (p.coverage === "none") write(`   Cannot test this case yet — no step for: ${gapWords(p.gaps) || "what it checks"}. Not running something else in its place.`, "bad");
+    else if (p.coverage === "partial") write(`   Only part of this case can be tested — no step for: ${gapWords(p.gaps)}`, "note");
     for (const w of p.warnings ?? []) if (!/^cannot test|^can only test/.test(w)) write(`   ${w}`, "note");
+    // The session narrates the plan as it runs: one line per step, a dot per verdict.
+    window.spineSession?.plan(p);
   });
   // Whether any step reported back, and the last error line seen — so a run
   // that dies before step 1 (sign-in, setup) says so instead of "no defects".
   let planStarted = false;
   let planError = "";
   let planTitle = "";
+  let planGaps = []; // what a plan that cannot run has no step for
   let planResult = null;
   es.addEventListener("log", (ev) => {
     const l = JSON.parse(ev.data).line;
@@ -4971,6 +5204,7 @@ function runTestCase(textOverride) {
         row.verdict = mark ? (mark === "✓" ? "did what it should" : "this step failed") : "running…";
         renderAutomation();
       }
+      window.spineSession?.planStep(at, m[4] ? (m[4].trim() === "✓" ? "ok" : "bad") : "run");
       setRunBar(Number(m[1]), Number(m[2]));
     }
     if (/^\[plan\]|create-event|erfx/.test(l)) write(l);
@@ -4990,6 +5224,9 @@ function runTestCase(textOverride) {
         (s.status === "ok" ? "did what it should" : s.status === "failed" ? "this step failed" : "never ran") +
         (s.detail ? ` — ${s.detail}` : "");
     });
+    r.steps.forEach((s, i) =>
+      window.spineSession?.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || ""),
+    );
     renderAutomation();
     setRunBar(r.steps.length, r.steps.length);
     const okCount = r.steps.filter((s) => s.status === "ok").length;
@@ -5011,6 +5248,7 @@ function runTestCase(textOverride) {
       const meta = VERDICT_META[v.kind] ?? VERDICT_META.automation_defect;
       write(`${meta.label.toUpperCase()} · ${v.severity} — ${v.title}`, v.actionable ? "bad" : "note");
       write(`   ${v.rationale}`, "note");
+      window.spineSession?.note(`${v.title} — ${v.rationale}`, v.actionable ? "bad" : "info", meta.label);
     }
     loadFindings();
   });
@@ -5025,7 +5263,8 @@ function runTestCase(textOverride) {
   };
   es.addEventListener("done", (ev) => {
     const d = JSON.parse(ev.data);
-    if (d.notRun) renderUiInstructResult("notrun", { title: planTitle, reason: "No step exists yet in the automation for what this case checks, so nothing was run in its place." });
+    // Not tested says why in one place: the step that is missing, when the compiler named it.
+    if (d.notRun) renderUiInstructResult("notrun", { title: planTitle, reason: planGaps.length ? `There is no step yet for: ${gapWords(planGaps)}. Nothing was run in its place.` : "No step exists yet in the automation for what this case checks, so nothing was run in its place." });
     else if (!planStarted) renderUiInstructResult("notrun", { title: planTitle, reason: `The run could not start${planError ? `: ${planError}` : "."}` });
     else renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: d.exitCode === 0 && planResult?.passed !== false });
     // The compiler itself can refuse to run: no step exists yet for the thing
@@ -5183,7 +5422,7 @@ const ROUTE_TAG = {
 let loadedBuild = null;
 
 function runInFlight() {
-  return !!document.querySelector('.nav-item[data-view="run"].live');
+  return runLive;
 }
 
 function staleBanner() {
@@ -6023,9 +6262,9 @@ function runPickedCases() {
     );
     for (const w of d.warnings || []) if (!/^resolved |^cannot test|^can only test/.test(w)) write(`Adjusted: ${w}`, "sub");
     if (d.coverage === "none") {
-      write(`Cannot test this case yet — no step can observe: ${(d.gaps || []).join("; ") || "what it checks"}. Refusing rather than running something else and calling it a pass.`, "gap");
+      write(`Cannot test this case yet — no step can observe: ${gapWords(d.gaps) || "what it checks"}. Refusing rather than running something else and calling it a pass.`, "gap");
     } else if (d.coverage === "partial") {
-      write(`Only part of this case can be tested — no step yet for: ${(d.gaps || []).join("; ")}.`, "gap");
+      write(`Only part of this case can be tested — no step yet for: ${gapWords(d.gaps)}.`, "gap");
     }
     // Pre-list every step so the person sees the whole plan, then watch it fill in.
     d.steps.forEach((s, i) => {
@@ -6174,6 +6413,8 @@ async function pollRunState() {
       (await fetch("/api/ai-usage")).json(),
     ]);
     const dot = $("#rs-dot");
+    // The strip is only there while a run holds the browser.
+    $("#run-strip").hidden = !st.running;
     if (st.running) {
       const secs = Math.round((Date.now() - st.running.since) / 1000);
       const mode = st.running.headed === false ? "headless" : st.running.headed ? "in the visible window" : "";
@@ -6181,7 +6422,7 @@ async function pollRunState() {
       $("#rs-text").textContent = `Running ${st.running.label}${mode ? ` (${mode})` : ""}${prog} · ${secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`}`;
       dot.className = "rs-dot busy";
     } else {
-      $("#rs-text").textContent = "Browser idle — runs go one at a time, in one window";
+      $("#rs-text").textContent = "";
       dot.className = "rs-dot idle";
     }
     $("#rs-queue").textContent = st.waiting?.length ? `· ${st.waiting.length} waiting: ${st.waiting.join(", ")}` : "";

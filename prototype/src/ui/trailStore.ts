@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { JourneyStep } from "./journeySteps.js";
+import { parseJourneyLine, type JourneyStep } from "./journeySteps.js";
 import { recordLedger } from "../db/ledgerWriter.js";
 import { mapTrail } from "../db/runLedger.js";
 
@@ -50,11 +50,32 @@ export function saveTrail(record: JourneyTrailRecord): void {
   }
 }
 
+/**
+ * A saved trail in today's words.
+ *
+ * Each step is saved with the wording it had on the day it ran, and every
+ * report, sheet and fact reads its steps from here. Re-reading the raw line
+ * means a wording fix reaches the runs already on disk, not only the next
+ * one. Timing and folded repeats stay exactly as they were recorded.
+ */
+function reworded(step: JourneyStep): JourneyStep {
+  const now = step?.raw ? parseJourneyLine(step.raw) : null;
+  return now ? { ...step, kind: now.kind, text: now.text } : step;
+}
+
+function inTodaysWords(record: JourneyTrailRecord): JourneyTrailRecord {
+  return {
+    ...record,
+    steps: (record.steps ?? []).map(reworded),
+    stoppedAt: record.stoppedAt ? reworded(record.stoppedAt) : record.stoppedAt,
+  };
+}
+
 export function readTrail(runId: string): JourneyTrailRecord | null {
   try {
     const file = join(TRAIL_DIR, `${runId}.json`);
     if (!existsSync(file)) return null;
-    return JSON.parse(readFileSync(file, "utf8")) as JourneyTrailRecord;
+    return inTodaysWords(JSON.parse(readFileSync(file, "utf8")) as JourneyTrailRecord);
   } catch {
     return null;
   }
@@ -67,7 +88,7 @@ export function listTrails(limit = KEPT): JourneyTrailRecord[] {
   for (const name of readdirSync(TRAIL_DIR).filter((n) => n.endsWith(".json")).sort().reverse()) {
     if (out.length >= limit) break;
     try {
-      out.push(JSON.parse(readFileSync(join(TRAIL_DIR, name), "utf8")) as JourneyTrailRecord);
+      out.push(inTodaysWords(JSON.parse(readFileSync(join(TRAIL_DIR, name), "utf8")) as JourneyTrailRecord));
     } catch {
       /* skip a half-written file */
     }

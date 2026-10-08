@@ -1,0 +1,193 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   SESSIONS (#/sessions) — public/sessions.js.
+
+   Header (title, + New session, the client bar), a toolbar (search, status
+   filters with counts), then the sessions grouped by day: one card per day,
+   one row per session. Loaded after home.css: every colour, font and
+   shadow is a token from the paper theme, so light and dark both follow.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The shell's content column already has 24px side padding; the page adds
+   the width cap, the gaps and the foot. */
+.view.sessions.active {
+  display: flex; flex-direction: column; gap: 20px;
+  width: 100%; max-width: 1080px; margin: 0 auto;
+  padding: 8px 0 40px;
+  color: var(--text);
+}
+:where(.view.sessions) :is(a, button, input):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ── header ───────────────────────────────────────────────────────────── */
+.sn-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.sn-head h1 {
+  flex: 1 1 auto; margin: 0;
+  font: 600 26px/1.2 var(--font-sans); letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+.sn-new {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px; border-radius: 8px;
+  background: var(--primary); color: var(--on-primary);
+  font: 500 13px/1 var(--font-sans); text-decoration: none; white-space: nowrap;
+  transition: background-color .2s ease;
+}
+.sn-new:hover { background: var(--primary-hover); }
+.sn-new .ico { width: 14px; height: 14px; }
+.sn-ctx:empty { display: none; }
+.sn-ctx .ctx-bar { justify-content: flex-end; }
+
+/* ── toolbar ──────────────────────────────────────────────────────────── */
+.sn-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sn-search {
+  flex: 1 1 260px; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 12px;
+  border: 1px solid var(--border-subtle); border-radius: 10px;
+  background: var(--card);
+}
+.sn-search:focus-within { border-color: var(--primary-border); box-shadow: 0 0 0 3px var(--focus); }
+.sn-search .ico { width: 16px; height: 16px; flex: none; color: var(--text-muted); }
+.sn-search input {
+  flex: 1; min-width: 0; height: 100%;
+  border: 0; outline: 0; background: transparent;
+  font: 400 14px var(--font-sans); color: var(--text-strong);
+}
+.sn-search input::placeholder { color: var(--text-2); }
+.sn-search input:focus-visible { outline: none; }
+.sn-search input::-webkit-search-cancel-button { cursor: pointer; }
+
+.sn-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.sn-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--border-subtle); background: var(--card); color: var(--text);
+  font: 400 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.sn-pill:hover { border-color: var(--border-strong); }
+.sn-pill[aria-pressed="true"] { background: var(--text-strong); color: var(--card); border-color: var(--text-strong); }
+.sn-n { font: 400 11px/1 var(--font-mono); opacity: .7; }
+
+/* ── day groups ───────────────────────────────────────────────────────── */
+.sn-body { display: flex; flex-direction: column; gap: 20px; }
+.sn-group { display: flex; flex-direction: column; }
+.sn-label {
+  margin: 0 0 4px 14px;
+  font: 500 11px/1.4 var(--font-mono); letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-2);
+}
+.sn-card {
+  background: var(--card);
+  border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── a row ────────────────────────────────────────────────────────────── */
+.sn-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  min-height: 64px; padding: 10px 16px;
+  color: inherit; text-decoration: none;
+  transition: background-color .15s ease;
+}
+.sn-row + .sn-row { border-top: 1px solid var(--border); }
+.sn-row:hover { background: var(--row-hover); }
+/* Inside a card that clips, the ring goes inside the row. */
+.view.sessions .sn-row:focus-visible { outline-offset: -2px; border-radius: 12px; }
+
+.sn-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: transparent; }
+.sn-dot.is-live { background: var(--primary); animation: snPulse 1.6s ease-in-out infinite; }
+.sn-dot.is-turn { background: var(--warn-dot); }
+
+.sn-text { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sn-title {
+  font: 500 14px/1.35 var(--font-sans); color: var(--text-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sn-meta {
+  font: 400 12px/1.35 var(--font-sans); color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* One bar per step, in run order: 16 bars (6px + 3px gaps) and "+N". */
+.sn-strip { flex: none; width: 180px; display: flex; align-items: center; gap: 3px; }
+.sn-strip i { flex: none; width: 6px; height: 16px; border-radius: 2px; background: var(--chip-bg); }
+.sn-strip .b-ok { background: var(--ok-dot); }
+.sn-strip .b-bad { background: var(--bad-dot); }
+.sn-strip .b-nc, .sn-strip .b-issue { background: var(--warn-dot); }
+.sn-strip .b-run { background: var(--primary); }
+.sn-strip .b-todo { background: var(--chip-bg); }
+.sn-plus { margin-left: 3px; font: 400 11px/1 var(--font-mono); color: var(--text-2); white-space: nowrap; }
+
+.sn-type { flex: none; width: 64px; font: 400 11px/1 var(--font-mono); letter-spacing: .5px; color: var(--text-2); }
+
+/* 88px for every word, so the columns line up: "Stopped early", the widest,
+   is 82px at this size. */
+.sn-tag {
+  flex: 0 0 88px; width: 88px; height: 24px; padding: 0 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  font: 500 12px/1 var(--font-sans); white-space: nowrap;
+}
+.sn-tag.tag-live { background: var(--primary-tint-2); color: var(--primary-text); }
+.sn-tag.tag-turn { background: var(--warn-bg); color: var(--warn-text); }
+.sn-tag.tag-bad  { background: var(--bad-bg); color: var(--bad-text); }
+.sn-tag.tag-ok   { background: var(--ok-bg); color: var(--ok-text); }
+.sn-tag.tag-warn { background: var(--tint-bg); color: var(--warn-text); }
+/* --text, not the brief's --text-2: on --chip-bg that is 4.3:1 in light, under 4.5:1. */
+.sn-tag.tag-grey { background: var(--chip-bg); color: var(--text); }
+
+/* ── states ───────────────────────────────────────────────────────────── */
+.sn-skel { display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 10px 16px; }
+.sn-skel + .sn-skel { border-top: 1px solid var(--border); }
+.sn-skel .sn-text { gap: 8px; }
+.sk { display: block; height: 10px; border-radius: 4px; background: var(--chip-bg); animation: snShimmer 1.4s ease-in-out infinite; }
+.sk-t { width: 55%; height: 12px; }
+.sk-m { width: 35%; }
+.sk-strip { flex: none; width: 140px; height: 16px; }
+.sk-type { flex: none; width: 40px; }
+.sk-tag { flex: none; width: 88px; height: 24px; border-radius: 999px; }
+
+.sn-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px; text-align: center; }
+.sn-empty-t { margin: 0; font: 500 15px/1.4 var(--font-sans); color: var(--text-strong); overflow-wrap: anywhere; }
+.sn-link {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: 500 14px/1.4 var(--font-sans); color: var(--primary-text);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.sn-note { margin: 0; font: 400 13px/1.5 var(--font-sans); color: var(--text-2); }
+.sn-note .sn-link { font-size: 13px; }
+
+.sn-more {
+  align-self: center;
+  height: 36px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--border-subtle); background: transparent; color: var(--text);
+  font: 400 13px/1 var(--font-sans); cursor: pointer;
+}
+.sn-more:hover { background: var(--row-hover); border-color: var(--border-strong); }
+
+@keyframes snPulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+@keyframes snShimmer { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  .sn-dot.is-live, .sk { animation: none; }
+  .sn-row, .sn-pill, .sn-new { transition: none; }
+}
+
+/* ── narrow: the strip goes under the title, the type label hides ────── */
+@media (max-width: 699px) {
+  .sn-row {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    grid-template-areas: "dot text tag" ". strip strip";
+    column-gap: 12px; row-gap: 8px;
+  }
+  .sn-dot { grid-area: dot; }
+  .sn-text { grid-area: text; }
+  .sn-strip { grid-area: strip; width: auto; }
+  .sn-strip:empty { display: none; }
+  .sn-type { display: none; }
+  .sn-tag { grid-area: tag; }
+  .sn-skel .sk-strip, .sn-skel .sk-type { display: none; }
+  .sn-new, .sn-pill, .sn-more { min-height: 44px; }
+  .sn-search { height: 44px; }
+  .sn-head h1 { font-size: 24px; }
+}

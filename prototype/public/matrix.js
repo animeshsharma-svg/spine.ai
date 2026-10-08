@@ -345,10 +345,10 @@
       `</div>`;
     slot.querySelector("[data-close]")?.addEventListener("click", () => (location.hash = hashFor(file, "")));
     // bring it into view, under the grid
-    // (only the views pane scrolls — scrollIntoView would also push the whole page up on a phone)
+    // The page itself scrolls (the views pane no longer has its own scroller),
+    // so scroll the window to just above the card.
     setTimeout(() => {
-      const pane = slot.closest(".views");
-      if (pane) pane.scrollTo({ top: slot.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop - 8, behavior: "smooth" });
+      window.scrollTo({ top: slot.getBoundingClientRect().top + window.scrollY - 8, behavior: "smooth" });
     }, 0);
   }
 

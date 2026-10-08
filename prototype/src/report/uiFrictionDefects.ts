@@ -1,5 +1,5 @@
 import type { DefectGroup } from "../agents/oracle.js";
-import { JOURNEY_PHASES, type JourneyStep } from "../ui/journeySteps.js";
+import { JOURNEY_PHASES, labelWords, type JourneyStep } from "../ui/journeySteps.js";
 import { listTrails, readTrail, type JourneyTrailRecord } from "../ui/trailStore.js";
 import { loadAllUiResults } from "./uiReport.js";
 import { redactSecrets } from "../checks/engine.js";
@@ -130,7 +130,10 @@ export function frictionDefects(runId?: string): DefectGroup[] {
       // Attributed to the step it ends at: the gap IS the work of getting
       // there. Only steps on Procol's own screens, so Playwright's start-up
       // and our own browser queue never look like product latency.
-      if (previous && !NOT_THE_PRODUCT.has(step.phase) && !NOT_THE_PRODUCT.has(previous.phase)) {
+      // A gap that ends at a stuck point or a heal is the automation searching
+      // for a control before giving up, not the screen making someone wait.
+      const searching = step.phase === "stuck" || step.phase === "healer";
+      if (previous && !searching && !NOT_THE_PRODUCT.has(step.phase) && !NOT_THE_PRODUCT.has(previous.phase)) {
         const ms = (step.at ?? 0) - (previous.at ?? 0);
         if (ms >= SLOW_STEP_MS) {
           const short = shortStep(step.text);
@@ -200,7 +203,45 @@ export function frictionDefects(runId?: string): DefectGroup[] {
       // on this suite. It is on the sheet because the cause is often a screen
       // that moved, and because a suite leaning on the healer is one release
       // away from red.
-      if (step.phase === "healer" || step.phase === "stuck") {
+      // A stuck point during sign-in that the run then fell back from: the
+      // control was there (a greyed-out Login button, usually because no code
+      // was typed), so "the locator stopped matching" would be untrue. And one
+      // later in the journey with the browser still on /login means the
+      // sign-in had not really worked, not that the step's screen moved.
+      const next = steps[i + 1];
+      const atSignIn = step.phase === "stuck" && next?.phase === "login" && /falling back/i.test(next.raw);
+      const onLoginPage = step.phase === "stuck" && !atSignIn && /^\[stuck\] recorded ".+?" on \S*\/login\b/i.test(step.raw);
+      if (atSignIn || onLoginPage) {
+        bump(
+          heals,
+          atSignIn ? "ui-signin:login-screen" : `ui-signin:lost:${stepKey(step)}`,
+          () => ({
+            defectFingerprint: atSignIn ? "ui-signin:login-screen" : `ui-signin:lost:${stepKey(step)}`,
+            kind: "automation_defect",
+            severity: atSignIn ? "low" : "medium",
+            title: atSignIn
+              ? "Couldn't sign in on the login screen, so the run used a saved session"
+              : `Not signed in: the journey was still on the login page at ${labelWords(step.raw.match(/recorded "(.+?)"/)?.[1] ?? "a step")}`,
+            rationale: atSignIn
+              ? `The automation reached the code box and could not finish signing in. The run carried on ` +
+                `with a saved session, so the login screen itself went untested. A greyed-out Login button ` +
+                `usually means no one-time code is saved for the account, not that the screen changed.`
+              : `The browser was still on the login page, so the sign-in before this step had not really ` +
+                `worked and this step's own screen was never reached.`,
+            flows: [trail.flowKey],
+            runs: [trail.runId],
+            occurrences: 1,
+            firstSeen: trail.startedAt,
+            lastSeen: trail.startedAt,
+            evidence: [`${trail.flowKey} · run ${trail.runId}`, (atSignIn ? next.text : step.text)],
+            reproduction: howToSee(trail, atSignIn ? next.text : step.text),
+            actionable: true,
+          }),
+          trail,
+          1,
+          `${trail.flowKey} · run ${trail.runId}`,
+        );
+      } else if (step.phase === "healer" || step.phase === "stuck") {
         bump(
           heals,
           `ui-heal:${stepKey(step)}`,

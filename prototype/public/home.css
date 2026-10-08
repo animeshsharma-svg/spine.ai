@@ -1,0 +1,709 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   THE PAPER THEME, THE SHELL AND HOME.
+
+   Loaded after styles.css and spine-extra.css. It does three things:
+
+   1. Defines the design tokens (Procol Design System on warm "paper"),
+      light and dark, switched by data-theme on <html> — set before paint by
+      the inline script in index.html, toggled by Theme in the sidebar.
+   2. Maps the older tokens (--paper, --ink, --accent, …) onto the new ones,
+      so every existing view picks up the palette without being restyled.
+   3. Lays out the shell (fixed sidebar + content column) and styles Home,
+      the sidebar and the client bar in full.
+
+   Rules: Geist Mono only for labels, ids and counts; no gradients, blur or
+   emoji; transitions are 250ms on colour, background and border only; every
+   status colour comes with its word.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root, [data-theme="light"] {
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace; /* labels, ids, counts only */
+  --page: #f4eee1;        /* page background */
+  --card: #fcf9f2;        /* cards, sidebar, inputs */
+  --border: #e9e1cf;  --border-subtle: #ded4be;  --border-strong: #cdc0a4;
+  --input-border: rgba(120,96,48,.24);  --row-hover: rgba(120,96,48,.05);
+  --chip-bg: #ebe2cf;  --tint-bg: #f2ebdc;
+  --text-strong: #1f1c17; --text-emph: #36322a; --text: #4a453b; --text-2: #6e685b; --text-muted: #a69e8c;
+  --primary: #1375e4; --primary-hover: #1169cd;
+  --primary-tint: #f3f8fe; --primary-tint-2: #e7f1fc; --primary-border: #c4ddf8; --primary-border-2: #a1c8f4;
+  --primary-text: #0e58ab; --primary-text-strong: #0b4689;
+  --ok-bg: #d1fae5;  --ok-text: #065f46;  --ok-dot: #10b981;
+  --bad-bg: #fee2e2; --bad-text: #991b1b; --bad-dot: #ef4444;
+  --warn-bg: #ffedd5; --warn-text: #9a3412; --warn-dot: #fb923c;
+  --shadow-xs: 0 1px 2px rgba(16,24,40,.05);
+  --shadow-md: 0 4px 8px -2px rgba(16,24,40,.1), 0 2px 4px -2px rgba(16,24,40,.06);
+  --shadow-lg: 0 12px 16px -4px rgba(16,24,40,.08), 0 4px 6px -2px rgba(16,24,40,.03);
+
+  /* Not in the brief, needed by it. */
+  /* White words on --primary are 4.48:1 (2.79:1 on the dark theme's), just
+     under 4.5. Every white-on-blue surface — Start, the avatar, the logo, a
+     ticked circle — uses this one step deeper blue instead: 5.35:1. */
+  --primary-fill: #1169cd; --primary-fill-hover: #0e58ab; --on-primary: #ffffff;
+  --shadow-sm: 0 1px 3px rgba(16,24,40,.1), 0 1px 2px rgba(16,24,40,.06);
+  /* A menu floats over the page and may cover a card: deeper than --shadow-lg,
+     so it reads as a layer on top rather than two cards colliding. */
+  --shadow-pop: 0 20px 40px -8px rgba(16,24,40,.22), 0 6px 12px -4px rgba(16,24,40,.10);
+  --focus: rgba(19, 117, 228, .5);    /* focus ring: primary at 50% */
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --page: #141310; --card: #1d1b17; --border: #302c25; --border-subtle: #3e392f; --border-strong: #5a5345;
+  --chip-bg: #2a2720; --tint-bg: #1a1814;
+  --text-strong: #f6f1e6; --text: #ddd5c4; --text-2: #c9c0ae;
+  --primary: #5a9eec; --primary-tint: #093970; --primary-tint-2: #0b4689; --primary-text: #c4ddf8;
+
+  /* Not in the brief's dark list; the light values would glare or vanish here. */
+  --input-border: rgba(232,220,196,.18); --row-hover: rgba(232,220,196,.05);
+  --text-emph: #ece5d6; --text-muted: #8a8272;
+  --primary-hover: #74aef0; --primary-border: #1f5fa8; --primary-border-2: #3b7fd0; --primary-text-strong: #e7f1fc;
+  /* the light tag fills glare on a dark page: deep fills, light words (all >= 7:1) */
+  --ok-bg: #0f2e22;   --ok-text: #6ee7b7;  --ok-dot: #34d399;
+  --bad-bg: #3a1717;  --bad-text: #fca5a5; --bad-dot: #f87171;
+  --warn-bg: #3a2210; --warn-text: #fdba74; --warn-dot: #fb923c;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 8px -2px rgba(0,0,0,.5), 0 2px 4px -2px rgba(0,0,0,.35);
+  --shadow-lg: 0 12px 16px -4px rgba(0,0,0,.55), 0 4px 6px -2px rgba(0,0,0,.35);
+  --shadow-pop: 0 20px 40px -8px rgba(0,0,0,.7), 0 6px 12px -4px rgba(0,0,0,.45);
+  --focus: rgba(90, 158, 236, .5);
+  color-scheme: dark;
+}
+
+/* The older tokens, now read from the new ones. Declared after styles.css's
+   own :root and its prefers-color-scheme block, so these win in both themes. */
+:root {
+  --topbar-h: 0px;
+  --paper: var(--page); --panel: var(--card);
+  --ink: var(--text-strong); --ink-soft: var(--text-2);
+  --line: var(--border); --card-line: var(--border);
+  --accent: var(--primary); --accent-soft: var(--primary-tint);
+  --good: var(--ok-text); --good-soft: var(--ok-bg);
+  --warn: var(--warn-text); --warn-soft: var(--warn-bg);
+  --bad: var(--bad-text); --bad-soft: var(--bad-bg);
+  --idle: var(--text-2); --idle-soft: var(--chip-bg);
+  --shadow: var(--shadow-sm);
+  --mono: var(--font-mono);
+  /* Used by the Runs screen's report links and never defined, so they fell
+     back to a hard-coded near-black (#1b2330) — unreadable on paper. */
+  --card2: var(--page);
+}
+
+body {
+  background: var(--page);
+  font-family: var(--font-sans);
+  letter-spacing: .25px;
+  padding: 16px;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* One focus ring for the whole app. :where() keeps it at the weight of
+   :focus-visible alone, so a view that draws its own ring still does. */
+:where(.app, .stale-bar) :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ── the page: sidebar + content in a row that wraps ──────────────────── */
+.app {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px;
+  min-height: calc(100vh - 32px);
+}
+.views {
+  flex: 999 1 560px; min-width: 0;
+  padding: 8px 24px 48px;
+  display: flex; flex-direction: column; gap: 28px;
+  height: auto; overflow: visible;
+}
+/* The content column has its own padding; a view needs none of its own. */
+.views > .view { padding: 0; }
+/* Beside the fixed sidebar the row must never wrap: between 820px and the
+   width where 248 + 560 fits, the content would drop under the sidebar. It
+   shrinks instead (min-width: 0). Under 820px the sidebar is static and the
+   row wraps, as the brief says. */
+@media (min-width: 821px) { .app { flex-wrap: nowrap; } }
+
+/* ── sidebar ──────────────────────────────────────────────────────────── */
+/* The slot holds the sidebar's place in the row; the sidebar itself is fixed
+   to the window, full height, and never scrolls with the page. */
+.sb-slot { flex: 0 0 248px; align-self: stretch; }
+.nav.sb {
+  position: fixed; top: 16px; bottom: 16px; left: 16px; z-index: 30;
+  width: 248px; height: auto;
+  display: flex; flex-direction: column; gap: 20px;
+  padding: 16px 12px;
+  background: var(--card);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow-xs);
+  overflow: visible;
+}
+
+.sb-top { display: flex; align-items: center; gap: 8px; padding-left: 4px; }
+.sb-brand {
+  display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto;
+  color: var(--text-strong); text-decoration: none; border-radius: 6px;
+}
+/* The logo: three white vertebrae on a blue square. */
+.sb-logo {
+  width: 28px; height: 28px; border-radius: 7px; flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: var(--primary-fill); color: var(--on-primary);
+}
+.sb-logo i { display: block; height: 3px; width: 12px; border-radius: 2px; background: var(--on-primary); }
+.sb-logo i:nth-child(2) { width: 8px; }
+.sb-name { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.sb-icon-btn {
+  width: 32px; height: 32px; flex: none;
+  display: grid; place-items: center;
+  border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--text-2); cursor: pointer;
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+.sb-icon-btn:hover { background: var(--tint-bg); color: var(--text-strong); }
+.sb-icon-btn .ico { width: 16px; height: 16px; }
+
+/* The groups scroll on a short window; the foot below never does. A 4px
+   inset keeps the items' focus rings inside the scroll box. */
+.sb-scroll {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 20px;
+  margin: -4px; padding: 4px;
+}
+.sb-label {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px; padding-left: 6px;
+  font: 500 11px/1.2 var(--font-mono); letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-2);
+}
+.sb-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); flex: none; }
+/* The dotted line that joins a group's items, dropped from the group's dot. */
+.sb-items {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-left: 8px; padding-left: 6px;
+  border-left: 1px dotted var(--border-strong);
+}
+
+.nav.sb .nav-item {
+  display: flex; align-items: center; gap: 10px;
+  height: 36px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: 8px;
+  font: 400 14px/1 var(--font-sans); letter-spacing: .25px;
+  color: var(--text);
+  background: transparent; box-shadow: none;
+  width: 100%; text-align: left; text-decoration: none; cursor: pointer;
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+.nav.sb .nav-item:hover { background: var(--tint-bg); color: var(--text-strong); }
+.nav.sb .nav-item:active { transform: none; }
+.nav.sb .nav-item.active {
+  background: var(--primary-tint); border-color: var(--primary-border);
+  box-shadow: var(--shadow-xs);
+  color: var(--primary-text-strong); font-weight: 500;
+}
+.nav.sb .nav-ico { width: 16px; height: 16px; flex: none; display: grid; place-items: center; }
+.nav.sb .nav-ico .ico { width: 16px; height: 16px; }
+/* styles.css hides nav labels under 900px (its old icon strip); the sidebar
+   keeps them. The collapsed rail still hides them (its rule is stronger). */
+.nav.sb .nav-item .nav-label { display: inline; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav.sb .nav-item .sb-pill, .nav.sb .nav-item .sb-theme-val { display: inline; }
+
+/* Count badges: blue = features ticked (Run tests), amber = sessions on
+   "Your turn", red = open critical + high defects. Each item's aria-label
+   says what its number means. */
+.nav.sb .nav-badge {
+  margin-left: auto; padding: 1px 6px; min-width: 0;
+  border-radius: 999px;
+  background: var(--primary-tint-2); color: var(--primary-text);
+  font: 500 11px/1.4 var(--font-mono); letter-spacing: 0; font-weight: 500;
+  box-shadow: none;
+}
+.nav.sb .nav-badge.warn { background: var(--warn-bg); color: var(--warn-text); }
+.nav.sb .nav-badge.bad { background: var(--bad-bg); color: var(--bad-text); }
+
+.sb-pill {
+  margin-left: auto; padding: 1px 6px; border-radius: 999px;
+  background: var(--chip-bg); color: var(--text);
+  font: 500 11px/1.4 var(--font-mono); letter-spacing: .5px;
+}
+.sb-theme-val { margin-left: auto; font: 400 11px/1 var(--font-mono); letter-spacing: .5px; color: var(--text-2); }
+
+/* ── the foot: the run pill while a run is in flight, then who is signed in ── */
+.sb-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
+
+/* The run pill: only there while a run is in flight (#sb-run is hidden otherwise). */
+.sb-run {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px; min-height: 20px;
+  font-size: 13px; line-height: 1.3; color: var(--text-2);
+  text-decoration: none;
+}
+.sb-run-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-muted); }
+.sb-run-text { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+/* Running: a 52px link to the live session. */
+a.sb-run.is-live {
+  height: 52px; padding: 0 10px 0 12px; gap: 10px;
+  background: var(--primary-tint); border: 1px solid var(--primary-border); border-radius: 10px;
+  transition: background-color .25s ease, border-color .25s ease;
+}
+a.sb-run.is-live:hover { background: var(--primary-tint-2); border-color: var(--primary-border-2); }
+a.sb-run.is-live .sb-run-dot { background: var(--primary); animation: sbPulse 1.4s ease-in-out infinite; }
+.sb-run-title {
+  font: 600 13px/1.25 var(--font-sans); color: var(--primary-text-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-run-line {
+  font: 400 11px/1.3 var(--font-mono); letter-spacing: 0; color: var(--primary-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-run-chev { width: 16px; height: 16px; flex: none; color: var(--primary-text); }
+@keyframes sbPulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+.sb-profile { position: relative; border-top: 1px solid var(--border); padding-top: 12px; }
+.sb-me {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; height: 52px; padding: 0 8px 0 6px;
+  border: 1px solid transparent; border-radius: 10px;
+  background: transparent; color: var(--text-strong);
+  font: inherit; letter-spacing: .25px; text-align: left; cursor: pointer;
+  transition: background-color .25s ease, border-color .25s ease;
+}
+.sb-me:hover, .sb-me[aria-expanded="true"] { background: var(--tint-bg); }
+.sb-avatar {
+  width: 34px; height: 34px; border-radius: 8px; flex: none;
+  display: grid; place-items: center;
+  background: var(--primary-fill); color: var(--on-primary);
+  font: 600 13px/1 var(--font-sans); letter-spacing: .5px;
+}
+.sb-me-text { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; }
+.sb-me-name { font: 600 13px/1.2 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-me-role { font: 400 11px/1.2 var(--font-mono); letter-spacing: 0; color: var(--text-2); }
+.sb-me-chev { width: 16px; height: 16px; flex: none; color: var(--text-2); }
+
+/* The profile menu opens upward, over the sidebar (and past it if it must). */
+.sb-menu {
+  position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 60;
+  width: 288px; max-width: calc(100vw - 32px);
+  padding: 6px;
+  background: var(--card); border: 1px solid var(--border-strong); border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+}
+.sb-menu-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+.sb-avatar.is-round { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-tint-2); color: var(--primary-text); font-size: 12px; }
+.sb-menu-who { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sb-menu-name { font: 600 13px/1.2 var(--font-sans); color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-menu-mail { font: 400 11px/1.2 var(--font-mono); letter-spacing: 0; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-menu-sep { height: 1px; margin: 6px -6px; background: var(--border); }
+.sb-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; height: 36px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: transparent;
+  font: 400 14px/1 var(--font-sans); letter-spacing: .25px; color: var(--text); text-align: left;
+  cursor: pointer;
+  transition: background-color .25s ease, color .25s ease;
+}
+.sb-menu-item .ico { width: 16px; height: 16px; flex: none; }
+.sb-menu-item:hover, .sb-menu-item:focus-visible { background: var(--tint-bg); color: var(--text-strong); }
+.sb-menu-item.is-bad, .sb-menu-item.is-bad:hover, .sb-menu-item.is-bad:focus-visible { color: var(--bad-text); }
+.sb-menu-item:focus-visible { outline-offset: -2px; }
+
+/* ── collapsed to the icon rail (desktop only; the stacked layout ignores it) ── */
+html.nav-collapsed .sb-slot { flex-basis: 52px; }
+html.nav-collapsed .nav.sb { width: 52px; padding: 16px 6px; gap: 16px; }
+html.nav-collapsed .sb-top { flex-direction: column; padding: 0; }
+html.nav-collapsed .sb-brand { flex: none; }
+html.nav-collapsed .sb-name, html.nav-collapsed .sb-label { display: none; }
+html.nav-collapsed .sb-scroll { gap: 12px; }
+html.nav-collapsed .sb-items { margin-left: 0; padding-left: 0; border-left: 0; }
+html.nav-collapsed .nav.sb .nav-item { justify-content: center; padding: 0; position: relative; }
+html.nav-collapsed .nav.sb .nav-badge { position: absolute; top: -4px; right: -4px; padding: 0 4px; font-size: 10px; }
+html.nav-collapsed .sb-run { justify-content: center; padding: 0; }
+html.nav-collapsed a.sb-run.is-live { height: 40px; }
+html.nav-collapsed .sb-run-text, html.nav-collapsed .sb-run-chev,
+html.nav-collapsed .sb-me-text, html.nav-collapsed .sb-me-chev { display: none; }
+html.nav-collapsed .sb-me { justify-content: center; padding: 0; }
+
+/* ── the client bar: client + environment, top right of the content ──── */
+.ctx-bar { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.ctx-picker {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 10px 0 6px; max-width: 100%; min-width: 0;
+  background: var(--card); color: var(--text-strong);
+  border: 1px solid var(--border-subtle); border-radius: 8px;
+  font: 400 13px/1 var(--font-sans); letter-spacing: .25px; text-align: left;
+  cursor: pointer;
+  transition: background-color .25s ease, border-color .25s ease;
+}
+.ctx-env { padding-left: 12px; }
+.ctx-picker:hover, .ctx-picker[aria-expanded="true"] { background: var(--tint-bg); border-color: var(--border-strong); }
+.ctx-picker[aria-expanded="true"] .ctx-chev { transform: rotate(180deg); }
+/* app.js's own pickers: kept, driven by the menus, never shown. */
+.ctx-native {
+  position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; border: 0;
+  opacity: 0; pointer-events: none; overflow: hidden; clip: rect(0 0 0 0);
+}
+.ctx-avatar {
+  width: 24px; height: 24px; border-radius: 6px; flex: none;
+  display: grid; place-items: center;
+  background: var(--text-strong); color: var(--page);
+  font: 600 10.5px/1 var(--font-mono); letter-spacing: .5px;
+}
+.ctx-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-env .ctx-name { font-weight: 500; }
+.ctx-id { font: 400 12px/1 var(--font-mono); letter-spacing: 0; color: var(--text-2); }
+.ctx-envdot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ok-dot); }
+.ctx-chev { width: 14px; height: 14px; flex: none; color: var(--text-2); }
+
+/* The menus. */
+.ctx-wrap { position: relative; display: inline-flex; max-width: 100%; min-width: 0; }
+.ctx-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+  min-width: max(100%, 220px); max-width: calc(100vw - 32px); max-height: min(360px, 70vh);
+  overflow-y: auto;
+  margin: 0; padding: 4px;
+  background: var(--card); border: 1px solid var(--border-strong); border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  overscroll-behavior: contain;
+}
+/* On Home the menu stops above the request card (home.js caps its height)
+   and the list scrolls between its two fixed ends: the column labels on top,
+   "Add a client…" at the bottom. */
+/* The ends reach into the menu's 4px padding (negative offset and margin),
+   so no sliver of a scrolled row shows above or below them. */
+.ctx-menu-head { position: sticky; top: -4px; z-index: 1; margin-top: -4px; background: var(--card); }
+.ctx-opt {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 32px; padding: 0 8px;
+  border-radius: 8px; cursor: pointer;
+  color: var(--text); font-size: 13px; line-height: 1.2; outline: none;
+  transition: background-color .25s ease, color .25s ease;
+}
+/* Column labels over the client list: names on the left, company ids on the
+   right (the right inset lines it up with the ids, before the check mark). */
+.ctx-menu-head {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 10px 29px 4px 8px;
+  font: 500 10px/1.2 var(--font-mono); letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-2);
+}
+.ctx-opt:hover, .ctx-opt:focus { background: var(--tint-bg); color: var(--text-strong); }
+.ctx-opt:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.ctx-opt[aria-selected="true"] { color: var(--text-strong); font-weight: 600; }
+.ctx-opt .ctx-avatar { width: 18px; height: 18px; border-radius: 5px; font-size: 8px; letter-spacing: .2px; }
+.ctx-opt-name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-opt-id { font: 400 11px/1 var(--font-mono); letter-spacing: 0; color: var(--text-2); }
+.ctx-opt-tag { padding: 1px 5px; border-radius: 999px; background: var(--chip-bg); font: 500 10px/1.3 var(--font-mono); color: var(--text); }
+.ctx-opt-check { width: 13px; height: 13px; flex: none; color: var(--primary-text); visibility: hidden; }
+.ctx-opt[aria-selected="true"] .ctx-opt-check { visibility: visible; }
+.ctx-opt-ico { width: 18px; height: 18px; flex: none; display: grid; place-items: center; color: var(--text-2); }
+.ctx-opt-ico .ico { width: 13px; height: 13px; }
+/* "Add a client" is an action, not an account: set apart by a rule above it.
+   The rule and the 4px under it are drawn as shadows in the menu's colours,
+   so rows scrolling behind the pinned row never show through the gap. */
+.ctx-opt-action {
+  position: sticky; bottom: -4px; z-index: 1;
+  margin-top: 5px; margin-bottom: -4px; border-radius: 0 0 8px 8px;
+  background: var(--card); color: var(--primary-text);
+  box-shadow: 0 -4px 0 0 var(--card), 0 -5px 0 0 var(--border), 0 4px 0 0 var(--card);
+}
+.ctx-opt-action .ctx-opt-ico { color: var(--primary-text); }
+
+.ctx-extra { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: -20px; }
+.ctx-extra:not(:has(> :not([hidden]))) { display: none; }
+.ctx-field {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 8px 10px; max-width: 100%;
+  background: var(--card); border: 1px solid var(--border-subtle); border-radius: 8px;
+  box-shadow: var(--shadow-xs);
+  font: 500 11px/1.2 var(--font-mono); letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-2);
+}
+.ctx-field input {
+  height: 32px; padding: 0 10px; min-width: 0; flex: 1 1 160px;
+  border: 1px solid var(--input-border); border-radius: 8px;
+  background: var(--card); color: var(--text-strong);
+  font: 400 14px var(--font-sans); letter-spacing: .25px; text-transform: none;
+}
+.ctx-field input[aria-invalid="true"] { border-color: var(--bad-text); }
+
+/* ═══ HOME ═══════════════════════════════════════════════════════════════ */
+.view.home { max-width: none; margin: 0; color: var(--text); }
+.home-col {
+  max-width: 860px; margin: 0 auto; padding-top: 72px;
+  display: flex; flex-direction: column; gap: 40px;
+}
+
+.home-head { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.home-mascot {
+  width: 56px; height: 56px; margin-bottom: 6px; border-radius: 16px; flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: var(--primary-fill); color: var(--on-primary);
+  box-shadow: 0 14px 28px -12px rgba(17, 105, 205, .6);
+}
+/* the bars before mascot.js has drawn the face (the same shape, bigger) */
+.home-mascot i { display: block; width: 24px; height: 6px; border-radius: 3px; background: currentColor; }
+.home-mascot i:nth-child(2) { width: 16px; }
+.home-head h1 {
+  margin: 0;
+  font: 600 34px/1.2 var(--font-sans); letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+.home-head p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-2); }
+
+/* What happens to a case: three numbered steps, joined by arrows. The arrow
+   is decoration ("/ ''" keeps it out of what a screen reader says). */
+.home-steps {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 30px;
+  margin: 8px 0 0; padding: 0; list-style: none;
+  font-size: 13px; line-height: 1.4; color: var(--text-2);
+}
+.home-steps li { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.home-steps li:not(:last-child)::after {
+  content: "→" / ""; position: absolute; right: -21px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none;
+}
+.hs-n {
+  display: inline-grid; place-items: center; min-width: 24px; height: 20px; padding: 0 5px;
+  border-radius: 6px; background: var(--chip-bg); color: var(--text);
+  font: 500 11px/1 var(--font-mono); letter-spacing: .5px;
+}
+
+.mono-label {
+  display: block; margin: 0;
+  font: 500 11px/1.2 var(--font-mono); letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* the request card */
+.home-ask {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 18px 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  transition: border-color .25s ease;
+}
+/* The textarea has no border of its own, so the card shows where typing goes. */
+.home-ask:has(textarea:focus-visible) { border-color: var(--primary-border-2); outline: 2px solid var(--focus); outline-offset: 2px; }
+.home-ask textarea {
+  display: block; width: 100%; margin: 0; padding: 0;
+  border: 0; background: transparent; resize: none;
+  font: 400 17px/1.55 var(--font-sans); letter-spacing: .25px;
+  color: var(--text-strong);
+}
+.home-ask textarea::placeholder { color: var(--text-2); opacity: 1; }
+.home-ask textarea:focus, .home-ask textarea:focus-visible { outline: none; }
+
+.home-ask-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+
+/* API · Browser: two toggles, at least one on. */
+.via-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.via {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 10px 0 12px;
+  border: 1px solid var(--border-subtle); border-radius: 999px;
+  background: transparent; color: var(--text-2);
+  font: 500 13px/1 var(--font-sans); letter-spacing: .25px; cursor: pointer;
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+.via > .ico { width: 16px; height: 16px; flex: none; }
+.via:hover { border-color: var(--border-strong); color: var(--text-strong); }
+.via-tick {
+  width: 16px; height: 16px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1px solid var(--border-strong); background: transparent; color: transparent;
+  transition: background-color .25s ease, border-color .25s ease, color .25s ease;
+}
+.via-tick .ico { width: 10px; height: 10px; stroke-width: 3; }
+.via[aria-pressed="true"] { background: var(--primary-tint); border-color: var(--primary-border-2); color: var(--primary-text); }
+.via[aria-pressed="true"] .via-tick { background: var(--primary-fill); border-color: var(--primary-fill); color: var(--on-primary); }
+
+.home-hint { flex: 1 1 160px; min-width: 0; font-size: 13px; line-height: 1.4; color: var(--text-2); }
+
+.home-start {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 18px; margin-left: auto;
+  border: 0; border-radius: 8px;
+  background: var(--primary-fill); color: var(--on-primary);
+  font: 500 14px/1 var(--font-sans); letter-spacing: .25px; text-decoration: none; cursor: pointer;
+  transition: background-color .25s ease, color .25s ease;
+}
+.home-start:hover:not(:disabled) { background: var(--primary-fill-hover); }
+.home-start:disabled { background: var(--chip-bg); color: var(--text-2); cursor: not-allowed; }
+.home-start-arr { display: inline-block; transition: transform .25s ease; }
+.home-start:hover:not(:disabled) .home-start-arr { transform: translateX(3px); }
+
+/* recent sessions */
+.home-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+/* --primary as text is 3.9:1 on the page; its text shade is 6:1. */
+.home-link {
+  font: 500 13px/1.2 var(--font-sans); letter-spacing: .25px; color: var(--primary-text);
+  text-decoration: none; border-radius: 4px;
+}
+.home-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.home-rows { display: flex; flex-direction: column; gap: 2px; }
+.hr-row, .hr-skel {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px; border-radius: 10px;
+}
+.hr-row { color: var(--text); text-decoration: none; transition: background-color .25s ease; }
+.hr-row:hover { background: var(--row-hover); }
+.hr-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.hr-dot.is-live { background: var(--primary); animation: sbPulse 1.4s ease-in-out infinite; }
+.hr-dot.is-turn { background: var(--warn-dot); }
+.hr-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hr-title {
+  font: 500 15px/1.35 var(--font-sans); letter-spacing: .25px; color: var(--text-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hr-meta {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 13px; line-height: 1.4; color: var(--text-2);
+}
+.hr-meta .ico { width: 13px; height: 13px; flex: none; }
+.hr-meta span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* status tags: always a word, never colour alone */
+.tag-v {
+  display: inline-flex; align-items: center; flex: none;
+  height: 22px; padding: 0 9px; border-radius: 999px;
+  font: 500 12px/1 var(--font-sans); letter-spacing: .25px; white-space: nowrap;
+}
+.tag-live { background: var(--primary-tint-2); color: var(--primary-text); }
+.tag-turn, .tag-warn { background: var(--warn-bg); color: var(--warn-text); }
+.tag-ok   { background: var(--ok-bg);   color: var(--ok-text); }
+.tag-bad  { background: var(--bad-bg);  color: var(--bad-text); }
+/* --text-2 on the chip fill is 4.3:1; --text is 7.4:1. */
+.tag-grey { background: var(--chip-bg); color: var(--text); }
+
+/* loading: rows the size of a session row, never a spinner */
+.skel { display: block; border-radius: 4px; background: var(--chip-bg); }
+.hr-skel .skel-t { height: 14px; margin: 3px 0; width: 55%; }
+.hr-skel .skel-m { height: 11px; margin: 3.5px 0; width: 32%; }
+.hr-skel .skel-tag { width: 64px; height: 22px; border-radius: 999px; flex: none; }
+
+.home-note { padding: 12px 14px; font-size: 14px; line-height: 1.5; color: var(--text-2); }
+.home-note button {
+  border: 0; padding: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--primary-text); text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* ── the mascot (public/mascot.js): the mark, waking into a face ─────────
+   At rest: three bars. Awake: the top bar's halves become eyes, the middle
+   folds away, the bottom becomes a smile. It glances (--lx, --ly), blinks,
+   scans while busy and hops on waking. Its colour is its tile's text colour. */
+.mascot { display: block; width: 100%; height: 100%; overflow: visible; }
+.mascot .m-bar {
+  fill: currentColor; transform-box: fill-box; transform-origin: center;
+  transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), opacity .3s ease;
+}
+.mascot .m-smile {
+  fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  /* hidden outright while asleep: a round cap still draws a dot at zero length */
+  opacity: 0;
+  transition: stroke-dashoffset .45s ease .12s, opacity .1s linear .12s;
+}
+.mascot .m-look { transform: translate(var(--lx, 0px), var(--ly, 0px)); transition: transform .35s cubic-bezier(.3, 1.3, .5, 1); }
+.mascot .m-eye { transform-box: fill-box; transform-origin: center; }
+.is-awake > .mascot .m-top-l { transform: translate(-.75px, 2.25px) scale(.4, 1.5); }
+.is-awake > .mascot .m-top-r { transform: translate(.75px, 2.25px) scale(.4, 1.5); }
+.is-awake > .mascot .m-mid { transform: scale(0, 1); opacity: 0; }
+.is-awake > .mascot .m-low { transform: scale(.3, 1); opacity: 0; }
+.is-awake > .mascot .m-smile { stroke-dashoffset: 0; opacity: 1; }
+@keyframes mBlink { 0%, 90%, 100% { transform: none; } 94% { transform: scaleY(.1); } }
+@keyframes mScan { 0%, 100% { transform: translate(-1.3px, .9px); } 50% { transform: translate(1.3px, .9px); } }
+@keyframes mHop { 0%, 100% { transform: none; } 40% { transform: translateY(-3px) scale(1.08); } }
+@media (prefers-reduced-motion: no-preference) {
+  .is-awake > .mascot .m-eye { animation: mBlink 4.6s ease-in-out 1.4s infinite; }
+  .is-busy > .mascot .m-look { animation: mScan 2.2s ease-in-out infinite; }
+  .is-hop > .mascot { animation: mHop .5s cubic-bezier(.3, 1.6, .5, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mascot .m-bar, .mascot .m-smile, .mascot .m-look { transition: none; }
+}
+
+/* ── motion on Home: arriving, the steps highlight, rows landing, Start waking ──
+   All of it only when the system has no reduced-motion preference. */
+@keyframes homeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes hsWalk { 0%, 30% { color: var(--primary-text); } 36%, 100% { color: var(--text-2); } }
+@keyframes hsWalkN {
+  0%, 30% { background-color: var(--primary-tint-2); color: var(--primary-text); }
+  36%, 100% { background-color: var(--chip-bg); color: var(--text); }
+}
+@keyframes startReady { 0% { transform: scale(.94); } 60% { transform: scale(1.03); } 100% { transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .view.home.active .home-head > .home-mascot { animation: homeIn .55s cubic-bezier(.2, .7, .2, 1) both; }
+  .view.home.active .home-head > h1 { animation: homeIn .55s .04s cubic-bezier(.2, .7, .2, 1) both; }
+  .view.home.active .home-head > p { animation: homeIn .55s .07s cubic-bezier(.2, .7, .2, 1) both; }
+  .view.home.active .home-steps { animation: homeIn .55s .14s cubic-bezier(.2, .7, .2, 1) both; }
+  .view.home.active .home-ask { animation: homeIn .6s .2s cubic-bezier(.2, .7, .2, 1) both; }
+  .view.home.active .home-recent { animation: homeIn .6s .3s cubic-bezier(.2, .7, .2, 1) both; }
+  /* one step lit at a time, two seconds each, round and round */
+  .home-steps li { animation: hsWalk 6s ease-in-out infinite; }
+  .home-steps li .hs-n { animation: hsWalkN 6s ease-in-out infinite; }
+  .home-steps li:nth-child(2), .home-steps li:nth-child(2) .hs-n { animation-delay: 2s; }
+  .home-steps li:nth-child(3), .home-steps li:nth-child(3) .hs-n { animation-delay: 4s; }
+  .home-rows.is-fresh > .hr-row { animation: homeIn .45s cubic-bezier(.2, .7, .2, 1) both; }
+  .home-rows.is-fresh > .hr-row:nth-child(2) { animation-delay: .06s; }
+  .home-rows.is-fresh > .hr-row:nth-child(3) { animation-delay: .12s; }
+  .home-rows.is-fresh > .hr-row:nth-child(4) { animation-delay: .18s; }
+  .home-start.is-ready { animation: startReady .35s ease-out; }
+}
+
+/* ── narrow screens: the sidebar goes static, full width, above the content ── */
+@media (max-width: 820px) {
+  /* min-width: 0, or a long live-run title (nowrap) sets the slot's width
+     and the page scrolls sideways instead of the title ending in "…". */
+  .sb-slot, html.nav-collapsed .sb-slot { flex: 1 1 100%; min-width: 0; }
+  .nav.sb, html.nav-collapsed .nav.sb {
+    position: static; width: auto; height: auto; padding: 16px 12px; gap: 20px;
+  }
+  .sb-scroll, html.nav-collapsed .sb-scroll { overflow: visible; gap: 20px; }
+  .nav.sb .sb-top, html.nav-collapsed .sb-top { flex-direction: row; padding-left: 4px; }
+  html.nav-collapsed .sb-brand { flex: 1 1 auto; }
+  #sb-collapse { display: none; }
+  html.nav-collapsed .sb-name { display: inline; }
+  html.nav-collapsed .sb-label { display: flex; }
+  html.nav-collapsed .sb-items { margin-left: 8px; padding-left: 6px; border-left: 1px dotted var(--border-strong); }
+  .nav.sb .nav-item, html.nav-collapsed .nav.sb .nav-item { justify-content: flex-start; padding: 0 10px; height: 44px; }
+  html.nav-collapsed .nav.sb .nav-item .nav-label,
+  html.nav-collapsed .nav.sb .nav-item .sb-pill,
+  html.nav-collapsed .nav.sb .nav-item .sb-theme-val { display: inline; }
+  html.nav-collapsed .nav.sb .nav-badge { position: static; padding: 1px 6px; font-size: 11px; }
+  html.nav-collapsed .sb-run { justify-content: flex-start; padding: 0 8px; }
+  html.nav-collapsed a.sb-run.is-live { height: 52px; padding: 0 10px 0 12px; }
+  html.nav-collapsed .sb-run-text, html.nav-collapsed .sb-me-text { display: flex; }
+  html.nav-collapsed .sb-run-chev, html.nav-collapsed .sb-me-chev { display: block; }
+  html.nav-collapsed .sb-me { justify-content: flex-start; padding: 0 8px 0 6px; }
+
+  .views { flex-basis: 100%; padding: 8px 0 48px; }
+  .ctx-bar, .ctx-extra { justify-content: flex-start; }
+  .ctx-menu { right: auto; left: 0; }
+  .ctx-picker { height: 44px; }
+  .ctx-opt, .sb-menu-item { min-height: 44px; }
+
+  .home-col { padding-top: 32px; gap: 32px; }
+  .home-head h1 { font-size: 28px; }
+  .home-steps { flex-direction: column; gap: 6px; }
+  .home-steps li:not(:last-child)::after { display: none; }
+  .home-ask textarea { font-size: 16px; }
+  .via, .home-start, .sb-icon-btn, .sb-brand { min-height: 44px; }
+  .home-link { display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
+  .hr-row { padding: 12px 10px; gap: 12px; }
+  /* The title gets two lines rather than losing its end. */
+  .hr-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+/* Fingers need bigger targets than pointers, at any width. */
+@media (pointer: coarse) {
+  .nav.sb .nav-item { height: 44px; }
+  .via, .home-start, .sb-icon-btn, .ctx-picker, .sb-menu-item, .ctx-opt { min-height: 44px; }
+  .home-link { display: inline-flex; align-items: center; gap: .3em; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.sb-run.is-live .sb-run-dot, .hr-dot.is-live { animation: none; }
+  .nav.sb .nav-item, .sb-icon-btn, .ctx-picker, .ctx-opt, .home-ask, .via, .via-tick, .home-start,
+  .hr-row, a.sb-run.is-live, .sb-me, .sb-menu-item, .home-start-arr { transition: none; }
+  .home-start:hover:not(:disabled) .home-start-arr { transform: none; }
+}

@@ -46,6 +46,36 @@ export const JOURNEY_PHASES: Record<string, { label: string; icon: string }> = {
   playwright: { label: "Playwright", icon: "▶" },
 };
 
+/** What a locator label means on screen, for the ones the sign-in uses. */
+const LABEL_WORDS: Record<string, string> = {
+  "login-submit": "the Login button",
+  "send-otp": "the Send OTP button",
+  "otp-field": "the one-time code box",
+  phone: "the phone number box",
+  "create-event-trigger": "the Create Event button",
+};
+export const labelWords = (label: string): string => LABEL_WORDS[label] ?? `"${label.replace(/[-_]+/g, " ")}"`;
+const seconds = (ms: string): string => `${Math.round(Number(ms) / 1000)} seconds`;
+
+/**
+ * A locator's failure in plain words. The raw message names the helper and
+ * its candidates ("clickFirst [login-submit]: no candidate was clickable
+ * within 10000ms. Last error: n/a"), which is for whoever fixes the locator;
+ * the step says what a person would have seen. A fill's message also carries
+ * the value it typed, which can be a phone or a code, so it is dropped here.
+ */
+export function plainReason(reason: string): string {
+  let hit = reason.match(/^clickFirst(?: \[(.+?)\])?: no candidate was clickable within (\d+)ms/);
+  if (hit) return `${hit[1] ? labelWords(hit[1]) : "the control"} could not be pressed within ${seconds(hit[2])}`;
+  hit = reason.match(/^expectFirst(?: \[(.+?)\])?: none of \d+ candidate locator\(s\) became (?:visible|actionable) within (\d+)ms/);
+  if (hit) return `${hit[1] ? labelWords(hit[1]) : "the expected control"} never appeared within ${seconds(hit[2])}`;
+  hit = reason.match(/^fillFirst(?: \[(.+?)\])?: could not fill .* within (\d+)ms/);
+  if (hit) return `could not type into ${hit[1] ? labelWords(hit[1]) : "the field"} within ${seconds(hit[2])}`;
+  hit = reason.match(/^Login did not complete \(still on \/login\)\. (?:Reason: (.+)|No error surfaced\.)$/);
+  if (hit) return `the app did not let us in${hit[1] ? ` (it said: ${hit[1].replace(/\.\s*$/, "")})` : ""}`;
+  return reason.replace(/\.\s*$/, "");
+}
+
 /**
  * Wording that reads as a sentence rather than a log line.
  *
@@ -73,9 +103,14 @@ function humanise(rest: string): string {
     m(/^the login screen did not let us in(?: — the app said: (.+))?$/i, (h) =>
       `The login screen did not let us in${h[1] ? ` — the app said: ${h[1]}` : ""}`) ||
     m(/^falling back to the saved web-console session so the journey can still run — (.+)$/i, (h) =>
-      `Signed in with the saved web-console session instead, so the journey could still run — the login screen failed: ${h[1]}`) ||
+      `Couldn't sign in on the login screen — ${plainReason(h[1])}. Trying the saved session instead`) ||
+    m(/^skipped the login screen — (.+?)\. Falling back to the saved session$/i, (h) =>
+      `Skipped the login screen — ${h[1]}. Using the saved session instead`) ||
     m(/^this company's signed-in user has no phone on record.*$/i, () =>
       "This company's signed-in user has no phone on record, so the configured buyer's phone was used") ||
+    // "[stuck] recorded "login-submit" on https://… → stuck/run__….json"
+    m(/^recorded "(.+?)" on \S+ → stuck\/\S+$/i, (h) =>
+      `Got stuck at ${labelWords(h[1])} — saved a screenshot of the page so the step can be fixed`) ||
     m(/^stages round \d+: on screen \[([^\]]*)\], want \[([^\]]*)\]$/i, (h) =>
       `Setting up the event type — Procol's create screen doesn't start on the right one, so it adds ` +
       `and removes tabs until it matches. Wanted: ${h[2] || "none"} · showing: ${h[1] || "none"}`) ||
@@ -137,7 +172,8 @@ function kindOf(tag: string, rest: string): JourneyStep["kind"] {
   if (tag === "learned") return "ok";
   // The sign-in says how it went in its own words.
   if (tag === "login") {
-    if (/did not let us in|falling back/i.test(rest)) return "warn";
+    if (/did not get in either/i.test(rest)) return "bad";
+    if (/did not let us in|falling back|skipped the login screen/i.test(rest)) return "warn";
     if (/^signed in/i.test(rest)) return "ok";
     return "info";
   }
@@ -202,6 +238,18 @@ export function parseJourneyLine(line: string): JourneyStep | null {
     // "tests/ui-master.spec.ts:88:5 › events.rfq_only" — the name is the last
     // chevron segment; the path in front of it is for the terminal, not here.
     const title = test[2].split("›").pop()!.trim();
+    // The suite's own setup sign-in. A dashboard run skips it, because the
+    // journey signs in by itself; the bare test name reads like a step.
+    if (title === "authenticate")
+      return {
+        phase: "playwright",
+        kind: test[1] === "✓" ? "ok" : test[1] === "-" ? "info" : "bad",
+        text:
+          test[1] === "-" ? "Separate sign-in step skipped — the journey signs in by itself"
+          : test[1] === "✓" ? "Refreshed the saved sign-in"
+          : "The separate sign-in step failed",
+        raw: clean,
+      };
     return {
       phase: "playwright",
       kind: test[1] === "✓" ? "ok" : test[1] === "-" ? "info" : "bad",

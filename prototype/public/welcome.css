@@ -1,0 +1,623 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   THE LANDING PAGE (#/welcome) — before sign-in.
+
+   Light only, its own look, every variable scoped to .lp so nothing here
+   reaches the app. The route hides the app shell (sidebar, client bar).
+   Violet is the only accent. The page shows the product working rather
+   than describing it: an example run replays in the hero, the numbers are
+   read live from the platform, and the bugs are real ones.
+
+   Motion (landing.js adds html.lp-motion only when the system has no
+   reduced-motion preference): the hero rises in, the example run replays,
+   sections reveal as they arrive, numbers count
+   up to their real value, the bug deck turns. Without it, every part shows
+   in its final state.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── the landing page and sign-in have no app shell ───────────────────── */
+html:is([data-view="welcome"], [data-view="login"]) body { padding: 0; background: #efeadf; }
+html:is([data-view="welcome"], [data-view="login"]) .sb-slot,
+html:is([data-view="welcome"], [data-view="login"]) .nav.sb,
+html:is([data-view="welcome"], [data-view="login"]) .ctx-bar,
+html:is([data-view="welcome"], [data-view="login"]) .ctx-extra { display: none !important; }
+html:is([data-view="welcome"], [data-view="login"]) .app { gap: 0; min-height: 100vh; }
+html:is([data-view="welcome"], [data-view="login"]) .views { flex: 1 1 100%; padding: 0; gap: 0; max-width: none; }
+/* Shown from the first paint: the head script marks the route before
+   app.js's router has run, so the app never flashes in first. */
+html[data-view="welcome"] #view-welcome { display: block; }
+html[data-view="login"] #view-login { display: flex; }
+
+.lp {
+  --paper: #efeadf;  --paper2: #e6e0d1;  --card: #f7f3ea;
+  --ink: #16140f;    --ink2: #4d483d;
+  /* 5.3:1 on --paper, 4.8:1 on --paper2: small labels need 4.5:1. */
+  --muted: #655f50;
+  --line: #d6cfbd;
+  --accent: #4b3bff;           /* violet, the only accent */
+  --accent-soft: rgba(75, 59, 255, .1);
+  --good: #0f7b4f; --bad: #d42a1e; --warn: #b45309;
+  /* Status words at small sizes (all >= 5.6:1 on the card). */
+  --good-ink: #0b6e46; --bad-ink: #b8241a; --warn-ink: #9a4a07;
+  /* The example run's console: the page's ink, with its own status colours. */
+  --night: #16140f; --night2: #1f1c16; --night-line: #2f2b24;
+  --night-ink: #efeadf; --night-muted: #a69e8c;
+  --night-good: #4fd18b; --night-bad: #ff8a7a; --night-accent: #a59dff;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+
+  color-scheme: light;
+  background: var(--paper); color: var(--ink);
+  font: 400 16px/1.55 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: normal;
+  -webkit-font-smoothing: antialiased;
+}
+/* The app's view rules (max width, fade-in) do not apply here. */
+.view.lp { max-width: none; margin: 0; padding: 0; }
+.view.lp.active { animation: none; }
+.lp *, .lp *::before, .lp *::after { box-sizing: border-box; }
+
+/* Full width with a margin that grows with the screen. */
+.lp-in { margin: 0; padding-inline: clamp(20px, 4vw, 64px); }
+.lp-d {
+  font-family: 'Bricolage Grotesque', 'Geist', sans-serif; font-weight: 800;
+  letter-spacing: -0.045em; line-height: .9; color: var(--ink); margin: 0;
+}
+.lp-m {
+  margin: 0;
+  font: 400 12px/1.4 'Geist Mono', ui-monospace, Menlo, monospace;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+}
+.lp .ico { width: 18px; height: 18px; flex: none; vertical-align: middle; }
+.lp a:focus-visible, .lp button:focus-visible, .lp [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lp-acc { color: var(--accent); }
+.lp code { font-family: 'Geist Mono', ui-monospace, Menlo, monospace; }
+
+/* ── header: sticky, a hairline appears once the page has scrolled ────── */
+.lp-head {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 28px; padding-block: 18px;
+  background: var(--paper);
+  border-bottom: 1px solid transparent;
+  transition: border-color .25s ease;
+}
+.lp-head.is-stuck { border-bottom-color: var(--line); }
+/* An in-page jump (How it works, Proof) lands below the sticky header. */
+.lp [id] { scroll-margin-top: 96px; }
+.lp-word {
+  display: inline-flex; align-items: center; gap: 10px;
+  font: 800 20px/1 'Bricolage Grotesque', sans-serif; letter-spacing: -0.03em;
+  color: var(--ink); text-decoration: none; border-radius: 4px;
+}
+/* The app's mark — three vertebrae — in ink, to sit with the dark Sign in pill. */
+.lp-logo {
+  width: 30px; height: 30px; border-radius: 8px; flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: var(--ink); color: var(--paper);
+}
+.lp-logo i { display: block; width: 13px; height: 3px; border-radius: 2px; background: var(--paper); }
+.lp-logo i:nth-child(2) { width: 8px; }
+.lp-word-dot { color: var(--accent); }
+.lp-links { display: flex; gap: 24px; margin-left: 12px; }
+.lp-spacer { flex: 1 1 auto; }
+.lp-nav { font-size: 14px; color: var(--ink2); text-decoration: none; border-radius: 4px; transition: color .2s ease; }
+.lp-nav:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.lp-pill {
+  display: inline-flex; align-items: center; height: 44px; padding: 0 20px;
+  border-radius: 9999px; background: var(--ink); color: var(--paper);
+  font: 500 14px/1 'Geist', sans-serif; text-decoration: none; white-space: nowrap;
+  transition: background-color .2s ease;
+}
+.lp-pill:hover { background: #2c2920; }
+
+/* ── 1. hero ──────────────────────────────────────────────────────────── */
+/* The first screen is the hero alone (the 81px is the sticky header):
+   How it works starts below the fold, and the cue at the foot points to it. */
+.lp-hero {
+  position: relative;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
+  align-items: center; align-content: center; gap: 48px 64px;
+  min-height: calc(100vh - 81px); min-height: calc(100svh - 81px);
+  padding-top: 48px; padding-bottom: 104px;
+}
+.lp-hero-l { display: flex; flex-direction: column; align-items: flex-start; gap: 26px; min-width: 0; }
+.lp-eyebrow { display: inline-flex; align-items: center; gap: 10px; }
+.lp-live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.lp-h1 { font-size: clamp(44px, 5.8vw, 88px); letter-spacing: -0.038em; line-height: .94; }
+/* "the client." is underlined by a stroke that draws itself in (motion below). */
+.lp-line.lp-acc > span { display: inline-block; position: relative; }
+.lp-swoosh {
+  position: absolute; left: -1%; bottom: -.1em; width: 102%; height: .2em; overflow: visible;
+}
+.lp-swoosh path {
+  fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; opacity: .55;
+  /* one dash the path's length, then a longer gap: offset past 1 hides it whole */
+  stroke-dasharray: 1 2; stroke-dashoffset: 0;
+}
+/* Each line can rise from under its own edge (see motion below). */
+.lp-line { display: block; }
+.lp-line > span { display: block; }
+.lp-lede { max-width: 540px; margin: 0; font-size: 18px; line-height: 1.6; color: var(--ink2); letter-spacing: -0.005em; }
+.lp-cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.lp-cta {
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 54px; padding: 0 28px; border-radius: 9999px;
+  background: var(--accent); color: #fff;
+  font: 700 17px/1 'Bricolage Grotesque', sans-serif; letter-spacing: -0.01em;
+  text-decoration: none; white-space: nowrap;
+  box-shadow: 0 8px 24px -8px rgba(75, 59, 255, .55);
+  transition: background-color .2s ease, box-shadow .2s ease;
+}
+.lp-cta .ico { transition: transform .25s var(--ease); }
+.lp-cta:hover { background: #3d2df0; box-shadow: 0 12px 28px -8px rgba(75, 59, 255, .6); }
+.lp-cta:hover .ico { transform: translateX(4px); }
+.lp-ghost {
+  display: inline-flex; align-items: center; height: 54px; padding: 0 6px;
+  font: 500 15px/1 'Geist', sans-serif; color: var(--ink); text-decoration: underline;
+  text-decoration-color: var(--line); text-underline-offset: 6px; text-decoration-thickness: 2px;
+  transition: text-decoration-color .2s ease;
+}
+.lp-ghost:hover { text-decoration-color: var(--ink); }
+.lp-safe { font-size: 11px; }
+
+.lp-cue {
+  position: absolute; left: 50%; bottom: 24px; translate: -50% 0;
+  display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 12px; border-radius: 8px;
+  font: 400 11px/1 'Geist Mono', ui-monospace, monospace; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); text-decoration: none; transition: color .2s ease;
+}
+.lp-cue:hover { color: var(--ink); }
+.lp-cue .ico { width: 18px; height: 18px; }
+
+/* The example run: a dark console, the one dark thing on the page. */
+.lp-run {
+  margin: 0; min-width: 0;
+  background: var(--night); color: var(--night-ink);
+  border: 1px solid var(--night-line); border-radius: 20px;
+  box-shadow: 0 40px 80px -32px rgba(22, 20, 15, .55), 0 12px 24px -12px rgba(22, 20, 15, .3);
+  overflow: hidden;
+}
+.lp-run-bar {
+  display: flex; align-items: center; gap: 12px;
+  height: 46px; padding: 0 18px;
+  border-bottom: 1px solid var(--night-line); background: var(--night2);
+  font: 400 11px/1 'Geist Mono', ui-monospace, monospace; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--night-muted);
+}
+.lp-run-lights { display: inline-flex; gap: 6px; }
+.lp-run-lights i { width: 9px; height: 9px; border-radius: 50%; background: #3a352c; }
+.lp-run-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-run-clock { letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.lp-run-ask { display: flex; gap: 12px; align-items: flex-start; padding: 18px 20px 6px; }
+.lp-run-you {
+  flex: none; margin-top: 2px; padding: 3px 8px; border-radius: 6px;
+  background: rgba(165, 157, 255, .16); color: var(--night-accent);
+  font: 500 11px/1.3 'Geist Mono', ui-monospace, monospace; letter-spacing: .5px;
+}
+.lp-run-q { margin: 0; min-height: 3.1em; font-size: 15px; line-height: 1.55; color: var(--night-ink); }
+.lp-run.is-typing .lp-run-q::after {
+  content: ""; display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -.15em;
+  background: var(--night-accent); animation: lpBlink .9s steps(1) infinite;
+}
+.lp-run-steps { margin: 0; padding: 8px 20px 12px; list-style: none; }
+.lp-run-steps li {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: baseline; column-gap: 14px;
+  padding: 9px 0; border-top: 1px solid var(--night-line);
+  font-size: 14px; line-height: 1.4; color: var(--night-ink);
+  transition: color .25s ease, opacity .25s ease;
+}
+.lp-run-steps li:first-child { border-top: 0; }
+.lp-rs-dot { width: 9px; height: 9px; border-radius: 50%; align-self: center; background: var(--night-good); transition: background-color .25s ease, box-shadow .25s ease; }
+.lp-rs-t { min-width: 0; }
+.lp-run-steps code { font-size: 12px; color: var(--night-muted); white-space: nowrap; }
+.lp-rs-why { grid-column: 2 / -1; margin-top: 4px; font-size: 13px; color: var(--night-bad); }
+.lp-run-steps li.is-ok .lp-rs-dot { background: var(--night-good); }
+.lp-run-steps li.is-bad .lp-rs-dot { background: var(--night-bad); box-shadow: 0 0 0 4px rgba(255, 138, 122, .18); }
+.lp-run-steps li.is-bad code { color: var(--night-bad); }
+.lp-run-steps li.is-run .lp-rs-dot { background: var(--night-accent); box-shadow: 0 0 0 4px rgba(165, 157, 255, .2); animation: lpPulse 1s ease-in-out infinite; }
+.lp-run-steps li.is-wait { color: #6f6858; }
+.lp-run-steps li.is-wait .lp-rs-dot { background: transparent; box-shadow: inset 0 0 0 1.5px #4a4439; }
+.lp-run-steps li.is-wait code, .lp-run-steps li.is-run code { visibility: hidden; }
+.lp-run-steps li:not(.is-bad) .lp-rs-why { display: none; }
+.lp-run-foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px;
+  padding: 14px 20px; border-top: 1px solid var(--night-line); background: var(--night2);
+  font-size: 13px; color: var(--night-muted);
+}
+.lp-tally b { font: 600 15px/1 'Geist Mono', ui-monospace, monospace; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.lp-tally.is-ok b { color: var(--night-good); }
+.lp-tally.is-bad b { color: var(--night-bad); }
+.lp-tally.is-skip b { color: var(--night-ink); }
+.lp-run-filed {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 9999px;
+  background: rgba(79, 209, 139, .14); color: var(--night-good);
+  font: 500 12px/1 'Geist Mono', ui-monospace, monospace;
+}
+.lp-run-filed .ico { width: 13px; height: 13px; }
+
+/* ── section heads, shared ───────────────────────────────────────────── */
+.lp-sec-head { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
+.lp-sec-split { flex-direction: row; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 48px; }
+.lp-sec-split > div { display: flex; flex-direction: column; gap: 14px; }
+.lp-h2 { font-size: clamp(30px, 3.4vw, 48px); line-height: 1; }
+.lp-sec-note { max-width: 420px; margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink2); }
+
+/* ── 3. how it works ──────────────────────────────────────────────────── */
+.lp-how { padding-block: 72px 96px; border-top: 1px solid var(--line); }
+.lp-how-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;
+  margin: 0; padding: 0; list-style: none; counter-reset: none;
+}
+.lp-how-step {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 24px; border-radius: 18px;
+  background: var(--card); border: 1px solid var(--line);
+  position: relative;
+  /* Hover uses scale and translate (not transform, which the reveal owns),
+     so it answers at once rather than after the reveal's stagger. */
+  transition: border-color .3s ease, box-shadow .3s ease, background-color .3s ease,
+    scale .35s var(--ease), translate .35s var(--ease), filter .3s ease;
+}
+/* Hovering a step magnifies and outlines it; the other three step back. */
+@media (hover: hover) {
+  .lp-how-step:hover {
+    z-index: 1; scale: 1.045; translate: 0 -4px;
+    border-color: var(--accent); background: #fbf9f4;
+    box-shadow: 0 0 0 3px var(--accent-soft), 0 30px 50px -26px rgba(22, 20, 15, .45);
+  }
+  .lp-how-step:hover .lp-art > * { border-color: rgba(75, 59, 255, .35); background: #fff; }
+  .lp-how-grid:has(.lp-how-step:hover) .lp-how-step:not(:hover) { filter: opacity(.6) saturate(.7); }
+}
+.lp-how-n { font: 500 12px/1 'Geist Mono', ui-monospace, monospace; letter-spacing: 1px; color: var(--accent); }
+.lp-how-step h3 { margin: 6px 0 0; font: 700 20px/1.15 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; color: var(--ink); }
+.lp-how-step p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink2); }
+.lp-how-step p b { color: var(--ink); font-weight: 600; }
+.lp-art {
+  margin-top: auto; padding-top: 14px;
+}
+.lp-art > * { border-radius: 12px; background: var(--paper); border: 1px solid var(--line); padding: 14px; min-height: 104px; transition: border-color .3s ease, background-color .3s ease; }
+.lp-art-ask { font-size: 14px; line-height: 1.5; color: var(--ink); }
+.lp-caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -.15em; background: var(--accent); }
+.lp-art-plan { margin: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--ink2); }
+.lp-art-plan li { display: flex; gap: 8px; align-items: center; }
+.lp-art-plan li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none; }
+.lp-art-plan li:last-child::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.lp-art > .lp-art-req { min-height: 0; display: flex; justify-content: space-between; gap: 8px; padding: 9px 12px; margin-top: 6px; font-size: 12px; }
+.lp-art > .lp-art-req:first-child { margin-top: 0; }
+.lp-art-req code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
+.lp-art-req code b { color: var(--ink); font-weight: 600; }
+.lp-art-req span { font: 600 12px/1.4 'Geist Mono', ui-monospace, monospace; }
+.lp-art-req .is-ok { color: var(--good-ink); }
+.lp-art-req .is-bad { color: var(--bad-ink); }
+.lp-art-chips { display: flex; flex-wrap: wrap; align-content: center; gap: 8px; }
+.lp-art-chips span {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 9999px;
+  font: 500 13px/1 'Geist', sans-serif;
+}
+.lp-art-chips span::before { content: ""; width: 7px; height: 7px; border-radius: 50%; }
+.lp-art-chips .is-ok { background: rgba(15, 123, 79, .1); color: var(--good-ink); }
+.lp-art-chips .is-ok::before { background: var(--good); }
+.lp-art-chips .is-bad { background: rgba(212, 42, 30, .1); color: var(--bad-ink); }
+.lp-art-chips .is-bad::before { background: var(--bad); }
+.lp-art-chips .is-skip { background: rgba(180, 83, 9, .1); color: var(--warn-ink); }
+.lp-art-chips .is-skip::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--warn); }
+
+/* ── 3b. principles: one dark band, five rules between violet rules ──── */
+.lp-principles { background: var(--night); color: var(--night-ink); }
+.lp-pr-in { padding-block: 88px 96px; }
+.lp-principles .lp-m { color: var(--night-muted); }
+.lp-principles .lp-h2 { color: var(--night-ink); }
+.lp-principles .lp-sec-note { color: var(--night-muted); }
+.lp-pr-grid {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 12px 0 0; padding: 0; list-style: none;
+}
+.lp-pr-grid li { padding: 8px 28px 8px; min-width: 0; }
+.lp-pr-grid li:first-child { padding-left: 0; }
+.lp-pr-grid li + li { border-left: 1px solid rgba(165, 157, 255, .55); }
+.lp-pr-grid h3 { margin: 0 0 14px; font: 700 19px/1.2 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; color: var(--night-ink); }
+.lp-pr-grid p { margin: 0; font-size: 15px; line-height: 1.6; color: var(--night-muted); }
+
+/* ── 4. the numbers ───────────────────────────────────────────────────── */
+.lp-nums { padding-block: 32px 96px; }
+/* Four numbers on one row under an ink rule, thin rules between them. */
+.lp-stats-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--ink); }
+.lp-st { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 30px 28px 6px; }
+.lp-st:first-child { padding-left: 0; }
+.lp-st + .lp-st { border-left: 1px solid var(--line); }
+.lp-st-n { margin-bottom: 10px; font-size: clamp(44px, 4.6vw, 68px); font-variant-numeric: tabular-nums; }
+.lp-st-k { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35; color: var(--ink); }
+.lp-st-d { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.lp-st-d b { color: var(--ink2); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The latest run's split, as one thin bar. Bars draw to their real share (--w). */
+.lp-stack { display: flex; gap: 2px; height: 6px; margin: 6px 0 2px; }
+.lp-stack span { display: block; height: 100%; width: var(--w); border-radius: 3px; transition: width 1.1s var(--ease); }
+.lp-stack .is-ok { background: var(--good); }
+.lp-stack .is-bad { background: var(--bad); }
+.lp-stack .is-skip { background: var(--warn); min-width: 3px; }
+
+/* One regression pass (the team's estimate): a quiet line under the numbers. */
+.lp-est {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 40px;
+  margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--line);
+}
+.lp-est .lp-m { flex: 1 1 260px; }
+.lp-est-pair { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; font-size: 14px; color: var(--muted); }
+.lp-est-pair s, .lp-est-pair b { font: 800 20px/1 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; }
+.lp-est-pair s { color: var(--muted); text-decoration-thickness: 2px; text-decoration-color: rgba(101, 95, 80, .45); }
+.lp-est-pair b { display: inline-block; color: var(--accent); }
+.lp-est-pair .ico { width: 14px; height: 14px; align-self: center; color: var(--muted); }
+
+/* ── 5. verdicts ──────────────────────────────────────────────────────── */
+.lp-verdicts { padding-block: 32px 96px; }
+.lp-v-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.lp-v {
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  padding: 26px 26px 22px; border-radius: 18px; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line);
+}
+.lp-v::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--c); }
+.lp-v.is-ok { --c: var(--good); --ci: var(--good-ink); }
+.lp-v.is-bad { --c: var(--bad); --ci: var(--bad-ink); }
+.lp-v.is-skip { --c: var(--warn); --ci: var(--warn-ink); }
+.lp-v-title { display: flex; align-items: center; gap: 12px; margin: 0; font: 800 26px/1 'Bricolage Grotesque', sans-serif; letter-spacing: -0.03em; color: var(--ink); }
+.lp-v-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--c); }
+.lp-v.is-skip .lp-v-dot { background: transparent; box-shadow: inset 0 0 0 2px var(--c); }
+.lp-v > p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--ink2); }
+/* A real result of that kind, from a run. */
+.lp-v-ex {
+  margin-top: 8px; display: flex; flex-direction: column; gap: 6px;
+  padding: 14px 16px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line);
+}
+.lp-v-ex code { font-size: 12.5px; color: var(--ink2); overflow-wrap: anywhere; }
+.lp-v-ex code b { color: var(--ci); font-weight: 600; }
+.lp-v-ex span { font-size: 14px; line-height: 1.45; color: var(--ink); }
+
+/* ── 6. proof: real bugs, one at a time ───────────────────────────────── */
+.lp-proof { color: var(--ink); border-top: 1px solid var(--line); background: var(--paper2); }
+.lp-proof:focus { outline: none; }
+.lp-proof-in { display: flex; flex-wrap: wrap; align-items: center; gap: 40px 64px; padding-block: 88px 96px; }
+.lp-proof-l { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.lp-proof-text { max-width: 40ch; margin: 0; font-size: 17px; line-height: 1.55; color: var(--ink2); }
+.lp-proof-r { flex: 1.4 1 540px; min-width: 0; }
+.lp-deck-ctl { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.lp-deck-btn {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink);
+  cursor: pointer; transition: border-color .2s ease, background-color .2s ease;
+}
+.lp-deck-btn:hover { border-color: var(--ink); }
+.lp-deck-btn .ico { width: 16px; height: 16px; }
+.lp-deck-dots { display: inline-flex; gap: 2px; }
+.lp-deck-dot { width: 28px; height: 44px; display: grid; place-items: center; border: 0; background: none; cursor: pointer; padding: 0; }
+.lp-deck-dot::before { content: ""; width: 8px; height: 8px; border-radius: 9999px; background: var(--line); transition: width .3s var(--ease), background-color .3s ease; }
+.lp-deck-dot[aria-current="true"]::before { width: 22px; background: var(--ink); }
+
+/* One bug as it lands. Red only in the tag and the words that went wrong. */
+.lp-case {
+  background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px -36px rgba(22, 20, 15, .4);
+}
+.lp-case[hidden] { display: none; }
+.lp-case-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  padding: 18px 22px; border-bottom: 1px solid var(--line);
+}
+.lp-case-tag {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px;
+  border-radius: 9999px; background: rgba(212, 42, 30, .1); color: var(--bad-ink);
+  font: 500 12px/1 'Geist', sans-serif;
+}
+.lp-case-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); }
+.lp-case-sev {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 9999px;
+  border: 1px solid var(--line); color: var(--ink2);
+  font: 500 11px/1 'Geist Mono', ui-monospace, monospace; letter-spacing: .5px; text-transform: uppercase;
+}
+.lp-case-title { flex-basis: 100%; margin: 6px 0 0; font: 700 19px/1.25 'Bricolage Grotesque', sans-serif; letter-spacing: -0.02em; color: var(--ink); overflow-wrap: anywhere; }
+.lp-case-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.lp-case-cell { display: flex; flex-direction: column; gap: 8px; padding: 18px 22px; min-width: 0; }
+.lp-case-cell + .lp-case-cell { border-left: 1px solid var(--line); }
+.lp-case-text { margin: 0; font: 600 16px/1.4 'Geist', sans-serif; color: var(--ink); }
+.lp-case-cell.is-got .lp-case-text { color: var(--bad-ink); }
+.lp-case-why { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.lp-case-repro { display: flex; flex-direction: column; gap: 8px; padding: 16px 22px; border-top: 1px solid var(--line); }
+.lp-pre {
+  margin: 0; padding: 12px 14px; border-radius: 10px;
+  background: var(--night); color: var(--night-ink);
+  font: 400 12.5px/1.7 'Geist Mono', ui-monospace, monospace;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.lp-pre code { font: inherit; }
+.lp-case-foot {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px;
+  padding: 12px 22px; border-top: 1px solid var(--line); background: var(--paper);
+  font: 400 12px/1.4 'Geist Mono', ui-monospace, monospace; color: var(--muted);
+}
+.lp-case-ok { display: inline-flex; align-items: center; gap: 6px; color: var(--good-ink); }
+.lp-case-ok .ico { width: 13px; height: 13px; }
+
+/* ── 7. closing ───────────────────────────────────────────────────────── */
+.lp-close { display: flex; flex-direction: column; align-items: flex-start; gap: 26px; padding-block: 112px 88px; }
+.lp-close-h { font-size: clamp(38px, 5vw, 76px); max-width: 14ch; }
+
+/* ── 8. footer ────────────────────────────────────────────────────────── */
+.lp-foot { border-top: 1px solid var(--line); }
+.lp-foot-in { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding-block: 24px; font-size: 13px; color: var(--muted); }
+
+/* ── sign in ──────────────────────────────────────────────────────────── */
+/* No `display` here: that would beat `.view { display: none }` and leave the
+   sign-in form on screen after signing in. Shown only while it is the view. */
+.lp-auth { flex-direction: column; min-height: 100vh; }
+.view.lp-auth.active { display: flex; }
+.lp-nav .ico { width: 16px; height: 16px; margin-right: 2px; vertical-align: -3px; }
+.lp-auth-main {
+  flex: 1 1 auto; display: flex; align-items: center; justify-content: space-between;
+  gap: 48px 64px; padding-block: 48px 72px;
+}
+.lp-auth-col { flex: 0 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.lp-auth-title { font-size: clamp(36px, 3.8vw, 56px); white-space: nowrap; }
+
+/* The right-hand panel: what happens after signing in. */
+.lp-auth-side {
+  flex: 0 1 560px; min-width: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 32px; border-radius: 20px;
+  background: #f7f3ea; border: 1px solid var(--line);
+}
+.lp-auth-steps { margin: 0; padding: 0; list-style: none; }
+.lp-auth-steps li {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px;
+  padding: 16px 0; border-top: 1px solid var(--line);
+  font-size: 14px; line-height: 1.5; color: var(--ink2);
+}
+.lp-auth-steps li:first-child { border-top: 0; padding-top: 12px; }
+.lp-auth-steps b { display: block; margin-bottom: 2px; font-size: 15px; font-weight: 600; color: var(--ink); }
+.lp-auth-n { font: 500 12px/1.7 'Geist Mono', ui-monospace, monospace; letter-spacing: 1px; color: var(--muted); }
+@media (max-width: 860px) {
+  .lp-auth-side { display: none; }
+  .lp-auth-title { white-space: normal; }
+}
+.lp-auth-lede { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink2); }
+.lp-form { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+.lp-field { display: flex; flex-direction: column; gap: 8px; }
+.lp-opt { text-transform: none; letter-spacing: 0; }
+.lp-input {
+  height: 52px; padding: 0 16px; width: 100%;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #f7f3ea; color: var(--ink);
+  font: 400 16px/1 'Geist', sans-serif;
+  transition: border-color .25s ease, background-color .25s ease;
+}
+.lp-input::placeholder { color: var(--muted); opacity: 1; }
+.lp-input:hover { border-color: var(--muted); }
+.lp-input:focus { outline: none; border-color: var(--accent); background: #fbf9f4; }
+.lp-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lp-input[aria-invalid="true"] { border-color: var(--bad-ink); }
+.lp-error { margin: -4px 0 0; font-size: 14px; color: var(--bad-ink); }
+.lp-cta-wide { justify-content: center; width: 100%; margin-top: 4px; border: 0; cursor: pointer; }
+.lp-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lp-auth-note { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+
+/* ── motion: only with html.lp-motion (landing.js; never under reduced motion) ── */
+@keyframes lpPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes lpBlink { 50% { opacity: 0; } }
+@keyframes lpRise { from { transform: translateY(108%); } to { transform: none; } }
+@keyframes lpUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes lpCard { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes lpWipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes lpStepOn {
+  0%, 22% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  28%, 100% { border-color: var(--line); box-shadow: none; }
+}
+
+/* The live dot in the eyebrow breathes. */
+.lp-motion .lp-live { animation: lpPulse 1.8s ease-in-out infinite; }
+.lp-motion .lp-caret { animation: lpBlink .9s steps(1) infinite; }
+
+/* The headline rises line by line from under its own edge; the rest follows. */
+.lp-motion .lp-line { overflow: hidden; padding-bottom: .1em; margin-bottom: -.1em; }
+.lp-motion .lp-line > span { animation: lpRise .95s var(--ease) both; }
+.lp-motion .lp-line:nth-child(2) > span { animation-delay: .09s; }
+.lp-motion .lp-line:nth-child(3) > span { animation-delay: .18s; }
+.lp-motion .lp-eyebrow { animation: lpUp .7s var(--ease) both; }
+.lp-motion .lp-lede { animation: lpUp .8s .3s var(--ease) both; }
+.lp-motion .lp-hero-l .lp-cta-row { animation: lpUp .8s .4s var(--ease) both; }
+.lp-motion .lp-safe { animation: lpUp .8s .5s var(--ease) both; }
+.lp-motion .lp-run { animation: lpUp 1s .25s var(--ease) both; }
+
+@keyframes lpDraw { from { stroke-dashoffset: 1.06; } to { stroke-dashoffset: 0; } }
+@keyframes lpBob { 0%, 100% { transform: none; } 50% { transform: translateY(4px); } }
+@keyframes lpNudge { 0%, 72%, 100% { transform: none; } 80% { transform: translateX(5px); } 88% { transform: none; } }
+/* The accent line keeps room below, inside its clip, for the underline. */
+.lp-motion .lp-line.lp-acc { padding-bottom: .3em; margin-bottom: -.3em; }
+.lp-motion .lp-swoosh path { animation: lpDraw .9s cubic-bezier(.6, 0, .2, 1) 1.05s both; }
+.lp-motion .lp-cue { animation: lpUp .8s 1.3s var(--ease) both; }
+.lp-motion .lp-cue .ico { animation: lpBob 1.8s ease-in-out 2.2s infinite; }
+.lp-motion .lp-hero .lp-cta .ico { animation: lpNudge 3.4s ease-in-out 2.6s infinite; }
+.lp-motion .lp-hero .lp-cta:hover .ico { animation: none; }
+
+/* Sections arrive as they scroll in. */
+.lp-motion [data-reveal] { opacity: 0; transform: translateY(18px); }
+.lp-motion [data-reveal].is-in {
+  opacity: 1; transform: none;
+  transition: opacity .8s var(--ease) var(--d, 0s), transform .8s var(--ease) var(--d, 0s), border-color .3s ease, box-shadow .3s ease,
+    background-color .3s ease, scale .35s var(--ease), translate .35s var(--ease), filter .3s ease;
+}
+/* Bars grow to their share once their card is in. */
+.lp-motion [data-reveal]:not(.is-in) .lp-stack span { width: 0; min-width: 0; }
+/* The faster figure arrives after its arrow. */
+.lp-motion .lp-est:not(.is-in) .lp-est-pair b { opacity: 0; transform: translateX(-8px); }
+.lp-motion .lp-est.is-in .lp-est-pair b { transition: opacity .5s ease .45s, transform .6s var(--ease) .45s; }
+.lp-motion .lp-est.is-in .lp-est-pair + .lp-est-pair b { transition-delay: .6s; }
+
+/* How it works: one step lit at a time, round and round. */
+.lp-motion .lp-how-step.is-in { animation: lpStepOn 8s ease-in-out 1s infinite; }
+.lp-motion .lp-how-step.is-in:nth-child(2) { animation-delay: 3s; }
+.lp-motion .lp-how-step.is-in:nth-child(3) { animation-delay: 5s; }
+.lp-motion .lp-how-step.is-in:nth-child(4) { animation-delay: 7s; }
+.lp-motion .lp-how-grid:has(.lp-how-step:hover) .lp-how-step.is-in { animation: none; }
+
+/* A verdict's example lands just after its card. */
+.lp-motion .lp-v:not(.is-in) .lp-v-ex { opacity: 0; transform: translateY(8px); }
+.lp-motion .lp-v.is-in .lp-v-ex { transition: opacity .6s var(--ease) calc(var(--d, 0s) + .35s), transform .6s var(--ease) calc(var(--d, 0s) + .35s); }
+
+/* The bug deck: a card comes in, then its repro writes itself out. */
+.lp-motion .lp-case.is-on { animation: lpCard .6s var(--ease) both; }
+.lp-motion .lp-case.is-on .lp-pre code { display: block; animation: lpWipe 1.1s steps(42) .45s both; }
+
+/* The example run's "Added to the bug sheet" appears when the run ends. */
+.lp-motion .lp-run-filed { opacity: 0; transform: translateY(4px); transition: opacity .4s ease, transform .4s var(--ease); }
+.lp-motion .lp-run-filed.is-on { opacity: 1; transform: none; }
+
+/* ── small screens: every row wraps; nothing scrolls sideways ─────────── */
+@media (max-width: 1100px) {
+  .lp-hero { min-height: 0; padding-bottom: 72px; }
+  .lp-est .lp-m { flex-basis: 100%; }
+  .lp-cue { display: none; }
+  .lp-pr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
+  .lp-pr-grid li, .lp-pr-grid li:first-child { padding: 0 24px 0 0; }
+  .lp-pr-grid li + li { border-left: 0; }
+  .lp-pr-grid li { border-top: 1px solid rgba(165, 157, 255, .55); padding-top: 20px; }
+  .lp-hero { grid-template-columns: minmax(0, 1fr); }
+  .lp-run { max-width: 640px; }
+  .lp-how-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .lp-stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-st:nth-child(3) { padding-left: 0; border-left: 0; }
+  .lp-st:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .lp-v-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .lp-links { display: none; }
+}
+@media (max-width: 600px) {
+  .lp-in { padding-inline: 20px; }
+  .lp-head { gap: 16px; }
+  .lp-word { min-height: 44px; }
+  .lp-hero { padding-top: 32px; padding-bottom: 48px; gap: 36px; }
+  .lp-how-grid { grid-template-columns: minmax(0, 1fr); }
+  .lp-pr-grid { grid-template-columns: minmax(0, 1fr); }
+  .lp-pr-in { padding-block: 64px; }
+  .lp-stats-row { grid-template-columns: minmax(0, 1fr); }
+  .lp-st, .lp-st:first-child { padding: 24px 0 18px; }
+  .lp-st + .lp-st { border-left: 0; border-top: 1px solid var(--line); }
+  .lp-run-steps li { grid-template-columns: 10px minmax(0, 1fr); }
+  .lp-run-steps code { grid-column: 2; white-space: normal; overflow-wrap: anywhere; }
+  .lp-run-filed { margin-left: 0; }
+  .lp-proof-in { padding-block: 64px; gap: 32px; }
+  .lp-proof-l, .lp-proof-r { flex-basis: 100%; }
+  .lp-case-grid { grid-template-columns: 1fr; }
+  .lp-case-cell + .lp-case-cell { border-left: 0; border-top: 1px solid var(--line); }
+  .lp-case-head, .lp-case-cell, .lp-case-repro, .lp-case-foot { padding-inline: 16px; }
+  .lp-how, .lp-nums, .lp-verdicts { padding-bottom: 64px; }
+  .lp-how { padding-top: 48px; }
+  .lp-close { padding-block: 72px 56px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp *, .lp *::before, .lp *::after { animation: none !important; transition: none !important; }
+  .lp .lp-how-step:hover { scale: none; translate: none; }
+}
