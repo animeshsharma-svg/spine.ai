@@ -1752,9 +1752,13 @@ export class CreateEventPage extends BasePage {
    */
   /** The duration preset actually chosen (minutes), when the schedule was edited. */
   scheduleMinutesChosen: number | null = null;
+  /** Each stage block's end, as the Schedule drawer reads it just before Save ("2. RFQ" → "08 October 2026 05:13 PM"). */
+  scheduleWindows: Array<{ stage: string; endsAt: string }> = [];
 
   async saveSchedule(): Promise<void> {
     const p = this.page;
+    this.scheduleMinutesChosen = null;
+    this.scheduleWindows = [];
     await this.dismissDistractions();
     const opened = await this.clickIfPresent(
       [
@@ -1780,6 +1784,10 @@ export class CreateEventPage extends BasePage {
     if (!visible) {
       throw new Error("the Schedule Event panel did not open, so the stage schedule cannot be committed");
     }
+    if (process.env.UI_DUMP_SCHEDULE) {
+      const { writeFileSync } = await import("node:fs");
+      writeFileSync(process.env.UI_DUMP_SCHEDULE, (await panel.innerText().catch(() => "")) + "\n----HTML----\n" + ((await panel.innerHTML().catch(() => "")) || "").replace(/<svg[\s\S]*?<\/svg>/g, "").slice(0, 20000));
+    }
     // Editing the window is a parameter, not a hard-coded step: the duration
     // field is the one the AI is most likely to be asked to change ("run it for
     // 2 hours"), so it is driven from UI_SCHEDULE_MINUTES rather than baked in.
@@ -1800,7 +1808,26 @@ export class CreateEventPage extends BasePage {
       // "Duration" and a sibling whose whole text is the value ("30 Mins").
       // Drive that sibling: click it; if a dropdown opens, pick the smallest
       // preset covering the request; if it exposes an input, type the minutes.
-      const endBlock = panel.locator("[class*='timeInputWrapper']").filter({ hasText: /end time/i }).first();
+      // A multi-stage event shows ONE block per stage in this drawer ("1. Technical Stage",
+      // "2. RFQ", captured 2026-10-08). Only the first used to be edited, so a short window
+      // landed on the technical stage alone and publish was refused with "RFP duration
+      // exceeds RFQ end time" (the app requires the latest technical end <= the earliest
+      // RFQ end, projectCreation.jsx:1609-1622). Every block gets the same window; all
+      // start "now", so their ends match.
+      const endBlocks = panel.locator("[class*='timeInputWrapper']").filter({ hasText: /end time/i });
+      const blockCount = Math.max(1, await endBlocks.count());
+      const chosenPerBlock: Array<number | null> = [];
+      for (let bi = 0; bi < blockCount; bi++) {
+      const endBlock = endBlocks.nth(bi);
+      // The second stage's block sits below the fold of the drawer, where its mode select
+      // does not open on a click (captured 2026-10-08: "mode options: (none read)"). Close
+      // any picker the previous block left open, then bring this block into view.
+      if (bi > 0) {
+        await panel.getByText(/schedule event/i).first().click({ timeout: 1_500 }).catch(() => {});
+        await this.pause(300);
+      }
+      await endBlock.evaluate((el) => el.scrollIntoView({ block: "center" })).catch(() => {});
+      await this.pause(300);
       const scope = (await endBlock.count()) ? endBlock : panel;
       const valueCol = scope.locator("[class*='inputCol']").filter({ hasText: /^\s*\d+\s*(Mins?|Minutes?|Hours?)\s*$/i }).first();
       const inner = (await valueCol.evaluate((e) => e.outerHTML.replace(/\s+/g, " ").slice(0, 600)).catch(() => "")) || "";
@@ -1821,7 +1848,14 @@ export class CreateEventPage extends BasePage {
       // Below the smallest preset (30 min), switch to Fixed time and set an
       // explicit end a few minutes out; capture the panel in that mode so the
       // next iteration is built on evidence if the pickers differ.
-      if (minutes < 30 && (await modeSel.count())) {
+      // On a multi-stage event every stage stays on DURATION: the app's publish check compares
+      // the stages' raw eventEndTime values, which hold a length for "Duration" but a clock
+      // timestamp for "Fixed time", so a fixed technical end beside a duration RFQ is always
+      // refused ("RFP duration exceeds RFQ end time") — BUG-85. Equal durations compare equal.
+      if (blockCount > 1 && minutes < 30 && bi === 0) {
+        console.log(`[create-event] asked ${minutes} min on a ${blockCount}-stage event — keeping every stage on Duration (a fixed end beside a duration is refused by the app's own check, BUG-85)`);
+      }
+      if (minutes < 30 && blockCount === 1 && (await modeSel.count())) {
         await modeSel.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
         const fixed = this.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item").filter({ hasText: /fixed/i }).first();
         if (await fixed.count()) {
@@ -1922,7 +1956,27 @@ export class CreateEventPage extends BasePage {
       } else {
         console.log("[create-event] no duration value column in the Schedule panel — keeping the default window");
       }
-      this.scheduleMinutesChosen = chosen;
+      chosenPerBlock.push(chosen);
+      }
+      const kept = chosenPerBlock.filter((c): c is number => typeof c === "number");
+      this.scheduleMinutesChosen = kept.length === chosenPerBlock.length && kept.length ? Math.max(...kept) : kept[0] ?? null;
+    }
+
+    // What each stage block will save — its own "Event will end at …" line — read back before
+    // saving, so the step reports what the app holds rather than what was typed.
+    {
+      const text = (await panel.innerText().catch(() => "")) || "";
+      if (process.env.UI_DUMP_SCHEDULE) {
+        const { writeFileSync } = await import("node:fs");
+        writeFileSync(process.env.UI_DUMP_SCHEDULE + ".after", text);
+      }
+      const parts = text.split(/\n(?=\d+\.\s)/);
+      for (const part of parts) {
+        const name = /^(\d+\.\s*[^\n]+)/.exec(part)?.[1]?.trim();
+        const end = /Event will end at\s+([^\n]+)/i.exec(part)?.[1]?.trim();
+        if (end) this.scheduleWindows.push({ stage: name ?? "event", endsAt: end });
+      }
+      if (this.scheduleWindows.length) console.log(`[create-event] schedule windows: ${this.scheduleWindows.map((w) => `${w.stage} ends ${w.endsAt}`).join(" · ")}`);
     }
 
     // Fixed time adds rows and pushes Save below the fold, and a forced click

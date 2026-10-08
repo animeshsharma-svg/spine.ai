@@ -885,9 +885,13 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
       await s.create.saveSchedule();
+      // Report what the app holds — each stage block's own "Event will end at" line — never
+      // what was typed (a 3-minute end that did not take was reported as "saved (3 min)").
+      const windows = s.create.scheduleWindows.map((w) => `${w.stage.replace(/^\d+\.\s*/, "")} ends ${w.endsAt}`).join(" · ");
       const chosen = s.create.scheduleMinutesChosen;
-      if (a.minutes && chosen && chosen !== asInt(a.minutes, 30)) return `schedule saved — asked ${a.minutes} min, the app's smallest covering preset is ${chosen} min`;
-      return a.minutes ? `schedule saved (${chosen ?? a.minutes} min)` : "schedule saved";
+      const asked = a.minutes ? asInt(a.minutes, 30) : null;
+      const note = asked && chosen && chosen !== asked ? ` — asked ${asked} min, the app kept ${chosen} min` : asked && !chosen ? ` — asked ${asked} min, the app kept its default` : "";
+      return `schedule saved${windows ? `: ${windows}` : ""}${note}`;
     }
     case "place_bid": {
       // The vendor bids for themselves, which means a SECOND browser context:

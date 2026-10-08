@@ -30,7 +30,7 @@ if (state && state !== "none") {
 }
 await new Promise<void>((resolve) => {
   runUiPlan({ plan: { title: "probe", steps, ...(context ? { context } : {}) }, companyId: COMPANY, runId: `probe-${Date.now().toString(36)}`, headed: false }, (e: any) => {
-    if (e.type === "log" && /\[plan\]|\[probe\]|\[reschedule\]|Error:|intercepts|waiting for/.test(e.line ?? "")) console.log(String(e.line).trim().slice(0, 900));
+    if (e.type === "log" && /\[plan\]|\[probe\]|\[reschedule\]|\[create-event\]|Error:|intercepts|waiting for/.test(e.line ?? "")) console.log(String(e.line).trim().slice(0, 900));
     if (e.type === "done" || e.type === "run-error") {
       console.log(`exit ${e.exitCode ?? "?"}`);
       resolve();
