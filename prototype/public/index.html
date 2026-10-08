@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="/plan.css" />
     <link rel="stylesheet" href="/session.css" />
     <link rel="stylesheet" href="/sessions.css" />
+    <link rel="stylesheet" href="/bugs.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231375e4'/><path d='M50 18 L82 50 L50 82 L18 50 Z' fill='%23fff'/></svg>" />
     <!-- Applied before paint, not after app.js loads, so the sidebar never
          flashes expanded-then-collapses, and the page never flashes the wrong
@@ -143,6 +144,8 @@
 <symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /> </symbol>
 <symbol id="i-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m18 15-6-6-6 6" /> </symbol>
 <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M20 6 9 17l-5-5" /> </symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /> </symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /> </symbol>
 <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M5 12h14" /> <path d="M12 5v14" /> </symbol>
 <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /> </symbol>
 <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /> </symbol>
@@ -208,7 +211,7 @@
                    (#/session/{id}) is the Run screen, so this entry stays lit
                    there too. Amber count: sessions on "Your turn". -->
               <a class="nav-item" href="#/sessions" data-view="sessions" data-also="run" title="Sessions" id="sb-sessions"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-history"/></svg></span><span class="nav-label">Sessions</span></a>
-              <a class="nav-item" href="#/bugs" data-view="bugs" title="Defects" id="sb-defects"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg></span><span class="nav-label">Defects</span></a>
+              <a class="nav-item" href="#/bugs" data-view="bugs" data-also="stuck" title="Bugs" id="sb-defects"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg></span><span class="nav-label">Bugs</span></a>
             </div>
           </div>
 
@@ -915,7 +918,7 @@
                     <div class="report-bar" id="report-bar" hidden>
                       <span class="report-bar-label" id="report-bar-label">This run:</span>
                       <a id="open-api-report" class="run-btn small" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-chart-column"/></svg> Test report</a>
-                      <a id="open-bug-sheet" class="run-btn small ghost" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Bug sheet</a>
+                      <a id="open-bug-sheet" class="run-btn small ghost" href="#/bugs"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Bugs from this run</a>
                     </div>
                     <!-- The raw Playwright output, one click away for when something breaks. -->
                     <details id="ui-raw" class="ui-raw" hidden>
@@ -1331,69 +1334,63 @@
           </div>
         </section>
 
-        <!-- ── Bugs ────────────────────────────────────────────────── -->
-        <section class="view" id="view-bugs" data-view="bugs">
+        <!-- ── Bugs (public/bugs.js, bugsExport.js, bugs.css) ───────────
+             One row per bug, kept across runs, triaged in place. It replaced
+             the separate bug sheet: /api/bug-report now sends people here.
+             Stuck points and the steps still needed moved to #/stuck. -->
+        <section class="view bugs" id="view-bugs" data-view="bugs" aria-labelledby="bg-title">
+          <header class="bg-head">
+            <div class="bg-head-l">
+              <h1 id="bg-title">Bugs</h1>
+              <p class="bg-sub" id="bg-sub">Every bug spine.ai found, one row each, kept across runs.</p>
+            </div>
+            <div class="bg-ctx" id="bg-ctx"></div>
+          </header>
+          <div class="bg-tiles" id="bg-tiles" role="group" aria-label="Filter by severity"></div>
+          <div class="bg-tools">
+            <div class="bg-scope" id="bg-scope" role="group" aria-label="Which bugs">
+              <button type="button" data-scope="open" aria-pressed="true">Open</button>
+              <button type="button" data-scope="last" aria-pressed="false">From last run</button>
+              <button type="button" data-scope="all" aria-pressed="false">All bugs</button>
+            </div>
+            <span class="bg-runchip" id="bg-runchip" hidden><span></span><button type="button" aria-label="Clear the run filter"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button></span>
+            <button type="button" class="bg-pillbtn" id="bg-kind" aria-haspopup="listbox" aria-expanded="false">Kind <b>All</b><svg class="ico" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
+            <span class="bg-spacer"></span>
+            <label class="bg-search">
+              <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+              <span class="sr-only">Search bugs by ID, module or text</span>
+              <input type="search" id="bg-q" placeholder="Search ID, module or text" autocomplete="off" spellcheck="false" />
+              <kbd aria-hidden="true">/</kbd>
+            </label>
+            <button type="button" class="bg-export" id="bg-export" aria-haspopup="dialog" aria-expanded="false"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Export for devs<svg class="ico chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
+          </div>
+          <div class="bg-selbar" id="bg-selbar" role="region" aria-label="Selected bugs" hidden>
+            <span class="bg-selbar-n" id="bg-seln"></span>
+            <button type="button" class="bg-out" data-bulk="status" aria-haspopup="listbox">Set status</button>
+            <button type="button" class="bg-out" data-bulk="priority" aria-haspopup="listbox">Set priority</button>
+            <button type="button" class="bg-white" data-bulk="export" aria-haspopup="dialog"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Export selected</button>
+            <button type="button" class="bg-x" data-bulk="clear" aria-label="Clear the selection"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="bg-wrap" id="bg-body" aria-busy="true"></div>
+          <footer class="bg-foot">
+            <span id="bg-count"></span>
+            <span>Changes save as you edit · Dev ETA and comments are filled by developers</span>
+          </footer>
+          <p class="bg-foot"><a href="#/stuck">Stuck points and steps the automation still needs</a></p>
+          <p class="sr-only" id="bg-said" aria-live="polite"></p>
+        </section>
+
+        <!-- ── Stuck points and steps still needed (#/stuck) ─────────────
+             Moved off Bugs as they were (same ids, so app.js still fills
+             them): both are about the automation, not the product. Reached
+             from the foot of Bugs and from a harness bug's detail. -->
+        <section class="view" id="view-stuck" data-view="stuck">
           <header class="view-head">
-            <h1>Bugs</h1>
-            <p>One row per defect, however many tests hit it. The full sheet is editable — status, priority, owner, comments.</p>
-            <!-- The standing sheet lives HERE, not on Reports. Per-run sheets
-                 hang off their own run card; this is the one with content no
-                 single run has: the team's hand-raised D__ rows, plus every
-                 defect found across all runs. -->
-            <p class="cap-bar report-links">
-              <a id="report-sheet" class="chip" href="/api/bug-report" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Open the full bug sheet</a>
-              <span class="hint">hand-raised bugs + everything found across all runs · editable</span>
-            </p>
+            <h1>Stuck points and steps still needed</h1>
+            <p>Where the automation got stuck on a screen, and what written cases ask for that no step can do yet. These are about the automation, not the product; the product's bugs are on <a href="#/bugs">Bugs</a>.</p>
           </header>
           <div class="view-body">
-        <!-- Triage at a glance, then the queue. The numbers are the pitch:
-             what is blocking, what is the product's, and what is ours. -->
-        <div id="bug-board" class="bug-board" hidden>
-          <div class="bug-tiles">
-            <button type="button" class="bug-tile crit" data-sev="critical">
-              <span class="bug-tile-v" id="bt-crit">0</span>
-              <span class="bug-tile-l">blockers</span>
-            </button>
-            <button type="button" class="bug-tile warn" data-sev="high">
-              <span class="bug-tile-v" id="bt-high">0</span>
-              <span class="bug-tile-l">high</span>
-            </button>
-            <button type="button" class="bug-tile" data-sev="medium">
-              <span class="bug-tile-v" id="bt-med">0</span>
-              <span class="bug-tile-l">medium · low</span>
-            </button>
-            <button type="button" class="bug-tile prod" data-kind="product">
-              <span class="bug-tile-v" id="bt-prod">0</span>
-              <span class="bug-tile-l">the product's</span>
-            </button>
-            <button type="button" class="bug-tile ours" data-kind="notproduct">
-              <span class="bug-tile-v" id="bt-ours">0</span>
-              <span class="bug-tile-l">not the product's</span>
-            </button>
-          </div>
-          <div class="bug-bar" id="bug-bar" aria-hidden="true"></div>
-          <p class="bug-legend" id="bug-legend"></p>
-        </div>
-
-        <div class="bug-controls" id="bug-controls" hidden>
-          <input id="bug-search" class="cat-search" type="search" placeholder="Search bugs by title, module or evidence…" />
-          <select id="bug-kind" class="cat-select">
-            <option value="">Everything</option>
-            <option value="product">Product defects</option>
-            <option value="notproduct">Not the product (harness, environment, test)</option>
-          </select>
-          <span class="hint" id="bug-count"></span>
-          <button type="button" id="bug-clear" class="chip" hidden>clear filters</button>
-        </div>
-
-        <div id="findings" class="findings">
-          <div class="empty">Run a journey — confirmed defects, test gaps and harness issues are separated here.</div>
-        </div>
-        <!-- Stuck points is new and earns its place: a locator that failed,
-             taught once, stays fixed. QA memory and the agent "Results &
-             report" panel were removed on this branch — the reports carry
-             that now — so they are not reinstated here. -->
-        <div class="col-head" style="margin-top:16px">
+        <div class="col-head">
           <h2>Stuck points</h2>
           <span class="hint" id="stuck-hint">where a locator failed · teach it once, it stays fixed</span>
         </div>
@@ -1467,11 +1464,14 @@
         <p id="modal-note" class="modal-note"></p>
         <div class="modal-actions">
           <a id="modal-report" class="run-btn primary" href="/api/test-report" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-chart-column"/></svg> Open the report</a>
-          <a id="modal-bugs" class="run-btn ghost" href="/api/bug-report" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Bug sheet</a>
+          <a id="modal-bugs" class="run-btn ghost" href="#/bugs"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Bugs from this run</a>
           <button id="modal-close" class="chip">Close</button>
         </div>
       </div>
     </div>
+
+    <div class="bg-scrim" id="bg-scrim" hidden></div>
+    <aside class="bg-drawer" id="bg-drawer" role="dialog" aria-modal="true" aria-labelledby="bg-dr-title" hidden></aside>
 
     <script src="/caseView.js"></script>
     <script src="/app.js"></script>
@@ -1488,5 +1488,7 @@
     <script src="/plan.js"></script>
     <script src="/session.js"></script>
     <script src="/sessions.js"></script>
+    <script src="/bugsExport.js"></script>
+    <script src="/bugs.js"></script>
   </body>
 </html>

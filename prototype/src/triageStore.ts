@@ -27,6 +27,8 @@ export interface Triage {
   priority?: string;
   blocker?: string;
   devType?: string;
+  /** Who chose the Dev type, when a person did; without it the page shows spine.ai's suggestion. */
+  devTypeBy?: string;
   devComment?: string;
   sprintWeek?: string;
   userType?: string;
@@ -43,6 +45,7 @@ const FIELDS: (keyof Triage)[] = [
   "priority",
   "blocker",
   "devType",
+  "devTypeBy",
   "devComment",
   "sprintWeek",
   "userType",

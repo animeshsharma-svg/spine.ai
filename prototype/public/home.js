@@ -12,7 +12,7 @@
  * It also drives the parts of the shell every view shares:
  *   - the client bar (client + environment, top right of the content);
  *   - the sidebar's Theme toggle, collapse button, run pill, profile menu
- *     and its counts (amber on Sessions, red on Defects);
+ *     and its counts (amber on Sessions, red on Bugs);
  *   - opening a session by its address, #/session/{id}.
  *
  * It reads app.js's state rather than duplicating it — currentClient,
@@ -470,8 +470,8 @@
     link.setAttribute("aria-label", label);
   }
 
-  /** Same rule the bug sheet uses for "no longer open" (src/report/bugSheet.ts). */
-  const CLOSED = /fixed|closed|won.t fix|not a bug/i;
+  /** "No longer open": the Bugs page's Open list hides FIXED, NOT A BUG and Duplicate Issue (bugs.js). */
+  const CLOSED = /fixed|closed|won.t fix|not a bug|duplicate/i;
   const isProduct = (g) => g.kind === "product_defect" || g.kind === "contradiction";
   let defects = null;
 
@@ -493,7 +493,7 @@
       /* the badge keeps its last count; the next refresh asks again */
     }
     const n = defects ? defects.critical + defects.high : 0;
-    setBadge(q$("#sb-defects"), n, "bad", `Defects, ${n} open critical and high`);
+    setBadge(q$("#sb-defects"), n, "bad", `Bugs, ${n} open critical and high`);
   }
 
   function renderBadges() {
@@ -967,6 +967,8 @@
     q$("#env")?.addEventListener("change", rescope);
     q$("#env-custom")?.addEventListener("change", rescope);
     q$("#client-add-go")?.addEventListener("click", () => setTimeout(syncContext, 0));
+    // An edit on the Bugs page (marking one FIXED, say) changes the red count.
+    window.addEventListener("spine:bugs-changed", () => loadDefects());
 
     // Deferred a tick: app.js's router (registered later, after /api/clients
     // answers) is what marks the new view, and it has to run first.

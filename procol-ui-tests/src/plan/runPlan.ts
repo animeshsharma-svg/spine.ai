@@ -17,11 +17,34 @@ import { PlanStep, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark } from "./generic/messages.js";
 import type { Target } from "./generic/find.js";
-import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
+import { qaVendorNames, qaVendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
 import { runExpectationStep } from "./expectations.js";
 import { installObserver, observe, type Observation } from "./observe.js";
 import { resolveScreen, type PlanContext } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
+
+/** The QA vendors invite_vendor put on this run's event (one plan per process). */
+let invitedQa: string[] = [];
+const QA_EMAIL = /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i;
+
+/**
+ * Who the vendor portal is signed in as. The profile's vendor only when it is
+ * a QA test vendor (or real suppliers are deliberately allowed); otherwise the
+ * client's own QA test vendor — the one invite_vendor put on the event — from
+ * the database. A real supplier's account is never signed in to: that would
+ * mail its people a one-time code.
+ */
+async function bidderEmail(): Promise<string> {
+  if (QA_EMAIL.test(CONFIG.vendorEmail) || allowRealVendors()) return CONFIG.vendorEmail;
+  const qa = await qaVendorLogins();
+  const pick = qa.find((v) => invitedQa.some((n) => isQaVendorName(n, [v.name]))) ?? qa[0];
+  if (!pick) throw new Error("this client has no QA test vendor to sign in as on the vendor portal — real suppliers are never signed in; create a QA vendor for it first");
+  return pick.email;
+}
+
+/** "AMD is a real supplier, so …" — said when a named real supplier was swapped for the client's QA vendors. */
+const swapNote = (real: string[]) =>
+  real.length ? `${real.join(", ")} ${real.length === 1 ? "is a real supplier" : "are real suppliers"}, so the client's QA test vendor was invited instead — ` : "";
 
 /**
  * THE PLAN EXECUTOR — runs a compiled test case.
@@ -681,12 +704,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const vendorPage = await vendorCtx.newPage();
       try {
         const portal = new VendorPortalPage(vendorPage);
-        // Only a QA test vendor (qa_…@example.com) is ever signed in as — the
-        // profile's default vendor can be a real supplier.
-        if (!/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(CONFIG.vendorEmail) && !allowRealVendors())
-          throw new Error("place_bid needs a QA test vendor identity (qa_…@example.com) — automation needs update: the runner did not hand one over");
+        // Signed in as the client's QA test vendor, never a real supplier.
+        const email = await bidderEmail();
         await portal.goto();
-        await portal.login();
+        await portal.login(email);
         await portal.openEvent(s.title);
         const detail = await portal.acceptCounterOffer(s.title);
         s.counterOfferAccepted = true;
@@ -899,8 +920,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const vendorPage = await vendorCtx.newPage();
       try {
         const portal = new VendorPortalPage(vendorPage);
+        // Signed in as the client's QA test vendor (the one invited), never a real supplier.
+        const email = await bidderEmail();
         await portal.goto();
-        await portal.login();
+        await portal.login(email);
         await portal.openEvent(s.title);
         await portal.startBidding(s.title);
         const cells = await portal.fillBid(Number(a.price ?? 100));
@@ -960,19 +983,34 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     case "invite_vendor": {
       if (await isSingleStageScreen(s)) {
         const asked = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
-        // Only QA test vendors may be named (real suppliers are never invited).
+        // Only QA test vendors may be named (real suppliers are never invited):
+        // a real one is swapped for the client's QA vendors, and the run says so.
         const qa = await qaVendorNames();
         const names = allowRealVendors() ? asked : asked.filter((n) => isQaVendorName(n, qa));
+        const real = allowRealVendors() ? [] : asked.filter((n) => !isQaVendorName(n, qa));
         const added: string[] = [];
         for (const n of names) if (await s.single.addParticipant(n)) added.push(n);
         if (!added.length) await s.single.inviteVendor();
-        return added.length ? `invited ${added.join(", ")} (single-stage)` : "vendors invited (single-stage)";
+        invitedQa = added.filter((n) => isQaVendorName(n, qa));
+        return swapNote(real) + (added.length ? `invited ${added.join(", ")} (single-stage)` : "vendors invited (single-stage)");
       }
-      const names = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
+      const asked = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
       const min = a.count !== undefined ? Number(a.count) : vendorCount();
+      // A real supplier named in the plan is swapped for the client's QA test
+      // vendors (real suppliers are never invited): the run goes on, and says so.
+      let names = asked;
+      let real: string[] = [];
+      if (!allowRealVendors() && asked.length) {
+        const qa = await qaVendorNames();
+        real = asked.filter((n) => !isQaVendorName(n, qa));
+        names = asked.filter((n) => isQaVendorName(n, qa));
+      }
       const invited = await s.create.inviteVendors({ names, count: min });
-      const total = await s.create.participantCount();
-      return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s)`;
+      const present = await s.create.participantNames();
+      invitedQa = present.length ? present : invited;
+      const total = present.length || (await s.create.participantCount());
+      const shown = invited.length ? invited : present;
+      return swapNote(real) + (shown.length ? `invited ${shown.join(", ")} (${total} total)` : `${total} participant(s)`);
     }
     case "publish":
       if (await isSingleStageScreen(s)) {

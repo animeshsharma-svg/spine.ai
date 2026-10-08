@@ -28,6 +28,14 @@ const STAGE_LABEL: Record<StageKey, RegExp> = {
   auction: /\bauction\b/i,
 };
 
+/** The option each stage kind has in a stage's "Configuration for Event" drawer. */
+const STAGE_TYPE_OPTION: Record<StageKey, RegExp> = {
+  rfp: /^\s*Technical Stage\s*$/i,
+  rfq: /^\s*RFQ\s*$/i,
+  auction: /^\s*Auction\s*$/i,
+};
+const STAGE_NAME: Record<StageKey, string> = { rfp: "Technical", rfq: "RFQ", auction: "Auction" };
+
 /** Every stage kind, for reconciling what is on screen against what we want. */
 const ALL_STAGES: StageKey[] = ["rfp", "rfq", "auction"];
 
@@ -547,6 +555,93 @@ export class CreateEventPage extends BasePage {
   }
 
   /**
+   * Turn the screen's one default stage into the stage we want, directly.
+   *
+   * The stage body's "Event Type" control (it reads "Rank on lot" on the
+   * default Auction stage) opens a "Configuration for Event" drawer whose
+   * first row is the stage's own type: Auction, RFQ or Technical Stage. With
+   * a single stage on screen the app lets that type change freely
+   * (projectCreation.jsx: "Remove Auction to add RFQ" only applies once two
+   * stages exist), so RFQ-only is one change and a Save, where adding and
+   * deleting tabs took four moves (add Technical, delete Auction, add RFQ,
+   * delete Technical) and about 25 seconds.
+   *
+   * Only used when the default stage is not one we want; returns false, having
+   * changed nothing, if the control or the option is not there, so the caller
+   * composes tab by tab as before.
+   */
+  private async switchLoneStage(desired: StageKey[]): Promise<boolean> {
+    const p = this.page;
+    const current = await this.currentStages();
+    if (current.length !== 1 || desired.includes(current[0])) return false;
+    const from = current[0];
+    const target = desired[0];
+
+    const chip = p
+      .getByText(/^Event Type$/)
+      .first()
+      .locator("xpath=..")
+      .getByRole("button")
+      .first();
+    if (!(await chip.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).then(() => true).catch(() => false))) {
+      console.log(`[create-event] no Event Type control on the ${STAGE_NAME[from]} stage — composing the stages tab by tab`);
+      return false;
+    }
+    await this.dismissDistractions();
+    await chip.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+
+    const drawer = p
+      .locator(".ant-drawer, [role='dialog']")
+      .filter({ hasText: /Configuration for Event/i })
+      .first();
+    const option = drawer.locator(".pro-radio-tabs__tab").filter({ hasText: STAGE_TYPE_OPTION[target] }).first();
+    const shown = await option.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).then(() => true).catch(() => false);
+    // The browser-notifications prompt lands on top of this drawer's type row.
+    await this.dismissDistractions();
+    if (!shown) {
+      console.log(`[create-event] the Event Type drawer offered no ${STAGE_NAME[target]} option — composing the stages tab by tab`);
+      await drawer.getByRole("button", { name: /^cancel$/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      return false;
+    }
+    // An ordinary click, not a forced one: the drawer slides in, and Playwright
+    // waits for the option to stop moving. A forced click during the slide
+    // landed beside it and the stage stayed an Auction.
+    await option.click({ timeout: TIMEOUTS.SHORT }).catch(async () => {
+      await this.dismissDistractions();
+      await option.click({ force: true, timeout: TIMEOUTS.SHORT }).catch(() => {});
+    });
+    const picked = await option
+      .evaluate((el) => el.getAttribute("aria-checked") === "true" || /checked|active|selected/.test(el.className))
+      .catch(() => false);
+    if (!picked) {
+      console.log(`[create-event] the ${STAGE_NAME[target]} option would not select — composing the stages tab by tab`);
+      await drawer.getByRole("button", { name: /^cancel$/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      return false;
+    }
+    await drawer.getByRole("button", { name: /^save$/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    await drawer.waitFor({ state: "hidden", timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+    await p
+      .getByRole("tab", { name: STAGE_LABEL[target] })
+      .first()
+      .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
+      .catch(() => {});
+
+    const now = await this.currentStages();
+    if (now.length === 1 && now[0] === target) {
+      console.log(`[create-event] switched the first stage from ${STAGE_NAME[from]} to ${STAGE_NAME[target]} in its Event Type settings, with no tabs added or deleted`);
+      return true;
+    }
+    console.log(
+      `[create-event] the ${STAGE_NAME[from]} stage did not become ${STAGE_NAME[target]} (on screen: ${now.join(", ") || "none"}) — composing the stages tab by tab`,
+    );
+    // Leave nothing half-open for the reconciler.
+    if (await drawer.isVisible().catch(() => false)) {
+      await drawer.getByRole("button", { name: /^cancel$/i }).first().click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    }
+    return false;
+  }
+
+  /**
    * Compose the project's stages EXACTLY, then verify it.
    *
    * The app's rules (projectCreation.jsx `isValidStage` / `getDropdownMenu` /
@@ -557,8 +652,10 @@ export class CreateEventPage extends BasePage {
    *     ("Remove Auction to add RFQ");
    *   - `+` is disabled once two stages exist (two is the maximum);
    *   - a tab's `⋮` Delete is DISABLED while only one stage remains.
-   * So RFQ-only takes four moves: add Technical (to unlock Delete), delete
-   * Auction, add RFQ, delete Technical.
+   * So RFQ-only took four moves: add Technical (to unlock Delete), delete
+   * Auction, add RFQ, delete Technical. It now goes straight there first —
+   * switchLoneStage() changes the default stage's type in its settings — and
+   * the moves below only add a second stage, or recover if that switch fails.
    *
    * This used to be a best-effort `ensureStageTabs` that skipped whatever the
    * menu did not offer and logged `stage "rfq" is not offered`. Every RFQ flow
@@ -589,15 +686,20 @@ export class CreateEventPage extends BasePage {
       .waitFor({ state: "visible", timeout: TIMEOUTS.LONG })
       .catch(() => {});
 
+    // Straight to the right type when the default stage is not one we want.
+    await this.switchLoneStage(desired);
+
     let stalled = 0;
     for (let round = 0; round < 10; round++) {
       const current = await this.currentStages();
       const missing = desired.filter((s) => !current.includes(s));
       const extra = current.filter((s) => !desired.includes(s));
+      // Said only while something is still to change, so a layout that is
+      // already right is not reported as a round of adding and removing tabs.
+      if (!missing.length && !extra.length) break;
       console.log(
         `[create-event] stages round ${round}: on screen [${current.join(", ") || "none"}], want [${desired.join(", ")}]`,
       );
-      if (!missing.length && !extra.length) break;
 
       // Add what we still need, while there is room and the app allows it.
       const addable = missing.find((s) => this.stageIsAddable(s, current));

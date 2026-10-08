@@ -1,0 +1,431 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   BUGS (#/bugs) — public/bugs.js, exports in public/bugsExport.js.
+
+   Header (title, the client bar), severity tiles that filter, a toolbar
+   (scope · Kind · search · Export for devs), a selection bar while rows are
+   ticked, then one table row per bug with editable pill cells. Loaded after
+   home.css: every colour, font and shadow is a paper-theme token, so light
+   and dark both follow. Menus are drawn in a layer on <body> (.bg-pop), so
+   the table never clips them.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root, [data-theme="light"] { --bg-sev-med: #e9b949; }
+[data-theme="dark"] { --bg-sev-med: #f0c95e; }
+
+/* The shell's content column already has 24px side padding; the page adds
+   the top and the foot, so the content sits at 8px 24px 40px. */
+.view.bugs.active {
+  display: flex; flex-direction: column; gap: 18px;
+  width: 100%; max-width: 1320px; margin: 0 auto;
+  padding: 8px 0 40px;
+  color: var(--text);
+}
+:where(.view.bugs, .bg-pop, .bg-drawer) :is(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 2px;
+}
+
+/* ── header ───────────────────────────────────────────────────────────── */
+.bg-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.bg-head-l { flex: 1 1 280px; min-width: 0; }
+.bg-head h1 { margin: 0; font: 600 26px/1.2 var(--font-sans); letter-spacing: -0.01em; color: var(--text-strong); }
+.bg-sub { margin: 4px 0 0; font: 400 13px/1.45 var(--font-sans); color: var(--text-2); }
+.bg-ctx:empty { display: none; }
+.bg-ctx .ctx-bar { justify-content: flex-end; }
+
+/* ── severity tiles ───────────────────────────────────────────────────── */
+.bg-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.bg-tile {
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+  padding: 12px 14px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  color: inherit; text-align: left; cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.bg-tile:hover { border-color: var(--border-strong); }
+.bg-tile[aria-pressed="true"] { background: var(--primary-tint); border-color: var(--primary-border-2); }
+.bg-tile-name { display: inline-flex; align-items: center; gap: 8px; font: 400 13px/1.2 var(--font-sans); color: var(--text-2); }
+.bg-tile-n { display: inline-flex; align-items: baseline; gap: 6px; }
+.bg-tile-n b { font: 600 24px/1 var(--font-sans); color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.bg-tile-n span { font: 400 12px/1 var(--font-sans); color: var(--text-2); }
+.bg-sdot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-muted); }
+.bg-sdot.s-critical { background: var(--bad-dot); }
+.bg-sdot.s-high { background: var(--warn-dot); }
+.bg-sdot.s-medium { background: var(--bg-sev-med); }
+.bg-sdot.s-low { background: var(--text-muted); }
+
+/* ── toolbar ──────────────────────────────────────────────────────────── */
+.bg-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bg-scope { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--chip-bg); }
+.bg-scope button {
+  height: 30px; padding: 0 12px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--text);
+  font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+}
+.bg-scope button:hover { color: var(--text-strong); }
+.bg-scope button[aria-pressed="true"] { background: var(--card); color: var(--text-strong); box-shadow: var(--shadow-xs); }
+
+.bg-pillbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 12px 0 14px; border-radius: 999px;
+  border: 1px solid var(--border-subtle); background: var(--card); color: var(--text-2);
+  font: 400 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+}
+.bg-pillbtn b { font-weight: 600; color: var(--text-strong); }
+.bg-pillbtn:hover { border-color: var(--border-strong); }
+.bg-pillbtn .ico { width: 14px; height: 14px; opacity: .6; }
+
+.bg-runchip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  height: 30px; padding: 0 4px 0 12px; border-radius: 999px;
+  background: var(--primary-tint-2); color: var(--primary-text);
+  font: 500 12px/1 var(--font-sans);
+}
+.bg-runchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bg-runchip button {
+  display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 50%;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.bg-runchip button:hover { background: var(--primary-tint); }
+.bg-runchip .ico { width: 12px; height: 12px; }
+
+.bg-spacer { flex: 1 1 0; }
+.bg-search {
+  flex: 1 1 200px; max-width: 280px; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--border-subtle); background: var(--card);
+}
+.bg-search:focus-within { border-color: var(--primary-border-2); box-shadow: 0 0 0 3px var(--focus); }
+.bg-search .ico { width: 15px; height: 15px; flex: none; color: var(--text-2); }
+.bg-search input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
+  font: 400 13px var(--font-sans); color: var(--text-strong);
+}
+.bg-search input::placeholder { color: var(--text-2); }
+.bg-search input:focus-visible { outline: none; }
+.bg-search kbd {
+  font: 400 11px/1 var(--font-mono); color: var(--text-2);
+  padding: 2px 6px; border: 1px solid var(--border-subtle); border-radius: 5px;
+}
+
+.bg-export {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px 0 14px; border-radius: 999px; border: 0;
+  background: var(--primary); color: var(--on-primary);
+  font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color .15s ease;
+}
+.bg-export:hover { background: var(--primary-hover); }
+.bg-export .ico { width: 15px; height: 15px; }
+.bg-export .ico.chev { width: 13px; height: 13px; opacity: .85; }
+
+/* ── selection bar ────────────────────────────────────────────────────── */
+.bg-selbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 8px 8px 8px 16px; border-radius: 10px;
+  background: var(--text-strong); color: var(--card);
+}
+.bg-selbar[hidden] { display: none; }
+.bg-selbar-n { flex: 1 1 auto; font: 500 13px/1.3 var(--font-sans); }
+.bg-selbar button {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px; border-radius: 999px; cursor: pointer;
+  font: 500 13px/1 var(--font-sans); white-space: nowrap;
+}
+.bg-selbar .bg-out { background: transparent; color: var(--card); border: 1px solid color-mix(in srgb, var(--card) 45%, transparent); }
+.bg-selbar .bg-out:hover { background: color-mix(in srgb, var(--card) 12%, transparent); }
+.bg-selbar .bg-white { background: var(--card); color: var(--text-strong); border: 0; }
+.bg-selbar .bg-x { width: 32px; padding: 0; justify-content: center; background: transparent; border: 0; color: var(--card); }
+.bg-selbar .bg-x:hover { background: color-mix(in srgb, var(--card) 12%, transparent); }
+.bg-selbar .ico { width: 14px; height: 14px; }
+:where(.bg-selbar) :is(button):focus-visible { outline-color: var(--card); }
+
+/* ── the table ────────────────────────────────────────────────────────── */
+/* Its own container, so the rows stack by the width they actually have —
+   the sidebar takes 240px of a 1200px screen. */
+.bg-wrap { container-type: inline-size; }
+.bg-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.bg-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: auto; }
+.bg-table th {
+  padding: 10px 8px; background: var(--page); text-align: left; white-space: nowrap;
+  font: 500 11px/1.2 var(--font-mono); letter-spacing: .4px; color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+}
+.bg-table th:first-child { border-top-left-radius: 12px; }
+.bg-table th:last-child { border-top-right-radius: 12px; }
+.bg-table td { padding: 12px 8px; vertical-align: top; border-bottom: 1px solid var(--border); }
+.bg-table th:first-child, .bg-table td:first-child { padding-left: 14px; }
+.bg-table tbody tr:last-child td { border-bottom: 0; }
+.bg-table tbody tr:hover td { background: var(--row-hover); }
+.bg-table tbody tr.is-picked td { background: var(--primary-tint); }
+.bg-table .c-check { width: 24px; padding-right: 4px; }
+.bg-table .c-bug { min-width: 300px; }
+.bg-table .c-open { width: 28px; padding-left: 0; padding-right: 10px; }
+.bg-table input[type="checkbox"] { width: 16px; height: 16px; margin: 6px 0 0; accent-color: var(--primary); cursor: pointer; }
+.bg-table th input[type="checkbox"] { margin-top: 0; }
+
+.bg-l1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.bg-id { font: 500 12px/1.4 var(--font-mono); color: var(--primary-text); text-decoration: none; }
+.bg-id:hover { text-decoration: underline; text-underline-offset: 2px; }
+.bg-state { font: 500 11px/1.4 var(--font-sans); }
+.bg-state.st-broken { color: var(--bad-text); }
+.bg-state.st-passing { color: var(--ok-text); }
+.bg-state.st-hand { color: var(--text-2); }
+.bg-desc { margin: 3px 0 0; font: 500 13px/1.45 var(--font-sans); color: var(--text-strong); overflow-wrap: anywhere; }
+.bg-meta { margin: 3px 0 0; font: 400 12px/1.45 var(--font-sans); color: var(--text-2); overflow-wrap: anywhere; }
+
+.bg-open {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
+  color: var(--text-2); text-decoration: none;
+}
+.bg-open:hover { background: var(--chip-bg); color: var(--text-strong); }
+.bg-open .ico { width: 16px; height: 16px; }
+
+/* ── an editable cell: a pill that opens a listbox ────────────────────── */
+.bg-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.bg-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 8px 0 10px; border-radius: 999px; border: 0;
+  background: var(--chip-bg); color: var(--text);
+  font: 600 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+}
+.bg-pill:hover { box-shadow: 0 0 0 1px var(--border-strong); }
+.bg-pill[aria-expanded="true"] { box-shadow: 0 0 0 1px var(--border-strong); }
+.bg-pill .chev { width: 12px; height: 12px; opacity: .45; flex: none; }
+.bg-pill .bg-pv { max-width: 118px; overflow: hidden; text-overflow: ellipsis; }
+.bg-pill.is-saving { opacity: .7; }
+.bg-pill.mono { font-family: var(--font-mono); font-weight: 500; letter-spacing: .2px; }
+.bg-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: currentColor; }
+.bg-dot.c-red { background: var(--bad-dot); }
+.bg-dot.c-blue { background: var(--primary); }
+.bg-dot.c-amber { background: var(--warn-dot); }
+.bg-dot.c-green { background: var(--ok-dot); }
+.bg-pill.t-red { background: var(--bad-bg); color: var(--bad-text); }
+.bg-pill.t-blue { background: var(--primary-tint-2); color: var(--primary-text); }
+.bg-pill.t-amber { background: var(--warn-bg); color: var(--warn-text); }
+.bg-pill.t-green { background: var(--ok-bg); color: var(--ok-text); }
+.bg-by { font: 400 11px/1.35 var(--font-sans); color: var(--text-2); max-width: 128px; overflow-wrap: anywhere; }
+
+.bg-eta {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 10px; border-radius: 999px;
+  border: 1px dashed var(--border-strong); color: var(--text-2); cursor: text;
+}
+.bg-eta.has-value { border-style: solid; border-color: var(--border-subtle); color: var(--text-strong); }
+.bg-eta:focus-within { border-color: var(--primary-border-2); box-shadow: 0 0 0 3px var(--focus); }
+.bg-eta .ico { width: 14px; height: 14px; flex: none; }
+.bg-eta input {
+  width: 86px; border: 0; outline: 0; background: transparent; padding: 0;
+  font: 400 12px var(--font-sans); color: inherit; color-scheme: light dark;
+}
+.bg-eta input::-webkit-calendar-picker-indicator {
+  position: absolute; inset: 0; width: auto; height: auto; margin: 0; padding: 0; opacity: 0; cursor: pointer;
+}
+.bg-eta input::-webkit-datetime-edit { padding: 0; }
+.bg-comment {
+  width: 100%; min-width: 104px; height: 30px; padding: 0 10px; border-radius: 8px;
+  border: 1px dashed var(--border-strong); background: transparent; color: var(--text-strong);
+  font: 400 12px var(--font-sans);
+}
+.bg-comment:not(:placeholder-shown) { border-style: solid; border-color: var(--border-subtle); }
+.bg-comment::placeholder { color: var(--text-2); }
+.bg-comment:focus { outline: 0; border-color: var(--primary-border-2); box-shadow: 0 0 0 3px var(--focus); }
+.bg-comment.is-saving { opacity: .7; }
+
+/* ── states ───────────────────────────────────────────────────────────── */
+.bg-skel td { padding: 16px 12px; }
+.bg-sk { display: block; height: 10px; border-radius: 4px; background: var(--chip-bg); animation: bgShimmer 1.4s ease-in-out infinite; }
+.bg-sk.w-id { width: 70px; }
+.bg-sk.w-t { width: 70%; height: 12px; margin-top: 8px; }
+.bg-sk.w-m { width: 40%; margin-top: 8px; }
+.bg-sk.w-p { width: 86px; height: 24px; border-radius: 999px; }
+.bg-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 44px 16px; text-align: center; }
+.bg-empty-t { margin: 0; font: 500 15px/1.4 var(--font-sans); color: var(--text-strong); overflow-wrap: anywhere; }
+.bg-note { margin: 0; font: 400 13px/1.5 var(--font-sans); color: var(--text-2); }
+.bg-link {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: 500 13px/1.4 var(--font-sans); color: var(--primary-text);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.bg-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px; font: 400 13px/1.4 var(--font-sans); color: var(--bad-text); }
+
+.bg-foot {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px;
+  font: 400 12px/1.5 var(--font-sans); color: var(--text-2);
+}
+.bg-foot a { color: var(--primary-text); text-underline-offset: 3px; }
+
+/* ── menus, drawn on <body> ───────────────────────────────────────────── */
+.bg-pop {
+  position: fixed; z-index: 1000;
+  min-width: 190px; max-height: 280px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+.bg-pop:focus { outline: none; }
+.bg-opt {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 10px; border-radius: 7px;
+  font: 500 13px/1.2 var(--font-sans); cursor: pointer; user-select: none;
+}
+.bg-opt.is-active { background: var(--row-hover); }
+.bg-opt .bg-dot { background: transparent; }
+.bg-opt .bg-dot.c-red { background: var(--bad-dot); }
+.bg-opt .bg-dot.c-blue { background: var(--primary); }
+.bg-opt .bg-dot.c-amber { background: var(--warn-dot); }
+.bg-opt .bg-dot.c-green { background: var(--ok-dot); }
+.bg-opt-l { flex: 1 1 auto; white-space: nowrap; }
+.bg-opt.mono .bg-opt-l { font-family: var(--font-mono); font-weight: 500; }
+.bg-opt .ico.tick { width: 15px; height: 15px; color: var(--primary); visibility: hidden; flex: none; }
+.bg-opt[aria-selected="true"] .ico.tick { visibility: visible; }
+
+/* Export for devs */
+.bg-pop.bg-xp { width: 300px; max-height: none; padding: 8px; }
+.bg-xp-h { margin: 4px 8px 6px; font: 500 11px/1.2 var(--font-mono); letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-2); }
+.bg-xp-r {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 34px; padding: 0 8px; border-radius: 7px; cursor: pointer;
+  font: 400 13px/1.2 var(--font-sans); color: var(--text-strong);
+}
+.bg-xp-r:hover { background: var(--row-hover); }
+.bg-xp-r input { width: 15px; height: 15px; margin: 0; accent-color: var(--primary); }
+.bg-xp-r.is-off { color: var(--text-2); cursor: not-allowed; }
+.bg-xp-r .n { margin-left: auto; font: 400 12px/1 var(--font-mono); color: var(--text-2); }
+.bg-xp-hr { height: 1px; margin: 8px 0; background: var(--border); }
+.bg-xp-f {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 44px; padding: 6px 8px; border: 0; border-radius: 8px;
+  background: transparent; color: inherit; text-align: left; cursor: pointer;
+}
+.bg-xp-f:hover, .bg-xp-f.is-active { background: var(--row-hover); }
+.bg-xp-f:disabled { opacity: .5; cursor: not-allowed; }
+.bg-badge {
+  flex: none; min-width: 40px; padding: 4px 0; border-radius: 5px; text-align: center;
+  background: var(--chip-bg); color: var(--text-strong);
+  font: 600 10px/1 var(--font-mono); letter-spacing: .5px;
+}
+.bg-xp-f > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bg-xp-f b { font: 500 13px/1.25 var(--font-sans); color: var(--text-strong); }
+.bg-xp-f small { font: 400 12px/1.3 var(--font-sans); color: var(--text-2); }
+
+/* ── a toast ──────────────────────────────────────────────────────────── */
+.bg-toasts {
+  position: fixed; left: 50%; bottom: 24px; z-index: 1100; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
+}
+.bg-toast {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 16px; border-radius: 10px; pointer-events: auto;
+  background: var(--text-strong); color: var(--card); box-shadow: var(--shadow-lg);
+  font: 500 13px/1.3 var(--font-sans);
+}
+.bg-toast button {
+  height: 28px; padding: 0 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--card) 45%, transparent); background: transparent; color: var(--card);
+  font: 600 12px/1 var(--font-sans);
+}
+.bg-toast button:focus-visible { outline: 2px solid var(--card); outline-offset: 2px; }
+
+/* ── the bug, opened ──────────────────────────────────────────────────── */
+.bg-scrim { position: fixed; inset: 0; z-index: 900; background: rgba(20, 18, 14, .32); }
+.bg-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 950;
+  width: min(620px, 100vw); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--card); border-left: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+.bg-drawer[hidden], .bg-scrim[hidden] { display: none; }
+.bg-dr-head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 18px 20px 14px; background: var(--card); border-bottom: 1px solid var(--border);
+}
+.bg-dr-head > div { flex: 1 1 auto; min-width: 0; }
+.bg-dr-head h2 { margin: 4px 0 0; font: 600 18px/1.35 var(--font-sans); color: var(--text-strong); overflow-wrap: anywhere; }
+.bg-dr-x {
+  display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 8px;
+  border: 0; background: transparent; color: var(--text-2); cursor: pointer;
+}
+.bg-dr-x:hover { background: var(--chip-bg); color: var(--text-strong); }
+.bg-dr-x .ico { width: 18px; height: 18px; }
+.bg-dr-body { display: flex; flex-direction: column; gap: 18px; padding: 18px 20px 32px; }
+.bg-dr-facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.bg-fact {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px; border-radius: 999px;
+  background: var(--chip-bg); color: var(--text); font: 500 12px/1 var(--font-sans);
+}
+.bg-dr-sec h3 { margin: 0 0 6px; font: 500 11px/1.2 var(--font-mono); letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-2); }
+.bg-dr-sec p, .bg-dr-sec li { margin: 0; font: 400 13px/1.55 var(--font-sans); color: var(--text); overflow-wrap: anywhere; }
+.bg-dr-sec ol, .bg-dr-sec ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.bg-ea { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bg-ea > div { padding: 10px 12px; border-radius: 8px; background: var(--tint-bg); }
+.bg-ea > div.got { background: var(--bad-bg); }
+.bg-ea b { display: block; margin-bottom: 4px; font: 500 11px/1.2 var(--font-mono); letter-spacing: .6px; text-transform: uppercase; color: var(--text-2); }
+.bg-ea > div.got b { color: var(--bad-text); }
+.bg-pre {
+  position: relative; margin: 0; padding: 12px 14px; border-radius: 8px; overflow-x: auto;
+  background: var(--page); border: 1px solid var(--border);
+  font: 400 12px/1.55 var(--font-mono); color: var(--text-strong); white-space: pre;
+}
+.bg-copy {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+  height: 30px; padding: 0 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border-subtle); background: var(--card); color: var(--text-strong);
+  font: 500 12px/1 var(--font-sans);
+}
+.bg-copy:hover { border-color: var(--border-strong); }
+.bg-runs { display: flex; flex-wrap: wrap; gap: 6px; }
+.bg-runs a {
+  display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px;
+  background: var(--chip-bg); color: var(--text-strong); text-decoration: none; font: 400 12px/1 var(--font-mono);
+}
+.bg-runs a:hover { background: var(--primary-tint-2); color: var(--primary-text); }
+.bg-dr-links { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.bg-dr-links a, .bg-dr-links button { font: 500 13px/1.4 var(--font-sans); color: var(--primary-text); text-underline-offset: 3px; }
+
+@keyframes bgShimmer { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  .bg-sk { animation: none; }
+  .bg-tile, .bg-export { transition: none; }
+}
+
+/* ── narrow: each row stacks into a card ──────────────────────────────── */
+/* By the card's own width (the sidebar is beside it), and by the screen:
+   the Bug block on top, then the editable pills in a wrapping row. The
+   table needs about 1065px for its nine columns (a 1440px screen gives it
+   1094px), so below that it stacks rather than scroll sideways. */
+@container (max-width: 1069px) {
+  .bg-table thead { display: none; }
+  .bg-table, .bg-table tbody { display: block; }
+  .bg-table tbody tr {
+    position: relative; display: flex; flex-wrap: wrap; align-items: flex-start;
+    gap: 10px 8px; padding: 14px 12px 14px 46px; border-bottom: 1px solid var(--border);
+  }
+  .bg-table tbody tr:last-child { border-bottom: 0; }
+  .bg-table td { display: block; padding: 0; border: 0; }
+  .bg-table tbody tr:hover td, .bg-table tbody tr.is-picked td { background: none; }
+  .bg-table tbody tr:hover { background: var(--row-hover); }
+  .bg-table tbody tr.is-picked { background: var(--primary-tint); }
+  .bg-table .c-check { position: absolute; left: 14px; top: 14px; width: auto; padding: 0 !important; }
+  .bg-table .c-bug { order: 0; flex: 1 1 calc(100% - 60px); min-width: 0; }
+  .bg-table .c-open { order: 1; flex: 0 0 auto; width: auto; padding: 0; }
+  .bg-table .c-edit { order: 2; flex: 0 0 auto; }
+  .bg-table .c-comment { flex: 1 1 220px; }
+  .bg-table tbody tr.bg-skel { display: block; padding: 14px 16px; }
+  .bg-table tbody tr.bg-skel td { padding: 4px 0; }
+}
+
+@media (max-width: 899px) {
+  .bg-head h1 { font-size: 24px; }
+  .bg-search { max-width: none; flex-basis: 100%; order: 5; }
+  .bg-spacer { display: none; }
+  .bg-scope button, .bg-pillbtn, .bg-export, .bg-search, .bg-selbar button { min-height: 44px; }
+  .bg-pill { height: 44px; padding: 0 12px 0 14px; }
+  .bg-eta, .bg-comment { height: 44px; }
+  .bg-opt { min-height: 44px; }
+  .bg-table input[type="checkbox"] { width: 22px; height: 22px; }
+  .bg-open { width: 44px; height: 44px; }
+  .bg-ea { grid-template-columns: 1fr; }
+}

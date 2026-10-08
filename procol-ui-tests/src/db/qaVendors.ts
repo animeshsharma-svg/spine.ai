@@ -55,6 +55,39 @@ export async function qaVendorNames(companyId?: number): Promise<string[]> {
   return [];
 }
 
+const logins = new Map<number, Array<{ name: string; email: string }>>();
+
+/**
+ * The client's QA vendors with the address each one signs in with
+ * (qa_…@example.com), in the same order as qaVendorNames — so the vendor a bid
+ * step signs in as is one the invite step put on the event. Read-only (SELECT).
+ * [] when the client has none or the database is unreachable.
+ */
+export async function qaVendorLogins(companyId?: number): Promise<Array<{ name: string; email: string }>> {
+  const id = companyId ?? Number(process.env.COMPANY_ID);
+  if (!id) return [];
+  if (logins.has(id)) return logins.get(id)!;
+  const pg = db();
+  if (!pg) return [];
+  const sql = `select distinct on (c.id) c.name, u.email
+                 from companies c
+                 join buyer_seller_company_mappings b on b.dealing_with_company_id = c.id and b.client_company_id = $1 and b.status = 1
+                 join user_company_mappings m on m.company_id = c.id and m.status = 1
+                 join users u on u.id = m.user_id and u.status = 1 and u.email_verified = 1
+                where c.status = 1 and u.email ilike 'qa\\_%@example.com'
+                order by c.id, u.id`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const rows = (await pg.query<{ name: string; email: string }>(sql, [id])).rows.map((r) => ({ name: r.name, email: r.email }));
+      logins.set(id, rows);
+      return rows;
+    } catch {
+      /* one retry: a dropped idle connection must not read as "no QA vendor" */
+    }
+  }
+  return [];
+}
+
 /** True when this participant name is one of the client's QA vendors. */
 export function isQaVendorName(name: string, qaNames: string[]): boolean {
   const n = name.trim().toLowerCase();

@@ -515,7 +515,11 @@
       lines.filter(Boolean).map((l) => `<p>${h(l)}</p>`).join("") +
       (links.length
         ? `<div class="ss-call-links">${links
-            .map((a) => `<a href="${h(a.href)}" target="_blank" rel="noopener">${icon(a.icon || "file-text")}${h(a.label)}</a>`)
+            .map((a) =>
+              a.exportRun
+                ? `<button type="button" data-bugs-export="${h(a.exportRun)}" aria-haspopup="dialog">${icon(a.icon || "download")}${h(a.label)}</button>`
+                : // The Bugs page (#/bugs) opens here; a report opens in its own tab.
+                  `<a href="${h(a.href)}"${String(a.href).startsWith("#") ? "" : ' target="_blank" rel="noopener"'}>${icon(a.icon || "file-text")}${h(a.label)}</a>`)
             .join("")}</div>`
         : "") +
       `</div>`,
@@ -595,6 +599,15 @@
     end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1) });
   }
 
+  /**
+   * A run's bugs: on the Bugs page in this tab (where they are edited), and
+   * as an Excel sheet or PDF dev report (bugs.js opens the export menu).
+   */
+  const bugLinks = (runId) => [
+    { label: "Bugs from this run", href: `#/bugs?run=${encodeURIComponent(runId)}`, icon: "bug" },
+    { label: "Export bugs from this run", exportRun: runId, icon: "download" },
+  ];
+
   // ── a browser journey (/api/ui-run) ──────────────────────────────────────
   function journeyEnd({ label, code, runId, error, took }) {
     if (!S.on) return;
@@ -602,7 +615,7 @@
     const links = runId
       ? [
           { label: "UI run report", href: `/api/ui-report?run=${encodeURIComponent(runId)}`, icon: "chart-column" },
-          { label: "Bug sheet", href: `/api/bug-report?run=${encodeURIComponent(runId)}`, icon: "bug" },
+          ...bugLinks(runId),
         ]
       : [];
     end({
@@ -623,7 +636,10 @@
     const t = q$("#open-api-report");
     const b = q$("#open-bug-sheet");
     if (t?.getAttribute("href")) links.push({ label: "Full report", href: t.getAttribute("href"), icon: "chart-column" });
-    if (b?.getAttribute("href")) links.push({ label: "Bug sheet", href: b.getAttribute("href"), icon: "bug" });
+    const bugsHref = b?.getAttribute("href");
+    const bugsRun = bugsHref?.match(/[?&]run=([^&#]+)/)?.[1];
+    if (bugsRun) links.push(...bugLinks(decodeURIComponent(bugsRun)));
+    else if (bugsHref) links.push({ label: "Bugs", href: bugsHref, icon: "bug" });
     end(summary({ total, passed, failed, skipped, error, journey, note: subtitle, links }));
   }
 
@@ -710,7 +726,7 @@
       links: id
         ? [
             { label: "Full report", href: `/api/test-report?run=${id}`, icon: "chart-column" },
-            { label: "Bug sheet", href: `/api/bug-report?run=${id}`, icon: "bug" },
+            ...bugLinks(rec.id),
           ]
         : [],
     }));

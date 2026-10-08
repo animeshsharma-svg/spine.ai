@@ -2859,6 +2859,13 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === "/api/bug-report") {
+      // The all-bugs sheet is the Bugs page now (public/bugs.js), where the
+      // triage is edited; an old link or bookmark lands there. A run's own
+      // sheet stays: a PO or RFP run's bugs are not in /api/findings.
+      if (!url.searchParams.get("run")) {
+        res.writeHead(302, { location: "/#/bugs", "cache-control": "no-store" });
+        return res.end();
+      }
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       /**
        * Scoped to one run when asked.

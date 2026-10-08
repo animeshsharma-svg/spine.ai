@@ -58,7 +58,8 @@ let catRunning = null; // the open EventSource while cases are running
 // welcome = the landing page, login = sign in (both public/welcome.js — no app shell)
 // plan = Plan a run (public/plan.js), which replaced API automation and UI automation
 // sessions = every run kept, as sessions (public/sessions.js), which replaced Reports
-const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "crosscheck", "product", "matrix", "success", "history"];
+// bugs = Bugs (public/bugs.js), which replaced the bug sheet; stuck = its Stuck points and steps still needed
+const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "stuck", "crosscheck", "product", "matrix", "success", "history"];
 
 /**
  * Old addresses that now live elsewhere: the hash is rewritten, so a bookmark
@@ -1689,7 +1690,7 @@ function showReportsFor({ label, testHref, bugHref, testLabel = "Test report" })
   const bugs = $("#open-bug-sheet");
   test.innerHTML = ico("chart-column") + " " + esc(testLabel);
   test.href = testHref;
-  bugs.href = bugHref;
+  bugs.href = bugsPageHref(bugHref);
   bar.hidden = false;
 
   // The popup offers the same two, so a reader lands in the same place
@@ -1697,7 +1698,19 @@ function showReportsFor({ label, testHref, bugHref, testLabel = "Test report" })
   const modalReport = $("#modal-report");
   const modalBugs = $("#modal-bugs");
   if (modalReport) { modalReport.href = testHref; modalReport.innerHTML = ico("chart-column") + " " + esc(testLabel); }
-  if (modalBugs) modalBugs.href = bugHref;
+  if (modalBugs) modalBugs.href = bugsPageHref(bugHref);
+}
+
+/**
+ * A run's bugs open on the Bugs page, in this tab, where they are edited:
+ * "/api/bug-report?run=X" is "#/bugs?run=X", and the sheet narrowed to a
+ * module ("/api/bug-report#module=M") is the page searched for it.
+ */
+function bugsPageHref(href) {
+  const run = String(href).match(/[?&]run=([^&#]+)/);
+  if (run) return `#/bugs?run=${run[1]}`;
+  const module = String(href).match(/#module=(.+)$/);
+  return module ? `#/bugs?scope=all&q=${module[1]}` : "#/bugs";
 }
 
 /** The bug sheet, narrowed to the module a run covered. */
@@ -4650,6 +4663,8 @@ function renderReport(report) {
 }
 
 // ── Defects found ─────────────────────────────────────────────────────────
+// Superseded by the Bugs page (public/bugs.js): #findings and its controls are
+// gone from the markup, so loadFindings() and initBugControls() now no-op.
 // Grouped by DEFECT rather than by journey: seven event flows failing on the
 // same 500 is one release blocker with a blast radius of seven, and listing it
 // seven times is how a triage queue stops being read.

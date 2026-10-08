@@ -137,7 +137,14 @@ export function labelIsKnown(word: string, labels: Record<string, string[]> | un
  * configured — so a plan that invites "some vendor" and then tries to sign in
  * as them cannot work.
  */
-const DEFAULT_VENDOR = process.env.UI_DEFAULT_VENDOR ?? "AMD";
+/**
+ * The vendor a bid case names on invite_vendor — only when real suppliers are
+ * deliberately allowed (SPINE_ALLOW_REAL_VENDORS=1). Otherwise the step stays
+ * unnamed: the browser run invites the client's QA test vendors itself and
+ * signs in as the one it invited to bid (procol-ui-tests runPlan bidderEmail).
+ * Naming "AMD" here, a real supplier, made every bid case fail its invite.
+ */
+const DEFAULT_VENDOR = process.env.SPINE_ALLOW_REAL_VENDORS === "1" ? process.env.UI_DEFAULT_VENDOR ?? "AMD" : "";
 
 const DOMAIN_RULES = `
 First decide WHICH SCREEN the test is about:
@@ -871,7 +878,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     if (has("place_bid")) {
       const invite = steps.find((s) => s.step === "invite_vendor");
       const named = Array.isArray(invite?.args?.vendors) && (invite!.args!.vendors as unknown[]).length > 0;
-      if (invite && !named) {
+      if (invite && !named && DEFAULT_VENDOR) {
         invite.args = { ...(invite.args ?? {}), vendors: [DEFAULT_VENDOR] };
         repairs.push(
           `named ${DEFAULT_VENDOR} on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain`,
