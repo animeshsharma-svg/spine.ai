@@ -419,7 +419,7 @@ ${m.stoppedAt ? `<div class="stop"><b>The publish flow stopped at step ${esc(m.s
 </ul>
 </details>
 <div class="card"><table><tr><th>Part</th><th>Cases</th><th>Passed</th><th>Failed</th><th>Not run</th></tr>
-${partRow("publish", "Publish flow (1.1–1.10)")}${partRow("verify", "Post-publish verification (2.1–2.10)")}${partRow("negative", "Negative &amp; edge cases (3.x)")}${partRow("surrogate", "Surrogate bid (4.x) and its validations (5.x)")}</table></div>
+${partRow("publish", "Publish flow (1.1–1.10)")}${partRow("verify", "Post-publish verification (2.1–2.10)")}${partRow("negative", "Negative &amp; edge cases (3.x)")}${partRow("surrogate", "Surrogate bid (4.x) and its validations (5.x)")}${partRow("vendor", "Vendor bid from the portal (4.0, 4B.x) and its validations (5B.x)")}</table></div>
 
 <nav class="jump">
 <a href="#test-cases">Test Cases <b>${testCases.length}</b></a>

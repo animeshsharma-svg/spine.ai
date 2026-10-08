@@ -213,6 +213,9 @@ function ownerWord(k: string, each: boolean): string {
   return each ? `each ${w.replace(/s$/, "")}` : `the ${w}`;
 }
 
+/** "the award's approval workflow" → "approval workflow": the noun for one item of a step's list reply. */
+export const rootNoun = (step: StepKind): string => (STEP_OBJECT[step] ?? "the item").replace(/^the (\S+'s )?/, "");
+
 const possessive = (s: string) => (s.endsWith("s") && !s.endsWith("'s") ? `${s}'` : `${s}'s`);
 
 /**
@@ -230,7 +233,9 @@ export function fieldPhrase(path: string, step: StepKind): string {
   if (!owners.length) return `${possessive(STEP_OBJECT[step])} ${leafW}`;
   // Keep the phrase readable: at most the two closest owners.
   // Only the first owner keeps its article: "each order detail's product's …".
-  const chain = owners.slice(-2).map((o, i) => (i === 0 ? ownerWord(o.key, o.each) : ownerWord(o.key, o.each).replace(/^(the|each) /, "")));
+  // A reply that is itself a list (`[*].status`) has no owner key; it is the step's own record.
+  const owner = (o: { key: string; each: boolean }) => (o.key ? ownerWord(o.key, o.each) : `${o.each ? "each" : "the"} ${rootNoun(step)}`);
+  const chain = owners.slice(-2).map((o, i) => (i === 0 ? owner(o) : owner(o).replace(/^(the|each) /, "")));
   return `${chain.map(possessive).join(" ")} ${leafW}`.replace(/\bthe (\w+)'s the\b/g, "the $1's");
 }
 

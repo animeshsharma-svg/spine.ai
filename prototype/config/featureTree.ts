@@ -37,6 +37,8 @@ export interface FeatureNode {
   requiresConfig?: string;
   /** The browser journey that covers this feature, when one exists. */
   uiFlow?: string;
+  /** No journey of its own, but done as part of others — said instead of "not built". */
+  uiCoveredBy?: string;
   portal?: "buyer" | "vendor" | "both";
   defaultOn?: boolean;
   /**
@@ -140,12 +142,13 @@ export const FEATURE_TREE: FeatureGroup[] = [
       // unrelated kinds; they now live where they belong (here, in
       // "Event configuration", and under Platform & config → API hardening).
       { id: "events.validation", uiFlow: "events.multi_product", label: "Event validation", what: "Product, quantity and UOM rules on create, and adding, editing or deleting line items afterwards.", defaultOn: true },
-      { id: "events.config", label: "Event configuration", what: "Template, specs, evaluator, submission & evaluation windows. Required before a stage can go live.", prerequisite: true },
-      { id: "events.awarding_rule", uiFlow: "events.award_lot_wise", label: "Awarding rule", what: "Full lot to one vendor vs split across vendors." },
-      { id: "events.invite_vendors", label: "Invite vendors", what: "Suggestions by category/product, plus manual invites." },
+      { id: "events.config", uiCoveredBy: "every event-type journey", label: "Event configuration", what: "Template, specs, evaluator, submission & evaluation windows. Required before a stage can go live.", prerequisite: true },
+      { id: "events.invite_vendors", uiCoveredBy: "every event-type journey", label: "Invite vendors", what: "Suggestions by category/product, plus manual invites." },
       // Then going live, and everything that can happen to a live event.
-      { id: "events.publish", label: "Publish event", what: "Draft goes live to the invited vendors." },
+      { id: "events.publish", uiCoveredBy: "every event-type journey", label: "Publish event", what: "Draft goes live to the invited vendors." },
       { id: "events.extend_deadline", label: "Extend submission deadline", what: "Buyer reopens the vendor response window." },
+      // Awarding comes after the event has been live and bid on.
+      { id: "events.awarding_rule", uiFlow: "events.award_lot_wise", label: "Awarding rule", what: "Full lot to one vendor vs split across vendors." },
       { id: "events.lifecycle", uiFlow: "event.draft_create", label: "Status lifecycle", what: "Draft → Live → History. Withdrawn drafts are gone for good." },
     ],
   },

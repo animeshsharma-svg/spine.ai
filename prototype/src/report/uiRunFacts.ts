@@ -1,4 +1,4 @@
-import type { JourneyStep } from "../ui/journeySteps.js";
+import { plainReason, type JourneyStep } from "../ui/journeySteps.js";
 import type { JourneyTrailRecord } from "../ui/trailStore.js";
 import { listTrails } from "../ui/trailStore.js";
 
@@ -75,8 +75,20 @@ export function whatItLeft(
   // one that injected a session did not, and the reader should know which.
   const onScreen = rawOf(steps, /\[login\] signed in — the app opened/i);
   const phone = rawOf(steps, /\[login\] .*phone ending (\d+)/i);
-  const fellBack = rawOf(steps, /\[login\] falling back to the saved web-console session/i);
-  if (fellBack) facts.push({ label: "Signed in", value: "with a saved session — the login screen refused, see the trail" });
+  const fellBack = rawOf(steps, /\[login\] falling back to the saved web-console session[^—]*— (.+)$/i);
+  const skipped = rawOf(steps, /\[login\] skipped the login screen — (.+?)(?: yet)?, so it/i);
+  // A run from before the fallback checked itself said "signed in" and then
+  // got stuck with the browser still on /login: it never got in either.
+  const fellBackAt = steps.findIndex((s) => /^\[login\] falling back/i.test(s.raw));
+  const lostAfter =
+    fellBackAt >= 0 && steps.slice(fellBackAt + 1).some((s) => /^\[stuck\] recorded ".+?" on \S*\/login\b/i.test(s.raw));
+  const lockedOut = rawOf(steps, /\[login\] the saved session did not get in either/i) || lostAfter;
+  if (lockedOut)
+    facts.push({ label: "Signed in", value: "no — the login screen failed and the saved session was sent back to the login page" });
+  else if (skipped)
+    facts.push({ label: "Signed in", value: `with a saved session — the login screen was skipped because ${skipped[1]}` });
+  else if (fellBack)
+    facts.push({ label: "Signed in", value: `with a saved session — couldn't sign in on the login screen (${plainReason(fellBack[1])})` });
   else if (onScreen) facts.push({ label: "Signed in", value: `on the login screen${phone ? `, phone ending ${phone[1]}` : ""}` });
 
   const stages = rawOf(steps, /stages composed: \[([^\]]*)\]/i);

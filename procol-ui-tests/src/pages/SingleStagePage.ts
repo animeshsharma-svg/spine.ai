@@ -6,6 +6,7 @@ import { InlineSheet } from "../helpers/inlineSheet.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { randomNumber } from "../helpers/data.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError } from "../db/qaVendors.js";
+import { vendorCount } from "../master/params.js";
 
 export type EventType = "rfq" | "rfp" | "auction";
 export type AuctionSubtype = "rank" | "price" | "traffic_light";
@@ -373,15 +374,18 @@ export class SingleStagePage extends BasePage {
     if (!allowRealVendors()) {
       const qa = await qaVendorNames();
       if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
-      // The event may already carry a QA vendor (the API setup invites QA vendor 1):
-      // add the first QA vendor the search still offers, never a real supplier.
-      let ok = false;
-      for (const name of qa.slice(0, 4)) {
-        ok = await this.addParticipant(name);
-        if (ok) break;
-        await this.page.keyboard.press("Escape").catch(() => {});
+      // As many QA vendors as the run asked for (UI_VENDOR_COUNT), never more than exist.
+      // The event may already carry one (the API setup invites QA vendor 1), so a vendor the
+      // search no longer offers is skipped and the next QA vendor tried — never a real supplier.
+      const want = Math.max(1, Math.min(vendorCount() ?? 1, qa.length));
+      let added = 0;
+      for (const name of qa) {
+        if (added >= want) break;
+        const ok = await this.addParticipant(name);
+        if (ok) added++;
+        else await this.page.keyboard.press("Escape").catch(() => {});
       }
-      if (!ok) throw new Error(`could not add any QA test vendor (${qa.slice(0, 4).join(", ")}) — they may all be on the event already; stopping so no real supplier is invited`);
+      if (!added) throw new Error(`could not add any QA test vendor (${qa.join(", ")}) — they may all be on the event already; stopping so no real supplier is invited`);
       await this.dismissDistractions();
       return;
     }

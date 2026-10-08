@@ -172,7 +172,8 @@ export interface ApiPlan {
   caseId?: string;
   /** plain English */
   title: string;
-  setup: { recipe: RecipeId };
+  /** lineItems: how many line items the setup's draft carries (default 1) */
+  setup: { recipe: RecipeId; lineItems?: number };
   act: ActStep[];
   verify: VerifyStep[];
   /** codeInferred: the code was the compiler's inference, not stated by the case or a library case */
@@ -1488,4 +1489,21 @@ export function vocabulary() {
     readShapes: READ_SHAPES,
     limits: LIMITS,
   };
+}
+
+
+/**
+ * "an RFQ event with 67 line items": the count is a property of the record the
+ * setup builds, which the plan vocabulary had no word for — so the model named
+ * it as a gap and planned a one-item event instead. Read the count from the
+ * text here and put it on the setup; the gap it caused goes with it.
+ */
+export function applyLineItemCount(c: CompiledApiPlan): CompiledApiPlan {
+  const m = c.text.match(/\b(\d{1,4})\s*line[\s_-]?items?\b/i);
+  const n = m ? Number(m[1]) : 0;
+  if (!c.plan || !(n > 1) || !RECIPES[c.plan.setup.recipe]?.eventType) return c;
+  c.plan.setup.lineItems = n;
+  c.gaps = c.gaps.filter((g) => !/line[\s_-]?items?/i.test(g));
+  if (c.coverage === "partial" && !c.gaps.length) c.coverage = "full";
+  return c;
 }

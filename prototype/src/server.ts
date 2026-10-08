@@ -21,6 +21,7 @@ import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
 import { needsEventFixture } from "./checks/eventsFixture.js";
 import { journeyPlan, journeyWalksFeature, STEP_META } from "./checks/journeyModel.js";
 import type { JourneyRecord, JourneyStepRecord } from "./checks/journeyModel.js";
+import { mergeFieldChecks } from "./report/journeyReport.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./checks/eventJourney.js";
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
 import { apiModulesFor, singleApiModule } from "../config/apiModules.js";
@@ -35,6 +36,9 @@ import { saveTrail, readTrail, deleteTrail, listTrails } from "./ui/trailStore.j
 import { DEFAULT_CLIENT } from "../config/settings.js";
 import { isTokenClient, tokenClient } from "../config/tokenClients.js";
 import { readEnvVar, readToken, tokenClientChoices } from "./tokenClient.js";
+import { qaVendorsFor } from "./checks/matrixVendors.js";
+import { compileApiPlan, applyLineItemCount } from "./agents/apiPlanner.js";
+import { runApiPlan, planCheckResults } from "./checks/apiPlanRunner.js";
 import { inputProblem, latestRfpRunId, readRfpRun, readRfpRunHtml, rfpFeatureCases, rfpJourney, rfpReady, runRfp } from "./rfpRunner.js";
 import { defectsFromRfpRun } from "./report/rfpDefects.js";
 import { saveRun, listRuns, getRun, newRunId, deleteRun } from "./runStore.js";
@@ -66,7 +70,7 @@ import { findCases, sections, caseById, caseAsProse, catalogStats } from "./chec
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
 import { buildJourneys } from "./checks/journeys.js";
 import { buildCaseBook } from "./checks/caseBook.js";
-import { runApiCases } from "./checks/apiCaseRunner.js";
+import { runApiCases, matchApiCase, type ApiCaseOutcome } from "./checks/apiCaseRunner.js";
 import { readVocabularyGaps } from "./agents/vocabularyGaps.js";
 import { flowToCases, loadRecording } from "./checks/flowToCases.js";
 import { replayCase, disposeReplay } from "./checks/flowReplay.js";
@@ -78,6 +82,36 @@ const PROCOL_TEST_DIR = join(here, "..", "..", "procol test");
 const PUBLIC = join(here, "..", "public");
 const DATA_DIR = join(here, "..", "data");
 const REC_DIR = join(here, "..", "..", "procol-ui-tests", "recordings");
+
+/**
+ * The live "Run" view and the static HTML report must read as the same test
+ * case, so both fold a field's presence/type/value checks into one row the
+ * same way — this reuses `journeyReport.ts`'s merge instead of redoing it in
+ * `app.js`. The browser's renderer only understands single id/title/expected/
+ * actual per row, so a merged group is flattened back into that shape.
+ */
+function stepForClient(step: JourneyStepRecord): JourneyStepRecord {
+  if (!step.assertions) return step;
+  const merged = mergeFieldChecks(step.assertions.results, step.kind);
+  return {
+    ...step,
+    assertions: {
+      ...step.assertions,
+      results: merged.map((m) => ({
+        id: m.ids.length > 1 ? `${m.ids[0]} (${m.ids.length} checks)` : m.ids[0],
+        path: m.path,
+        op: m.ops[0],
+        title: m.title,
+        expected: m.expected,
+        severity: m.severity,
+        pass: m.pass,
+        humanTitle: m.title,
+        humanExpected: m.expected,
+        humanActual: m.actual,
+      })),
+    },
+  };
+}
 
 /**
  * The base URL this request should talk to, when the reader has chosen one.
@@ -120,6 +154,32 @@ function suiteFile(name: string): string | undefined {
   if (found.length <= 1) return found[0];
   return found.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
 }
+/**
+ * A typed case that asks for more line items than this company allows is a
+ * test of the limit, not of publishing: "67 line items on a 65-max company"
+ * passes when the app REFUSES. The compiler cannot know the company's ceiling,
+ * so it plans a normal publish and the run fails on the app doing its job.
+ * Rewrite the ending to expect the refusal, and say so on the plan.
+ * Returns the note, or null when the plan is within the limit.
+ */
+function expectRefusalOverLimit(plan: { steps: Array<{ step: string; args?: Record<string, unknown>; note?: string }> }, limit: number): string | null {
+  if (!limit) return null;
+  const total = plan.steps
+    .filter((st) => st.step === "add_line_items")
+    .reduce((n, st) => n + (Number(st.args?.count) || 1), 0);
+  if (total <= limit) return null;
+  const at = plan.steps.findIndex((st) => st.step === "publish");
+  if (at < 0) return null;
+  // publish + its success check become one "publishing is refused" check.
+  const rest = plan.steps.slice(at + 1).filter((st) => st.step !== "expect_published" && st.step !== "expect_no_error");
+  plan.steps = [
+    ...plan.steps.slice(0, at),
+    { step: "expect_publish_blocked", args: {}, note: `${total} line items is over this company's maximum of ${limit}, so the app must refuse to publish.` },
+    ...rest,
+  ];
+  return `This company allows at most ${limit} line items per event and the case asks for ${total}, so the test expects publishing to be refused.`;
+}
+
 const PORT = Number(process.env.PORT ?? 4300);
 
 // Curated demo clients (PROCOL DEMO is the known-fresh default).
@@ -504,6 +564,150 @@ const server = createServer(async (req, res) => {
       return res.end();
     }
 
+    /**
+     * ── API: one free-text test case, matched to a real registered contract
+     * case and run for real (SSE) ──
+     *
+     * The chat box's "Run (API)" button. Unlike `/api/cases-run` above (a
+     * numbered list, replayed against scripted fixtures), this takes ONE
+     * instruction and either runs a real, already-automated contract case for
+     * real, or says plainly that nothing matched closely enough — it never
+     * guesses or fabricates a verdict for an instruction it cannot place.
+     */
+    if (path === "/api/run-case-api") {
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const text = url.searchParams.get("text") ?? "";
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const startedAt = Date.now();
+      const noMatchRow = (): CheckResult => ({
+        id: "API-NOMATCH",
+        flowId: "api.instruction",
+        module: "events",
+        // No scenario/inputSummary line — the typed text is already right
+        // there in the box above; repeating it here was pure noise.
+        scenario: "",
+        type: "functional",
+        category: "Functional",
+        priority: "P2",
+        severity: "low",
+        expected: "accept",
+        inconclusive: true,
+        layer: "api",
+        inputSummary: "",
+        httpStatus: null,
+        accepted: false,
+        message: "No registered case matched closely enough — try different wording.",
+        durationMs: 0,
+        pass: false,
+        verdict: "no matching registered case — not run",
+      });
+      try {
+        if (!text.trim()) {
+          send("fatal", { message: "Type a test case first." });
+          return res.end();
+        }
+        const match = await matchApiCase(text);
+        if (!match) {
+          /**
+           * No library case says this — so write the API test from the text,
+           * the way Run (UI) compiles browser steps: the API test compiler
+           * plans setup → requests → read-backs, and the plan runner sends
+           * them for real. Only a plan the compiler can stand behind runs;
+           * otherwise the reply says what it could not express.
+           */
+          send("line", { line: "No ready-made case matches — writing an API test from your sentence…" });
+          const compiled = applyLineItemCount(await compileApiPlan({ text }, { llm: true, allowReason: false }).catch(() => null as any));
+          if (!compiled?.plan || compiled.coverage === "none" || compiled.errors?.length) {
+            const row = noMatchRow();
+            row.message = compiled?.gaps?.length
+              ? `Could not write an API test for this: ${compiled.gaps.join("; ")}.`
+              : row.message;
+            send("plan", { cases: 1, runnable: 0, skipped: [{ id: "API-NOMATCH", title: text, reason: row.message }] });
+            send("check", { check: row });
+            send("done", { ok: true, total: 0 });
+            return res.end();
+          }
+          const plan = compiled.plan;
+          plan.caseId = plan.caseId ?? "API-TYPED";
+          // Same rule as Run (UI): over the company's line-item ceiling, a
+          // publish is expected to be refused.
+          const limit = await openClientContext(c, baseOverride(url))
+            .then(async (cl) => {
+              const cfg = await loadCompanyConfig(cl, c).catch(() => null);
+              await cl.dispose().catch(() => {});
+              return Number(cfg?.flags?.allowed_maximum_line_items?.non_boq) || 0;
+            })
+            .catch(() => 0);
+          const n = plan.setup.lineItems ?? 1;
+          if (limit && n > limit && plan.act.some((a) => a.op === "publish_event")) {
+            plan.expected = { outcome: "reject" };
+            send("line", { line: `This company allows at most ${limit} line items and the test asks for ${n}, so publishing is expected to be refused.` });
+          }
+          if (compiled.gaps.length) send("line", { line: `Not covered by this API test: ${compiled.gaps.join("; ")}.` });
+          send("plan", { cases: 1, runnable: 1, skipped: [] });
+          const result = await runApiPlan(plan, { companyId: c, baseURL: baseOverride(url), confirm: false, onLine: (line) => send("line", { line }) });
+          for (const check of planCheckResults(result)) send("check", { check });
+          send("done", { ok: true, total: 1 });
+          return res.end();
+        }
+        send("plan", { cases: 1, runnable: 1, skipped: [] });
+        const results: ApiCaseOutcome[] = [];
+        await runApiCases(
+          [match.id],
+          (r) => {
+            results.push(r);
+            const expected: CheckResult["expected"] = (r.expectedStatus ?? 200) >= 400 ? "reject" : "accept";
+            send("check", {
+              check: {
+                id: r.id,
+                flowId: "api.instruction",
+                module: r.area || "events",
+                // The box above already shows what was typed — this line is
+                // just which real case it matched, not a repeat of the input.
+                scenario: r.title,
+                type: "functional",
+                category: "Functional",
+                priority: "P1",
+                severity: r.severity ?? "medium",
+                expected,
+                layer: "api",
+                inputSummary: `${r.method ?? ""} ${r.path ?? ""}`.trim(),
+                request: r.method && r.path ? { method: r.method, path: r.path } : undefined,
+                httpStatus: r.httpStatus ?? null,
+                accepted: r.status === "passed",
+                message: r.status === "passed" ? null : (r.message ?? r.reason ?? "failed"),
+                durationMs: r.durationMs,
+                pass: r.status === "passed",
+                inconclusive: r.status === "skipped",
+                verdict: r.status === "passed" ? `${r.id} — passed` : r.status === "skipped" ? `${r.id} — skipped: ${r.reason}` : `${r.id} — failed`,
+              } satisfies CheckResult,
+            });
+          },
+          (line) => send("line", { line }),
+        );
+        const savedRunId = newRunId();
+        saveRun({
+          id: savedRunId,
+          ts: new Date().toISOString(),
+          request: `API: ${text}`,
+          companyId: c,
+          companyName: null,
+          provider: providerLabel(),
+          durationMs: Date.now() - startedAt,
+          report: undefined,
+          events: [],
+          flowResults: [],
+          validationResults: [],
+          checkResults: results.map((r) => ({ id: r.id, title: r.title, status: r.status }) as any),
+        });
+        send("done", { ok: true, total: results.length, runId: savedRunId });
+      } catch (err: any) {
+        send("fatal", { message: err?.message ?? String(err) });
+      }
+      return res.end();
+    }
+
     // ── API: multi-company (company switcher) checks against the sandbox env ──
     if (path === "/api/multi-company") {
       const { runMultiCompanyChecks } = await import("./flows/multiCompanyChecks.js");
@@ -570,16 +774,26 @@ const server = createServer(async (req, res) => {
          * thing after publishing, so it moves to Sourcing events, straight
          * under "Publish event", and leaves Bidding so it is not listed twice.
          */
-        const MOVE = "bids.surrogate";
-        const moved = FEATURE_TREE.flatMap((g) => g.children).find((f) => f.id === MOVE);
+        const MOVE = ["bids.surrogate", "bids.place"];
+        const all = FEATURE_TREE.flatMap((g) => g.children);
+        const surrogate = all.find((f) => f.id === "bids.surrogate");
+        const place = all.find((f) => f.id === "bids.place");
         const tree = FEATURE_TREE.map((g) => {
-          if (g.id === "events" && moved) {
+          if (g.id === "events") {
             const kids = [...g.children];
             const at = kids.findIndex((f) => f.id === "events.publish");
-            kids.splice(at + 1, 0, { ...moved, what: "The buyer bids on the published RFP for an invited vendor — runs only when ticked." });
+            const bids = [
+              surrogate && { ...surrogate, what: "The buyer bids on the published RFP for an invited vendor — runs only when ticked." },
+              place && {
+                ...place,
+                label: "Vendor bid (vendor portal)",
+                what: "The vendor logs in to the portal with its email and OTP and bids on the published RFP itself — runs only when ticked.",
+              },
+            ].filter(Boolean) as typeof kids;
+            kids.splice(at + 1, 0, ...bids);
             return { ...g, children: kids };
           }
-          return { ...g, children: g.children.filter((f) => f.id !== MOVE) };
+          return { ...g, children: g.children.filter((f) => !MOVE.includes(f.id)) };
         });
         const groups = tree.map((g) => ({
           ...g,
@@ -596,7 +810,7 @@ const server = createServer(async (req, res) => {
           scope: null,
           totalCases: groups.reduce((n, g) => n + g.children.reduce((m, f) => m + (f.cases ?? 0), 0), 0),
           company: null,
-          suite: { id: suiteAccount.suite, ...rfpReady(), defaults: { lineItems: 2, quantities: "5", vendors: 3, surrogateBids: 1 }, journey: rfpJourney() },
+          suite: { id: suiteAccount.suite, ...rfpReady(), defaults: { lineItems: 2, quantities: "5", vendors: 3, surrogateBids: 1, vendorBids: 1 }, journey: rfpJourney() },
         });
       }
 
@@ -740,6 +954,9 @@ const server = createServer(async (req, res) => {
       const flowKey = url.searchParams.get("flow") ?? "";
       const wantItems = Number(url.searchParams.get("lineItems") ?? "") || undefined;
       const wantBoq = Number(url.searchParams.get("boqItems") ?? "") || undefined;
+      // "5" or "5,10,2.5" — kept as typed; the journey types each value into the app.
+      const wantQty = (url.searchParams.get("qty") ?? "").replace(/[^0-9.,-]/g, "") || undefined;
+      const wantVendors = Math.max(1, Math.min(50, Number(url.searchParams.get("vendors")) || 1));
       const headed = url.searchParams.get("headed") !== "0";
       // "sign in on screen": the journey goes through the login page instead
       // of starting already signed in. Opt-in on the wire so older callers of
@@ -779,6 +996,8 @@ const server = createServer(async (req, res) => {
           runId: uiRunId,
           lineItems: wantItems ? normal.value : undefined,
           boqItems: wantBoq ? boq.value : undefined,
+          quantity: wantQty,
+          vendors: wantVendors,
           headed,
           showLogin,
         },
@@ -925,7 +1144,21 @@ const server = createServer(async (req, res) => {
 
       try {
         send("stage", { name: "compile", line: `Compiling: "${testCase.slice(0, 120)}"` });
+        // The company's line-item ceiling, read alongside the compile: the
+        // compiler does not know it, and a case over it is a refusal test.
+        const limitP = openClientContext(c, baseOverride(url))
+          .then(async (cl) => {
+            const cfg = await loadCompanyConfig(cl, c).catch(() => null);
+            await cl.dispose().catch(() => {});
+            return Number(cfg?.flags?.allowed_maximum_line_items?.non_boq) || 0;
+          })
+          .catch(() => 0);
         const compiled = await compileTestCase(testCase);
+        const overLimit = expectRefusalOverLimit(compiled.plan, await limitP);
+        if (overLimit) {
+          compiled.warnings = [...(compiled.warnings ?? []), overLimit];
+          compiled.reasoning = `${compiled.reasoning ? compiled.reasoning + " " : ""}${overLimit}`;
+        }
         send("plan", {
           title: compiled.plan.title,
           steps: compiled.plan.steps,
@@ -1133,7 +1366,7 @@ const server = createServer(async (req, res) => {
        * screen in the first second, with a line saying what the wait is for,
        * instead of a blank card until the first call fires.
        */
-      const plan = journeyPlan(ids);
+      const plan = journeyPlan(ids, { stopAtTicked: true });
       if (plan.wanted) {
         send("journey-plan", {
           plan,
@@ -1218,21 +1451,38 @@ const server = createServer(async (req, res) => {
           if (edgeCount) send("line", { line: `${edgeCount} edge / negative case(s) will run after the journey, on a second copy of the event.` });
           // The plan itself was sent before the client opened, so the list was
           // on screen while the session was being made.
+          // The dashboard's quantity and vendor count. The journey's event has one
+          // line item, so it takes the first quantity; extra vendors come from
+          // this workspace's QA vendor pool and are invited only — the first
+          // vendor is still the one that signs in and bids.
+          const journeyQty = Number(String(url.searchParams.get("qty") ?? "").split(",")[0]) || undefined;
+          const wantVendors = Math.max(1, Math.min(50, Number(url.searchParams.get("vendors")) || 1));
+          let alsoInvite: string[] = [];
+          if (wantVendors > 1) {
+            const first = client.ctx?.vendor?.uuid;
+            const pool = (await qaVendorsFor(c, client.ctx?.buyerApi, wantVendors + 1).catch(() => []))
+              .map((v) => v.vendorCompanyUuid)
+              .filter((u) => u && u !== first);
+            alsoInvite = pool.slice(0, wantVendors - 1);
+            const got = alsoInvite.length + 1;
+            send("line", {
+              line: got < wantVendors
+                ? `Asked for ${wantVendors} vendors; this company has ${got} QA vendor${got === 1 ? "" : "s"} to invite, so the event goes to ${got}.`
+                : `The event is sent to ${wantVendors} QA vendors; the first one signs in and bids.`,
+            });
+          }
+          if (journeyQty) send("line", { line: `Line item quantity: ${journeyQty}.` });
           const walked = await runEventJourney(client, plan, {
             baseURL: baseOverride(url),
             stageSeconds: Number(url.searchParams.get("stageSeconds")) || 45,
-            // A second event only when edge cases will act on one, so the
-            // journey's own event runs to its close undisturbed.
-            buildVariationsEvent: edgeCount > 0,
-            onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step, planned }),
+            buildVariationsEvent: false,
+            quantity: journeyQty,
+            alsoInvite,
+            onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step: stepForClient(step), planned }),
             onLine: (line: string) => send("line", { line }),
           });
-          journey = walked.journey;
-          send("journey", { journey });
-          if (walked.forCases) {
-            sandbox = { ...walked.forCases };
-            rebuildSandbox = walked.rebuildForCases;
-          }
+          journey = walked.integrity ? { ...walked.journey, integrity: walked.integrity } : walked.journey;
+          send("journey", { journey: { ...journey, steps: journey.steps.map(stepForClient) } });
           // The second event's ids are what `{{eventGroupUuid}}`, `{{tradeId}}`
           // and `{{lineItemUuid}}` resolve to in the cases that follow.
           const caseCtx = await caseCtxP;
@@ -1314,14 +1564,24 @@ const server = createServer(async (req, res) => {
           "non_boq",
         );
         const wantLineItems = askedLineItems ? lineItemCap.value : undefined;
+        // "5" for every line, or "5,10,2.5" one per line — positive numbers only.
+        const wantQuantities = String(url.searchParams.get("qty") ?? "")
+          .split(",")
+          .map((q) => Number(q.trim()))
+          .filter((q) => Number.isFinite(q) && q > 0);
 
         const { checks, skipped, deferred, lineItems } = buildChecksFromCases(
           client,
           cases,
           caseCtx,
           actor,
-          { lineItems: wantLineItems },
+          { lineItems: wantLineItems, quantities: wantQuantities },
         );
+        if (wantQuantities.length && lineItems.quantified) {
+          send("line", {
+            line: `Quantities ${wantQuantities.join(", ")} written on the line items of ${lineItems.quantified} case(s); cases about quantity itself keep their own.`,
+          });
+        }
         /**
          * Ids created by this run, for the cases that come after.
          *
@@ -2348,6 +2608,7 @@ const server = createServer(async (req, res) => {
         vendors: num("vendors"),
         // Only when the surrogate bid is part of this run.
         surrogateBids: features.includes("bids.surrogate") ? num("sbBids") : undefined,
+        vendorBids: features.includes("bids.place") ? num("vbBids") : undefined,
       };
       const problem = inputProblem(inputs);
       if (problem) return fail(problem);

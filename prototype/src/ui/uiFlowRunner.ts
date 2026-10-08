@@ -152,6 +152,10 @@ export interface UiRunOptions {
   lineItems?: number;
   /** Line items for a BOQ event. */
   boqItems?: number;
+  /** Line-item quantity: "5" for every line, or "5,10,2.5" one per line. */
+  quantity?: string;
+  /** How many QA vendors to invite. */
+  vendors?: number;
   /** Template to pick, by name substring. Journey takes the first otherwise. */
   template?: string;
   /** Event duration in minutes — the journey edits the schedule window. */
@@ -174,10 +178,12 @@ export interface UiRunEvent {
   // indistinguishable from its own connection-failure event — the exact
   // collision that made "run error" appear after every normal, successful run
   // elsewhere in this codebase. Every consumer forwards e.type verbatim.
-  type: "start" | "log" | "done" | "run-error" | "queued";
+  type: "start" | "log" | "done" | "run-error" | "queued" | "frame";
   line?: string;
   command?: string;
   exitCode?: number;
+  /** base64 JPEG — a live preview frame for the dashboard's split view. */
+  frame?: string;
 }
 
 /**
@@ -217,25 +223,33 @@ function launch(
     if (stopped) return release();
     onStart();
     child = spawn("npx", args, { cwd, env, shell: false });
-    const pump = (buf: Buffer) => {
-      for (const raw of buf.toString().split("\n")) {
-        const line = stripAnsi ? raw.replace(ANSI, "").trimEnd() : raw;
-        if (line.trim()) emit({ type: "log", line });
-      }
-    };
     setSlotHeaded(args.includes("--headed"));
     setSlotProgress("starting the browser");
-    child.stdout?.on("data", (buf: Buffer) => {
-      // Mirror the run's own narration into the slot so the dashboard strip
-      // can say what a HEADLESS run is doing right now.
-      for (const raw of buf.toString().split("\n")) {
+    // A live frame line is a base64 JPEG — tens of KB, easily bigger than one
+    // pipe read, so a naive per-chunk split() would hand back a line sliced in
+    // half. Buffer across chunks and only split on complete lines.
+    let carry = "";
+    const onData = (buf: Buffer) => {
+      carry += buf.toString();
+      const lines = carry.split("\n");
+      carry = lines.pop() ?? "";
+      for (const raw of lines) {
+        const line = stripAnsi ? raw.replace(ANSI, "").trimEnd() : raw;
+        if (!line.trim()) continue;
+        if (line.startsWith("[frame] ")) {
+          emit({ type: "frame", frame: line.slice("[frame] ".length) });
+          continue;
+        }
+        // Mirror the run's own narration into the slot so the dashboard strip
+        // can say what a HEADLESS run is doing right now.
         const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow|po-to-bill)\] (.{0,80})/);
         if (m) setSlotProgress(m[3] ? `step ${m[1]}/${m[2]} — ${m[3].replace(/_/g, " ")}${m[4] ?? ""}` : m[2]);
         if (/showing the login/.test(raw)) setSlotProgress("logging in (visible)");
+        emit({ type: "log", line });
       }
-    });
-    child.stdout?.on("data", pump);
-    child.stderr?.on("data", pump);
+    };
+    child.stdout?.on("data", onData);
+    child.stderr?.on("data", onData);
     // "run-error", not "error" — see the UiRunEvent type above.
     child.on("error", (e) => emit({ type: "run-error", line: e.message }));
     child.on("close", (code) => {
@@ -420,6 +434,8 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   };
   if (opts.lineItems && opts.lineItems > 0) env.UI_LINE_ITEMS = String(opts.lineItems);
   if (opts.boqItems && opts.boqItems > 0) env.UI_BOQ_ITEMS = String(opts.boqItems);
+  if (opts.quantity) env.UI_QUANTITY = opts.quantity;
+  if (opts.vendors && opts.vendors > 0) env.UI_VENDOR_COUNT = String(opts.vendors);
   // The capability map lists every journey on every run, which makes it look
   // like everything is executing. We only want the one we picked.
   env.UI_QUIET_MAP = "1";
@@ -431,6 +447,8 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   // The spec reads this and signs in through the login screen (see
   // `loginOnScreen` in the UI suite) instead of injecting a session.
   if (opts.showLogin) env.UI_SHOW_LOGIN = "1";
+  // The dashboard shows the browser beside the steps from these frames.
+  env.UI_LIVE_FRAMES = "1";
   // Turn the AI healer on whenever a Gemini key is available. It only engages
   // after the deterministic locators have all failed, so it costs nothing on a
   // healthy run and rescues a run when a selector has drifted.
@@ -441,6 +459,8 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
       COMPANY_ID: env.COMPANY_ID,
       UI_LINE_ITEMS: env.UI_LINE_ITEMS,
       UI_BOQ_ITEMS: env.UI_BOQ_ITEMS,
+      UI_QUANTITY: env.UI_QUANTITY,
+      UI_VENDOR_COUNT: env.UI_VENDOR_COUNT,
       UI_AI_HEAL: env.UI_AI_HEAL,
       UI_TEMPLATE: env.UI_TEMPLATE,
       UI_SCHEDULE_MINUTES: env.UI_SCHEDULE_MINUTES,

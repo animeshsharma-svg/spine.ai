@@ -111,6 +111,51 @@ export async function apiCaseIndex(): Promise<Map<string, any>> {
   return new Map(cases.map((c: any) => [c.id, c]));
 }
 
+const STOP = new Set(["the", "and", "with", "must", "from", "into", "that", "this", "then", "after", "when", "their", "them", "its", "for", "not", "are", "was", "has", "have", "can", "still", "try", "please"]);
+
+function tokens(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !STOP.has(w))
+      .map((w) => w.replace(/(ing|ed|es|s)$/, "")),
+  );
+}
+
+export interface ApiCaseMatch {
+  id: string;
+  title: string;
+  area: string;
+  score: number;
+}
+
+/**
+ * The closest real contract case to a free-text instruction, scored by how
+ * much of the case's own title shows up in the words typed plus a bonus when
+ * one of its tags is present. A real run against the live API is only worth
+ * doing when the match is strong — a wrong match here does not just mislabel
+ * a demo row, it fires a real request against UAT for the wrong case — so the
+ * bar is deliberately high and a weak match is reported as "no match" rather
+ * than guessed.
+ */
+export async function matchApiCase(text: string): Promise<ApiCaseMatch | undefined> {
+  const index = await apiCaseIndex();
+  const t = tokens(text);
+  let best: ApiCaseMatch | undefined;
+  for (const [id, c] of index) {
+    const title = tokens(c.title);
+    let hit = 0;
+    for (const w of title) if (t.has(w)) hit++;
+    const overlap = title.size ? hit / title.size : 0;
+    const tagHit = (c.tags ?? []).some((tag: string) => t.has(tag.toLowerCase()));
+    const score = overlap * 10 + (tagHit ? 1.5 : 0);
+    if (score >= 6 && (!best || score > best.score)) best = { id, title: c.title, area: c.area, score };
+  }
+  return best;
+}
+
 /**
  * Run the given `BE-x.y` cases in order, reporting each as it finishes.
  *

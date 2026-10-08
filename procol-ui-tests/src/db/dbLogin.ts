@@ -104,11 +104,30 @@ export async function loginOnScreen(page: Page, companyId: number | null): Promi
     }
   }
   const ending = phone.slice(-4);
+  // Without a code the screen only gets as far as the code box: Login stays
+  // greyed out, the click waits out its timeout and is recorded as a stuck
+  // point, which reads like a broken login page. Say what is missing instead,
+  // before a code is requested for nothing.
+  if (!otp) {
+    const because = "no one-time code is saved for this account";
+    if (!companyId) throw new Error(`Cannot sign in on screen: ${because} (set OTP or ${CONFIG.name.toUpperCase()}_OTP).`);
+    console.log(`[login] skipped the login screen — ${because} yet, so it would stop at the code box. Falling back to the saved session`);
+    await loginAsCompany(page, companyId);
+    console.log(`[login] signed in with the saved session — the app opened ${new URL(page.url()).pathname}`);
+    return { how: "saved-session", fellBackBecause: because };
+  }
   console.log(`[login] showing the login screen — signing in as ${who} (phone ending ${ending})`);
 
   // The browser was started with a saved session; drop it, or the app will
   // bounce straight from /login to /home and there will be nothing to see.
+  // Keep a copy first: once the login page asks for a code it deletes the
+  // signed-in user's profile from storage too, and a fallback that puts back
+  // only the token lands on /home and is sent back to /login seconds later.
   await page.goto(CONFIG.appUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
+  const keptStorage = await page
+    .evaluate(() => Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k) ?? ""])))
+    .catch(() => ({}) as Record<string, string>);
+  const keptCookies = await page.context().cookies().catch(() => []);
   await page.evaluate((k) => localStorage.removeItem(k), STORAGE_KEYS.accessToken).catch(() => {});
   await page.context().clearCookies().catch(() => {});
 
@@ -121,7 +140,25 @@ export async function loginOnScreen(page: Page, companyId: number | null): Promi
     const because = firstLine(err);
     if (!companyId) throw err;
     console.log(`[login] falling back to the saved web-console session so the journey can still run — ${because}`);
+    await page.context().addCookies(keptCookies).catch(() => {});
+    await page
+      .evaluate((all) => {
+        for (const [k, v] of Object.entries(all)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
+      }, keptStorage)
+      .catch(() => {});
     await loginAsCompany(page, companyId);
+    // The app's own redirect to /login comes a few seconds after /home has
+    // loaded, later than loginAsCompany looks. Saying "signed in" and then
+    // failing at the first screen of the journey blames the wrong step.
+    const bounced = await page
+      .waitForURL((u) => u.pathname.includes("/login"), { timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (bounced) {
+      console.log(`[login] the saved session did not get in either — the app went back to the login page`);
+      throw new Error(`Could not sign in: the login screen failed (${because}) and the saved session was sent back to /login.`);
+    }
+    console.log(`[login] signed in with the saved session — the app opened ${new URL(page.url()).pathname}`);
     return { how: "saved-session", fellBackBecause: because };
   }
 }

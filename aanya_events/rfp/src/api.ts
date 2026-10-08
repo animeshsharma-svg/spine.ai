@@ -64,12 +64,22 @@ export class Api {
   async call(
     method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT",
     path: string,
-    opts: { body?: unknown; raw?: string; contentType?: string; auth?: AuthMode } = {},
+    opts: {
+      body?: unknown;
+      raw?: string;
+      contentType?: string;
+      auth?: AuthMode;
+      /** the vendor portal's own app version, when calling as a vendor */
+      appVersion?: string;
+      /** extra headers, e.g. X-Proc-Client: vendor */
+      headers?: Record<string, string>;
+    } = {},
   ): Promise<ApiResponse> {
     const auth = opts.auth ?? "default";
     const headers: Record<string, string> = {
       Accept: "application/json, text/plain, */*",
-      "app-version": ACCOUNT.appVersion,
+      "app-version": opts.appVersion ?? ACCOUNT.appVersion,
+      ...(opts.headers ?? {}),
     };
     const shown: Array<[string, string]> = [["Accept", headers.Accept]];
     if (auth === "default") {
@@ -83,7 +93,8 @@ export class Api {
       headers["lightspeed-token"] = ACCOUNT.lightspeed;
       shown.push(["lightspeed-token", "$LIGHTSPEED_TOKEN"]);
     }
-    shown.push(["app-version", ACCOUNT.appVersion]);
+    shown.push(["app-version", headers["app-version"]]);
+    for (const [k, v] of Object.entries(opts.headers ?? {})) shown.push([k, v]);
 
     let data: string | undefined;
     if (opts.raw !== undefined) data = opts.raw;

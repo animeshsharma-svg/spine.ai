@@ -145,6 +145,25 @@ export interface JourneyRunOptions {
   stepBoundMs?: number;
   /** The event title's prefix (default "API_Journey"); e.g. "QA_Platform_XCHK" for the UI cross-check's events. */
   titlePrefix?: string;
+  /** The line item's quantity (the dashboard's input); the sibling's test data otherwise. */
+  quantity?: number;
+  /**
+   * How many line items the draft is created with (default 1): the catalog
+   * product repeated, which the backend accepts. Every later step still works
+   * on the first line item.
+   */
+  lineItemCount?: number;
+  /**
+   * More vendors to invite besides the one that signs in and bids (company
+   * uuids, QA vendors only). They are only invited: every vendor step still
+   * acts as the first vendor.
+   */
+  alsoInvite?: string[];
+}
+
+/** Who the rounds and the publish go to: the bidding vendor first, then any extra invitees. */
+function audienceOf(j: Journey): string[] {
+  return [j.vendorCompanyUuid, ...(j.opts.alsoInvite ?? []).filter((u) => u && u !== j.vendorCompanyUuid)];
 }
 
 export interface JourneyRunResult {
@@ -705,7 +724,10 @@ const buyerLogin: StepSpec = {
 const createDraft: StepSpec = {
   kind: "create_draft",
   needs: (j, _ev, done) => needBuyer(j, done),
-  expected: (j) => `A draft event is created for ${j.company} with one line item (${j.qty} ${j.unit} of the catalog product) and comes back with its id.`,
+  expected: (j) => {
+    const n = Math.max(1, Math.floor(j.opts.lineItemCount ?? 1));
+    return `A draft event is created for ${j.company} with ${n === 1 ? "one line item" : `${n} line items`} (${j.qty} ${j.unit} of the catalog product${n === 1 ? "" : " each"}) and comes back with its id.`;
+  },
   run: async (j, ev) => {
     const body = j.s.bodies.buildEventGroupBody({
       productUuid: j.catalog.productUuid,
@@ -713,6 +735,10 @@ const createDraft: StepSpec = {
       quantityValue: j.qty,
       productQualityUuid: j.catalog.productQualityUuid,
     });
+    const n = Math.max(1, Math.floor(j.opts.lineItemCount ?? 1));
+    if (n > 1 && Array.isArray(body.line_items) && body.line_items.length === 1) {
+      body.line_items = Array.from({ length: n }, () => ({ ...body.line_items[0] }));
+    }
     const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.eventGroups(), body);
     if (!reply.ok) return { call, reply };
     const uuid = reply.data?.uuid;
@@ -724,7 +750,7 @@ const createDraft: StepSpec = {
     return {
       call,
       reply,
-      actual: `Draft ${uuid} was created with one line item (${j.qty} ${j.unit}).`,
+      actual: `Draft ${uuid} was created with ${body.line_items.length === 1 ? "one line item" : `${body.line_items.length} line items`} (${j.qty} ${j.unit}${body.line_items.length === 1 ? "" : " each"}).`,
       produced: { eventGroupUuid: String(uuid), lineItemUuid: String(lineItem) },
     };
   },
@@ -779,6 +805,7 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
               rfxMode: sk === "auction" ? "auction" : "rfq",
               ...(j.opts.deliveryInDays ? { deliveryBy: ev.timing.bst + Math.round(j.opts.deliveryInDays * 86_400) } : {}),
             });
+      if (j.vendorCompanyUuid && j.opts.alsoInvite?.length) (body as any).audience_company_uuids = audienceOf(j);
       const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.createTrade(), body);
       if (!reply.ok) return { call, reply };
       const uuid = reply.data?.uuid;
@@ -821,6 +848,7 @@ const publish: StepSpec = {
       draft_trade_request_uuids: uuids,
       // No QA vendor: publish to nobody rather than to a real supplier or a blank id.
       ...(j.vendorCompanyUuid ? {} : { audience_company_uuids: [] }),
+      ...(j.vendorCompanyUuid && j.opts.alsoInvite?.length ? { audience_company_uuids: audienceOf(j) } : {}),
     };
     const { call, reply } = await fire(j.client.ctx.buyerApi, "PATCH", j.s.Endpoints.eventGroup(ev.eventGroupUuid!), body);
     if (!reply.ok) return { call, reply };
@@ -1786,7 +1814,7 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
     try {
       rec.response = keepResponse(fired.reply.data, redactBody);
       const made = Object.assign({}, ...done.map((d) => d.produced ?? {})) as Record<string, string>;
-      const assertions = evaluateStepAssertions(rec, fired.reply.data, made);
+      const assertions = evaluateStepAssertions(rec, fired.reply.data, made, undefined, done);
       if (assertions) rec.assertions = assertions;
     } catch (e) {
       j.opts.onLine?.(`field checks for step ${n} could not run: ${clean(e instanceof Error ? e.message : String(e))}`);
@@ -2402,6 +2430,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     j.vendorEmail = ch.vendor.email;
     j.vendorName = ch.vendor.name ?? ch.vendor.email;
   }
+  if (opts.quantity && opts.quantity > 0) j.qty = opts.quantity;
   const chosen = Object.entries(ch).filter(([, v]) => v !== undefined && v !== "");
   if (chosen.length) opts.onLine?.(`Chosen by the caller: ${chosen.map(([k, v]) => `${k} “${typeof v === "object" ? (v as any).name ?? (v as any).email : v}”`).join(", ")}.`);
   if (Object.keys(forced).length) opts.onLine?.(`Test mode: first choice forced — ${Object.entries(forced).map(([k, v]) => `${CHOICE_WORD[k as ChoiceKind] ?? k} “${v}”`).join(", ")}.`);

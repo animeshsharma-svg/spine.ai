@@ -387,9 +387,13 @@ export interface JourneyPlan {
   label: string;
   stages: StageKind[];
   features: JourneyFeatures;
+  /** the furthest lifecycle stage the journey walks to (absent: the whole walk) */
+  reach?: JourneyReach;
   /** the steps this plan will attempt, in order */
   steps: StepKind[];
 }
+
+export type JourneyReach = "publish" | "bid" | "evaluate" | "award";
 
 /** The second copy of the event that the library cases act on. */
 export interface VariationsEvent {
@@ -411,6 +415,8 @@ export interface VariationsEvent {
 }
 
 export interface JourneyRecord {
+  /** the bid-number integrity report (src/integrity/invariants.ts), when it ran */
+  integrity?: unknown;
   eventType: EventType;
   label: string;
   stages: StageKind[];
@@ -453,7 +459,7 @@ export const isJourneyFeature = (featureId: string): boolean =>
  * join the journey only when their feature is ticked, so a plain "RFQ only"
  * run is the plain collection.
  */
-export function journeyPlan(featureIds: string[]): JourneyPlan {
+export function journeyPlan(featureIds: string[], opts: { stopAtTicked?: boolean } = {}): JourneyPlan {
   const ids = new Set(featureIds);
   const wanted = featureIds.some(isJourneyFeature);
   const eventType =
@@ -465,7 +471,23 @@ export function journeyPlan(featureIds: string[]): JourneyPlan {
     convertToAuction: ids.has("auction.convert"),
     version: ids.has("events.versioning"),
   };
-  return { wanted, eventType, label, stages, features, steps: stepsFor(stages, features) };
+  const reach = opts.stopAtTicked ? reachFor(featureIds) : "award";
+  return { wanted, eventType, label, stages, features, reach, steps: stepsFor(stages, features, reach) };
+}
+
+/**
+ * How far into the lifecycle the ticked features go. The dashboard walks only
+ * that far: ticking "Publish event" and nothing after it ends the journey once
+ * the event is live and read back, instead of bidding, evaluating and awarding
+ * on its own. Scripts that build a full event for something else leave
+ * `stopAtTicked` off and keep the whole walk.
+ */
+export function reachFor(featureIds: string[]): JourneyReach {
+  const has = (...prefixes: string[]) => featureIds.some((f) => prefixes.some((p) => f.startsWith(p)));
+  if (has("award.") || featureIds.includes("events.awarding_rule")) return "award";
+  if (has("evaluation.")) return "evaluate";
+  if (has("bids.", "negotiation.", "auction.")) return "bid";
+  return "publish";
 }
 
 /**
@@ -476,13 +498,17 @@ export function journeyPlan(featureIds: string[]): JourneyPlan {
  * the surrogate feature on, the buyer's on-behalf steps replace the vendor's
  * own sign-in and response — that is what a surrogate bid is for.
  */
-export function stepsFor(stages: StageKind[], features: JourneyFeatures): StepKind[] {
+export function stepsFor(stages: StageKind[], features: JourneyFeatures, reach: JourneyReach = "award"): StepKind[] {
   const hasRfp = stages.includes("rfp");
   const hasPricing = stages.includes("rfq") || stages.includes("auction");
   const steps: StepKind[] = ["buyer_login", "create_draft"];
   if (hasRfp) steps.push("add_stage_rfp");
   if (hasPricing) steps.push("add_stage_pricing");
   steps.push("publish", "read_back");
+  if (reach === "publish") {
+    if (features.version) steps.push("version");
+    return steps;
+  }
 
   if (features.surrogate) {
     if (hasRfp) steps.push("surrogate_tech");
@@ -496,9 +522,11 @@ export function stepsFor(stages: StageKind[], features: JourneyFeatures): StepKi
   if (features.counterOffer && hasPricing && !features.surrogate) steps.push("counter_offer");
   if (features.convertToAuction && stages.includes("rfq")) steps.push("convert_auction");
 
-  steps.push("wait_close");
-  if (hasRfp) steps.push("evaluator_login", "eval_schema", "eval_score", "eval_submit");
-  if (hasPricing) steps.push("award_proposal", "award_lines", "award_workflow", "award_submit");
+  if (reach !== "bid") {
+    steps.push("wait_close");
+    if (hasRfp) steps.push("evaluator_login", "eval_schema", "eval_score", "eval_submit");
+    if (hasPricing && reach === "award") steps.push("award_proposal", "award_lines", "award_workflow", "award_submit");
+  }
   if (features.version) steps.push("version");
   return steps;
 }

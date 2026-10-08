@@ -8,6 +8,32 @@ import qs from "qs";
 import { CONFIG } from "../config.js";
 import { recordApiCall } from "../report/apiLog.js";
 
+/**
+ * Events the API automation creates are named "spine-API-automation-<n>" so
+ * they can be told apart from UI-made ones ("spine-ui-automation-<n>") in any
+ * client's event list. Only the platform's own generated titles are renamed —
+ * a case that sends a number, a script or whitespace as the title still sends
+ * exactly that. One original title keeps one number, so the shared event is
+ * not renamed on every publish.
+ */
+const GENERATED_TITLE = /^(QA_Platform_|API_Journey_|API_Test_)/;
+const EVENT_WRITE = /(^|\/)event_groups(\/[^/?]+)?\/?(\?|$)/;
+const spineTitles = new Map<string, string>();
+
+export function tagAutomationTitle(method: string, path: string, body: unknown): void {
+  if (method === "GET" || method === "DELETE" || !EVENT_WRITE.test(path)) return;
+  const b = body as { title?: unknown } | null;
+  if (!b || typeof b !== "object" || Array.isArray(b)) return;
+  if (typeof b.title !== "string" || !GENERATED_TITLE.test(b.title)) return;
+  let t = spineTitles.get(b.title);
+  if (!t) {
+    t = `spine-API-automation-${Math.floor(10_000_000 + Math.random() * 90_000_000)}`;
+    spineTitles.set(b.title, t);
+  }
+  // In place, so the recorded evidence and curl show what was really sent.
+  b.title = t;
+}
+
 export interface AuthTokens {
   accessToken: string;
   lightspeedToken: string;
@@ -193,6 +219,7 @@ export class ApiClient {
     const url = this.buildUrl(path, opts.params);
     const hasRawBody = opts.rawBody !== undefined;
     const hasBody = !hasRawBody && opts.body !== undefined && opts.body !== null;
+    if (hasBody) tagAutomationTitle(method, path, opts.body);
     const requestHeaders = this.headers(opts.headers);
     // Fixed before the call so a request that never completes is still dated.
     const timestamp = new Date().toISOString();
@@ -321,6 +348,7 @@ export class ApiClient {
   ): Promise<RawResult<T>> {
     const url = this.buildUrl(path, opts.params);
     const hasBody = opts.body !== undefined && opts.body !== null;
+    if (hasBody) tagAutomationTitle(method, path, opts.body);
     const requestHeaders = this.headers(opts.headers);
     const timestamp = new Date().toISOString();
     const started = Date.now();

@@ -10,6 +10,8 @@
   --idle: #6b7688; --idle-soft: #eef1f6;
   --shadow: 0 1px 2px rgba(24,34,51,.05), 0 6px 18px rgba(24,34,51,.06);
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* A tint per glance tile — light-touch variety, not a palette overhaul. */
+  --tint-api: var(--accent); --tint-ui: #0f9b8e; --tint-runs: var(--good); --tint-target: #8257c9;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -21,6 +23,7 @@
     --bad: #ef6a5a; --bad-soft: #2c1613;
     --idle: #8a95a8; --idle-soft: #1a2233;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    --tint-api: var(--accent); --tint-ui: #3fcdbd; --tint-runs: var(--good); --tint-target: #a384e8;
   }
 }
 * { box-sizing: border-box; }
@@ -47,7 +50,7 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   position: sticky; top: 0; z-index: 10; flex-wrap: wrap;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
-.logo { font-size: 26px; }
+.logo { font-size: 26px; color: var(--accent); }
 .title { font-weight: 700; font-size: 16px; }
 .subtitle { color: var(--ink-soft); font-size: 12.5px; }
 /* max-width/min-width so a long child (the provider chip) shrinks instead of
@@ -131,7 +134,7 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .cap-btn.chk { filter: grayscale(0.2); }
 
 /* ── request card ── */
-.request-card { background: var(--accent-soft); border: 1px solid var(--card-line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+.request-card { background: linear-gradient(165deg, var(--accent-soft), var(--panel) 65%); border: 1px solid var(--card-line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
 .request-card label { font-size: 12px; font-weight: 600; color: var(--ink); display: block; margin-bottom: 6px; }
 .request-card textarea {
   width: 100%; border: 1px solid var(--card-line); border-radius: 9px; padding: 10px;
@@ -141,7 +144,10 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .run-btn {
   background: var(--accent); color: #fff; border: none; border-radius: 9px;
   padding: 9px 18px; font-size: 14px; font-weight: 650; cursor: pointer;
+  transition: transform .1s ease, box-shadow .14s ease, filter .14s ease;
 }
+.run-btn:hover:not(:disabled) { filter: brightness(1.08); box-shadow: var(--shadow); }
+.run-btn:active:not(:disabled) { transform: translateY(1px); filter: brightness(.97); }
 .run-btn:disabled { opacity: .55; cursor: default; }
 .run-status { font-size: 12.5px; color: var(--ink-soft); }
 
@@ -180,7 +186,7 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .auto-summary { font-size: 12.5px; color: var(--ink-soft); margin-left: auto; }
 .auto-summary .fx { color: var(--bad); }
 .automation { display: flex; flex-direction: column; gap: 3px; max-height: 70vh; overflow-y: auto; }
-.chk { display: grid; grid-template-columns: 16px 66px auto 1fr 42px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 12.5px; cursor: pointer; border: 1px solid transparent; }
+.chk { display: grid; grid-template-columns: 16px 66px auto 1fr 72px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 12.5px; cursor: pointer; border: 1px solid transparent; }
 .chk:hover { border-color: var(--card-line); }
 .chk.ok { background: color-mix(in srgb, var(--good-soft) 40%, transparent); }
 .chk.bad { background: var(--bad-soft); }
@@ -195,7 +201,7 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .chk-type.nf { background: var(--idle-soft); color: var(--idle); }
 .chk-scn { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.chk-http { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); text-align: right; }
+.chk-http { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); text-align: right; white-space: nowrap; }
 .chk-http.err5 { color: var(--bad); font-weight: 700; }
 .chk-detail { display: none; grid-column: 1 / -1; padding: 8px 4px 4px; font-size: 12px; color: var(--ink-soft); line-height: 1.5; border-top: 1px dashed var(--card-line); margin-top: 4px; }
 .chk.open .chk-detail { display: block; }
@@ -320,6 +326,16 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   text-transform: none; letter-spacing: 0; }
 .li-note.capped { color: var(--warn); }
 .li-note.bad { color: var(--bad, #b3261e); font-weight: 600; }
+.qty-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.qty-mode { display: inline-flex; border: 1px solid var(--card-line); border-radius: 7px; overflow: hidden; }
+.qty-mode[hidden] { display: none; }
+.qty-mode-btn { font: inherit; font-size: 11.5px; text-transform: none; letter-spacing: 0; padding: 4px 10px; border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; }
+.qty-mode-btn + .qty-mode-btn { border-left: 1px solid var(--card-line); }
+.qty-mode-btn.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.qty-mode-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.qty-boxes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.qty-box { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--ink-soft); text-transform: none; letter-spacing: 0; }
+.qty-box input { width: 64px; }
 .ui-console { margin-top: 10px; background: #0a0f18; color: #c7d2e5; border-radius: 9px;
   padding: 10px 12px; font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
   max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
@@ -568,6 +584,7 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .sub-tag.off { background: var(--bad-soft); color: var(--bad); }
 .sub-tag.unk { background: var(--warn-soft); color: var(--warn); }
 .sub-tag.notbuilt { background: var(--idle-soft); color: var(--idle); }
+.sub-tag.covered { background: var(--good-soft); color: var(--good); text-transform: none; letter-spacing: 0; }
 .sub-tag.held { background: var(--idle-soft); color: var(--idle); }
 
 /* ── the ask box, given room to be the main input ── */
@@ -583,8 +600,33 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 }
 .request-card.big textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .rc-examples { display: flex; gap: 6px; flex-wrap: wrap; margin: 9px 0 4px; }
-/* One action, so there is no doubt which button this box belongs to. */
+/* Three ways to run the one instruction in the box: API, UI, or both. */
 .rc-actions { margin-top: 12px; }
+/* The API-match verdict for a single instruction — its own small card, kept
+   separate from the UI compiler's step table so the two never interleave. */
+.api-result { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--card-line); background: var(--panel); font-size: 12.5px; }
+.api-result.running { color: var(--ink-soft); }
+.api-result.ok { border-color: var(--good); background: var(--good-soft); }
+.api-result.bad { border-color: var(--bad); background: var(--bad-soft); }
+.api-result.skip { color: var(--ink-soft); }
+.api-result-head { font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.api-result-badge { font-size: 11px; font-weight: 700; }
+.api-result.ok .api-result-badge { color: var(--good); }
+.api-result.bad .api-result-badge { color: var(--bad); }
+.api-result-scenario { margin-top: 4px; font-weight: 600; }
+.api-result-meta { margin-top: 2px; color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+.api-result-verdict { margin-top: 4px; }
+
+/* Steps left, live browser right — both updating as a headed run happens. */
+.run-split { display: flex; align-items: flex-start; gap: 14px; }
+.run-split > .run-left { flex: 1 1 36%; min-width: 320px; }
+.live-frame-panel { flex: 1 1 64%; min-width: 0; position: sticky; top: 12px; border: 1px solid var(--card-line); border-radius: 10px; overflow: hidden; background: #0a0a0a; }
+.live-frame-head { padding: 6px 10px; font-size: 11.5px; font-weight: 650; color: #fff; background: rgba(255,255,255,.08); }
+.live-frame-panel img { display: block; width: 100%; height: auto; }
+@media (max-width: 900px) {
+  .run-split { flex-direction: column; }
+  .live-frame-panel { position: static; width: 100%; }
+}
 .run-btn.big-btn { padding: 10px 18px; font-size: 14px; font-weight: 650; border-radius: 10px; }
 .rc-foot { margin: 10px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); }
 .rc-foot strong { color: var(--ink); font-weight: 600; }
@@ -672,7 +714,16 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 .skip-list { margin: 0; padding: 0 12px 10px; list-style: none; }
 .skip-list li { padding: 7px 0; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.5; }
 .skip-list li b { display: block; color: var(--ink); font-weight: 600; }
-.skip-list li span { color: var(--ink-soft); }
+.skip-list li span { color: var(--ink-soft); display: block; }
+.skip-list li details { margin-top: 2px; font-size: 10.5px; color: var(--ink-soft); }
+.skip-list li details summary { cursor: pointer; color: var(--accent); list-style: none; }
+.skip-group { margin: 10px 12px 2px; padding: 7px 10px; border-radius: 7px; font-size: 11.5px; line-height: 1.5; background: var(--idle-soft); }
+.skip-group b { display: block; color: var(--ink); }
+.skip-group span { color: var(--ink-soft); }
+.skip-bad { background: var(--bad-soft); }
+.skip-bad b { color: var(--bad); }
+.skip-warn { background: var(--warn-soft); }
+.skip-warn b { color: var(--warn); }
 
 /* The PO flow: one button, and a sentence about what it will create. */
 .po-bar { flex: 1 1 100%; margin: 4px 0 2px; padding: 9px 11px; border: 1px solid var(--card-line);
@@ -849,6 +900,9 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
 
 /* A narrow view keeps its heading over its own column. */
 .view.narrow { max-width: 920px; }
+/* The Run view needs the extra width once a run is showing the live browser
+   split alongside the step list — 920px left it cramped to a thumbnail. */
+#view-run.narrow { max-width: 1900px; }
 .view-head { margin: 0 0 20px; }
 .view-head h1 { margin: 0 0 5px; font-size: 21px; letter-spacing: -.015em; }
 .view-head p { margin: 0; max-width: 68ch; font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
@@ -871,6 +925,21 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   .nav-foot, .nav-spacer { display: none; }
   .view { padding: 18px 16px 48px; }
 }
+
+/* ── collapsible sidebar — same icon-only look the narrow breakpoint already
+   uses, just toggled by hand instead of by viewport width. Set on <html> so
+   the bootstrap script in <head> can apply the saved state before paint. */
+.nav-toggle {
+  align-self: flex-end; width: 26px; height: 26px; margin-bottom: 6px;
+  border: 1px solid var(--card-line); border-radius: 7px; background: var(--panel);
+  color: var(--ink-soft); font-size: 13px; cursor: pointer; line-height: 1;
+}
+.nav-toggle:hover { color: var(--ink); border-color: var(--accent); }
+html.nav-collapsed .app { grid-template-columns: 52px minmax(0, 1fr); }
+html.nav-collapsed .nav-item span:not(.nav-ico):not(.nav-badge) { display: none; }
+html.nav-collapsed .nav-item { justify-content: center; }
+html.nav-collapsed .nav-foot, html.nav-collapsed .nav-spacer { display: none; }
+html.nav-collapsed .nav-toggle { align-self: center; }
 
 @media (prefers-reduced-motion: reduce) {
   .view.active { animation: none; }
@@ -975,6 +1044,14 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   border: 1px solid var(--warn); background: var(--warn-soft); color: var(--ink);
   font-size: 12px; line-height: 1.55; }
 #automation .refused b { color: var(--warn); }
+
+/* A run killed mid-flight (dropped connection, server restart) — distinct
+   from a refusal: some rows below really did pass, the rest just never ran. */
+#automation .stopped-early { margin-bottom: 8px; padding: 10px 12px; border-radius: 9px;
+  border: 1px solid var(--warn); background: var(--warn-soft); color: var(--ink);
+  font-size: 12px; line-height: 1.55; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#automation .stopped-early b { color: var(--warn); }
+#automation .stopped-early .retry-btn { margin-left: auto; }
 
 /* ── a browser journey, as steps rather than stdout ─────────────────────── */
 .ui-steps { display: flex; flex-direction: column; gap: 1px; margin-top: 10px; }
@@ -1291,13 +1368,25 @@ h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
   margin: 0 0 18px;
 }
 .glance-tile {
+  position: relative;
   display: flex; flex-direction: column; gap: 3px; min-width: 0;
-  padding: 12px 14px;
+  padding: 12px 14px 12px 16px;
   border: 1px solid var(--card-line); border-radius: 12px;
   background: var(--panel); color: inherit; text-decoration: none;
   transition: border-color .14s ease, transform .12s ease, box-shadow .14s ease;
 }
-a.glance-tile:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
+/* A thin tint bar per tile — four identical cards reading as four different
+   things at a glance, instead of four copies of the same grey box. */
+.glance-tile::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
+  border-radius: 999px; background: var(--tile-tint, var(--accent)); opacity: .75;
+}
+.glance-tile.t-api { --tile-tint: var(--tint-api); }
+.glance-tile.t-ui { --tile-tint: var(--tint-ui); }
+.glance-tile.t-runs { --tile-tint: var(--tint-runs); }
+.glance-tile.t-target { --tile-tint: var(--tint-target); }
+.glance-ico { font-size: 13px; opacity: .85; margin-bottom: 1px; }
+a.glance-tile:hover { border-color: var(--tile-tint, var(--accent)); transform: translateY(-1px); box-shadow: var(--shadow); }
 a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .glance-n {
   font-size: 21px; font-weight: 700; line-height: 1.15; letter-spacing: -.02em;
@@ -1312,9 +1401,9 @@ a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
   color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* The one tile that reports rather than links: a hairline of accent says the
-   run is pointed somewhere, without pretending to be clickable. */
-.glance-tile.target { box-shadow: inset 2px 0 0 var(--accent); }
+/* The one tile that reports rather than links: no hover lift, since it is
+   not clickable — the ::before tint bar above still marks it as its own thing. */
+.glance-tile.target { cursor: default; }
 
 /* ── the composer ── */
 .request-card.big .rc-head { flex-wrap: wrap; }
@@ -1364,7 +1453,7 @@ a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   display: block; font-size: 20px; line-height: 1; margin-bottom: 10px; opacity: .55;
 }
 #automation > .empty:not(.done)::before { content: "▶"; }
-#timeline > .empty::before { content: "🧠"; }
+#timeline > .empty::before { content: none; }
 #automation > .empty:not(.done) b { color: var(--ink); font-weight: 650; }
 
 /* ── the provider chip ── */
@@ -1528,6 +1617,8 @@ a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   margin-top: 1px; background: var(--idle-soft); color: var(--idle); }
 .jstep.worked .jstep-verdict { background: var(--good-soft); color: var(--good); }
 .jstep.refused .jstep-verdict { background: var(--warn-soft); color: var(--warn); }
+.jstep.issue .jstep-verdict { background: var(--warn-soft); color: var(--warn); }
+.jstep.issue { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn-soft) 40%, transparent); }
 .jstep.broken .jstep-verdict { background: var(--bad-soft); color: var(--bad); }
 .jstep.working .jstep-verdict { background: var(--accent-soft); color: var(--accent); }
 .jstep.refused { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn-soft) 55%, transparent); }
@@ -1682,6 +1773,7 @@ a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 .cb-table .cb-where { margin-top: 3px; font-size: 11px; color: var(--ink-soft, #8a93a6); }
 .cb-table .cb-where a { color: var(--accent, #7aa2f7); }
 .cb-table .cb-res { white-space: nowrap; font-weight: 700; }
+.cb-table .cb-res .cb-when { font-weight: 400; font-size: 11px; color: var(--ink-soft, #8a93a6); margin-top: 2px; }
 .cb-table .cb-res.ok { color: var(--good, #6bd39a); } .cb-table .cb-res.bad { color: var(--bad, #ff6b6b); }
 .cb-table .cb-res.skip, .cb-table .cb-res.none { color: var(--ink-soft, #8a93a6); font-weight: 500; }
 .cb-table tr.r-bad td.cb-act { color: var(--bad, #ff6b6b); }
@@ -1756,3 +1848,25 @@ a.glance-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   /* every visible element fits (checked view by view); this stops an off-screen remnant from adding a sideways scroll */
   .views { overflow-x: hidden; }
 }
+
+/* Lucide icons from the inline sprite; sized by the surrounding font. */
+.ico { width: 1.15em; height: 1.15em; vertical-align: -0.2em; flex: none; stroke-width: 2; }
+.nav-ico { display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+.nav-ico .ico, .drawer-ico .ico { width: 17px; height: 17px; }
+.glance-ico { display: block; font-size: 15px; }
+.logo { display: inline-flex; }
+.logo .ico { width: 24px; height: 24px; }
+.run-btn .ico, .chip .ico, .cb-tab .ico { width: 14px; height: 14px; margin-right: 2px; }
+.api-result + .api-result { margin-top: 8px; }
+.api-result-steps { margin-top: 6px; font-size: 11.5px; color: var(--ink-soft); }
+.api-result-steps summary { cursor: pointer; color: var(--accent); }
+.api-result-steps ol { margin: 4px 0 0; padding-left: 18px; }
+.api-result-steps li span { color: var(--ink-soft); }
+/* Run settings that would build an invalid event: said, and Run waits. */
+.li-field input.invalid, .qty-box input.invalid { border-color: var(--bad) !important; box-shadow: 0 0 0 2px var(--bad-soft); }
+.input-errors { flex: 1 1 100%; margin: 4px 0 2px; padding: 7px 10px; border-radius: 7px; background: var(--bad-soft); color: var(--bad); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.input-errors[hidden] { display: none; }
+.input-errors ul { margin: 2px 0 0; padding-left: 18px; }
+.run-btn:disabled { opacity: .5; cursor: not-allowed; }
+/* Many line items: the boxes scroll in their own area instead of stretching the row. */
+.qty-boxes { max-height: 132px; overflow-y: auto; padding: 2px; }

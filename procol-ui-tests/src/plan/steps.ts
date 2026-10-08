@@ -257,7 +257,11 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "add_line_items",
     purpose: "Add line items through the Manage Line Items drawer.",
-    args: { count: "how many (1-50)", search: "optional product search text to use for all of them" },
+    args: {
+      count: "how many (1-50)",
+      search: "optional product search text to use for all of them",
+      quantity: "optional — type exactly this value (as a string) into every added line item's quantity field, including an invalid one like a negative number or a letter, to test the app's own validation. Omit to let the automation fill a normal default.",
+    },
   },
   { name: "fill_sheet", purpose: "Fill the pricing sheet for every line item on screen." },
   {

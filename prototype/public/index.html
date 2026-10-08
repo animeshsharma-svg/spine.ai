@@ -4,86 +4,779 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>spine.ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/spine-extra.css" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+    <!-- The paper theme, the sidebar shell and Home. Loaded last so its tokens
+         win over the older ones in styles.css (it maps those onto these). -->
+    <link rel="stylesheet" href="/home.css" />
+    <!-- The landing page before sign-in (#/welcome): its own light-only look,
+         scoped to .lp so none of it reaches the app. -->
+    <link rel="stylesheet" href="/welcome.css" />
+    <!-- Run tests (#/plan). -->
+    <link rel="stylesheet" href="/plan.css" />
+    <link rel="stylesheet" href="/session.css" />
+    <link rel="stylesheet" href="/sessions.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231375e4'/><path d='M50 18 L82 50 L50 82 L18 50 Z' fill='%23fff'/></svg>" />
+    <!-- Applied before paint, not after app.js loads, so the sidebar never
+         flashes expanded-then-collapses, and the page never flashes the wrong
+         theme, on a reload. A theme picked by hand wins; otherwise the
+         system's light/dark setting decides. -->
+    <script>
+      try {
+        if (localStorage.getItem("navCollapsed") === "1") document.documentElement.classList.add("nav-collapsed");
+      } catch {}
+      (function () {
+        var theme = null;
+        try { theme = localStorage.getItem("spine.theme"); } catch {}
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+      /**
+       * WHO IS SIGNED IN, AND WHERE A ROUTE REALLY GOES.
+       *
+       * Landing page (#/welcome) → sign in (#/login) → Home. spine.ai's server
+       * has no accounts yet, so signing in only records, in this browser, who
+       * is using the app (spine.user in localStorage). It guards nothing on the
+       * server — every endpoint stays as open as it was. A real sign-in replaces
+       * signIn/user here and nothing else.
+       *
+       * Runs before paint, so a signed-out visitor never sees the app flash
+       * before the landing page; app.js's router asks resolve() on every
+       * route change after that.
+       */
+      (function () {
+        var KEY = "spine.user";
+        var PUBLIC = { welcome: 1, login: 1 };
+        function user() {
+          try {
+            var u = JSON.parse(localStorage.getItem(KEY) || "null");
+            return u && u.email ? u : null;
+          } catch (e) { return null; }
+        }
+        function route(hash) { return String(hash || "").replace(/^#\/?/, "").split(/[/?]/)[0]; }
+        window.spineAuth = {
+          KEY: KEY,
+          user: user,
+          route: route,
+          isPublic: function (view) { return !!PUBLIC[view]; },
+          signIn: function (u) { try { localStorage.setItem(KEY, JSON.stringify(u)); } catch (e) {} },
+          signOut: function () { try { localStorage.removeItem(KEY); } catch (e) {} },
+          /** The hash a route should be replaced with, or null to stay. */
+          resolve: function (hash) {
+            var v = route(hash);
+            var u = user();
+            if (!v) return u ? "#/home" : "#/welcome";
+            if (!u && !PUBLIC[v]) return "#/login?next=" + encodeURIComponent(hash);
+            if (u && v === "login") return "#/home";
+            return null;
+          }
+        };
+        var go = window.spineAuth.resolve(location.hash);
+        if (go) location.replace(go);
+        // The route, marked before app.js's router runs (it waits for
+        // /api/clients), so the right page shows from the first paint.
+        document.documentElement.setAttribute("data-view", route(go || location.hash) || "home");
+      })();
+    </script>
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <span class="logo">🤖</span>
-        <div>
-          <div class="title">spine.ai</div>
-          <div class="subtitle">Autonomous QA for Procol — AI agents that plan, run, and report the tests themselves</div>
-        </div>
-      </div>
-      <div class="controls">
-        <label class="field">
-          <span>Environment</span>
-          <select id="env">
-            <option value="uat">UAT</option>
-            <option value="custom">Custom URL…</option>
-          </select>
-        </label>
-        <!-- Shown only when "Custom URL" is picked. Every API call the platform
-             makes for this session goes to whatever is typed here. -->
-        <label class="field wide" id="env-custom-field" hidden>
-          <span>Base URL</span>
-          <input id="env-custom" type="url" placeholder="https://your-host.ag-ri.in/api" spellcheck="false" />
-        </label>
-        <label class="field">
-          <span>Client</span>
-          <select id="client"></select>
-        </label>
-        <!-- Shown when "+ Add a client…" is picked in the list above. -->
-        <span class="field wide" id="client-add-field" hidden>
-          <span>New client</span>
-          <span class="field-row">
-            <input id="client-add-id" type="number" placeholder="company id, e.g. 198678" />
-            <input id="client-add-name" type="text" placeholder="name (optional)" />
-            <button type="button" id="client-add-go" class="run-btn small primary">Add</button>
-            <button type="button" id="client-add-cancel" class="chip">cancel</button>
-          </span>
-        </span>
-        <a href="/journeys.html" class="provider" style="text-decoration:none" title="The 648 cases arranged as user journeys">🧭 journeys</a>
-        <a href="/recorded.html" class="provider" style="text-decoration:none" title="Recorded API flows → test cases with field validations">📼 recorded</a>
-        <span id="provider" class="provider" title="AI provider">…</span>
-      </div>
-    </header>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /> </symbol>
+<symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z" /> </symbol>
+<symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 3v18" /> <path d="m19 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1" /> <path d="m5 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M7 21h10" /> </symbol>
+<symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect width="20" height="14" x="2" y="3" rx="2" /> <line x1="8" x2="16" y1="21" y2="21" /> <line x1="12" x2="12" y1="17" y2="21" /> </symbol>
+<symbol id="i-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /> </symbol>
+<symbol id="i-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /> </symbol>
+<symbol id="i-chart-column" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /> </symbol>
+<symbol id="i-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /> </symbol>
+<symbol id="i-book-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 5v16" /> <path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z" /> </symbol>
+<symbol id="i-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 20v-9" /> <path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z" /> <path d="M14.12 3.88 16 2" /> <path d="M21 21a4 4 0 0 0-3.81-4" /> <path d="M21 5a4 4 0 0 1-3.55 3.97" /> <path d="M22 13h-4" /> <path d="M3 21a4 4 0 0 1 3.81-4" /> <path d="M3 5a4 4 0 0 0 3.55 3.97" /> <path d="M6 13H2" /> <path d="m8 2 1.88 1.88" /> <path d="M9 7.13V6a3 3 0 1 1 6 0v1.13" /> </symbol>
+<symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /> </symbol>
+<symbol id="i-diamond" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z" /> </symbol>
+<symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <circle cx="12" cy="12" r="6" /> <circle cx="12" cy="12" r="2" /> </symbol>
+<symbol id="i-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect width="18" height="18" x="3" y="3" rx="2" /> </symbol>
+<symbol id="i-rotate-cw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" /> </symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z" /> </symbol>
+<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M18 6 6 18" /> <path d="m6 6 12 12" /> </symbol>
+<symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /> </symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /> </symbol>
+<symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /> <path d="M15 5.764v15" /> <path d="M9 3.236v15" /> </symbol>
+<symbol id="i-pen-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M13 21h8" /> <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> </symbol>
+<symbol id="i-flask-conical" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" /> <path d="M6.453 15h11.094" /> <path d="M8.5 2h7" /> </symbol>
+<symbol id="i-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" /> <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09" /> <path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z" /> <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05" /> </symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" /> <path d="M14 2v5a1 1 0 0 0 1 1h5" /> <path d="M10 9H8" /> <path d="M16 13H8" /> <path d="M16 17H8" /> </symbol>
+<symbol id="i-key-round" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /> <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /> </symbol>
+<symbol id="i-clipboard-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /> </symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 17V7" /> <path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8" /> <path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z" /> </symbol>
+<symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2" /> <path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2" /> <path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3" /> <path d="M4 22h16" /> <path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" /> <path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3" /> </symbol>
+<symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 8V4H8" /> <rect width="16" height="12" x="4" y="8" rx="2" /> <path d="M2 14h2" /> <path d="M20 14h2" /> <path d="M15 13v2" /> <path d="M9 13v2" /> </symbol>
+<symbol id="i-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 18V5" /> <path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4" /> <path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5" /> <path d="M17.997 5.125a4 4 0 0 1 2.526 5.77" /> <path d="M18 18a4 4 0 0 0 2-7.464" /> <path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517" /> <path d="M6 18a4 4 0 0 1-2-7.464" /> <path d="M6.003 5.125a4 4 0 0 0-2.526 5.77" /> </symbol>
+<symbol id="i-construction" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect x="2" y="6" width="20" height="8" rx="1" /> <path d="M17 14v7" /> <path d="M7 14v7" /> <path d="M17 3v3" /> <path d="M7 3v3" /> <path d="M10 14 2.3 6.3" /> <path d="m14 6 7.7 7.7" /> <path d="m8 6 8 8" /> </symbol>
+<symbol id="i-hourglass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M5 22h14" /> <path d="M5 2h14" /> <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" /> <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" /> </symbol>
+<symbol id="i-search-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m8 11 2 2 4-4" /> <circle cx="11" cy="11" r="8" /> <path d="m21 21-4.3-4.3" /> </symbol>
+<symbol id="i-circle-dashed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M10.1 2.182a10 10 0 0 1 3.8 0" /> <path d="M13.9 21.818a10 10 0 0 1-3.8 0" /> <path d="M17.609 3.721a10 10 0 0 1 2.69 2.7" /> <path d="M2.182 13.9a10 10 0 0 1 0-3.8" /> <path d="M20.279 17.609a10 10 0 0 1-2.7 2.69" /> <path d="M21.818 10.1a10 10 0 0 1 0 3.8" /> <path d="M3.721 6.391a10 10 0 0 1 2.7-2.69" /> <path d="M6.391 20.279a10 10 0 0 1-2.69-2.7" /> </symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /> </symbol>
+<symbol id="i-notebook-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" /> <path d="M2 6h4" /> <path d="M2 10h4" /> <path d="M2 14h4" /> <path d="M2 18h4" /> <path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /> </symbol>
+<symbol id="i-puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" /> </symbol>
+<symbol id="i-gavel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3l8.384-8.381" /> <path d="m16 16 6-6" /> <path d="m21.5 10.5-8-8" /> <path d="m8 8 6-6" /> <path d="m8.5 7.5 8 8" /> </symbol>
+<symbol id="i-coins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M13.744 17.736a6 6 0 1 1-7.48-7.48" /> <path d="M15 6h1v4" /> <path d="m6.134 14.768.866-.5 2 3.464" /> <circle cx="16" cy="8" r="6" /> </symbol>
+<symbol id="i-handshake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m11 17 2 2a1 1 0 1 0 3-3" /> <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" /> <path d="m21 3 1 11h-2" /> <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" /> <path d="M3 4h8" /> </symbol>
+<symbol id="i-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" /> <path d="M15 18H9" /> <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" /> <circle cx="17" cy="18" r="2" /> <circle cx="7" cy="18" r="2" /> </symbol>
+<symbol id="i-landmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M10 18v-7" /> <path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z" /> <path d="M14 18v-7" /> <path d="M18 18v-7" /> <path d="M3 22h18" /> <path d="M6 18v-7" /> </symbol>
+<symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /> <path d="M16 3.128a4 4 0 0 1 0 7.744" /> <path d="M22 21v-2a4 4 0 0 0-3-3.87" /> <circle cx="9" cy="7" r="4" /> </symbol>
+<symbol id="i-factory" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 16h.01" /> <path d="M16 16h.01" /> <path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5a.5.5 0 0 0-.769-.422l-4.462 2.844A.5.5 0 0 1 15 10.5v-2a.5.5 0 0 0-.769-.422L9.77 10.922A.5.5 0 0 1 9 10.5V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z" /> <path d="M8 16h.01" /> </symbol>
+<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 3v12" /> <path d="m17 8-5-5-5 5" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> </symbol>
+<symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" /> <rect x="2" y="6" width="14" height="12" rx="2" /> </symbol>
+<symbol id="i-house" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /> </symbol>
+<symbol id="i-list-checks" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M13 5h8" /> <path d="M13 12h8" /> <path d="M13 19h8" /> <path d="m3 17 2 2 4-4" /> <path d="m3 7 2 2 4-4" /> </symbol>
+<symbol id="i-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m6 9 6 6 6-6" /> </symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m9 18 6-6-6-6" /> </symbol>
+<symbol id="i-panel-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M9 3v18" /> </symbol>
+<symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /> </symbol>
+<symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /> </symbol>
+<symbol id="i-log-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m16 17 5-5-5-5" /> <path d="M21 12H9" /> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /> </symbol>
+<symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /> </symbol>
+<symbol id="i-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m18 15-6-6-6 6" /> </symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M20 6 9 17l-5-5" /> </symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M5 12h14" /> <path d="M12 5v14" /> </symbol>
+<symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /> </symbol>
+<symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /> </symbol>
+<symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <path d="M12 16v-4" /> <path d="M12 8h.01" /> </symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <path d="m9 12 2 2 4-4" /> </symbol>
+<symbol id="i-circle-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <path d="m15 9-6 6" /> <path d="m9 9 6 6" /> </symbol>
+<symbol id="i-circle-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <circle cx="12" cy="12" r="10" /> <path d="M8 12h8" /> </symbol>
+<symbol id="i-panel-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect width="18" height="18" x="3" y="3" rx="2" /> <path d="M15 3v18" /> </symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /> </symbol>
+<symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M3 5h.01" /> <path d="M3 12h.01" /> <path d="M3 19h.01" /> <path d="M8 5h13" /> <path d="M8 12h13" /> <path d="M8 19h13" /> </symbol>
+<symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" /> <path d="M12 7v5l4 2" /> </symbol>
+<symbol id="i-braces" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1" /> <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" /> </symbol>
+<symbol id="i-app-window" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect x="2" y="4" width="20" height="16" rx="2" /> <path d="M10 4v4" /> <path d="M2 8h20" /> <path d="M6 4v4" /> </symbol>
+</svg>
 
     <div class="app">
       <!--
-        The shell.
+        The shell: a fixed sidebar and one view at a time.
 
-        One nav, one view at a time. The old layout put every panel on one
-        screen at once — three columns of unrelated work, which is why it read
-        as scattered. Each view below is a place you go to do one thing, and
-        the nav says where you are. Routing is by hash, so a view can be
-        linked, bookmarked and reached with the back button.
+        Routing is by hash, so a view can be linked, bookmarked and reached with
+        the back button. The sidebar groups the views by what you are doing —
+        testing, reading results, settings — and Home is where a visit starts. The client and environment are NOT here: they sit at the top
+        right of the content (the context bar below), next to the work they
+        scope.
       -->
-      <nav class="nav" aria-label="Sections">
-        <a class="nav-item" href="#/run" data-view="run"><span class="nav-ico">▶</span><span>Run</span></a>
-        <a class="nav-item" href="#/api" data-view="api"><span class="nav-ico">⚡</span><span>API automation</span></a>
-        <a class="nav-item" href="#/matrix" data-view="matrix"><span class="nav-ico">⚖</span><span>Bidding scenarios</span></a>
-        <a class="nav-item" href="#/ui" data-view="ui"><span class="nav-ico">🖥</span><span>UI automation</span></a>
-        <a class="nav-item" href="#/journeys" data-view="journeys"><span class="nav-ico">🧭</span><span>Journeys</span></a>
-        <a class="nav-item" href="#/cases" data-view="cases"><span class="nav-ico">📚</span><span>Test cases</span></a>
-        <a class="nav-item" href="#/reports" data-view="reports"><span class="nav-ico">📊</span><span>Reports</span></a>
-        <a class="nav-item" href="#/crosscheck" data-view="crosscheck"><span class="nav-ico">⇄</span><span>UI vs API</span></a>
-        <a class="nav-item" href="#/product" data-view="product"><span class="nav-ico">📖</span><span>Product knowledge</span></a>
-        <a class="nav-item" href="#/bugs" data-view="bugs"><span class="nav-ico">🐞</span><span>Bugs</span></a>
-        <a class="nav-item" href="#/history" data-view="history"><span class="nav-ico">🗂</span><span>History</span></a>
-        <a class="nav-item" href="#/success" data-view="success"><span class="nav-ico">★</span><span>Success</span></a>
-        <div class="nav-spacer"></div>
-        <div class="nav-foot" id="nav-foot"></div>
+      <!-- The sidebar's place in the row. The sidebar itself is fixed to the
+           window (it never scrolls with the page), so this empty box is what
+           keeps the content beside it; under 820px both go static, stacked. -->
+      <div class="sb-slot">
+      <nav class="nav sb" aria-label="Sections">
+        <div class="sb-top">
+          <!-- The logo goes to the landing page, not Home (Home has its own item). -->
+          <a class="sb-brand" href="#/welcome" aria-label="spine.ai home page">
+            <span class="sb-logo" data-mascot="right" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="sb-name">spine.ai</span>
+          </a>
+          <button type="button" class="sb-icon-btn" id="sb-collapse" aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded="true">
+            <svg class="ico" aria-hidden="true"><use href="#i-panel-left"/></svg>
+          </button>
+          <!-- app.js owns the collapse (it toggles html.nav-collapsed and remembers
+               it) and rewrites this button's text, so it stays hidden; the icon
+               button above clicks it. -->
+          <button type="button" id="nav-toggle" class="nav-toggle" hidden tabindex="-1" aria-hidden="true">‹</button>
+        </div>
+
+        <!-- The groups scroll on a short window; the run pill and the profile
+             below them never do (the profile's menu must not be clipped). -->
+        <div class="sb-scroll">
+          <div class="sb-group">
+            <div class="sb-label"><span class="sb-dot" aria-hidden="true"></span>Test</div>
+            <div class="sb-items">
+              <a class="nav-item" href="#/home" data-view="home" title="Home"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-house"/></svg></span><span class="nav-label">Home</span></a>
+              <!-- Run tests (#/plan) replaced API automation and UI automation. Its
+                   blue count is the features ticked there (app.js syncNav). -->
+              <a class="nav-item" href="#/plan" data-view="plan" title="Run tests"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg></span><span class="nav-label">Run tests</span></a>
+            </div>
+          </div>
+
+          <div class="sb-group">
+            <div class="sb-label"><span class="sb-dot" aria-hidden="true"></span>Results</div>
+            <div class="sb-items">
+              <!-- Sessions (#/sessions, public/sessions.js); a single session
+                   (#/session/{id}) is the Run screen, so this entry stays lit
+                   there too. Amber count: sessions on "Your turn". -->
+              <a class="nav-item" href="#/sessions" data-view="sessions" data-also="run" title="Sessions" id="sb-sessions"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-history"/></svg></span><span class="nav-label">Sessions</span></a>
+              <a class="nav-item" href="#/bugs" data-view="bugs" title="Defects" id="sb-defects"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg></span><span class="nav-label">Defects</span></a>
+            </div>
+          </div>
+
+          <!-- Hidden for now (2026-10-08, the final sidebar is Test · Results ·
+               Settings): the pages are kept as they were and still open by
+               address (#/cases, #/matrix, #/crosscheck, #/product, #/success).
+               Remove `hidden` here to bring the group back unchanged. -->
+          <div class="sb-group" hidden>
+            <div class="sb-label"><span class="sb-dot" aria-hidden="true"></span>Library</div>
+            <div class="sb-items">
+              <a class="nav-item" href="#/cases" data-view="cases" title="Test catalogue"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-folder-open"/></svg></span><span class="nav-label">Test catalogue</span></a>
+              <a class="nav-item" href="#/matrix" data-view="matrix" title="Bidding scenarios"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-scale"/></svg></span><span class="nav-label">Bidding scenarios</span></a>
+              <a class="nav-item" href="#/crosscheck" data-view="crosscheck" title="UI vs API"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left-right"/></svg></span><span class="nav-label">UI vs API</span><span class="sb-pill">Beta</span></a>
+              <a class="nav-item" href="#/product" data-view="product" title="Product knowledge"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-book-open"/></svg></span><span class="nav-label">Product knowledge</span></a>
+              <a class="nav-item" href="#/success" data-view="success" title="Success"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-star"/></svg></span><span class="nav-label">Success</span></a>
+              <!-- Hidden for now (Aanya, 2026-10-06): it repeated the Test catalogue in
+                   journey order and read as noise to a first-time user. The page is kept
+                   as it was — remove `hidden` here and "journeys" from HIDDEN_VIEWS in
+                   app.js to bring it back unchanged. -->
+              <a class="nav-item" href="#/journeys" data-view="journeys" title="Journeys" hidden><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg></span><span class="nav-label">Journeys</span></a>
+            </div>
+          </div>
+
+          <div class="sb-group">
+            <div class="sb-label"><span class="sb-dot" aria-hidden="true"></span>Settings</div>
+            <div class="sb-items">
+              <button type="button" class="nav-item sb-theme" id="sb-theme" title="Theme"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg></span><span class="nav-label">Theme</span><span class="sb-theme-val" id="sb-theme-val">Light</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-foot">
+          <!-- The run status pill (public/home.js): a link to the live session
+               while one is in flight; hidden otherwise. -->
+          <div id="sb-run" hidden></div>
+          <div class="nav-foot" id="nav-foot" hidden></div>
+          <a href="/journeys.html" title="The cases arranged as user journeys" hidden>journeys</a>
+          <a href="/recorded.html" title="Recorded API flows → test cases with field validations" hidden>recorded</a>
+          <!-- Not removed: app.js's setProvider() writes to #provider directly
+               (no null-check), so deleting the node would throw on load. -->
+          <span id="provider" class="provider" title="AI provider" hidden>…</span>
+
+          <!-- Who is signed in (public/home.js draws it from window.spineAuth).
+               There are no accounts on the server yet: this is the name and
+               email typed at #/login, kept in this browser. -->
+          <div class="sb-profile">
+            <button type="button" class="sb-me" id="sb-me" aria-haspopup="menu" aria-expanded="false" aria-controls="sb-me-menu">
+              <span class="sb-avatar" id="sb-me-initials" aria-hidden="true"></span>
+              <span class="sb-me-text">
+                <span class="sb-me-name" id="sb-me-name">Signed in</span>
+                <span class="sb-me-role">QA · Procol</span>
+              </span>
+              <svg class="ico sb-me-chev" aria-hidden="true"><use href="#i-chevron-up"/></svg>
+            </button>
+            <div class="sb-menu" id="sb-me-menu" role="menu" aria-labelledby="sb-me" hidden>
+              <div class="sb-menu-head" role="none">
+                <span class="sb-avatar is-round" id="sb-menu-initials" aria-hidden="true"></span>
+                <span class="sb-menu-who">
+                  <span class="sb-menu-name" id="sb-menu-name"></span>
+                  <span class="sb-menu-mail" id="sb-menu-mail"></span>
+                </span>
+              </div>
+              <div class="sb-menu-sep" role="separator"></div>
+              <!-- welcome.js signs out on this id and goes to #/welcome. -->
+              <button type="button" class="sb-menu-item is-bad" role="menuitem" id="sb-signout"><svg class="ico" aria-hidden="true"><use href="#i-log-out"/></svg><span>Sign out</span></button>
+            </div>
+          </div>
+        </div>
       </nav>
+      </div>
 
       <main class="views">
-        <!-- ── Run: ask for something, watch it happen ─────────────── -->
+        <!--
+          THE CLIENT BAR: which company and which environment every run goes to.
+          Each button opens a menu drawn by home.js. The menus drive the native
+          pickers app.js already owns (#client, #env, kept hidden): choosing an
+          item sets the <select> and fires its change event, so every existing
+          behaviour — "+ Add a client…", the custom URL, the reload of company
+          data — is unchanged.
+        -->
+        <div class="ctx-bar" role="group" aria-label="Client and environment">
+          <div class="ctx-wrap">
+            <button type="button" class="ctx-picker ctx-client" id="ctx-client-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="ctx-menu-client">
+              <span class="ctx-avatar" id="ctx-initials" aria-hidden="true"></span>
+              <span class="sr-only">Client: </span>
+              <span class="ctx-name" id="ctx-client-name">Loading…</span>
+              <span class="ctx-id" id="ctx-client-id"></span>
+              <svg class="ico ctx-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+            </button>
+            <div class="ctx-menu" id="ctx-menu-client" role="listbox" aria-label="Client company" hidden></div>
+            <select id="client" class="ctx-native" tabindex="-1" aria-hidden="true"></select>
+          </div>
+          <div class="ctx-wrap">
+            <button type="button" class="ctx-picker ctx-env" id="ctx-env-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="ctx-menu-env">
+              <span class="ctx-envdot" aria-hidden="true"></span>
+              <span class="sr-only">Environment: </span>
+              <span class="ctx-name" id="ctx-env-name">UAT</span>
+              <svg class="ico ctx-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+            </button>
+            <div class="ctx-menu" id="ctx-menu-env" role="listbox" aria-label="Environment" hidden></div>
+            <select id="env" class="ctx-native" tabindex="-1" aria-hidden="true">
+              <option value="uat">UAT</option>
+              <option value="custom">Custom URL…</option>
+            </select>
+          </div>
+        </div>
+        <div class="ctx-extra">
+          <!-- Shown only when "Custom URL" is picked. Every API call the platform
+               makes for this session goes to whatever is typed here. -->
+          <label class="ctx-field" id="env-custom-field" hidden>
+            <span>Base URL</span>
+            <input id="env-custom" type="url" placeholder="https://your-host.ag-ri.in/api" spellcheck="false" />
+          </label>
+          <!-- Shown when "+ Add a client…" is picked in the client list. -->
+          <span class="ctx-field" id="client-add-field" hidden>
+            <span>New client</span>
+            <input id="client-add-id" type="number" placeholder="company id, e.g. 198678" aria-label="Company id" />
+            <input id="client-add-name" type="text" placeholder="name (optional)" aria-label="Name (optional)" />
+            <button type="button" id="client-add-go" class="run-btn small primary">Add</button>
+            <button type="button" id="client-add-cancel" class="chip">cancel</button>
+          </span>
+        </div>
+
+        <!-- ── Welcome: the landing page before sign-in ─────────────────────
+             welcome.css (look), welcome.js (sign-in links), landing.js (live
+             numbers, the example run, motion). No sidebar or client bar here.
+             Every sign-in link carries data-signin; welcome.js points them all
+             at one constant. Numbers marked data-live are read from the
+             platform when the page opens; what is written here is the last
+             reading, shown if that fails. Motion only without reduced motion. -->
+        <div class="view lp" id="view-welcome" data-view="welcome">
+          <header class="lp-in lp-head" id="lp-head">
+            <a class="lp-word" href="#/welcome"><span class="lp-logo" data-mascot="right" aria-hidden="true"><i></i><i></i><i></i></span><span>spine<span class="lp-word-dot">.</span>ai</span></a>
+            <nav class="lp-links" aria-label="On this page">
+              <a class="lp-nav" href="#how">How it works</a>
+              <a class="lp-nav" href="#proof">Proof</a>
+            </nav>
+            <span class="lp-spacer"></span>
+            <a class="lp-pill" href="#/login" data-signin><span data-signin-label>Sign in</span></a>
+          </header>
+
+          <!-- 1. The promise, and a run playing out beside it. -->
+          <section class="lp-in lp-hero" aria-labelledby="lp-title">
+            <div class="lp-hero-l">
+              <p class="lp-m lp-eyebrow"><span class="lp-live" aria-hidden="true"></span>Autonomous QA · Built for Procol</p>
+              <h1 class="lp-d lp-h1" id="lp-title">
+                <span class="lp-line"><span>Break it here,</span></span>
+                <span class="lp-line"><span>not in front of</span></span>
+                <span class="lp-line lp-acc"><span>the client.<svg class="lp-swoosh" viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M3 14 C 70 5, 170 3, 297 10" pathLength="1"/></svg></span></span>
+              </h1>
+              <p class="lp-lede">Describe a test in plain words. spine.ai runs it through Procol's API and a real Chrome, on each client's own setup, and hands back what broke, with the request that proves it.</p>
+              <div class="lp-cta-row">
+                <a class="lp-cta" href="#/login" data-signin>Start a run <svg class="ico" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+                <a class="lp-ghost" href="#proof">See what it caught</a>
+              </div>
+              <p class="lp-m lp-safe">UAT and sandbox only · QA test vendors only · Read-only database</p>
+            </div>
+            <a class="lp-cue" href="#how"><span>How it works</span><svg class="ico" aria-hidden="true"><use href="#i-chevron-down"/></svg></a>
+
+            <!-- An example run, replayed (landing.js). Its steps are the API
+                 journey's own; the broken one is a real defect (seen 115 times).
+                 Without motion it shows as it ends. -->
+            <figure class="lp-run" id="lp-run">
+              <figcaption class="lp-run-bar">
+                <span class="lp-run-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="lp-run-name">Example run · PROCOL DEMO · UAT</span>
+                <span class="lp-run-clock" id="lp-run-clock" aria-hidden="true">0:27</span>
+              </figcaption>
+              <div class="lp-run-ask">
+                <span class="lp-run-you" aria-hidden="true">You</span>
+                <p class="lp-run-q" id="lp-run-q">Create an RFQ with 3 line items, send the line items as plain text, then publish it to 3 vendors.</p>
+              </div>
+              <ol class="lp-run-steps" id="lp-run-steps">
+                <li class="is-ok"><span class="lp-rs-dot" aria-hidden="true"></span><span class="lp-rs-t">Sign in as the client's QA buyer</span><code>OTP → signed in</code><span class="sr-only"> — worked</span></li>
+                <li class="is-ok"><span class="lp-rs-dot" aria-hidden="true"></span><span class="lp-rs-t">Create a draft RFQ, 3 line items</span><code>POST /event_groups → 200</code><span class="sr-only"> — worked</span></li>
+                <li class="is-bad"><span class="lp-rs-dot" aria-hidden="true"></span><span class="lp-rs-t">Send the line items as plain text</span><code>PATCH /event_groups/{id} → 500</code><span class="lp-rs-why">Expected a refusal with a reason. The server crashed.</span><span class="sr-only"> — broken</span></li>
+                <li class="is-ok"><span class="lp-rs-dot" aria-hidden="true"></span><span class="lp-rs-t">Publish to 3 vendors</span><code>status: active → 200</code><span class="sr-only"> — worked</span></li>
+                <li class="is-ok"><span class="lp-rs-dot" aria-hidden="true"></span><span class="lp-rs-t">A vendor signs in and bids</span><code>vendor session → 200</code><span class="sr-only"> — worked</span></li>
+                <li class="is-ok"><span class="lp-rs-dot" aria-hidden="true"></span><span class="lp-rs-t">Compare quotes, award L1</span><code>award → 200</code><span class="sr-only"> — worked</span></li>
+              </ol>
+              <div class="lp-run-foot">
+                <span class="lp-tally is-ok"><b id="lp-t-ok">5</b> Worked</span>
+                <span class="lp-tally is-bad"><b id="lp-t-bad">1</b> Broken</span>
+                <span class="lp-tally is-skip"><b id="lp-t-skip">0</b> Not checked</span>
+                <span class="lp-run-filed" id="lp-run-filed"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Added to the bug sheet</span>
+              </div>
+            </figure>
+          </section>
+
+          <!-- 3. How it works, in four steps. -->
+          <section class="lp-in lp-how" id="how" tabindex="-1" aria-labelledby="lp-how-title">
+            <div class="lp-sec-head">
+              <p class="lp-m">How it works</p>
+              <h2 class="lp-d lp-h2" id="lp-how-title">From one sentence to a bug report.</h2>
+            </div>
+            <ol class="lp-how-grid">
+              <li class="lp-how-step" data-reveal>
+                <span class="lp-how-n" aria-hidden="true">01</span>
+                <h3>Describe it</h3>
+                <p>In plain words, the way you would tell a colleague.</p>
+                <div class="lp-art" aria-hidden="true"><div class="lp-art-ask">Bid below the minimum decrement and check it's refused<i class="lp-caret"></i></div></div>
+              </li>
+              <li class="lp-how-step" data-reveal style="--d:.08s">
+                <span class="lp-how-n" aria-hidden="true">02</span>
+                <h3>It plans the steps</h3>
+                <p>Matched to one of <b data-live="cases">6,350</b> written cases, or turned into steps for this client's setup.</p>
+                <div class="lp-art" aria-hidden="true"><ul class="lp-art-plan"><li>Open a live auction</li><li>Bid ₹1 under the minimum decrement</li><li>Expect the bid to be refused</li></ul></div>
+              </li>
+              <li class="lp-how-step" data-reveal style="--d:.16s">
+                <span class="lp-how-n" aria-hidden="true">03</span>
+                <h3>It runs them for real</h3>
+                <p>On Procol's API, or in a real Chrome window you can watch.</p>
+                <div class="lp-art" aria-hidden="true"><div class="lp-art-req"><code><b>POST</b> /event_groups</code><span class="is-ok">200</span></div><div class="lp-art-req"><code><b>PATCH</b> /event_groups/{id}</code><span class="is-bad">500</span></div><div class="lp-art-req"><code><b>GET</b> /quote_details</code><span class="is-ok">200</span></div></div>
+              </li>
+              <li class="lp-how-step" data-reveal style="--d:.24s">
+                <span class="lp-how-n" aria-hidden="true">04</span>
+                <h3>It hands back proof</h3>
+                <p>Every result is one of three words, with expected next to actual and the request.</p>
+                <div class="lp-art" aria-hidden="true"><div class="lp-art-chips"><span class="is-ok">Worked</span><span class="is-bad">Broken</span><span class="is-skip">Not checked</span></div></div>
+              </li>
+            </ol>
+          </section>
+
+          <!-- 3b. Principles: the rules every run keeps, on one dark band. -->
+          <section class="lp-principles" aria-labelledby="lp-pr-title">
+            <div class="lp-in lp-pr-in">
+              <div class="lp-sec-head lp-sec-split">
+                <div>
+                  <p class="lp-m">Principles</p>
+                  <h2 class="lp-d lp-h2" id="lp-pr-title">The rules it keeps on every run.</h2>
+                </div>
+                <p class="lp-sec-note">What spine.ai will and will not do, whichever client it is testing.</p>
+              </div>
+              <ul class="lp-pr-grid">
+                <li data-reveal><h3>Human in the loop</h3><p>A not-checked result always says why and never counts as a pass. You decide what is a bug, on the sheet your team already uses.</p></li>
+                <li data-reveal style="--d:.06s"><h3>Each client as it is set up</h3><p>It reads the client's own configuration first, so a case expects what that client's settings allow.</p></li>
+                <li data-reveal style="--d:.12s"><h3>Rules decide, not AI</h3><p>AI plans the steps. The verdict is a fixed comparison of what was expected with what Procol replied.</p></li>
+                <li data-reveal style="--d:.18s"><h3>Proof you can act on</h3><p>Every broken result carries expected next to actual and the request that reproduces it.</p></li>
+                <li data-reveal style="--d:.24s"><h3>Safe by design</h3><p>UAT and sandbox only, QA test vendors only, and a read-only database. Live data is never touched.</p></li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- 4. The numbers: read from the platform, each with what it counts. -->
+          <section class="lp-in lp-nums" id="numbers" tabindex="-1" aria-labelledby="lp-nums-title">
+            <div class="lp-sec-head lp-sec-split">
+              <div>
+                <h2 class="lp-d lp-h2" id="lp-nums-title">From the platform, not a pitch deck.</h2>
+              </div>
+              <p class="lp-sec-note" id="lp-nums-note">The last reading spine.ai recorded. Each number says what it counts.</p>
+            </div>
+            <!-- Four numbers on one row, nothing boxed: each with one line saying what it counts. -->
+            <div class="lp-stats-row">
+              <div class="lp-st" data-reveal>
+                <p class="lp-d lp-st-n" data-count data-live="cases">6,350</p>
+                <p class="lp-st-k">written test cases</p>
+                <p class="lp-st-d"><b data-live="casesApi">3,915</b> API · <b data-live="casesUi">2,435</b> on screen · 48 journeys</p>
+              </div>
+              <div class="lp-st" data-reveal style="--d:.06s">
+                <p class="lp-d lp-st-n lp-acc" data-count data-live="bugs">81</p>
+                <p class="lp-st-k">bugs confirmed</p>
+                <p class="lp-st-d" data-live="bugsSays">on fresh records · 9 more with the product team</p>
+              </div>
+              <div class="lp-st" data-reveal style="--d:.12s">
+                <p class="lp-d lp-st-n" data-count data-live="runChecks">349</p>
+                <p class="lp-st-k">checks in the latest run · <span data-live="runDate">8 Oct</span></p>
+                <div class="lp-stack" aria-hidden="true"><span class="is-ok" data-live-w="runOkPct" style="--w:75.9%"></span><span class="is-bad" data-live-w="runBadPct" style="--w:22.4%"></span><span class="is-skip" data-live-w="runSkipPct" style="--w:1.7%"></span></div>
+                <p class="lp-st-d"><b data-live="runOk">265</b> worked · <b data-live="runBad">78</b> broken · <b data-live="runSkip">6</b> not checked</p>
+              </div>
+              <div class="lp-st" data-reveal style="--d:.18s">
+                <p class="lp-d lp-st-n" data-count data-live="matcher">97%</p>
+                <p class="lp-st-k">right case, first try</p>
+                <p class="lp-st-d">from a plain description, over <span data-live="matcherN">91</span> examples</p>
+              </div>
+            </div>
+            <!-- One regression pass: the QA team's estimate, not a reading, so it is a quiet line. -->
+            <div class="lp-est" data-reveal>
+              <p class="lp-m">One regression pass · the QA team's estimate</p>
+              <p class="lp-est-pair"><s>2–4 days</s><svg class="ico" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2–4 hours</b><span>by hand, then with spine.ai</span></p>
+              <p class="lp-est-pair"><s>10–15</s><svg class="ico" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2–3</b><span>rounds of dev–QA back-and-forth</span></p>
+            </div>
+          </section>
+
+          <!-- 5. The three verdicts, each with a real result from a run. -->
+          <section class="lp-in lp-verdicts" aria-labelledby="lp-verdicts-title">
+            <div class="lp-sec-head lp-sec-split">
+              <div>
+                <p class="lp-m">Verdicts</p>
+                <h2 class="lp-d lp-h2" id="lp-verdicts-title">Three words. No AI verdicts.</h2>
+              </div>
+              <p class="lp-sec-note">Fixed rules compare what the case expected with what Procol replied. A not-checked result always says why, and never counts as a pass.</p>
+            </div>
+            <div class="lp-v-grid">
+              <article class="lp-v is-ok" data-reveal>
+                <h3 class="lp-v-title"><span class="lp-v-dot" aria-hidden="true"></span>Worked</h3>
+                <p>Procol did what the case expected.</p>
+                <div class="lp-v-ex"><code>POST /event_groups <b>→ 200</b></code><span>A draft with valid line items is created.</span></div>
+              </article>
+              <article class="lp-v is-bad" data-reveal style="--d:.08s">
+                <h3 class="lp-v-title"><span class="lp-v-dot" aria-hidden="true"></span>Broken</h3>
+                <p>It did something else. Expected and actual, side by side.</p>
+                <div class="lp-v-ex"><code>POST /event_groups <b>→ 500</b></code><span>Malformed line items should be refused. The server crashed instead.</span></div>
+              </article>
+              <article class="lp-v is-skip" data-reveal style="--d:.16s">
+                <h3 class="lp-v-title"><span class="lp-v-dot" aria-hidden="true"></span>Not checked</h3>
+                <p>Always with the reason. Never counted as a pass.</p>
+                <div class="lp-v-ex"><code>PATCH …/currency_exchange_rates <b>→ 422</b></code><span>"Request not found": the rule under test was never reached.</span></div>
+              </article>
+            </div>
+          </section>
+
+          <!-- 6. Proof: real bugs from the bug sheet, one at a time (landing.js
+               fills the deck from /api/findings; this one is the fallback). -->
+          <section class="lp-proof" id="proof" tabindex="-1" aria-labelledby="lp-proof-title">
+            <div class="lp-in lp-proof-in">
+              <div class="lp-proof-l">
+                <p class="lp-m">Proof</p>
+                <h2 class="lp-d lp-h2" id="lp-proof-title">Every bug arrives with its repro.</h2>
+                <p class="lp-proof-text">Straight into the bug sheet your team already uses, with the request that shows it. Then it is checked again on every run after.</p>
+                <div class="lp-deck-ctl" id="lp-deck-ctl" hidden>
+                  <button type="button" class="lp-deck-btn" data-deck="prev" aria-label="Previous bug"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left"/></svg></button>
+                  <span class="lp-deck-dots" id="lp-deck-dots"></span>
+                  <button type="button" class="lp-deck-btn" data-deck="next" aria-label="Next bug"><svg class="ico" aria-hidden="true"><use href="#i-arrow-right"/></svg></button>
+                </div>
+              </div>
+              <div class="lp-proof-r">
+                <div class="lp-deck" id="lp-deck" aria-roledescription="carousel" aria-label="Real bugs from the bug sheet">
+                  <article class="lp-case is-on" aria-label="Bug 1">
+                    <header class="lp-case-head">
+                      <span class="lp-case-tag">Broken</span>
+                      <span class="lp-case-sev">Critical</span>
+                      <h3 class="lp-case-title">PATCH /event_groups/{id} returns HTTP 500</h3>
+                    </header>
+                    <div class="lp-case-grid">
+                      <div class="lp-case-cell"><p class="lp-m">Expected</p><p class="lp-case-text">A refusal with a reason (4xx), never a server crash</p></div>
+                      <div class="lp-case-cell is-got"><p class="lp-m">What happened</p><p class="lp-case-text">HTTP 500 · Internal Server Error</p></div>
+                    </div>
+                    <div class="lp-case-repro">
+                      <p class="lp-m">Reproduce</p>
+                      <pre class="lp-pre"><code>$ curl -X PATCH …/api/event_groups/WGRRY05R \
+    -d '{"line_items":[{}]}'</code></pre>
+                    </div>
+                    <footer class="lp-case-foot">
+                      <span class="lp-case-ok"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>In the bug sheet</span>
+                      <span>Seen 115 times across 6 runs</span>
+                    </footer>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 7. The ask. -->
+          <section class="lp-in lp-close" aria-labelledby="lp-close-title">
+            <h2 class="lp-d lp-close-h" id="lp-close-title">Your first run takes <span class="lp-acc">one sentence.</span></h2>
+            <div class="lp-cta-row">
+              <a class="lp-cta" href="#/login" data-signin>Start a run <svg class="ico" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+            </div>
+          </section>
+
+          <footer class="lp-foot">
+            <div class="lp-in lp-foot-in">
+              <span>spine.ai · built at Procol</span>
+              <span>For Procol's QA team</span>
+            </div>
+          </footer>
+        </div>
+
+        <!-- ── Sign in (public/welcome.js): between the landing page and Home ──
+             No password: the server has no accounts yet, so this records who is
+             using the app, in this browser, and says so. -->
+        <div class="view lp lp-auth" id="view-login" data-view="login">
+          <header class="lp-in lp-head">
+            <a class="lp-word" href="#/welcome"><span class="lp-logo" data-mascot="right" aria-hidden="true"><i></i><i></i><i></i></span><span>spine<span class="lp-word-dot">.</span>ai</span></a>
+            <span class="lp-spacer"></span>
+            <a class="lp-nav" href="#/welcome"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left"/></svg> Back</a>
+          </header>
+
+          <section class="lp-in lp-auth-main" aria-labelledby="lp-login-title">
+            <div class="lp-auth-col">
+              <p class="lp-m">Sign in</p>
+              <h1 class="lp-d lp-auth-title" id="lp-login-title">Welcome back.</h1>
+              <p class="lp-auth-lede">Use your Procol work email to open the workspace.</p>
+
+              <form class="lp-form" id="lp-login-form" novalidate>
+                <label class="lp-field">
+                  <span class="lp-m">Work email</span>
+                  <input class="lp-input" id="lp-email" type="email" autocomplete="email" inputmode="email" placeholder="name@procol.in" required aria-describedby="lp-login-error" />
+                </label>
+                <label class="lp-field">
+                  <span class="lp-m">Your name <span class="lp-opt">(optional)</span></span>
+                  <input class="lp-input" id="lp-name" type="text" autocomplete="name" placeholder="As your team knows you" />
+                </label>
+                <p class="lp-error" id="lp-login-error" role="alert" hidden></p>
+                <button type="submit" class="lp-cta lp-cta-wide">Continue <svg class="ico" aria-hidden="true"><use href="#i-arrow-right"/></svg></button>
+              </form>
+
+              <p class="lp-auth-note">No password yet: spine.ai has no accounts, so this only tells it who is running tests on this computer.</p>
+            </div>
+
+            <!-- What happens after signing in: the same five steps as Home. -->
+            <aside class="lp-auth-side" aria-labelledby="lp-auth-steps-title">
+              <p class="lp-m" id="lp-auth-steps-title">What spine.ai does with a case</p>
+              <ol class="lp-auth-steps">
+                <li><span class="lp-auth-n">01</span><span><b>Type a test case</b>In plain words.</span></li>
+                <li><span class="lp-auth-n">02</span><span><b>Build scenarios</b>The setup, the steps and the checks a person would make.</span></li>
+                <li><span class="lp-auth-n">03</span><span><b>Add edge cases</b>One change at a time to a request that works.</span></li>
+                <li><span class="lp-auth-n">04</span><span><b>Test on the product's rules, like a human</b>Real API and real screens on UAT; fixed rules decide.</span></li>
+                <li><span class="lp-auth-n">05</span><span><b>Publish bug sheets and reports</b>For every flow that ran, each bug with its repro.</span></li>
+              </ol>
+            </aside>
+          </section>
+
+          <footer class="lp-foot">
+            <div class="lp-in lp-foot-in">
+              <span>UAT and sandbox only · QA test vendors only · Read-only database</span>
+              <span>For Procol's QA team</span>
+            </div>
+          </footer>
+        </div>
+
+        <!-- ── Home: what should spine.ai test today? (public/home.js) ─────
+             Only this: the heading (with what happens to a case), the request
+             card and the last few sessions. No stats, defects or coverage. -->
+        <section class="view home" id="view-home" data-view="home" aria-labelledby="home-title">
+          <div class="home-col">
+            <header class="home-head">
+              <!-- The mark, bigger: it wakes into a face and watches while a case is
+                   written, scans while a run works (public/mascot.js). -->
+              <span class="home-mascot" data-mascot="down" aria-hidden="true"><i></i><i></i><i></i></span>
+              <h1 id="home-title">What should spine.ai test today?</h1>
+              <p>Describe a case in plain words. spine.ai does the rest.</p>
+              <!-- What happens once Start is pressed. A highlight walks the three
+                   steps in turn (home.css); it holds still under reduced motion. -->
+              <ol class="home-steps" aria-label="What spine.ai does with it">
+                <li><span class="hs-n" aria-hidden="true">01</span>Writes the steps</li>
+                <li><span class="hs-n" aria-hidden="true">02</span>Runs them on the API or in real Chrome</li>
+                <li><span class="hs-n" aria-hidden="true">03</span>Brings back the proof</li>
+              </ol>
+            </header>
+
+            <form class="home-ask" id="home-ask" novalidate>
+              <label class="sr-only" for="home-q">The test case to run</label>
+              <textarea id="home-q" rows="3" spellcheck="true" placeholder="e.g. Sign in as a vendor with OTP, bid below the minimum decrement, and check it's refused."></textarea>
+              <div class="home-ask-foot">
+                <!-- One on = that run type; both on = API, then the browser.
+                     Turning off the only one on switches to the other (home.js). -->
+                <div class="via-group" role="group" aria-label="Run through">
+                  <button type="button" class="via" data-via="api" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-braces"/></svg><span>API</span><span class="via-tick" aria-hidden="true"><svg class="ico"><use href="#i-check"/></svg></span></button>
+                  <button type="button" class="via" data-via="ui" aria-pressed="true"><svg class="ico" aria-hidden="true"><use href="#i-app-window"/></svg><span>Browser</span><span class="via-tick" aria-hidden="true"><svg class="ico"><use href="#i-check"/></svg></span></button>
+                </div>
+                <span class="home-hint" id="home-hint" aria-live="polite">Real Chrome, watch it live</span>
+                <button type="submit" class="home-start" id="home-start" aria-describedby="home-hint" disabled>Start <span class="home-start-arr" aria-hidden="true">→</span></button>
+              </div>
+            </form>
+
+            <section class="home-recent" aria-labelledby="home-recent-label">
+              <div class="home-sec-head">
+                <h2 class="mono-label" id="home-recent-label">Recent sessions</h2>
+                <a class="home-link" href="#/sessions">Show all <span aria-hidden="true">→</span></a>
+              </div>
+              <div class="home-rows" id="home-recent" aria-busy="true">
+                <div class="hr-skel" aria-hidden="true"><span class="hr-dot"></span><span class="hr-main"><span class="skel skel-t"></span><span class="skel skel-m"></span></span><span class="skel skel-tag"></span></div>
+                <div class="hr-skel" aria-hidden="true"><span class="hr-dot"></span><span class="hr-main"><span class="skel skel-t"></span><span class="skel skel-m"></span></span><span class="skel skel-tag"></span></div>
+                <div class="hr-skel" aria-hidden="true"><span class="hr-dot"></span><span class="hr-main"><span class="skel skel-t"></span><span class="skel skel-m"></span></span><span class="skel skel-tag"></span></div>
+                <div class="hr-skel" aria-hidden="true"><span class="hr-dot"></span><span class="hr-main"><span class="skel skel-t"></span><span class="skel skel-m"></span></span><span class="skel skel-tag"></span></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ── Run tests (#/plan; public/plan.js, plan.css) ──────────────────────
+             One screen for what API automation and UI automation did: tick
+             features, set the run's inputs, choose API, UI or both. It drives
+             those two (hidden) views' selection, inputs and run functions, so
+             a run sends exactly the requests they sent. -->
+        <section class="view plan" id="view-plan" data-view="plan" aria-labelledby="plan-title">
+          <header class="plan-head">
+            <h1 id="plan-title">Run tests</h1>
+          </header>
+          <div class="plan-body">
+            <div class="pl-card pl-list">
+              <div class="pl-search">
+                <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+                <label class="sr-only" for="pl-q">Filter features</label>
+                <input type="search" id="pl-q" placeholder="Filter features" autocomplete="off" spellcheck="false" />
+              </div>
+              <div id="pl-groups" class="pl-groups">
+                <div class="pl-skel"><span class="skel"></span></div>
+                <div class="pl-skel"><span class="skel"></span></div>
+                <div class="pl-skel"><span class="skel"></span></div>
+                <div class="pl-skel"><span class="skel"></span></div>
+                <div class="pl-skel"><span class="skel"></span></div>
+              </div>
+            </div>
+
+            <aside class="pl-card pl-panel" aria-labelledby="pl-run-title">
+              <div class="pl-panel-head">
+                <h2 id="pl-run-title">Your run</h2>
+                <button type="button" class="pl-link" id="pl-repeat">Repeat last run</button>
+              </div>
+              <div class="pl-chips" id="pl-chips"><p class="pl-empty">Tick features on the left.</p></div>
+
+              <div class="pl-row">
+                <span class="pl-label" id="pl-li-label">Line items</span>
+                <div class="pl-stepper" role="group" aria-labelledby="pl-li-label">
+                  <button type="button" class="pl-step" data-step="li" data-dir="-1" aria-label="Fewer line items">−</button>
+                  <input class="pl-num" id="pl-li" inputmode="numeric" value="1" aria-labelledby="pl-li-label" />
+                  <button type="button" class="pl-step" data-step="li" data-dir="1" aria-label="More line items">+</button>
+                </div>
+              </div>
+
+              <div class="pl-row pl-qty">
+                <div class="pl-qty-top">
+                  <span class="pl-label" id="pl-qty-label">Quantity</span>
+                  <fieldset class="pl-seg">
+                    <legend class="sr-only">Quantity for</legend>
+                    <label><input type="radio" name="pl-qty-mode" value="same" checked /><span>Same</span></label>
+                    <label><input type="radio" name="pl-qty-mode" value="per" id="pl-qty-per" /><span>Per line</span></label>
+                  </fieldset>
+                </div>
+                <div class="pl-qty-boxes" id="pl-qty-boxes"></div>
+              </div>
+
+              <div class="pl-row">
+                <span class="pl-label" id="pl-v-label">Vendors invited <span class="pl-hint">QA test vendors only</span></span>
+                <div class="pl-stepper" role="group" aria-labelledby="pl-v-label">
+                  <button type="button" class="pl-step" data-step="v" data-dir="-1" aria-label="Fewer vendors" title="Fewer vendors (min 1)">−</button>
+                  <input class="pl-num" id="pl-v" inputmode="numeric" value="1" aria-labelledby="pl-v-label" />
+                  <button type="button" class="pl-step" data-step="v" data-dir="1" aria-label="More vendors" title="More vendors (max 10)">+</button>
+                </div>
+              </div>
+
+              <div class="pl-row">
+                <span class="pl-label" id="pl-edges-label">Edge and negative cases</span>
+                <button type="button" class="pl-switch" id="pl-edges" role="switch" aria-checked="true" aria-labelledby="pl-edges-label"><span></span></button>
+              </div>
+
+              <p class="pl-errors" id="pl-errors" role="alert" hidden></p>
+
+              <!-- Accounts whose API side is the purchase-order flow (no case library). -->
+              <div class="pl-po" id="pl-po" hidden>
+                <p class="pl-po-text" id="pl-po-text"></p>
+                <button type="button" class="pl-po-btn" id="pl-po-run">Run PO automation</button>
+              </div>
+
+              <div class="pl-foot">
+                <p class="pl-sum" id="pl-sum">Nothing selected yet</p>
+                <div class="pl-menu" id="pl-menu" role="menu" aria-label="How to run" hidden></div>
+                <button type="button" class="pl-run" id="pl-run" aria-haspopup="menu" aria-expanded="false" aria-controls="pl-menu" disabled>
+                  <span id="pl-run-text">Run 0 selected</span>
+                  <svg class="ico" aria-hidden="true"><use href="#i-chevron-up" id="pl-run-ico"/></svg>
+                </button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ── Run: ask for something, watch it happen ───────────────
+             Two states. Before anything has run: the ask box (.sx-idle).
+             Once a run starts: the session (.sx-session, public/session.js) —
+             the conversation and the run narrating itself on the left, the
+             live browser or the API requests on the right, a draggable
+             divider between them. Every id app.js writes to is kept. -->
         <section class="view narrow" id="view-run" data-view="run">
+          <div class="ss-idle">
           <header class="view-head">
             <h1>Run</h1>
-            <p>Ask in plain English, or run what you have picked under API and UI automation. Everything a run does appears below it.</p>
           </header>
           <div class="view-body narrow">
         <!--
@@ -98,39 +791,42 @@
           what is this run about to touch?
         -->
         <div class="glance" id="glance">
-          <a class="glance-tile" href="#/api">
+          <a class="glance-tile t-api" href="#/plan">
+            <span class="glance-ico"><svg class="ico" aria-hidden="true"><use href="#i-zap"/></svg></span>
             <span class="glance-n" id="glance-api">—</span>
             <span class="glance-k">API cases</span>
           </a>
-          <a class="glance-tile" href="#/ui">
+          <a class="glance-tile t-ui" href="#/plan">
+            <span class="glance-ico"><svg class="ico" aria-hidden="true"><use href="#i-monitor"/></svg></span>
             <span class="glance-n" id="glance-ui">—</span>
             <span class="glance-k">browser journeys</span>
           </a>
-          <a class="glance-tile" href="#/reports">
+          <a class="glance-tile t-runs" href="#/sessions">
+            <span class="glance-ico"><svg class="ico" aria-hidden="true"><use href="#i-chart-column"/></svg></span>
             <span class="glance-n" id="glance-runs">—</span>
             <span class="glance-k">runs saved</span>
           </a>
-          <div class="glance-tile target">
+          <div class="glance-tile target t-target">
+            <span class="glance-ico"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg></span>
             <span class="glance-n sm" id="glance-client">…</span>
             <span class="glance-k" id="glance-env">target</span>
           </div>
         </div>
         <!-- What holds the single browser right now, and what the AI has cost -->
-        <div id="run-strip" class="run-strip">
+        <!-- Shown only while a run holds the browser (app.js pollRunState). -->
+        <div id="run-strip" class="run-strip" hidden>
           <span class="rs-dot idle" id="rs-dot"></span>
-          <span id="rs-text">Browser idle — runs go one at a time, in one window</span>
+          <span id="rs-text"></span>
           <span id="rs-queue" class="rs-queue"></span>
-          <span id="rs-ai" class="rs-ai" title="AI provider · spend reported by the gateway"></span>
+          <!-- Not removed: app.js writes to #rs-ai directly (no null-check).
+               Duplicate of the header's provider badge, already hidden. -->
+          <span id="rs-ai" class="rs-ai" title="AI provider · spend reported by the gateway" hidden></span>
         </div>
         <div class="request-card big">
           <div class="rc-head">
-            <label for="request">Ask spine.ai, or paste a test case</label>
-            <span class="rc-hint">plain English — it works out the journey and the cases</span>
-            <!-- The box is where the hands already are; saying so costs a line
-                 and saves a reach for the mouse on every single run. -->
             <span class="rc-kbd"><kbd>⌘</kbd><kbd>↵</kbd> to run</span>
           </div>
-          <textarea id="request" rows="5" placeholder="e.g. test a technical event with bidding and awarding">Create a technical RFP + RFQ event, place a bid and award it</textarea>
+          <textarea id="request" rows="5" aria-label="Ask spine.ai, or paste a test case" placeholder="Ask spine.ai, or paste a test case — e.g. test a technical event with bidding and awarding"></textarea>
           <!-- Labelled, because unlabelled pills under a text box read as tags
                applied to it rather than as things you can click to fill it. -->
           <div class="rc-tryrow">
@@ -138,117 +834,144 @@
             <div class="rc-examples" id="rc-examples"></div>
           </div>
           <div class="row rc-actions">
-            <!-- One primary action for the box, and the test-case compiler
-                 beside it — it reads the same box, so it belongs here. The
-                 run buttons for the ready-made suites live in the drawers. -->
-            <button id="as-btn" class="run-btn primary big-btn" title="Match what you typed against the written test cases, run the ones that match, or build a draft automation when nothing does">🔎 Find &amp; run this test case</button>
-            <button id="as-match" class="chip" title="Only look for matching test cases — nothing runs">match only</button>
-            <span class="rc-or">or</span>
-            <button id="ai-btn" class="run-btn small ghost">🤖 Run my instruction</button>
-            <button id="plan-btn" class="run-btn small ghost">🧪 Compile this test case &amp; run it</button>
-            <button id="plan-dry" class="chip" title="Compile without running, to see the plan first">plan only</button>
-            <label class="tgl-flow" title="Headed only: log in visibly in this window first and slow the run to demo pace">
-              <input type="checkbox" id="plan-demo" /> demo pace + visible login
-            </label>
+            <!-- One instruction, three ways to run it for real, so a reader
+                 can tell whether a failure is the API, the UI, or both. -->
+            <button id="run-api-btn" class="run-btn small ghost">Run (API)</button>
+            <button id="run-ui-btn" class="run-btn small ghost">Run (UI)</button>
+            <button id="run-both-btn" class="run-btn primary big-btn">Run (Both)</button>
+            <button id="run-stop-btn" class="run-btn small chip" hidden><svg class="ico" aria-hidden="true"><use href="#i-square"/></svg> Stop</button>
             <span id="status" class="run-status"></span>
           </div>
-          <p class="rc-foot">Whatever you ask for is planned, written as test cases and run as real requests —
-          it appears under <strong>Automation run</strong> below as it happens.</p>
+          <div id="api-instruct-result" class="api-result" hidden></div>
+          <div id="ui-instruct-result" class="api-result" hidden></div>
         </div>
-        <!-- The assistant's answer: progress, matches, results, a new draft (public/assistant.js) -->
+        <!-- The assistant's answer: progress, matches, results, a new draft (public/assistant.js) —
+             a separate system from the Run (API)/(UI)/(Both) buttons above; hidden for now, not removed. -->
         <div id="as-out" class="sx-assist" hidden></div>
-        <details id="as-drafts" class="sx-drafts">
+        <details id="as-drafts" class="sx-drafts" hidden>
           <summary><b>Drafts the assistant wrote</b> <span class="hint" id="as-drafts-n"></span></summary>
           <div id="as-drafts-list" class="sx-drafts-list"><div class="empty">Loading…</div></div>
         </details>
-        <div class="col-head">
-          <h2>Automation run</h2>
-          <span class="hint" id="auto-counts">real requests against UAT — each check is live</span>
-        </div>
-        <!-- Filters for a list that does not exist yet are furniture: hidden
-             until a run puts something here to filter. -->
-        <div class="auto-controls" id="auto-controls" hidden>
-          <button id="f-all" class="chip active">All</button>
-          <button id="f-fail" class="chip">Failed only</button>
-          <span id="auto-summary" class="auto-summary"></span>
-        </div>
-        <!-- The reports, where a run actually ends. Looking for them in a side
-             panel after watching a run finish here is a step too many. -->
-        <!-- Hidden until a run finishes: until then there is nothing to read,
-             and the links would point at somebody else's run. -->
-        <div class="report-bar" id="report-bar" hidden>
-          <span class="report-bar-label" id="report-bar-label">This run:</span>
-          <a id="open-api-report" class="run-btn small" target="_blank" rel="noopener">📊 Test report</a>
-          <a id="open-bug-sheet" class="run-btn small ghost" target="_blank" rel="noopener">🐞 Bug sheet</a>
-        </div>
-        <details id="skips" class="skips" hidden></details>
-        <div id="automation" class="automation">
-          <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
-        </div>
-
-        <!-- A journey, read as a journey. The raw Playwright output is still
-             one click away, because when something breaks that is what you need. -->
-        <div id="ui-steps" class="ui-steps" hidden></div>
-        <details id="ui-raw" class="ui-raw" hidden>
-          <summary><span class="ui-raw-label">Raw output</span><span class="ui-raw-n" id="ui-raw-n"></span></summary>
-          <div id="ui-console" class="ui-console"></div>
-        </details>
-
-        <!-- The written catalog — pick cases by hand and run them -->
-        <div class="col-head" style="margin-top: 18px">
-          <h2>Test catalog</h2>
-          <span class="hint" id="cat-hint">648 written cases · tick the ones you want and run them</span>
-        </div>
-        <div class="cat-bar">
-          <div class="cat-tabs">
-            <button class="chip active" data-layer="">all</button>
-            <button class="chip" data-layer="ui">UI</button>
-            <button class="chip" data-layer="api">API</button>
           </div>
-          <select id="cat-section" class="cat-select" title="Catalog section"><option value="">every section</option></select>
-          <select id="cat-priority" class="cat-select" title="Priority">
-            <option value="">any priority</option>
-            <option value="P0">P0</option>
-            <option value="P1">P1</option>
-            <option value="P2">P2</option>
-            <option value="P3">P3</option>
-          </select>
-          <select id="cat-verdict" class="cat-select" title="What the catalog says to do with it">
-            <option value="">any verdict</option>
-            <option value="automate">automate</option>
-            <option value="automate-later">automate-later</option>
-            <option value="manual">manual</option>
-          </select>
-          <input id="cat-q" class="kb-input" placeholder="search the catalog, e.g. savings column" />
-        </div>
-        <div class="cat-bar">
-          <button id="cat-run" class="run-btn small">▶ Run selected cases</button>
-          <button id="cat-stop" class="chip" title="Stop the run">■ stop</button>
-          <button id="cat-none" class="chip">clear</button>
-          <label class="tgl-flow" title="Tick to open the one visible Chromium window and watch the run — leave off for verification runs">
-            <input type="checkbox" id="cat-headed" /> watch it
-          </label>
-          <label class="tgl-flow" title="Headed only: log in visibly in the same window before the run, and slow every action so it can be followed by eye">
-            <input type="checkbox" id="cat-demo" /> demo pace + visible login
-          </label>
-          <label class="tgl-flow" title="Show Playwright's own output as well as the plain-language narration">
-            <input type="checkbox" id="cat-raw" /> raw log
-          </label>
-          <span id="cat-picked" class="cat-count"></span>
-        </div>
-        <div id="cat-list" class="cat-list">
-          <div class="loading">Loading the catalog…</div>
-        </div>
-        <div id="cat-run-out" class="cat-run-out" hidden></div>
+          </div>
 
-        <div class="col-head">
-          <h2>Agent reasoning</h2>
-          <span class="hint">live · 7 agents · critic can loop back</span>
-        </div>
-        <div id="timeline" class="timeline">
-          <div class="empty"><b>No reasoning yet</b>Seven agents plan, write, run and critique
-          the tests. Their reasoning streams here as they work, one card each.</div>
-        </div>
+          <div class="ss-session" id="ss-session">
+            <div class="ss-left">
+              <header class="ss-top">
+                <a class="ss-pill ss-back" href="#/home"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left"/></svg>Back</a>
+                <span class="ss-pill ss-target" title="Client and environment this session runs against"><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg><span id="ss-target">…</span></span>
+                <span class="ss-title" id="ss-title"></span>
+                <button type="button" class="ss-pill ss-stop" id="ss-stop" hidden><svg class="ico" aria-hidden="true"><use href="#i-square"/></svg>Stop</button>
+                <button type="button" class="ss-pill ss-show-right" id="ss-show-right" title="Show the browser panel" hidden><svg class="ico" aria-hidden="true"><use href="#i-panel-right"/></svg>Panel</button>
+                <span class="ss-status" id="ss-status" data-state="closed" role="status"><span class="ss-status-dot" aria-hidden="true"></span><span id="ss-status-text">Session closed</span></span>
+              </header>
+
+              <div class="ss-scroll" id="ss-scroll">
+                <div class="ss-thread" id="ss-thread">
+                  <!-- Earlier turns of this session, frozen as they ended. -->
+                  <div class="ss-history" id="ss-history"></div>
+
+                  <!-- The turn in flight: the ask, the narration, the step lists app.js draws, the end. -->
+                  <div class="ss-turn" id="ss-turn" data-kind="">
+                    <div class="ss-ask" id="ss-ask"></div>
+                    <div class="ss-narr" id="ss-narr"></div>
+
+                    <div class="col-head ss-cases-head">
+                      <h2>Automation run</h2>
+                      <span class="hint" id="auto-counts">real requests against UAT — each check is live</span>
+                    </div>
+                    <!-- Filters for a list that does not exist yet are furniture: hidden
+                         until a run puts something here to filter. -->
+                    <div class="auto-controls" id="auto-controls" hidden>
+                      <button id="f-all" class="chip active">All</button>
+                      <button id="f-fail" class="chip">Failed only</button>
+                      <span id="auto-summary" class="auto-summary"></span>
+                    </div>
+                    <details id="skips" class="skips" hidden></details>
+                    <div class="run-split">
+                      <!-- The run's rows (and the API journey above them), or a browser journey's steps. -->
+                      <div class="run-left">
+                        <div id="automation" class="automation">
+                          <div class="empty">Each test case runs here as a real request — pass/fail streams live.</div>
+                        </div>
+                        <div id="ui-steps" class="ui-steps" hidden></div>
+                      </div>
+                    </div>
+
+                    <!-- Only relevant for a saved run that actually has an agent trace
+                         (the old orchestrator feature) — hidden otherwise, shown by
+                         replayTrace()/openRun() in app.js when one is opened. -->
+                    <div id="agent-reasoning-section" hidden>
+                      <div class="col-head">
+                        <h2>Agent reasoning</h2>
+                      </div>
+                      <div id="timeline" class="timeline"></div>
+                    </div>
+
+                    <!-- How the run ended: DONE / FAILED / NOT TESTED (session.js). -->
+                    <div class="ss-end" id="ss-end"></div>
+                    <!-- Hidden until a run finishes: until then there is nothing to read,
+                         and the links would point at somebody else's run. -->
+                    <div class="report-bar" id="report-bar" hidden>
+                      <span class="report-bar-label" id="report-bar-label">This run:</span>
+                      <a id="open-api-report" class="run-btn small" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-chart-column"/></svg> Test report</a>
+                      <a id="open-bug-sheet" class="run-btn small ghost" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Bug sheet</a>
+                    </div>
+                    <!-- The raw Playwright output, one click away for when something breaks. -->
+                    <details id="ui-raw" class="ui-raw" hidden>
+                      <summary><span class="ui-raw-label">Raw output</span><span class="ui-raw-n" id="ui-raw-n"></span></summary>
+                      <div id="ui-console" class="ui-console"></div>
+                    </details>
+                  </div>
+
+                  <!-- Replies after the run that did not start a new one. -->
+                  <div class="ss-after" id="ss-after"></div>
+                </div>
+              </div>
+
+              <button type="button" class="ss-jump" id="ss-jump" hidden>Jump to latest <svg class="ico" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
+
+              <form class="ss-composer" id="ss-composer" novalidate>
+                <label class="sr-only" for="ss-msg">Message spine.ai</label>
+                <textarea id="ss-msg" rows="1" spellcheck="true" placeholder="Send a message to continue"></textarea>
+                <div class="ss-comp-foot">
+                  <fieldset class="ss-mode">
+                    <legend class="sr-only">Run follow-ups through</legend>
+                    <label><input type="radio" name="ss-mode" value="api" /><span>API</span></label>
+                    <label><input type="radio" name="ss-mode" value="ui" /><span>UI</span></label>
+                    <label><input type="radio" name="ss-mode" value="both" checked /><span>Both</span></label>
+                  </fieldset>
+                  <span class="ss-hint">Enter to send · Shift+Enter for a new line</span>
+                  <button type="submit" class="ss-send" id="ss-send" aria-label="Send" disabled><svg class="ico" aria-hidden="true"><use href="#i-arrow-up"/></svg></button>
+                </div>
+              </form>
+            </div>
+
+            <div class="ss-gutter" id="ss-gutter" role="separator" aria-orientation="vertical" aria-label="Resize the two panels" aria-valuemin="0" aria-valuemax="100" aria-valuenow="44" tabindex="0"><span></span></div>
+
+            <aside class="ss-right" aria-label="What the run is driving">
+              <header class="ss-rhead">
+                <div class="ss-tabs" role="tablist" aria-label="Panel">
+                  <button type="button" class="ss-tab" role="tab" data-tab="browser" aria-selected="true"><svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg>Browser</button>
+                  <button type="button" class="ss-tab" role="tab" data-tab="requests" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left-right"/></svg>Requests<span class="ss-req-n" id="ss-req-n"></span></button>
+                </div>
+                <button type="button" class="ss-collapse" id="ss-collapse" title="Hide this panel" aria-label="Hide this panel"><svg class="ico" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+              </header>
+              <div class="ss-pane ss-browser" data-pane="browser" role="tabpanel">
+                <div class="ss-screen">
+                  <span class="ss-live" id="ss-live" data-state="live" hidden><i aria-hidden="true"></i><span>LIVE</span></span>
+                  <!-- The live JPEG frames /api/plan-run and /api/ui-run stream (app.js sets the src). -->
+                  <div id="live-frame-panel" class="live-frame-panel" hidden>
+                    <img id="live-frame" alt="The browser the run is driving" />
+                  </div>
+                  <p class="ss-empty" id="ss-browser-empty">The browser appears here as soon as the run opens it.</p>
+                </div>
+              </div>
+              <div class="ss-pane ss-requests" data-pane="requests" role="tabpanel" hidden>
+                <ol class="ss-req-list" id="ss-req-list"></ol>
+                <p class="ss-empty" id="ss-req-empty">Each API request appears here as it is sent — open one to see what was sent and what came back.</p>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -272,7 +995,7 @@
         <div class="drawer open" id="drawer-api" data-kind="api">
           <button class="drawer-head" aria-expanded="true" aria-controls="drawer-api-body">
             <span class="drawer-caret" aria-hidden="true"></span>
-            <span class="drawer-ico" aria-hidden="true">⚡</span>
+            <span class="drawer-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-zap"/></svg></span>
             <span class="drawer-title">API tests <small class="drawer-what">no browser</small></span>
             <span class="drawer-meta" id="api-meta"></span>
           </button>
@@ -282,7 +1005,7 @@
                  away underneath it the moment the tree was scrolled. -->
             <div class="drawer-sticky">
             <div class="drawer-bar" id="api-run-bar">
-              <button id="t-run" class="run-btn small primary" title="Runs the ready-made test cases for everything ticked below">▶ Run selected</button>
+              <button id="t-run" class="run-btn small primary" title="Runs the ready-made test cases for everything ticked below"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg> Run selected</button>
               <button id="t-none" class="chip" title="Untick everything">clear</button>
             </div>
             <!-- Line items are a SIZE, not a tick-box, so they live here as a
@@ -296,16 +1019,31 @@
               <!-- Only for an account whose tests are a suite of their own (the
                    RFP suite): it picks real products and needs to know how many
                    of each, and how many vendors to invite. -->
-              <label class="li-field" id="api-qty-field" hidden title="One quantity for every line item (5), or one per line item (5,10,2.5)">quantity
-                <input type="text" id="api-qty" value="5" inputmode="decimal" placeholder="5 or 5,10" size="9" />
-              </label>
-              <label class="li-field" id="api-vendors-field" hidden title="How many vendors the event is sent to">vendors
-                <input type="number" id="api-vendors" min="1" max="50" value="3" />
+              <!-- One box per line item, or one for all with "same for all" ticked.
+                   #api-qty keeps the value the run sends: "5" or "5,10,2.5". -->
+              <span class="li-field qty-group" id="api-qty-field" hidden>
+                <span class="qty-label">quantity</span>
+                <!-- Two named choices, so the current mode is always readable.
+                     #api-qty-same keeps the state the rest of the code reads. -->
+                <span class="qty-mode" id="api-qty-mode" role="radiogroup" aria-label="Quantity per line item">
+                  <button type="button" class="qty-mode-btn" data-same="1" role="radio">Same for all</button>
+                  <button type="button" class="qty-mode-btn" data-same="0" role="radio">Per line item</button>
+                </span>
+                <input type="checkbox" id="api-qty-same" checked hidden />
+                <span id="api-qty-boxes" class="qty-boxes"></span>
+                <input type="hidden" id="api-qty" value="5" />
+              </span>
+              <label class="li-field" id="api-vendors-field" hidden title="How many vendors the event is sent to">vendors invited
+                <input type="number" id="api-vendors" min="1" max="50" value="1" />
               </label>
               <label class="li-field" id="api-sb-field" hidden title="How many of the invited vendors the buyer places a surrogate bid for">surrogate bids
                 <input type="number" id="api-sb" min="1" max="50" value="1" />
               </label>
+              <label class="li-field" id="api-vb-field" hidden title="How many invited vendors log in to the vendor portal and bid themselves">vendor bids
+                <input type="number" id="api-vb" min="1" max="50" value="1" />
+              </label>
               <span class="li-note" id="api-li-note"></span>
+              <div class="input-errors" id="api-input-errors" role="alert" hidden></div>
               <!-- Edge / negative cases change ONE thing a working request sends
                    and expect a refusal; they act on a second copy of the event. -->
               <label class="li-field" title="Also run the edge and negative cases for the ticked features — each changes one field of a working request and expects the backend to refuse it. They act on a second copy of the event, so the journey's own event is untouched.">
@@ -323,7 +1061,7 @@
                    names what it is and points at the other. -->
               <div class="po-head">Create a purchase order · through the API, no browser</div>
               <div class="po-row">
-                <button id="po-run" class="run-btn small primary">▶ Run PO automation</button>
+                <button id="po-run" class="run-btn small primary"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg> Run PO automation</button>
               </div>
               <p class="po-what" id="po-what"></p>
               <p class="po-what po-sibling" id="po-sibling" hidden></p>
@@ -349,15 +1087,15 @@
         <div class="drawer" id="drawer-ui" data-kind="ui">
           <button class="drawer-head" aria-expanded="false" aria-controls="drawer-ui-body">
             <span class="drawer-caret" aria-hidden="true"></span>
-            <span class="drawer-ico" aria-hidden="true">🖥</span>
+            <span class="drawer-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-monitor"/></svg></span>
             <span class="drawer-title">UI automation <small class="drawer-what">watches a real browser</small></span>
             <span class="drawer-meta" id="ui-meta"></span>
           </button>
           <div class="drawer-body" id="drawer-ui-body">
+            <div class="drawer-sticky">
             <div class="drawer-bar">
-              <button id="ui-run-sel" class="run-btn small primary" title="Runs the browser journeys for everything ticked below">▶ Run selected</button>
-              <button id="ui-ai" class="run-btn small" title="Reads what you typed in the Run box, works out which journey it means, and runs that one in a browser">🤖 Let the AI pick a journey</button>
-              <button id="ui-stop" class="chip" title="Stop the running journey">■ stop</button>
+              <button id="ui-run-sel" class="run-btn small primary" title="Runs the browser journeys for everything ticked below"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg> Run selected</button>
+              <button id="ui-stop" class="chip" title="Stop the running journey"><svg class="ico" aria-hidden="true"><use href="#i-square"/></svg> stop</button>
               <button id="ui-none" class="chip">clear</button>
             </div>
             <div class="drawer-bar sub" id="ui-inputs">
@@ -365,16 +1103,33 @@
                 <input type="number" id="li-normal" min="1" value="1" />
                 <span id="li-normal-max" class="li-max"></span>
               </label>
+              <!-- Same control as the API row: one quantity for all, or a box per
+                   line item. #ui-qty keeps what the run sends: "10" or "10,20,30". -->
+              <span class="li-field qty-group" id="ui-qty-field">
+                <span class="qty-label">quantity</span>
+                <span class="qty-mode" id="ui-qty-mode" role="radiogroup" aria-label="Quantity per line item">
+                  <button type="button" class="qty-mode-btn" data-same="1" role="radio">Same for all</button>
+                  <button type="button" class="qty-mode-btn" data-same="0" role="radio">Per line item</button>
+                </span>
+                <input type="checkbox" id="ui-qty-same" checked hidden />
+                <span id="ui-qty-boxes" class="qty-boxes"></span>
+                <input type="hidden" id="ui-qty" value="10" />
+              </span>
+              <label class="li-field" id="ui-vendors-field" title="How many QA test vendors the event is sent to">vendors invited
+                <input type="number" id="ui-vendors" min="1" max="50" value="1" />
+              </label>
               <label class="li-field" id="li-boq-field" title="How many rows to put on a BOQ (bill of quantities) event">BOQ items
                 <input type="number" id="li-boq" min="1" value="10" />
                 <span id="li-boq-max" class="li-max"></span>
               </label>
-              <label class="tgl-flow" title="On: a browser window opens and you watch it work. Off: it runs invisibly, which is faster.">
+              <label class="tgl-flow" title="On: the browser is shown live beside the steps as it works. Off: steps only.">
                 <input type="checkbox" id="ui-headed" checked /> <span>show the browser</span>
               </label>
               <label class="tgl-flow" title="On: the journey signs in through the login screen — phone number, one-time code, Login — so you see the sign-in and the login page itself is tested. Off: it starts already signed in with a saved session, which is faster.">
                 <input type="checkbox" id="ui-login" checked /> <span>sign in on screen</span>
               </label>
+              <div class="input-errors" id="ui-input-errors" role="alert" hidden></div>
+            </div>
             </div>
             <p class="scope-note" id="ui-note" hidden></p>
             <p class="tree-count" id="ui-mode"></p>
@@ -426,17 +1181,68 @@
 
         <section class="view" id="view-cases" data-view="cases">
           <header class="view-head">
-            <h1>Test cases</h1>
-            <p>Every test case the platform has — written by hand, generated from the product workbook and the Notion knowledge base, and one per API field check — arranged by user journey, each with its expected result and the latest actual result from a real run.</p>
+            <h1>Test catalogue</h1>
+            <p>Run any test case individually. Every written case is here with a checkbox — tick one, or several, and press <b>Run selected cases</b>; each one runs on its own and reports as it goes. The test case book and the API case library are the other two tabs.</p>
           </header>
           <div class="view-body">
             <div class="cb-tabs" role="tablist">
-              <button type="button" class="cb-tab on" data-cbtab="book">📖 Test case book <span id="cb-tab-n"></span></button>
-              <button type="button" class="cb-tab" data-cbtab="library">⚡ API case library</button>
+              <button type="button" class="cb-tab on" data-cbtab="run"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg> Run test cases</button>
+              <button type="button" class="cb-tab" data-cbtab="book"><svg class="ico" aria-hidden="true"><use href="#i-book-open"/></svg> Test case book <span id="cb-tab-n"></span></button>
+              <button type="button" class="cb-tab" data-cbtab="library"><svg class="ico" aria-hidden="true"><use href="#i-zap"/></svg> API case library</button>
+            </div>
+
+            <!-- the runnable catalogue: tick cases and run them one by one -->
+            <div id="cb-pane-run" class="cb-pane">
+        <!-- The written catalog — pick cases by hand and run them -->
+        <div class="col-head">
+          <h2>Run any test case individually</h2>
+          <span class="hint" id="cat-hint">tick one case, or several, then press Run selected cases</span>
+        </div>
+        <div class="cat-bar">
+          <div class="cat-tabs">
+            <button class="chip active" data-layer="">all</button>
+            <button class="chip" data-layer="ui">UI</button>
+            <button class="chip" data-layer="api">API</button>
+          </div>
+          <select id="cat-section" class="cat-select" title="Catalog section"><option value="">every section</option></select>
+          <select id="cat-priority" class="cat-select" title="Priority">
+            <option value="">any priority</option>
+            <option value="P0">P0</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+          </select>
+          <select id="cat-verdict" class="cat-select" title="What the catalog says to do with it">
+            <option value="">any verdict</option>
+            <option value="automate">automate</option>
+            <option value="automate-later">automate-later</option>
+            <option value="manual">manual</option>
+          </select>
+          <input id="cat-q" class="kb-input" placeholder="search the catalog, e.g. savings column" />
+        </div>
+        <div class="cat-bar">
+          <button id="cat-run" class="run-btn small"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg> Run selected cases</button>
+          <button id="cat-stop" class="chip" title="Stop the run"><svg class="ico" aria-hidden="true"><use href="#i-square"/></svg> stop</button>
+          <button id="cat-none" class="chip">clear</button>
+          <label class="tgl-flow" title="Tick to open the one visible Chromium window and watch the run — leave off for verification runs">
+            <input type="checkbox" id="cat-headed" /> watch it
+          </label>
+          <label class="tgl-flow" title="Headed only: log in visibly in the same window before the run, and slow every action so it can be followed by eye">
+            <input type="checkbox" id="cat-demo" /> demo pace + visible login
+          </label>
+          <label class="tgl-flow" title="Show Playwright's own output as well as the plain-language narration">
+            <input type="checkbox" id="cat-raw" /> raw log
+          </label>
+          <span id="cat-picked" class="cat-count"></span>
+        </div>
+        <div id="cat-list" class="cat-list">
+          <div class="loading">Loading the catalog…</div>
+        </div>
+        <div id="cat-run-out" class="cat-run-out" hidden></div>
             </div>
 
             <!-- the case book: every written case by journey, expected vs actual -->
-            <div id="cb-pane-book" class="cb-pane">
+            <div id="cb-pane-book" class="cb-pane" hidden>
               <div class="cb-bar">
                 <input id="cb-search" class="cat-search" type="search" placeholder="Search test cases — id, title, expected result…" />
                 <select id="cb-journey" class="cat-select"><option value="">Every journey</option></select>
@@ -483,11 +1289,36 @@
           </div>
         </section>
 
-        <!-- ── Reports ─────────────────────────────────────────────── -->
+        <!-- ── Sessions (public/sessions.js, sessions.css) ─────────────
+             Every run kept for this client, newest first, grouped by day:
+             search, status filters with counts, one row per session that
+             opens it at #/session/{id}. The client bar moves into this
+             header while the page is open (sessions.js). -->
+        <section class="view sessions" id="view-sessions" data-view="sessions" aria-labelledby="sn-title">
+          <header class="sn-head">
+            <h1 id="sn-title">Sessions</h1>
+            <a class="sn-new" id="sn-new" href="#/home"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>New session</a>
+            <div class="sn-ctx" id="sn-ctx"></div>
+          </header>
+          <div class="sn-tools">
+            <label class="sn-search">
+              <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+              <span class="sr-only">Search sessions by what was asked</span>
+              <input type="search" id="sn-q" placeholder="Search by what was asked" autocomplete="off" spellcheck="false" />
+            </label>
+            <div class="sn-filters" id="sn-filters" role="group" aria-label="Filter by status"></div>
+          </div>
+          <div class="sn-body" id="sn-body" aria-busy="true"></div>
+          <p class="sr-only" id="sn-said" aria-live="polite"></p>
+          <button type="button" class="sn-more" id="sn-more" hidden>Load older sessions</button>
+        </section>
+
+        <!-- ── Reports: replaced by Sessions. #/reports redirects there; the
+             view stays because loadHistory() in app.js still writes to #history. -->
         <section class="view" id="view-reports" data-view="reports">
           <header class="view-head">
-            <h1>Reports</h1>
-            <p>What the last runs found, and every run the platform has kept.</p>
+            <h1>Sessions</h1>
+            <p>Every run the platform has kept, newest first. Open one to read it as a session.</p>
           </header>
           <div class="view-body">
         <div class="col-head" style="margin-top:16px">
@@ -510,7 +1341,7 @@
                  single run has: the team's hand-raised D__ rows, plus every
                  defect found across all runs. -->
             <p class="cap-bar report-links">
-              <a id="report-sheet" class="chip" href="/api/bug-report" target="_blank" rel="noopener">🐞 Open the full bug sheet</a>
+              <a id="report-sheet" class="chip" href="/api/bug-report" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Open the full bug sheet</a>
               <span class="hint">hand-raised bugs + everything found across all runs · editable</span>
             </p>
           </header>
@@ -635,8 +1466,8 @@
         <div class="modal-stats" id="modal-stats"></div>
         <p id="modal-note" class="modal-note"></p>
         <div class="modal-actions">
-          <a id="modal-report" class="run-btn primary" href="/api/test-report" target="_blank" rel="noopener">📊 Open the report</a>
-          <a id="modal-bugs" class="run-btn ghost" href="/api/bug-report" target="_blank" rel="noopener">🐞 Bug sheet</a>
+          <a id="modal-report" class="run-btn primary" href="/api/test-report" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-chart-column"/></svg> Open the report</a>
+          <a id="modal-bugs" class="run-btn ghost" href="/api/bug-report" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-bug"/></svg> Bug sheet</a>
           <button id="modal-close" class="chip">Close</button>
         </div>
       </div>
@@ -650,5 +1481,12 @@
     <script src="/matrix.js"></script>
     <script src="/success.js"></script>
     <script src="/history.js"></script>
+    <script src="/mascot.js"></script>
+    <script src="/home.js"></script>
+    <script src="/welcome.js"></script>
+    <script src="/landing.js"></script>
+    <script src="/plan.js"></script>
+    <script src="/session.js"></script>
+    <script src="/sessions.js"></script>
   </body>
 </html>
