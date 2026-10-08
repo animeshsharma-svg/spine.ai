@@ -253,6 +253,35 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(why);
   };
 
+  // reschedule_event judges the Reschedule dialog's own answer (its field message, the save
+  // call) and then CLOSES the dialog. A check of a dialog field after it can only fail ("no
+  // field 'Make Order Live At' on screen" — UI-EVDTME-002), so it is folded into the step's
+  // `message` and dropped. A "no save request" check must name the dialog's real save
+  // (PATCH …/template_input); the compiler guessed `edit_trade_schedules`, which can never fail.
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i].step !== "reschedule_event") continue;
+    const rs = steps[i];
+    for (let k = i + 1; k < steps.length && steps[k].step !== "reschedule_event"; ) {
+      const st = steps[k];
+      const a: any = st.args ?? {};
+      const label = String(a.field ?? a.label ?? a.target?.name ?? a.target?.label ?? "");
+      const said = String(a.message ?? a.text ?? "");
+      const dialogField = /make order live at|delivery date|pickup date/i.test(label);
+      const sameWords = !!said && !!rs.args?.message && said.toLowerCase().includes(String(rs.args.message).toLowerCase().replace(/!$/, ""));
+      if (["expect_field_error", "expect_message", "expect_error"].includes(st.step) && (dialogField || sameWords)) {
+        if (said && !rs.args?.message) rs.args = { ...(rs.args ?? {}), message: said };
+        steps.splice(k, 1);
+        repairs.push(`dropped ${st.step}${label ? ` on "${label}"` : ""} after reschedule_event — the step judges the dialog's message itself and closes the dialog`);
+        continue;
+      }
+      if (st.step === "expect_request" && a.absent && !/template_input/.test(String(a.path ?? ""))) {
+        st.args = { ...a, path: "/template_input", method: "PATCH" };
+        repairs.push("expect_request now names the Reschedule dialog's real save (PATCH …/template_input)");
+      }
+      k++;
+    }
+  }
+
   // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built
   // through the API and open_prepared opens the screen the case is about. No
   // create screen, no title, no search — only the steps the case is about.
@@ -1249,9 +1278,32 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   // The model's own "unconfirmed label" notes are label guesses, not missing
   // steps: they are judged with the deterministic label check below.
   const modelGuesses = declaredGaps.filter((g) => /^unconfirmed label/i.test(g));
-  const gaps = declaredGaps.filter((g) => !/^unconfirmed label/i.test(g));
+  let gaps = declaredGaps.filter((g) => !/^unconfirmed label/i.test(g));
+  const declaredGapCount = gaps.length;
+  // Gaps the reschedule step already covers, which the model keeps listing (UI-EVDTME-002):
+  // a past DAY is asked for with start "-1d" (the calendar disables it — counted as refused),
+  // and the refusal is read from the dialog field's own help text, i.e. under that field.
+  const rsIdx = linted.plan.steps.findIndex((st) => st.step === "reschedule_event");
+  if (rsIdx >= 0) {
+    const pastDay = (g: string) => /past (calendar )?days?|days? (in the past|before today)|disabled (in the )?(date )?(picker|calendar)|calendar.*disabled/i.test(g);
+    const underField = (g: string) => /(under|below|beneath|next to|at) the (relevant |date |start )?(field|input)|field'?s? (own )?(error|help|message)|rendered specifically under/i.test(g);
+    if (gaps.some(pastDay)) {
+      if (!linted.plan.steps.some((st) => st.step === "reschedule_event" && /^\s*-\s*\d+\s*d/i.test(String(st.args?.start ?? "")))) {
+        linted.plan.steps.splice(rsIdx, 0, { step: "reschedule_event", args: { start: "-1d", expect: "refused" }, note: "a past day is disabled in the calendar" });
+        warnings.push('added reschedule_event{start:"-1d", expect:"refused"} — a past day is greyed out in the calendar, which the step reports as refused');
+      }
+      gaps = gaps.filter((g) => !pastDay(g));
+    }
+    if (gaps.some(underField)) {
+      gaps = gaps.filter((g) => !underField(g));
+      warnings.push("reschedule_event reads the refusal from the dialog field's own help text — that is the message under the field");
+    }
+  }
+  // The model's "partial" rests on the gaps it listed: when every one of them was resolved
+  // above (a step that covers it was added or already present), its "partial" goes with them.
+  const gapsAllResolved = declaredGapCount > 0 && gaps.length === 0;
   let coverage: CompileResult["coverage"] =
-    parsed.coverage === "none" ? "none" : parsed.coverage === "partial" || gaps.length ? "partial" : "full";
+    parsed.coverage === "none" ? "none" : (parsed.coverage === "partial" && !gapsAllResolved) || gaps.length ? "partial" : "full";
   // A model that lists gaps but claims full coverage is contradicting itself;
   // the gaps are the more specific claim, so they win.
   if (coverage === "full" && gaps.length) coverage = "partial";
