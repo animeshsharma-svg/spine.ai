@@ -71,6 +71,8 @@ The three code directories must stay siblings: the platform imports `procol test
 
 ## Setup
 
+Step-by-step for a new teammate, including where the `.env` files come from: [`docs/SETUP.md`](docs/SETUP.md).
+
 Requires Node 24 and PostgreSQL 17 with pgvector (macOS: `brew install postgresql@17 pgvector`,
 then `brew services start postgresql@17`).
 
