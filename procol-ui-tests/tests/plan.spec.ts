@@ -113,8 +113,8 @@ test("planned test case", async ({ page }) => {
     const who = await loginOnScreen(page, companyId);
     console.log(`[plan] signed in — ${who.how === "on-screen" ? "on screen" : `saved session (${who.fellBackBecause ?? "screen unavailable"})`}`);
   } else if (companyId) {
-    await loginAsCompany(page, companyId);
-    console.log(`[plan] signed in as company ${companyId}`);
+    const who = await loginAsCompany(page, companyId, Number(plan.context?.buyerUserId) || undefined);
+    console.log(`[plan] signed in as company ${companyId}${plan.context?.buyerUserId ? ` (user ${who.userId}, the API setup's buyer)` : ""}`);
   }
 
   let failure: Error | null = null;

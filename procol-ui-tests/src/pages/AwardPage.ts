@@ -361,6 +361,45 @@ export class AwardPage extends BasePage {
    * afterwards. Both are done here, and a missing submit control is reported
    * rather than treated as success — a draft proposal is not an awarded event.
    */
+  /**
+   * Approve a submitted award on its proposal page, step by step, for as long as the signed-in
+   * user is the pending approver. The approval card shows a remark box with Approve / Reject
+   * only to that approver (approvalCard.jsx: `approverId &&`), and Approve refuses an empty
+   * remark ("Remark is necessary for approval"). Once the last step is approved the bid is
+   * "selected" and the app creates the orders itself (bid.rb:2190-2209).
+   * When the pending approver is someone else, nothing can be approved here: that is
+   * "not checked", never a failure of the product.
+   */
+  async approveAward(remark = "Approved by the spine.ai QA run"): Promise<{ approved: number }> {
+    const p = this.page;
+    if (!/\/proposal\//.test(p.url())) {
+      await this.openMasterQcs();
+      await this.click([p.locator("#bidSelectionProposal"), p.getByRole("button", { name: /bid selection proposal/i })], { label: "open-proposal", timeout: TIMEOUTS.MEDIUM });
+      await p.waitForURL(/\/proposal\//, { timeout: TIMEOUTS.LONG }).catch(() => {});
+    }
+    let approved = 0;
+    for (let round = 0; round < 6; round++) {
+      await this.waitForSpinnerHidden();
+      const approve = p.getByRole("button", { name: /^\s*approve\s*$/i }).first();
+      const mine = await approve.waitFor({ state: "visible", timeout: round === 0 ? TIMEOUTS.LONG : 8_000 }).then(() => true).catch(() => false);
+      if (!mine) break;
+      const box = p.locator("textarea").last();
+      await box.fill(remark, { timeout: TIMEOUTS.MEDIUM });
+      await approve.click({ timeout: TIMEOUTS.MEDIUM });
+      const err = await this.errorToastText(2_000);
+      if (err) throw new Error(`approving the award was refused: ${err}`);
+      // the card re-reads the workflow; the next step's Approve (if ours) replaces this one
+      await approve.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG }).catch(() => {});
+      approved++;
+      console.log(`[award] approved step ${approved}`);
+      await this.pause(2_000);
+    }
+    if (approved === 0) {
+      throw new Error("not checked: the award is waiting for approval by another user — only the pending approver sees Approve, so no order can be created in this run");
+    }
+    return { approved };
+  }
+
   async createAndSubmitProposal(): Promise<string> {
     const p = this.page;
     // The stay-updated card covers this exact corner of the awarding grid a

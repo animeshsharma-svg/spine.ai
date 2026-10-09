@@ -26,7 +26,7 @@ if (state && state !== "none") {
     process.exit(1);
   }
   const x = b.context;
-  context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values };
+  context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId };
 }
 await new Promise<void>((resolve) => {
   runUiPlan({ plan: { title: "probe", steps, ...(context ? { context } : {}) }, companyId: COMPANY, runId: `probe-${Date.now().toString(36)}`, headed: false }, (e: any) => {

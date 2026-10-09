@@ -8,8 +8,11 @@ import { CompanyLogin, resolveCompanyLogin } from "./multiClient.js";
  * localStorage before the SPA boots — no OTP. This is what lets the whole flow
  * suite run for any client: pick a COMPANY_ID, inject, run its enabled flows.
  */
-export async function loginAsCompany(page: Page, companyId: number): Promise<CompanyLogin> {
-  const login = await resolveCompanyLogin(companyId);
+export async function loginAsCompany(page: Page, companyId: number, preferUserId?: number): Promise<CompanyLogin> {
+  const login = await resolveCompanyLogin(companyId, preferUserId);
+  if (preferUserId && login && login.userId !== preferUserId) {
+    throw new Error(`the API setup's buyer (user ${preferUserId}) has no live console session, and another user's would not be allowed to open its event`);
+  }
   if (!login) {
     throw new Error(
       `No usable console session in the DB for company ${companyId} — cannot DB-login. ` +

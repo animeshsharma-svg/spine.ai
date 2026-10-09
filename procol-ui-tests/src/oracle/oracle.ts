@@ -62,6 +62,20 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
     };
   }
 
+  // 0. A step that could not be checked here, for a reason the app's own setup decides (the
+  //    award's approver is another person, versioning is off for this client …). Not a pass,
+  //    not a product defect: "couldn't tell", with that reason.
+  if (/^not checked:/i.test(message)) {
+    return {
+      kind: "environment",
+      severity: "low",
+      title: `${evidence.flowKey}: ${message.split("\n")[0]}`,
+      rationale: message.split("\n")[0].replace(/^not checked:\s*/i, ""),
+      reproduction: steps,
+      actionable: false,
+    };
+  }
+
   // 1. Infrastructure first: a 502/503/504 or an auth wall is not a product bug
   //    and not a broken test — re-running is the correct response.
   const infra = httpFailures.find(INFRA_ERROR);
@@ -110,7 +124,11 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
 
   // 3. The app refused the input in its own words. That is the product working:
   //    the finding is a gap in the test data or in an unbuilt step.
-  const rejection = errorToasts.find((t) => INPUT_REJECTION.test(t.text));
+  // Only the refusal still standing when the step failed is judged: earlier ones were met by
+  // recovery (a new version's publish wants its evaluator, then its sections, then failed on
+  // a server answer — the verdict is about that last answer, not the first).
+  const standing = errorToasts.slice(-1);
+  const rejection = standing.find((t) => INPUT_REJECTION.test(t.text));
   if (rejection) {
     return {
       kind: "product_rejected_input",
@@ -130,7 +148,7 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
   //     dashboard's code) is the app enforcing that rule — never, by itself, a defect.
   //     "RFP duration exceeds RFQ end time" was reported as a high product defect because
   //     its words matched no validation pattern (8 Oct 2026); it is projectCreation.jsx:1621.
-  const ruled = errorToasts.map((t) => ({ t, rule: appRuleFor(t.text) })).find((x) => x.rule);
+  const ruled = standing.map((t) => ({ t, rule: appRuleFor(t.text) })).find((x) => x.rule);
   if (ruled && ruled.rule) {
     return {
       kind: "product_rejected_input",
@@ -147,16 +165,16 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
 
   // 4b. Any other error toast: words the app's code does not explain. That can point at the
   //     product, but only a fresh-state re-run that shows it again makes it a defect.
-  if (errorToasts.length) {
+  if (standing.length) {
     return {
       kind: "product_defect",
       severity: "medium",
-      title: `${evidence.flowKey}: app reported "${errorToasts[0].text}" — not one of its own rules`,
+      title: `${evidence.flowKey}: app reported "${standing[0].text}" — not one of its own rules`,
       rationale:
-        `The application showed "${errorToasts[0].text}" with no failing HTTP call. These words are not in the ` +
+        `The application showed "${standing[0].text}" with no failing HTTP call. These words are not in the ` +
         `app's rule catalog (generated from its code), so they are not a known validation; a fresh-state ` +
         `re-run decides whether it is a product defect.`,
-      smokingGun: { toast: errorToasts[0].text },
+      smokingGun: { toast: standing[0].text },
       reproduction: steps,
       actionable: true,
     };

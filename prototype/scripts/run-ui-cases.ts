@@ -369,7 +369,7 @@ async function runOnce(c: CatalogCase, p: Prep, plan: any, fresh = false): Promi
     const built = await buildUiState(COMPANY, p.state, { technical: p.technical, auction: p.auction });
     if (!built.ok || !built.context) return { exitCode: null, steps: [], observations: [], timedOut: false, runId, stateWhy: built.why ?? "the state could not be built" };
     const x = built.context;
-    context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values };
+    context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId };
     log(`   state ${p.state}${p.technical ? " (+technical)" : ""}${p.auction ? " (auction)" : ""} built by API in ${Math.round(x.builtInMs / 1000)}s: ${x.title}`);
     if (!fresh) stateCache.set(key, { context, at: Date.now() });
   }

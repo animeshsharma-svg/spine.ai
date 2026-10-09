@@ -53,14 +53,22 @@ function toSession(r: any): DbUserSession {
  * console user (if any) as the evaluator. No OTP — uses existing sessions.
  */
 export async function resolveClient(companyId: number): Promise<ResolvedClient> {
+  // The buyer our own automation runs as at this company (the creator of its spine-/QA_Platform/
+  // API_Test events) comes first — the newest session alone is whoever signed in last, a real
+  // colleague as soon as one logs in, and the browser must be the same user as the API.
+  const auto = await query(`select eg.user_id from event_groups eg
+       where eg.company_id = $1 and eg.id > (select max(id) - 200000 from event_groups)
+         and (eg.title like 'spine-%' or eg.title like 'QA\_Platform%' or eg.title like 'API\_Test%')
+       group by eg.user_id order by count(*) desc limit 1`, [companyId]).catch(() => [] as any[]);
+  const autoId = auto[0]?.user_id ?? -1;
   // 1) direct users of the company with a live console session
   let rows = await query(
     `select u.id, u.first_name, u.phone, u.email, u.role, s.access_token, s.app_version, s.created_at
      from sessions s
      join users u on u.id = s.user_id
      where u.company_id = $1 and ${CONSOLE_SESSION}
-     order by s.created_at desc`,
-    [companyId],
+     order by (u.id = $2) desc, s.created_at desc`,
+    [companyId, autoId],
   );
 
   // 2) workspace model: some clients (e.g. Moon Beverages) have no direct users

@@ -6,6 +6,8 @@ import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
 import { AwardPage } from "../pages/AwardPage.js";
+import { eventGroupByTitle, ordersOfEventGroup, type DbOrder } from "../db/verifyRows.js";
+import { decodeProcolId } from "../crosscheck/ids.js";
 import { vendorNames, vendorCount } from "../master/params.js";
 import { CreateEventPage, ProductInput, StageKey } from "../pages/CreateEventPage.js";
 import { EventDetailPage } from "../pages/EventDetailPage.js";
@@ -75,6 +77,8 @@ interface RunState {
   widgets: Record<string, WidgetConfig>;
   products: ProductInput[];
   lineItemsAdded: number;
+  /** purchase orders read back after create_po */
+  orders?: DbOrder[];
   /**
    * Whether a bid has been placed in this plan, so `expect_bid_submitted` can
    * tell "the bid failed" from "no bid was ever attempted" — a plan that
@@ -718,6 +722,12 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "capture_screen": {
       const label = String(a.label ?? "capture").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "capture";
+      // A capture of a page still drawing its skeleton documents nothing — wait (≤20 s) for the
+      // loaders to go, as a person would before looking.
+      await s.page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      const loading = s.page.locator(".ant-skeleton, .ant-spin-spinning").first();
+      const until = Date.now() + 20_000;
+      while (Date.now() < until && (await loading.isVisible().catch(() => false))) await s.page.waitForTimeout(250);
       // Reuse the stuck-report writer: same screenshot + tree, same panel on
       // the dashboard, but marked as requested rather than as a failure.
       await recordStuck(s.page, {
@@ -766,6 +776,61 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         rangeUpper: a.rangeUpper !== undefined ? Number(a.rangeUpper) : undefined,
       });
       return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}`;
+    }
+    case "create_new_version": {
+      if (!/\/project\//.test(s.page.url())) throw new Error("create_new_version needs a published event's project page — publish and expect_published (or open_event) first");
+      const v = await new EventDetailPage(s.page).createNewVersion();
+      // The copy is a new draft on the same create screen: what the plan does next edits IT.
+      s.create = new CreateEventPage(s.page);
+      // the copy's stages draw first and its line items a beat later — an edit before they
+      // arrive finds an empty Manage Line Items panel
+      let copied: number | null = null;
+      for (const until = Date.now() + 45_000; Date.now() < until; await s.page.waitForTimeout(500)) {
+        copied = await s.create.lineItemCountBadge().catch(() => null);
+        if (copied && copied > 0) break;
+      }
+      s.lineItemsAdded = copied ?? s.lineItemsAdded;
+      return `new version open for editing (${v.stageIds.length} stage(s) copied${s.lineItemsAdded ? `, ${s.lineItemsAdded} line item(s)` : ""}) — the previous version is archived and its bids are read-only`;
+    }
+    case "remove_line_items": {
+      const r = await s.create.removeLineItems(asInt(a.count, 1));
+      s.lineItemsAdded = r.after;
+      return `removed ${r.removed.length} line item(s): ${r.before} → ${r.after}${r.removed.length ? ` (${r.removed.slice(0, 5).join("; ")})` : ""}`;
+    }
+    case "approve_award": {
+      const r = await new AwardPage(s.page).approveAward(a.remark ? String(a.remark) : undefined);
+      return `award approved — ${r.approved} approval step(s) were the run's buyer's`;
+    }
+    case "create_po": {
+      // Two ways a PO is made (awardingQCS.jsx): with skip_custom_po the award becomes a proposal
+      // and the orders are created when its approval completes; without it the awarding screen
+      // offers "Create PO", which opens a PO form — not built yet, so that path is not checked.
+      const customPo = s.page.getByRole("button", { name: /^\s*create po\s*$/i }).first();
+      if (/\/awarding\//.test(s.page.url()) && (await customPo.isVisible().catch(() => false))) {
+        throw new Error("not checked: this event makes POs through the custom PO form (skip_custom_po is off) — the PO-form step is not built yet");
+      }
+      const r = await new AwardPage(s.page).approveAward();
+      const orders = await waitForOrders(s.page.url(), s.title, 90_000);
+      if (!orders.length) throw new Error(`the award was approved (${r.approved} step(s)) but no purchase order was created within 90 s — the app creates one per awarded vendor when the award is final (bid.rb:2190-2209)`);
+      s.orders = orders;
+      return `award approved (${r.approved} step(s)); ${orders.length} purchase order(s): ${orders.map((o) => `#${o.id}${o.po_number ? ` ${o.po_number}` : ""} — ${o.items.length} line(s)`).join("; ")}`;
+    }
+    case "expect_po_items": {
+      const orders = s.orders?.length ? s.orders : await waitForOrders(s.page.url(), s.title, 30_000);
+      if (!orders.length) throw new Error("no purchase order exists for this event — create_po (approve the award) first");
+      const lines = orders.flatMap((o) => o.items.map((it) => ({ ...it, order: o.id })));
+      const want = asInt(a.count, s.lineItemsAdded || lines.length);
+      const problems: string[] = [];
+      if (lines.length !== want) problems.push(`the PO(s) carry ${lines.length} line(s), the award had ${want}`);
+      const empty = lines.filter((l) => !(Number(l.quantity) > 0));
+      if (empty.length) problems.push(`${empty.length} PO line(s) have no quantity`);
+      if (a.quantity !== undefined) {
+        const off = lines.filter((l) => Number(l.quantity) !== Number(a.quantity));
+        if (off.length) problems.push(`${off.length} PO line(s) do not carry quantity ${a.quantity} (${off.slice(0, 3).map((l) => l.quantity).join(", ")})`);
+      }
+      const seen = `${orders.length} PO(s), ${lines.length} line(s): ${lines.slice(0, 6).map((l) => `${l.product || "item"} × ${l.quantity}`).join("; ")}`;
+      expect(problems, `PO lines — ${seen}`).toEqual([]);
+      return `PO lines as awarded — ${seen}`;
     }
     case "convert_to_auction": {
       // Needs a published RFQ's project page under the browser.
@@ -897,6 +962,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
       await s.create.saveSchedule();
+      // Every stage must be scheduled the same way: a stage left on its old fixed end beside a
+      // re-scheduled Duration is refused at publish (BUG-85) — on a new version the copied
+      // stages load with the end time the server stored. A drawer opened before the page
+      // settled showed one block of two (2026-10-09), so schedule again when one is missing.
+      const stages = (await s.create.currentStages().catch(() => [])).length;
+      if (stages > 1 && s.create.scheduleWindows.length < stages) {
+        console.log(`[create-event] the schedule covered ${s.create.scheduleWindows.length} of ${stages} stages — scheduling again`);
+        await s.page.waitForTimeout(2_000);
+        await s.create.saveSchedule();
+        if (s.create.scheduleWindows.length < stages) throw new Error(`the Schedule drawer showed ${s.create.scheduleWindows.length} of ${stages} stages — the others keep their previous end time, which the app refuses beside a Duration (BUG-85)`);
+      }
       // Report what the app holds — each stage block's own "Event will end at" line — never
       // what was typed (a 3-minute end that did not take was reported as "saved (3 min)").
       const windows = s.create.scheduleWindows.map((w) => `${w.stage.replace(/^\d+\.\s*/, "")} ends ${w.endsAt}`).join(" · ");
@@ -1254,17 +1330,25 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         ...(await appMessagesSince(page, s.curMark).catch(() => [])).map((m) => m.text),
       ].filter((t, k, all) => t && all.indexOf(t) === k);
       const ruled = said.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
+      let ruledLast: typeof ruled = null;
+      let lastRefusal: string | null = null;
 
       // RECOVER: the case is positive (it asserts no refusal), the app refused by a rule the
       // run's own setup broke, and the code says how to satisfy it — do that, retry the step
       // once, and say so. Never for a case that is testing the refusal, never twice for the
       // same rule, at most two recoveries a run.
       const negative = plan.steps.some((st) => BLOCK_ASSERTION_STEPS.has(st.step) || st.step === "skip");
-      const recovery = ruled ? recoveryFor(ruled.t) : null;
-      if (ruled && recovery && !negative && recoveries < 2 && !recoveredRules.has(ruled.rule!.message)) {
+      // A refusal can hide the next one: a new version's publish first wants its evaluator,
+      // then its questionnaire sections. Each retry is judged afresh, and a DIFFERENT known
+      // rule is recovered too — bounded by the run's cap and never the same rule twice.
+      let cur = ruled;
+      let recovery = cur ? recoveryFor(cur.t) : null;
+      const chain: Array<{ appSaid: string; rule: string; why: string; did: string[] }> = [];
+      let recoveredStep = false;
+      while (cur && recovery && !negative && recoveries < 3 && !recoveredRules.has(cur.rule!.message)) {
         recoveries++;
-        recoveredRules.add(ruled.rule!.message);
-        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ↻ the app refused: "${ruled.t}" — its rule (${ruled.rule!.source}); ${recovery.why}. Doing ${recovery.steps.map((x) => x.step).join(" + ")}, then retrying`);
+        recoveredRules.add(cur.rule!.message);
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ↻ the app refused: "${cur.t}" — its rule (${cur.rule!.source}); ${recovery.why}. Doing ${recovery.steps.map((x) => x.step).join(" + ")}, then retrying`);
         const did: string[] = [];
         let recoveredOk = true;
         for (const rs of recovery.steps) {
@@ -1277,22 +1361,33 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
             break;
           }
         }
-        if (recoveredOk) {
-          try {
-            s.prevMark = s.curMark;
-            s.curMark = await toastMark(s.page);
-            const detail2 = await runStep(s, step);
-            const rec = { appSaid: ruled.t, rule: ruled.rule!.source, why: recovery.why, did };
-            results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: the app refused "${ruled.t}" (${ruled.rule!.source}); ${recovery.why}`, recovered: rec, ms: Date.now() - started });
-            console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail2 ?? ""} (after recovering from "${ruled.t}")`);
-            await look(i, step.step, false);
-            continue;
-          } catch (retryErr) {
-            const m2 = (retryErr instanceof Error ? retryErr.message : String(retryErr)).split("\n")[0];
-            console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ still refused after recovering (${did.join("; ")}): ${m2}`);
-          }
+        chain.push({ appSaid: cur.t, rule: cur.rule!.source, why: recovery.why, did });
+        if (!recoveredOk) break;
+        try {
+          s.prevMark = s.curMark;
+          s.curMark = await toastMark(s.page);
+          const detail2 = await runStep(s, step);
+          const told = chain.map((c) => `the app refused "${c.appSaid}" (${c.rule}); ${c.why}`).join(", then ");
+          results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: ${told}`, recovered: { ...chain[0], did: chain.flatMap((c) => c.did) }, ms: Date.now() - started });
+          console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail2 ?? ""} (after recovering from ${chain.map((c) => `"${c.appSaid}"`).join(" and ")})`);
+          await look(i, step.step, false);
+          recoveredStep = true;
+          break;
+        } catch (retryErr) {
+          const m2 = (retryErr instanceof Error ? retryErr.message : String(retryErr)).split("\n")[0];
+          console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ still refused after recovering (${did.join("; ")}): ${m2}`);
+          const said2 = [
+            ...((/rejected by the app:\s*(.+)$/i.exec(m2)?.[1] ?? "").trim() ? [/rejected by the app:\s*(.+)$/i.exec(m2)![1].trim()] : []),
+            ...(await appMessagesSince(page, s.curMark).catch(() => [])).map((m) => m.text),
+          ].filter((t, k, all) => t && all.indexOf(t) === k);
+          cur = said2.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
+          recovery = cur ? recoveryFor(cur.t) : null;
+          if (cur) ruledLast = cur;
+          lastRefusal = m2;
+          if (!cur && said2[0]) ruledLast = null;
         }
       }
+      if (recoveredStep) continue;
 
       // The APP refused this step (not the automation failing to perform it) and the case goes on
       // to assert a block: that refusal IS the block — judge it there rather than stopping here.
@@ -1304,18 +1399,21 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ refused by the app (the case asserts a block at step ${later + 1}) — ${first}`);
         continue;
       }
-      const ruleNote = ruled ? ` — the app's own rule (${ruled.rule!.source})${recovery ? "" : "; no known way for the run to satisfy it"}` : said.length ? ` — the app said "${said[0]}", which is not one of its known rules` : "";
+      // report the LAST refusal — after recoveries it is the one still standing
+      const lastRule = lastRefusal ? ruledLast : ruled;
+      const ruleNote = lastRule ? ` — the app's own rule (${lastRule.rule!.source})${recoveryFor(lastRule.t) ? "" : "; no known way for the run to satisfy it"}` : said.length ? ` — the app said "${said[0]}", which is not one of its known rules` : "";
       const failedAt = results.length;
-      results.push({ step: step.step, args: step.args, status: "failed", detail: detail + ruleNote, ms: Date.now() - started });
-      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${detail}${ruleNote}`);
+      const failText = (lastRefusal ?? detail) + (lastRefusal && !lastRule ? " — the app said this after the recoveries above; it is not one of the dashboard's own rules" : ruleNote);
+      results.push({ step: step.step, args: step.args, status: "failed", detail: failText, ms: Date.now() - started });
+      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${failText}`);
       const before = observations.length;
       await look(i, step.step, true);
       const shot = observations.slice(before).find((o) => o.screenshot)?.screenshot;
       results[failedAt].evidence = {
         ...(shot ? { screenshot: shot } : {}),
         url: page.url(),
-        ...(said.length ? { appSaid: said.slice(0, 5) } : {}),
-        ...(ruled ? { rule: { message: ruled.rule!.message, source: ruled.rule!.source, ...(ruled.rule!.condition ? { condition: ruled.rule!.condition } : {}) } } : {}),
+        ...(lastRefusal ? { appSaid: [lastRefusal.replace(/^.*rejected by the app:\s*/i, "")] } : said.length ? { appSaid: said.slice(0, 5) } : {}),
+        ...(lastRule ? { rule: { message: lastRule.rule!.message, source: lastRule.rule!.source, ...(lastRule.rule!.condition ? { condition: lastRule.rule!.condition } : {}) } } : {}),
       };
       if (shot) console.log(`[plan] evidence: ${shot}`);
       failed = true;
@@ -1323,4 +1421,20 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   }
 
   return { title: plan.title, steps: results, passed: !failed, observations };
+}
+
+/**
+ * The run's own event's purchase orders, polled until some exist. The event is the one in the
+ * page's /project/<id> (its title on screen can differ from the run's title); the newest event
+ * group with the run's title is the fallback.
+ */
+async function waitForOrders(url: string, title: string, ms: number): Promise<DbOrder[]> {
+  const fromUrl = decodeProcolId(url.match(/\/project\/([^/?#]+)/)?.[1] ?? "") ?? undefined;
+  const until = Date.now() + ms;
+  for (;;) {
+    const egId = fromUrl ?? (await eventGroupByTitle(title).catch(() => undefined))?.id;
+    const orders = egId ? await ordersOfEventGroup(egId).catch(() => [] as DbOrder[]) : [];
+    if (orders.length || Date.now() > until) return orders;
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
 }

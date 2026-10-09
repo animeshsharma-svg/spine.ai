@@ -45,6 +45,8 @@ export interface UiSetupContext {
   vendorName?: string;
   /** the QA test vendor's address (qa_…@example.com) — for a vendor-portal step */
   vendorEmail?: string;
+  /** the buyer user the API signed in as (the browser signs in as the same user) */
+  buyerUserId?: number;
   /** every id the journey produced, by name */
   made: Record<string, string>;
   /** values the API sent, for expect_api_value (key → text as a person would read it) */
@@ -191,6 +193,7 @@ export async function buildUiState(
       title: j.title,
       vendorName: client?.ctx?.vendor?.name,
       vendorEmail: email,
+      buyerUserId: Number(client?.ctx?.buyerUserId) || undefined,
       made,
       values: valuesFrom(j, client),
       builtInMs: Date.now() - t0,

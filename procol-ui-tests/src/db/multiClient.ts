@@ -56,14 +56,46 @@ function buildAccessToken(sessionAccessToken: string): string {
  * back to the operator user found via the company's trade_requests (some
  * companies are operated by a user in a parent/support company).
  */
-export async function resolveCompanyLogin(companyId: number): Promise<CompanyLogin | null> {
-  const direct = await db().query(
-    `select u.id, u.phone, s.access_token, s.app_version
-     from sessions s join users u on u.id = s.user_id
-     where u.company_id = $1 and ${CONSOLE_SESSION}
-     order by s.created_at desc limit 1`,
-    [companyId],
-  );
+export async function resolveCompanyLogin(companyId: number, preferUserId?: number): Promise<CompanyLogin | null> {
+  // The browser must be the same user the API setup used: "the company's newest session" is
+  // whoever signed in last — another person's session the moment they log in, and a user who
+  // cannot open the event the setup made ("You are not authorized", seen 2026-10-08).
+  const same = preferUserId
+    ? await db().query(
+        `select u.id, u.phone, s.access_token, s.app_version
+         from sessions s join users u on u.id = s.user_id
+         where u.id = $1 and ${CONSOLE_SESSION}
+         order by s.created_at desc limit 1`,
+        [preferUserId],
+      )
+    : { rows: [] as any[] };
+  // Then the buyer our own automation runs as at this company (the one that created its
+  // spine-/QA_Platform/API_Test events) — never "whoever signed in last", which is a real
+  // colleague as soon as one logs in (2026-10-09: a fresh-create run opened as another user).
+  const autoId = same.rows[0] ? undefined : (await db().query(`select eg.user_id from event_groups eg
+       where eg.company_id = $1 and eg.id > (select max(id) - 200000 from event_groups)
+         and (eg.title like 'spine-%' or eg.title like 'QA\_Platform%' or eg.title like 'API\_Test%')
+       group by eg.user_id order by count(*) desc limit 1`, [companyId]).catch(() => ({ rows: [] as any[] }))).rows[0]?.user_id;
+  const auto = autoId
+    ? await db().query(
+        `select u.id, u.phone, s.access_token, s.app_version
+         from sessions s join users u on u.id = s.user_id
+         where u.id = $1 and ${CONSOLE_SESSION}
+         order by s.created_at desc limit 1`,
+        [autoId],
+      )
+    : { rows: [] as any[] };
+  const direct = same.rows[0]
+    ? same
+    : auto.rows[0]
+    ? auto
+    : await db().query(
+        `select u.id, u.phone, s.access_token, s.app_version
+         from sessions s join users u on u.id = s.user_id
+         where u.company_id = $1 and ${CONSOLE_SESSION}
+         order by s.created_at desc limit 1`,
+        [companyId],
+      );
   let row = direct.rows[0];
   let viaOperator = false;
   if (!row) {

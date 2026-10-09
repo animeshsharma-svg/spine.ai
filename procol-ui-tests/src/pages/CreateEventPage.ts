@@ -128,6 +128,42 @@ export class CreateEventPage extends BasePage {
     await this.dismissDistractions();
   }
 
+  /**
+   * Remove line items in the Manage Line Items drawer: each row's trash icon asks "Are you sure
+   * to delete this line item?" (Popconfirm, okText "Delete"), then Save commits the change
+   * (projectLineItem.jsx handleDeleteLineItem → deleted_line_items). Removes from the END so
+   * the first items stay. Returns the row counts before and after.
+   */
+  async removeLineItems(count: number): Promise<{ before: number; after: number; removed: string[] }> {
+    await this.openLineItemsSection();
+    const drawer = this.lineItemsDrawer();
+    const rows = () => drawer.getByText(/^Qty\. Requested$/);
+    const before = await rows().count();
+    if (before === 0) throw new Error("the Manage Line Items panel lists no line items to remove");
+    if (count >= before) throw new Error(`asked to remove ${count} of ${before} line item(s) — an event must keep at least one`);
+    const removed: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const n = await rows().count();
+      const trash = drawer.locator("[class*='deleteIcon']").last();
+      const name = ((await drawer.locator("[class*='productHeader']").last().textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+      await trash.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await trash.click({ timeout: TIMEOUTS.MEDIUM });
+      const pop = this.page.locator(".ant-popover:not(.ant-popover-hidden)").filter({ hasText: /delete this line item/i }).last();
+      await pop.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM });
+      await pop.getByRole("button", { name: /^\s*delete\s*$/i }).click({ timeout: TIMEOUTS.MEDIUM });
+      const deadline = Date.now() + TIMEOUTS.MEDIUM;
+      while (Date.now() < deadline && (await rows().count()) !== n - 1) await this.page.waitForTimeout(150);
+      if ((await rows().count()) !== n - 1) throw new Error(`line item ${name || n} was not removed after confirming Delete (still ${await rows().count()} rows)`);
+      removed.push(name);
+    }
+    const after = await rows().count();
+    this.lastQuantityError = null;
+    await this.saveLineItemsDrawer();
+    if (this.lastQuantityError) throw new Error(`removing line items was not saved — the app said: ${this.lastQuantityError}`);
+    console.log(`[create-event] removed ${removed.length} line item(s): ${before} → ${after}`);
+    return { before, after, removed };
+  }
+
   /** Commit the drawer's line items back to the sheet and wait for it to close. */
   private async saveLineItemsDrawer(): Promise<void> {
     const scope = await this.lineItemsScope();
@@ -1694,6 +1730,14 @@ export class CreateEventPage extends BasePage {
     if (refusal) throw new Error(`the app refused to publish: ${refusal}`);
 
     if (confirmable) {
+      // A new version's confirm asks for "Addendum Remarks" (required; Publish stays disabled
+      // until it is filled — projectCreation.jsx:3552 remarksCopy); other confirms may ask
+      // for "Remarks". Fill an empty one, as a person would.
+      const remarks = modal.locator("textarea").first();
+      if ((await remarks.isVisible().catch(() => false)) && !((await remarks.inputValue().catch(() => "")) ?? "").trim()) {
+        await remarks.fill("Published by the spine.ai QA run", { timeout: TIMEOUTS.SHORT }).catch(() => {});
+        console.log("[create-event] filled the publish dialog's remarks (required for a new version)");
+      }
       const modalTitle = projectTitle.slice(0, 45);
       await this.click(
         [

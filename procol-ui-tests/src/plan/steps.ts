@@ -184,6 +184,17 @@ export const STEP_CATALOG: StepSpec[] = [
     args: { id: "project id from a URL (optional)", title: "event title to search for (optional; defaults to this plan's own event)" },
   },
   {
+    name: "create_new_version",
+    purpose:
+      "On a PUBLISHED event's project page (after publish + expect_published, or open_event), create a new version: \"Create New Version\" → confirm. The old version is archived and its bids become read-only; the create screen opens in edit mode on the copy, with the same stages, templates and line items. Follow it with the edits the case asks for (remove_line_items, add_line_items), then set_schedule and publish to publish the version. Only possible BEFORE any award proposal is submitted — never after award_event.",
+  },
+  {
+    name: "remove_line_items",
+    purpose:
+      "On the create screen (a new version, or a fresh event before publish), delete line items in the Manage Line Items panel — each row's trash icon, confirm Delete — then Save. Removes from the end; at least one item must remain.",
+    args: { count: "how many line items to remove" },
+  },
+  {
     name: "accept_counter_offer",
     purpose:
       "VENDOR side: sign into the supplier portal as the vendor, open the event and accept the buyer's pending counter offer. Use after place_counter_offer. The vendor's view is a separate portal; when no Accept is offered, the step reports what that view shows.",
@@ -325,6 +336,24 @@ export const STEP_CATALOG: StepSpec[] = [
     purpose:
       "Award the event after bidding: Master QCS -> Start Awarding -> allocate line items -> Create Proposal -> submit. Needs a published event that has at least one bid.",
     args: { vendor: "vendor to award to; defaults to whichever bid can be allocated" },
+  },
+  {
+    name: "approve_award",
+    purpose:
+      "After award_event, approve the submitted award on its proposal page (remark + Approve), step by step, while the run's buyer is the pending approver. When another person is the approver, the case is reported as not checked.",
+    args: { remark: "approval remark (optional; the app requires one)" },
+  },
+  {
+    name: "create_po",
+    purpose:
+      "After award_event, make the purchase order(s): approve the award to completion — the app then creates one PO per awarded vendor — and read the POs back. Use for \"create the PO\" / \"raise a purchase order\". Not available when the client makes POs through the custom PO form.",
+  },
+  {
+    name: "expect_po_items",
+    purpose:
+      "After create_po, assert the purchase orders carry exactly the awarded line items (default: the event's current line items), each with a quantity; optionally a quantity every line must carry.",
+    args: { count: "expected number of PO lines across all POs (optional)", quantity: "quantity every PO line must carry (optional)" },
+    assertion: true,
   },
   {
     name: "start_awarding",
