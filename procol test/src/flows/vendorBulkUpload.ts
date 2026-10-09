@@ -305,6 +305,8 @@ export function runVars(stamp: string, template?: TemplateInfo): Record<string, 
   const profile = profiles[0] ?? "manufacturer";
   return {
     stamp,
+    /** the stamp's last four digits, used inside made-up tax numbers */
+    d4,
     gst: main,
     gstLower: main.toLowerCase(),
     gst14: main.slice(0, 14),

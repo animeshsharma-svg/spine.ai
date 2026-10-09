@@ -22,7 +22,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as XLSX from "xlsx";
 
-import "../src/executor.js"; // loads the database settings (.env), as the runner does
+import { openClientContext } from "../src/executor.js"; // also loads the database settings (.env), as the runner does
 import { resolveVbuWorkspace, vbuSkipReason, type BulkSpec } from "../src/checks/vendorBulk.js";
 import { bugForCase, EVIDENCE_DIR, sheetGrid } from "../src/checks/vendorBulkExtras.js";
 import { bugDetail } from "../src/report/vbuBugDetail.js";
@@ -45,8 +45,44 @@ const CLIENTS = [
 ];
 const SECTION_FOLDER: Record<number, string> = {
   1: "01-file-checks", 2: "02-template-history-error-sheet-access", 3: "03-row-rules-each-column", 4: "04-what-a-row-creates",
-  5: "05-duplicates", 6: "06-values-kept-as-typed", 7: "07-company-settings", 8: "08-coverage-audit",
+  5: "05-duplicates", 6: "06-values-kept-as-typed", 7: "07-company-settings", 8: "08-coverage-audit", 9: "09-field-combinations",
 };
+const FILLER = join(here, "fill_vbu_template.py");
+
+/** The workspace's own template, exactly as the Bulk Upload screen downloads it. */
+async function downloadTemplate(companyId: number, to: string): Promise<void> {
+  const client: any = await openClientContext(companyId);
+  try {
+    const r = await client.ctx.buyerApi.raw("GET", "/v1/bulk_create_vendor_template");
+    const url = (r.data as any)?.excel_url;
+    if (!r.ok || !url) throw new Error(`template download refused (HTTP ${r.status}: ${r.message ?? "no excel_url"})`);
+    writeFileSync(to, Buffer.from(await (await fetch(url)).arrayBuffer()));
+  } finally {
+    await client.dispose().catch(() => {});
+  }
+}
+
+/**
+ * A case whose sheet is an ordinary vendor sheet goes into the real template
+ * (its dropdowns, colours and Data Sheet). One whose point is the file's own
+ * shape stays as it is: its own headers or column order, blank-row gaps, a
+ * second sheet, an old .xls, a wrong format, an empty file.
+ */
+function usesRealTemplate(caseId: string): boolean {
+  const c = (spec.CASES as any[]).find((x) => x.id === caseId);
+  const sh = c?.sheet;
+  if (!sh || c.rawFixture) return false;
+  return !sh.layout && !sh.headers && !sh.extraSheets && !sh.gapsAfter && sh.bookType !== "xls" && (sh.rows?.length ?? 0) > 0;
+}
+
+/** The filled values of a fixture, row by row, keyed by column name (numbers stay numbers). */
+function filledRows(fixture: string, vars: Record<string, string>): Record<string, string | number>[] {
+  const buf = Buffer.from(m.loadFixture(fixture, vars).base64, "base64");
+  const wb = XLSX.read(buf, { type: "buffer" });
+  const g: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: true, blankrows: true });
+  const hdr = (g[2] ?? []).map((h) => String(h));
+  return g.slice(3).map((r) => Object.fromEntries(hdr.map((h, i) => [h, r[i]]).filter(([h, v]) => h && v !== "" && v !== undefined)));
+}
 const SECTION_NAME: Record<number, string> = spec.SECTIONS;
 
 // ── a stamp whose last four digits no earlier run used (they go into GSTIN/PAN/VAT) ──
@@ -175,7 +211,18 @@ for (const cl of CLIENTS) tv[cl.id] = templateVars(cl.id);
 otherCat[47053] = tv[198678].categoryUuid;
 otherCat[198678] = tv[47053].categoryUuid;
 
+const comboRows: Row[] = [];
 for (const cl of CLIENTS) {
+  const blank = join(OUT, cl.folder, "00-blank-template-as-downloaded.xlsx");
+  mkdirSync(dirname(blank), { recursive: true });
+  await downloadTemplate(cl.id, blank);
+  const jobs: { out: string; rows: Record<string, string | number>[] }[] = [];
+  /** write a case's sheet: into the real template when it is an ordinary vendor sheet */
+  const writeSheet = (caseId: string, fixture: string, rel: string, vars: Record<string, string>) => {
+    mkdirSync(dirname(join(OUT, rel)), { recursive: true });
+    if (/\.xlsx$/.test(rel) && (caseId === "baseline" || usesRealTemplate(caseId))) jobs.push({ out: join(OUT, rel), rows: filledRows(fixture, vars) });
+    else writeFileSync(join(OUT, rel), Buffer.from(m.loadFixture(fixture, vars).base64, "base64"));
+  };
   const ws = await resolveVbuWorkspace(cl.id);
   if (!ws) throw new Error(`the settings of ${cl.name} could not be read — without them the pack would hold the wrong cases`);
   const vars: Record<string, string> = { ...m.runVars(stamp), ...tv[cl.id], foreignCategoryUuid: otherCat[cl.id] };
@@ -188,8 +235,7 @@ for (const cl of CLIENTS) {
     if (baselineDone.has(fx)) return baselineDone.get(fx)!;
     const n = baselineDone.size + 1;
     const rel = join(cl.folder, "00-upload-these-first", `B${n}_${fx.replace(/\.xlsx$/, "")}.xlsx`);
-    mkdirSync(dirname(join(OUT, rel)), { recursive: true });
-    writeFileSync(join(OUT, rel), Buffer.from(m.loadFixture(fx, vars).base64, "base64"));
+    writeSheet("baseline", fx, rel, vars);
     fileCount++;
     baselineDone.set(fx, rel);
     return rel;
@@ -222,20 +268,28 @@ for (const cl of CLIENTS) {
     if (mode !== "api" && b?.fixture) {
       const ext = b.fixture.split(".").pop();
       const rel = join(folder, `${c.id}_${slug(c.title)}${b.kind === "concurrent" ? "_A" : ""}.${ext}`);
-      mkdirSync(dirname(join(OUT, rel)), { recursive: true });
-      const buf = Buffer.from(m.loadFixture(b.fixture, vars).base64, "base64");
-      writeFileSync(join(OUT, rel), buf);
+      writeSheet(c.id, b.fixture, rel, vars);
       fileCount++;
       files.push(rel);
+      const buf = Buffer.from(m.loadFixture(b.fixture, vars).base64, "base64");
       const g = /\.(xlsx|xls)$/.test(rel) ? sheetGrid(buf.toString("base64")) : undefined;
       const ni = g?.headers.indexOf("Company Name") ?? -1;
       names = ni >= 0 ? g!.rows.map((r) => r[ni]).filter((x) => x !== undefined) : [];
       if ((b as any).fixture2) {
         const rel2 = join(folder, `${c.id}_${slug(c.title)}_B.xlsx`);
-        writeFileSync(join(OUT, rel2), Buffer.from(m.loadFixture((b as any).fixture2, vars).base64, "base64"));
+        writeSheet(c.id, (b as any).fixture2, rel2, vars);
         fileCount++;
         files.push(rel2);
       }
+      if (c.combo)
+        for (const r of c.combo as any[])
+          comboRows.push({
+            Client: cl.name, Case: c.id, File: rel.replace(`${cl.folder}/`, ""), Row: r.row,
+            "Kind of row": r.values.slice(1, r.values.indexOf("]")),
+            "Values in the row": r.values.slice(r.values.indexOf("]") + 2),
+            "Expected — what you should see": r.expected, "Safety value in the row": r.tripwire, "Known bug notes": r.notes,
+            "Your result (Pass / Fail)": "", "Your notes": "",
+          });
     }
     if (c.id === "VBU-003") {
       const rel = join(folder, `VBU-003_${slug(c.title)}_EMPTY-0-bytes.xlsx`);
@@ -256,7 +310,7 @@ for (const cl of CLIENTS) {
       Priority: c.priority,
       "How to test": mode === "api" ? steps : (before.length ? `FIRST make sure the baseline is uploaded: ${before.map((x) => basename(x)).join(", ")} (00-upload-these-first). ` : "") + steps,
       "File(s) to upload": files.map((f) => f.replace(`${cl.folder}/`, "")).join("\n"),
-      "Expected — what you should see": mode === "api" ? fill(String(c.expectedResult ?? "").replace(/ Rule: .*$/, ""), vars) : expectedText(c, names, vars) || fill(String(c.expectedResult ?? "").replace(/ Rule: .*$/, ""), vars),
+      "Expected — what you should see": c.combo ? `Row by row: see the sheet 'Row-by-row (combinations)', case ${c.id}. ${String(c.expectedResult ?? "").replace(/ Rule: .*$/, "").replace(/^Row by row as listed[^.]*\. /, "")}` : mode === "api" ? fill(String(c.expectedResult ?? "").replace(/ Rule: .*$/, ""), vars) : expectedText(c, names, vars) || fill(String(c.expectedResult ?? "").replace(/ Rule: .*$/, ""), vars),
       "Detail (from the case)": fill(String(c.expectedResult ?? "").replace(/ Rule: .*$/, ""), vars),
       "Last automated result": auto,
       "Known bug": bug ? `${bug.id} (${bug.severity}) ${bug.title}${d ? `\nToday the buyer sees: ${d.sees}` : ""}` : "",
@@ -264,6 +318,12 @@ for (const cl of CLIENTS) {
       "Your result (Pass / Fail / Blocked)": "",
       "Your notes": "",
     });
+  }
+  if (jobs.length) {
+    const jf = join(OUT, `.jobs-${cl.id}.json`);
+    writeFileSync(jf, JSON.stringify(jobs));
+    execFileSync("python3", [FILLER, blank, jf], { stdio: "pipe" });
+    rmSync(jf, { force: true });
   }
   // baseline rows at the top of the client's list
   const baseRows: Row[] = [...baselineDone.values()].map((rel, i) => ({
@@ -291,6 +351,17 @@ const how = [
   ["3. Then go down the client's sheet in this workbook, row by row. 'File(s) to upload' is the path inside the client folder."],
   ["4. Compare what you see with 'Expected — what you should see' and write Pass / Fail / Blocked in 'Your result'."],
   ["5. 'Known bug' tells you what the automated run saw last time; a case listed with a bug is expected to FAIL until that bug is fixed."],
+  ["6. Folder 09-field-combinations holds sheets of 1 to 100 vendors that mix the column values. Check them row by row with the sheet 'Row-by-row (combinations)'."],
+  [""],
+  ["The sheets"],
+  ["• Every ordinary sheet is the client's own template, downloaded today from Vendors → Bulk Upload: same colours, same dropdowns, same Data Sheet. The sample row is removed and our rows start on row 4. A blank copy is in each client folder (00-blank-template-as-downloaded.xlsx)."],
+  ["• Sheets that test the file's own shape (odd column names, column order, a blank row, a second sheet, .xls, PDF, PNG, CSV, Word, an empty file) are kept as they are: putting them into the template would undo what they test."],
+  ["• Some cells hold values the dropdowns do not offer (for example QA_TRIPWIRE, or a profile that does not exist). That is on purpose: Excel only checks a dropdown when you type into the cell."],
+  [""],
+  ["Field combinations (09-field-combinations)"],
+  ["• Three kinds of rows, mixed in every sheet: (1) valid combinations: every pair of accepted values of every two columns appears together at least once, and these rows must be accepted; (2) one fault: each value the upload must refuse, alone in an otherwise valid row, which must fail with exactly that message; (3) two faults: every pair of refused values from different columns, which shows which message wins (the order of the checks)."],
+  ["• The order of the checks on the sandbox today: tax number → mandatory columns → PAN → Deals In → POC email → POC 2 email → Vendor Profile → Status → Vendor Onboarding Required → City (only without contactless and without a tax number). After that: Vendor Code over 100 characters, the POC 2 pair, and where the vendor lands (rejected → Rejected; onboarding No → Vendors; otherwise → Prospects)."],
+  ["• A row that would create a vendor AND email real people carries the safety value QA_TRIPWIRE in Status or in Vendor Onboarding Required instead; the 'Safety value in the row' column says which and why."],
   [""],
   ["Where to look on the screen"],
   ["• The pop-up after Upload: green “Vendors Sheet Uploaded” when the file can be read; red with a message when it is refused."],
@@ -315,6 +386,12 @@ for (const [name, rows] of Object.entries(sheets)) {
   ws["!cols"] = COLS.map((w) => ({ wch: w }));
   ws["!autofilter"] = { ref: ws["!ref"]! };
   XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+}
+if (comboRows.length) {
+  const cr = XLSX.utils.json_to_sheet(comboRows);
+  cr["!cols"] = [{ wch: 18 }, { wch: 9 }, { wch: 60 }, { wch: 5 }, { wch: 40 }, { wch: 120 }, { wch: 60 }, { wch: 50 }, { wch: 50 }, { wch: 14 }, { wch: 30 }];
+  cr["!autofilter"] = { ref: cr["!ref"]! };
+  XLSX.utils.book_append_sheet(wb, cr, "Row-by-row (combinations)");
 }
 const nh = XLSX.utils.json_to_sheet(notHere);
 nh["!cols"] = [{ wch: 10 }, { wch: 60 }, { wch: 18 }, { wch: 110 }, { wch: 10 }];

@@ -83,6 +83,7 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
     rule: c.rule,
     ...(c.disagree ? { disagree: c.disagree } : {}),
     tier: c.tier,
+    ...(c.combo ? { combo: c.combo } : {}),
   };
   if (c.kind === "manual" || c.verdict === "manual") {
     // A body of its own, so the library never mistakes it for another case's request.
@@ -135,7 +136,7 @@ function toRunnable(c: VbuCase): Record<string, unknown> {
       inviteExpect: c.inviteExpect,
       templateCheck: c.templateCheck,
       errorSheetCheck: c.errorSheetCheck,
-      everyRow: c.id === "VBU-023",
+      everyRow: c.id === "VBU-023" || (c.combo?.length ?? 0) >= 50,
     },
   };
 }

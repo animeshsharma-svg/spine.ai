@@ -152,6 +152,23 @@ data from row 4, as the backend reads it.
 | `VBU-229.xlsx` | VBU-229 | A lower-case VAT number cannot slip past the duplicate check (it is refused) | safe |
 | `VBU-230.xlsx` | VBU-230 | POC 2 email equal to the main POC email is refused before the vendor is created | creates |
 | `VBU-231.xlsx` | VBU-231 | The error sheet's Vendor Profile dropdown sits on the Vendor Profile column | safe |
+| `VBU-300.xlsx` | VBU-300 | Field combinations, 1 vendor in one sheet (contactless workspace, sheet 1 of 6) | creates |
+| `VBU-301.xlsx` | VBU-301 | Field combinations, 5 vendors in one sheet (contactless workspace, sheet 2 of 6) | creates |
+| `VBU-302.xlsx` | VBU-302 | Field combinations, 10 vendors in one sheet (contactless workspace, sheet 3 of 6) | creates |
+| `VBU-303.xlsx` | VBU-303 | Field combinations, 25 vendors in one sheet (contactless workspace, sheet 4 of 6) | creates |
+| `VBU-304.xlsx` | VBU-304 | Field combinations, 50 vendors in one sheet (contactless workspace, sheet 5 of 6) | creates |
+| `VBU-305.xlsx` | VBU-305 | Field combinations, 50 vendors in one sheet (contactless workspace, sheet 6 of 6) | creates |
+| `VBU-306.xlsx` | VBU-306 | 100 vendors in one sheet — every kind of row mixed (contactless workspace) | creates |
+| `VBU-320.xlsx` | VBU-320 | Field combinations, 1 vendor in one sheet (normal workspace, sheet 1 of 9) | creates |
+| `VBU-321.xlsx` | VBU-321 | Field combinations, 5 vendors in one sheet (normal workspace, sheet 2 of 9) | safe |
+| `VBU-322.xlsx` | VBU-322 | Field combinations, 10 vendors in one sheet (normal workspace, sheet 3 of 9) | creates |
+| `VBU-323.xlsx` | VBU-323 | Field combinations, 25 vendors in one sheet (normal workspace, sheet 4 of 9) | creates |
+| `VBU-324.xlsx` | VBU-324 | Field combinations, 50 vendors in one sheet (normal workspace, sheet 5 of 9) | creates |
+| `VBU-325.xlsx` | VBU-325 | Field combinations, 50 vendors in one sheet (normal workspace, sheet 6 of 9) | creates |
+| `VBU-326.xlsx` | VBU-326 | Field combinations, 50 vendors in one sheet (normal workspace, sheet 7 of 9) | creates |
+| `VBU-327.xlsx` | VBU-327 | Field combinations, 50 vendors in one sheet (normal workspace, sheet 8 of 9) | creates |
+| `VBU-328.xlsx` | VBU-328 | Field combinations, 19 vendors in one sheet (normal workspace, sheet 9 of 9) | creates |
+| `VBU-329.xlsx` | VBU-329 | 100 vendors in one sheet — every kind of row mixed (normal workspace) | creates |
 | `VBU-160.xlsx` | VBU-160 | An address ending in zeros keeps them ('Plot No. 100') | safe |
 | `VBU-161.xlsx` | VBU-161 | A company name ending in zeros keeps them ('… Pvt. Ltd 2000') | safe |
 | `VBU-162.xlsx` | VBU-162 | A '<' in a company name does not cut the name short | safe |

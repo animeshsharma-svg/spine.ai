@@ -25,6 +25,7 @@
  * the qa_…@example.com address) or Status = rejected (no mail at all).
  */
 import type { SheetSpec, Cell } from "../../src/flows/vendorBulkUpload.js";
+import { comboCases } from "./combos.js";
 
 export type Tier = "safe" | "creates" | "real-mail";
 /** a vendor that must exist before the case runs (uploaded once per run) */
@@ -122,6 +123,8 @@ export interface VbuCase {
     | "templateUpload";
   /** which QA-doc case(s) this covers (the PR's "Vendor bulk upload + dedup — QA test cases") */
   qaDoc?: string[];
+  /** field-combination sheets: what each row holds and what it must come out as */
+  combo?: { row: number; values: string; expected: string; tripwire: string; notes: string }[];
   /** who makes the request: the workspace admin (default), a QA test vendor, or a member without company:create_record */
   actor?: "seller-qa" | "member-no-company-create";
   /** body extras resolved when the case runs */
@@ -181,6 +184,13 @@ export const MSG = {
   VCODE: "Invalid Value for Vendor Code.",
   POC2: "Invalid Values for POC 2.",
   DUP_ADDR: "Vendor with this GST and address already exists",
+  /** Since PR 16267 @ab282ab7e3 a workspace with duplicate-check fields names them:
+   *  "A vendor with the same GST, Address, Pincode, and Account Group already exists";
+   *  without them the old text above stays. Both end in this. */
+  DUP_ANY: "already exists",
+  NO_ROWS: "No data rows found. Please add data to the sheet and re-upload.",
+  PAN_INVALID: "Invalid PAN No.",
+  PAN_MISMATCH: "PAN No. does not match Tax No.",
   CODE_TAKEN: "Vendor Code or GST Number is already taken",
   INVITED: "This email is already invited.",
   NONAME: "POC name is not present",
@@ -296,6 +306,7 @@ export const SECTIONS: Record<number, string> = {
   6: "Data fidelity — what the parser does to the values",
   7: "Settings on other workspaces (regression)",
   8: "Found by the coverage audit, not run: they mail real people, change a workspace for good, need two workspaces in sequence, or need a setting no test client has",
+  9: "Field combinations: every pair of column values, many vendors per sheet",
 };
 
 export const CASES: VbuCase[] = [
@@ -926,7 +937,7 @@ export const CASES: VbuCase[] = [
     setup: "Baseline (uploaded first): UK VAT {{vatF}}, City 'QA Nowhere {{stamp}}', address set, onboarding No — stored with city_id 0.",
     steps: ["Upload the baseline", "Upload a second row: same tax number {{vatF}}, a different name, City and Address blank, onboarding No", "Read the second row"],
     sheet: one({ "Company Name": vName("VBU-154"), "POC - Full Name": "QA Platform Tester", "POC - Email Address": vEmail("VBU-154"), "Tax Type": "VAT", "Tax No.": "{{vatF}}", "Business Location": "United Kingdom", "Vendor Onboarding Required": "No" }),
-    rows: [{ status: "failed", errorIncludes: MSG.DUP_ADDR }],
+    rows: [{ status: "failed", errorIncludes: MSG.DUP_ANY }],
     expected: "The row is handled cleanly — refused 'Vendor with this GST and address already exists' (the back-filled address matches) — not a worker error.",
     oracle: "Job row error; a worker 'Internal error …' is the async 500.",
     rule: `${R.helper}:731-745 (existing_company.city.name); ${R.send}:41-54`,
@@ -1238,7 +1249,7 @@ export const CASES: VbuCase[] = [
     why: "contactless_vendor_record? looks only at the workspace flag, and SendService serves every invite path. The ordinary Invite Vendor form now accepts a blank POC name and email. Skip onboarding + no email keeps the test mail-free.",
     steps: ["POST /invitations/send_invite with a company name, city and address, no POC name, no email, skip_vendor_onboarding=true"],
     inviteBody: { invite_type: "vendor_invite", firm_name: vName("VBU-133"), name: "", email: "", category: "manufacturer", address: "QA Test Street 1", city_id: 8, skip_vendor_onboarding: true },
-    inviteExpect: { http: "reject", message: "Email Not Present" },
+    inviteExpect: { http: "reject", message: "not present" },
     expected: "HTTP 422 'Email Not Present' (the form is for vendors with a contact). Today: the vendor is created with no invitation.",
     oracle: "HTTP status + companies lookup.", rule: `${R.prSend}:351-354 (workspace-wide), 309, 332, 457; app/controllers/api/invitations_controller.rb send_invite`,
     disagree: "QA doc D7: 'Manual Invite Vendor form, normal vendor → Unchanged'. The PR changes it for contactless workspaces.",
@@ -1247,6 +1258,8 @@ export const CASES: VbuCase[] = [
   // ════════════ 5. duplicates ════════════
   ...dedupCases(),
   ...gapCases(),
+  ...comboCases("gmmco", 300, { MSG, PD_REQUIRED }),
+  ...comboCases("pd", 320, { MSG, PD_REQUIRED }),
 
   // ════════════ 6. data fidelity ════════════
   {
@@ -1451,7 +1464,7 @@ function dedupCases(): VbuCase[] {
   const rule = `${R.prSend}:274-298 (duplicate_code_for_repeated_tax_no); ${R.prDup}:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`;
   const mk = (
     id: string, title: string, change: Record<string, Cell>, blocked: boolean, why: string, pri: VbuCase["priority"], requires = req,
-    message = MSG.DUP_ADDR,
+    message = MSG.DUP_ANY,
   ): VbuCase => {
     const base = dedupBaselineRow();
     const row: Record<string, Cell> = {
@@ -1495,7 +1508,7 @@ function dedupCases(): VbuCase[] {
           { ...baseRow("VBU-151", 2), "Tax Type": "VAT", "Tax No.": "{{vatE}}", "Business Location": "United Kingdom", Address: "QA Twin Road 5", Pincode: "560002", "Account Group": "ZCOV" },
         ],
       },
-      rows: [{ status: "success" }, { status: "failed", errorIncludes: MSG.DUP_ADDR }],
+      rows: [{ status: "success" }, { status: "failed", errorIncludes: MSG.DUP_ANY }],
       expected: "One row success, one failed 'Vendor with this GST and address already exists'. Two successes = race defect.",
       oracle: "Job rows.", rule: `${R.send}:258-290; ${R.wrk} (one job per row, parallel)`,
     },
@@ -1523,7 +1536,7 @@ function dedupCases(): VbuCase[] {
       setup: "Baseline: UK VAT {{vatJ}}, 'QA Fallback Road 4'. Runs only on a workspace with allow_same_gst_multiple_addresses_vendor_invite on and no duplicate field list.",
       steps: ["Upload the baseline", "Upload a row with the same tax number and address"],
       sheet: one({ ...fallbackBaselineRow(), "Company Name": vName("VBU-156"), "POC - Email Address": vEmail("VBU-156") }),
-      rows: [{ status: "failed", errorIncludes: MSG.DUP_ADDR, verify: { absent: true } }],
+      rows: [{ status: "failed", errorIncludes: MSG.DUP_ANY, verify: { absent: true } }],
       expected: "Row failed 'Vendor with this GST and address already exists'.", oracle: "Job row.", rule: `${R.prSend}:288-298 (fallback branch)`,
     },
     {
@@ -1570,7 +1583,7 @@ function dedupCases(): VbuCase[] {
       setup: "The shared duplicate baseline exists (UK VAT {{vatB}}, 'QA Dedup Road 12', pincode 560001, ZCOV).",
       steps: ["POST /invitations/send_invite with the baseline's tax number, address and account group, a new name and email, skip onboarding"],
       inviteBody: { invite_type: "vendor_invite", firm_name: vName("VBU-135"), name: "QA Platform Tester", email: vEmail("VBU-135"), category: "manufacturer", tax_no: "{{vatB}}", tax_type_country_mapping_id: 1, address: "QA Dedup Road 12", city_id: 8, account_group: "ZCOV", skip_vendor_onboarding: true },
-      inviteExpect: { http: "reject", message: MSG.DUP_ADDR, verify: { absent: true } },
+      inviteExpect: { http: "reject", message: MSG.DUP_ANY, verify: { absent: true } },
       expected: "HTTP 422 'Vendor with this GST and address already exists' — the same answer as bulk (VBU-140).", oracle: "HTTP + companies lookup.", rule: `${R.prSend}:274-298`,
     },
     {
@@ -1740,7 +1753,7 @@ function gapCases(): VbuCase[] {
       why: "Coverage audit GAP-36: a blank pincode counts as a match (the PR's treat_as_match), so a pincode can never separate branches of the legacy vendors, which carry none.",
       steps: ["Baseline vendor without pincode", "Same tax number, address and account group, a new name and email, Pincode 110001"],
       sheet: one({ ...noPincodeBaselineRow(), "Company Name": vName("VBU-213"), "POC - Email Address": vEmail("VBU-213"), Pincode: "110001" }),
-      rows: [{ status: "failed", error: MSG.DUP_ADDR }],
+      rows: [{ status: "failed", errorIncludes: MSG.DUP_ANY }],
       expected: "Row failed 'Vendor with this GST and address already exists' (the PR's design: blank pincode = match).",
       oracle: "Job row.", rule: `${R.prDup}:27,111-119`,
       disagree: "QA doc B2 says a different pincode makes a new branch; against a vendor with no pincode it never does.",
@@ -1762,7 +1775,7 @@ function gapCases(): VbuCase[] {
       why: "Coverage audit GAP-38: rejected vendors are part of the duplicate search (send:227,259,275).",
       steps: ["Baseline vendor with Status rejected", "Exact duplicate (tax number, address, pincode, account group), new name and email"],
       sheet: one({ ...rejectedDupBaselineRow(), Status: "", "Company Name": vName("VBU-215"), "POC - Email Address": vEmail("VBU-215") }),
-      rows: [{ status: "failed", error: MSG.DUP_ADDR }],
+      rows: [{ status: "failed", errorIncludes: MSG.DUP_ANY }],
       expected: "Row failed 'Vendor with this GST and address already exists'.", oracle: "Job row.", rule: `${R.prSend}:227,259,275`,
     },
     {
@@ -1836,8 +1849,8 @@ function gapCases(): VbuCase[] {
         ["Company Name", "City", "Address", "Vendor Profile", "POC - Full Name", "POC - Email Address", "Status", "Vendor Onboarding Required"],
         [vName("VBU-222"), "Mumbai", "QA Test Street 1", "{{profile}}", "QA Platform Tester", vEmail("VBU-222"), TRIP_STATUS, "No"],
       ] } },
-      rows: tripped(),
-      expected: "The vendor sheet is read (row failed 'Invalid Status'), or the file is refused with a message. Per the code: HTTP 200 and nothing staged.",
+      refuse: { message: MSG.NO_ROWS },
+      expected: "The file is refused with a clear message (since PR 16267 @ab282ab7e3: 'No data rows found. Please add data to the sheet and re-upload.'). Before that: HTTP 200 and nothing staged.",
       oracle: "Job rows.", rule: `${R.parse}:164-173`,
     },
     {

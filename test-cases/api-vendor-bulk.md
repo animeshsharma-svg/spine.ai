@@ -342,7 +342,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** Coverage audit GAP-47: only the first worksheet is read (parse:164-173); a buyer who adds an instructions tab in front gets HTTP 200 and nothing staged.
 - **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-222.xlsx`.
 - **Steps.** 1. Sheet 1 'Instructions' with one line; sheet 2 the vendor sheet with one tripwired row
-- **Expected.** The vendor sheet is read (row failed 'Invalid Status'), or the file is refused with a message. Per the code: HTTP 200 and nothing staged.
+- **Expected.** The file is refused with a clear message (since PR 16267 @ab282ab7e3: 'No data rows found. Please add data to the sheet and re-upload.'). Before that: HTTP 200 and nothing staged.
 - **Oracle.** Job rows.
 - **Trace.** P2 · automate · `VBU-222` · `app/services/conversions/excel_to_json_conversion_service.rb:164-173`
 
@@ -1247,7 +1247,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** The exact duplicate — QA doc B1/C1.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-140.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers B1, C1 of the PR's QA document.
 - **Trace.** P0 · automate · `VBU-140` · `PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`
@@ -1274,7 +1274,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** QA doc B4: a missing pincode must never rescue a duplicate.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-143.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers B4 of the PR's QA document.
 - **Trace.** P0 · automate · `VBU-143` · `PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`
@@ -1283,7 +1283,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** QA doc B5: normalised to digits before comparing.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-144.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers B5 of the PR's QA document.
 - **Trace.** P1 · automate · `VBU-144` · `PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`
@@ -1319,7 +1319,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** QA doc C3.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-148.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers C3 of the PR's QA document.
 - **Trace.** P1 · automate · `VBU-148` · `PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`
@@ -1328,7 +1328,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** QA doc C4: compared case-insensitively.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-149.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers C4 of the PR's QA document.
 - **Trace.** P2 · automate · `VBU-149` · `PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`
@@ -1337,7 +1337,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** same_address? downcases and squishes; a re-typed address must not slip through.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-150.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **Trace.** P1 · automate · `VBU-150` · `PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`
 
@@ -1353,7 +1353,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** QA doc: 'If City is blank, the invite flow copies the address from the existing vendor with that GST'. It also copies the existing vendor's NAME over the one in the sheet.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-152.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers B-city of the PR's QA document.
 - **Trace.** P2 · automate · `VBU-152` · `app/services/invitation/send_service.rb:41-54 (GST lookup only when city/address missing); app/helpers/api/companies_helper.rb:731-745 (existing company's name/address/city merged)`
@@ -1362,7 +1362,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** An address blank on the sheet makes the invite look the GSTIN up and copy the existing vendor's address in (the PR spec calls this 'back-filled'), so a blank address can never sneak a duplicate through.
 - **Setup.** gate: can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. The shared baseline vendor exists: tax number {{vatB}} (UK VAT — the duplicate key reads companies.gst_no whatever the tax type, and the sandbox's 'India' rows block GST, see VBU-059), Address 'QA Dedup Road 12', Pincode 560001, City Mumbai, Account Group ZCOV, Vendor Code QAVC{{stamp}}. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-153.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers B-city of the PR's QA document.
 - **Trace.** P1 · automate · `VBU-153` · `app/services/invitation/send_service.rb:41-54; PR16267 app/services/vendors/duplicate_check_fields.rb:26 (address: blank = no match — only safe because of the back-fill)`
@@ -1371,7 +1371,7 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Why it matters.** QA doc 'Prospect visibility': before the PR a Prospect was invisible to the check and a second vendor code was minted. The baseline is a contactless Prospect (no email → no invitation → no mail).
 - **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_duplicate_check_fields lists gst_no, address, pincode, account_group. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Baseline (uploaded first): a contactless Prospect — UK VAT {{vatI}}, 'QA Prospect Road 3', pincode 560003, account group ZCOV, no contact. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-155.xlsx`.
 - **Steps.** 1. Upload the variation row (onboarding No) 2. Read the row and look for the vendor
-- **Expected.** Row failed 'Vendor with this GST and address already exists'; no second vendor.
+- **Expected.** Row failed 'already exists'; no second vendor.
 - **Oracle.** Job row + companies lookup.
 - **QA doc.** Covers B-prospect of the PR's QA document.
 - **Trace.** P0 · automate · `VBU-155` · `PR16267 app/services/invitation/send_service.rb:274-298 (duplicate_code_for_repeated_tax_no); PR16267 app/services/vendors/duplicate_check_fields.rb:23-32,111-119 (address blank=no match; pincode & extra fields blank=match)`
@@ -1840,3 +1840,141 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Expected.** As the audit's expected outcome.
 - **Oracle.** Job row + records (SELECT).
 - **Trace.** P1 · manual · `VBU-253` · `pan_email_domain_service.rb:28-41`
+
+## 9. Field combinations: every pair of column values, many vendors per sheet
+
+#### API-XVBU-300 — Field combinations, 1 vendor in one sheet (contactless workspace, sheet 1 of 6)
+- **Why it matters.** Field combinations for a GMMCO-type workspace (contactless ON, duplicate-check fields, Account Group/MSME/bank columns). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 1 row(s) create a QA test vendor; 0 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-300.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 1 created, 0 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-300` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-301 — Field combinations, 5 vendors in one sheet (contactless workspace, sheet 2 of 6)
+- **Why it matters.** Field combinations for a GMMCO-type workspace (contactless ON, duplicate-check fields, Account Group/MSME/bank columns). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 1 row(s) create a QA test vendor; 1 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-301.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 1 created, 4 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-301` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-302 — Field combinations, 10 vendors in one sheet (contactless workspace, sheet 3 of 6)
+- **Why it matters.** Field combinations for a GMMCO-type workspace (contactless ON, duplicate-check fields, Account Group/MSME/bank columns). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 2 row(s) create a QA test vendor; 0 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-302.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 2 created, 8 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-302` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-303 — Field combinations, 25 vendors in one sheet (contactless workspace, sheet 4 of 6)
+- **Why it matters.** Field combinations for a GMMCO-type workspace (contactless ON, duplicate-check fields, Account Group/MSME/bank columns). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 2 row(s) create a QA test vendor; 3 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-303.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 2 created, 23 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-303` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-304 — Field combinations, 50 vendors in one sheet (contactless workspace, sheet 5 of 6)
+- **Why it matters.** Field combinations for a GMMCO-type workspace (contactless ON, duplicate-check fields, Account Group/MSME/bank columns). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 6 row(s) create a QA test vendor; 3 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-304.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 6 created, 44 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-304` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-305 — Field combinations, 50 vendors in one sheet (contactless workspace, sheet 6 of 6)
+- **Why it matters.** Field combinations for a GMMCO-type workspace (contactless ON, duplicate-check fields, Account Group/MSME/bank columns). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 4 row(s) create a QA test vendor; 6 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-305.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 4 created, 46 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-305` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-306 — 100 vendors in one sheet — every kind of row mixed (contactless workspace)
+- **Why it matters.** Field combinations for a GMMCO-type workspace (contactless ON, duplicate-check fields, Account Group/MSME/bank columns). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 12 row(s) create a QA test vendor; 9 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is on; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); extra_fields_for_vendor_invite has a 'Account Group' column. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-306.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 12 created, 88 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-306` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-320 — Field combinations, 1 vendor in one sheet (normal workspace, sheet 1 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 1 row(s) create a QA test vendor; 0 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-320.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 1 created, 0 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-320` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-321 — Field combinations, 5 vendors in one sheet (normal workspace, sheet 2 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 0 row(s) create a QA test vendor; 1 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-321.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 0 created, 5 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-321` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-322 — Field combinations, 10 vendors in one sheet (normal workspace, sheet 3 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 1 row(s) create a QA test vendor; 0 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-322.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 1 created, 9 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-322` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-323 — Field combinations, 25 vendors in one sheet (normal workspace, sheet 4 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 1 row(s) create a QA test vendor; 1 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-323.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 1 created, 24 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-323` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-324 — Field combinations, 50 vendors in one sheet (normal workspace, sheet 5 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 4 row(s) create a QA test vendor; 1 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-324.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 4 created, 46 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-324` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-325 — Field combinations, 50 vendors in one sheet (normal workspace, sheet 6 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 4 row(s) create a QA test vendor; 1 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-325.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 4 created, 46 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-325` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-326 — Field combinations, 50 vendors in one sheet (normal workspace, sheet 7 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 3 row(s) create a QA test vendor; 2 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-326.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 3 created, 47 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-326` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-327 — Field combinations, 50 vendors in one sheet (normal workspace, sheet 8 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 2 row(s) create a QA test vendor; 3 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-327.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 2 created, 48 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-327` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-328 — Field combinations, 19 vendors in one sheet (normal workspace, sheet 9 of 9)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 1 row(s) create a QA test vendor; 0 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-328.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 1 created, 18 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-328` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`
+
+#### API-XVBU-329 — 100 vendors in one sheet — every kind of row mixed (normal workspace)
+- **Why it matters.** Field combinations for a PROCOL DEMO-type workspace (contactless OFF, required extra fields). Across these sheets: every pair of accepted column values together, every rejected value on its own, and every pair of rejected values (which message wins). Each row's answer comes from the deployed row check (tax → mandatory → PAN → Deals In → email → POC 2 email → profile → Status → onboarding → city) and the worker. This sheet: 7 row(s) create a QA test vendor; 3 row(s) that would have emailed real people carry a tripwire instead.
+- **Setup.** gate: allow_contactless_vendor_upload is off; can_skip_vendor_onboarding is on (with vendor_onboarding_version v2); vendor_invitation_v2 is off; extra_fields_for_vendor_invite has at least one is_required field. Data: creates QA_Platform_ test vendors; the only mail goes to qa_…@example.com. Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-329.xlsx`.
+- **Steps.** 1. Upload the sheet 2. Compare every row with its expected answer, in order 3. For created rows, find the vendor in the tab named
+- **Expected.** Row by row as listed in the checklist's 'Row-by-row' sheet. 7 created, 93 failed.
+- **Oracle.** Every job row's status and message; the vendor's tab for created rows.
+- **Trace.** P1 · automate · `VBU-329` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:21-85; app/workers/vendor_bulk_upload_worker_v2.rb:66-160`

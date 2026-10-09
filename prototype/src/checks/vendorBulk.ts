@@ -544,7 +544,8 @@ export function makeBulkExec(bulk: BulkSpec, stamp: string, caseId: string, meta
       const crashed = out.rows.filter((r) => r.error && WORKER_CRASH.test(r.error));
       const expected = bulk.rows ?? [];
       const problems: string[] = [];
-      if (bulk.everyRow) {
+      // every row against ONE expectation: the 1,001-identical-rows case; mixed sheets compare row by row
+      if (bulk.everyRow && expected.length === 1) {
         const bad = out.rows.filter((r) => r.status !== expected[0]?.status || (expected[0]?.error && r.error !== expected[0].error));
         if (bad.length) problems.push(`${bad.length} of ${out.rows.length} rows differ: ${describeRows(bad)}`);
       } else if (bulk.anyOrder) {
