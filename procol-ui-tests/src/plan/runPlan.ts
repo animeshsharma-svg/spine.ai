@@ -1327,7 +1327,8 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       // What did the app SAY while this step ran — and is it one of its own rules?
       const said = [
         ...((/rejected by the app:\s*(.+)$/i.exec(first)?.[1] ?? "").trim() ? [/rejected by the app:\s*(.+)$/i.exec(first)![1].trim()] : []),
-        ...(await appMessagesSince(page, s.curMark).catch(() => [])).map((m) => m.text),
+        // a refusal is an error or a warning — "Proposal submitted successfully" explains no failure
+        ...(await appMessagesSince(page, s.curMark).catch(() => [])).filter((m) => m.kind === "error" || m.kind === "warning").map((m) => m.text),
       ].filter((t, k, all) => t && all.indexOf(t) === k);
       const ruled = said.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
       let ruledLast: typeof ruled = null;
@@ -1378,7 +1379,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
           console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ still refused after recovering (${did.join("; ")}): ${m2}`);
           const said2 = [
             ...((/rejected by the app:\s*(.+)$/i.exec(m2)?.[1] ?? "").trim() ? [/rejected by the app:\s*(.+)$/i.exec(m2)![1].trim()] : []),
-            ...(await appMessagesSince(page, s.curMark).catch(() => [])).map((m) => m.text),
+            ...(await appMessagesSince(page, s.curMark).catch(() => [])).filter((m) => m.kind === "error" || m.kind === "warning").map((m) => m.text),
           ].filter((t, k, all) => t && all.indexOf(t) === k);
           cur = said2.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
           recovery = cur ? recoveryFor(cur.t) : null;

@@ -383,7 +383,8 @@ export class AwardPage extends BasePage {
       const approve = p.getByRole("button", { name: /^\s*approve\s*$/i }).first();
       const mine = await approve.waitFor({ state: "visible", timeout: round === 0 ? TIMEOUTS.LONG : 8_000 }).then(() => true).catch(() => false);
       if (!mine) break;
-      const box = p.locator("textarea").last();
+      // the Approvals panel's own box — the proposal document beside it has read-only textareas
+      const box = p.getByPlaceholder(/enter remarks/i).last();
       await box.fill(remark, { timeout: TIMEOUTS.MEDIUM });
       await approve.click({ timeout: TIMEOUTS.MEDIUM });
       const err = await this.errorToastText(2_000);
@@ -442,13 +443,54 @@ export class AwardPage extends BasePage {
     await submit.click({ timeout: TIMEOUTS.MEDIUM });
     await this.waitForSpinnerHidden();
 
-    // Awarding often routes into an approval flow; accept whatever confirmation
-    // the build asks for.
-    await this.clickIfPresent(
-      [p.getByRole("dialog").getByRole("button", { name: /^(submit|confirm|yes|proceed|send)/i })],
-      { label: "award-confirm", timeout: TIMEOUTS.SHORT },
-    );
-    await this.pause(3_000);
+    // Awarding routes into an approval flow: the "Submit Proposal" dialog asks to select an
+    // approval workflow (one is pre-selected) and moves on with NEXT, then confirms. Only
+    // "submit|confirm|yes…" was clicked, so the dialog sat open on "Next" and the step said
+    // "submitted" for an award that was never submitted (2026-10-09). Click through every
+    // step of the dialog, and fail if it is still open.
+    // the dialog opens a few seconds after the click, once the proposal is saved
+    await p.getByRole("dialog").filter({ hasText: /submit proposal|approval workflow/i }).last().waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+    for (let k = 0; k < 4; k++) {
+      const dialog = p.getByRole("dialog").filter({ has: p.getByRole("button", { name: /^\s*(next|submit|confirm|yes|proceed|send)\b/i }) }).last();
+      if (!(await dialog.isVisible().catch(() => false))) {
+        await this.pause(1_500);
+        if (!(await dialog.isVisible().catch(() => false))) break;
+      }
+      const radio = dialog.getByRole("radio");
+      if ((await radio.count().catch(() => 0)) && !(await radio.first().isChecked().catch(() => true))) await radio.first().check().catch(() => {});
+      const remark = dialog.locator("textarea").first();
+      if ((await remark.isVisible().catch(() => false)) && !((await remark.inputValue().catch(() => "")) ?? "").trim()) await remark.fill("Awarded by the spine.ai QA run").catch(() => {});
+      const btn = dialog.getByRole("button", { name: /^\s*(next|submit|confirm|yes|proceed|send)\b/i }).last();
+      const name = ((await btn.textContent().catch(() => "")) ?? "").trim();
+      // a spinning or disabled final button means the submit is already being saved — wait for it
+      const saving = (await btn.locator(".ant-btn-loading-icon, .anticon-loading").count().catch(() => 0)) > 0 || /ant-btn-loading/.test((await btn.getAttribute("class").catch(() => "")) ?? "");
+      if (saving) {
+        await dialog.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG * 3 }).catch(() => {});
+        break;
+      }
+      // disabled (not spinning) = a choice is still owed: pick the first approval workflow offered
+      if (await btn.isDisabled().catch(() => false)) {
+        const option = dialog.locator(".ant-radio-wrapper, [role='radio'], [class*='radio' i]").first()
+          .or(dialog.getByText(/total proposal value/i).first())
+          .first();
+        await option.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        console.log("[award] submit dialog: picked the first approval workflow offered");
+        await this.pause(500);
+        if (await btn.isDisabled().catch(() => false)) throw new Error(`the Submit Proposal dialog keeps "${name}" disabled after choosing a workflow`);
+      }
+      await btn.click({ timeout: TIMEOUTS.MEDIUM });
+      console.log(`[award] submit dialog: ${name}`);
+      await this.waitForSpinnerHidden();
+      await this.pause(1_500);
+    }
+    const stillOpen = p.getByRole("dialog").filter({ hasText: /submit proposal|approval workflow/i }).last();
+    // the final "Submit Proposal" spins while the award and its approval request are saved
+    await stillOpen.waitFor({ state: "hidden", timeout: TIMEOUTS.LONG * 3 }).catch(() => {});
+    if (await stillOpen.isVisible().catch(() => false)) {
+      const buttons = (await stillOpen.getByRole("button").allTextContents()).map((t) => t.trim()).filter(Boolean);
+      throw new Error(`the award was not submitted — the Submit Proposal dialog is still open (${buttons.join(", ")})`);
+    }
+    await this.pause(2_000);
 
     const err2 = await this.errorToastText(2_000);
     if (err2) throw new Error(`submitting the award was refused: ${err2}`);

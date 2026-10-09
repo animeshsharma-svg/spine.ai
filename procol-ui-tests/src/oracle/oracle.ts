@@ -65,12 +65,12 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
   // 0. A step that could not be checked here, for a reason the app's own setup decides (the
   //    award's approver is another person, versioning is off for this client …). Not a pass,
   //    not a product defect: "couldn't tell", with that reason.
-  if (/^not checked:/i.test(message)) {
+  if (/(^|: )not checked:/i.test(message)) {
     return {
       kind: "environment",
       severity: "low",
       title: `${evidence.flowKey}: ${message.split("\n")[0]}`,
-      rationale: message.split("\n")[0].replace(/^not checked:\s*/i, ""),
+      rationale: message.split("\n")[0].replace(/^.*?not checked:\s*/i, ""),
       reproduction: steps,
       actionable: false,
     };
@@ -127,7 +127,14 @@ export function judge(evidence: Evidence, failure?: Error | null): Verdict {
   // Only the refusal still standing when the step failed is judged: earlier ones were met by
   // recovery (a new version's publish wants its evaluator, then its sections, then failed on
   // a server answer — the verdict is about that last answer, not the first).
-  const standing = errorToasts.slice(-1);
+  // "Standing" = quoted by the failure itself, else shown in the last 30 s before it — a toast
+  // from a recovered step must not explain a later step that failed for another reason.
+  const quoted = errorToasts.filter((t) => t.text && message.includes(t.text.slice(0, 40)));
+  const recent = errorToasts.filter((t) => Date.now() - Date.parse(t.at) < 30_000);
+  // A plan names the failing step and quotes what the app said; a toast it does not quote
+  // came from an earlier (recovered) step and explains nothing about this one.
+  const planStep = /^step "[a-z_]+" failed:/.test(message);
+  const standing = (quoted.length ? quoted : planStep ? [] : recent).slice(-1);
   const rejection = standing.find((t) => INPUT_REJECTION.test(t.text));
   if (rejection) {
     return {
