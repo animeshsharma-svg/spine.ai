@@ -1873,6 +1873,22 @@ export class CreateEventPage extends BasePage {
       await endBlock.evaluate((el) => el.scrollIntoView({ block: "center" })).catch(() => {});
       await this.pause(300);
       const scope = (await endBlock.count()) ? endBlock : panel;
+      // A new version's copied stage can open on "Fixed time" (the end the server stored). On a
+      // multi-stage event every block must be on Duration (BUG-85), and a Fixed-time block has
+      // neither the Duration select nor an "Event will end at" line — so it was skipped and the
+      // publish refused (2026-10-09). Switch it to Duration first.
+      const onFixed = scope.locator("[class*='inputCol'] .ant-select").filter({ hasText: /fixed time/i }).first();
+      if (blockCount > 1 && (await onFixed.count().catch(() => 0))) {
+        await onFixed.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await this.page
+          .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item")
+          .filter({ hasText: /duration/i })
+          .first()
+          .click({ timeout: TIMEOUTS.SHORT })
+          .catch(() => {});
+        await this.pause(500);
+        console.log(`[create-event] stage block ${bi + 1} was on Fixed time (a copied stage keeps its stored end) — switched it to Duration`);
+      }
       const valueCol = scope.locator("[class*='inputCol']").filter({ hasText: /^\s*\d+\s*(Mins?|Minutes?|Hours?)\s*$/i }).first();
       const inner = (await valueCol.evaluate((e) => e.outerHTML.replace(/\s+/g, " ").slice(0, 600)).catch(() => "")) || "";
       console.log(`[create-event] duration value control: ${inner || "not found"}`);
