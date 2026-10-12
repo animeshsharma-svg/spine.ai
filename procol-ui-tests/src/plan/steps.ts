@@ -184,6 +184,12 @@ export const STEP_CATALOG: StepSpec[] = [
     args: { id: "project id from a URL (optional)", title: "event title to search for (optional; defaults to this plan's own event)" },
   },
   {
+    name: "inventory_screen",
+    purpose:
+      "Record what the current screen offers — every button, tab, field, select, switch, column and banner, with disabled/required state — plus a screenshot and the accessibility tree. Asserts nothing. Used to write test cases from a screen; not for ordinary test cases.",
+    args: { label: "short name for the screen, e.g. \"create-erfx\"" },
+  },
+  {
     name: "create_new_version",
     purpose:
       "On a PUBLISHED event's project page (after publish + expect_published, or open_event), create a new version: \"Create New Version\" → confirm. The old version is archived and its bids become read-only; the create screen opens in edit mode on the copy, with the same stages, templates and line items. Follow it with the edits the case asks for (remove_line_items, add_line_items), then set_schedule and publish to publish the version. Only possible BEFORE any award proposal is submitted — never after award_event.",

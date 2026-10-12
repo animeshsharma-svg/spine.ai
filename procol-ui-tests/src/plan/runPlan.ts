@@ -23,6 +23,10 @@ import type { Target } from "./generic/find.js";
 import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
 import { runExpectationStep } from "./expectations.js";
 import { installObserver, observe, type Observation } from "./observe.js";
+import { screenInventory } from "./inventory.js";
+import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
+import { join as joinInv, dirname as dirnameInv } from "node:path";
+import { fileURLToPath as fileUrlInv } from "node:url";
 import { resolveScreen, type PlanContext } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
 
@@ -719,6 +723,23 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const res = await co.counterOfferStatusFor(a.vendor ? String(a.vendor) : undefined, /accept/i, 60_000);
       if (!res.ok) throw new Error(`the buyer's grid does not yet mark the counter offer as accepted — the vendor header reads: ${res.text}`);
       return "the buyer's grid marks the counter offer as accepted";
+    }
+    case "inventory_screen": {
+      // Every control the screen shows, with the screenshot and accessibility tree beside it —
+      // the input for writing test cases from a screen (prototype/src/agents/screenCases.ts).
+      const label = String(a.label ?? "screen").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "screen";
+      await s.page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      const busy = s.page.locator(".ant-skeleton, .ant-spin-spinning").first();
+      for (const until = Date.now() + 20_000; Date.now() < until && (await busy.isVisible().catch(() => false)); ) await s.page.waitForTimeout(250);
+      const o = await observe(s.page, s.stepNo, `inventory-${label}`, { force: true }).catch(() => null);
+      const inv = await screenInventory(s.page);
+      const fallbackDir = joinInv(dirnameInv(fileUrlInv(import.meta.url)), "..", "..", "evidence", "inventories");
+      const file = o?.screenshot ? o.screenshot.replace(/\.png$/, ".inventory.json") : joinInv(fallbackDir, `${label}-${Date.now()}.inventory.json`);
+      mkdirInv(dirnameInv(file), { recursive: true });
+      writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o?.screenshot ?? null, aria: o?.snapshot ?? null, ...inv }, null, 2));
+      console.log(`[inventory] ${file}`);
+      const by = inv.controls.reduce<Record<string, number>>((m, c) => ((m[c.kind] = (m[c.kind] ?? 0) + 1), m), {});
+      return `inventory of "${label}" at ${inv.path}: ${inv.controls.length} controls (${Object.entries(by).map(([k, n]) => `${n} ${k}`).join(", ")})`;
     }
     case "capture_screen": {
       const label = String(a.label ?? "capture").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "capture";

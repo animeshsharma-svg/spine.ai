@@ -125,7 +125,7 @@ export function draftMarkdown(d: DraftRecord): string {
   return [
     `### ${d.id} — ${d.title}`,
     "",
-    `- **Why it matters.** ${d.why.replace(/([^.!?])$/, "$1.")} **Draft, needs review** — written by the assistant on ${today()} from a request typed in the chat box; ${covered}.`,
+    `- **Why it matters.** ${d.why.replace(/([^.!?])$/, "$1.")} **Draft, needs review** — written by the assistant on ${today()} ${/^screen /.test(d.typed) ? "from what a screen shows and the rules in Procol's code" : "from a request typed in the chat box"}; ${covered}.`,
     `- **Setup.** ${d.setup || "A buyer signed in to the client under test."}`,
     `- **Steps.** ${steps}`,
     `- **Expected.** ${d.expected}`,
