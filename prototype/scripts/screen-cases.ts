@@ -79,7 +79,11 @@ else {
     if (t.state !== "none" && !ctx) continue;
     log(`opening ${t.label}…`);
     const f = await inventoryOf(t, ctx);
-    if (f && existsSync(f)) inventories.push(f);
+    if (f && existsSync(f)) {
+      inventories.push(f);
+      log(`  screenshot: ${f.replace(/\.inventory\.json$/, ".png")}`);
+      log(`  inventory:  ${f}`);
+    }
     else log(`  no inventory for ${t.label}`);
   }
 }
@@ -88,10 +92,11 @@ const results: any[] = [];
 const seen: Array<{ id: string; title: string }> = [];
 for (const f of inventories) {
   const inv = JSON.parse(readFileSync(f, "utf8"));
+  log(`${inv.label}: what it saw — ${inv.controls.map((c: any) => `${c.kind} "${c.name}"${c.disabled ? " (disabled)" : ""}`).slice(0, 40).join(", ")}${inv.controls.length > 40 ? ` … +${inv.controls.length - 40} more` : ""}`);
   const r = await draftCasesFromScreen(inv, { max: MAX, companyId: COMPANY, save: !flag("no-save"), compile: !flag("no-compile"), onLine: log, seen });
   results.push(r);
   log(`${r.screen}: ${r.controls} controls · ${r.rulesGiven} rules (${r.untestedRulesGiven} untested) · drafted ${r.drafted} → saved ${r.saved.length}, already covered ${r.alreadyCovered.length}, dropped ${r.dropped.length}`);
-  for (const s of r.saved) log(`  + ${s.id} [${s.grounded}] ${s.title}${s.coverage ? ` — plan: ${s.coverage}${s.gaps?.length ? ` (${s.gaps.slice(0, 2).join("; ")})` : ""}` : ""}`);
+  for (const s of r.saved) log(`  + ${s.id} [${s.grounded}] ${s.title}${s.coverage && !flag("no-compile") ? ` — plan: ${s.coverage}${s.gaps?.length ? ` (${s.gaps.slice(0, 2).join("; ")})` : ""}` : ""}`);
   for (const c of r.alreadyCovered) log(`  = ${c.title} — already ${c.by}`);
   for (const d of r.dropped) log(`  − ${d.title} — ${d.why}`);
 }
