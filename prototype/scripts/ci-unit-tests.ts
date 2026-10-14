@@ -18,6 +18,8 @@ import { tmpdir } from "node:os";
 import { apiAttempt, classify, documentedCodes, redactSecrets, runCheck, type Check, type CheckOutcome } from "../src/checks/engine.js";
 import { appOf, appRefusal } from "../src/checks/appAccess.js";
 import { bridgeLifecycle, lintPlan } from "../src/agents/planner.js";
+import * as M from "../src/eval/metrics.js";
+import { mutatorFor, plantsFor, alterValues } from "../src/eval/mutate.js";
 import { endpointOf, evaluateStepAssertions, type AssertionCatalog } from "../src/checks/apiAssertions.js";
 import { humanActual } from "../src/checks/humanize.js";
 import { journeyOutcome, journeyPlan, type JourneyStepRecord } from "../src/checks/journeyModel.js";
@@ -706,5 +708,105 @@ describe("planner: the event lifecycle bridges a case to the state each step nee
     const steps = [...made, S("publish"), S("expect_published"), S("attempt", { step: "award_event" })];
     const order = lintPlan({ title: "t", steps }).plan.steps.map((x) => x.step);
     for (const added of ["place_surrogate_bid", "close_event", "award_event"]) assert.ok(!order.includes(added), `${added} was added`);
+  });
+});
+
+describe("eval metrics: every number recomputable by hand (docs/METRICS.md)", () => {
+  test("Wilson 95% interval matches the textbook values; empty or impossible inputs give null", () => {
+    assert.deepEqual(M.wilson(5, 10), [0.236593, 0.763407]);
+    assert.deepEqual(M.wilson(10, 10), [0.722467, 1]);
+    assert.deepEqual(M.wilson(0, 10), [0, 0.277533]);
+    assert.equal(M.wilson(0, 0), null);
+    assert.equal(M.wilson(3, 2), null);
+  });
+  const O = (caseId: string, label: M.Label, run: number, said: M.Said, extra: Partial<M.Outcome> = {}): M.Outcome => ({ caseId, label, run, said, ...extra });
+  const runs: M.Outcome[] = [
+    O("A", "bug", 1, "reported", { bugKey: "BUG-1" }), O("A", "bug", 2, "reported", { bugKey: "BUG-1" }),
+    O("A2", "bug", 1, "reported", { bugKey: "BUG-1" }), // a second case of the same bug counts once
+    O("B", "bug", 1, "passed", { bugKey: "BUG-2" }), O("B", "bug", 2, "excluded", { bugKey: "BUG-2", excludedWhy: "couldn't tell" }),
+    O("X", "bug", 1, "excluded", { bugKey: "BUG-3" }),
+    O("P", "planted", 1, "reported", { bugKey: "P#wrong_data", plantClass: "wrong_data", rightPlace: false }),
+    O("Q", "planted", 1, "reported", { bugKey: "Q#server_error", plantClass: "server_error", rightPlace: true }),
+    O("C1", "clean", 1, "passed"), O("C1", "clean", 2, "passed"),
+    O("C2", "clean", 1, "passed"), O("C2", "clean", 2, "reported"),
+    O("C3", "clean", 1, "excluded"),
+  ];
+  const t = M.tally(runs);
+  test("tally: dedup by bug, excluded never counts, a planted bug in the wrong place is a miss", () => {
+    assert.deepEqual(t.detected.sort(), ["BUG-1", "Q#server_error"]);
+    assert.deepEqual(t.missed.sort(), ["BUG-2", "P#wrong_data"]);
+    assert.deepEqual(t.bugExcluded, ["BUG-3"]);
+    assert.deepEqual(t.falseAlarm, ["C2"]);
+    assert.deepEqual(t.quiet, ["C1"]);
+    assert.deepEqual(t.cleanExcluded, ["C3"]);
+  });
+  test("precision, recall, F0.5, false-alarm rate and mutation score by hand", () => {
+    assert.equal(M.precision(t).value, 0.666667); // 2 ÷ (2 + 1)
+    assert.equal(M.recall(t).value, 0.5); // 2 ÷ (2 + 2)
+    assert.equal(M.recall(t, "bug").value, 0.5); // BUG-1 ÷ (BUG-1 + BUG-2)
+    assert.equal(M.fBeta(M.precision(t).value, M.recall(t).value), 0.625);
+    assert.equal(M.falseAlarmRate(t).value, 0.5); // C2 ÷ (C2 + C1)
+    assert.equal(M.mutationScore(t).value, 0.5); // Q ÷ (Q + P)
+    assert.equal(M.mutationScore(t, "server_error").value, 1);
+    assert.equal(M.fBeta(null, 0.5), null);
+    assert.equal(M.fBeta(0, 0), null);
+  });
+  test("pass^k needs every one of k runs to give the expected verdict; flaky = verdict changed", () => {
+    const k2 = M.passK(runs, 2);
+    assert.deepEqual(k2.ids.counted, ["A", "C1"]); // A reported twice, C1 passed twice
+    assert.deepEqual(k2.ids.rest, ["C2"]); // C2 was reported once
+    assert.match(k2.note ?? "", /left out/);
+    const f = M.flakyRate(runs);
+    assert.deepEqual(f.ids.counted, ["C2"]);
+    assert.deepEqual(f.ids.rest, ["A", "C1"]);
+  });
+  test("couldn't-tell rate, DDP, leakage, percentiles, composite and gates", () => {
+    assert.equal(M.couldntTellRate(runs).k, 3);
+    assert.equal(M.couldntTellRate(runs).n, 13);
+    assert.equal(M.ddp(["a", "b"], ["b", "c"]).value, 0.666667); // 2 ÷ (2 + c)
+    assert.equal(M.leakage(["a", "b"], ["b", "c"]).value, 0.333333); // c ÷ (c + 2)
+    assert.equal(M.ddp([], []).value, null);
+    assert.equal(M.percentile([5, 1, 3, 2, 4], 50), 3);
+    assert.equal(M.percentile([5, 1, 3, 2, 4], 90), 5);
+    assert.equal(M.percentile([], 50), null);
+    assert.deepEqual(M.composite({ a: 1, b: 0.5, c: null }, { a: 2, b: 2, c: 1 }), { score: 0.75, used: { a: 1, b: 0.5 }, missing: ["c"] });
+    assert.equal(M.gate("precision", 0.9, ">=", 0.85).status, "pass");
+    assert.equal(M.gate("precision", 0.8, ">=", 0.85).status, "fail");
+    assert.equal(M.gate("precision", null, ">=", 0.85).status, "unknown");
+  });
+});
+
+describe("planted bugs land on the call the case is decided on", () => {
+  const call = (n: number, phase: "act" | "verify", method: string, decisive: boolean) => ({ n, phase, method, path: `/p${n}`, decisive });
+  const ok = { status: 200, ok: true, data: { total: 10, uuid: "WGdOY1ha", status: "active" }, ms: 1 };
+  const refused = { status: 422, ok: false, data: { error: { code: 33 } }, code: "33", ms: 1 };
+  const plan = (outcome: string, act = [{ op: "open_bid" }, { op: "place_bid", decisive: true }], verify: any[] = []) => ({ version: 1, title: "t", setup: { recipe: "x" }, act, verify, expected: { outcome } }) as any;
+  test("server_error hits the first call of the decisive step, again on the confirmation attempt", () => {
+    const m = mutatorFor(plan("accept"), { plantClass: "server_error", what: "" });
+    assert.equal(m.mutate(call(0, "act", "POST", false), ok).status, 200); // a non-decisive step is untouched
+    assert.equal(m.mutate(call(1, "act", "POST", true), ok).status, 500);
+    assert.equal(m.mutate(call(2, "act", "PATCH", true), ok).status, 200); // only the first decisive call
+    assert.equal(m.mutate(call(0, "act", "POST", true), ok).status, 500); // n = 0: the second attempt plants it again
+    assert.equal(m.touched.length, 2);
+  });
+  test("flipped_outcome: a refusal case loses EVERY refusal of its decisive step (a missing validation)", () => {
+    const m = mutatorFor(plan("reject"), { plantClass: "flipped_outcome", what: "" });
+    assert.equal(m.mutate(call(0, "act", "POST", true), ok).status, 200); // a success stays a success
+    assert.equal(m.mutate(call(1, "act", "PATCH", true), refused).status, 200); // the refusal at submit is gone
+    assert.equal(m.touched.length, 1);
+  });
+  test("plants apply only where they mean something; wrong_data keeps ids", () => {
+    assert.deepEqual(plantsFor(plan("no-5xx")).map((p) => p.plantClass), ["server_error"]);
+    assert.deepEqual(plantsFor(plan("accept", [{ op: "x" }], [{ op: "read_round", assert: [] }])).map((p) => p.plantClass), ["server_error", "flipped_outcome", "wrong_data"]);
+    assert.deepEqual(alterValues({ total: 10, uuid: "WGdOY1ha", status: "active", ok: true, created_at: 5 }), { total: 17, uuid: "WGdOY1ha", status: "active_planted", ok: false, created_at: 5 });
+  });
+  test("precision on real cases leaves planted catches out", () => {
+    const t = M.tally([
+      { caseId: "A", label: "bug", bugKey: "BUG-1", run: 1, said: "reported" },
+      { caseId: "Q", label: "planted", bugKey: "Q#server_error", plantClass: "server_error", run: 1, said: "reported", rightPlace: true },
+      { caseId: "C", label: "clean", run: 1, said: "reported" },
+    ]);
+    assert.equal(M.precision(t).value, 0.666667); // (A + Q) ÷ (A + Q + C)
+    assert.equal(M.precisionReal(t).value, 0.5); // A ÷ (A + C)
   });
 });

@@ -148,7 +148,7 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const hhmmss = (sec: number) => new Date(sec * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-interface Reply {
+export interface Reply {
   status: number;
   ok: boolean;
   data: any;
@@ -160,6 +160,24 @@ interface Reply {
 }
 
 const ENV_STATUS = new Set([0, 408, 429, 502, 503, 504]);
+
+// ── evaluation only: planted bugs (src/eval/mutate.ts) ────────────────────
+// OFF unless the eval harness sets a mutator. It sees each reply of the act and verify
+// phases (never setup, so a planted bug cannot break the record the case is built on) and may
+// return a changed reply — the agent then judges that as if UAT had answered it.
+export interface EvalCall { phase: "act" | "verify"; method: string; path: string; n: number; /** made by the plan's decisive act step */ decisive: boolean }
+type ResponseMutator = (call: EvalCall, reply: Reply) => Reply;
+let responseMutator: ResponseMutator | null = null;
+let evalPhase: "setup" | "act" | "verify" = "setup";
+let evalCallN = 0;
+let evalDecisive = false;
+export function setResponseMutator(fn: ResponseMutator | null): void {
+  responseMutator = fn;
+}
+function mutated(method: string, path: string, r: Reply): Reply {
+  if (!responseMutator || evalPhase === "setup") return r;
+  return responseMutator({ phase: evalPhase, method: method.toUpperCase(), path, n: evalCallN++, decisive: evalPhase === "act" && evalDecisive }, r);
+}
 
 /** One request, never throws, 60 s bound; an environment failure is tried again twice. */
 async function send(api: any, method: string, path: string, body?: unknown): Promise<Reply> {
@@ -181,7 +199,7 @@ async function send(api: any, method: string, path: string, body?: unknown): Pro
     } catch (e) {
       r = { status: 0, ok: false, data: null, message: redactSecrets(e instanceof Error ? e.message : String(e)) ?? "request failed", ms: 0 };
     }
-    if (!ENV_STATUS.has(r.status) || tries > 2) return { ...r, ms: Date.now() - t };
+    if (!ENV_STATUS.has(r.status) || tries > 2) return mutated(method, path, { ...r, ms: Date.now() - t });
     await sleep(backoffMs(tries));
   }
 }
@@ -657,6 +675,17 @@ function judgeAssertion(a: Assertion, reply: Reply, value: unknown): { pass: boo
 const OUTCOME_SAY: Record<Outcome, string> = { accept: "The app accepts it.", reject: "The app refuses it.", "no-5xx": "The app answers without a server error (accepted or refused)." };
 
 async function attempt(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReuse: boolean): Promise<PlanAttempt> {
+  evalPhase = "setup";
+  evalCallN = 0;
+  evalDecisive = false;
+  try {
+    return await attemptPhases(plan, rc, opts, allowReuse);
+  } finally {
+    evalPhase = "setup";
+  }
+}
+
+async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReuse: boolean): Promise<PlanAttempt> {
   const t0 = Date.now();
   const recipe = RECIPES[plan.setup.recipe];
   const steps: PlanStepResult[] = [];
@@ -694,8 +723,15 @@ async function attempt(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReu
   let crashed = false;
 
   // ── acts ──
+  evalPhase = "act";
+  // the decisive act, as the planner defines it: the one marked, else the last that is not a wait
+  const marked = plan.act.findIndex((x) => x.decisive);
+  let lastReal = -1;
+  for (let j = plan.act.length - 1; j >= 0 && lastReal < 0; j--) if (plan.act[j].op !== "wait") lastReal = j;
+  const decisiveIdx = marked >= 0 ? marked : lastReal;
   for (let i = 0; i < plan.act.length; i++) {
     const a = plan.act[i];
+    evalDecisive = i === decisiveIdx;
     const n = i + 1;
     const op = OPS[a.op];
     const who = (a.as ?? op.actor) as ActorId;
@@ -926,6 +962,8 @@ async function attempt(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, allowReu
 
   // ── verify ──
   if (!crashed && verdict !== "couldn't tell" && verdict !== "not run") {
+    evalPhase = "verify";
+    evalDecisive = false;
     for (let i = 0; i < plan.verify.length; i++) {
       const v = plan.verify[i];
       const n = i + 1;
