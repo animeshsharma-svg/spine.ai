@@ -43,6 +43,17 @@ export async function screenInventory(page: Page): Promise<ScreenInventory> {
       const st = getComputedStyle(el as HTMLElement);
       return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none";
     };
+    // separate text pieces joined by spaces: a tab "LIVE" with a count badge "7950" reads
+    // "LIVE 7950", not "LIVE7950"; a button with a shortcut badge reads "Create Event M"
+    const textOf = (el: Element): string => {
+      const parts: string[] = [];
+      const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+        const t = clean(n.textContent);
+        if (t) parts.push(t);
+      }
+      return parts.join(" ");
+    };
     const out: any[] = [];
     const seen = new Set<string>();
     const add = (c: any) => {
@@ -74,7 +85,7 @@ export async function screenInventory(page: Page): Promise<ScreenInventory> {
 
     document.querySelectorAll("button, [role='button'], .ant-btn").forEach((el) => {
       if (!visible(el)) return;
-      const name = (el as HTMLElement).innerText || el.getAttribute("aria-label") || el.getAttribute("title") || "";
+      const name = textOf(el) || el.getAttribute("aria-label") || el.getAttribute("title") || "";
       const cls = el.getAttribute("class") || "";
       add({
         kind: "button",
@@ -84,8 +95,8 @@ export async function screenInventory(page: Page): Promise<ScreenInventory> {
         hint: hintOf(el),
       });
     });
-    document.querySelectorAll("[role='tab']").forEach((el) => visible(el) && add({ kind: "tab", name: (el as HTMLElement).innerText, selected: el.getAttribute("aria-selected") === "true" }));
-    document.querySelectorAll("[role='menuitem']").forEach((el) => visible(el) && add({ kind: "menuitem", name: (el as HTMLElement).innerText, disabled: el.getAttribute("aria-disabled") === "true" || /disabled/.test(el.getAttribute("class") || "") }));
+    document.querySelectorAll("[role='tab']").forEach((el) => visible(el) && add({ kind: "tab", name: textOf(el), selected: el.getAttribute("aria-selected") === "true" }));
+    document.querySelectorAll("[role='menuitem']").forEach((el) => visible(el) && add({ kind: "menuitem", name: textOf(el), disabled: el.getAttribute("aria-disabled") === "true" || /disabled/.test(el.getAttribute("class") || "") }));
     document.querySelectorAll("a[href]").forEach((el) => {
       if (!visible(el) || el.closest("nav, aside, [class*='sider' i], [class*='sidebar' i]")) return;
       add({ kind: "link", name: (el as HTMLElement).innerText });

@@ -124,7 +124,7 @@ export interface ScreenCasesResult {
   rulesGiven: number;
   untestedRulesGiven: number;
   drafted: number;
-  saved: Array<{ id: string; title: string; grounded: string; coverage?: string; gaps?: string[] }>;
+  saved: Array<{ id: string; title: string; grounded: string; coverage?: string; gaps?: string[]; kind?: string; steps?: string[]; expected?: string; setup?: string; why?: string; caseText?: string; plan?: unknown; rule?: { id: string; cite: string; statement: string } }>;
   alreadyCovered: Array<{ title: string; by: string }>;
   dropped: Array<{ title: string; why: string }>;
 }
@@ -164,7 +164,16 @@ function onScreen(name: string, inv: ScreenInventory): boolean {
 
 export async function draftCasesFromScreen(
   inv: ScreenInventory,
-  opts: { max?: number; companyId?: number; save?: boolean; compile?: boolean; onLine?: (l: string) => void; seen?: Array<{ id: string; title: string }> } = {},
+  opts: {
+    max?: number;
+    companyId?: number;
+    save?: boolean;
+    compile?: boolean;
+    onLine?: (l: string) => void;
+    seen?: Array<{ id: string; title: string }>;
+    /** what the tester has told the platform (explore sessions) — followed over the model's guesses */
+    notes?: string[];
+  } = {},
 ): Promise<ScreenCasesResult> {
   const say = opts.onLine ?? (() => {});
   const max = opts.max ?? 8;
@@ -196,6 +205,7 @@ export async function draftCasesFromScreen(
     `RULES (from Procol's code; UNTESTED = no case covers it yet):\n${rules.map((r) => `- ${r.id} [${r.verdict === "not covered" ? "UNTESTED" : r.verdict}] ${r.statement.replace(/\s+/g, " ").slice(0, 260)}`).join("\n")}`,
     facts.length ? `PRODUCT FACTS:\n${facts.map((f) => `- ${f.text.replace(/\s+/g, " ").slice(0, 220)}`).join("\n")}` : "",
     existing.length ? `EXISTING CASES (do not repeat):\n${existing.map((e) => `- ${e.text.replace(/\s+/g, " ").slice(0, 140)}`).join("\n")}` : "",
+    opts.notes?.length ? `WHAT THE TESTER TOLD YOU (follow it):\n${opts.notes.map((n) => `- ${n}`).join("\n")}` : "",
   ].filter(Boolean).join("\n\n");
 
   const raw = await chat([{ role: "system", content: system }, { role: "user", content: user }], { tier: "fast", temperature: 0.2, maxTokens: 4000 });
@@ -260,7 +270,7 @@ export async function draftCasesFromScreen(
     let gaps: string[] = [];
     let uiPlan: unknown;
     if (opts.compile !== false) {
-      const c = await compileTestCase(caseText, "events", { tier: "fast", dryRun: true }).catch((e) => ({ coverage: "none" as const, gaps: [String((e as Error).message ?? e).slice(0, 160)], plan: undefined }));
+      const c = await compileTestCase(opts.notes?.length ? `${caseText} Tester's notes: ${opts.notes.join(" ")}` : caseText, "events", { tier: "fast", dryRun: true }).catch((e) => ({ coverage: "none" as const, gaps: [String((e as Error).message ?? e).slice(0, 160)], plan: undefined }));
       coverage = c.coverage;
       gaps = c.gaps ?? [];
       uiPlan = (c as { plan?: unknown }).plan;
@@ -284,7 +294,10 @@ export async function draftCasesFromScreen(
       companyId: opts.companyId,
     };
     const savedId = opts.save !== false ? (await saveDraft(record)).id : record.id;
-    out.saved.push({ id: savedId, title, grounded, coverage, gaps });
+    out.saved.push({
+      id: savedId, title, grounded, coverage, gaps, kind: d.kind, steps: record.steps, expected: record.expected, setup: record.setup, why: String(d.why ?? ""), caseText, plan: uiPlan,
+      ...(rule ? { rule: { id: rule.id, cite: `${rule.file ?? ""}${rule.lines?.length ? `:${rule.lines.join("-")}` : ""}`, statement: rule.statement } } : {}),
+    });
     opts.seen?.push({ id: savedId, title });
   }
   return out;
