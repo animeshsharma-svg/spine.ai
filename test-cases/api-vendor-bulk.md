@@ -732,21 +732,21 @@ Mails: `app/models/invitations.rb:125-140` (after_commit on an active invitation
 - **Oracle.** Job row error.
 - **Trace.** P2 · automate · `VBU-072` · `app/services/conversions/excel_to_json_conversion_service.rb:176; app/services/validations/vendor_bulk_upload_validation_service_v2.rb:92`
 
-#### API-XVBU-073 — PAN No. that is not a PAN is accepted (no format check — known gap)
-- **Why it matters.** The PR adds the column; its QA doc lists PAN format validation as out of scope. Pinned so a later change is noticed.
+#### API-XVBU-073 — PAN No. that is not a PAN is refused 'Invalid PAN No.'
+- **Why it matters.** PR 16267 @ab282ab7e3 added a PAN format check (AAAAA9999A) after the mandatory columns. This case pinned the old gap; it now checks the new rule.
 - **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-073.xlsx`.
 - **Steps.** 1. PAN No. = 'NOT-A-PAN'
-- **Expected.** Row failed 'Invalid Status' (PAN not validated).
+- **Expected.** Row failed 'Invalid PAN No.'.
 - **Oracle.** Job row error.
-- **Trace.** P2 · automate · `VBU-073` · `PR16267 app/controllers/concerns/utils.rb:905 (strip+upcase only, no format check); QA doc 'Out of scope'`
+- **Trace.** P2 · automate · `VBU-073` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:124-137 (verify_pan_no)`
 
-#### API-XVBU-074 — PAN No. that contradicts the GSTIN is accepted (no cross-check — known gap)
-- **Why it matters.** Characters 3-12 of a GSTIN are the PAN. A different PAN in the PAN column is stored side by side with it.
+#### API-XVBU-074 — PAN No. that contradicts the GSTIN is refused 'PAN No. does not match Tax No.'
+- **Why it matters.** Characters 3-12 of a GSTIN are the PAN. PR 16267 @ab282ab7e3 now refuses a PAN that differs from them (the recommendation this case pinned).
 - **Setup.** Data: creates nothing (every row stops in validation). Fixture: `procol test/fixtures/vendor-bulk-upload/VBU-074.xlsx`.
 - **Steps.** 1. Valid GST {{gst}}; PAN No. = ABCDE1234F
-- **Expected.** Row failed 'Invalid Status' today. Recommended: refuse 'PAN does not match GST'.
+- **Expected.** Row failed 'PAN No. does not match Tax No.'.
 - **Oracle.** Job row error.
-- **Trace.** P2 · automate · `VBU-074` · `PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:106-118 (PAN derived from GST under contactless); PR16267 app/controllers/concerns/utils.rb:905 (the PAN No. column then overwrites it)`
+- **Trace.** P2 · automate · `VBU-074` · `PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:133-135 (verify_pan_no)`
 
 #### API-XVBU-075 — A city that is not in the master (no tax number) does not become a random city
 - **Why it matters.** Old code: 'Invalid City Name'. QA doc A5: 'Success. Record created with no city'. The company builder defaults a missing city to id 38 ('-'). Status=rejected keeps the row mail-free if it is created.

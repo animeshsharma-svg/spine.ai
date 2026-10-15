@@ -54,8 +54,8 @@ data from row 4, as the backend reads it.
 | `VBU-070.xlsx` | VBU-070 | The tax error wins over a missing Company Name | safe |
 | `VBU-071.xlsx` | VBU-071 | A valid UK VAT number with Business Location United Kingdom passes | safe |
 | `VBU-072.xlsx` | VBU-072 | A Tax No. typed as a number cell is refused cleanly | safe |
-| `VBU-073.xlsx` | VBU-073 | PAN No. that is not a PAN is accepted (no format check — known gap) | safe |
-| `VBU-074.xlsx` | VBU-074 | PAN No. that contradicts the GSTIN is accepted (no cross-check — known gap) | safe |
+| `VBU-073.xlsx` | VBU-073 | PAN No. that is not a PAN is refused 'Invalid PAN No.' | safe |
+| `VBU-074.xlsx` | VBU-074 | PAN No. that contradicts the GSTIN is refused 'PAN No. does not match Tax No.' | safe |
 | `VBU-075.xlsx` | VBU-075 | A city that is not in the master (no tax number) does not become a random city | creates |
 | `VBU-076.xlsx` | VBU-076 | A one-letter city ('a') is not fuzzy-matched to some real city | creates |
 | `VBU-154.xlsx` | VBU-154 | A second vendor with the tax number of a 'no city' vendor does not crash the upload | creates |

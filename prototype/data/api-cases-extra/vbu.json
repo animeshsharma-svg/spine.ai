@@ -2174,7 +2174,7 @@
   {
     "id": "VBU-073",
     "feature": "vendorbulk.rows",
-    "title": "PAN No. that is not a PAN is accepted (no format check — known gap)",
+    "title": "PAN No. that is not a PAN is refused 'Invalid PAN No.'",
     "type": "Validation",
     "priority": "P2",
     "severity": "Low",
@@ -2182,10 +2182,10 @@
     "steps": [
       "PAN No. = 'NOT-A-PAN'"
     ],
-    "expectedResult": "Row failed 'Invalid Status' (PAN not validated). Rule: PR16267 app/controllers/concerns/utils.rb:905 (strip+upcase only, no format check); QA doc 'Out of scope'.",
-    "rationale": "The PR adds the column; its QA doc lists PAN format validation as out of scope. Pinned so a later change is noticed.",
+    "expectedResult": "Row failed 'Invalid PAN No.'. Rule: PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:124-137 (verify_pan_no).",
+    "rationale": "PR 16267 @ab282ab7e3 added a PAN format check (AAAAA9999A) after the mandatory columns. This case pinned the old gap; it now checks the new rule.",
     "qaDoc": [],
-    "rule": "PR16267 app/controllers/concerns/utils.rb:905 (strip+upcase only, no format check); QA doc 'Out of scope'",
+    "rule": "PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:124-137 (verify_pan_no)",
     "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
@@ -2201,7 +2201,7 @@
       "rows": [
         {
           "status": "failed",
-          "error": "Invalid Status"
+          "error": "Invalid PAN No."
         }
       ],
       "everyRow": false
@@ -2210,7 +2210,7 @@
   {
     "id": "VBU-074",
     "feature": "vendorbulk.rows",
-    "title": "PAN No. that contradicts the GSTIN is accepted (no cross-check — known gap)",
+    "title": "PAN No. that contradicts the GSTIN is refused 'PAN No. does not match Tax No.'",
     "type": "Validation",
     "priority": "P2",
     "severity": "Medium",
@@ -2218,10 +2218,10 @@
     "steps": [
       "Valid GST {{gst}}; PAN No. = ABCDE1234F"
     ],
-    "expectedResult": "Row failed 'Invalid Status' today. Recommended: refuse 'PAN does not match GST'. Rule: PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:106-118 (PAN derived from GST under contactless); PR16267 app/controllers/concerns/utils.rb:905 (the PAN No. column then overwrites it).",
-    "rationale": "Characters 3-12 of a GSTIN are the PAN. A different PAN in the PAN column is stored side by side with it.",
+    "expectedResult": "Row failed 'PAN No. does not match Tax No.'. Rule: PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:133-135 (verify_pan_no).",
+    "rationale": "Characters 3-12 of a GSTIN are the PAN. PR 16267 @ab282ab7e3 now refuses a PAN that differs from them (the recommendation this case pinned).",
     "qaDoc": [],
-    "rule": "PR16267 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:106-118 (PAN derived from GST under contactless); PR16267 app/controllers/concerns/utils.rb:905 (the PAN No. column then overwrites it)",
+    "rule": "PR16267 @ab282ab7e3 app/services/validations/vendor_bulk_upload_validation_service_v2.rb:133-135 (verify_pan_no)",
     "tier": "safe",
     "method": "POST",
     "path": "/v1/bulk_create_vendor",
@@ -2237,7 +2237,7 @@
       "rows": [
         {
           "status": "failed",
-          "error": "Invalid Status"
+          "error": "PAN No. does not match Tax No."
         }
       ],
       "everyRow": false
