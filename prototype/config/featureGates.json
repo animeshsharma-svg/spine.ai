@@ -2013,6 +2013,266 @@
         }
       ],
       "note": "Regression cases for workspaces where the GMMCO flags are OFF (e.g. PROCOL DEMO)."
+    },
+    "revalidation.access": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "QA API on rfx-uat-api only; config and refused-trigger cases need VR_QA_TOKEN (a Procol employee access-token). Cases decide for themselves whether the client's setting matters."
+    },
+    "revalidation.schedule": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Mechanics cases run on a silent config (no provider calls) and restore the original."
+    },
+    "revalidation.coverage": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Which vendors a run picks: link status, source referral/procol, active company."
+    },
+    "revalidation.values": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Where each document value is read from (form, company column, misc, extended field)."
+    },
+    "revalidation.documents": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Real provider calls on 1–2 named vendors per case."
+    },
+    "revalidation.provider": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Mostly dev-assisted (outages, breaker, deadline)."
+    },
+    "revalidation.status": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Final status precedence, error lines, history."
+    },
+    "revalidation.listing": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Read with the client's own session; compared with the database."
+    },
+    "revalidation.security": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "Access, masking, production guard, rollback."
+    },
+    "revalidation.audit": {
+      "gates": [
+        {
+          "kind": "company_config",
+          "key": "vendor_revalidation_config",
+          "on_when": "enabled_key_true",
+          "default": {},
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_revalidation_config' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:920-927 (vendor_revalidation_enabled? = onboarding v2 && config['enabled'] == true)",
+          "why": "Runs, the listing columns and the vendor page details exist only when the client's revalidation config is enabled",
+          "blocking": false
+        },
+        {
+          "kind": "company_config",
+          "key": "vendor_onboarding_version",
+          "on_when": "equals",
+          "expected": "v2",
+          "default": null,
+          "sql": "WITH c AS (SELECT modifications->'value' AS v FROM custom_configurations WHERE company_id = $1 AND item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_onboarding_version' AND status = 1 ORDER BY id DESC LIMIT 1), m AS (SELECT defaults->'value' AS v FROM master_configurations WHERE item_type = 1 AND status = 1 AND config_key = 'vendor_onboarding_version' AND (company_id = $1 OR company_id IS NULL) ORDER BY company_id NULLS LAST, id DESC LIMIT 1) SELECT CASE WHEN EXISTS (SELECT 1 FROM c) THEN (SELECT v FROM c) ELSE (SELECT v FROM m) END AS value, CASE WHEN EXISTS (SELECT 1 FROM c) THEN 'custom_configurations' WHEN EXISTS (SELECT 1 FROM m) THEN 'master_configurations' ELSE 'not configured' END AS source",
+          "source": "procol-backend rfx-uat-main app/models/company.rb:925-927",
+          "why": "Revalidation reads the onboarding v2 form and is off for clients on any other version",
+          "blocking": false
+        }
+      ],
+      "note": "SELECT-only checks of the runs already recorded."
     }
   }
 }

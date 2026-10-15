@@ -13,7 +13,7 @@ const GROUP_ICON = {
   intake: "notebook-pen", pr: "receipt", events: "clipboard-list", erfx: "map", eventfeatures: "puzzle",
   auction: "gavel", bids: "coins", evaluation: "chart-column", negotiation: "handshake", award: "trophy",
   po: "file-text", p2p: "truck", finance: "landmark", masterdata: "folder-open", users: "users",
-  vendors: "factory", vendorbulk: "upload", platform: "settings",
+  vendors: "factory", vendorbulk: "upload", revalidation: "refresh-cw", platform: "settings",
 };
 const groupIco = (g) => ico(GROUP_ICON[g.id] ?? "circle-dashed");
 const AGENT_ICON = {

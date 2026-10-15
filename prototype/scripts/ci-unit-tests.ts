@@ -810,3 +810,48 @@ describe("planted bugs land on the call the case is decided on", () => {
     assert.equal(M.precisionReal(t).value, 0.5); // A ÷ (A + C)
   });
 });
+
+// ── vendor revalidation: the engine's own date and id rules, re-implemented
+// so cases can set start dates relative to "today" (src/checks/revalidation.ts)
+import * as R from "../src/checks/revalidation.js";
+describe("vendor revalidation helpers mirror the engine", () => {
+  test("run id is uuid v5 of procol://vendor_revalidation/<client>/<date> (the recorded GMMCO run)", () => {
+    assert.equal(R.runIdFor(47053, "2026-10-14"), "4b565254-48c3-5d5f-8c0d-712023eedb80");
+  });
+  test("Ruby Date#>> clamps to the month's last day", () => {
+    assert.equal(R.addMonths("2026-10-31", 1), "2026-11-30");
+    assert.equal(R.addMonths("2026-01-31", 1), "2026-02-28");
+    assert.equal(R.addMonths("2024-01-31", 1), "2024-02-29");
+    assert.equal(R.addMonths("2026-03-15", -12), "2025-03-15");
+  });
+  test("SchedulerWorker.due_dates: cycles, 2-day catch-up, one_time", () => {
+    assert.deepEqual(R.dueDates("quarterly", "2026-10-15", "2026-10-15"), ["2026-10-15"]);
+    assert.deepEqual(R.dueDates("quarterly", "2026-07-15", "2026-10-16"), ["2026-10-15"]);
+    assert.deepEqual(R.dueDates("quarterly", "2026-07-12", "2026-10-15"), []);
+    assert.deepEqual(R.dueDates("quarterly", "2026-08-15", "2026-10-15"), []);
+    assert.deepEqual(R.dueDates("monthly", "2026-08-31", "2026-10-01"), ["2026-09-30"]);
+    assert.deepEqual(R.dueDates("one_time", "2026-10-15", "2026-10-17"), ["2026-10-15"]);
+    assert.deepEqual(R.dueDates("one_time", "2026-10-15", "2026-10-18"), []);
+    assert.deepEqual(R.dueDates("weekly", "2026-10-15", "2026-10-15"), []);
+  });
+  test("IST date turns at 18:30 UTC", () => {
+    assert.equal(R.todayIST(Date.parse("2026-10-15T18:29:00Z")), "2026-10-15");
+    assert.equal(R.todayIST(Date.parse("2026-10-15T18:31:00Z")), "2026-10-16");
+  });
+  test("final status: failed > system_error > passed > skipped; no rows → skipped", () => {
+    assert.equal(R.precedence(["passed", "system_error", "skipped"]), "system_error");
+    assert.equal(R.precedence(["system_error", "failed"]), "failed");
+    assert.equal(R.precedence(["skipped", "passed"]), "passed");
+    assert.equal(R.precedence([]), "skipped");
+  });
+  test("an error line is '<DOC> <value>: <message>'", () => {
+    assert.equal(R.errorLine({ doc: "gst", value: "27ABCDE1234F1Z5", error: "GST input is incorrect" } as R.Row), "GST 27ABCDE1234F1Z5: GST input is incorrect");
+  });
+  test("no case is left without a runner or a reason", () => {
+    const cases = JSON.parse(readFileSync(join(import.meta.dirname, "..", "data", "api-cases-extra", "revalidation.json"), "utf8"));
+    const orphans = cases.filter((c: any) => ["read", "audit", "listing", "config", "run"].includes(c.reval.tier) && !R.REVAL_SCENARIOS.includes(c.reval.key));
+    assert.deepEqual(orphans.map((c: any) => c.id), []);
+    const silent = cases.filter((c: any) => !["read", "audit", "listing", "config", "run"].includes(c.reval.tier) && !c.reval.why);
+    assert.deepEqual(silent.map((c: any) => c.id), []);
+  });
+});

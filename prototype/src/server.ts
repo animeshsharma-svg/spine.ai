@@ -1616,7 +1616,7 @@ const server = createServer(async (req, res) => {
           // Vendor bulk upload cases gate themselves on the workspace's own
           // settings (vbuSkipReason); reading their preconditions here as well
           // judged vendor_onboarding_version = "v2" as OFF and skipped VBU-122.
-          const rule = companyCfg.loaded && !byId.get(chk.id)?.bulk
+          const rule = companyCfg.loaded && !byId.get(chk.id)?.bulk && !byId.get(chk.id)?.reval
             ? configRequirementOf(byId.get(chk.id)?.preconditions, companyCfg.flags)
             : null;
           if (rule) {
