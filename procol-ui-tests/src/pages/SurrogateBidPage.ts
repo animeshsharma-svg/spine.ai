@@ -2,6 +2,7 @@ import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { fillSheetPrices } from "../support/sheet.js";
 import { TIMEOUTS } from "../config.js";
+import { roundNow, cannotTakeBid } from "../db/pickEvent.js";
 
 /**
  * Surrogate bidding — the buyer entering a bid on a vendor's behalf.
@@ -64,6 +65,19 @@ export class SurrogateBidPage extends BasePage {
       `[surrogate] on ${p.url()} · tabs: ${(await p.getByRole("tab").allTextContents()).map((t) => t.trim()).join(", ")}`,
     );
 
+    // A surrogate bid is entered on the PRICING round. An event opens on
+    // whichever stage tab it opens on — once a withdrawn Technical Stage, whose
+    // Participants list had no vendors and no Add Bid — so go to the RFQ /
+    // auction tab first, skipping any marked Withdrawn.
+    const pricing = p.getByRole("tab").filter({ hasText: /\b(rfq|auction)\b/i }).filter({ hasNotText: /withdrawn|commercials/i }).first();
+    if ((await pricing.count()) && (await pricing.getAttribute("aria-selected").catch(() => null)) !== "true") {
+      const label = ((await pricing.textContent().catch(() => "")) ?? "").trim();
+      await pricing.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await p.getByTestId("event-settings-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+      await this.dismissDistractions();
+      console.log(`[surrogate] went to the pricing round's tab (${label}) — surrogate bids are entered there`);
+    }
+
     const found = async () =>
       (await p.getByTestId("add-bid-button").count()) > 0 ||
       (await p.getByRole("tab", { name: /participants/i }).count()) > 0;
@@ -110,9 +124,37 @@ export class SurrogateBidPage extends BasePage {
       .then(() => true)
       .catch(() => false);
     await this.dismissDistractions();
+    // Only the event's own vendors: the full list pages through every company
+    // the buyer deals with, and Add Bid appears only on the event's vendors.
+    if (arrived) {
+      const sw = p.getByText(/show only selected vendors/i).first().locator("xpath=following::*[@role='switch'][1]");
+      if ((await sw.count().catch(() => 0)) && (await sw.getAttribute("aria-checked").catch(() => null)) !== "true") {
+        await sw.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await p.getByTestId("add-bid-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).catch(() => {});
+        console.log("[surrogate] showing only the event's own vendors");
+      }
+    }
     const count = await p.getByTestId("add-bid-button").count();
     console.log(`[surrogate] participant list ${arrived ? "open" : "not found"} · ${count} vendor(s) offer Add Bid on this page`);
     return arrived || count > 0;
+  }
+
+  /** Can this event take a surrogate bid right now? Opens its pricing round's participant list to find out. */
+  async canAddBid(title?: string): Promise<{ ok: boolean; why: string }> {
+    if (!(await this.openParticipants())) return { ok: false, why: "its participant list could not be opened" };
+    const n = await this.page.getByTestId("add-bid-button").count();
+    if (n) return { ok: true, why: `Add Bid is offered for ${n} of its vendors` };
+    // The screen only shows that no Add Bid is offered; the database says why.
+    const r = title ? await roundNow(title) : null;
+    const why = r && cannotTakeBid(r);
+    return {
+      ok: false,
+      why: why
+        ? `no vendor is offered Add Bid — ${why}`
+        : r
+          ? `none of its ${r.invited} invited vendors is offered Add Bid, though its RFQ round is open until ${r.endsAt}`
+          : "no vendor on its RFQ round is offered Add Bid",
+    };
   }
 
   /**

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { suggestedAudience, vendorLoginsByName, QA_LOGIN, type SuggestedVendor } from "./eventVendors.js";
 import { pathToFileURL } from "node:url";
 
 import { isTokenClient } from "../../config/tokenClients.js";
@@ -159,11 +160,72 @@ export interface JourneyRunOptions {
    * acts as the first vendor.
    */
   alsoInvite?: string[];
+  /**
+   * Vendors that bid after the first, in order (QA vendors with a login).
+   * Each has its own switch_vendor step, then signs in and bids for itself;
+   * all of them are invited.
+   */
+  extraBidders?: Array<{ companyUuid: string; email: string; name: string }>;
+  /**
+   * Invite Procol's own suggested vendors for the product (the list the create
+   * screen pre-fills) and bid as the first of them who can sign in — never a
+   * QA test vendor (eventVendors.ts). Off: the QA vendors, as before.
+   */
+  eventVendors?: boolean;
 }
 
-/** Who the rounds and the publish go to: the bidding vendor first, then any extra invitees. */
+/** Who the rounds and the publish go to: the bidding vendor first, then any extra invitees and bidders. */
 function audienceOf(j: Journey): string[] {
-  return [j.vendorCompanyUuid, ...(j.opts.alsoInvite ?? []).filter((u) => u && u !== j.vendorCompanyUuid)];
+  if (j.audience) return j.audience;
+  const first = j.firstVendor?.vendorCompanyUuid ?? j.vendorCompanyUuid;
+  const rest = [...(j.opts.alsoInvite ?? []), ...(j.opts.extraBidders ?? []).map((b) => b.companyUuid)];
+  return [first, ...rest.filter((u, i) => u && u !== first && rest.indexOf(u) === i)];
+}
+
+/** More than the bidding vendor is invited. */
+const widerAudience = (j: Journey): boolean => !!(j.audience || j.opts.alsoInvite?.length || j.opts.extraBidders?.length);
+
+/**
+ * Procol's suggested vendors for the event's product, read once, before the
+ * first round is attached: all of them are invited, and the first who can
+ * sign in bid (as many as the plan's bidders). Says who was invited and who
+ * bids, because every invited vendor gets Procol's email.
+ */
+async function ensureEventVendors(j: Journey): Promise<void> {
+  if (!j.opts.eventVendors || j.audience) return;
+  const want = Math.max(1, j.plan.features.bidders ?? 1);
+  try {
+    const suggested = await withWatchdog(suggestedAudience(j.client.ctx.buyerApi, [j.catalog.productUuid]), 30_000, "reading the vendors Procol suggests");
+    const logins = j.companyId ? await withWatchdog(vendorLoginsByName(j.companyId), 30_000, "finding which vendors can sign in") : new Map<string, string>();
+    const bidders = suggested
+      .map((v) => ({ v, email: logins.get(v.name.toLowerCase()) }))
+      .filter((x): x is { v: SuggestedVendor; email: string } => !!x.email && !QA_LOGIN.test(x.email))
+      .slice(0, want);
+    j.audience = suggested.map((v) => v.uuid);
+    if (bidders.length) {
+      j.vendorCompanyUuid = bidders[0].v.uuid;
+      j.catalog.vendorBidCompanyUuid = bidders[0].v.uuid;
+      j.vendorName = bidders[0].v.name;
+      j.vendorEmail = bidders[0].email;
+      j.opts.extraBidders = bidders.slice(1).map((b) => ({ companyUuid: b.v.uuid, email: b.email, name: b.v.name }));
+    } else {
+      j.vendorCompanyUuid = "";
+      j.noBidder = suggested.length
+        ? `none of the ${suggested.length} vendors Procol suggests for this product has a user who can sign in to bid`
+        : "Procol suggests no vendors for this product, so nobody is invited to bid";
+    }
+    j.opts.onLine?.(
+      `Invited the ${suggested.length} vendor${suggested.length === 1 ? "" : "s"} Procol suggests for this product — each gets Procol's invitation email. ` +
+        (bidders.length
+          ? `Bidding as ${bidders.map((b) => `${b.v.name} (${b.email})`).join(", ")}${bidders.length < want ? ` — asked for ${want}, only ${bidders.length} of them can sign in` : ""}.`
+          : "Nobody bids: " + j.noBidder + "."),
+    );
+  } catch (e) {
+    j.audience = [];
+    j.vendorCompanyUuid = "";
+    j.noBidder = `the vendors Procol suggests could not be read (${clean(e instanceof Error ? e.message : String(e))})`;
+    j.opts.onLine?.(`Nobody was invited: ${j.noBidder}.`);
+  }
 }
 
 export interface JourneyRunResult {
@@ -298,6 +360,21 @@ interface Journey {
   vendorName: string;
   /** the vendor's login email — changes with the vendor choice */
   vendorEmail?: string;
+  /** 0 while the first vendor acts; k while the (k+1)th vendor bids (opts.extraBidders) */
+  bidderIndex: number;
+  /** everyone invited, when the audience is Procol's suggestion (opts.eventVendors) */
+  audience?: string[];
+  /** why no vendor bids, when none of the invited can sign in */
+  noBidder?: string;
+  /** the first vendor, kept while the others bid, and restored before the next non-vendor step */
+  firstVendor?: {
+    vendorCompanyUuid: string;
+    vendorName: string;
+    vendorEmail?: string;
+    vendorApi?: any;
+    made: Record<string, string | undefined>;
+    bidTotal?: number;
+  };
   qty: number;
   unit: string;
   price: number;
@@ -765,6 +842,7 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
     needs: async (j, ev, done) => {
       const base = first(needBuyer(j, done), needDraft(j, ev, done));
       if (base) return base;
+      await ensureEventVendors(j);
       if (kind === "add_stage_rfp") {
         await ensureEvaluator(j);
         if (!j.evaluator) return j.evaluatorProblem ?? `no one at ${j.company} could be named as the evaluator`;
@@ -805,7 +883,7 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
               rfxMode: sk === "auction" ? "auction" : "rfq",
               ...(j.opts.deliveryInDays ? { deliveryBy: ev.timing.bst + Math.round(j.opts.deliveryInDays * 86_400) } : {}),
             });
-      if (j.vendorCompanyUuid && j.opts.alsoInvite?.length) (body as any).audience_company_uuids = audienceOf(j);
+      if (j.audience || (j.vendorCompanyUuid && widerAudience(j))) (body as any).audience_company_uuids = audienceOf(j);
       const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.createTrade(), body);
       if (!reply.ok) return { call, reply };
       const uuid = reply.data?.uuid;
@@ -824,9 +902,10 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
 
 const publish: StepSpec = {
   kind: "publish",
-  needs: (j, ev, done) => {
+  needs: async (j, ev, done) => {
     const base = first(needBuyer(j, done), needDraft(j, ev, done));
     if (base) return base;
+    await ensureEventVendors(j);
     for (const sk of j.plan.stages) {
       if (!ev.trades.some((t) => t.kind === sk)) {
         return `the ${STAGE_LABEL[sk]} was never attached (${because(j, done, sk === "rfp" ? "add_stage_rfp" : "add_stage_pricing")})`;
@@ -846,9 +925,13 @@ const publish: StepSpec = {
         vendorCompanyUuid: j.vendorCompanyUuid,
       }),
       draft_trade_request_uuids: uuids,
-      // No QA vendor: publish to nobody rather than to a real supplier or a blank id.
-      ...(j.vendorCompanyUuid ? {} : { audience_company_uuids: [] }),
-      ...(j.vendorCompanyUuid && j.opts.alsoInvite?.length ? { audience_company_uuids: audienceOf(j) } : {}),
+      // Procol's suggested vendors (eventVendors), else the QA vendor(s); with
+      // neither, publish to nobody rather than to a blank id.
+      ...(j.audience
+        ? { audience_company_uuids: j.audience }
+        : j.vendorCompanyUuid
+          ? widerAudience(j) ? { audience_company_uuids: audienceOf(j) } : {}
+          : { audience_company_uuids: [] }),
     };
     const { call, reply } = await fire(j.client.ctx.buyerApi, "PATCH", j.s.Endpoints.eventGroup(ev.eventGroupUuid!), body);
     if (!reply.ok) return { call, reply };
@@ -1646,6 +1729,74 @@ const version: StepSpec = {
   },
 };
 
+/**
+ * The next vendor bids: the first vendor's session and ids are kept aside,
+ * and the vendor steps that follow sign in and bid as this one. Every step
+ * after the last vendor's turn acts as the first vendor again
+ * (restoreFirstVendor), so a counter offer or an award is on the first bid.
+ */
+const switchVendor: StepSpec = {
+  kind: "switch_vendor",
+  needs: (j) =>
+    j.opts.extraBidders?.[j.bidderIndex]
+      ? undefined
+      : `no other QA vendor with a login was found to bid as vendor ${j.bidderIndex + 2} — this workspace has ${1 + (j.opts.extraBidders?.length ?? 0)} to bid as`,
+  expected: (j) => {
+    const next = j.opts.extraBidders?.[j.bidderIndex];
+    return next ? `The next bid is placed as ${next.name} (${next.email}), vendor ${j.bidderIndex + 2} on the event.` : "The next invited vendor bids.";
+  },
+  run: async (j) => {
+    const started = Date.now();
+    const next = j.opts.extraBidders![j.bidderIndex];
+    if (!j.firstVendor) {
+      j.firstVendor = {
+        vendorCompanyUuid: j.vendorCompanyUuid,
+        vendorName: j.vendorName,
+        vendorEmail: j.vendorEmail,
+        vendorApi: j.actors.vendorApi,
+        made: { bidUuid: j.made.bidUuid, templateResponseUuid: j.made.templateResponseUuid, vendorUserUuid: j.made.vendorUserUuid, vendorCompanyUuid: j.made.vendorCompanyUuid },
+        bidTotal: j.bidTotal,
+      };
+    } else {
+      if (j.made.bidUuid) j.made[`bidUuidVendor${j.bidderIndex + 1}`] = j.made.bidUuid;
+      if (j.actors.vendorApi) await withWatchdog(Promise.resolve(j.actors.vendorApi.dispose?.()), 10_000, "closing the last vendor's session").catch(() => {});
+    }
+    const was = j.vendorName;
+    j.actors.vendorApi = undefined;
+    j.bidderIndex++;
+    j.vendorCompanyUuid = next.companyUuid;
+    j.vendorName = next.name;
+    j.vendorEmail = next.email;
+    delete j.made.bidUuid;
+    delete j.made.templateResponseUuid;
+    j.bidTotal = undefined;
+    return { ms: Date.now() - started, actual: `${was} has had its turn; the next bid is placed as ${next.name} (${next.email}).` };
+  },
+};
+
+/** After the other vendors' bids: back to the first vendor, its session and its bid. */
+function restoreFirstVendor(j: Journey): void {
+  const f = j.firstVendor;
+  if (!f) return;
+  if (j.made.bidUuid) j.made[`bidUuidVendor${j.bidderIndex + 1}`] = j.made.bidUuid;
+  const current = j.actors.vendorApi;
+  if (current && current !== f.vendorApi) void Promise.resolve(current.dispose?.()).catch(() => {});
+  j.actors.vendorApi = f.vendorApi;
+  j.vendorCompanyUuid = f.vendorCompanyUuid;
+  j.vendorName = f.vendorName;
+  j.vendorEmail = f.vendorEmail;
+  for (const [k, v] of Object.entries(f.made)) {
+    if (v === undefined) delete j.made[k];
+    else j.made[k] = v;
+  }
+  j.bidTotal = f.bidTotal;
+  j.firstVendor = undefined;
+  j.bidderIndex = 0;
+}
+
+/** The steps a vendor takes on its own turn; anything else acts as the first vendor. */
+const VENDOR_TURN = new Set<StepKind>(["switch_vendor", "vendor_login", "vendor_open_pricing", "vendor_open_technical", "tech_start", "tech_answer", "tech_submit", "bid_create", "bid_products", "bid_submit"]);
+
 const SPECS: Record<StepKind, StepSpec> = {
   buyer_login: buyerLogin,
   create_draft: createDraft,
@@ -1662,6 +1813,7 @@ const SPECS: Record<StepKind, StepSpec> = {
   bid_create: bidCreate,
   bid_products: bidProducts,
   bid_submit: bidSubmit,
+  switch_vendor: switchVendor,
   surrogate_tech: surrogateTech,
   surrogate_rfq: surrogateRfq,
   counter_offer: counterOffer,
@@ -1756,7 +1908,7 @@ async function performStep(j: Journey, spec: StepSpec, n: number, ev: EventBuild
     // No QA test vendor on this client: real suppliers are never used instead,
     // so every step acted by the vendor is not run — said, not faked.
     reason = STEP_META[spec.kind].actor === "vendor" && !j.vendorCompanyUuid
-      ? `this client has no QA test vendor, and real suppliers are never invited — ${j.client.ctx.noQaVendor ?? "create QA vendors for it first"}`
+      ? j.noBidder ?? `this client has no QA test vendor, and real suppliers are never invited — ${j.client.ctx.noQaVendor ?? "create QA vendors for it first"}`
       : await spec.needs(j, ev, done);
   } catch (e) {
     reason = `working out what this step needs failed: ${clean(e instanceof Error ? e.message : String(e))}`;
@@ -2116,6 +2268,8 @@ async function walk(j: Journey, kinds: StepKind[], ev0: EventBuild, out: Journey
     }
     if (wo.mode === "journey" && isStage(kind) && !j.closeTimes.length) j.closeTimes.push(ev.timing.ect);
     if (STEP_CHOICES[kind] && !j.altsLoaded) await ensureAlternatives(j);
+    // The other vendors have bid: every later step acts as the first vendor again.
+    if (j.firstVendor && !VENDOR_TURN.has(kind)) restoreFirstVendor(j);
 
     // ── run, retrying the same request on an environment failure ──
     let rec: JourneyStepRecord;
@@ -2141,7 +2295,10 @@ async function walk(j: Journey, kinds: StepKind[], ev0: EventBuild, out: Journey
     }
 
     // ── a choice that does not fit: try the next option, going back if it was made earlier ──
-    if (c?.choice && (c.cls === "data-choice" || c.cls === "timing")) {
+    // Not while another vendor has its turn: its failing sign-in or bid is that
+    // vendor's result, and rebuilding the event would undo the first vendor's bid.
+    // Nor, with the event's own vendors, a "next vendor" — the alternatives are QA vendors.
+    if (c?.choice && (c.cls === "data-choice" || c.cls === "timing") && !j.firstVendor && !(c.choice === "vendor" && j.opts.eventVendors)) {
       const choice = c.choice;
       const origin = backtrackOrigin(kinds, i, choice);
       const fromValue = choiceLabel(j, choice);
@@ -2216,6 +2373,9 @@ async function walk(j: Journey, kinds: StepKind[], ev0: EventBuild, out: Journey
     wo.emit?.(rec);
     i++;
   }
+  // A journey that ends on another vendor's turn hands back the first vendor's
+  // session and bid: what follows (the integrity read, the cases) acts as it.
+  restoreFirstVendor(j);
   return ev;
 }
 
@@ -2387,6 +2547,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     vendorCompanyUuid: ctx.vendor?.uuid ?? cat.vendorBidCompanyUuid ?? "",
     vendorName: ctx.vendor?.name ?? "the vendor",
     vendorEmail: ctx.vendor?.email,
+    bidderIndex: 0,
     qty: Number(testData.quantityValue) || 50,
     unit: testData.quantityUnit ?? "KG",
     price: Number(testData.bidPrice) || 100,

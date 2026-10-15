@@ -16,9 +16,22 @@ function db(): Pool {
   if (!pool) {
     const connectionString = process.env.DATABASE_URL?.trim();
     if (!connectionString) throw new Error("DATABASE_URL not set (copy from ../procol test/.env)");
-    pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false }, max: 3 });
+    // Bounded: on 2026-10-14 Procol's UAT database accepted connections but
+    // never finished the login for a few minutes, and a run with no limit here
+    // sat on "starting the browser" with nothing said, then died. 20 s to
+    // connect, 30 s per query; the caller is told why in plain words.
+    pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false }, max: 3, connectionTimeoutMillis: 20_000, query_timeout: 30_000 });
+    pool.on("error", (e) => console.warn(`[db] idle connection dropped: ${e.message}`));
   }
   return pool;
+}
+
+/** A database stall, said as one: the run cannot read a saved session to sign in with. */
+function plainDbError(e: unknown): Error {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /timeout|timed out|ECONNREFUSED|ETIMEDOUT|terminated/i.test(msg)
+    ? new Error(`Procol's database did not answer (${msg.split("\n")[0]}), so the run could not read a saved session to sign in with. It is usually a short stall on Procol's side — run it again in a minute.`)
+    : e instanceof Error ? e : new Error(msg);
 }
 
 export async function closeDb(): Promise<void> {
@@ -57,6 +70,14 @@ function buildAccessToken(sessionAccessToken: string): string {
  * companies are operated by a user in a parent/support company).
  */
 export async function resolveCompanyLogin(companyId: number): Promise<CompanyLogin | null> {
+  try {
+    return await resolveCompanyLoginRaw(companyId);
+  } catch (e) {
+    throw plainDbError(e);
+  }
+}
+
+async function resolveCompanyLoginRaw(companyId: number): Promise<CompanyLogin | null> {
   const direct = await db().query(
     `select u.id, u.phone, s.access_token, s.app_version
      from sessions s join users u on u.id = s.user_id
@@ -67,13 +88,19 @@ export async function resolveCompanyLogin(companyId: number): Promise<CompanyLog
   let row = direct.rows[0];
   let viaOperator = false;
   if (!row) {
+    // The operator who actually works in this company — the one who made the
+    // most of its events — then their newest usable session. Ordering by the
+    // newest session alone picked whoever signed in last: on 14 Oct that was
+    // an operator with 3 events here (Procol Support has 20,000+), whose
+    // sign-in shows his own company, so the run saw Live 0 / History 0 /
+    // Drafts 0 and could find no event at all.
     const op = await db().query(
       `select u.id, u.phone, s.access_token, s.app_version
-       from trade_requests tr
+       from (select user_id, count(*) as made from trade_requests where company_id = $1 group by user_id) tr
        join users u on u.id = tr.user_id
        join sessions s on s.user_id = u.id
-       where tr.company_id = $1 and ${CONSOLE_SESSION}
-       order by s.created_at desc limit 1`,
+       where ${CONSOLE_SESSION}
+       order by tr.made desc, s.created_at desc limit 1`,
       [companyId],
     );
     row = op.rows[0];

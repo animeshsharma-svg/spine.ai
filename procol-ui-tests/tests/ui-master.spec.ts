@@ -13,6 +13,8 @@ import { judge } from "../src/oracle/oracle.js";
 import { FINDINGS_DIR, recordFinding, runId } from "../src/oracle/findings.js";
 import { Watchdog } from "../src/support/watchdog.js";
 import { BasePage } from "../src/pages/BasePage.js";
+import { startLiveFrames } from "../src/support/liveCursor.js";
+import { orchestrate } from "../src/support/orchestrator.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -150,21 +152,17 @@ for (const mod of REGISTRY) {
   test(`${mod.key} — ${mod.title}`, async ({ page }) => {
     const g = mod.enabledFor(config);
     test.skip(!g.enabled, `disabled for ${companyId ?? CONFIG.name}: ${g.reason}`);
+    // Pop-ups are closed by one watcher in the page from the first screen on (support/orchestrator.ts).
+    await orchestrate(page);
 
     // Live frames for the dashboard's split view — the same "[frame] <jpeg>"
     // lines plan.spec.ts prints, so a journey shows its browser beside its
     // steps the way a typed test case does. Only when the dashboard asks
     // (UI_LIVE_FRAMES=1); started before sign-in so an on-screen login is seen.
     if (process.env.UI_LIVE_FRAMES === "1") {
-      const frameTimer = setInterval(async () => {
-        try {
-          const buf = await page.screenshot({ type: "jpeg", quality: 40 });
-          console.log(`[frame] ${buf.toString("base64")}`);
-        } catch {
-          // Mid-navigation or closing — skip this tick.
-        }
-      }, 800);
-      page.on("close", () => clearInterval(frameTimer));
+      // Plus one each time the pointer lands on an element before an action
+      // (liveCursor.ts); the feed stops when the page closes.
+      startLiveFrames(page);
     }
 
     // Sign in. On screen when asked (UI_SHOW_LOGIN=1 — the dashboard's

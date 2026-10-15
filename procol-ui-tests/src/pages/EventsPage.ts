@@ -102,8 +102,22 @@ export class EventsPage extends BasePage {
    * and fall back to the direct URL. Navigating by URL is exactly what the
    * single-stage flow already does reliably, so this can't be worse.
    */
-  async startCreate(path: CreatePath): Promise<void> {
+  async startCreate(path: CreatePath, opts: { direct?: boolean } = {}): Promise<void> {
     await this.dismissDistractions();
+
+    // A plan only needs to BE on the create screen, so it goes by address
+    // first. The menu below is tried when the address does not land there.
+    // In the RFQ journey's trace the menu path spent ~15 s (the chevron 5 s,
+    // the menu 5 s, the trigger) and then went by address anyway.
+    if (opts.direct) {
+      await this.page.goto(this.createUrl(path), NAV).catch(() => {});
+      await this.page.waitForLoadState("domcontentloaded").catch(() => {});
+      if (await this.onCreateScreen()) {
+        await this.dismissDistractions();
+        return;
+      }
+      await this.goto();
+    }
 
     // 1) Prefer the chevron, which is what actually opens the path menu.
     const chevron = this.page
@@ -312,6 +326,144 @@ export class EventsPage extends BasePage {
     await this.page.waitForURL((u) => /\/(project|orders)\/[^/]+/.test(u.pathname) && !/quick-create/.test(u.pathname), { timeout: TIMEOUTS.LONG });
     await this.dismissDistractions();
     return new URL(this.page.url()).pathname;
+  }
+
+  /**
+   * Pick the event a test case needs from the Live list itself, the way a
+   * tester would — read the cards on screen and click the one that fits. No
+   * search, and no event fixed in advance.
+   *
+   *   need "bids" (Master QCS, awarding, counter offers): Live › In - Evaluation,
+   *     the events whose quotes are waiting to be evaluated. A card that says
+   *     "Evaluate RFQ Commercials N" (N ≥ 1) has quotes to award; one with no
+   *     technical review pending ("TR pending") is preferred.
+   *   need "live" (placing a bid): Live › Live, an event still taking quotes
+   *     ("Ends in …" on its RFQ round).
+   *
+   * Newest first among equals (the list's own order). Throws, saying what the
+   * list showed, when no card fits.
+   */
+  /**
+   * exclude: titles already tried for this case and found not to fit (runPlan's open_event).
+   * vet: a check made before a card is clicked (the database's view of its
+   * round). With one, the database judges every card and the card's own
+   * reading only orders them: a countdown read "bidding over" on a round with
+   * half an hour left, and "open" on rounds that had closed. A card it turns
+   * down is passed over, and onSkip hears why.
+   */
+  async pickFromLive(
+    need: "bids" | "live",
+    exclude: string[] = [],
+    vet?: (title: string) => Promise<{ ok: boolean; why: string } | null>,
+    onSkip?: (title: string, why: string) => void,
+  ): Promise<{ title: string; why: string; where: string }> {
+    // The whole Live tab (all stages): an RFQ whose bidding time ran out can
+    // stay "in progress" rather than move to In - Evaluation — the event with
+    // two bids that an award case needed was not under In - Evaluation at all.
+    await this.goto();
+    await this.openTab("Live").catch(() => "");
+    // UAT's list can take most of a minute to fill on a slow day.
+    const cardsShown = await this.page
+      .waitForFunction(() => /RFX-\d+/.test(document.body.innerText), null, { timeout: 60_000 })
+      .then(() => true)
+      .catch(() => false);
+    const where = "the Live events list";
+    if (!cardsShown) throw new Error(`the ${where} list showed no events within a minute`);
+    await this.page.waitForTimeout(800);
+
+    type Card = { title: string; text: string; score: number; why: string; i: number; bids: number; trPending: boolean; ended: boolean };
+    const cards: Card[] = await this.page.evaluate((need) => {
+      const els = Array.from(document.querySelectorAll("body *")) as HTMLElement[];
+      const refs = (el: HTMLElement) => ((el.innerText || "").match(/RFX-\d+/g) || []).length;
+      // A card: from each event's RFX number, the widest box that still holds
+      // only that one event — and never the page around a list of one.
+      const boxes: HTMLElement[] = [];
+      // Each RFX number as written on screen: the element right around its text.
+      const leaves: HTMLElement[] = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (/RFX-\d+/.test(n.nodeValue || "") && n.parentElement && !leaves.includes(n.parentElement)) leaves.push(n.parentElement);
+      }
+      for (const leaf of leaves) {
+        let box: HTMLElement = leaf;
+        while (box.parentElement && refs(box.parentElement) === 1 && !/Search Title|Create Event/i.test(box.parentElement.innerText || "")) box = box.parentElement;
+        if (!boxes.includes(box)) boxes.push(box);
+      }
+      for (const el of Array.from(document.querySelectorAll("[data-spine-pick]"))) el.removeAttribute("data-spine-pick");
+      return boxes.map((box, i) => {
+        const lines = (box.innerText || "").split("\n").map((l) => l.trim()).filter(Boolean);
+        const at = lines.findIndex((l) => /^\d+\s+items?$/i.test(l));
+        const title = (at >= 0 ? lines[at + 1] : lines.find((l) => !/^(RFX-\d+|•|Procol Support)$/.test(l) && l.length > 3)) || "";
+        const text = lines.join(" · ");
+        // "1/161" on a round is 1 bid in from 161 invited vendors — the bids the
+        // event really has. (The number on a "TR pending" or "Evaluate RFQ
+        // Commercials" chip counts tasks, not bids: an event showing
+        // "Evaluate RFQ Commercials 4" had "No bids are placed yet!" in Master QCS.)
+        const bids = Math.max(0, ...Array.from(text.matchAll(/(?:^|[\s·])(\d+)\s*\/\s*(\d+)(?=$|[\s·])/g)).map((m) => Number(m[1])));
+        const trPending = /TR pending/i.test(text);
+        const open = /Ends in\s*\d/i.test(text) && /\bRFQ\b/.test(text);
+        // Bidding over: being evaluated, overdue, or a countdown with no time left in it.
+        const ended = /Evaluate\s+(RFQ\s+)?Commercials|Overdue by|Ends in\s*(·|$)|Ends in\s*(?![\s·]*\d)/i.test(text) || !open;
+        let score = 0;
+        let why = "";
+        if (need === "bids") {
+          if (bids > 0) {
+            score = 100 + Math.min(bids, 10) + (ended ? 25 : 0) - (trPending ? 30 : 0);
+            why =
+              `${bids} bid${bids === 1 ? "" : "s"} in` +
+              (ended ? ", bidding over" : ", bidding still open (awarding may wait until it closes)") +
+              (trPending ? ", a technical review still pending" : "");
+          }
+        } else if (open) {
+          score = 100 + Math.min(bids, 10);
+          why = `its RFQ round is open for quotes${bids ? ` (${bids} bid${bids === 1 ? "" : "s"} in so far)` : ""}`;
+        }
+        // Our own test events first among equals: nobody's real work gets awarded by a test.
+        if (score && /^(spine-|QA_Platform|API_Journey|UI_Auto)/i.test(title)) score += 15;
+        // Mark the title so the click goes to exactly this card.
+        const titleEl = (Array.from(box.querySelectorAll("*")) as HTMLElement[]).find((e) => (e.innerText || "").trim() === title && !Array.from(e.children).some((c) => ((c as HTMLElement).innerText || "").trim() === title));
+        titleEl?.setAttribute("data-spine-pick", String(i));
+        return { title, text: text.slice(0, 300), score, why, i, bids, trPending, ended };
+      });
+    }, need);
+    // What the list showed, card by card — so a pick can be checked against the screen.
+    for (const c of cards.slice(0, 12)) console.log(`[events]   “${c.title || "?"}” — ${c.bids} bid${c.bids === 1 ? "" : "s"}, ${c.ended ? "bidding over" : "bidding open"}${c.trPending ? ", technical review pending" : ""}${c.score ? "" : " (does not fit)"}`);
+
+    const ours = (c: Card) => (/^(spine-|QA_Platform|API_Journey|UI_Auto)/i.test(c.title) ? 1 : 0);
+    const fits = vet
+      ? cards.filter((c) => c.title && !exclude.includes(c.title)).sort((a, b) => ours(b) - ours(a) || b.score - a.score || a.i - b.i)
+      : cards.filter((c) => c.score > 0 && c.title && !exclude.includes(c.title)).sort((a, b) => b.score - a.score || a.i - b.i);
+    console.log(
+      vet
+        ? `[events] ${where}: ${cards.length} event(s) on screen — asking the database which can take this case, ours first`
+        : `[events] ${where}: ${cards.length} event(s) on screen, ${fits.length} fit${fits.length ? ` — best: “${fits[0].title}” (${fits[0].why})` : ""}`,
+    );
+    if (!fits.length) {
+      const shown = cards.slice(0, 5).map((c) => `“${c.title}”`).join(", ");
+      throw new Error(
+        need === "bids"
+          ? `no event under ${where} has bids in, which awarding needs${shown ? ` (it shows ${shown}, none with a bid)` : ""} — place a bid on an event first, or name one`
+          : `no event under ${where} has an RFQ round open for quotes${shown ? ` (it shows ${shown})` : ""}`,
+      );
+    }
+    let pick: Card | undefined;
+    for (const c of fits) {
+      const v = vet ? await vet(c.title).catch(() => null) : null;
+      // No answer from the database: the card's own reading decides, as before.
+      if (v ? v.ok : c.score > 0) {
+        pick = v ? { ...c, why: v.why } : c;
+        break;
+      }
+      exclude.push(c.title);
+      onSkip?.(c.title, v?.why ?? c.why ?? "the list does not show it open");
+    }
+    if (!pick) throw new Error(`every event under ${where} was passed over`);
+    const target = this.page.locator(`[data-spine-pick="${pick.i}"]`).first();
+    await target.scrollIntoViewIfNeeded({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+    await target.click({ timeout: TIMEOUTS.MEDIUM });
+    await this.page.waitForURL((u) => /\/project\/[^/]+/.test(u.pathname), { timeout: TIMEOUTS.LONG });
+    await this.dismissDistractions();
+    return { title: pick.title, why: pick.why, where };
   }
 
   async hasEventMatching(pattern: RegExp | string): Promise<boolean> {

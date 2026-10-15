@@ -35,7 +35,10 @@ export const JOURNEY_PHASES: Record<string, { label: string; icon: string }> = {
   "create-event": { label: "Creating the event", icon: "🧾" },
   "event-detail": { label: "On the event", icon: "🔎" },
   award: { label: "Awarding", icon: "🏆" },
+  bid: { label: "The vendors bid", icon: "💬" },
+  control: { label: "You had the browser", icon: "🖐" },
   plan: { label: "Running the plan", icon: "🗺" },
+  pick: { label: "Choosing an event", icon: "🎯" },
   healer: { label: "Healing a broken step", icon: "🤖" },
   learned: { label: "Learned a locator", icon: "🧠" },
   stuck: { label: "Stuck", icon: "🚧" },
@@ -91,6 +94,10 @@ function humanise(rest: string): string {
     return hit ? fn(hit) : null;
   };
   return (
+    // "[pick] ✗ “Event” — why": the mark is the step's kind; the words say the rest.
+    m(/^✓ (.+)$/, (h) => `Using ${h[1]}`) ||
+    m(/^✗ (.+)$/, (h) => `Passed over ${h[1]}`) ||
+    m(/^· (.+)$/, (h) => h[1].charAt(0).toUpperCase() + h[1].slice(1)) ||
     // "[login] …" — the sign-in, narrated by the login page as a person sees it.
     m(/^showing the login screen — signing in as (.+?) \(phone ending (\d+)\)$/i, (h) =>
       `Opening the login screen to sign in as ${h[1]}, phone ending ${h[2]}`) ||
@@ -163,13 +170,25 @@ function kindOf(tag: string, rest: string): JourneyStep["kind"] {
     return "ok";
   }
   if (tag === "stuck") return "bad";
+  // "[pick] ✓|✗|· …" (runPlan's open_event): passing an event over is a note, not a failure.
+  if (tag === "pick") return /^✓/.test(rest) ? "ok" : /^✗/.test(rest) ? "warn" : "info";
   if (tag === "healer") {
+    // The AI fixer is an extra: its key being refused is a note, not a failure.
+    if (/AI help is off/i.test(rest)) return "info";
     if (/could not/i.test(rest)) return "bad";
     // Asking for help means a step broke — green would hide that.
     if (/asking AI/i.test(rest)) return "warn";
     return "ok";
   }
   if (tag === "learned") return "ok";
+  // The tester's own clicks and typing while they held the browser (liveControl.ts).
+  if (tag === "control") return /could not/i.test(rest) ? "warn" : "info";
+  // The vendors' bids on the event the journey published (vendorBids.ts).
+  if (tag === "bid") {
+    if (/none of them|could not/i.test(rest)) return "bad";
+    if (/is submitted|is signed in|opened the event|filled/i.test(rest)) return "ok";
+    return "info";
+  }
   // The sign-in says how it went in its own words.
   if (tag === "login") {
     if (/did not get in either/i.test(rest)) return "bad";

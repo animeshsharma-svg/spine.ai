@@ -1,0 +1,118 @@
+/* "Write test cases from this run" (runCases.js): the button sits with the
+   DONE box's links and borrows their style; the review panel follows the box. */
+
+.rc-panel {
+  margin: 12px 0 18px; padding: 16px 18px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--card); box-shadow: var(--shadow-xs);
+  font-family: var(--font-sans); color: var(--text-strong);
+}
+.rc-head h3 { margin: 0 0 4px; font: 600 15px/1.35 var(--font-sans); }
+.rc-sum { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--text-2); }
+.rc-note { margin: 8px 0 0; padding: 8px 10px; border-radius: 9px; background: var(--warn-bg); color: var(--warn-text); font-size: 13px; }
+.rc-wait, .rc-error { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-2); display: flex; gap: 10px; align-items: baseline; }
+.rc-error { color: var(--bad-text); }
+.rc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--warn-dot); animation: rc-pulse 1.2s ease-in-out infinite; }
+@keyframes rc-pulse { 50% { opacity: .35; } }
+
+/* The table fits the conversation's width — no sideways scroll, nothing cut
+   off. Four columns: tick · test case (id, type, priority, scenario) ·
+   expected result · result (status and the step it came from). */
+.rc-panel { container-type: inline-size; box-sizing: border-box; max-width: 100%; }
+.rc-scroll { margin-top: 12px; border: 1px solid var(--border-subtle, var(--border)); border-radius: 10px; overflow: hidden; }
+.rc-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; line-height: 1.5; }
+.rc-table col.w-c { width: 40px; }
+.rc-table col.w-case { width: 44%; }
+.rc-table col.w-exp { width: auto; }
+.rc-table col.w-res { width: 164px; }
+.rc-table th {
+  text-align: left; padding: 9px 10px;
+  background: var(--tint-bg); color: var(--text-2);
+  font: 600 11.5px/1.2 var(--font-mono); letter-spacing: .4px; text-transform: uppercase;
+}
+.rc-table td { padding: 12px 10px; border-top: 1px solid var(--border-subtle, var(--border)); vertical-align: top; overflow-wrap: anywhere; }
+.rc-table tr.off td { opacity: .45; }
+.rc-c { text-align: center; }
+.rc-c input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--primary-fill); }
+
+.rc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-bottom: 4px; }
+.rc-id { font: 500 12px var(--font-mono); color: var(--text-2); }
+.rc-pri { font: 600 11.5px/1.5 var(--font-mono); color: var(--text-2); padding: 1px 6px; border-radius: 6px; background: var(--chip-bg); }
+.rc-scen { font-weight: 500; color: var(--text-strong); }
+.rc-lbl { display: none; }
+.rc-st {
+  display: inline-block; padding: 2px 8px; border-radius: 999px; max-width: 100%;
+  font: 600 12px/1.45 var(--font-sans); background: var(--chip-bg); color: var(--text);
+}
+.rc-st.ok { background: var(--ok-bg); color: var(--ok-text); }
+.rc-st.bad { background: var(--bad-bg); color: var(--bad-text); }
+.rc-st.warn { background: var(--warn-bg); color: var(--warn-text); }
+.rc-src { margin-top: 6px; font: 12px/1.45 var(--font-mono); color: var(--text-2); }
+
+/* Narrow conversation (the browser panel open beside it): each case stacks. */
+@container (max-width: 620px) {
+  .rc-table, .rc-table tbody, .rc-table tr, .rc-table td { display: block; width: 100%; }
+  .rc-table colgroup, .rc-table thead { display: none; }
+  .rc-table tr { position: relative; padding: 12px 12px 12px 44px; border-top: 1px solid var(--border-subtle, var(--border)); }
+  .rc-table td { border: 0; padding: 0; }
+  .rc-table td.rc-c { position: absolute; left: 12px; top: 14px; width: auto; }
+  .rc-table td.rc-exp, .rc-table td.rc-res { margin-top: 8px; }
+  .rc-lbl { display: block; font: 600 11px/1.2 var(--font-mono); letter-spacing: .4px; text-transform: uppercase; color: var(--text-2); margin-bottom: 2px; }
+}
+
+.rc-edit { border-radius: 6px; padding: 2px 4px; margin: -2px -4px; outline: none; }
+.rc-edit:hover { background: var(--tint-bg); }
+.rc-edit:focus { background: var(--card); box-shadow: 0 0 0 2px var(--focus, var(--primary-border)); }
+
+.rc-tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font: 600 11.5px/1.5 var(--font-sans); background: var(--chip-bg); color: var(--text); }
+.rc-tag.pos { background: var(--ok-bg); color: var(--ok-text); }
+.rc-tag.neg { background: var(--bad-bg); color: var(--bad-text); }
+.rc-tag.edge { background: var(--warn-bg); color: var(--warn-text); }
+.rc-tag.reg { background: var(--primary-tint-2); color: var(--primary-text, var(--primary)); }
+
+.rc-more, .rc-link {
+  border: 0; background: none; padding: 0; margin-top: 4px; cursor: pointer;
+  font: 500 12.5px var(--font-sans); color: var(--primary-text, var(--primary)); text-decoration: underline; text-underline-offset: 2px;
+}
+.rc-detail { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--tint-bg); font-size: 13px; color: var(--text); }
+.rc-detail p { margin: 4px 0; }
+.rc-detail ol { margin: 4px 0; padding-left: 20px; }
+.rc-meta { color: var(--text-2); font-size: 12px; }
+
+.rc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.rc-count { margin-right: auto; font-size: 13px; color: var(--text-2); }
+.rc-x {
+  height: 36px; padding: 0 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--primary-fill); background: var(--primary-fill); color: var(--on-primary, #fff);
+  font: 600 13px var(--font-sans);
+}
+.rc-x[data-x="csv"] { background: var(--card); color: var(--primary-text, var(--primary)); border-color: var(--primary-border); }
+.rc-x:disabled { opacity: .45; cursor: not-allowed; }
+.rc-again { margin-top: 0; }
+
+/* Running a case from the table: a Run button per row, Run all / Run ticked in the bar. */
+.rc-run {
+  display: block; margin-top: 8px; height: 30px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--primary-border); background: var(--card); color: var(--primary-text, var(--primary));
+  font: 600 12.5px var(--font-sans);
+}
+.rc-run:hover { background: var(--primary-tint-2); }
+.rc-run:focus-visible, .rc-x:focus-visible, .rc-link:focus-visible { outline: 2px solid var(--focus, var(--primary-border)); outline-offset: 2px; }
+.rc-st.run { background: var(--warn-bg); color: var(--warn-text); }
+.rc-st.run::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--warn-dot); vertical-align: 1px; animation: rc-pulse 1.2s ease-in-out infinite; }
+.rc-table tr.running td { background: var(--tint-bg); }
+.rc-why { margin-top: 6px; font-size: 12.5px; line-height: 1.45; color: var(--text); }
+.rc-go { display: inline-block; color: var(--primary-text, var(--primary)); text-decoration: underline; text-underline-offset: 2px; }
+.rc-unq { display: block; }
+.rc-tally { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.rc-gap { flex: 1 1 0; min-width: 0; }
+.rc-count { margin-right: 0; }
+.rc-x.rc-runall, .rc-x.rc-runsel { background: var(--card); color: var(--primary-text, var(--primary)); border-color: var(--primary-border); }
+.rc-x.rc-runall:not(:disabled) { background: var(--primary-fill); color: var(--on-primary, #fff); border-color: var(--primary-fill); }
+.rc-hint { margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+@container (max-width: 620px) {
+  .rc-gap { display: none; }
+  .rc-run { display: inline-block; }
+}
+
+@media (prefers-reduced-motion: reduce) { .rc-dot, .rc-st.run::before { animation: none; } }

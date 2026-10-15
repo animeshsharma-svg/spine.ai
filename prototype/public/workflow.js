@@ -116,6 +116,8 @@ function start(planOnly) {
   const qs = new URLSearchParams({ c: String(client), q });
   if (planOnly) qs.set("dry", "1");
   if (!$("#headed").checked) qs.set("headed", "0");
+  // This page has no chat to answer the explorer's questions in; a case with no steps stays "not run" here.
+  qs.set("explore", "0");
   stream = new EventSource(`/api/plan-run?${qs}`);
 
   stream.addEventListener("stage", (e) => write("› " + JSON.parse(e.data).line, "cmd"));

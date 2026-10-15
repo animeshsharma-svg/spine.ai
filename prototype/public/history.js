@@ -97,7 +97,7 @@
       .join("");
     return (
       `<h3>What spine.ai created on UAT for this client</h3>` +
-      `<p class="sx-sub">${rec.total} test record(s) — ${esc(byState || "none")}. Every one is a test record (events named QA_Platform_… / API_Test_…, QA vendors only); a row in amber would be one that is not named as a test.</p>` +
+      `<p class="sx-sub">${rec.total} test record(s) — ${esc(byState || "none")}. Every one is a test record (events named QA_Platform_… / API_Test_…); a row in amber would be one that is not named as a test.</p>` +
       `<table class="hy-table"><thead><tr><th>Kind</th><th>Title</th><th>Created</th><th>State</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
     );
   }

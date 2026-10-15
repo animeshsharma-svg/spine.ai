@@ -40,9 +40,12 @@ const API = "https://generativelanguage.googleapis.com/v1beta/models";
 /** Minimum model confidence before we let the AI touch the page. */
 const ACT_THRESHOLD = Number(process.env.UI_AI_MIN_CONFIDENCE ?? "0.75");
 
+/** Set once the model's key is refused: the healer is an extra, so the run carries on without it. */
+let switchedOff: string | undefined;
+
 /** Is the healer switched on and usable? */
 export function healerEnabled(): boolean {
-  return process.env.UI_AI_HEAL === "1" && !!process.env.GOOGLE_API_KEY;
+  return process.env.UI_AI_HEAL === "1" && !!process.env.GOOGLE_API_KEY && !switchedOff;
 }
 
 /** What the model is asked to return: how to find the element, and what to do. */
@@ -198,7 +201,15 @@ export async function heal(page: Page, instruction: string, label?: string): Pro
     }
     return true;
   } catch (e: any) {
-    console.log(`[healer] AI could not do it: ${e?.message ?? e}`);
+    const msg = String(e?.message ?? e);
+    // A refused key is not this step's failure, and every later step would hit
+    // it again: say it once, quietly, and stop asking for the rest of the run.
+    if (/HTTP 40[13]\b/.test(msg)) {
+      switchedOff = msg;
+      console.log(`[healer] AI help is off for this run — its Google (Gemini) key was not accepted (${msg.match(/HTTP 40[13]/)?.[0]}); the run carries on without it`);
+      return false;
+    }
+    console.log(`[healer] AI could not do it: ${msg}`);
     return false;
   }
 }

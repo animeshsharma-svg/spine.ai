@@ -201,6 +201,13 @@ html[data-session="on"] #view-run .ss-session {
 .ss-b.bad > .ss-b-body > .ss-b-t,
 .ss-b.bad > .ss-b-body > .ss-b-a b { color: var(--ss-red); }
 .ss-b.skip .ss-dot { background: var(--ss-dot); }
+/* Under a step: the events it looked at and why each was used or passed over (planNote). */
+.ss-step-notes { list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.ss-step-notes li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 6px; padding: 1px 0; overflow-wrap: anywhere; }
+.ss-note-m { font-weight: 700; text-align: center; }
+.ss-step-notes .no .ss-note-m { color: var(--ss-red); }
+.ss-step-notes .ok .ss-note-m { color: var(--ss-green); }
+.ss-step-notes .ok { color: var(--text); }
 
 /* the clock while nothing else says the run is alive */
 .ss-working {
@@ -409,9 +416,12 @@ html[data-session="on"] #view-run .ss-session {
 /* While an API run tries its cases: one line, how far and how many failed. */
 .ss-cases { margin: 6px 0 0 24px; font-size: 13.5px; color: var(--text-2); }
 
-/* No panel on the right: the conversation keeps a reading width. */
-.ss-session.right-off .ss-thread { max-width: 860px; margin-inline: auto; }
-.ss-session.right-off .ss-composer { width: calc(100% - 28px); max-width: 860px; margin-inline: auto; }
+/* No panel on the right: the conversation keeps a reading width, from the
+   left edge under Back rather than centred in the empty space. */
+/* With the right panel closed the conversation takes the whole width
+   (Aanya, 2026-10-09): an 860px column on a wide screen looked pushed aside. */
+.ss-session.right-off .ss-thread { max-width: none; margin-inline: 0; }
+.ss-session.right-off .ss-composer { width: calc(100% - 28px); max-width: none; margin-inline: 14px; }
 
 /* check rows */
 .ss-thread .chk { font-family: var(--font-sans); font-size: 13px; }
@@ -491,6 +501,19 @@ html[data-session="on"] #view-run .ss-session {
   font: 600 13px var(--font-sans); letter-spacing: .25px;
   cursor: pointer;
 }
+.ss-tab[hidden] { display: none; }
+/* "Run again", over the last frame once a UI run has finished (session.js paintRerun). */
+.ss-rerun {
+  position: absolute; left: 50%; bottom: 20px; z-index: 2; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 18px; border: 0; border-radius: 999px;
+  background: #fff; color: #1f1c17; box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+  font: 600 14px var(--font-sans); white-space: nowrap; cursor: pointer;
+}
+.ss-rerun:hover { background: #f4eee1; }
+.ss-rerun:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.ss-rerun .ico { width: 16px; height: 16px; }
+.ss-rerun[hidden] { display: none; }
 .ss-tab .ico { width: 15px; height: 15px; }
 .ss-tab[aria-selected="true"] { background: var(--ss-pill); border-color: var(--border); color: var(--text-strong); box-shadow: var(--shadow-xs); }
 .ss-req-n { font-size: 11px; padding: 0 7px; border-radius: 999px; background: var(--chip-bg); color: var(--text-2); }
@@ -579,4 +602,70 @@ html[data-session="on"] #view-run .ss-session {
   .ss-note { grid-template-columns: auto minmax(0, 1fr); }
   .ss-note .ss-note-t { grid-column: 1 / -1; }
   .ss-req-t, .ss-req-x { padding-left: 12px; }
+}
+
+/* ── a journey worked out on screen: its steps and its questions ─────────── */
+.ss-explore .ss-x-note { padding: 2px 0; }
+.ss-explore .ss-x-note .ss-dot { background: transparent; box-shadow: none; }
+.ss-explore .ss-x-note .ss-b-d { margin-top: 0; font-size: 12.5px; }
+.ss-explore .ss-x-note.retry .ss-b-d { color: var(--ss-muted); font-style: italic; }
+.ss-shot {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 4px;
+  font: 600 11.5px var(--font-sans); color: var(--text-2); text-decoration: none;
+}
+.ss-shot .ico { width: 13px; height: 13px; }
+.ss-shot:hover { color: var(--text-strong); text-decoration: underline; }
+
+/* the run's question: the tester's turn, so the "your turn" blue */
+.ss-askcard {
+  margin: 12px 0;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--ss-turn-dot) 45%, transparent);
+  background: var(--ss-turn-bg);
+  color: var(--text);
+}
+.ss-askcard-h { display: flex; align-items: center; gap: 8px; color: var(--ss-turn-ink); font: 700 12px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.ss-askcard-h .ico { width: 16px; height: 16px; }
+.ss-askcard-q { margin-top: 8px; font-weight: 700; overflow-wrap: anywhere; }
+.ss-askcard-d { margin-top: 4px; color: var(--text-2); overflow-wrap: anywhere; }
+.ss-askcard-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.ss-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 38px; padding: 7px 12px;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: var(--ss-pill); color: var(--text-strong);
+  font: 600 13px var(--font-sans); text-align: left; cursor: pointer;
+}
+.ss-opt:hover:not(:disabled) { border-color: var(--ss-turn-dot); }
+.ss-opt:focus-visible { outline: 2px solid var(--ss-turn-dot); outline-offset: 2px; }
+.ss-opt-k {
+  flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px;
+  background: color-mix(in srgb, var(--ss-turn-dot) 16%, transparent); color: var(--ss-turn-ink);
+  font: 700 11.5px var(--font-mono);
+}
+.ss-opt-l { min-width: 0; overflow-wrap: anywhere; }
+.ss-opt.stop .ss-opt-k { background: color-mix(in srgb, var(--ss-red) 14%, transparent); color: var(--ss-bad-ink); }
+.ss-askcard-other { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.ss-askcard-other textarea {
+  flex: 1; min-width: 0; resize: none; min-height: 38px; max-height: 160px;
+  padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--ss-pill); color: var(--text); font: 400 13px/1.4 var(--font-sans);
+}
+.ss-askcard-other textarea:focus { outline: none; border-color: var(--ss-turn-dot); }
+.ss-opt-send {
+  flex: none; height: 38px; padding: 0 14px; border-radius: 10px; border: 0;
+  background: var(--ss-turn-dot); color: #fff; font: 700 12.5px var(--font-sans); cursor: pointer;
+}
+.ss-opt-send:disabled { opacity: .45; cursor: default; }
+.ss-askcard-said { margin-top: 10px; font-weight: 600; color: var(--ss-turn-ink); overflow-wrap: anywhere; }
+.ss-askcard-said::before { content: "You: "; font-weight: 400; color: var(--text-2); }
+.ss-askcard.answered .ss-opt:not(.picked), .ss-askcard.closed .ss-opt { opacity: .5; cursor: default; }
+.ss-askcard .ss-opt.picked { border-color: var(--ss-turn-dot); box-shadow: inset 0 0 0 1px var(--ss-turn-dot); }
+.ss-askcard.closed { background: var(--ss-skip-bg); border-color: var(--ss-skip-line); }
+.ss-askcard.closed .ss-askcard-said::before { content: ""; }
+.ss-askcard.closed .ss-askcard-said { color: var(--ss-skip-ink); font-weight: 400; }
+.ss-askcard.closed .ss-askcard-other, .ss-askcard-other[hidden] { display: none; }
+@media (max-width: 640px) {
+  .ss-askcard { padding: 14px; }
 }

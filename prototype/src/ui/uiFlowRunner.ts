@@ -20,6 +20,7 @@
  * more than that client actually permits.
  */
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { acquireBrowser, setSlotProgress, setSlotHeaded } from "./browserSlot.js";
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -156,6 +157,8 @@ export interface UiRunOptions {
   quantity?: string;
   /** How many QA vendors to invite. */
   vendors?: number;
+  /** After an event journey publishes, how many invited vendors bid on it (UI_BIDDERS). */
+  bidders?: number;
   /** Template to pick, by name substring. Journey takes the first otherwise. */
   template?: string;
   /** Event duration in minutes — the journey edits the schedule window. */
@@ -178,12 +181,16 @@ export interface UiRunEvent {
   // indistinguishable from its own connection-failure event — the exact
   // collision that made "run error" appear after every normal, successful run
   // elsewhere in this codebase. Every consumer forwards e.type verbatim.
-  type: "start" | "log" | "done" | "run-error" | "queued" | "frame";
+  type: "start" | "log" | "done" | "run-error" | "queued" | "frame" | "ask" | "explore-step";
   line?: string;
   command?: string;
   exitCode?: number;
   /** base64 JPEG — a live preview frame for the dashboard's split view. */
   frame?: string;
+  /** "ask": the explorer's question to the tester (procol-ui-tests/src/explore/ask.ts) */
+  ask?: Record<string, unknown>;
+  /** "explore-step": one step the explorer took or is taking */
+  step?: Record<string, unknown>;
 }
 
 /**
@@ -240,6 +247,23 @@ function launch(
           emit({ type: "frame", frame: line.slice("[frame] ".length) });
           continue;
         }
+        // The explorer's questions and steps, as structured events (src/explore/ in the UI suite).
+        const tagged = line.match(/^\[(ask|explore-step)\] (\{.*\})\s*$/);
+        if (tagged) {
+          try {
+            const body = JSON.parse(tagged[2]);
+            if (tagged[1] === "ask") {
+              setSlotProgress("waiting for your answer");
+              emit({ type: "ask", ask: body });
+            } else {
+              if (body.status === "run" && body.text) setSlotProgress(`step ${body.n} — ${String(body.text).slice(0, 70)}`);
+              emit({ type: "explore-step", step: body });
+            }
+            continue;
+          } catch {
+            /* not ours after all: an ordinary log line */
+          }
+        }
         // Mirror the run's own narration into the slot so the dashboard strip
         // can say what a HEADLESS run is doing right now.
         const m = raw.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/) ?? raw.match(/\[(create-event|bid|surrogate|award|flow|po-to-bill)\] (.{0,80})/);
@@ -293,6 +317,9 @@ export function runUiPlan(
     UI_PLAN_RESULT: resultFile,
     UI_QUIET_MAP: "1",
     QA_RUN_ID: runId,
+    // A plan run can ask the tester too (no event fits the case: create one,
+    // pick one, or stop) — the explorer's question channel, same folder.
+    UI_EXPLORE_DIR: dir,
   };
   if (env.GOOGLE_API_KEY) env.UI_AI_HEAL = "1";
   // Blind waits shrink to 70% on every plan run; timeouts for real conditions
@@ -304,6 +331,62 @@ export function runUiPlan(
   return launch(`plan ${runId}`, args, env, emit, () =>
     emit({ type: "start", line: `npx ${args.join(" ")}`, command: `plan ${runId}` }),
   );
+}
+
+/**
+ * The key an explorer run sends back with each model request
+ * (POST /api/explore/decide). Made fresh at every server start and only ever
+ * handed to the runs this server started, so the endpoint is not a free model
+ * proxy for anything else that can reach the port.
+ */
+export const EXPLORE_KEY = randomBytes(18).toString("hex");
+
+/**
+ * Work a journey out on screen: the case had no steps the compiler could use
+ * (coverage "none"), so the explorer drives the app toward the goal itself and
+ * asks the tester when it cannot choose (procol-ui-tests/src/explore/). Its
+ * result lands where a plan's does, so readPlanResult reads both.
+ */
+export function runUiExplore(
+  opts: { goal: string; companyId: number; runId: string; headed?: boolean; showLogin?: boolean; serverUrl: string },
+  emit: (e: UiRunEvent) => void,
+): { stop: () => void } {
+  const dir = join(UI_TESTS_DIR, ".plans");
+  mkdirSync(dir, { recursive: true });
+  const goalFile = join(dir, `${opts.runId}-explore.json`);
+  writeFileSync(goalFile, JSON.stringify({ goal: opts.goal }, null, 2));
+
+  const args = ["playwright", "test", "tests/explore.spec.ts", "--workers=1"];
+  if (opts.headed !== false) args.push("--headed");
+  const env: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    COMPANY_ID: String(opts.companyId),
+    UI_EXPLORE_FILE: goalFile,
+    UI_EXPLORE_DIR: dir,
+    UI_EXPLORE_KEY: EXPLORE_KEY,
+    SPINE_SERVER: opts.serverUrl,
+    UI_PLAN_RESULT: join(dir, `${opts.runId}-result.json`),
+    UI_QUIET_MAP: "1",
+    QA_RUN_ID: opts.runId,
+  };
+  if (opts.headed !== false && opts.showLogin) env.UI_SHOW_LOGIN = "1";
+  return launch(`explore ${opts.runId}`, args, env, emit, () =>
+    emit({ type: "start", line: `npx ${args.join(" ")}`, command: `explore ${opts.runId}` }),
+  );
+}
+
+/**
+ * The tester's answer to an explorer's question, where the run is waiting for
+ * it (procol-ui-tests/src/explore/ask.ts polls for this file). False when the
+ * run or the question is not one this server could have asked.
+ */
+export function writeExploreAnswer(runId: string, n: number, answer: { option: string | null; text: string }): boolean {
+  if (!/^plan-[a-z0-9]+$/i.test(runId) || !Number.isInteger(n) || n < 1 || n > 500) return false;
+  const dir = join(UI_TESTS_DIR, ".plans");
+  // An explorer run, or a plan run (its plan file) — both can ask.
+  if (!existsSync(join(dir, `${runId}-explore.json`)) && !existsSync(join(dir, `${runId}.json`))) return false;
+  writeFileSync(join(dir, `${runId}-answer-${n}.json`), JSON.stringify({ option: answer.option, text: answer.text, at: new Date().toISOString() }));
+  return true;
 }
 
 /** What each step of a finished plan actually did. */
@@ -436,6 +519,7 @@ export function runUiFlow(opts: UiRunOptions, emit: (e: UiRunEvent) => void): { 
   if (opts.boqItems && opts.boqItems > 0) env.UI_BOQ_ITEMS = String(opts.boqItems);
   if (opts.quantity) env.UI_QUANTITY = opts.quantity;
   if (opts.vendors && opts.vendors > 0) env.UI_VENDOR_COUNT = String(opts.vendors);
+  if (opts.bidders && opts.bidders > 0) env.UI_BIDDERS = String(opts.bidders);
   // The capability map lists every journey on every run, which makes it look
   // like everything is executing. We only want the one we picked.
   env.UI_QUIET_MAP = "1";

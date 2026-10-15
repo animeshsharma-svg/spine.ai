@@ -181,9 +181,10 @@ NEGATIVE TESTS — when the case says the app SHOULD REFUSE something:
 - On a MULTI-STAGE event, every stage needs its own configuration on its own tab: switch_stage, then select_template, then fill_sheet (rfq/auction) or fill_questionnaires + assign_evaluator (rfp). A template applies only to the tab that is showing.
 - Line items are project-level: add them once, on the first stage.
 - NEVER invent a vendor name. Use a name only if the test case itself names one. When it just says "a vendor" or "two vendors", set count on invite_vendor and leave vendors out, and leave vendor out of the bid steps — the product's own audience supplies them.
+- Several vendors bidding from the portal needs no names: invite_vendor{count:N}, then one place_bid per vendor. Each place_bid without a vendor signs in as a DIFFERENT vendor on the event (vendor 1, vendor 2 … may also be given as numbers). Follow each with expect_bid_submitted. This is fully testable — never list it as something the catalog cannot do.
 - Bidding needs a PUBLISHED event: publish first, then bid.
 - Two different things are called "bidding" and the test case tells you which:
-  * the VENDOR bidding for themselves -> place_bid. It signs into the vendor portal, so the vendor must have been invited BY NAME: invite_vendor{vendors:["<name>"]}.
+  * the VENDOR bidding for themselves -> place_bid. It signs into the vendor portal as a vendor on the event that has a login (the run picks one); name a vendor only when the test case names one.
   * the BUYER bidding on a vendor's behalf (surrogate) -> place_surrogate_bid. It never leaves the console. Unavailable for knockout and dutch auctions and for technical stages.
 - "on behalf of", "surrogate", "for the vendor" mean place_surrogate_bid. "as the vendor", "from the vendor portal", "from the supplier hub", "the vendor submits", "the vendor logs in" mean place_bid. If the test mentions bidding AT ALL, one of these two steps must be in the plan.
 - Follow either with expect_bid_submitted when the test asserts the bid landed.
@@ -590,7 +591,8 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const named = new Set<string>();
     for (const st of steps) {
       if (["open_master_qcs"].includes(st.step) && Array.isArray(st.args?.vendors)) for (const v of st.args!.vendors as unknown[]) named.add(String(v));
-      if (["place_surrogate_bid", "place_bid", "place_counter_offer", "expect_counter_offer_sent"].includes(st.step) && st.args?.vendor) named.add(String(st.args.vendor));
+      // vendor: 2 is "the second vendor on the event", not a name to invite.
+      if (["place_surrogate_bid", "place_bid", "place_counter_offer", "expect_counter_offer_sent"].includes(st.step) && st.args?.vendor && !/^\d+$/.test(String(st.args.vendor))) named.add(String(st.args.vendor));
     }
     if (named.size) {
       const inv = steps.find((st) => st.step === "invite_vendor");
@@ -603,8 +605,12 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
         }
       }
       const [first] = [...named];
+      // Only the first unnamed bid of each kind: a second one is a second
+      // vendor (place_bid picks the next vendor on the event), not this one again.
+      const filled = new Set<string>();
       for (const st of steps) {
-        if (["place_surrogate_bid", "place_bid"].includes(st.step) && !st.args?.vendor) {
+        if (["place_surrogate_bid", "place_bid"].includes(st.step) && !st.args?.vendor && !filled.has(st.step)) {
+          filled.add(st.step);
           st.args = { ...(st.args ?? {}), vendor: first };
           repairs.push(`${st.step} now bids as ${first} — the vendor the plan's assertions are about`);
         }
@@ -691,7 +697,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
         );
       }
     }
-    if ((step.step === "place_bid" || step.step === "place_surrogate_bid") && step.args?.vendor) {
+    if ((step.step === "place_bid" || step.step === "place_surrogate_bid") && step.args?.vendor && !/^\d+$/.test(String(step.args.vendor))) {
       if (!mentions(String(step.args.vendor))) {
         const bad = String(step.args.vendor);
         delete step.args.vendor;

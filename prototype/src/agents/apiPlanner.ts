@@ -1121,6 +1121,31 @@ const RULES: Rule[] = [
     re: /(?=.*\b(uninvited|not invited)\b)(?=.*\b(read|see|open|view)\b)/,
     plan: () => ({ setup: { recipe: "published_rfq" }, act: [{ op: "read_round", as: "vendor2", decisive: true } as unknown as ActStep], verify: [], expected: { outcome: "reject", code: "536" } }),
   },
+  /**
+   * The plainest flow there is — "publish an RFP event with 1 line item" —
+   * must never depend on the model answering well: seen 2026-10-08, both fast
+   * attempts came back invalid and the reader was told no test could be
+   * written for it. Last in the list, so every rule about a refusal wins, and
+   * nothing that qualifies the publish (a refusal, a bid, an award, a
+   * deadline…) reaches it: those are other cases.
+   */
+  {
+    re: /^(?!.*\b(without|no|not|zero|negative|invalid|empty|blank|missing|wrong|reject\w*|refus\w*|fail\w*|error\w*|exceed\w*|more than|beyond|limit\w*|duplicat\w*|expired|past|after|deadline|cannot|can't|twice|again|bid\w*|award\w*|evaluat\w*|withdr\w*|extend\w*|amend\w*|version\w*|cancel\w*|auction\w*)\b)(?=.*\b(publish\w*|creat\w*|float\w*|launch\w*|go live)\b)(?=.*\b(rfp|rfi|technical|tech|rfq|rfqs|quotation)\b)/s,
+    plan: (_m, t) => {
+      const rfp = /\b(rfp|rfi|technical|tech)\b/.test(t);
+      const rfq = /\b(rfq|rfqs|quotation)\b/.test(t);
+      return {
+        setup: { recipe: "draft_event" },
+        act: [
+          ...(rfp ? [{ op: "add_rfp_round", expect: "accept", say: "The buyer adds the technical (RFP) round." } as ActStep] : []),
+          ...(rfq ? [{ op: "add_rfq_round", expect: "accept", say: "The buyer adds the pricing (RFQ) round." } as ActStep] : []),
+          { op: "publish_event", decisive: true },
+        ],
+        verify: [{ op: "read_event", assert: [{ path: "status", op: "equals", value: "active" }] }],
+        expected: { outcome: "accept" },
+      };
+    },
+  },
 ];
 
 function rulesPlan(text: string): { plan: Omit<ApiPlan, "version" | "title">; rule: number } | null {

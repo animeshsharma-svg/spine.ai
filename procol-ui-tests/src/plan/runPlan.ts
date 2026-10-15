@@ -17,28 +17,77 @@ import { PlanStep, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
 import { toastMark } from "./generic/messages.js";
 import type { Target } from "./generic/find.js";
-import { qaVendorNames, qaVendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
+import { qaVendorNames, qaVendorLogins, vendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
 import { runExpectationStep } from "./expectations.js";
 import { installObserver, observe, type Observation } from "./observe.js";
 import { resolveScreen, type PlanContext } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
+import { focusFrames } from "../support/liveCursor.js";
+import { askTester } from "../explore/ask.js";
+import { controlHeld, released } from "../support/liveControl.js";
+import { needOf, roundNow, cannotTakeBid, takesBid } from "../db/pickEvent.js";
 
 /** The QA vendors invite_vendor put on this run's event (one plan per process). */
-let invitedQa: string[] = [];
+/** The vendors on the event, as invite_vendor last saw them — who a bid step may sign in as. */
+let invitedVendors: string[] = [];
+/** Who has already bid from the vendor portal in this plan — the next bid picks someone else. */
+let biddersUsed: string[] = [];
 const QA_EMAIL = /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i;
 
 /**
- * Who the vendor portal is signed in as. The profile's vendor only when it is
- * a QA test vendor (or real suppliers are deliberately allowed); otherwise the
- * client's own QA test vendor — the one invite_vendor put on the event — from
- * the database. A real supplier's account is never signed in to: that would
- * mail its people a one-time code.
+ * Who the vendor portal is signed in as: a vendor that is ON the event.
+ *
+ * The names come from the event's participant chips (invite_vendor records
+ * them) and are matched to this client's vendors that have a login, in the
+ * database. The profile's own vendor is preferred when it is among them.
+ * With SPINE_QA_VENDORS_ONLY=1 it is the client's QA test vendor instead.
  */
-async function bidderEmail(): Promise<string> {
-  if (QA_EMAIL.test(CONFIG.vendorEmail) || allowRealVendors()) return CONFIG.vendorEmail;
-  const qa = await qaVendorLogins();
-  const pick = qa.find((v) => invitedQa.some((n) => isQaVendorName(n, [v.name]))) ?? qa[0];
-  if (!pick) throw new Error("this client has no QA test vendor to sign in as on the vendor portal — real suppliers are never signed in; create a QA vendor for it first");
+async function bidderEmail(want?: unknown): Promise<string> {
+  const used = (e: string) => biddersUsed.some((u) => u.toLowerCase() === e.toLowerCase());
+  // The vendors this run may sign in as, in a fixed order: the profile's own
+  // vendor first (as before), then the rest of the event's vendors with a login.
+  let pool: Array<{ name: string; email: string }>;
+  if (!allowRealVendors()) {
+    const qa = await qaVendorLogins();
+    const invited = qa.filter((v) => invitedVendors.some((n) => isQaVendorName(n, [v.name])));
+    pool = invited.length ? invited : qa.slice(0, 1);
+    if (!pool.length) throw new Error("this client has no QA test vendor to sign in as on the vendor portal; create one, or leave SPINE_QA_VENDORS_ONLY unset to bid as a vendor on the event");
+  } else if (!invitedVendors.length) {
+    // No invite step recorded who is on the event: the profile's vendor, as before.
+    pool = [{ name: "the profile's vendor", email: CONFIG.vendorEmail }];
+  } else {
+    const logins = await vendorLogins();
+    const onEvent = logins.filter((v) => invitedVendors.some((n) => isQaVendorName(n, [v.name])));
+    const own = onEvent.filter((v) => v.email.toLowerCase() === CONFIG.vendorEmail.toLowerCase());
+    pool = [...own, ...onEvent.filter((v) => !own.includes(v))];
+    if (!pool.length) {
+      throw new Error(
+        `none of the vendors on the event (${invitedVendors.slice(0, 5).join(", ")}${invitedVendors.length > 5 ? ", …" : ""}) ` +
+          "has a user this run can sign in to the vendor portal as",
+      );
+    }
+  }
+  const who = (p: typeof pool) => p.map((v) => v.name).slice(0, 5).join(", ");
+  // vendor: 2 — the second vendor of the pool; vendor: "<name>" — that vendor.
+  if (typeof want === "number" || /^\d+$/.test(String(want ?? ""))) {
+    const n = Number(want);
+    const pick = pool[n - 1];
+    if (!pick) throw new Error(`a bid as vendor ${n} needs ${n} vendors on the event that can sign in to the vendor portal — there ${pool.length === 1 ? "is 1" : `are ${pool.length}`} (${who(pool)})`);
+    return pick.email;
+  }
+  if (want) {
+    const pick = pool.find((v) => isQaVendorName(String(want), [v.name]) || v.name.toLowerCase().includes(String(want).toLowerCase()));
+    if (!pick) throw new Error(`${String(want)} is not among the vendors on the event that can sign in to the vendor portal (${who(pool)})`);
+    return pick.email;
+  }
+  // No vendor named: the next one that has not bid yet, so two bid steps are two vendors.
+  const pick = pool.find((v) => !used(v.email));
+  if (!pick) {
+    throw new Error(
+      `a bid from another vendor needs one more vendor on the event that can sign in to the vendor portal — ` +
+        `${pool.length === 1 ? "the only one" : `all ${pool.length}`} (${who(pool)}) already bid in this run`,
+    );
+  }
   return pick.email;
 }
 
@@ -106,6 +155,8 @@ interface RunState {
   counterOfferAccepted?: boolean;
   /** remember{} values for expect_remembered (generic steps). */
   memory: Record<string, { target: Target; text: string }>;
+  /** The steps still to come — what an event picked for open_event must be ready for. */
+  later?: string[];
   /** Toast-journal marks: before the previous step, and before this one. */
   prevMark: number;
   curMark: number;
@@ -401,6 +452,88 @@ async function rescheduleEvent(s: RunState, a: Record<string, unknown>): Promise
   return seen;
 }
 
+/**
+ * Can the event on screen take what the case does next? A surrogate bid
+ * needs a vendor on its pricing round offered Add Bid; Master QCS, awarding
+ * and counter offers need bids in. Anything else: an open event will do.
+ */
+const bidsNext = (later: string[]) => later.some((x) => /^(place_surrogate_bid|open_participants)$/.test(x));
+
+async function fitsCase(s: RunState, later: string[], title?: string): Promise<{ ok: boolean; why: string }> {
+  if (bidsNext(later)) return new SurrogateBidPage(s.page).canAddBid(title);
+  if (later.some((x) => /^(open_master_qcs|start_awarding|allocate_award|award_event|expect_award|place_counter_offer|expect_counter_offer)/.test(x))) {
+    await new AwardPage(s.page).openMasterQcs().catch(() => false);
+    const none = await s.page.getByText(/no bids (are|have been) placed/i).first().waitFor({ state: "visible", timeout: 6_000 }).then(() => true).catch(() => false);
+    return none ? { ok: false, why: "its Master QCS says no bids are placed yet" } : { ok: true, why: "its Master QCS has bids to compare" };
+  }
+  return { ok: true, why: "it is open" };
+}
+
+/**
+ * No event on the Live list fits the case: ask the tester (the session's
+ * question card) — create one for it, pick one in the browser, name one, or
+ * stop. Without anyone to ask (a run not started from the dashboard), stop
+ * and say why.
+ */
+async function noFittingEvent(s: RunState, need: "bids" | "live", later: string[], passed: string[]): Promise<string> {
+  const surrogate = later.includes("place_surrogate_bid");
+  const wants =
+    need === "bids"
+      ? "a live event with bids in"
+      : surrogate
+        ? "a live event whose RFQ round is open for a few minutes more, with an invited vendor who has not bid yet"
+        : "a live event whose RFQ round is open for quotes";
+  const answer = await askTester({
+    kind: "stuck",
+    question: `No live event fits this case — it needs ${wants}. What should I do?`,
+    detail: passed.length ? `Passed over — ${passed.join("; ")}.` : "The Live events list showed none that fit.",
+    options: [
+      // Publishing invites the event's vendors, and each invited vendor gets an email: say so before the click.
+      { id: "create", label: `Create and publish a new event for this case, then carry on${need === "bids" ? " (it gets a bid and its bidding closes first)" : ""} — publishing emails the vendors it invites` },
+      { id: "self", label: "I'll open one myself in the browser" },
+      { id: "stop", label: "Stop here" },
+    ],
+  });
+  if (!answer) throw new Error(`no live event fits this case — it needs ${wants}.${passed.length ? ` Passed over — ${passed.join("; ")}.` : ""}`);
+  if (answer.option === "stop") throw new Error(`no live event fits this case — it needs ${wants} — and you chose to stop here.${passed.length ? ` Passed over — ${passed.join("; ")}.` : ""}`);
+  if (answer.option === "self") {
+    // Take control (session card → spineLiveControl.take()); carry on from the page handed back.
+    for (let t = 0; t < 40 && !controlHeld(); t++) await new Promise((r) => setTimeout(r, 200));
+    await released();
+    if (!/\/project\//.test(s.page.url())) throw new Error("the browser was handed back without an event open — open the event's page, then hand back");
+    s.title = (await s.page.locator("h1, h2, [class*='title' i]").first().textContent().catch(() => ""))?.trim() || s.title;
+    return `you opened the event yourself in the browser (${new URL(s.page.url()).pathname})`;
+  }
+  if (answer.option === "create") return createEventForCase(s, need);
+  // A typed reply: the event to use, by its title.
+  const title = answer.text.trim();
+  const where = await s.events.openEvent({ title });
+  s.title = title;
+  return `opened “${title}”, the event you named, at ${where}`;
+}
+
+/** A fresh RFQ for the case, built with the plan's own steps — with a bid in and bidding closed when the case needs bids. */
+async function createEventForCase(s: RunState, need: "bids" | "live"): Promise<string> {
+  const steps: PlanStep[] = [
+    { step: "open_create", args: { path: "erfx" } },
+    { step: "set_title" },
+    { step: "compose_stages", args: { stages: ["rfq"] } },
+    { step: "select_template" },
+    { step: "add_line_items", args: { count: 1 } },
+    { step: "fill_sheet" },
+    { step: "set_schedule", args: need === "bids" ? { minutes: 3 } : {} },
+    { step: "invite_vendor", args: { count: 1 } },
+    { step: "publish" },
+    { step: "expect_published" },
+    ...(need === "bids" ? ([{ step: "place_surrogate_bid" }, { step: "close_event" }] as PlanStep[]) : []),
+  ];
+  for (const [k, st] of steps.entries()) {
+    const detail = await runStep(s, st);
+    console.log(`[plan] creating an event for this case ${k + 1}/${steps.length} ${st.step} ✓ ${detail ?? ""}`);
+  }
+  return `no live event fitted, so (as you chose) the run created “${s.title}”${need === "bids" ? ", placed a bid on it and let its bidding close" : ""}`;
+}
+
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
@@ -691,6 +824,63 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const own = !a.id && (!a.title || String(a.title) === s.title) && s.projectId ? s.projectId : undefined;
       const id = a.id ? String(a.id) : own;
       const title = a.title && !own ? String(a.title) : id ? undefined : s.title;
+      // No event named, and this plan built none: pick one from the Live list
+      // the way a tester would — the event the later steps need (quotes waiting
+      // to be evaluated for Master QCS / awarding / counter offers; an RFQ open
+      // for quotes otherwise) — and click it there. No search, and no event
+      // fixed in advance: fetching one particular event by name (picked from the
+      // database) failed whenever the list did not show it.
+      // Each pick is then checked on the event itself (can it take what the
+      // case does next?); one that cannot is passed over for the next card,
+      // and when none fits the tester is asked — create one, pick one, or stop.
+      if (!a.id && !a.title && !s.projectId) {
+        const later = s.later ?? [];
+        const need = needOf(later);
+        const tried: string[] = [];
+        const passed: string[] = [];
+        // "[pick] ✓|✗|· …": each event looked at and why it was used or passed
+        // over — shown under this step in the session (planNote), so a run that
+        // finds nothing says what it tried.
+        const skip = (title: string, why: string) => {
+          passed.push(`“${title}”: ${why}`);
+          console.log(`[pick] ✗ “${title}” — ${why}`);
+        };
+        // A bid needs its round open now: asked of the database before a card
+        // is clicked, so an event the Live list still shows after bidding
+        // closed is passed over without opening it.
+        const vet = bidsNext(later)
+          ? async (title: string) => {
+              const r = await roundNow(title);
+              if (!r) return null;
+              const no = cannotTakeBid(r);
+              return no ? { ok: false, why: no } : { ok: true, why: takesBid(r) };
+            }
+          : undefined;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          let p: { title: string; why: string; where: string };
+          try {
+            p = await s.events.pickFromLive(need, tried, vet, skip);
+          } catch (e) {
+            const m = (e as Error).message.split("\n")[0];
+            if (!/was passed over$/.test(m) || !passed.length) {
+              passed.push(m);
+              console.log(`[pick] · ${m}`);
+            }
+            break;
+          }
+          tried.push(p.title);
+          console.log(`[pick] · opened “${p.title}” — ${p.why}`);
+          const fit = await fitsCase(s, later, p.title);
+          if (fit.ok) {
+            s.title = p.title;
+            console.log(`[pick] ✓ “${p.title}” — ${fit.why}`);
+            const before = passed.length ? ` Passed over first — ${passed.join("; ")}.` : "";
+            return `no event was named, so the run picked “${p.title}” from ${p.where} — ${p.why}; ${fit.why}.${before}`;
+          }
+          skip(p.title, fit.why);
+        }
+        return await noFittingEvent(s, need, later, passed);
+      }
       if (!id && !title) throw new Error("open_event needs an id or a title, and this plan has not created an event to return to");
       const where = await s.events.openEvent({ id, title });
       if (title && !s.title) s.title = title;
@@ -702,17 +892,20 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!browser) throw new Error("no browser available to open a vendor session");
       const vendorCtx = await browser.newContext();
       const vendorPage = await vendorCtx.newPage();
+      // The live view follows the vendor into the portal, then comes back.
+      const release = focusFrames(vendorPage);
       try {
         const portal = new VendorPortalPage(vendorPage);
         // Signed in as the client's QA test vendor, never a real supplier.
         const email = await bidderEmail();
         await portal.goto();
-        await portal.login(email);
+        const how = await portal.login(email);
         await portal.openEvent(s.title);
         const detail = await portal.acceptCounterOffer(s.title);
         s.counterOfferAccepted = true;
-        return detail;
+        return `${detail} (signed in as ${email} with ${how})`;
       } finally {
+        release();
         await vendorCtx.close().catch(() => {});
       }
     }
@@ -751,7 +944,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       const award = new AwardPage(s.page);
       await award.openMasterQcs();
       const grid = s.page.locator(".rdg, .rdg-cell, [role='grid'], .data-grid-container").first();
-      await grid.waitFor({ state: "visible", timeout: 30_000 });
+      // An event with no bids shows "No bids are placed yet!" instead of a grid: say that, at once.
+      const empty = s.page.getByText(/no bids (are|have been) placed/i).first();
+      const shown = await Promise.race([
+        grid.waitFor({ state: "visible", timeout: 30_000 }).then(() => "grid"),
+        empty.waitFor({ state: "visible", timeout: 30_000 }).then(() => "empty"),
+      ]).catch(() => "neither");
+      if (shown === "empty") throw new Error(`Master QCS says “${((await empty.textContent().catch(() => "")) || "No bids are placed yet!").trim()}” — this event has no bids to compare`);
+      if (shown === "neither") throw new Error("Master QCS showed neither a comparison grid nor a message within 30 s");
       const text = ((await s.page.locator(".rdg, [role='grid'], .data-grid-container").first().innerText().catch(() => "")) || "").replace(/\s+/g, " ");
       const want = Array.isArray(a.vendors) ? a.vendors.map(String) : [];
       const missing = want.filter((v) => !text.toLowerCase().includes(v.toLowerCase()));
@@ -793,8 +993,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "open_create": {
       const path = String(a.path ?? "erfx");
-      await s.events.goto();
-      await s.events.startCreate(path === "single-stage" ? "single-stage" : path === "boq" ? "boq" : "erfx");
+      // Straight to the create screen by its address (the menu is the fallback):
+      // reaching it is this step's job, the Create Event menu is not its subject.
+      await s.events.startCreate(path === "single-stage" ? "single-stage" : path === "boq" ? "boq" : "erfx", { direct: true });
       // Reaching the URL is not the same as the form being there. On this
       // environment the create screen can take 20s+ to hydrate, and the very
       // next step (set_title) was failing "could not fill within 10s" on a
@@ -918,12 +1119,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!browser) throw new Error("no browser available to open a vendor session");
       const vendorCtx = await browser.newContext();
       const vendorPage = await vendorCtx.newPage();
+      // The live view follows the vendor into the portal, then comes back.
+      const release = focusFrames(vendorPage);
       try {
         const portal = new VendorPortalPage(vendorPage);
-        // Signed in as the client's QA test vendor (the one invited), never a real supplier.
-        const email = await bidderEmail();
+        // A vendor on the event: the one named (vendor: "<name>" or vendor: 2),
+        // else the next one that has not bid yet in this plan.
+        const email = await bidderEmail(a.vendor);
         await portal.goto();
-        await portal.login(email);
+        const how = await portal.login(email);
+        biddersUsed.push(email);
         await portal.openEvent(s.title);
         await portal.startBidding(s.title);
         const cells = await portal.fillBid(Number(a.price ?? 100));
@@ -931,8 +1136,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const ok = await portal.bidSubmitted();
         s.bidSubmitted = ok;
         if (!ok) throw new Error("the vendor portal did not confirm the quote as submitted");
-        return `bid placed from the vendor portal (${cells} cell(s))`;
+        return `bid placed from the vendor portal as ${email}, signed in with ${how} (${cells} cell(s))`;
       } finally {
+        release();
         await vendorCtx.close().catch(() => {});
       }
     }
@@ -991,7 +1197,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const added: string[] = [];
         for (const n of names) if (await s.single.addParticipant(n)) added.push(n);
         if (!added.length) await s.single.inviteVendor();
-        invitedQa = added.filter((n) => isQaVendorName(n, qa));
+        invitedVendors = allowRealVendors() ? added : added.filter((n) => isQaVendorName(n, qa));
         return swapNote(real) + (added.length ? `invited ${added.join(", ")} (single-stage)` : "vendors invited (single-stage)");
       }
       const asked = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
@@ -1007,7 +1213,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       const invited = await s.create.inviteVendors({ names, count: min });
       const present = await s.create.participantNames();
-      invitedQa = present.length ? present : invited;
+      invitedVendors = present.length ? present : invited;
       const total = present.length || (await s.create.participantCount());
       const shown = invited.length ? invited : present;
       return swapNote(real) + (shown.length ? `invited ${shown.join(", ")} (${total} total)` : `${total} participant(s)`);
@@ -1190,6 +1396,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
 }
 
 export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
+  biddersUsed = [];
   const s: RunState = {
     events: new EventsPage(page),
     create: new CreateEventPage(page),
@@ -1251,6 +1458,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       s.curMark = await toastMark(s.page);
       s.lastStrategy = undefined;
       s.stepNo = i + 1;
+      s.later = plan.steps.slice(i + 1).map((x) => x.step);
       const detail = await runStep(s, step);
       results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);

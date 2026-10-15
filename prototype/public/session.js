@@ -46,6 +46,8 @@
     frames: 0,
     reqs: 0,
     clock: null,
+    asking: null,       // an open question from the run: { runId, n, card, options }
+    onEnd: null,        // told how this turn ended (a case run from the test cases table, runCases.js)
   };
 
   // ── elements ─────────────────────────────────────────────────────────────
@@ -109,7 +111,7 @@
     const comp = q$("#ss-composer");
     if (comp) comp.classList.toggle("busy", S.open);
     const msg = q$("#ss-msg");
-    if (msg) msg.placeholder = S.open ? "Running… you can type your next message" : "Send a message to continue";
+    if (msg) msg.placeholder = S.asking ? "Answer the question above, or pick an option" : S.open ? "Running… you can type your next message" : "Send a message to continue";
     syncSend();
     paintLive();
   }
@@ -119,7 +121,7 @@
    * A new turn. From the composer it continues this session (the last turn is
    * kept above, frozen as it ended); from anywhere else it starts a new one.
    */
-  function begin({ text = "", mode = S.mode, kind = "typed", replay = false, id = null } = {}) {
+  function begin({ text = "", mode = S.mode, kind = "typed", replay = false, id = null, flowKeys = null, bidders = 0 } = {}) {
     const ask = S.pendingAsk;
     S.pendingAsk = null;
     const continuing = S.continuing && S.on && S.turn;
@@ -134,17 +136,20 @@
     S.open = !replay;
     S.mode = MODES.includes(mode) ? mode : "both";
     const shown = ask?.display || text;
-    S.turn = { text: shown, runText: text, mode: S.mode, kind, replay, target: target(), startedAt: Date.now(), plan: [], log: [], ended: {} };
+    // flowKeys: the browser journeys this turn ran, so "Run again" runs exactly those.
+    const keys = Array.isArray(flowKeys) && flowKeys.length ? flowKeys.map(String) : null;
+    S.turn = { text: shown, runText: text, mode: S.mode, kind, replay, flowKeys: keys, bidders, target: target(), startedAt: Date.now(), plan: [], log: [], ended: {} };
     S.chat.push({ role: "user", text: shown });
 
     const turn = el.turn;
     if (turn) turn.dataset.kind = kind;
     el.narr.innerHTML = "";
     el.end.innerHTML = "";
-    const meta = [MODE_WORD[S.mode], targetText()].filter(Boolean).join(" · ");
+    // No "UI · PROCOL DEMO · UAT" under the request: the top bar already
+    // says which client and environment, and the steps say what kind of run.
     el.ask.innerHTML =
       `<div class="ss-user">${h(shown)}</div>` +
-      `<div class="ss-meta">${h(replay ? `Saved run · ${meta}` : meta)}</div>` +
+      (replay ? `<div class="ss-meta">Saved run</div>` : "") +
       (ask?.compiled ? `<div class="ss-compiled"><span>Running as</span>${h(ask.compiled)}</div>` : "") +
       (ask?.note ? `<div class="ss-meta left">${h(ask.note)}</div>` : "");
     syncModeSeg();
@@ -180,7 +185,9 @@
     const list = q$("#ss-req-list");
     if (list) list.innerHTML = "";
     paintReqCount();
-    const apiOnly = S.mode === "api" || kind === "features";
+    // A saved browser journey opens as a "features" turn too, but in UI mode:
+    // it keeps the Browser panel (its "Run again" lives there).
+    const apiOnly = S.mode === "api" || (kind === "features" && S.mode !== "ui");
     setTab(apiOnly ? "requests" : "browser");
     // A run with no browser has nothing to watch on the right; its requests
     // are one click away (the top bar's button) instead of a wall of paths.
@@ -362,18 +369,23 @@
       list.appendChild(li);
       return { verb, arg, state: "wait", detail: "" };
     });
+    // planStep() ticks THIS list: a Both ask can show an API journey's list above it.
+    S.turn.planList = list;
     if (S.turn.plan.length) addNarr(list);
     // Nothing runs when coverage is "none": the Not tested box this turn ends
     // on says which step is missing, so it is not said twice.
     if (p.coverage === "partial") note(`Only part of this case can be tested — there is no step for: ${gapWords(p.gaps)}.`, "info");
     for (const w of p.warnings || []) if (!/^cannot test|^can only test/i.test(w)) note(w, "info");
-    if (runnable) working(`Running ${S.turn.plan.length} step${S.turn.plan.length === 1 ? "" : "s"} in the browser`);
+    // An API journey's steps come here too (via "api"), so the chat reads the same either way.
+    S.turn.planVia = p.via === "api" ? "api" : "browser";
+    if (S.turn.planVia === "browser") browserPart();
+    if (runnable) working(`Running ${S.turn.plan.length} step${S.turn.plan.length === 1 ? "" : "s"} ${p.via === "api" ? "against the API" : "in the browser"}`);
   }
 
   /** state: "run" | "ok" | "bad" | "skip" */
   function planStep(i, state, detail) {
     if (!S.on || !S.turn?.plan?.[i]) return;
-    const li = q$(`.ss-steps > [data-i="${i}"]`, el.narr);
+    const li = S.turn.planList?.querySelector(`:scope > [data-i="${i}"]`) ?? q$(`.ss-steps > [data-i="${i}"]`, el.narr);
     if (!li) return;
     li.classList.remove("wait", "run", "ok", "bad", "skip");
     li.classList.add(state);
@@ -383,22 +395,244 @@
       s.detail = String(detail || "");
       const d = q$(".ss-step-detail", li);
       if (d) {
-        d.textContent = s.detail;
-        d.hidden = !s.detail;
+        // The notes above it already list what was passed over; the detail
+        // keeps that list for a saved run, which has no notes.
+        d.textContent = s.notes?.length ? s.detail.replace(/\s*Passed over(?: first)? — [\s\S]*$/, "") : s.detail;
+        d.hidden = !d.textContent;
       }
     }
     if (state === "run") working(`Step ${i + 1} of ${S.turn.plan.length}: ${s.verb}`);
   }
 
+  /**
+   * A line under a step while it runs — which event the run looked at and why
+   * it was used or passed over ("[pick] …" from the run). kind: "ok" | "no" | "info".
+   */
+  function planNote(i, text, kind) {
+    if (!S.on || !S.turn?.plan?.[i] || !text) return;
+    const li = S.turn.planList?.querySelector(`:scope > [data-i="${i}"]`) ?? q$(`.ss-steps > [data-i="${i}"]`, el.narr);
+    if (!li) return;
+    const s = S.turn.plan[i];
+    (s.notes ??= []).push({ text: String(text), kind });
+    let ul = q$(".ss-step-notes", li);
+    if (!ul) {
+      ul = node(`<ul class="ss-step-notes"></ul>`);
+      q$(".ss-step-detail", li)?.before(ul);
+    }
+    const mark = kind === "ok" ? "✓" : kind === "no" ? "✕" : "·";
+    ul.appendChild(node(`<li class="${kind}"><span class="ss-note-m" aria-hidden="true">${mark}</span><span>${h(String(text))}</span></li>`));
+    if (li.classList.contains("run") || li.classList.contains("wait")) working(`Step ${i + 1} of ${S.turn.plan.length}: ${String(text).slice(0, 90)}`);
+  }
+
+  // ── a journey worked out on screen (no ready-made steps) ─────────────────
+  /**
+   * The explorer (procol-ui-tests/src/explore/) chooses each step as it goes,
+   * so this list grows instead of being drawn up front. A line is what was
+   * actually done ("Clicked “Purchase Orders”"), the reason in grey under it,
+   * and the screenshot taken after it. Its questions are cards (ask, below).
+   */
+  function explore(x) {
+    if (!S.on || !S.turn || !x) return;
+    stopWorking();
+    head(
+      "No ready-made steps for this, so I'll work it out in the browser",
+      "I pick each step from what's on the screen and screenshot it. I'll ask you here when I can't choose, when I'm stuck, and before anything that sends, approves or deletes.",
+      "ok",
+    );
+    const list = node(`<ol class="ss-steps ss-explore"></ol>`);
+    S.turn.explore = { runId: String(x.runId || ""), list, rows: new Map() };
+    addNarr(list);
+    browserPart();
+    working("Signing in and opening the app");
+  }
+
+  const ASK_ECHO = /^(Asked you|You answered):/;
+  function exploreStep(st) {
+    const x = S.turn?.explore;
+    if (!S.on || !x || !st) return;
+    const text = String(st.text || "");
+    if (!st.n) {
+      remember(text);
+      // The question and its answer are on the card already.
+      if (ASK_ECHO.test(text)) return;
+      x.list.appendChild(node(
+        `<li class="ss-b act ss-x-note${st.status === "retry" ? " retry" : ""}"><span class="ss-dot"></span>` +
+        `<div class="ss-b-body"><div class="ss-b-d">${h(text)}</div></div></li>`,
+      ));
+      return;
+    }
+    const state = st.status === "run" ? "run" : st.status === "ok" ? "ok" : st.status === "failed" ? "bad" : "skip";
+    let li = x.rows.get(st.n);
+    if (!li) {
+      li = node(`<li class="ss-b act" data-n="${Number(st.n)}"></li>`);
+      x.list.appendChild(li);
+      x.rows.set(st.n, li);
+    }
+    const shot = st.shot
+      ? `<a class="ss-shot" href="/api/plan-shot?run=${encodeURIComponent(x.runId)}&f=${encodeURIComponent(st.shot)}" target="_blank" rel="noopener">${icon("app-window")}Screenshot</a>`
+      : "";
+    li.className = `ss-b act ${state}`;
+    li.innerHTML =
+      `<span class="ss-dot"></span><div class="ss-b-body">` +
+      `<div class="ss-b-a"><b>${h(text)}</b>${st.replayed ? ` <span class="ss-arg">from the saved route</span>` : ""}</div>` +
+      (st.why ? `<div class="ss-b-d">${h(st.why)}</div>` : "") +
+      shot + `</div>`;
+    if (state === "run") working(`Step ${st.n}: ${text}`);
+    else remember(`${st.n}. ${text}${state === "bad" ? " (failed)" : ""}`);
+  }
+
+  /**
+   * A question from the run, the way a chat assistant asks: the options it
+   * offers, and a box for anything else. The composer answers it too while it
+   * is open. The answer goes to the waiting run (POST /api/explore/answer).
+   */
+  function ask(q) {
+    if (!S.on || !S.turn || !q) return;
+    closeAsk("");
+    stopWorking();
+    // "I'll do it myself" needs the live view's Take control (liveControl.js); without it the option is left out.
+    const opts = (Array.isArray(q.options) ? q.options : []).filter((o) => o.id !== "self" || !!window.spineLiveControl);
+    const runId = String(q.runId || S.turn.explore?.runId || "");
+    const shot = q.shot && runId
+      ? `<a class="ss-shot" href="/api/plan-shot?run=${encodeURIComponent(runId)}&f=${encodeURIComponent(q.shot)}" target="_blank" rel="noopener">${icon("app-window")}See the screen now</a>`
+      : "";
+    const card = node(
+      `<div class="ss-askcard" role="group" aria-label="A question from the run">` +
+      `<div class="ss-askcard-h">${icon("bot")}<span>${q.kind === "confirm" ? "Before I go on" : q.kind === "stuck" ? "I'm stuck" : "Question"}</span></div>` +
+      `<div class="ss-askcard-q">${h(q.question)}</div>` +
+      (q.detail ? `<div class="ss-askcard-d">${h(q.detail)}</div>` : "") +
+      shot +
+      `<div class="ss-askcard-opts">${opts
+        .map((o, i) => `<button type="button" class="ss-opt${o.id === "stop" ? " stop" : ""}" data-opt="${h(o.id)}"><span class="ss-opt-k">${i + 1}</span><span class="ss-opt-l">${h(o.label)}</span></button>`)
+        .join("")}</div>` +
+      `<form class="ss-askcard-other"><textarea rows="1" maxlength="2000" placeholder="Something else? Type it here"></textarea>` +
+      `<button type="submit" class="ss-opt-send" disabled>Send</button></form>` +
+      `<div class="ss-askcard-said" hidden></div></div>`,
+    );
+    addNarr(card);
+    S.asking = { runId, n: Number(q.n), card, options: opts };
+    card.querySelectorAll(".ss-opt").forEach((b) =>
+      b.addEventListener("click", async () => {
+        const o = opts.find((x) => x.id === b.dataset.opt);
+        if (b.dataset.opt === "self") {
+          // The browser comes forward and is theirs before the run is told.
+          setTab("browser", true);
+          setRight(true);
+          try {
+            await window.spineLiveControl?.take?.();
+          } catch {
+            /* the run says so if the hold never landed */
+          }
+        }
+        answerAsk({ option: b.dataset.opt, text: o?.label || "" }, b);
+      }),
+    );
+    const form = q$(".ss-askcard-other", card);
+    const box = q$("textarea", form);
+    const go = q$(".ss-opt-send", form);
+    box.addEventListener("input", () => { autosize(box); go.disabled = !box.value.trim(); });
+    box.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+    });
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = box.value.trim();
+      if (text) answerAsk({ option: null, text });
+    });
+    S.chat.push({ role: "assistant", text: q.question });
+    remember(`QUESTION: ${q.question}`);
+    if (!showing() && S.turn && !S.turn.replay) S.yourTurn = true;
+    paintTop();
+    pin(true);
+  }
+
+  async function answerAsk(a, button = null) {
+    const open = S.asking;
+    if (!open || open.sending) return;
+    open.sending = true;
+    const card = open.card;
+    card.querySelectorAll("button, textarea").forEach((x) => (x.disabled = true));
+    let ok = false;
+    try {
+      const r = await fetch("/api/explore/answer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ runId: open.runId, n: open.n, option: a.option, text: a.text }),
+      });
+      ok = r.ok && (await r.json().catch(() => ({}))).ok === true;
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      open.sending = false;
+      closeAsk("The run is no longer waiting for this answer.");
+      return;
+    }
+    if (button) button.classList.add("picked");
+    const said = q$(".ss-askcard-said", card);
+    said.textContent = a.text;
+    said.hidden = false;
+    card.classList.add("answered");
+    q$(".ss-askcard-other", card).hidden = true;
+    S.chat.push({ role: "user", text: a.text });
+    remember(`ANSWER: ${a.text}`);
+    S.asking = null;
+    S.yourTurn = false;
+    paintTop();
+    working(
+      a.option === "stop"
+        ? "Stopping and writing up where it got to"
+        : a.option === "self"
+          ? "Your turn in the browser — press Hand back when you're done"
+          : "Carrying on",
+    );
+  }
+
+  /** A question nobody can answer any more (the run ended, or a new one came). */
+  function closeAsk(why) {
+    const open = S.asking;
+    if (!open) return;
+    S.asking = null;
+    open.card.querySelectorAll("button, textarea").forEach((x) => (x.disabled = true));
+    open.card.classList.add("closed");
+    if (why) {
+      const said = q$(".ss-askcard-said", open.card);
+      said.textContent = why;
+      said.hidden = false;
+    }
+    paintTop();
+  }
+
   // ── the right-hand side ──────────────────────────────────────────────────
+  /**
+   * An API run never opens a browser, so it is not offered one: no Browser
+   * tab, and Requests is what the panel shows — live, and when a saved API
+   * run is opened again. UI and Both runs keep both tabs.
+   */
+  const browserless = () => S.turn?.mode === "api";
   function setTab(tab, picked = false) {
-    S.tab = tab === "requests" ? "requests" : "browser";
+    const off = browserless();
+    S.tab = tab === "requests" || off ? "requests" : "browser";
     if (picked) S.tabPicked = true;
-    for (const b of document.querySelectorAll(".ss-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === S.tab));
+    for (const b of document.querySelectorAll(".ss-tab")) {
+      b.hidden = off && b.dataset.tab === "browser";
+      b.setAttribute("aria-selected", String(b.dataset.tab === S.tab));
+      b.tabIndex = b.dataset.tab === S.tab ? 0 : -1;
+    }
     for (const p of document.querySelectorAll(".ss-pane")) p.hidden = p.dataset.pane !== S.tab;
   }
+  /**
+   * The browser part of a run is starting (Both: after the API part, whose
+   * requests had brought the Requests tab forward). Show the Browser tab, as
+   * the first frame would, unless the reader picked a tab themselves.
+   */
+  function browserPart() {
+    if (!S.on || browserless()) return;
+    if (!S.tabPicked) setTab("browser");
+    setRight(true);
+  }
   function frame() {
-    if (!S.on) return;
+    if (!S.on || browserless()) return;
     S.frames++;
     if (S.frames === 1) {
       if (!S.tabPicked) setTab("browser");
@@ -427,8 +661,57 @@
       empty.hidden = !!S.frames;
       empty.textContent = S.open
         ? S.turn?.mode === "api" ? "This run talks to the API directly — open Requests to watch it." : "The browser appears here as soon as the run opens it."
-        : "No browser was used in this run.";
+        : S.turn?.replay && S.turn?.mode !== "api"
+          ? "A saved run doesn't keep the browser. Run it again to watch it live."
+          : "No browser was used in this run.";
     }
+    paintRerun();
+  }
+
+  /**
+   * "Run again", on the Browser tab once a UI run has finished: the same run,
+   * started the way typing "retry" starts it (rerun below) — the same typed
+   * case, or the same browser journeys, for the same client.
+   */
+  function canRerun() {
+    const t = S.turn;
+    if (!S.on || S.open || !t || t.mode === "api") return false;
+    if (t.flowKeys?.length) return !missingJourneys(t).length;
+    return t.kind === "typed" || t.kind === "journeys";
+  }
+  /**
+   * Journeys this turn ran that the client does not have (a saved run may be
+   * another client's). Unknown while the client's journeys are still loading,
+   * so nothing is missing then; the click checks again.
+   */
+  function missingJourneys(t) {
+    const flows = read(() => uiFlows, []) || [];
+    if (!flows.length) return [];
+    return (t.flowKeys ?? []).filter((k) => !flows.some((f) => f.key === k));
+  }
+  function paintRerun() {
+    const screen = q$(".ss-screen");
+    if (!screen) return;
+    let btn = q$("#ss-rerun");
+    if (!btn) {
+      btn = node(`<button type="button" class="ss-rerun" id="ss-rerun" hidden>${icon("rotate-cw")}<span>Run again</span></button>`);
+      btn.addEventListener("click", () => {
+        const missing = S.turn ? missingJourneys(S.turn) : [];
+        if (missing.length) {
+          bubble("Run it again");
+          aiSay(`${missing.join(", ")} ${missing.length === 1 ? "isn't a journey" : "aren't journeys"} ${read(() => currentClientName, "") || "this client"} has, so this run can't be started again here.`);
+          return paintRerun();
+        }
+        if (!canRerun()) return;
+        S.pendingAsk = { display: "Run it again", note: "Running the same thing again." };
+        pin(true);
+        rerun(S.turn.mode);
+      });
+      screen.appendChild(btn);
+    }
+    const on = canRerun();
+    btn.hidden = !on;
+    if (on) btn.title = S.turn.flowKeys?.length ? `Run ${S.turn.flowKeys.join(", ")} again in the browser` : "Run this again in the browser";
   }
   function paintReqCount() {
     const n = q$("#ss-req-n");
@@ -539,10 +822,19 @@
     if (!S.on) return;
     // Ended out of sight: it waits on Home and in the sidebar until it is opened.
     if (S.open && S.turn && !S.turn.replay && !showing()) S.yourTurn = true;
+    closeAsk("No longer waiting — the run ended.");
+    const told = S.open && S.onEnd;
     S.open = false;
+    if (told) {
+      const cb = S.onEnd;
+      const o = outcome();
+      S.onEnd = null;
+      setTimeout(() => { try { cb(o); } catch { /* the table's problem, not the run's */ } }, 0);
+    }
     stopWorking();
     paintCases();
     paintTop();
+    paintLive();
   }
 
   function stopped() {
@@ -589,14 +881,26 @@
     if (unknown.length === rows.length) {
       return end({ tone: "skip", key: "API", title: "The API part could not be judged.", lines: unknown.slice(0, 2).map((r) => r.message || r.verdict || "") });
     }
+    // Some worked, some could not be checked: never "all worked" — what was
+    // not checked is the part the reader still has to find out about.
+    if (unknown.length) {
+      const worked = rows.length - unknown.length;
+      return end({
+        tone: "skip",
+        key: "API",
+        title: `Only part of it was tested: ${worked} of ${rows.length} API check${rows.length === 1 ? "" : "s"} worked, ${unknown.length} could not be checked.`,
+        lines: unknown.slice(0, 3).map((r) => `${r.scenario || r.id}: ${r.message || r.verdict || ""}`),
+      });
+    }
     end({ tone: "ok", key: "API", title: rows.length === 1 ? "It worked as expected." : `All ${rows.length} API checks worked as expected.`, lines: rows.slice(0, 2).map((r) => r.message || r.verdict || "") });
   }
 
   // ── the typed UI case: the answer renderUiInstructResult already words ───
-  function uiResult({ cls, title, lines = [] }) {
+  function uiResult({ cls, title, lines = [], runId = "" }) {
     if (!S.on) return;
     const tone = cls === "ok" ? "ok" : cls === "skip" ? "skip" : "bad";
-    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1) });
+    // A run the explorer worked out has its run id: its bugs can be opened from here.
+    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), links: runId && tone === "bad" ? bugLinks(runId) : [] });
   }
 
   /**
@@ -745,9 +1049,13 @@
     const t = S.turn;
     if (!t) return "";
     const out = [`Asked: ${t.runText || t.text}`, `Channel: ${MODE_WORD[t.mode] || t.mode}`];
-    if (t.plan.length) {
+    // An API journey's steps are listed below as the API journey, with their calls.
+    if (t.plan.length && t.planVia !== "api") {
       out.push("Browser steps:");
-      t.plan.forEach((s, i) => out.push(`  ${i + 1}. [${s.state}] ${s.verb}${s.arg ? ` ${s.arg}` : ""}${s.detail ? ` — ${s.detail}` : ""}`));
+      t.plan.forEach((s, i) => {
+        out.push(`  ${i + 1}. [${s.state}] ${s.verb}${s.arg ? ` ${s.arg}` : ""}${s.detail ? ` — ${s.detail}` : ""}`);
+        for (const n of s.notes ?? []) out.push(`     ${n.kind === "ok" ? "used" : n.kind === "no" ? "passed over" : "·"}: ${n.text}`);
+      });
     }
     const steps = read(() => uiSteps, []) || [];
     if (steps.length) {
@@ -771,13 +1079,54 @@
     return out.join("\n").slice(0, 12000);
   }
 
+  // ── a case from the "Test cases from this run" table, run as the next turn ─
+  /**
+   * runCases.js runs a suggested case: it becomes the next turn of this
+   * session — narrated here, shown in the browser panel, kept as its own
+   * session — and the table is told how it ended (onEnd), so the case's
+   * status becomes the run's answer. False when a run is already going.
+   */
+  function runCase({ display = "", text = "", mode = "ui", onEnd = null } = {}) {
+    if (!S.on || S.open || !S.turn || !String(text).trim()) return false;
+    S.pendingAsk = {
+      display: display || text,
+      compiled: display && display !== text ? text : "",
+      note: "A suggested case from the test cases table above, run as written.",
+    };
+    S.onEnd = typeof onEnd === "function" ? onEnd : null;
+    pin(true);
+    startTyped(text, MODES.includes(mode) ? mode : "ui");
+    return true;
+  }
+  /** The run this turn is (its saved session's id), once the server has named it. */
+  function setRunId(id) {
+    if (S.turn && id) S.turn.runId = String(id);
+  }
+  /** How this turn ended, the worst part first: failed, stopped, not tested, done. */
+  function outcome() {
+    const rank = { bad: 4, stop: 3, skip: 2, ok: 1 };
+    const parts = Object.values(S.turn?.ended ?? {}).sort((a, b) => (rank[b.tone] || 0) - (rank[a.tone] || 0));
+    // The saved run, from the run itself or from a report link on its closing box.
+    let runId = S.turn?.runId || null;
+    if (!runId) {
+      for (const a of el.turn?.querySelectorAll("a[href*='run='], [data-bugs-export]") ?? []) {
+        runId = a.getAttribute("data-bugs-export") || decodeURIComponent((a.getAttribute("href") || "").match(/[?&]run=([^&#]+)/)?.[1] || "") || null;
+        if (runId) break;
+      }
+    }
+    const worst = parts[0];
+    return worst
+      ? { tone: worst.tone, title: worst.title || "", lines: worst.lines || [], runId }
+      : { tone: "skip", title: "The run ended without a result.", lines: [], runId };
+  }
+
   // ── the composer: continuing the conversation ────────────────────────────
   const RETRY = /^\s*(retry|re-?run|run (it |this )?again|try (it |this )?again|again|once more)\s*[.!]*\s*$/i;
 
   function syncSend() {
     const msg = q$("#ss-msg");
     const send = q$("#ss-send");
-    if (send) send.disabled = S.open || !msg?.value.trim();
+    if (send) send.disabled = (S.open && !S.asking) || !msg?.value.trim();
   }
   function syncModeSeg() {
     const r = document.querySelector(`input[name="ss-mode"][value="${S.mode}"]`);
@@ -794,6 +1143,11 @@
 
   async function send(text) {
     text = String(text ?? "").trim();
+    if (text && S.asking) {
+      const box = q$("#ss-msg");
+      if (box) { box.value = ""; autosize(box); }
+      return answerAsk({ option: null, text });
+    }
     if (!text || S.open || !S.turn) return;
     const box = q$("#ss-msg");
     if (box) { box.value = ""; autosize(box); }
@@ -859,6 +1213,9 @@
     const t = S.turn;
     S.continuing = true;
     if (t.kind === "typed") return startTyped(t.runText, mode || t.mode);
+    // The journeys this turn ran — a saved journey opened again included —
+    // not whatever happens to be ticked now.
+    if (t.flowKeys?.length && typeof runSelectedUiJourneys === "function") return runSelectedUiJourneys(t.flowKeys, { bidders: t.bidders });
     if (t.kind === "features" && typeof runSelectedFeatures === "function") return runSelectedFeatures();
     if (t.kind === "journeys" && typeof runSelectedUiJourneys === "function") return runSelectedUiJourneys();
     S.continuing = false;
@@ -1070,12 +1427,16 @@
 
   window.spineSession = {
     begin, ensure, idle, stopped, showing,
-    working, head, act, note,
-    plan, planStep,
+    working, head, act, note, browserPart,
+    plan, planStep, planNote,
+    explore, exploreStep, ask,
+    runCase, setRunId,
     frame, request,
     end, apiCheck, apiEnd, uiResult, journeyEnd, runEnd, replayed,
     get on() { return S.on; },
     get open() { return S.open; },
+    /** The run is waiting on the tester's answer to a question. */
+    get waiting() { return !!S.asking; },
     get id() { return S.id; },
     get yourTurn() { return S.yourTurn; },
     /** What was asked, when it started, where it ran, and whether it is a saved run opened again. */

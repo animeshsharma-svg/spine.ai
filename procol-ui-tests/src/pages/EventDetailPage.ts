@@ -196,11 +196,20 @@ export class EventDetailPage extends BasePage {
     const p = this.page;
     const projectId = BasePage.projectIdFromUrl(p.url());
     const events = new EventsPage(p);
-    await events.goto();
     const readRemaining = async (): Promise<{ text: string; seconds: number | null; over: boolean }> => {
       // A fresh load every time: the list caches, and a stale row reads as live.
       await events.goto();
-      await events.searchByTitle(title);
+      // The event this run just published is the newest, so it is at the top
+      // of the list: read its row there, and search only when it is not. It
+      // used to search every time, typing the title into the box every 15 s
+      // while the row sat in plain sight.
+      const onTop = await p
+        .getByText(title, { exact: false })
+        .first()
+        .waitFor({ state: "visible", timeout: 8_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!onTop) await events.searchByTitle(title);
       const row = (await events.rowTextFor(title)) ?? "";
       const m = row.match(/ends in\s*(?:(\d+)\s*h\s*:?\s*)?(\d+)\s*m\s*:?\s*(\d+)\s*s/i);
       // Once the window ends, the row keeps the words "Ends in" with NOTHING
@@ -223,7 +232,13 @@ export class EventDetailPage extends BasePage {
     }
     const deadline = Date.now() + maxWaitMinutes * 60_000 + 30_000;
     while (!state.over && Date.now() < deadline) {
-      await p.waitForTimeout(15_000);
+      // As long as the countdown says, plus a few seconds for the app to mark
+      // it ended — one wait and one look, not a reload every 15 s. With no
+      // countdown to read, look again in 15 s.
+      const wait = state.seconds !== null ? Math.max(5_000, state.seconds * 1_000 + 4_000) : 15_000;
+      const capped = Math.max(1_000, Math.min(wait, deadline - Date.now()));
+      console.log(`[close-event] waiting ${Math.round(capped / 1000)} s for the bidding window to end`);
+      await p.waitForTimeout(capped);
       state = await readRemaining();
     }
     if (!state.over) throw new Error(`the bidding window had not lapsed after ${maxWaitMinutes} min (row: ${state.text})`);

@@ -2,7 +2,7 @@ import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
-import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError } from "../db/qaVendors.js";
+import { qaVendorNames, isQaVendorName, allowRealVendors, NoQaVendorError, vendorLogins } from "../db/qaVendors.js";
 import { InlineSheet, WidgetConfig } from "../helpers/inlineSheet.js";
 import { forEachSequential } from "../helpers/data.js";
 import { templateChoice, scheduleMinutes, vendorCount } from "../master/params.js";
@@ -905,6 +905,24 @@ export class CreateEventPage extends BasePage {
         await this.pause(500);
       }
     }
+    // Opened, but with nothing in it: Procol offered no templates on this tab.
+    // That is what the screen holds, not a control that failed to respond —
+    // and no amount of clicking (or asking the AI) adds a template to it.
+    if (!opened) {
+      await this.clickIfPresent(this.selectTemplatesButtonCandidates(), { label: "open-templates", timeout: TIMEOUTS.SHORT });
+      const emptyMenu = await p
+        .locator(".ant-dropdown:visible")
+        .filter({ has: p.locator("input") })
+        .count()
+        .catch(() => 0);
+      if (emptyMenu && !(await this.templateRows().count().catch(() => 0))) {
+        await p.keyboard.press("Escape").catch(() => {});
+        throw new Error(
+          "the template list on this tab opened empty — Procol offered no templates to choose, and nothing on this " +
+            "tab (sheet, line items, publish) works without one",
+        );
+      }
+    }
     if (!opened) {
       const healed = await heal(p, "click the Select Templates control to open the template list");
       if (healed) {
@@ -1460,7 +1478,17 @@ export class CreateEventPage extends BasePage {
   async participantCount(): Promise<number> {
     const region = this.participantsRegion();
     if (!(await region.count())) return 0;
-    return region.locator(".ant-select-selection__choice, .ant-tag, [class*='chip']").count();
+    const chips = region.locator(".ant-select-selection__choice, .ant-tag, [class*='chip']");
+    const texts = await chips.allInnerTexts().catch(() => [] as string[]);
+    // A long list is collapsed into four names and a "+ 156.." chip: that chip
+    // stands for 156 more vendors, not one. Counted as one, a run that invited
+    // 160 vendors (each emailed) reported "5 invited".
+    let n = 0;
+    for (const t of texts) {
+      const more = t.replace(/\s+/g, "").match(/^\+(\d+)/);
+      n += more ? Number(more[1]) : 1;
+    }
+    return n;
   }
 
   private participantsRegion() {
@@ -1601,6 +1629,22 @@ export class CreateEventPage extends BasePage {
     }
     // No names given (or none matched) — fall back to whoever is there.
     await this.inviteVendor();
+    // "Two vendors bid": each bid signs in to the vendor portal as a different
+    // vendor on the event, so the event needs that many vendors WITH a login.
+    // When the audience brought fewer, add this client's vendors that have one.
+    if (opts.count && opts.count > 1) {
+      const logins = await vendorLogins();
+      const withLogin = (names: string[]) => names.filter((n) => logins.some((v) => isQaVendorName(n, [v.name]))).length;
+      let present = await this.participantNames();
+      for (const v of logins) {
+        if (withLogin(present) >= opts.count) break;
+        if (present.some((n) => isQaVendorName(n, [v.name]))) continue;
+        if (await this.addParticipantByName(v.name)) {
+          console.log(`[create-event] added ${v.name} — a vendor that can sign in to the vendor portal`);
+          present = await this.participantNames();
+        }
+      }
+    }
     const have = await this.participantCount();
     if (opts.count && have < opts.count) {
       throw new Error(
@@ -1616,8 +1660,9 @@ export class CreateEventPage extends BasePage {
    * leave the client's own QA test vendors (qa_…@example.com) on the event:
    * add one by exact name, remove anything the product pre-filled, and refuse
    * to continue if a non-QA participant is still there. The old behaviour —
-   * keep the pre-filled audience, or type "a" and take the first match, which
-   * invited real suppliers — runs only with SPINE_ALLOW_REAL_VENDORS=1.
+   * keep the pre-filled audience, or type "a" and take the first match — is
+   * the default again since 2026-10-08 (the vendors on the event, Aanya's
+   * call); this QA-only invite runs only with SPINE_QA_VENDORS_ONLY=1.
    */
   private async inviteQaVendors(): Promise<void> {
     const qa = await qaVendorNames();
@@ -2034,17 +2079,22 @@ export class CreateEventPage extends BasePage {
     const openPicker = this.page.locator(".ant-time-picker-panel:not(.ant-time-picker-panel-hidden), .ant-calendar-picker-container:not([style*='display: none'])");
     if (await openPicker.count()) {
       await this.page.keyboard.press("Escape").catch(() => {});
-      await panel.getByText(/schedule event/i).first().click({ timeout: 1_500 }).catch(() => {});
+      await panel.getByText(/schedule event/i).first().click({ timeout: 400 }).catch(() => {});
     }
     const saveBtn = panel.getByRole("button", { name: /save schedule/i }).first();
     await saveBtn.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest" })).catch(() => {});
     await this.page.waitForTimeout(300);
     const box = await saveBtn.boundingBox().catch(() => null);
     console.log(`[create-event] Save Schedule at ${box ? `y=${Math.round(box.y)} h=${Math.round(box.height)}` : "no box"} (viewport ${this.page.viewportSize()?.height ?? "?"}px)`);
-    let clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false);
-    if (!clicked) {
+    // Ask first whether a pointer click would land (a trial click checks, it
+    // does not click). On UAT the drawer clips it every time, and a real click
+    // then spent 5 s timing out before the dispatch below — measured in the
+    // RFQ journey's trace, every run.
+    const lands = await saveBtn.click({ trial: true, timeout: 700 }).then(() => true).catch(() => false);
+    let clicked = lands ? await saveBtn.click({ timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false) : false;
+    if (!clicked && lands) {
       await saveBtn.evaluate((el) => el.scrollIntoView({ block: "end" })).catch(() => {});
-      clicked = await saveBtn.click({ timeout: TIMEOUTS.SHORT, force: true }).then(() => true).catch(() => false);
+      clicked = await saveBtn.click({ timeout: 1_500, force: true }).then(() => true).catch(() => false);
     }
     if (!clicked) {
       // The drawer's scroller clips the click point even when the box is on
@@ -2054,8 +2104,9 @@ export class CreateEventPage extends BasePage {
       console.log("[create-event] Save Schedule: pointer clicks were clipped by the drawer — dispatched the click directly");
     }
     await this.waitForSpinnerHidden();
-    // The drawer closes fast on a good save; do not block 30s when it lingers.
-    await panel.waitFor({ state: "hidden", timeout: TIMEOUTS.SHORT }).catch(() => {});
+    // The drawer closes fast on a good save; do not block when it lingers (it
+    // lingered past 5 s on every traced run, and the chip below is the proof).
+    await panel.waitFor({ state: "hidden", timeout: 1_500 }).catch(() => {});
     await this.dismissDistractions();
     // What did the app keep? The chip is labelled by its own value —
     // "Now - 03:27 pm, 11th Sep (30 Mins)" — so it is the ground truth.

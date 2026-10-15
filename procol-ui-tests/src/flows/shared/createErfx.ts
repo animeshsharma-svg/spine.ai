@@ -1,5 +1,6 @@
 import { Page, expect } from "@playwright/test";
 import { mismatches, verifyPublishedEvent, type Verification } from "./verifyEvent.js";
+import { biddersWanted, vendorsBid } from "./vendorBids.js";
 import { EventsPage } from "../../pages/EventsPage.js";
 import { CreateEventPage, ProductInput, StageKey } from "../../pages/CreateEventPage.js";
 import { generateEventTitle } from "../../helpers/data.js";
@@ -160,6 +161,12 @@ export async function createAndPublishErfx(page: Page, opts: ErfxOptions): Promi
       .map((c) => `${c.what} — wanted ${c.expected}, found ${c.actual}`)
       .join("; ")}`,
   ).toEqual([]);
+
+  // "Place a bid" ticked with this event type: the vendors invited to THIS
+  // event sign in and bid on it (vendorBids.ts), instead of a second journey
+  // building an event of its own.
+  const bidders = biddersWanted();
+  if (bidders > 0) await vendorsBid(page, { title, projectId }, bidders);
 
   return { title, projectId, verification };
 }

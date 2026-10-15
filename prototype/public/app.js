@@ -68,7 +68,8 @@ const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys
  * Reports is Sessions now; its view stays in the page, unreached, because
  * loadHistory() still writes into it.
  */
-const REDIRECTS = { api: "plan", ui: "plan", reports: "sessions" };
+// The plan page is "Run tests" at #/run-tests now; every older address for it lands there.
+const REDIRECTS = { api: "run-tests", ui: "run-tests", plan: "run-tests", "plan-api": "run-tests", "plan-ui": "run-tests", reports: "sessions" };
 const DEFAULT_VIEW = "home";
 
 /**
@@ -84,7 +85,8 @@ const HIDDEN_VIEWS = { journeys: "cases" };
  * Run screen with that run in it (public/home.js opens it); the list of them
  * is its own view, #/sessions.
  */
-const VIEW_ALIASES = { session: "run" };
+// "run-tests" is the plan view under its new name (its view id, badge and active state stay "plan").
+const VIEW_ALIASES = { session: "run", "run-tests": "plan" };
 
 function currentView() {
   // "#/login?next=…" names the view "login": a query after the name is not part of it.
@@ -356,11 +358,16 @@ function setRunPending(label, hint) {
 }
 
 /** The run has stopped: take the pulse off the nav and the spinner off the panel. */
-function runFinished() {
+/**
+ * handOver: another part of the same ask starts next (Both: the browser part
+ * after the API journey), so the session's turn stays open for it — closing
+ * it would start that part as a new, nameless session.
+ */
+function runFinished({ handOver = false } = {}) {
   runLive = false;
   document.querySelector('.nav-item[data-view="run"]')?.classList.remove("live");
   syncStopBtn();
-  window.spineSession?.idle();
+  if (!handOver) window.spineSession?.idle();
   if (runPending) {
     runPending = null;
     renderAutomation();
@@ -1794,9 +1801,16 @@ function rfpInputProblem(n, qty, vendors) {
   return null;
 }
 
-function runSelectedFeatures() {
-  const ids = [...selected];
-  if (featureSuite && ids.length) return runRfpSuite(ids);
+/**
+ * `ask` (optional): a typed sentence read by journeyAsk — runs that journey
+ * with the sentence's own counts instead of the ticks and the Run tests
+ * inputs. Its turn was already opened by runInstruction. `onEnd` follows the
+ * stream's end (Both: the browser run starts then).
+ */
+function runSelectedFeatures(ask, onEnd) {
+  if (!ask?.features) ask = null;
+  const ids = ask ? ask.features : [...selected];
+  if (featureSuite && ids.length && !ask) return runRfpSuite(ids);
   if (!ids.length) {
     // Said where the reader is standing — navigating first would hide it.
     const meta = $("#api-meta");
@@ -1805,12 +1819,15 @@ function runSelectedFeatures() {
     return;
   }
   const names = ids.map(featureLabel);
-  window.spineSession?.begin({
-    kind: "features",
-    mode: "api",
-    text: `Run the API tests for ${names.length > 4 ? `${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : names.join(", ")}`,
-  });
-  goToRun(`${ids.length} feature${ids.length === 1 ? "" : "s"} · API tests`);
+  if (!ask) {
+    window.spineSession?.begin({
+      kind: "features",
+      mode: "api",
+      text: `Run the API tests for ${names.length > 4 ? `${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : names.join(", ")}`,
+    });
+  }
+  goToRun(ask ? `${ask.label} · API journey` : `${ids.length} feature${ids.length === 1 ? "" : "s"} · API tests`);
+  if (ask) window.spineSession?.working(`Running the ready-made ${ask.label} journey`);
   checkRows = [];
   renderAutomation();
 
@@ -1818,7 +1835,14 @@ function runSelectedFeatures() {
   if (customBase) qs.set("base", customBase);
   // Only when the selection actually builds events — otherwise the parameter
   // would travel with runs it cannot affect and read as if it had.
-  if (apiLineItemCases()) {
+  if (ask) {
+    // The journey only: edge cases are other tests, not what was asked.
+    qs.set("lineItems", String(ask.lineItems));
+    qs.set("edges", "0");
+    if (ask.qty) qs.set("qty", ask.qty);
+    qs.set("vendors", String(ask.vendors));
+    if (ask.bidders > 1) qs.set("bidders", String(ask.bidders));
+  } else if (apiLineItemCases()) {
     qs.set("lineItems", String(Math.max(1, Number($("#api-line-items")?.value) || 1)));
     if ($("#api-edges") && !$("#api-edges").checked) qs.set("edges", "0");
     const qty = String($("#api-qty")?.value ?? "").trim();
@@ -1830,7 +1854,7 @@ function runSelectedFeatures() {
   // under the journey list, which is the run's own narration.
   const write = (text, cls) => noteJourney(text, cls);
   const es = new EventSource(`/api/features-run?${qs}`);
-  wireRunStream(es, write);
+  wireRunStream(es, write, onEnd);
   document.querySelector("#automation")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -2102,6 +2126,70 @@ function runApiInstruction(text, onEnd) {
   });
 }
 
+/**
+ * A typed sentence that asks for the plain sourcing journey — "publish an RFP
+ * event with 1 line item", "create an RFQ with 3 items for 2 vendors" — as
+ * the feature run that walks it, with the sentence's own counts. Null for
+ * anything else: a sentence about a rule ("without vendors", "a negative
+ * quantity", "more than 50 items") is a case, and goes to the case matcher
+ * and the API test writer as before. The type must be named; "publish an
+ * event" alone does not say which.
+ */
+const JOURNEY_TYPES = [
+  { feature: "events.rfp_auction", label: "Technical + Auction", is: (r, q, a) => r && a },
+  { feature: "events.rfp_rfq", label: "Technical + RFQ", is: (r, q) => r && q },
+  { feature: "events.auction_only", label: "Auction", is: (r, q, a) => a && !r },
+  { feature: "events.rfq_only", label: "RFQ only", is: (r, q, a) => q && !r && !a },
+  { feature: "events.rfp_only", label: "Technical / RFP only", is: (r, q, a) => r && !q && !a },
+];
+const COUNT_WORDS = { a: 1, an: 1, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+function journeyAsk(text) {
+  const t = ` ${String(text || "").toLowerCase().replace(/[^a-z0-9.+' -]+/g, " ").replace(/\s+/g, " ")} `;
+  // "Test awarding in a project", "two vendors bid": the lifecycle itself is the ask,
+  // with or without a verb like publish or create.
+  const lifecycle = /\b(award\w*|bid|bids|bidding|evaluat\w*)\b/.test(t);
+  if (!lifecycle && !/\b(publish(es|ed|ing)?|creat(e|es|ed|ing)|float(s|ed)?|launch(es|ed)?|rais(e|es|ed)|set up|go live|make)\b/.test(t)) return null;
+  if (/\b(without|zero|negative|invalid|empty|blank|missing|wrong|reject\w*|refus\w*|fail\w*|error\w*|exceed\w*|more than|beyond|limit\w*|duplicate\w*|expired|past|deadline|late|cannot|can ?not|can't|should ?n[o']t|not allowed|unauthori[sz]ed|forbidden|twice|edge|boundary)\b/.test(t)) return null;
+  const r = /\b(rfp|rfi|technical|tech)\b/.test(t);
+  const q = /\b(rfq|rfqs|quotation)\b/.test(t);
+  const a = /\b(auction|e-auction|eauction)\b/.test(t);
+  // No type named: bidding and awarding need a pricing round (an RFQ);
+  // evaluating needs a technical one in front of it (Technical + RFQ).
+  let type =
+    JOURNEY_TYPES.find((x) => x.is(r, q, a)) ??
+    (lifecycle ? JOURNEY_TYPES.find((x) => x.feature === (/\bevaluat/.test(t) ? "events.rfp_rfq" : "events.rfq_only")) : undefined);
+  if (!type) return null;
+  // A technical round alone has nothing to award (a bid on it is a technical
+  // response, which it does take): an award asked for on one adds the RFQ.
+  if (type.feature === "events.rfp_only" && /\baward\w*\b/.test(t)) type = JOURNEY_TYPES.find((x) => x.feature === "events.rfp_rfq");
+  const N = "(\\d+|a|an|one|single|two|three|four|five|six|seven|eight|nine|ten)";
+  const count = (re) => {
+    const m = t.match(new RegExp(`\\b${N}\\s+(?:${re})\\b`));
+    return m ? (/^\d+$/.test(m[1]) ? Number(m[1]) : COUNT_WORDS[m[1]]) : undefined;
+  };
+  const lineItems = count("line[ -]?items?|items?|products?|lines?") ?? 1;
+  let vendors = count("vendors?|suppliers?|sellers?") ?? 1;
+  if (!(lineItems >= 1 && lineItems <= 50) || !(vendors >= 1 && vendors <= 50)) return null;
+  // "bids from 2 vendors", "2 vendors bid": that many vendors sign in and bid, one after another.
+  const vw = "(?:vendors?|suppliers?|sellers?)";
+  const bm =
+    t.match(new RegExp(`\\bbids?\\s+(?:from|by|as|of)\\s+${N}\\s+${vw}`)) ||
+    t.match(new RegExp(`\\b${N}\\s+${vw}\\s+(?:each\\s+)?(?:place\\s+|submit\\s+)?(?:a\\s+)?bids?\\b`));
+  const bidders = bm ? Math.min(4, /^\d+$/.test(bm[1]) ? Number(bm[1]) : COUNT_WORDS[bm[1]] || 1) : 1;
+  vendors = Math.max(vendors, bidders);
+  const qm = t.match(/\b(?:quantity|qty)\s*(?:of|=|:|is)?\s*(\d+(?:\.\d+)?)\b/) || t.match(/\b(\d+(?:\.\d+)?)\s*(?:units?|nos|pcs|pieces|kgs?)\b/);
+  if (qm && !(Number(qm[1]) > 0)) return null;
+  // How far: the journey stops at the last stage the sentence names.
+  const features = [type.feature];
+  if (/\bsurrogate\b/.test(t)) features.push("bids.surrogate");
+  else if (/\b(bid|bids|bidding)\b/.test(t)) features.push("bids.place");
+  if (/\bcounter[ -]?offers?\b/.test(t)) features.push("bids.counter_offer");
+  if (/\b(evaluat\w*|scor(e|es|ed|ing))\b/.test(t)) features.push("evaluation.score");
+  if (/\baward\w*\b/.test(t)) features.push("award.proposal");
+  if (bidders > 1 && !features.some((f) => f.startsWith("bids."))) features.push("bids.place");
+  return { features, label: type.label, lineItems, vendors, bidders, qty: qm ? qm[1] : "" };
+}
+
 function runInstruction(mode) {
   const text = $("#request").value.trim();
   if (!text) return;
@@ -2109,6 +2197,10 @@ function runInstruction(mode) {
   // a new session, or the next turn of this one when it came from its composer.
   window.spineSession?.begin({ text, mode, kind: "typed" });
   if (mode === "ui") return runTestCase();
+  // "Publish an RFP event with 1 line item" is the ready-made journey, not a
+  // contract case to match or a test to write from scratch.
+  const journey = journeyAsk(text);
+  if (journey) return runSelectedFeatures(journey, mode === "both" ? () => runTestCase() : undefined);
   if (mode === "api") return runApiInstruction(text);
   // both: API first (its own card), then the UI compiler fills the panel below.
   runApiInstruction(text, () => runTestCase());
@@ -2213,11 +2305,30 @@ function wireRunStream(es, write, onEnd) {
         { publish: "publishing", bid: "the vendor's bid", evaluate: "evaluation" }[p.plan?.reach] ?? "awarding"
       }.`;
     renderAutomation();
+    // A typed ask shows its steps in the chat, ticked off as they land
+    // (session.js plan()). A feature run already shows this card there.
+    if (window.spineSession?.turn?.kind === "typed") {
+      window.spineSession.plan({
+        title: `The ${journeyLive.label} journey`,
+        steps: journeyLive.steps.map((s) => ({ step: s.title })),
+        coverage: "full",
+        via: "api",
+      });
+      window.spineSession.planStep(0, "run");
+    }
   });
   es.addEventListener("journey-step", (ev) => {
     const { step, planned } = JSON.parse(ev.data);
     if (!step) return;
     journeyStepsLive[step.n - 1] = step;
+    // In the chat (a typed ask): this step's outcome in a sentence, and the next one in flight.
+    if (window.spineSession?.turn?.kind === "typed") {
+      const said = step.verdict === "worked" ? "ok" : step.verdict === "not-run" ? "skip" : "bad";
+      window.spineSession.planStep(step.n - 1, said, step.verdict === "worked" ? step.actual || "" : step.message || step.actual || "");
+      if (step.n < (journeyLive?.steps?.length ?? 0)) {
+        if (step.verdict !== "not-run") window.spineSession.planStep(step.n, "run");
+      } else window.spineSession.working?.("Writing the report");
+    }
     if (step.call) {
       window.spineSession?.request({
         key: `journey:${step.n}`,
@@ -2407,7 +2518,7 @@ function wireRunStream(es, write, onEnd) {
             "The reasons are under <b>why cases were skipped</b> above."
           : "That run finished without running a single check — nothing matched what was ticked.";
     }
-    runFinished();
+    runFinished({ handOver: !!onEnd });
     renderAutomation();
     setRunBar(1, 1);
 
@@ -2450,7 +2561,7 @@ function wireRunStream(es, write, onEnd) {
   });
   es.addEventListener("fatal", (ev) => {
     es.close();
-    runFinished();
+    runFinished({ handOver: !!onEnd });
     setRunBar(0, 0);
     const message = JSON.parse(ev.data).message || "run failed";
     $("#auto-summary").textContent = `error: ${message}`;
@@ -2614,18 +2725,30 @@ function renderUiTree() {
   syncNav();
 }
 
-async function runSelectedUiJourneys() {
-  const keys = [...uiSelected];
+/**
+ * opts.bidders: after an event journey publishes, that many vendors invited to
+ * the event sign in to the vendor portal and bid on it (Run tests folds "Place
+ * a bid" into the event journey this way). 0 = no bid.
+ */
+let uiRunBidders = 0;
+async function runSelectedUiJourneys(only, opts) {
+  // "Run again" on a session passes the journeys that turn ran; a click
+  // handler passes an event, which is not a list, so the ticks are used.
+  const keys = Array.isArray(only) && only.length ? only.filter((k) => uiFlows.some((f) => f.key === k)) : [...uiSelected];
+  uiRunBidders = Math.max(0, Math.min(4, Math.floor(Number(opts?.bidders) || 0)));
   if (!keys.length) {
     const m = $("#ui-meta");
     if (m) m.textContent = "tick at least one feature that has a journey";
     return;
   }
   const journeyNames = keys.map((k) => uiFlows.find((f) => f.key === k)?.label || k);
+  const bidWords = uiRunBidders ? `, then ${uiRunBidders === 1 ? "a vendor bids" : `${uiRunBidders} vendors bid`} on it` : "";
   window.spineSession?.begin({
     kind: "journeys",
     mode: "ui",
-    text: `Run in the browser: ${journeyNames.join(", ")}`,
+    text: `Run in the browser: ${journeyNames.join(", ")}${bidWords}`,
+    flowKeys: keys,
+    bidders: uiRunBidders,
   });
   goToRun(
     `${keys.length} browser journey${keys.length === 1 ? "" : "s"}`,
@@ -3422,6 +3545,8 @@ function runUiJourney(flow, onDone, opts = {}) {
     if (qty) qs.set("qty", qty);
   }
   qs.set("vendors", String(Math.max(1, Number($("#ui-vendors")?.value) || 1)));
+  // An event journey goes on to the vendors' bids on the event it published.
+  if (uiRunBidders > 0 && /^events\./.test(flow.key)) qs.set("bidders", String(uiRunBidders));
   // Watched in the live panel beside the steps, like Run (UI): always headless,
   // because a real window and the screenshot feed fight each other (stutter).
   // "show the browser" now means that panel.
@@ -5035,6 +5160,28 @@ function renderUiInstructResult(state, d = {}) {
     cls = "skip";
     badge = "– Not tested (UI)";
     lines = [d.reason || "The run could not start."];
+  } else if (d.explored) {
+    // Worked out on screen (the explorer): no planned steps to count against.
+    const done = steps.filter((s) => s.status === "ok" && !/^Checked the goal|^The goal is reached/.test(s.step)).length;
+    const replayed = steps.filter((s) => s.replayed).length;
+    if (d.passed) {
+      cls = "ok";
+      badge = "✓ Passed (UI)";
+      lines = [
+        d.proof && d.proof !== "confirmed by the tester"
+          ? `Reached the goal in ${done} step${done === 1 ? "" : "s"} — the screen showed “${d.proof}”.`
+          : `Reached the goal in ${done} step${done === 1 ? "" : "s"}, on your confirmation.`,
+        replayed ? `${replayed} of them followed the route saved from an earlier run.` : "",
+        d.saved ? "I saved this route: asking for the same thing again follows it first." : "",
+      ];
+    } else {
+      cls = "bad";
+      badge = "✗ Failed (UI)";
+      lines = [
+        `Didn't finish — ${String(d.reason || "it stopped").replace(/\.$/, "")}.`,
+        done ? `It got ${done} step${done === 1 ? "" : "s"} in; each has its screenshot above.` : "It stopped before taking a step.",
+      ];
+    }
   } else if (d.passed) {
     cls = "ok";
     badge = "✓ Passed (UI)";
@@ -5061,7 +5208,7 @@ function renderUiInstructResult(state, d = {}) {
           .join("")}</ol></details>`
       : "");
   // The same answer closes the session's turn: green DONE, red FAILED, grey NOT TESTED.
-  window.spineSession?.uiResult({ cls, title: d.title || "", lines: lines.filter(Boolean) });
+  window.spineSession?.uiResult({ cls, title: d.title || "", lines: lines.filter(Boolean), runId: d.runId || "" });
 }
 
 function runTestCase(textOverride) {
@@ -5076,6 +5223,7 @@ function runTestCase(textOverride) {
   $("#status").textContent = "compiling & running…";
   renderUiInstructResult("running");
   window.spineSession?.working("Compiling your test case into browser steps");
+  window.spineSession?.browserPart?.();
 
   const con = $("#ui-console");
   resetUiSteps();
@@ -5116,6 +5264,8 @@ function runTestCase(textOverride) {
     const st = JSON.parse(ev.data);
     write("› " + st.line, "cmd");
     if (st.name === "execute") window.spineSession?.working(st.line);
+    // The run's id, so this turn can link to its saved session (a case run from the table needs it).
+    if (st.runId) window.spineSession?.setRunId?.(st.runId);
   });
   onQueued(es, write);
   /**
@@ -5145,8 +5295,37 @@ function runTestCase(textOverride) {
     renderAutomation();
     write(`Not run: ${reason}`, "bad");
     if (b.hint) write(`   ${b.hint}`, "note");
-    window.spineSession?.note([b.covers, b.hint].filter(Boolean).join(" "), "warn");
+    const why = [b.covers, b.hint].filter(Boolean).join(" ");
+    if (why) window.spineSession?.note(why, "warn");
     renderUiInstructResult("notrun", { reason: reason.charAt(0).toUpperCase() + reason.slice(1) + "." });
+  });
+  /**
+   * NO STEPS FOR IT: the server handed the case to the explorer, which works
+   * it out on screen (procol-ui-tests/src/explore/). Its steps arrive one at a
+   * time, its questions as cards in the session; the end is a plan-result
+   * like any plan's, marked `explored`.
+   */
+  let exploring = null;
+  es.addEventListener("explore", (ev) => {
+    exploring = JSON.parse(ev.data);
+    planTitle = exploring.goal || "";
+    renderUiInstructResult("running", { title: planTitle });
+    $("#auto-summary").textContent = "Working it out step by step";
+    write(`No ready-made steps — ${exploring.why}. Working it out in the browser.`, "note");
+    window.spineSession?.explore(exploring);
+  });
+  es.addEventListener("explore-step", (ev) => {
+    const { step } = JSON.parse(ev.data);
+    if (!step) return;
+    if (step.n) planStarted = true;
+    if (step.status !== "run") write(`${step.n ? `${step.n}. ` : "   "}${step.text}${step.status === "failed" ? " ✗" : step.status === "ok" ? " ✓" : ""}`, step.status === "failed" ? "bad" : step.n ? "" : "note");
+    window.spineSession?.exploreStep(step);
+  });
+  es.addEventListener("ask", (ev) => {
+    const { ask } = JSON.parse(ev.data);
+    if (!ask) return;
+    write(`? ${ask.question}`, "note");
+    window.spineSession?.ask(ask);
   });
   es.addEventListener("plan", (ev) => {
     const p = JSON.parse(ev.data);
@@ -5200,6 +5379,7 @@ function runTestCase(textOverride) {
   let planTitle = "";
   let planGaps = []; // what a plan that cannot run has no step for
   let planResult = null;
+  let planNext = 0; // the step running now: the one after the last that finished
   es.addEventListener("log", (ev) => {
     const l = JSON.parse(ev.data).line;
     const err = l.match(/^\s*(?:Error|TimeoutError):\s*(.+)/);
@@ -5221,8 +5401,13 @@ function runTestCase(textOverride) {
       }
       window.spineSession?.planStep(at, m[4] ? (m[4].trim() === "✓" ? "ok" : "bad") : "run");
       setRunBar(Number(m[1]), Number(m[2]));
+      if (m[4]) planNext = Number(m[1]);
     }
-    if (/^\[plan\]|create-event|erfx/.test(l)) write(l);
+    // "[pick] ✗ “Event” — why": an event the run looked at for the running
+    // step, and why it was used or passed over — a line under that step.
+    const pick = l.match(/\[pick\] ([✓✗·]) (.+)$/);
+    if (pick) window.spineSession?.planNote(planNext, pick[2], pick[1] === "✓" ? "ok" : pick[1] === "✗" ? "no" : "info");
+    if (/^\[(plan|pick)\]|create-event|erfx/.test(l)) write(l);
   });
   es.addEventListener("plan-result", (ev) => {
     const r = JSON.parse(ev.data);
@@ -5253,8 +5438,10 @@ function runTestCase(textOverride) {
       write(`   ${mark} ${s.step}${s.detail ? " — " + s.detail : ""}`, s.status === "failed" ? "bad" : "");
     }
   });
+  let planVerdicts = 0;
   es.addEventListener("verdicts", (ev) => {
     const { verdicts } = JSON.parse(ev.data);
+    planVerdicts = verdicts.length;
     if (!verdicts.length) {
       if (planStarted) write("No defects — every step held", "ok");
       else write(`The run stopped before step 1, so nothing was tested${planError ? ` — ${planError}` : ""}`, "bad");
@@ -5281,6 +5468,17 @@ function runTestCase(textOverride) {
     // Not tested says why in one place: the step that is missing, when the compiler named it.
     if (d.notRun) renderUiInstructResult("notrun", { title: planTitle, reason: planGaps.length ? `There is no step yet for: ${gapWords(planGaps)}. Nothing was run in its place.` : "No step exists yet in the automation for what this case checks, so nothing was run in its place." });
     else if (!planStarted) renderUiInstructResult("notrun", { title: planTitle, reason: `The run could not start${planError ? `: ${planError}` : "."}` });
+    else if (exploring) renderUiInstructResult("result", {
+      title: planTitle,
+      steps: planResult?.steps ?? [],
+      passed: d.exitCode === 0 && planResult?.passed === true,
+      explored: true,
+      proof: planResult?.proof,
+      reason: planResult?.reason || (d.exitCode === 0 ? "" : "the browser run ended before the journey was finished"),
+      saved: !!planResult?.route?.savedTo,
+      // Its bugs, when the app did something wrong on the way; being stuck is not one.
+      runId: planVerdicts ? exploring.runId : "",
+    });
     else renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: d.exitCode === 0 && planResult?.passed !== false });
     // The compiler itself can refuse to run: no step exists yet for the thing
     // the case checks, so it ran nothing rather than a substitute. Exit 0 in

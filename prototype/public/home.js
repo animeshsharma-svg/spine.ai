@@ -70,30 +70,89 @@
   };
 
   // ── theme ────────────────────────────────────────────────────────────────
+  // The theme is data-theme on <html>, kept in localStorage ("spine.theme")
+  // and set before first paint by the inline script in index.html's <head>,
+  // so a reload never flashes the other one. Changing it here changes only
+  // that attribute: nothing is re-rendered or re-fetched.
   const THEME_KEY = "spine.theme";
   const themeNow = () => (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
   function syncThemeButton() {
     const btn = q$("#sb-theme");
-    const val = q$("#sb-theme-val");
-    const t = themeNow();
-    if (val) val.textContent = t === "dark" ? "Dark" : "Light";
-    if (btn) {
-      btn.setAttribute("aria-label", `Theme: ${t}. Switch to ${t === "dark" ? "light" : "dark"}`);
-      btn.title = `Switch to ${t === "dark" ? "light" : "dark"} theme`;
-    }
+    if (!btn) return;
+    const dark = themeNow() === "dark";
+    const words = dark ? "Switch to light theme" : "Switch to dark theme";
+    btn.setAttribute("aria-checked", String(dark));
+    btn.setAttribute("aria-label", words);
+    btn.title = words;
   }
-  function setTheme(t, remember) {
-    document.documentElement.setAttribute("data-theme", t);
+  /** The switch itself, synchronously — what the view transition snapshots around. */
+  function applyTheme(t, remember) {
+    const root = document.documentElement;
+    // The page's own 250ms colour fades would play inside the circle as a
+    // second, page-wide fade; they are off for the length of the switch
+    // (home.css, html.theme-switching).
+    root.classList.add("theme-switching");
+    root.setAttribute("data-theme", t);
     if (remember) store.set(THEME_KEY, t);
     syncThemeButton();
   }
+  const switchingDone = () => document.documentElement.classList.remove("theme-switching");
+
+  let themeBusy = false;
+  /**
+   * Light ↔ dark, with the new theme growing out of the click as a circle
+   * until it covers the screen — the same circle both ways. From the
+   * keyboard (Enter/Space give a click with detail 0) it grows from the
+   * centre of the Theme button. Without View Transitions, or with reduced
+   * motion, the theme changes at once. Clicks during a switch are ignored.
+   */
+  function setTheme(next, event) {
+    if (themeBusy) return;
+    const btn = q$("#sb-theme");
+    let x;
+    let y;
+    if (event && event.detail > 0 && Number.isFinite(event.clientX)) {
+      x = event.clientX;
+      y = event.clientY;
+    } else {
+      const r = btn?.getBoundingClientRect();
+      x = r ? r.left + r.width / 2 : innerWidth / 2;
+      y = r ? r.top + r.height / 2 : innerHeight / 2;
+    }
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    const reduce = read(() => matchMedia("(prefers-reduced-motion: reduce)").matches, false);
+    if (!document.startViewTransition || reduce) {
+      applyTheme(next, true);
+      requestAnimationFrame(() => requestAnimationFrame(switchingDone));
+      return;
+    }
+    themeBusy = true;
+    const t = document.startViewTransition(() => applyTheme(next, true));
+    t.ready
+      .then(() =>
+        document.documentElement.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+          { duration: 650, easing: "cubic-bezier(.4,0,.2,1)", pseudoElement: "::view-transition-new(root)" },
+        ),
+      )
+      .catch(() => {});
+    t.finished.catch(() => {}).finally(() => {
+      themeBusy = false;
+      switchingDone();
+    });
+  }
+  window.spineTheme = { set: setTheme, now: themeNow };
+
   function initTheme() {
-    q$("#sb-theme")?.addEventListener("click", () => setTheme(themeNow() === "dark" ? "light" : "dark", true));
-    // Until someone picks a theme by hand, follow the system's setting live.
+    q$("#sb-theme")?.addEventListener("click", (e) => setTheme(themeNow() === "dark" ? "light" : "dark", e));
+    // Until someone picks a theme by hand, follow the system's setting live, at once.
     try {
       window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", (e) => {
         const picked = store.get(THEME_KEY);
-        if (picked !== "light" && picked !== "dark") setTheme(e.matches ? "dark" : "light", false);
+        if (picked !== "light" && picked !== "dark") {
+          applyTheme(e.matches ? "dark" : "light", false);
+          requestAnimationFrame(() => requestAnimationFrame(switchingDone));
+        }
       });
     } catch {}
     syncThemeButton();
@@ -482,8 +541,10 @@
         getJson("/api/bug-triage").catch(() => ({ triage: {} })),
       ]);
       const t = triage?.triage ?? {};
+      // The PO suite's written-up findings count only on their own account (bugs.js).
+      const forHere = (g) => !g.curated || (window.spineBugs?.curatedForClient?.(g.curated.client) ?? true);
       const open = (findings.groups ?? []).filter(
-        (g) => isProduct(g) && !CLOSED.test(String(t[g.defectFingerprint]?.status ?? "")),
+        (g) => isProduct(g) && forHere(g) && !CLOSED.test(String(t[g.defectFingerprint]?.status ?? "")),
       );
       defects = {
         critical: open.filter((g) => g.severity === "critical").length,
@@ -575,7 +636,7 @@
     const fieldFailed = Number(r.journey?.fieldChecks?.failed) || 0;
     if (fieldFailed) return { word: `${num(fieldFailed)} broken`, cls: "bad", why: `${fieldFailed} field checks failed` };
     if (r.journey?.stoppedAt) return { word: "Stopped early", cls: "grey", why: r.journey.outcome };
-    if ((r.kind === "journey" || r.kind === "po") && inc) {
+    if ((r.kind === "journey" || r.kind === "po" || r.kind === "plan") && inc) {
       return { word: "Stopped early", cls: "grey", why: r.headline && r.headline !== "—" ? r.headline : "The run did not finish." };
     }
     if (inc) return { word: "Not checked", cls: "warn", why: `${inc} result${inc === 1 ? "" : "s"} couldn't be checked — open the session for each reason.` };
@@ -833,6 +894,36 @@
     try { return decodeURIComponent(m[1]); } catch { return m[1]; }
   };
   let opening = null;
+  let goneFor = null; // a session id in the address that this tab could not open
+
+  /**
+   * The Run view only ever shows a session. Bare #/run with none goes Home,
+   * where a case is started. A #/session/{id} this tab cannot show — one made
+   * by a tab that has since reloaded, or a run that no longer exists — says so
+   * (#ss-gone) instead of falling back to the old ask screen.
+   */
+  function syncRunView() {
+    const html = document.documentElement;
+    const onRun = html.dataset.view === "run";
+    const ss = session();
+    const id = sessionInHash();
+    if (onRun && !id && !ss?.on) {
+      location.replace("#/home");
+      return;
+    }
+    const showing = !!(ss?.on && id && ss.id === id);
+    const state = !onRun || !id || showing ? "" : opening === id ? "loading" : goneFor === id ? "gone" : "";
+    const panel = q$("#ss-gone");
+    if (panel) {
+      panel.hidden = !state;
+      if (state) panel.dataset.state = state;
+      const title = q$("#ss-gone-title");
+      const words = state === "loading" ? "Opening the session…" : "This session isn't here any more";
+      if (title && title.textContent !== words) title.textContent = words;
+    }
+    if (state) html.dataset.sessionGone = "1";
+    else delete html.dataset.sessionGone;
+  }
 
   async function openSession() {
     const id = sessionInHash();
@@ -845,6 +936,7 @@
       return;
     }
     opening = id;
+    syncRunView();
     try {
       let r = (runs ?? []).find((x) => x.id === id);
       if (!r) {
@@ -860,10 +952,20 @@
       if (!r || r.kind === "api" || !r.kind) {
         // An id this tab made ("s-…") is a session from before a reload: nothing to replay.
         if (!(!r && /^s-/.test(id)) && typeof openRun === "function") await openRun(id);
+        // Nothing to replay, or the run would not load: say so rather than show an empty screen.
+        if (session()?.id !== id) goneFor = id;
+        return;
+      }
+      // A test case typed and run in the browser: its steps, as they ended.
+      if (r.kind === "plan") {
+        await replayTyped(r, id);
+        if (session()?.id !== id && sessionInHash() === id) goneFor = id;
         return;
       }
       const st = statusOf(r);
-      ss.begin({ text: titleOf(r), mode: r.kind === "journey" ? "ui" : "api", kind: "features", replay: true, id });
+      // A journey keeps its key, so the Browser tab's "Run again" can run it again.
+      const flowKey = r.kind === "journey" ? String(r.request ?? "").match(/browser journey:\s*(\S+)/i)?.[1] : null;
+      ss.begin({ text: titleOf(r), mode: r.kind === "journey" ? "ui" : "api", kind: "features", replay: true, id, flowKeys: flowKey ? [flowKey] : null });
       ss.end({
         tone: { ok: "ok", bad: "bad", grey: "stop" }[st.cls] || "skip",
         title: st.why || (r.headline && r.headline !== "—" ? r.headline : st.word),
@@ -881,7 +983,54 @@
       ss.idle();
     } finally {
       if (opening === id) opening = null;
+      syncRunView();
     }
+  }
+
+  /**
+   * A typed browser run opened again: the turn as it was — what was asked, each
+   * step with its result (and, for one the explorer worked out, its screenshot),
+   * and the same closing box the live run ended on (app.js's
+   * renderUiInstructResult). "Run again" runs what was typed.
+   */
+  async function replayTyped(r, id) {
+    const ss = session();
+    let rec = null;
+    try {
+      rec = await getJson(`/api/plan-runs/${encodeURIComponent(id)}`);
+    } catch {
+      rec = null;
+    }
+    if (sessionInHash() !== id || !ss) return;
+    ss.begin({ text: rec?.ask || r.request || titleOf(r), mode: "ui", kind: "typed", replay: true, id });
+    const steps = Array.isArray(rec?.steps) ? rec.steps : [];
+    if (rec?.explored) {
+      ss.explore({ runId: id, goal: rec.ask });
+      steps.forEach((s, i) =>
+        ss.exploreStep({
+          n: i + 1,
+          text: s.step,
+          why: s.detail || "",
+          status: s.status === "ok" ? "ok" : s.status === "failed" ? "failed" : "skipped",
+          shot: s.shot,
+          replayed: s.replayed,
+        }),
+      );
+    } else if (steps.length) {
+      ss.plan({ title: rec.title, steps: steps.map((s) => ({ step: s.step, args: s.args })), coverage: "full", via: "browser" });
+      steps.forEach((s, i) => ss.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || ""));
+    }
+    if (!rec) {
+      ss.end({ tone: "skip", key: "UI", title: "This run's steps could not be loaded.", lines: r.ts ? [`Ran ${fullTime(r.ts)}.`] : [] });
+    } else if (typeof renderUiInstructResult === "function") {
+      renderUiInstructResult(
+        steps.length ? "result" : "notrun",
+        rec.explored
+          ? { title: rec.title, steps, passed: rec.passed, explored: true, proof: rec.proof, reason: rec.reason, saved: rec.routeSaved }
+          : { title: rec.title, steps, passed: rec.passed, reason: steps.length ? undefined : "The run stopped before its first step." },
+      );
+    }
+    ss.idle();
   }
 
   // ── clicks inside Home: retry a failed load ──────────────────────────────
@@ -915,6 +1064,7 @@
     syncCollapseButton();
     renderRunNow();
     renderBadges();
+    syncRunView(); // a session that starts or ends on the Run view takes the panel's place
     syncAsk();
     const live = liveRun().live;
     // A run just ended: its result is in the history now.
@@ -975,6 +1125,7 @@
     window.addEventListener("hashchange", () =>
       setTimeout(() => {
         openSession();
+        syncRunView();
         if (onHome() && Date.now() - lastLoad > 4000) refresh();
       }, 0),
     );
@@ -983,6 +1134,7 @@
       syncContext();
       refresh();
       openSession();
+      syncRunView();
     });
     // While Home is open, keep it current without hammering the server.
     setInterval(() => {

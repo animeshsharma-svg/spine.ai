@@ -45,7 +45,10 @@ const SLOW_STEP_MS = 12_000;
 const VERY_SLOW_MS = 30_000;
 
 /** Phases that are the runner's own overhead, not Procol's screens. */
-const NOT_THE_PRODUCT = new Set(["playwright", "queue"]);
+// The robot's own lines, not Procol's screens: its verdict ("[oracle] …"), its
+// API read-back of what it built ("[verify] …") and what it learned. A gap that
+// ends at one of these is the automation's time, never a wait a person sees.
+const NOT_THE_PRODUCT = new Set(["playwright", "queue", "oracle", "verify", "learned"]);
 
 /** "Set the bidding window and saved it — Procol needs this…" → the first clause. */
 function shortStep(text: string): string {

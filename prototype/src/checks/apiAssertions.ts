@@ -160,6 +160,7 @@ export const STEP_CODE: Record<StepKind, string> = {
   bid_create: "BIDNEW",
   bid_products: "BIDPRICE",
   bid_submit: "BIDSUB",
+  switch_vendor: "NEXTVEN",
   surrogate_tech: "SURTECH",
   surrogate_rfq: "SURRFQ",
   counter_offer: "COUNTER",

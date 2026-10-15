@@ -207,7 +207,7 @@
    * evidence is the bug itself, so it is still broken as far as anyone knows.
    */
   function stateOf(g) {
-    if (g.curated) return { k: "hand", word: "Raised by hand", why: "Logged on the QA sheet by a person" };
+    if (g.curated) return { k: "hand", word: "PO suite finding", why: "Written up in the PO API suite's findings list (config/findings.yaml), not found by a spine.ai run" };
     const last = Date.parse(g.lastSeen);
     if (!Number.isFinite(last)) return { k: "broken", word: "Still broken", why: "No run has passed it since" };
     const flows = new Set(g.flows ?? []);
@@ -275,11 +275,13 @@
       devBy = `set by ${t.devTypeBy || "a person"}`;
     } else if (cur?.devType) {
       devType = cur.devType;
-      devBy = "set on the QA sheet";
+      devBy = "set in the PO suite's findings";
     }
     const runs = (g.runs ?? []).length;
-    const seen = cur ? "raised by hand" : `seen ${num(g.occurrences)}× in ${num(runs)} run${runs === 1 ? "" : "s"}`;
-    const title = cleanTitle(cur?.title || g.title);
+    const seen = cur ? `from the PO suite's findings · ${curatedClientName(cur.client)}` : `seen ${num(g.occurrences)}× in ${num(runs)} run${runs === 1 ? "" : "s"}`;
+    // The plain write-up's title (src/report/plainBugs.ts); the recorded line
+    // ("PATCH /event_groups/… returns HTTP 500") stays searchable and is under "For developers".
+    const title = (!cur && g.plain?.title) || cleanTitle(cur?.title || g.title);
     const module = t.module || cur?.module || moduleOf(g.flows);
     const userType = t.userType || cur?.userType || "All users";
     const status =
@@ -303,21 +305,24 @@
       devBy,
       devEta: t.devEta || "",
       devComment: t.devComment || "",
-      search: `${id} ${title} ${module} ${userType} ${g.title} ${g.rationale ?? ""} ${(g.flows ?? []).join(" ")} ${(g.evidence ?? []).slice(0, 6).join(" ")}`.toLowerCase(),
+      search: `${id} ${title} ${module} ${userType} ${g.title} ${g.plain?.summary ?? ""} ${g.rationale ?? ""} ${(g.flows ?? []).join(" ")} ${(g.evidence ?? []).slice(0, 6).join(" ")}`.toLowerCase(),
     };
   }
 
   // ── the bug's story: what the drawer and the PDF tell ────────────────────
   const stripTag = (s) => String(s).replace(/^\[[a-z-]+\]\s*/i, "").trim();
+  /** A link the page makes ("#/session/…", "/api/…") as one that works from a sheet or a PDF too. */
+  const absolute = (href) => (/^https?:/.test(href) ? href : `${location.origin}${location.pathname.replace(/\/$/, "")}${href.startsWith("#") ? "/" : ""}${href}`.replace(/([^:])\/\/+/g, "$1/"));
+
   function storyOf(m) {
     const g = m.g;
     const hu = g.human ?? {};
+    const pl = g.plain ?? null;
     const rep = (g.reproduction ?? []).map(String);
     const curlStart = rep.findIndex((r) => /^curl\b/.test(r));
-    const curl = curlStart >= 0
-      ? rep.slice(curlStart).filter((r, i, all) => i === 0 || /^\s/.test(r) || /\\$/.test(all[i - 1])).join("\n")
-      : "";
-    const steps = (hu.steps?.length ? hu.steps : rep.filter((r, i) =>
+    const curl = pl?.artifacts?.find((a) => a.kind === "request")?.text ||
+      (curlStart >= 0 ? rep.slice(curlStart).filter((r, i, all) => i === 0 || /^\s/.test(r) || /\\$/.test(all[i - 1])).join("\n") : "");
+    const steps = (pl?.steps?.length ? pl.steps : hu.steps?.length ? hu.steps : rep.filter((r, i) =>
       !(curlStart >= 0 && i >= curlStart) &&
       !/^(Expected|Actual|Full evidence|Documented|Oracle)\b/.test(r) &&
       !/[{}]/.test(r) && !/^\s/.test(r)))
@@ -326,20 +331,27 @@
       .filter(Boolean)
       .slice(0, 10);
     const line = (re) => rep.find((r) => re.test(r))?.replace(re, "").trim() || "";
-    const expected = hu.expected || line(/^Expected[:\s]+/i);
-    const actual = hu.actual || line(/^Actual[:\s]+/i) || hu.what || g.rationale || "";
     const runs = g.runs ?? [];
+    const artifacts = (pl?.artifacts ?? []).filter((a) => a.kind !== "request");
     return {
-      what: hu.what || g.rationale || "",
-      where: hu.where || [...new Set((g.flows ?? []).map((f) => read(() => featureLabel(f), f)))].join("; "),
+      what: pl?.summary || hu.what || g.rationale || "",
+      where: pl?.where || hu.where || [...new Set((g.flows ?? []).map((f) => read(() => featureLabel(f), f)))].join("; "),
       steps,
-      expected,
-      actual,
+      expected: pl?.expected || hu.expected || line(/^Expected[:\s]+/i),
+      actual: pl?.actual || hu.actual || line(/^Actual[:\s]+/i) || hu.what || g.rationale || "",
+      ways: pl?.ways ?? [],
+      shots: artifacts.filter((a) => a.kind === "screenshot" && a.href).map((a) => ({ label: a.label, href: a.href, url: absolute(a.href) })),
+      links: artifacts.filter((a) => (a.kind === "session" || a.kind === "report") && a.href).map((a) => ({ label: a.label, href: a.href, url: absolute(a.href) })),
+      reply: artifacts.find((a) => a.kind === "reply")?.text ?? "",
       curl,
       evidence: (g.evidence ?? []).slice(0, 6),
+      techTitle: g.title,
+      endpoint: pl?.forDevs?.endpoint ?? "",
+      devNotes: pl?.forDevs?.notes ?? [],
+      writtenBy: pl?.writtenBy ?? "",
       runs,
       often: g.curated
-        ? "Raised by hand on the QA sheet."
+        ? `Written up in the PO API suite's findings list for ${curatedClientName(g.curated.client)}, not found by a spine.ai run.`
         : `Seen ${num(g.occurrences)} time${g.occurrences === 1 ? "" : "s"} in ${num(runs.length)} run${runs.length === 1 ? "" : "s"}` +
           `${g.firstSeen ? `, first on ${dateOf(g.firstSeen)}` : ""}${g.lastSeen && g.lastSeen !== g.firstSeen ? `, last on ${dateOf(g.lastSeen)}` : ""}.`,
     };
@@ -357,7 +369,22 @@
   }
 
   // ── which bugs this view shows ───────────────────────────────────────────
-  const models = () => (st.groups ?? []).map(model);
+  /**
+   * The PO suite's written-up findings (D__…) belong to the PO accounts they
+   * were found on, not to every client: each names its account — Procol
+   * Sandbox Demo, Decathlon, or both. Only the platform's own finds are not
+   * yet split by client (/api/findings carries no client). The two ids are
+   * the PO accounts in config/tokenClients.ts.
+   */
+  const SUITE_ACCOUNT = { 900001: "procol_sandbox_demo", 900002: "decathlon" };
+  const SUITE_NAME = { procol_sandbox_demo: "Procol Sandbox Demo", decathlon: "Decathlon", both: "Procol Sandbox Demo and Decathlon" };
+  const curatedClientName = (c) => SUITE_NAME[c] ?? (c ? String(c).replace(/_/g, " ") : "the PO accounts");
+  function curatedForClient(curatedClient) {
+    const here = SUITE_ACCOUNT[Number(read(() => currentClient, 0))];
+    if (!here) return false;
+    return curatedClient === "both" || curatedClient === here;
+  }
+  const models = () => (st.groups ?? []).filter((g) => !g.curated || curatedForClient(g.curated.client)).map(model);
   const latestRun = () => [...st.runs].sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))[0] ?? null;
   const runById = (id) => st.runs.find((r) => r.id === id) ?? null;
 
@@ -956,11 +983,9 @@
     const s = storyOf(m);
     const fact = (t) => `<span class="bg-fact">${t}</span>`;
     const sevLabel = SEVS.find(([k]) => k === m.sev)?.[1] ?? m.sev;
-    const runLinks = s.runs.slice(0, 12).map((id) => {
-      const href = read(() => R().sessionHref(id), `#/session/${encodeURIComponent(id)}`);
-      return `<a href="${h(href)}">${h(id)}</a>`;
-    }).join("");
     const ours = m.kind === "automation_defect" || m.kind === "environment";
+    const scrub = (t) => X()?.scrub(t) ?? t;
+    const sec = (title, body) => `<section class="bg-dr-sec"><h3>${h(title)}</h3>${body}</section>`;
     return (
       `<div class="bg-dr-head"><div><div class="bg-l1"><span class="bg-id">${h(m.id)}</span>` +
       `<span class="bg-state st-${m.state.k}" title="${h(m.state.why)}">${h(m.state.word)}</span></div>` +
@@ -973,23 +998,39 @@
       fact(`Status ${h(labelOf("status", m.status))}`) + fact(`Priority ${h(m.priority)}`) +
       fact(`Dev type ${h(m.devType)}`) + fact(h(m.module)) +
       `</div>` +
-      `<p class="bg-note">${h(s.often)} ${h(m.state.why)}.</p>` +
-      (s.what ? `<section class="bg-dr-sec"><h3>What happened</h3><p>${h(s.what)}</p></section>` : "") +
-      (s.where ? `<section class="bg-dr-sec"><h3>Where</h3><p>${h(s.where)}</p></section>` : "") +
-      (s.steps.length ? `<section class="bg-dr-sec"><h3>Steps</h3><ol>${s.steps.map((x) => `<li>${h(x)}</li>`).join("")}</ol></section>` : "") +
+      (s.what ? sec("What's wrong", `<p>${h(s.what)}</p>`) : "") +
+      (s.where ? sec("Where", `<p>${h(s.where)}</p>`) : "") +
+      (s.steps.length ? sec("How to see it", `<ol>${s.steps.map((x) => `<li>${h(x)}</li>`).join("")}</ol>`) : "") +
       (s.expected || s.actual
-        ? `<section class="bg-dr-sec"><h3>Expected vs what happened</h3><div class="bg-ea">` +
+        ? sec("Expected vs what happens", `<div class="bg-ea">` +
           `<div><b>Expected</b><p>${h(s.expected || "Not recorded")}</p></div>` +
-          `<div class="got"><b>What happened</b><p>${h(s.actual || "Not recorded")}</p></div></div></section>`
+          `<div class="got"><b>What happens</b><p>${h(s.actual || "Not recorded")}</p></div></div>`)
+        : "") +
+      (s.ways.length
+        ? sec(`Ways it happened (${s.ways.length})`, `<ul class="bg-ways">${s.ways.map((w) => `<li><span>${h(w.what)}</span>${w.result ? `<em>${h(w.result)}</em>` : ""}</li>`).join("")}</ul>`)
+        : "") +
+      sec("How often", `<p>${h(s.often)} ${h(m.state.why)}.</p>`) +
+      (s.shots.length
+        ? sec("Screenshots", `<div class="bg-shots">${s.shots.map((x) =>
+            `<a href="${h(x.href)}" target="_blank" rel="noopener" title="${h(x.label)}"><img src="${h(x.href)}" alt="${h(x.label)}" loading="lazy" /><span>${h(x.label)}</span></a>`).join("")}</div>`)
+        : "") +
+      (s.links.length
+        ? sec("The runs behind it", `<ul class="bg-art">${s.links.map((x) =>
+            `<li><a href="${h(x.href)}"${x.href.startsWith("#") ? "" : ' target="_blank" rel="noopener"'}>${h(x.label)}</a></li>`).join("")}</ul>`)
         : "") +
       (s.curl
-        ? `<section class="bg-dr-sec"><h3>Reproduce with</h3><pre class="bg-pre">${h(X()?.scrub(s.curl) ?? s.curl)}</pre>` +
-          `<button type="button" class="bg-copy" data-act="copy-curl">Copy command</button></section>`
+        ? sec("The exact request", `<pre class="bg-pre">${h(scrub(s.curl))}</pre>` +
+          (s.reply ? `<p class="bg-note">The server answered: ${h(scrub(s.reply))}</p>` : "") +
+          `<button type="button" class="bg-copy" data-act="copy-curl">Copy command</button>`)
         : "") +
-      (s.evidence.length
-        ? `<section class="bg-dr-sec"><h3>Evidence</h3><ul>${s.evidence.map((x) => `<li><code>${h(X()?.scrub(x) ?? x)}</code></li>`).join("")}</ul></section>`
+      `<details class="bg-dev"><summary>For developers</summary>` +
+      `<p><b>Recorded as</b> <code>${h(scrub(s.techTitle))}</code></p>` +
+      (s.devNotes.length ? `<p><b>Notes from the test cases on the likely cause</b></p><ul>${s.devNotes.map((n) => `<li>${h(scrub(n))}</li>`).join("")}</ul>` : "") +
+      (s.evidence.length ? `<p><b>Evidence lines</b></p><ul>${s.evidence.map((x) => `<li><code>${h(scrub(x))}</code></li>`).join("")}</ul>` : "") +
+      `</details>` +
+      (s.writtenBy
+        ? `<p class="bg-note">${s.writtenBy === "spine.ai" ? "Written in plain words by spine.ai from this bug's recorded evidence; the evidence above is exactly as recorded." : "The plain write-up is still being prepared; this one is from a template."}</p>`
         : "") +
-      (runLinks ? `<section class="bg-dr-sec"><h3>Runs that hit it</h3><div class="bg-runs">${runLinks}</div></section>` : "") +
       `<div class="bg-dr-links">` +
       `<button type="button" class="bg-link" data-act="pdf-one">Export this bug as a PDF</button>` +
       (ours ? `<a href="#/stuck">Stuck points and steps still needed</a>` : "") +
@@ -1312,7 +1353,7 @@
     openExport(anchor, { runId });
   }
 
-  window.spineBugs = { exportRun, refresh: () => load() };
+  window.spineBugs = { exportRun, refresh: () => load(), curatedForClient };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

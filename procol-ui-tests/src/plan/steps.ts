@@ -180,8 +180,8 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "open_event",
     purpose:
-      "Open an EXISTING event — by project id (direct) or by title (search the events list and click the row) — landing on its project page. Use it for cases about an event that already exists, or to return to the event this plan created (default: this plan's own title).",
-    args: { id: "project id from a URL (optional)", title: "event title to search for (optional; defaults to this plan's own event)" },
+      "Open an EXISTING event — by project id (direct) or by title (search the events list and click the row) — landing on its project page. Returns to the event this plan created when it created one. When the case names no event and the plan creates none, leave id and title out: the run opens the Live events list and clicks the event that best fits the steps after it — one with bids in and bidding over for Master QCS, awarding and counter offers (its own test events first); one still open for quotes otherwise. No search. Never invent a title.",
+    args: { id: "project id from a URL (optional)", title: "event title the case names (optional; leave out to return to this plan's event, or to let the run pick a fitting existing one)" },
   },
   {
     name: "accept_counter_offer",
@@ -311,8 +311,8 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "place_bid",
     purpose:
-      "Sign into the VENDOR PORTAL as a vendor and submit a quote for the event just published. This is the vendor bidding for themselves. Needs the vendor to have been invited.",
-    args: { vendor: "vendor name; defaults to the configured vendor account", price: "number, default 100" },
+      "Sign into the VENDOR PORTAL as a vendor on the event and submit a quote for the event just published. This is the vendor bidding for themselves. Each place_bid without a vendor signs in as a DIFFERENT vendor on the event (the next one with a portal login that has not bid yet), so two vendors bidding = invite_vendor{count:2}, then place_bid twice — no vendor names needed.",
+    args: { vendor: "optional: a vendor name the test case gives, or a number (1, 2, …) for the 1st, 2nd … vendor on the event; default: the next vendor that has not bid yet", price: "number, default 100" },
   },
   {
     name: "place_surrogate_bid",

@@ -4,6 +4,7 @@ import { noteToast } from "../oracle/journal.js";
 import { recipesFor } from "../ai/learned.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { TIMEOUTS } from "../config.js";
+import { clearBlockers, orchestrate } from "../support/orchestrator.js";
 import {
   Candidate,
   ClickOptions,
@@ -22,7 +23,11 @@ import {
  * notice, cookie banner).
  */
 export class BasePage {
-  constructor(public readonly page: Page) {}
+  constructor(public readonly page: Page) {
+    // The pop-up watcher (support/orchestrator.ts) for this page's browser
+    // context: every page object gets it, the vendor portal's own context too.
+    void orchestrate(page).catch(() => {});
+  }
 
   /**
    * Locators the automation has LEARNED for this step, tried before the
@@ -166,6 +171,14 @@ export class BasePage {
   private lastDismissAt = 0;
   async dismissDistractions(): Promise<boolean> {
     if (Date.now() - this.lastDismissAt < 400) return false;
+    // With the orchestrator's watcher on the page this is one call: it looks
+    // and closes in the page itself. The locator checks below are the fallback
+    // for a page that has no watcher (UI_ORCHESTRATOR=0, or not yet injected).
+    const fast = await clearBlockers(this.page);
+    if (fast !== null) {
+      this.lastDismissAt = Date.now();
+      return fast;
+    }
     const p = this.page;
     const candidates: Locator[] = [
       p.getByRole("button", { name: /^Not now$/i }),

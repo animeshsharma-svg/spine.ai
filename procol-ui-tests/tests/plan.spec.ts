@@ -1,5 +1,7 @@
 import { NOISE_CONTAINER_TEXT } from "../src/oracle/noise.js";
 import { test } from "@playwright/test";
+import { startLiveFrames } from "../src/support/liveCursor.js";
+import { orchestrate } from "../src/support/orchestrator.js";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { validatePlan } from "../src/plan/steps.js";
@@ -48,6 +50,8 @@ test("planned test case", async ({ page }) => {
   const waitsForWindow = plan.steps.some((st: { step: string }) => st.step === "close_event");
   test.setTimeout(waitsForWindow ? 48 * 60_000 : 360_000);
 
+  // Pop-ups are closed by one watcher in the page from the first screen on (support/orchestrator.ts).
+  await orchestrate(page);
   const collector = new EvidenceCollector(page, `plan.${plan.title.replace(/\s+/g, "_").slice(0, 40)}`);
   await collector.installToastRecorder();
   collector.start();
@@ -63,14 +67,9 @@ test("planned test case", async ({ page }) => {
    * format the server recognises. Low quality JPEG keeps each line small
    * enough that this stays "watch what's happening now", not a recording.
    */
-  let frameTimer: ReturnType<typeof setInterval> | null = setInterval(async () => {
-    try {
-      const buf = await page.screenshot({ type: "jpeg", quality: 40 });
-      console.log(`[frame] ${buf.toString("base64")}`);
-    } catch {
-      // Mid-navigation or the page just closed — skip this tick, not fatal.
-    }
-  }, 800);
+  // The frames, plus one each time the pointer lands on an element before an
+  // action, so every click and keystroke shows where it happened (liveCursor.ts).
+  let stopFrames: (() => void) | null = startLiveFrames(page);
 
   // Record the flow's real /api/* calls when asked (UI_RECORD_FLOW=<name>) —
   // no headers, so the token never lands on disk. Piggybacks on the run.
@@ -172,9 +171,9 @@ test("planned test case", async ({ page }) => {
   }
 
   watchdog.stop();
-  if (frameTimer) {
-    clearInterval(frameTimer);
-    frameTimer = null;
+  if (stopFrames) {
+    stopFrames();
+    stopFrames = null;
   }
   if (recorder) {
     const file = recorder.save(process.env.UI_RECORD_FLOW!);

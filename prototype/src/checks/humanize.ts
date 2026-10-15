@@ -29,6 +29,7 @@ export const STEP_OBJECT: Record<StepKind, string> = {
   bid_create: "the new bid",
   bid_products: "the priced line item",
   bid_submit: "the submitted bid",
+  switch_vendor: "the next vendor to bid",
   surrogate_tech: "the surrogate technical response",
   surrogate_rfq: "the surrogate bid",
   counter_offer: "the counter offer",

@@ -24,8 +24,51 @@ function db(): Pool | null {
   return pool;
 }
 
+/**
+ * Whether a browser run uses the vendors already on the event.
+ *
+ * On by default since 2026-10-08, Aanya's call ("use the vendors in the
+ * event"), made knowing what it means: the vendors on the event get the
+ * invitation emails, and a bid step asks the portal for a one-time code (an
+ * email to that vendor) and signs in and bids as that vendor. The QA-only
+ * mode below — only qa_…@example.com vendors, everything pre-filled removed —
+ * comes back with SPINE_QA_VENDORS_ONLY=1.
+ */
 export function allowRealVendors(): boolean {
-  return process.env.SPINE_ALLOW_REAL_VENDORS === "1";
+  return process.env.SPINE_QA_VENDORS_ONLY !== "1";
+}
+
+const vendorLoginCache = new Map<number, Array<{ name: string; email: string }>>();
+
+/**
+ * Every vendor of this client that has someone to sign in as, with that
+ * person's email: the companies with an active buyer link and an active
+ * user. The bid step matches these against the names on the event's
+ * participant chips. Read-only (SELECT). [] when the database is unreachable.
+ */
+export async function vendorLogins(companyId?: number): Promise<Array<{ name: string; email: string }>> {
+  const id = companyId ?? Number(process.env.COMPANY_ID);
+  if (!id) return [];
+  if (vendorLoginCache.has(id)) return vendorLoginCache.get(id)!;
+  const pg = db();
+  if (!pg) return [];
+  const sql = `select distinct on (c.id) c.name, u.email
+                 from companies c
+                 join buyer_seller_company_mappings b on b.dealing_with_company_id = c.id and b.client_company_id = $1 and b.status = 1
+                 join user_company_mappings m on m.company_id = c.id and m.status = 1
+                 join users u on u.id = m.user_id and u.status = 1 and coalesce(u.email, '') <> ''
+                where c.status = 1
+                order by c.id, u.email_verified desc nulls last, u.id`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const rows = (await pg.query<{ name: string; email: string }>(sql, [id])).rows.map((r) => ({ name: r.name, email: r.email }));
+      vendorLoginCache.set(id, rows);
+      return rows;
+    } catch {
+      /* one retry: a dropped idle connection must not read as "no vendor" */
+    }
+  }
+  return [];
 }
 
 const cache = new Map<number, string[]>();
@@ -91,14 +134,20 @@ export async function qaVendorLogins(companyId?: number): Promise<Array<{ name: 
 /** True when this participant name is one of the client's QA vendors. */
 export function isQaVendorName(name: string, qaNames: string[]): boolean {
   const n = name.trim().toLowerCase();
-  return qaNames.some((q) => n.includes(q.trim().toLowerCase()) || q.trim().toLowerCase().includes(n));
+  // A blank name is "included" in every string; it must match nothing, or a
+  // vendor company with no name would stand in for any vendor on the event.
+  if (!n) return false;
+  return qaNames.some((raw) => {
+    const q = raw.trim().toLowerCase();
+    return !!q && (n.includes(q) || q.includes(n));
+  });
 }
 
 export class NoQaVendorError extends Error {
   constructor(companyId?: number) {
     super(
       `No QA test vendor for this client${companyId ? ` (${companyId})` : ""} — real suppliers are never invited. ` +
-        `Create QA vendors for it first, or set SPINE_ALLOW_REAL_VENDORS=1 deliberately.`,
+        `Create QA vendors for it first, or leave SPINE_QA_VENDORS_ONLY unset to use the event's own vendors.`,
     );
     this.name = "NoQaVendorError";
   }

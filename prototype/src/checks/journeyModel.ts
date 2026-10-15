@@ -75,6 +75,8 @@ export type StepKind =
   | "bid_create"
   | "bid_products"
   | "bid_submit"
+  // the next vendor bids too (a test asking for bids from two vendors)
+  | "switch_vendor"
   // buyer responds FOR the vendor — folder "F3_surrogate_bid"
   | "surrogate_tech"
   | "surrogate_rfq"
@@ -161,6 +163,7 @@ export const STEP_META: Record<StepKind, StepMeta> = {
   bid_create: { title: "Open a bid on the pricing round", actor: "vendor", postman: "vendor technical and bid › create bid" },
   bid_products: { title: "Price the line item", actor: "vendor", postman: "vendor technical and bid › create bid products" },
   bid_submit: { title: "Submit the bid", actor: "vendor", postman: "vendor technical and bid › submit bid" },
+  switch_vendor: { title: "Switch to the next vendor", actor: "vendor", postman: "vendor technical and bid (again, as the next vendor)" },
   surrogate_tech: { title: "Enter the vendor's technical response on their behalf", actor: "buyer", postman: "F3_surrogate_bid › technical" },
   surrogate_rfq: { title: "Enter the vendor's price on their behalf", actor: "buyer", postman: "F3_surrogate_bid › rfq" },
   counter_offer: { title: "Counter the vendor's price", actor: "buyer", postman: "F4_Counter Offer" },
@@ -378,6 +381,8 @@ export interface JourneyFeatures {
   convertToAuction: boolean;
   /** F2 — a new version of the event is issued at the end */
   version: boolean;
+  /** how many vendors bid from the portal, one after another (default 1) */
+  bidders?: number;
 }
 
 export interface JourneyPlan {
@@ -459,7 +464,10 @@ export const isJourneyFeature = (featureId: string): boolean =>
  * join the journey only when their feature is ticked, so a plain "RFQ only"
  * run is the plain collection.
  */
-export function journeyPlan(featureIds: string[], opts: { stopAtTicked?: boolean } = {}): JourneyPlan {
+/** The most vendors one journey bids as (the workspace's QA vendors are few). */
+export const MAX_BIDDERS = 4;
+
+export function journeyPlan(featureIds: string[], opts: { stopAtTicked?: boolean; bidders?: number } = {}): JourneyPlan {
   const ids = new Set(featureIds);
   const wanted = featureIds.some(isJourneyFeature);
   const eventType =
@@ -470,6 +478,7 @@ export function journeyPlan(featureIds: string[], opts: { stopAtTicked?: boolean
     counterOffer: ids.has("bids.counter_offer") || ids.has("negotiation.counter_offer"),
     convertToAuction: ids.has("auction.convert"),
     version: ids.has("events.versioning"),
+    bidders: Math.max(1, Math.min(MAX_BIDDERS, Math.floor(opts.bidders ?? 1))),
   };
   const reach = opts.stopAtTicked ? reachFor(featureIds) : "award";
   return { wanted, eventType, label, stages, features, reach, steps: stepsFor(stages, features, reach) };
@@ -514,10 +523,15 @@ export function stepsFor(stages: StageKind[], features: JourneyFeatures, reach: 
     if (hasRfp) steps.push("surrogate_tech");
     if (hasPricing) steps.push("surrogate_rfq");
   } else {
-    steps.push("vendor_login");
-    if (hasPricing) steps.push("vendor_open_pricing");
-    if (hasRfp) steps.push("vendor_open_technical", "tech_start", "tech_answer", "tech_submit");
-    if (hasPricing) steps.push("bid_create", "bid_products", "bid_submit");
+    const vendorTurn: StepKind[] = [
+      "vendor_login",
+      ...(hasPricing ? (["vendor_open_pricing"] as const) : []),
+      ...(hasRfp ? (["vendor_open_technical", "tech_start", "tech_answer", "tech_submit"] as const) : []),
+      ...(hasPricing ? (["bid_create", "bid_products", "bid_submit"] as const) : []),
+    ];
+    steps.push(...vendorTurn);
+    // More vendors, one after another: each signs in and bids for itself.
+    for (let k = 2; k <= (features.bidders ?? 1); k++) steps.push("switch_vendor", ...vendorTurn);
   }
   if (features.counterOffer && hasPricing && !features.surrogate) steps.push("counter_offer");
   if (features.convertToAuction && stages.includes("rfq")) steps.push("convert_auction");

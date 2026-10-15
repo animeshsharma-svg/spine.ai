@@ -19,7 +19,8 @@ import { readEvidence } from "./checks/vendorBulkExtras.js";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
 import { needsEventFixture } from "./checks/eventsFixture.js";
-import { journeyPlan, journeyWalksFeature, STEP_META } from "./checks/journeyModel.js";
+import { journeyPlan, journeyWalksFeature, STEP_META, MAX_BIDDERS } from "./checks/journeyModel.js";
+import { qaVendorsOnly } from "./checks/eventVendors.js";
 import type { JourneyRecord, JourneyStepRecord } from "./checks/journeyModel.js";
 import { mergeFieldChecks } from "./report/journeyReport.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./checks/eventJourney.js";
@@ -48,7 +49,8 @@ import { runCheck } from "./checks/engine.js";
 import type { Check } from "./checks/engine.js";
 import { loadCompanyConfig, featureConfigState, isFlagOn } from "./checks/companyConfig.js";
 import { featureGatesFor, mergeConfigState, offReason } from "./checks/featureGates.js";
-import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
+import { UI_FLOWS, uiFlowsFor, runUiFlow, runUiPlan, runUiExplore, readPlanResult, clampLineItems, readStuck, readLearned, runTeach } from "./ui/uiFlowRunner.js";
+import { buildPlanRun, deletePlanRun, listPlanRuns, savePlanRun } from "./ui/planRunStore.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
 import { compileTestCase } from "./agents/planner.js";
@@ -56,6 +58,7 @@ import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
 import { ensureEmbedderReady } from "./rag/embedder.js";
 import { buildMarkdownReport } from "./report/bugReport.js";
 import { allDefects, renderBugSheet, stillOpenFor } from "./report/bugSheet.js";
+import { planShotPath, plainPending, withPlain } from "./report/plainBugs.js";
 import { uiRunDefects } from "./report/uiFrictionDefects.js";
 import { isTriageField, loadTriage, saveTriageField } from "./triageStore.js";
 import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.js";
@@ -259,6 +262,7 @@ const server = createServer(async (req, res) => {
         deleteRun(id) ? "api run" : null,
         deletePoRun(id) ? "PO run" : null,
         deleteTrail(id) ? "journey trail" : null,
+        deletePlanRun(id) ? "typed browser run" : null,
       ].filter(Boolean);
       return json(res, { deleted: removed.length > 0, removed, runId: id });
     }
@@ -450,7 +454,34 @@ const server = createServer(async (req, res) => {
         ],
       }));
 
-      const runs = [...api, ...journeys, ...poRuns]
+      // Typed test cases run in the browser (a compiled plan, or the explorer).
+      const typed = listPlanRuns(20).map((r) => {
+        const stopped = !r.passed && r.explored;
+        return {
+          id: r.runId,
+          ts: r.startedAt,
+          request: r.ask,
+          companyName: r.companyId ? String(r.companyId) : null,
+          headline: r.passed ? null : r.reason ?? r.steps.find((s) => s.status === "failed")?.detail ?? null,
+          passed: r.passed ? 1 : 0,
+          // An explorer that stopped is "stopped early", not a broken product step.
+          failed: r.passed || stopped ? 0 : 1,
+          inconclusive: stopped ? 1 : 0,
+          checks: 0,
+          findings: 0,
+          mismatches: 0,
+          provider: "",
+          kind: "plan" as const,
+          explored: r.explored,
+          steps: r.steps.length,
+          // the step strip, one entry per step
+          items: r.steps.map((s) => (s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "nc")),
+          durationMs: r.durationMs,
+          reports: [] as Array<{ label: string; href: string }>,
+        };
+      });
+
+      const runs = [...api, ...journeys, ...poRuns, ...typed]
         .sort((a, b) => String(b.ts ?? "").localeCompare(String(a.ts ?? "")))
         .slice(0, 40);
       return json(res, { runs });
@@ -957,6 +988,8 @@ const server = createServer(async (req, res) => {
       // "5" or "5,10,2.5" — kept as typed; the journey types each value into the app.
       const wantQty = (url.searchParams.get("qty") ?? "").replace(/[^0-9.,-]/g, "") || undefined;
       const wantVendors = Math.max(1, Math.min(50, Number(url.searchParams.get("vendors")) || 1));
+      // After the publish, this many invited vendors bid on the event (Run tests' "Place a bid").
+      const wantBidders = Math.max(0, Math.min(4, Math.floor(Number(url.searchParams.get("bidders")) || 0)));
       const headed = url.searchParams.get("headed") !== "0";
       // "sign in on screen": the journey goes through the login page instead
       // of starting already signed in. Opt-in on the wire so older callers of
@@ -998,6 +1031,7 @@ const server = createServer(async (req, res) => {
           boqItems: wantBoq ? boq.value : undefined,
           quantity: wantQty,
           vendors: wantVendors,
+          bidders: wantBidders,
           headed,
           showLogin,
         },
@@ -1124,6 +1158,7 @@ const server = createServer(async (req, res) => {
 
     // ── API: write a test case, watch it compiled and run ───────────────
     if (path === "/api/plan-run") {
+      const startedAt = Date.now();
       const testCase = (url.searchParams.get("q") ?? "").trim();
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const headed = url.searchParams.get("headed") !== "0";
@@ -1159,7 +1194,12 @@ const server = createServer(async (req, res) => {
           compiled.warnings = [...(compiled.warnings ?? []), overLimit];
           compiled.reasoning = `${compiled.reasoning ? compiled.reasoning + " " : ""}${overLimit}`;
         }
-        send("plan", {
+        const unreachable = (compiled.warnings ?? []).some((w: string) => /could not be reached|did not return JSON/i.test(w));
+        const noSteps = compiled.coverage === "none" || !compiled.plan.steps.length;
+        const wordsFailed = compiled.source === "fallback" && !unreachable && url.searchParams.get("force") !== "1";
+        const explores = (noSteps || wordsFailed) && url.searchParams.get("explore") !== "0";
+        // A plan that will not run is not shown as the plan: the explorer's own steps are.
+        if (!explores || dryRun) send("plan", {
           title: compiled.plan.title,
           steps: compiled.plan.steps,
           reasoning: compiled.reasoning,
@@ -1177,8 +1217,48 @@ const server = createServer(async (req, res) => {
           res.end();
           return;
         }
+        /**
+         * NO STEPS FOR IT: WORK IT OUT ON SCREEN.
+         *
+         * The compiler only has the browser catalog's steps (sourcing events).
+         * A case beyond them — "make a PO, then an invoice from it" — used to
+         * end here as not tested. Now the explorer takes it: it drives the app
+         * toward the goal one screen at a time and asks the tester in the chat
+         * when it cannot choose, is stuck, or is about to send or delete
+         * something (procol-ui-tests/src/explore/). explore=0 keeps the old
+         * answer. A model that never answered is not a case with no steps, so
+         * the blocked branch below still says so.
+         */
+        if (explores) {
+          const runId = `plan-${Date.now().toString(36)}`;
+          send("explore", {
+            runId,
+            goal: testCase,
+            why: compiled.gaps?.length ? `there is no ready-made step for: ${compiled.gaps.join("; ")}` : "the step catalog has nothing for this case",
+          });
+          send("stage", { name: "execute", line: "Working it out in the browser", runId });
+          const { stop } = runUiExplore({ goal: testCase, companyId: c, runId, headed, showLogin, serverUrl: `http://127.0.0.1:${PORT}` }, (e) => {
+            const ending = e.type === "done" || e.type === "run-error";
+            if (ending) {
+              const result = readPlanResult(runId);
+              if (result) send("plan-result", result);
+              // Kept as a session (Sessions lists it, opening it replays it).
+              savePlanRun(buildPlanRun({ runId, ask: testCase, companyId: c, startedAt, exitCode: e.exitCode ?? null, explored: true, result }));
+              try {
+                send("verdicts", { runId, verdicts: readRunVerdicts(runId) });
+              } catch {
+                /* nothing recorded */
+              }
+            }
+            send(e.type, e);
+            if (ending) res.end();
+          });
+          req.on("close", () => stop());
+          return;
+        }
+
         // An empty plan would "pass" in zero steps. Say what is missing instead.
-        if (compiled.coverage === "none" || !compiled.plan.steps.length) {
+        if (noSteps) {
           send("log", { line: `[plan] not run — the automation has no step yet for: ${compiled.gaps.join("; ") || "what this case checks"}` });
           send("done", { exitCode: 0, notRun: true });
           res.end();
@@ -1195,17 +1275,24 @@ const server = createServer(async (req, res) => {
          * offers the default as a suggestion — `force=1` runs it deliberately.
          */
         if (compiled.source === "fallback" && url.searchParams.get("force") !== "1") {
+          // Why, in the reader's terms: the model never answered (so try again),
+          // or the words could not become steps. The purchase-to-bill note only
+          // when the case is about those modules — after a model outage it read
+          // as if a plain RFQ case had asked for GRN steps.
+          const p2b = /\b(grn|goods receipt|invoices?|bills?|billing|purchase orders?|po)\b/i.test(testCase);
           send("blocked", {
-            reason:
-              compiled.warnings.find((w) => /default plan|no runnable steps|no LLM/i.test(w)) ??
-              "the compiler could not turn that text into steps",
-            covers:
-              "The browser step catalog covers sourcing events: create an event, compose stages, " +
-              "template, line items, sheet, schedule, invite a vendor, publish, bid, evaluate, award. " +
-              "There are no GRN, invoice, bill or PO steps in it yet, so a purchase-to-bill case " +
-              "cannot be compiled into a browser journey.",
+            reason: unreachable
+              ? "the AI that writes the browser steps did not answer (it was tried 3 times), so nothing ran in the browser — try again in a minute"
+              : compiled.warnings.find((w) => /default plan|no runnable steps|no LLM/i.test(w)) ??
+                "the compiler could not turn that text into steps",
+            covers: p2b
+              ? "The browser step catalog covers sourcing events: create an event, compose stages, " +
+                "template, line items, sheet, schedule, invite a vendor, publish, bid, evaluate, award. " +
+                "There are no GRN, invoice, bill or PO steps in it yet, so a purchase-to-bill case " +
+                "cannot be compiled into a browser journey."
+              : undefined,
             suggestion: compiled.plan.steps.map((st: { step: string }) => st.step),
-            hint: "Run the ready-made API cases for those modules instead, or add browser steps for them.",
+            hint: p2b ? "Run the ready-made API cases for those modules instead, or add browser steps for them." : undefined,
           });
           send("done", { exitCode: 1 });
           res.end();
@@ -1213,7 +1300,7 @@ const server = createServer(async (req, res) => {
         }
 
         const runId = `plan-${Date.now().toString(36)}`;
-        send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)` });
+        send("stage", { name: "execute", line: `Running ${compiled.plan.steps.length} step(s)`, runId });
         const { stop } = runUiPlan({ plan: compiled.plan, companyId: c, runId, headed, showLogin, slowMo }, (e) => {
           const ending = e.type === "done" || e.type === "run-error";
           if (ending) {
@@ -1223,6 +1310,8 @@ const server = createServer(async (req, res) => {
             // steps and no verdict attached.
             const result = readPlanResult(runId);
             if (result) send("plan-result", result);
+            // Kept as a session (Sessions lists it, opening it replays it).
+            savePlanRun(buildPlanRun({ runId, ask: testCase, companyId: c, startedAt, exitCode: e.exitCode ?? null, explored: false, result }));
             try {
               send("verdicts", { runId, verdicts: readRunVerdicts(runId) });
             } catch {
@@ -1293,9 +1382,12 @@ const server = createServer(async (req, res) => {
     if (path === "/api/findings") {
       // The same merged list the bug sheet renders, so the count in the UI and
       // the rows in the sheet can never disagree.
-      const groups = allDefects();
+      // Each with its plain-words write-up (src/report/plainBugs.ts): written by
+      // the model in the background from the bug's own evidence, a template until then.
+      const groups = withPlain(allDefects());
       json(res, {
         groups,
+        plainPending: plainPending(),
         totals: {
           defects: groups.filter((g) => g.kind === "product_defect" || g.kind === "contradiction").length,
           gaps: groups.filter((g) => g.kind === "product_rejected_input").length,
@@ -1366,7 +1458,9 @@ const server = createServer(async (req, res) => {
        * screen in the first second, with a line saying what the wait is for,
        * instead of a blank card until the first call fires.
        */
-      const plan = journeyPlan(ids, { stopAtTicked: true });
+      // "Bids from 2 vendors": the journey signs in and bids as each, one after another.
+      const wantBidders = Math.max(1, Math.min(MAX_BIDDERS, Math.floor(Number(url.searchParams.get("bidders")) || 1)));
+      const plan = journeyPlan(ids, { stopAtTicked: true, bidders: wantBidders });
       if (plan.wanted) {
         send("journey-plan", {
           plan,
@@ -1456,27 +1550,60 @@ const server = createServer(async (req, res) => {
           // this workspace's QA vendor pool and are invited only — the first
           // vendor is still the one that signs in and bids.
           const journeyQty = Number(String(url.searchParams.get("qty") ?? "").split(",")[0]) || undefined;
-          const wantVendors = Math.max(1, Math.min(50, Number(url.searchParams.get("vendors")) || 1));
+          const wantVendors = Math.max(wantBidders, Math.min(50, Number(url.searchParams.get("vendors")) || 1));
           let alsoInvite: string[] = [];
-          if (wantVendors > 1) {
-            const first = client.ctx?.vendor?.uuid;
-            const pool = (await qaVendorsFor(c, client.ctx?.buyerApi, wantVendors + 1).catch(() => []))
-              .map((v) => v.vendorCompanyUuid)
-              .filter((u) => u && u !== first);
-            alsoInvite = pool.slice(0, wantVendors - 1);
-            const got = alsoInvite.length + 1;
+          /** the QA vendors that bid after the first, each signing in for itself */
+          let extraBidders: Array<{ companyUuid: string; email: string; name: string }> = [];
+          // Aanya, 2026-10-09: the bids come from the vendors invited — Procol's own
+          // suggestion for the product — not QA test vendors (eventVendors.ts).
+          // The journey says who it invited and who bids once it has read them.
+          const eventVendors = !qaVendorsOnly();
+          if (eventVendors) {
             send("line", {
-              line: got < wantVendors
-                ? `Asked for ${wantVendors} vendors; this company has ${got} QA vendor${got === 1 ? "" : "s"} to invite, so the event goes to ${got}.`
-                : `The event is sent to ${wantVendors} QA vendors; the first one signs in and bids.`,
+              line:
+                "The event goes to the vendors Procol suggests for this product (each gets Procol's invitation email); " +
+                (wantBidders > 1 ? `the first ${wantBidders} of them who can sign in bid, one after another.` : "the first of them who can sign in bids."),
+            });
+          } else if (wantVendors > 1) {
+            const first = client.ctx?.vendor?.uuid;
+            const others = (await qaVendorsFor(c, client.ctx?.buyerApi, wantVendors + 1).catch(() => []))
+              .filter((v) => v.vendorCompanyUuid && v.vendorCompanyUuid !== first);
+            alsoInvite = others.map((v) => v.vendorCompanyUuid).slice(0, wantVendors - 1);
+            extraBidders = others
+              .filter((v) => v.email)
+              .slice(0, wantBidders - 1)
+              .map((v) => ({ companyUuid: v.vendorCompanyUuid, email: v.email, name: v.name || v.email }));
+            const got = alsoInvite.length + 1;
+            const bidding = extraBidders.length + 1;
+            send("line", {
+              line:
+                (got < wantVendors
+                  ? `Asked for ${wantVendors} vendors; this company has ${got} QA vendor${got === 1 ? "" : "s"} to invite, so the event goes to ${got}. `
+                  : `The event is sent to ${wantVendors} QA vendors. `) +
+                (wantBidders > 1
+                  ? bidding < wantBidders
+                    ? `${bidding} of them can sign in and bid (asked for ${wantBidders}); they bid one after another.`
+                    : `${wantBidders} of them sign in and bid, one after another.`
+                  : "The first one signs in and bids."),
             });
           }
-          if (journeyQty) send("line", { line: `Line item quantity: ${journeyQty}.` });
+          // The line-item count is the journey's own event too, not only the
+          // cases': "Line items 3" on Run tests used to publish an event with one.
+          const journeyLineItems = Math.max(1, Math.min(50, Math.floor(Number(url.searchParams.get("lineItems")) || 1)));
+          if (journeyLineItems > 1 || journeyQty) {
+            send("line", {
+              line: `The event gets ${journeyLineItems} line item${journeyLineItems === 1 ? "" : "s"}` +
+                (journeyQty ? `, quantity ${journeyQty}${journeyLineItems > 1 ? " each" : ""}` : "") + ".",
+            });
+          }
           const walked = await runEventJourney(client, plan, {
             baseURL: baseOverride(url),
             stageSeconds: Number(url.searchParams.get("stageSeconds")) || 45,
             buildVariationsEvent: false,
             quantity: journeyQty,
+            lineItemCount: journeyLineItems,
+            extraBidders,
+            eventVendors,
             alsoInvite,
             onStep: (step: JourneyStepRecord, planned: number) => send("journey-step", { step: stepForClient(step), planned }),
             onLine: (line: string) => send("line", { line }),
@@ -2802,6 +2929,18 @@ const server = createServer(async (req, res) => {
         res.writeHead(500, { "content-type": "text/plain" });
         return res.end(`could not rebuild the sheet: ${(err as Error).message}`);
       }
+    }
+
+    // A planned browser run's step screenshot, for a bug's write-up: only a
+    // plan run id and a step file name, inside that run's own evidence folder.
+    if (path === "/api/plan-shot") {
+      const file = planShotPath(url.searchParams.get("run") ?? "", url.searchParams.get("f") ?? "");
+      if (!file) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("no such screenshot");
+      }
+      res.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" });
+      return res.end(readFileSync(file));
     }
 
     if (path === "/api/ui-shot") {

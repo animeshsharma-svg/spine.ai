@@ -2,6 +2,7 @@ import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
+import { uatLoginCodes, type UatCode } from "../db/uatOtp.js";
 
 /**
  * Supplier portal (vendor app, e.g. quotes.ag-ri.in) — pure-UI vendor journey:
@@ -22,8 +23,36 @@ export class VendorPortalPage extends BasePage {
     await this.dismissDistractions();
   }
 
-  /** Email-OTP login. Switches to email mode, sends OTP, submits, waits to leave /login. */
-  async login(email = CONFIG.vendorEmail, otp = CONFIG.vendorOtp): Promise<void> {
+  /**
+   * The codes to try for this vendor, best first.
+   *
+   * A QA vendor (qa_…@example.com) never receives an email — the domain is
+   * reserved — so its code is the one UAT accepts for it: the uat_login_otp
+   * of the buyer that invited it (src/db/uatOtp.ts). The profile's configured
+   * code belongs to the profile's own vendor and is only a fallback for it.
+   */
+  private async codesFor(email: string, otp?: string): Promise<UatCode[]> {
+    if (otp) return [{ otp, source: "the code given" }];
+    const codes = await uatLoginCodes({ email }, Number(process.env.COMPANY_ID) || undefined);
+    if (CONFIG.vendorOtp && email.toLowerCase() === CONFIG.vendorEmail.toLowerCase() && !codes.some((c) => c.otp === CONFIG.vendorOtp)) {
+      codes.push({ otp: CONFIG.vendorOtp, source: "the configured vendor code" });
+    }
+    return codes;
+  }
+
+  /**
+   * Email-OTP login. Switches to email mode, sends OTP, enters the code UAT
+   * accepts for this vendor, waits to leave /login. Returns where the code
+   * came from, never the code.
+   */
+  async login(email = CONFIG.vendorEmail, otp?: string): Promise<string> {
+    const codes = await this.codesFor(email, otp);
+    if (!codes.length) {
+      throw new Error(
+        `vendor login: no one-time code for ${email} — UAT accepts the inviting buyer's uat_login_otp, ` +
+          `and none could be read (is DATABASE_URL set, and does the buyer have one?)`,
+      );
+    }
     // The portal's login form renders well after its URL loads on this
     // environment. Wait for either face of it — the email box or the
     // "continue with email" switch — before the 10s fill budget starts, the
@@ -53,16 +82,34 @@ export class VendorPortalPage extends BasePage {
       [this.page.getByRole("textbox", { name: /otp/i }), this.page.getByPlaceholder(/otp/i), this.page.locator('input[type="password"]')],
       { label: "vendor-otp", timeout: TIMEOUTS.LONG },
     );
-    await otpField.fill(otp);
-    await this.click([this.page.getByRole("button", { name: /^log ?in$/i }), this.page.locator('button[type="submit"]')], {
-      label: "vendor-login",
-    });
-    const left = await this.page
-      .waitForURL((url) => !url.pathname.includes("/login"), { timeout: TIMEOUTS.LONG })
-      .then(() => true)
-      .catch(() => false);
-    if (!left) throw new Error(`vendor login did not complete: ${(await this.errorToastText(1000)) ?? "no error surfaced"}`);
-    await this.dismissDistractions();
+    // Try each code the backend would accept, moving on only when the portal
+    // says the code was wrong; anything else is the real failure and is
+    // reported as it is.
+    let refused = "";
+    for (const [i, code] of codes.entries()) {
+      await otpField.fill(code.otp);
+      await this.click([this.page.getByRole("button", { name: /^log ?in$/i }), this.page.locator('button[type="submit"]')], {
+        label: "vendor-login",
+      });
+      const outcome = await Promise.race([
+        this.page
+          .waitForURL((url) => !url.pathname.includes("/login"), { timeout: TIMEOUTS.LONG })
+          .then(() => "in" as const),
+        this.errorToastText(TIMEOUTS.LONG).then((t) => (t ? t : null)),
+      ]).catch(() => null);
+      if (outcome === "in") {
+        await this.dismissDistractions();
+        return code.source;
+      }
+      refused = outcome ?? "";
+      const wrongCode = /invalid|incorrect|wrong|expired|otp/i.test(refused);
+      if (!wrongCode || i === codes.length - 1) break;
+      console.log(`[vendor] ${code.source} was refused for ${email} — trying the next code`);
+    }
+    throw new Error(
+      `vendor login did not complete for ${email}: ` +
+        (refused ? `the portal said "${refused}"` : `no error surfaced (tried ${codes.map((c) => c.source).join(", then ")})`),
+    );
   }
 
   /** Open a Live event whose card contains the given title/ref. */

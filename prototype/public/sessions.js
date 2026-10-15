@@ -13,7 +13,8 @@
  * only draws the verdicts a run recorded.
  *
  * Where the rows come from:
- *   - /api/runs: the newest runs of every kind (API, browser journey, PO).
+ *   - /api/runs: the newest runs of every kind (API, browser journey, PO, and
+ *     a test case typed and run in the browser).
  *     It is capped at 40, not paged, and not filtered by company or
  *     environment, so this page filters by client the way Home does.
  *   - /api/runs/:id: the step strip of an API run (its journey steps, then
@@ -91,7 +92,7 @@
   /** API / BROWSER / PO / RFP / SCENARIO, from the run's own kind and request. */
   function typeOf(r) {
     if (r.kind === "po") return "PO";
-    if (r.kind === "journey") return "BROWSER";
+    if (r.kind === "journey" || r.kind === "plan") return "BROWSER";
     const q = String(r.request ?? "");
     if (/^\s*rfp\b|rfp (suite|event publish)/i.test(q)) return "RFP";
     if (/\b(scenario|matrix)\b/i.test(q)) return "SCENARIO";
@@ -214,7 +215,8 @@
 
   function itemsFor(row) {
     if (row.local) return liveItems();
-    return st.details.get(row.id)?.items ?? null;
+    // A typed browser run brings its own strip in the list (one entry per step).
+    return st.details.get(row.id)?.items ?? (Array.isArray(row.run?.items) ? row.run.items : null);
   }
 
   function stripHtml(items) {
@@ -307,6 +309,19 @@
     );
   }
 
+  /**
+   * A row and, beside it (a button cannot live inside the row's link), its
+   * Delete. This tab's own session while it runs or waits has none: it is
+   * not saved yet, and stopping it is the run's own button.
+   */
+  function itemHtml(row, group) {
+    const del = row.local
+      ? ""
+      : `<button type="button" class="sn-del" data-act="delete" data-id="${h(row.id)}" aria-label="${h(`Delete session: ${row.title}`)}" title="Delete session">` +
+        `<svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button>`;
+    return `<div class="sn-item" data-id="${h(row.id)}">${rowHtml(row, group)}${del}</div>`;
+  }
+
   function groupsHtml(rows) {
     const out = [];
     let cur = null;
@@ -323,7 +338,7 @@
         (g) =>
           `<section class="sn-group" aria-labelledby="sn-g-${h(g.key)}">` +
           `<h2 class="sn-label" id="sn-g-${h(g.key)}">${h(g.label)}</h2>` +
-          `<div class="sn-card">${g.rows.map((r) => rowHtml(r, g.key)).join("")}</div></section>`,
+          `<div class="sn-card">${g.rows.map((r) => itemHtml(r, g.key)).join("")}</div></section>`,
       )
       .join("");
   }
@@ -457,6 +472,86 @@
     }
   }
 
+  // ── deleting a session ───────────────────────────────────────────────────
+  /**
+   * Gone for good: the server's /api/run-delete removes the run from every
+   * store it could be in (API runs, PO runs, browser journey trails), and so
+   * from its reports and the bug counts built from it. Asked first.
+   */
+  function confirmDelete(row) {
+    return new Promise((resolve) => {
+      let dlg = q$("#sn-dialog");
+      if (!dlg) {
+        dlg = document.createElement("dialog");
+        dlg.id = "sn-dialog";
+        dlg.className = "sn-dialog";
+        dlg.setAttribute("aria-labelledby", "sn-dialog-t");
+        dlg.setAttribute("aria-describedby", "sn-dialog-d");
+        dlg.innerHTML =
+          `<form method="dialog">` +
+          `<h2 class="sn-dialog-t" id="sn-dialog-t">Delete this session?</h2>` +
+          `<p class="sn-dialog-d" id="sn-dialog-d"></p>` +
+          `<div class="sn-dialog-a"><button type="submit" value="cancel" class="sn-btn" autofocus>Cancel</button>` +
+          `<button type="submit" value="delete" class="sn-btn danger">Delete</button></div></form>`;
+        document.body.appendChild(dlg);
+      }
+      q$("#sn-dialog-d", dlg).textContent =
+        `“${row.title}” and its reports are removed from spine.ai for good. Bugs that only this run found may leave the Bugs page. This can't be undone.`;
+      const done = () => {
+        dlg.removeEventListener("close", done);
+        resolve(dlg.returnValue === "delete");
+      };
+      dlg.returnValue = "";
+      dlg.addEventListener("close", done);
+      dlg.showModal();
+    });
+  }
+
+  function toast(text) {
+    let box = q$("#sn-toasts");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "sn-toasts";
+      box.className = "sn-toasts";
+      box.setAttribute("role", "status");
+      box.setAttribute("aria-live", "polite");
+      document.body.appendChild(box);
+    }
+    const t = document.createElement("div");
+    t.className = "sn-toast";
+    t.textContent = text;
+    box.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  async function deleteSession(id, trigger) {
+    const row = st.byId.get(id);
+    if (!row || row.local) return;
+    if (!(await confirmDelete(row))) return trigger?.focus();
+    // Where the focus goes after: the next row, else the one before, else search.
+    const item = trigger?.closest(".sn-item");
+    const next = item?.nextElementSibling?.dataset.id ?? item?.previousElementSibling?.dataset.id ?? null;
+    let ok = false;
+    try {
+      const res = await fetch(`/api/run-delete?run=${encodeURIComponent(id)}`, { cache: "no-store" });
+      ok = res.ok && !!(await res.json())?.deleted;
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      toast("Couldn't delete that session — it may already be gone");
+      return load();
+    }
+    st.runs = (st.runs ?? []).filter((r) => r.id !== id);
+    st.details.delete(id);
+    render();
+    toast("Session deleted");
+    // The Bugs badge and page count runs; one fewer may change them.
+    window.dispatchEvent(new CustomEvent("spine:bugs-changed"));
+    const to = next && q$(`#sn-body .sn-row[data-id="${CSS.escape(next)}"]`);
+    (to || q$("#sn-q"))?.focus();
+  }
+
   // ── the address: #/sessions?status=broken ────────────────────────────────
   function statusFromHash() {
     const m = location.hash.match(/[?&]status=([a-z]+)/);
@@ -533,6 +628,11 @@
       if (pill) setStatus(pill.dataset.status);
     });
     q$("#sn-body")?.addEventListener("click", (e) => {
+      const del = e.target.closest('[data-act="delete"]');
+      if (del) {
+        e.preventDefault();
+        return void deleteSession(del.dataset.id, del);
+      }
       const act = e.target.closest("[data-act]")?.dataset.act;
       if (act === "retry") {
         st.err = false;

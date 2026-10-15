@@ -114,13 +114,19 @@
     ["Description", (r) => description(r), 90],
   ];
 
+  /** The plain write-up, then the evidence as links that open from the sheet. */
   function description(r) {
     const out = [r.title];
-    if (r.what && r.what !== r.title) out.push(`What happened: ${r.what}`);
-    if (r.steps?.length) out.push(`Steps: ${r.steps.map((s, i) => `${i + 1}. ${s}`).join(" ")}`);
+    if (r.what && r.what !== r.title) out.push(`What's wrong: ${r.what}`);
+    if (r.where) out.push(`Where: ${r.where}`);
+    if (r.steps?.length) out.push(`How to see it: ${r.steps.map((s, i) => `${i + 1}. ${s}`).join(" ")}`);
     if (r.expected) out.push(`Expected: ${r.expected}`);
-    if (r.actual && r.actual !== r.what) out.push(`Actual: ${r.actual}`);
+    if (r.actual && r.actual !== r.what) out.push(`What happens: ${r.actual}`);
+    if (r.ways?.length) out.push(`Ways it happened: ${r.ways.map((w) => `• ${w.what}${w.result ? ` → ${w.result}` : ""}`).join(" ")}`);
     out.push(seenLine(r));
+    if (r.shots?.length) out.push(`Screenshots: ${r.shots.map((x) => x.url).join("  ")}`);
+    if (r.links?.length) out.push(`Runs: ${r.links.map((x) => `${x.label} ${x.url}`).join("  ")}`);
+    if (r.techTitle && r.techTitle !== r.title) out.push(`Recorded as: ${r.techTitle}`);
     return out.join("\n");
   }
 
@@ -138,7 +144,9 @@
     return s;
   };
 
-  function sheetXml(rows) {
+  /** columns: [header, getter, width] — the bug sheet's unless another sheet passes its own (test cases). */
+  function sheetXml(rows, columns = COLUMNS) {
+    const COLUMNS = columns;
     const cell = (ref, v, style) =>
       `<c r="${ref}" t="inlineStr"${style ? ` s="${style}"` : ""}><is><t xml:space="preserve">${xml(scrub(v).slice(0, 32000))}</t></is></c>`;
     const head = `<row r="1">${COLUMNS.map(([name], i) => cell(`${colName(i)}1`, name, 1)).join("")}</row>`;
@@ -169,7 +177,7 @@
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
 
-  function xlsx(rows, { name = "spine-bugs", sheet = "Bugs" } = {}) {
+  function xlsx(rows, { name = "spine-bugs", sheet = "Bugs", columns = COLUMNS } = {}) {
     const blob = zip([
       {
         name: "[Content_Types].xml",
@@ -197,7 +205,7 @@
           `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
           `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
           `<sheets><sheet name="${xml(sheet.slice(0, 31))}" sheetId="1" r:id="rId1"/></sheets>` +
-          `<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${xml(sheet.slice(0, 31))}'!$A$1:$${colName(COLUMNS.length - 1)}$${rows.length + 1}</definedName></definedNames>` +
+          `<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${xml(sheet.slice(0, 31))}'!$A$1:$${colName(columns.length - 1)}$${rows.length + 1}</definedName></definedNames>` +
           `</workbook>`,
       },
       {
@@ -210,7 +218,7 @@
           `</Relationships>`,
       },
       { name: "xl/styles.xml", data: STYLES },
-      { name: "xl/worksheets/sheet1.xml", data: sheetXml(rows) },
+      { name: "xl/worksheets/sheet1.xml", data: sheetXml(rows, columns) },
     ]);
     download(blob, `${name}.xlsx`);
     return blob;
@@ -260,6 +268,14 @@
     pre { margin: 0; padding: 7pt 9pt; border-radius: 4pt; background: #f4eee1; white-space: pre-wrap; word-break: break-all;
           font: 8.5pt/1.45 ui-monospace, Menlo, Consolas, monospace; }
     .seen { margin-top: 8pt; color: #5d574b; font-size: 9pt; }
+    ul.ways, ul.links { margin: 0; padding-left: 15pt; }
+    ul.ways em { color: #8f1d1d; font-style: normal; }
+    .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; }
+    .shots figure { margin: 0; break-inside: avoid; }
+    .shots img { display: block; width: 100%; border: 0.75pt solid #d9d0bd; border-radius: 3pt; }
+    .shots figcaption { margin-top: 2pt; font-size: 8pt; color: #6e685b; }
+    a { color: #1d4f91; word-break: break-all; }
+    .dev { margin-top: 10pt; padding: 7pt 9pt; border-radius: 4pt; background: #f8f4ea; font-size: 9pt; }
     footer { margin-top: 18pt; color: #6e685b; font-size: 8.5pt; }
   `;
 
@@ -272,16 +288,25 @@
       `<span>Priority ${esc(r.priority)}</span><span>Status ${esc(r.status)}</span><span>Blocker ${esc(r.blocker)}</span>` +
       `<span>Dev type ${esc(r.devType)}</span><span>${esc(r.kind)}</span><span>${esc(r.module)}</span>` +
       (r.devEta ? `<span>Dev ETA ${esc(r.devEta)}</span>` : "") + `</div>` +
-      (r.what ? `<h3>What happened</h3><p>${esc(r.what)}</p>` : "") +
+      (r.what ? `<h3>What's wrong</h3><p>${esc(r.what)}</p>` : "") +
       (r.where ? `<h3>Where</h3><p>${esc(r.where)}</p>` : "") +
-      (r.steps?.length ? `<h3>Steps</h3><ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>` : "") +
+      (r.steps?.length ? `<h3>How to see it</h3><ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>` : "") +
       (r.expected || r.actual
-        ? `<h3>Expected vs what happened</h3><div class="ea"><div><b>Expected</b>${esc(r.expected || "Not recorded")}</div>` +
-          `<div class="got"><b>What happened</b>${esc(r.actual || "Not recorded")}</div></div>`
+        ? `<h3>Expected vs what happens</h3><div class="ea"><div><b>Expected</b>${esc(r.expected || "Not recorded")}</div>` +
+          `<div class="got"><b>What happens</b>${esc(r.actual || "Not recorded")}</div></div>`
         : "") +
-      (r.curl ? `<h3>Reproduce with</h3><pre>${esc(r.curl)}</pre>` : "") +
-      (r.devComment ? `<h3>Dev comment</h3><p>${esc(r.devComment)}</p>` : "") +
+      (r.ways?.length ? `<h3>Ways it happened</h3><ul class="ways">${r.ways.map((w) => `<li>${esc(w.what)}${w.result ? ` — <em>${esc(w.result)}</em>` : ""}</li>`).join("")}</ul>` : "") +
       `<p class="seen">${esc(seenLine(r))}</p>` +
+      (r.shots?.length
+        ? `<h3>Screenshots</h3><div class="shots">${r.shots.map((x) => `<figure><img src="${esc(x.url)}" alt="${esc(x.label)}" /><figcaption>${esc(x.label)}</figcaption></figure>`).join("")}</div>`
+        : "") +
+      (r.links?.length ? `<h3>The runs behind it</h3><ul class="links">${r.links.map((x) => `<li>${esc(x.label)}: <a href="${esc(x.url)}">${esc(x.url)}</a></li>`).join("")}</ul>` : "") +
+      (r.curl ? `<h3>The exact request</h3><pre>${esc(r.curl)}</pre>` + (r.reply ? `<p class="seen">The server answered: ${esc(r.reply)}</p>` : "") : "") +
+      (r.devComment ? `<h3>Dev comment</h3><p>${esc(r.devComment)}</p>` : "") +
+      (r.techTitle || r.devNotes?.length
+        ? `<div class="dev"><b>For developers</b>${r.techTitle ? `<p>Recorded as: <code>${esc(r.techTitle)}</code></p>` : ""}` +
+          (r.devNotes?.length ? `<ul class="links">${r.devNotes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "") + `</div>`
+        : "") +
       `</section>`
     );
   }
@@ -315,14 +340,16 @@
       document.title = before;
       setTimeout(() => frame.remove(), 1000);
     };
-    setTimeout(() => {
+    // Print once the screenshots are in, so the PDF carries them (at most 8 s).
+    const images = [...doc.images].map((img) => (img.complete ? Promise.resolve() : new Promise((ok) => { img.onload = img.onerror = ok; })));
+    Promise.race([Promise.all(images), new Promise((ok) => setTimeout(ok, 8000))]).then(() => {
       document.title = opts.name ?? "spine-bugs";
       frame.contentWindow.addEventListener("afterprint", done, { once: true });
       frame.contentWindow.focus();
       frame.contentWindow.print();
       // Some browsers never fire afterprint for a frame.
       setTimeout(done, 60000);
-    }, 50);
+    });
     return reportHtml;
   }
 
