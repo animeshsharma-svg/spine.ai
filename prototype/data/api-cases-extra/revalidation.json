@@ -1,0 +1,3903 @@
+[
+  {
+    "id": "API-XREV-A-01",
+    "feature": "revalidation.access",
+    "title": "Non-Procol-employee token is refused",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /config?client_company_id=<client> with the client's own super-admin session (not a Procol employee)"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "Code 5 'Not authorized'; nothing returned.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 (check_qa_access = is_procol_employee? || is_super_admin, since eaf002de08)",
+    "disagree": "Guide: Code 5 Not authorized for any client user.",
+    "tier": "read",
+    "reval": {
+      "key": "A-01",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-A-02",
+    "feature": "revalidation.access",
+    "title": "Missing / wrong token is refused",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /config with no access-token header",
+      "GET /config with a random access-token"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "Refused each time (auth error or code 5); no config in the body.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:9 (before_action check_qa_access)",
+    "tier": "read",
+    "reval": {
+      "key": "A-02",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-A-03",
+    "feature": "revalidation.access",
+    "title": "Unknown client",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /config?client_company_id=999999999"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa/config?client_company_id=999999999",
+    "expected": "accept",
+    "expectedResult": "422, code 2 'client_company_id not found'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:108-111",
+    "tier": "read",
+    "reval": {
+      "key": "A-03",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-A-04",
+    "feature": "revalidation.access",
+    "title": "Config not an object",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "PUT /config with \"config\": \"abc\"",
+      "PUT with \"config\": [1]",
+      "GET /config"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 'config must be an object' each time; GET shows the config unchanged.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:122-123",
+    "tier": "config",
+    "reval": {
+      "key": "A-04",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-05",
+    "feature": "revalidation.access",
+    "title": "enabled missing or not true/false",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "PUT the current config without enabled",
+      "then with \"enabled\": \"yes\"",
+      "then with \"enabled\": \"true\" (a string)"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 'enabled must be true or false' each time; config unchanged.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:124",
+    "tier": "config",
+    "reval": {
+      "key": "A-05",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-06",
+    "feature": "revalidation.access",
+    "title": "vendor_statuses empty or unknown",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "vendor_statuses []",
+      "vendor_statuses [\"approved\"]",
+      "vendor_statuses [\"active\",\"approved\"]",
+      "vendor_statuses \"active\" (not a list)"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 'vendor_statuses must be a non-empty list from: in_active, active, invited, onboarding_in_progress, in_review, rejected, in_approval, blacklisted' (the enum's order) each time; config unchanged.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:126-130",
+    "tier": "config",
+    "reval": {
+      "key": "A-06",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-07",
+    "feature": "revalidation.access",
+    "title": "validations empty",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "\"validations\": {}",
+      "\"validations\": []"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 'validations must be a non-empty object'; config unchanged.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:132-134",
+    "tier": "config",
+    "reval": {
+      "key": "A-07",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-08",
+    "feature": "revalidation.access",
+    "title": "Unknown document type",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "add \"aadhaar\": {...} to validations"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 'unsupported doc types: aadhaar'; config unchanged.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:136-137",
+    "tier": "config",
+    "reval": {
+      "key": "A-08",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-09",
+    "feature": "revalidation.access",
+    "title": "Bad frequency",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "gst frequency weekly",
+      "gst frequency missing"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 \"gst: unsupported frequency 'weekly'\"; with none, \"gst: unsupported frequency ''\".",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:46-50",
+    "tier": "config",
+    "reval": {
+      "key": "A-09",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-10",
+    "feature": "revalidation.access",
+    "title": "Bad start date",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "gst start_date 2026-13-45",
+      "then 15-10-2026",
+      "then 2026-02-30"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 \"gst: invalid start_date '<value>'\" each time (Date.iso8601).",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:51,60-65",
+    "tier": "config",
+    "reval": {
+      "key": "A-10",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-11",
+    "feature": "revalidation.access",
+    "title": "No paths",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "gst paths []",
+      "gst paths missing"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 'gst: paths must be a non-empty list'.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:53-54",
+    "tier": "config",
+    "reval": {
+      "key": "A-11",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-12",
+    "feature": "revalidation.access",
+    "title": "Bad path syntax",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "gst paths [\"vendor.gst\"]",
+      "then [\"form.\"]",
+      "then [\"company.GST_NO\"]"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 \"gst: unsupported path '<value>'\" each time.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:56-57, app/services/vendor_revalidation/value_reader.rb:46-55",
+    "tier": "config",
+    "reval": {
+      "key": "A-12",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-13",
+    "feature": "revalidation.access",
+    "title": "Trigger on a disabled client",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "PUT a config with enabled false",
+      "POST /trigger mode force, vendor_ids [V-NODOCS]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'vendor revalidation is not enabled for this client (needs vendor onboarding v2 and config enabled: true)'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:30-32",
+    "tier": "config",
+    "reval": {
+      "key": "A-13",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-14",
+    "feature": "revalidation.access",
+    "title": "Mode missing or wrong",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "POST /trigger without mode",
+      "mode now",
+      "mode FORCE"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'mode must be one of: force, scheduler' each time (case-sensitive).",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:34-35",
+    "tier": "config",
+    "reval": {
+      "key": "A-14",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-15",
+    "feature": "revalidation.access",
+    "title": "Both vendor_ids and vendor_limit",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "POST /trigger with vendor_ids [V-NODOCS] and vendor_limit 1"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'send either vendor_ids or vendor_limit, not both'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:167-169",
+    "tier": "config",
+    "reval": {
+      "key": "A-15",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-16",
+    "feature": "revalidation.access",
+    "title": "vendor_limit not positive",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "vendor_limit 0",
+      "-1",
+      "\"abc\"",
+      "1.5"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'vendor_limit must be a positive integer' for each.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:171-175",
+    "tier": "config",
+    "reval": {
+      "key": "A-16",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-17",
+    "feature": "revalidation.access",
+    "title": "vendor_ids not integers",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "vendor_ids [\"abc\", 1.5]",
+      "vendor_ids [\"1x\"]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'vendor_ids must be a list of integers'. (Numeric strings such as \"123\" are accepted.)",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:178-179",
+    "tier": "config",
+    "reval": {
+      "key": "A-17",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-18",
+    "feature": "revalidation.access",
+    "title": "Vendor not of this client",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "vendor_ids [V-NOTCLIENT] — an active vendor linked to another client only"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 \"vendor_ids not among this client's vendors in the configured statuses: <id>\".",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:181-182",
+    "tier": "config",
+    "reval": {
+      "key": "A-18",
+      "tier": "config",
+      "needs": [
+        "V-NOTCLIENT"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-19",
+    "feature": "revalidation.access",
+    "title": "Vendor in a status not configured",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "PUT vendor_statuses [\"active\"]",
+      "vendor_ids [V-STATUS-invited]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Same message as A-18 with that id.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:181-182, app/workers/vendor_revalidation/run_worker.rb:53-58",
+    "tier": "config",
+    "reval": {
+      "key": "A-19",
+      "tier": "config",
+      "needs": [
+        "V-STATUS-invited"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-20",
+    "feature": "revalidation.access",
+    "title": "No vendor matches statuses",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "find a link status with no eligible vendor for the client (database)",
+      "PUT vendor_statuses [that status]",
+      "POST /trigger vendor_limit 1"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'no vendors match the configured vendor_statuses'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:43-44",
+    "tier": "config",
+    "reval": {
+      "key": "A-20",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-21",
+    "feature": "revalidation.access",
+    "title": "run_at in the past",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "run_at = now − 10 min (IST)"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'run_at is in the past'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:151",
+    "tier": "config",
+    "reval": {
+      "key": "A-21",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-22",
+    "feature": "revalidation.access",
+    "title": "run_at more than 30 days ahead",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "run_at = now + 31 days"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'run_at must be within 30 days from now'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:152",
+    "tier": "config",
+    "reval": {
+      "key": "A-22",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-23",
+    "feature": "revalidation.access",
+    "title": "run_at not a time",
+    "type": "Negative",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "run_at tomorrow",
+      "run_at 2026-02-30T10:00:00"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "422 'run_at must be a time like <now+1h, ISO with +05:30> (IST if no offset)'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162",
+    "tier": "config",
+    "reval": {
+      "key": "A-23",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-24",
+    "feature": "revalidation.access",
+    "title": "Cancel unknown or started job",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "DELETE /trigger/abc123",
+      "(a job already started: covered in B-12)"
+    ],
+    "method": "DELETE",
+    "path": "/api/vendor_revalidation_qa/trigger/abc123",
+    "expected": "accept",
+    "expectedResult": "404, code 2 'trigger not found or already started'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:60-64",
+    "tier": "config",
+    "reval": {
+      "key": "A-24",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-25",
+    "feature": "revalidation.access",
+    "title": "Run status for unknown run",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /runs/<random uuid>"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa/runs/<random uuid>",
+    "expected": "accept",
+    "expectedResult": "200 with total_rows 0, vendors 0, complete false; no error.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:70-100",
+    "tier": "read",
+    "reval": {
+      "key": "A-25",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-A-26",
+    "feature": "revalidation.access",
+    "title": "run_at 30 seconds in the past is accepted",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (dev): covered by the code (PAST_TOLERANCE 1 minute) and by A-21's boundary; run by hand if wanted — a clock difference between this machine and the server makes the 30 s margin flaky",
+    "steps": [
+      "run_at = now − 30 s"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Accepted (1-minute tolerance); runs now.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:6,151",
+    "tier": "dev",
+    "reval": {
+      "key": "A-26",
+      "tier": "dev",
+      "why": "covered by the code (PAST_TOLERANCE 1 minute) and by A-21's boundary; run by hand if wanted — a clock difference between this machine and the server makes the 30 s margin flaky"
+    }
+  },
+  {
+    "id": "API-XREV-A-27",
+    "feature": "revalidation.access",
+    "title": "GET config returns the saved config",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "PUT the current config with vendor_statuses in reverse order",
+      "GET /config"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "GET config equals the PUT exactly; PUT answers with it too; enabled = config.enabled AND vendor_onboarding_v2.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:12-27,113-120",
+    "tier": "config",
+    "reval": {
+      "key": "A-27",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-28",
+    "feature": "revalidation.access",
+    "title": "PUT replaces the whole config",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "PUT with only gst",
+      "GET"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "Only gst is in the config; the other document types are gone.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:16-27",
+    "tier": "config",
+    "reval": {
+      "key": "A-28",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-29",
+    "feature": "revalidation.access",
+    "title": "run_at without offset is IST",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "silent config",
+      "run_at <tomorrow>T15:00:00 (no offset)",
+      "cancel at once"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "scheduled_for <tomorrow>T15:00:00+05:30; run_scheduled_on tomorrow and that date's run id; cancel → state cancelled.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:146-162",
+    "tier": "config",
+    "reval": {
+      "key": "A-29",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-30",
+    "feature": "revalidation.access",
+    "title": "A client's super admin reads another client's config",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /config?client_company_id=<another client> with this client's super-admin session"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa/config?client_company_id=<other client>",
+    "expected": "accept",
+    "expectedResult": "Code 5 'Not authorized'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:103-111 (set_client takes any client_company_id)",
+    "tier": "read",
+    "reval": {
+      "key": "A-30",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-A-31",
+    "feature": "revalidation.access",
+    "title": "run_at with a UTC offset late in the evening belongs to the next IST date",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "silent config",
+      "run_at <day>T20:00:00Z (= 01:30 IST next day)",
+      "cancel"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "run_scheduled_on = the IST date (next day) and its run id.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:45-46 (run_at.to_date in IST)",
+    "tier": "config",
+    "reval": {
+      "key": "A-31",
+      "tier": "config",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-A-32",
+    "feature": "revalidation.access",
+    "title": "Document settings that are not an object",
+    "type": "Negative",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "\"gst\": \"yearly\""
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "422 'gst: settings must be an object' (a message the guide's table does not list).",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:47",
+    "tier": "config",
+    "reval": {
+      "key": "A-32",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-33",
+    "feature": "revalidation.access",
+    "title": "A single path given as a string is accepted",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "gst paths \"form.gstin\" (a string, not a list)"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "Accepted (Array.wrap); the guide documents paths as a list only.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:53",
+    "tier": "config",
+    "reval": {
+      "key": "A-33",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-A-34",
+    "feature": "revalidation.access",
+    "title": "An empty vendor scope runs every vendor of the client",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (code): NOT SENT ON PURPOSE: on this build it would revalidate every GMMCO vendor against the real providers. Proved from the code: [] and \"\" are blank, parse_vendor_scope returns no scope, select_vendors returns all_vendor_ids.",
+    "steps": [
+      "POST /trigger with \"vendor_ids\": [] (or vendor_limit \"\" / null)"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Refused, like any other bad scope.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:164-185 (raw_ids.blank? → no scope), app/workers/vendor_revalidation/qa_trigger_worker.rb:50-56 (no scope → all vendors)",
+    "tier": "code",
+    "reval": {
+      "key": "A-34",
+      "tier": "code",
+      "why": "NOT SENT ON PURPOSE: on this build it would revalidate every GMMCO vendor against the real providers. Proved from the code: [] and \"\" are blank, parse_vendor_scope returns no scope, select_vendors returns all_vendor_ids."
+    }
+  },
+  {
+    "id": "API-XREV-B-01",
+    "feature": "revalidation.schedule",
+    "title": "Scheduler mode with nothing due",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: gst quarterly, start = today − 10 days",
+      "POST /trigger mode scheduler, vendor_ids [V-NODOCS]",
+      "GET /runs/<run_id>?job_id="
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "trigger.state nothing_due; no rows created for the vendor.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:28-32, app/workers/vendor_revalidation/scheduler_worker.rb:34-44",
+    "disagree": "Guide: …complete false.",
+    "tier": "run",
+    "reval": {
+      "key": "B-01",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-02",
+    "feature": "revalidation.schedule",
+    "title": "Scheduler does not repeat a type already checked since its due date",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "find a GST run of this client 1–2 days ago (date D)",
+      "config: gst monthly, start = D one month back (so D is the due date)",
+      "scheduler trigger today"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "nothing_due: rows exist for gst on D, inside due_date…today.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:60-69 (due_date...run_date, exclusive)",
+    "tier": "run",
+    "reval": {
+      "key": "B-02",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-03",
+    "feature": "revalidation.schedule",
+    "title": "one_time does not run again",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: msme one_time, start = today − 5",
+      "scheduler trigger today"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "nothing_due.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:34-37",
+    "tier": "run",
+    "reval": {
+      "key": "B-03",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-04",
+    "feature": "revalidation.schedule",
+    "title": "Catch-up stops after 2 days",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: cin monthly with its cycle date 3 days ago (no rows)",
+      "scheduler trigger today"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "nothing_due.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:12,34-44",
+    "tier": "run",
+    "reval": {
+      "key": "B-04",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-05",
+    "feature": "revalidation.schedule",
+    "title": "Cancelled trigger does nothing",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config",
+      "trigger run_at now + 2 min",
+      "DELETE /trigger/<job_id>",
+      "wait past run_at",
+      "GET /runs?job_id="
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Cancel answers state cancelled; afterwards still cancelled; the vendor's rows untouched.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:60-68",
+    "tier": "run",
+    "reval": {
+      "key": "B-05",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-06",
+    "feature": "revalidation.schedule",
+    "title": "Config switched off before a scheduled trigger fires",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config",
+      "trigger run_at now + 2 min",
+      "PUT enabled false",
+      "wait past run_at"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "trigger.state disabled; no rows created or reset.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:24-27",
+    "tier": "run",
+    "reval": {
+      "key": "B-06",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-07",
+    "feature": "revalidation.schedule",
+    "title": "Force checks every configured type regardless of dates",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: the client's document types, each starting 20 days ahead",
+      "run force [V-PASS]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Rows for every configured type; by_doc_type lists them all; by_status adds up.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:30",
+    "tier": "run",
+    "reval": {
+      "key": "B-07",
+      "tier": "run",
+      "needs": [
+        "V-PASS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-08",
+    "feature": "revalidation.schedule",
+    "title": "Scheduler on the start date",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: gst quarterly, start = today",
+      "scheduler trigger now"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "state started; gst rows only.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:39-43",
+    "tier": "run",
+    "reval": {
+      "key": "B-08",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-09",
+    "feature": "revalidation.schedule",
+    "title": "Each cycle length",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "for monthly / quarterly / six_monthly / yearly: start = today minus 1/3/6/12 months → scheduler trigger",
+      "then start whose cycle date was 3 days ago → scheduler trigger",
+      "quarterly with start 2 months ago → scheduler trigger"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Due (started) exactly on whole cycles; nothing_due 3 days after a cycle date and on a non-cycle month.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:14,39-43",
+    "disagree": "Guide: run_at on 10 Nov / Jan / Apr / Oct — not possible: run_at is capped at 30 days and a future trigger only fires then; the same rule is proved by moving the start date instead.",
+    "tier": "run",
+    "reval": {
+      "key": "B-09",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-10",
+    "feature": "revalidation.schedule",
+    "title": "Month end",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "on the last day of a month shorter than 31 days: config gst monthly from the newest 31st",
+      "scheduler trigger"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Due on the clamped month end (e.g. 30 Nov).",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:39-43 (start_date >> months clamps)",
+    "disagree": "Guide: …and not on 1 Dec — but the 2-day catch-up makes 30 Nov's due date still due on 1 Dec if not run.",
+    "tier": "run",
+    "reval": {
+      "key": "B-10",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-11",
+    "feature": "revalidation.schedule",
+    "title": "Catch-up within 2 days",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: a document type the client has never checked (cin), monthly, cycle date 2 days ago",
+      "scheduler trigger"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Due and started.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:12,35",
+    "tier": "run",
+    "reval": {
+      "key": "B-11",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-12",
+    "feature": "revalidation.schedule",
+    "title": "Same-day triggers share one run id",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config",
+      "run force twice",
+      "DELETE the first job after it started"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Same run_id = uuid v5('procol://vendor_revalidation/<client>/<date>'); cancel after start → 404.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:29-31, app/controllers/api/vendor_revalidation_qa_controller.rb:60-64",
+    "tier": "run",
+    "reval": {
+      "key": "B-12",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-13",
+    "feature": "revalidation.schedule",
+    "title": "Re-trigger rebuilds with no duplicates",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run force [V-PASS, V-BADGST]",
+      "run them again"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Same row count and per-status counts; rows rebuilt (new ids); one row per vendor per document value.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:103-111",
+    "tier": "run",
+    "reval": {
+      "key": "B-13",
+      "tier": "run",
+      "needs": [
+        "V-PASS",
+        "V-BADGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-14",
+    "feature": "revalidation.schedule",
+    "title": "Re-trigger of a subset leaves others alone",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-PASS, V-BADGST]",
+      "run [V-PASS] only"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "V-BADGST's rows unchanged; V-PASS's rebuilt.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:104 (reset limited to the chosen vendors)",
+    "tier": "run",
+    "reval": {
+      "key": "B-14",
+      "tier": "run",
+      "needs": [
+        "V-PASS",
+        "V-BADGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-15",
+    "feature": "revalidation.schedule",
+    "title": "Scheduled trigger starts on time",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config",
+      "trigger run_at now + 2 min",
+      "poll"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "state scheduled before; started within 2 minutes after run_at.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:54",
+    "tier": "run",
+    "reval": {
+      "key": "B-15",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-16",
+    "feature": "revalidation.schedule",
+    "title": "vendor_limit picks the same vendors every time",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config",
+      "run vendor_limit 3 twice"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Same 3 vendor ids, the lowest eligible ids.",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:53-58, app/workers/vendor_revalidation/qa_trigger_worker.rb:50-56",
+    "tier": "run",
+    "reval": {
+      "key": "B-16",
+      "tier": "run"
+    }
+  },
+  {
+    "id": "API-XREV-B-17",
+    "feature": "revalidation.schedule",
+    "title": "Nightly run skips a client with pending rows",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs the nightly scheduler and app logs",
+    "steps": [
+      "leave a run with pending rows",
+      "let the 11 pm scheduler run"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "No new run that night; log run_skipped … previous run in progress.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:74-77",
+    "tier": "dev",
+    "reval": {
+      "key": "B-17",
+      "tier": "dev",
+      "why": "needs the nightly scheduler and app logs"
+    }
+  },
+  {
+    "id": "API-XREV-B-18",
+    "feature": "revalidation.schedule",
+    "title": "Nightly run time",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs the nightly scheduler and app logs",
+    "steps": [
+      "config due today; do not trigger"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Run starts at 11 pm IST (log run_started).",
+    "rule": "config/sidekiq.yml (0 23 * * * Asia/Kolkata)",
+    "tier": "dev",
+    "reval": {
+      "key": "B-18",
+      "tier": "dev",
+      "why": "needs the nightly scheduler and app logs"
+    }
+  },
+  {
+    "id": "API-XREV-B-19",
+    "feature": "revalidation.schedule",
+    "title": "Two triggers for different vendors firing together both run",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config",
+      "trigger [V-NODOCS] and [V-NODOCS2] for the same run_at (now + 90 s)",
+      "wait for both"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Both complete with their vendor's rows.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:113-124 (delete_jobs deletes every queued RunWorker job of the run, not only the chosen vendors')",
+    "tier": "run",
+    "reval": {
+      "key": "B-19",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS",
+        "V-NODOCS2"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-20",
+    "feature": "revalidation.schedule",
+    "title": "A QA trigger takes the nightly run's claim for that date",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (code): needs the nightly scheduler; proved from the code: the QA trigger sets the same claim key with a 1-hour TTL, so the nightly start_run returns early",
+    "steps": [
+      "QA trigger at 10:30 pm IST",
+      "nightly scheduler at 11 pm"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "The nightly run still starts.",
+    "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82",
+    "tier": "code",
+    "reval": {
+      "key": "B-20",
+      "tier": "code",
+      "why": "needs the nightly scheduler; proved from the code: the QA trigger sets the same claim key with a 1-hour TTL, so the nightly start_run returns early"
+    }
+  },
+  {
+    "id": "API-XREV-C-01",
+    "feature": "revalidation.coverage",
+    "title": "Status not in vendor_statuses is left out",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config, vendor_statuses [\"active\"]",
+      "run vendor_limit 3"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Every chosen vendor is linked as active; no rows for others.",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:53-58",
+    "disagree": "Guide: vendor_limit 50 — cut to 3 to keep runs small (the rule is the same).",
+    "tier": "run",
+    "reval": {
+      "key": "C-01",
+      "tier": "run"
+    }
+  },
+  {
+    "id": "API-XREV-C-02",
+    "feature": "revalidation.coverage",
+    "title": "Unlinked vendor is left out",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (manual): needs a vendor unlinked from the client — a change to real data the platform does not make",
+    "steps": [
+      "unlink a vendor from the client",
+      "run with vendor_limit covering it"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "No rows for it; its older rows still exist.",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:53-58",
+    "tier": "manual",
+    "reval": {
+      "key": "C-02",
+      "tier": "manual",
+      "why": "needs a vendor unlinked from the client — a change to real data the platform does not make"
+    }
+  },
+  {
+    "id": "API-XREV-C-03",
+    "feature": "revalidation.coverage",
+    "title": "Inactive vendor company is left out",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "silent config, vendor_statuses [\"active\",\"invited\"]",
+      "trigger vendor_ids [V-INACTIVE] (linked, company inactive)"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "Refused: \"vendor_ids not among this client's vendors in the configured statuses: <id>\" (inactive companies are never eligible).",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:56 (Company.active)",
+    "tier": "config",
+    "reval": {
+      "key": "C-03",
+      "tier": "config",
+      "needs": [
+        "V-INACTIVE"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-C-04",
+    "feature": "revalidation.coverage",
+    "title": "Client not on onboarding v2",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "GET /config for an active client without onboarding v2"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "enabled false, vendor_onboarding_v2 false. (The write half — enable it, trigger refused — is manual: an empty config cannot be put back.)",
+    "rule": "app/models/company.rb:925-927",
+    "tier": "config",
+    "reval": {
+      "key": "C-04",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-C-05",
+    "feature": "revalidation.coverage",
+    "title": "Each link status is included when configured",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "for each link status with an eligible vendor: silent config with vendor_statuses [that status]",
+      "run [V-STATUS-<status>]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Rows created; vendor finished.",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:53-58",
+    "tier": "run",
+    "reval": {
+      "key": "C-05",
+      "tier": "run"
+    }
+  },
+  {
+    "id": "API-XREV-C-06",
+    "feature": "revalidation.coverage",
+    "title": "Bulk-uploaded vendor is included",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: pan paths [\"company.misc.pan\"]",
+      "run [V-MISC]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "A PAN row whose value is the vendor's misc.pan (bulk-uploaded vendors are linked as referral, so they are eligible).",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:55, app/services/vendor_revalidation/value_reader.rb:148-162",
+    "tier": "run",
+    "reval": {
+      "key": "C-06",
+      "tier": "run",
+      "needs": [
+        "V-MISC"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-C-07",
+    "feature": "revalidation.coverage",
+    "title": "Vendor under two clients is kept separate",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (manual): needs a second client's config switched on — another tenant's real setting",
+    "steps": [
+      "config both clients",
+      "run each with [V-OTHERCLIENT]"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Separate rows and final status per client.",
+    "rule": "app/models/vendor_validation_history.rb:68-80",
+    "tier": "manual",
+    "reval": {
+      "key": "C-07",
+      "tier": "manual",
+      "why": "needs a second client's config switched on — another tenant's real setting"
+    }
+  },
+  {
+    "id": "API-XREV-C-08",
+    "feature": "revalidation.coverage",
+    "title": "Status change during a run has no effect",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (manual): needs a vendor's link status changed mid-run",
+    "steps": [
+      "start a run",
+      "approve / change one chosen vendor's link mid-run"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Vendor still checked in this run.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:23-50 (rows already created)",
+    "tier": "manual",
+    "reval": {
+      "key": "C-08",
+      "tier": "manual",
+      "why": "needs a vendor's link status changed mid-run"
+    }
+  },
+  {
+    "id": "API-XREV-C-09",
+    "feature": "revalidation.coverage",
+    "title": "Every checked vendor can appear on the listing",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "latest run: categories of the companies checked"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "All are selling firm, brokerage or subsidiary — the categories the listing shows.",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:53-58 (category filter dropped in d18f8ac4c9) vs app/controllers/api/companies_controller.rb:346 (listing keeps it)",
+    "tier": "audit",
+    "reval": {
+      "key": "C-09",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-C-10",
+    "feature": "revalidation.coverage",
+    "title": "A full run fits inside the 24-hour deadline",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "eligible vendors × configured documents ÷ 30 calls/min"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "≤ 24 h; beyond it the last vendors would end as system_error by design (run_exceeds_deadline is only logged).",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:28-48",
+    "tier": "audit",
+    "reval": {
+      "key": "C-10",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-D-01",
+    "feature": "revalidation.values",
+    "title": "All paths empty gives skipped",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-NODOCS] under the client's config"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Every row skipped 'not provided'; final status skipped (listing label 'Skipped').",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:134-163, app/models/vendor_validation_history.rb:37",
+    "disagree": "Guide: …shown as not validated.",
+    "tier": "run",
+    "reval": {
+      "key": "D-01",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-02",
+    "feature": "revalidation.values",
+    "title": "Uploaded file is not a value",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (manual): needs a vendor whose MSME field holds only a file — record its id in config/revalidationVendors.json to run",
+    "steps": [
+      "msme paths [form.msme_no]",
+      "run [V-FILEONLY]"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "msme skipped.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:58-84 (url / public_url → empty)",
+    "tier": "manual",
+    "reval": {
+      "key": "D-02",
+      "tier": "manual",
+      "needs": [
+        "V-FILEONLY"
+      ],
+      "why": "needs a vendor whose MSME field holds only a file — record its id in config/revalidationVendors.json to run"
+    }
+  },
+  {
+    "id": "API-XREV-D-03",
+    "feature": "revalidation.values",
+    "title": "Link text is not a value",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (manual): needs a vendor's GST field edited",
+    "steps": [
+      "put https://… in the GST field",
+      "run"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "gst skipped (or the next path used). Note: an upper-case 'HTTPS://' is NOT treated as a link (start_with? is case-sensitive).",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:63",
+    "tier": "manual",
+    "reval": {
+      "key": "D-03",
+      "tier": "manual",
+      "why": "needs a vendor's GST field edited"
+    }
+  },
+  {
+    "id": "API-XREV-D-04",
+    "feature": "revalidation.values",
+    "title": "Bank with account but no IFSC",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKHALF; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "config: bank paths [{bank_account_no: company.misc.bank_account_number, ifsc: company.misc.bank_ifsc_code}]",
+      "run [V-BANKHALF]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "bank skipped 'not provided'.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:86-97",
+    "tier": "run",
+    "reval": {
+      "key": "D-04",
+      "tier": "run",
+      "needs": [
+        "V-BANKHALF"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-05",
+    "feature": "revalidation.values",
+    "title": "Column that does not exist",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "gst paths [\"company.gst_number_wrong\", \"company.gst_no\"]",
+      "run [V-COMPANYGST]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "No error; the GST row's value is the company's gst_no.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:150 (& Company.column_names)",
+    "tier": "run",
+    "reval": {
+      "key": "D-05",
+      "tier": "run",
+      "needs": [
+        "V-COMPANYGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-06",
+    "feature": "revalidation.values",
+    "title": "First path with a value wins",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "gst paths [\"company.gst_no\", \"company.pan_no\"] — both have a value",
+      "run"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Only the first (gst_no) is checked.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:24-44",
+    "disagree": "Guide: form A vs company B — needs a prepared vendor; two company columns prove the same rule.",
+    "tier": "run",
+    "reval": {
+      "key": "D-06",
+      "tier": "run",
+      "needs": [
+        "V-COMPANYGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-07",
+    "feature": "revalidation.values",
+    "title": "Falls to company record when form is empty",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "gst paths [\"form.<a field no form has>\", \"company.gst_no\"]",
+      "run"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "GST from the company record is checked.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:24-44,125-143",
+    "disagree": "Guide: …no name-match rule applied (no rule is applied on any path — REV-03).",
+    "tier": "run",
+    "reval": {
+      "key": "D-07",
+      "tier": "run",
+      "needs": [
+        "V-COMPANYGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-08",
+    "feature": "revalidation.values",
+    "title": "Several values give several rows",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-2GST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-2GST]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "One gst row per value, value_index 0..n-1.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:134-163",
+    "tier": "run",
+    "reval": {
+      "key": "D-08",
+      "tier": "run",
+      "needs": [
+        "V-2GST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-09",
+    "feature": "revalidation.values",
+    "title": "Extra data with nested key",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "pan paths [\"company.misc.pan\"]",
+      "run [V-MISC]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "PAN read from misc.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:148-162",
+    "tier": "run",
+    "reval": {
+      "key": "D-09",
+      "tier": "run",
+      "needs": [
+        "V-MISC"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-10",
+    "feature": "revalidation.values",
+    "title": "Extended field path",
+    "type": "Positive",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (manual): needs a vendor with an active extended field holding a document number",
+    "steps": [
+      "gst paths [\"company.extended_fields.<key>\"] for a vendor with that field"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Value read and checked.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:163-168",
+    "tier": "manual",
+    "reval": {
+      "key": "D-10",
+      "tier": "manual",
+      "why": "needs a vendor with an active extended field holding a document number"
+    }
+  },
+  {
+    "id": "API-XREV-D-11",
+    "feature": "revalidation.values",
+    "title": "Latest onboarding response is used",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (manual): needs a vendor to re-submit onboarding",
+    "steps": [
+      "vendor re-submits onboarding with a new GST",
+      "run"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "New GST is checked (accepted response preferred).",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:206-215",
+    "tier": "manual",
+    "reval": {
+      "key": "D-11",
+      "tier": "manual",
+      "why": "needs a vendor to re-submit onboarding"
+    }
+  },
+  {
+    "id": "API-XREV-D-12",
+    "feature": "revalidation.values",
+    "title": "Spaces are trimmed",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-SPACES; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "gst paths [company.gst_no] for a vendor whose gst_no has spaces around it",
+      "run"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Checked and stored as the trimmed value.",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:62",
+    "tier": "run",
+    "reval": {
+      "key": "D-12",
+      "tier": "run",
+      "needs": [
+        "V-SPACES"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-13",
+    "feature": "revalidation.values",
+    "title": "Onboarding form is never changed",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "snapshot the vendor's template_responses, link status and company record",
+      "run [V-PASS]",
+      "snapshot again"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Unchanged.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb (no writes outside vendor_validation_histories and the link's three columns)",
+    "tier": "run",
+    "reval": {
+      "key": "D-13",
+      "tier": "run",
+      "needs": [
+        "V-PASS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-D-14",
+    "feature": "revalidation.values",
+    "title": "Upper-case link text is read as a value",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (code): needs a vendor's field edited; proved from the code",
+    "steps": [
+      "GST field 'HTTPS://example.com'"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Treated as a link (empty).",
+    "rule": "app/services/vendor_revalidation/value_reader.rb:63 (start_with?('http://', 'https://') is case-sensitive)",
+    "tier": "code",
+    "reval": {
+      "key": "D-14",
+      "tier": "code",
+      "why": "needs a vendor's field edited; proved from the code"
+    }
+  },
+  {
+    "id": "API-XREV-E-01",
+    "feature": "revalidation.documents",
+    "title": "GST that does not exist",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-BADGST]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "gst failed; vendor Failed; listing error 'GST <value>: <message>'.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:208-230, app/models/vendor_validation_history.rb:47-56",
+    "tier": "run",
+    "reval": {
+      "key": "E-01",
+      "tier": "run",
+      "needs": [
+        "V-BADGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-02",
+    "feature": "revalidation.documents",
+    "title": "GST wrong format",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "gst paths [\"company.pan_no\"] — a 10-character PAN read as GST",
+      "run"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "gst failed 'GST input is incorrect' from the pre-check (no provider call).",
+    "rule": "lib/external_api/validation.rb:66-77",
+    "tier": "run",
+    "reval": {
+      "key": "E-02",
+      "tier": "run",
+      "needs": [
+        "V-COMPANYPAN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-03",
+    "feature": "revalidation.documents",
+    "title": "Cancelled GST",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Not run unattended (manual): needs a vendor with a real cancelled GSTIN — record it in config/revalidationVendors.json",
+    "steps": [
+      "run [V-CANCELLED]"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "gst failed; message says cancelled / inactive.",
+    "rule": "lib/external_api/validation.rb:126-131",
+    "tier": "manual",
+    "reval": {
+      "key": "E-03",
+      "tier": "manual",
+      "needs": [
+        "V-CANCELLED"
+      ],
+      "why": "needs a vendor with a real cancelled GSTIN — record it in config/revalidationVendors.json"
+    }
+  },
+  {
+    "id": "API-XREV-E-04",
+    "feature": "revalidation.documents",
+    "title": "One of two GSTs invalid",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-2GST-MIXED; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-2GST-MIXED]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "1 gst passed, 1 failed; vendor Failed; the error names only the bad GST.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99",
+    "tier": "run",
+    "reval": {
+      "key": "E-04",
+      "tier": "run",
+      "needs": [
+        "V-2GST-MIXED"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-05",
+    "feature": "revalidation.documents",
+    "title": "GST name mismatch on form path",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (code): from the code no client rule is ever applied in revalidation; needs a prepared vendor to show it live",
+    "steps": [
+      "client rule needs a name match",
+      "run [V-NAMEMISMATCH]"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "gst failed with the name-mismatch message, as onboarding gives.",
+    "rule": "lib/external_api/validation.rb:238 (revalidation returns before apply_response_rules at :240)",
+    "tier": "code",
+    "reval": {
+      "key": "E-05",
+      "tier": "code",
+      "needs": [
+        "V-NAMEMISMATCH"
+      ],
+      "why": "from the code no client rule is ever applied in revalidation; needs a prepared vendor to show it live"
+    }
+  },
+  {
+    "id": "API-XREV-E-06",
+    "feature": "revalidation.documents",
+    "title": "Foreign tax number in GST field",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-FOREIGN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "gst paths [company.gst_no] for a vendor whose gst_no is foreign (GB…)",
+      "run"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "gst failed 'GST input is incorrect' (pre-check).",
+    "rule": "lib/external_api/validation.rb:74-75",
+    "tier": "run",
+    "reval": {
+      "key": "E-06",
+      "tier": "run",
+      "needs": [
+        "V-FOREIGN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-07",
+    "feature": "revalidation.documents",
+    "title": "PAN that does not exist",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-BADPAN]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "pan failed; vendor Failed.",
+    "rule": "lib/external_api/validation.rb:126-131",
+    "tier": "run",
+    "reval": {
+      "key": "E-07",
+      "tier": "run",
+      "needs": [
+        "V-BADPAN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-08",
+    "feature": "revalidation.documents",
+    "title": "PAN wrong format",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "pan paths [\"company.gst_no\"] — a 15-character GSTIN read as PAN",
+      "run"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "pan failed 'PAN input is incorrect' from the pre-check.",
+    "rule": "lib/external_api/validation.rb:74 (value.match(regex) — the PAN regex [A-Z]{5}[0-9]{4}[A-Z]{1} has no anchors, so a GSTIN containing a PAN passes)",
+    "tier": "run",
+    "reval": {
+      "key": "E-08",
+      "tier": "run",
+      "needs": [
+        "V-COMPANYGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-09",
+    "feature": "revalidation.documents",
+    "title": "Udyam number wrong format",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "msme paths [\"company.pan_no\"]",
+      "run"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "msme failed 'MSME input is incorrect' (pre-check).",
+    "rule": "lib/external_api/validation.rb:74-75",
+    "tier": "run",
+    "reval": {
+      "key": "E-09",
+      "tier": "run",
+      "needs": [
+        "V-COMPANYPAN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-10",
+    "feature": "revalidation.documents",
+    "title": "Bank account wrong",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-BANKFAIL]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "bank failed; vendor Failed.",
+    "rule": "lib/external_api/validation.rb:126-131",
+    "disagree": "Guide: one vendor each for wrong account / wrong IFSC / closed — the others need prepared vendors.",
+    "tier": "run",
+    "reval": {
+      "key": "E-10",
+      "tier": "run",
+      "needs": [
+        "V-BANKFAIL"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-11",
+    "feature": "revalidation.documents",
+    "title": "Bank holder name mismatch on form path",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (code): as E-05: no client rule is applied in revalidation",
+    "steps": [
+      "client rule needs a name match"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "bank failed with name mismatch.",
+    "rule": "lib/external_api/validation.rb:238",
+    "tier": "code",
+    "reval": {
+      "key": "E-11",
+      "tier": "code",
+      "why": "as E-05: no client rule is applied in revalidation"
+    }
+  },
+  {
+    "id": "API-XREV-E-12",
+    "feature": "revalidation.documents",
+    "title": "All documents valid",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-PASS]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Every row passed; vendor Passed; listing Passed with no errors.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99",
+    "tier": "run",
+    "reval": {
+      "key": "E-12",
+      "tier": "run",
+      "needs": [
+        "V-PASS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-E-13",
+    "feature": "revalidation.documents",
+    "title": "Company-record value skips name match",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (code): holds trivially on this build — no path applies name rules (REV-03)",
+    "steps": [
+      "run [V-COMPANYONLY] whose GST legal name differs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "gst passed (provider check only).",
+    "rule": "lib/external_api/validation.rb:238",
+    "tier": "code",
+    "reval": {
+      "key": "E-13",
+      "tier": "code",
+      "why": "holds trivially on this build — no path applies name rules (REV-03)"
+    }
+  },
+  {
+    "id": "API-XREV-E-14",
+    "feature": "revalidation.documents",
+    "title": "Right GST provider per client",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs provider logs",
+    "steps": [
+      "run two clients on different GST providers"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Each client's calls go to its own provider.",
+    "rule": "lib/external_api/validation.rb:102-110",
+    "tier": "dev",
+    "reval": {
+      "key": "E-14",
+      "tier": "dev",
+      "why": "needs provider logs"
+    }
+  },
+  {
+    "id": "API-XREV-E-15",
+    "feature": "revalidation.documents",
+    "title": "24-hour reuse of a provider answer",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs provider logs",
+    "steps": [
+      "same GST checked for client B within 24 h",
+      "run the client"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Answer reused; row still counted.",
+    "rule": "lib/external_api/validation.rb:79-80,117-120 (cache key has no client)",
+    "disagree": "Guide: …client rules still applied — none are (REV-03).",
+    "tier": "dev",
+    "reval": {
+      "key": "E-15",
+      "tier": "dev",
+      "why": "needs provider logs"
+    }
+  },
+  {
+    "id": "API-XREV-E-16",
+    "feature": "revalidation.documents",
+    "title": "Vendor fixes a bad document",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (manual): needs a vendor's document corrected",
+    "steps": [
+      "after E-01, correct the GST",
+      "run again next day"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "gst passed; vendor Passed; error gone.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99",
+    "tier": "manual",
+    "reval": {
+      "key": "E-16",
+      "tier": "manual",
+      "why": "needs a vendor's document corrected"
+    }
+  },
+  {
+    "id": "API-XREV-E-17",
+    "feature": "revalidation.documents",
+    "title": "Other document types through config",
+    "type": "Positive",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (manual): needs a vendor with a CIN / FSSAI value",
+    "steps": [
+      "add cin or fssai with paths",
+      "run a vendor with that value"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Rows created and checked like the others. (tan is routed via SAP: UNSUPPORTED → system_error.)",
+    "rule": "lib/external_api/validation.rb:66-70",
+    "tier": "manual",
+    "reval": {
+      "key": "E-17",
+      "tier": "manual",
+      "why": "needs a vendor with a CIN / FSSAI value"
+    }
+  },
+  {
+    "id": "API-XREV-F-01",
+    "feature": "revalidation.provider",
+    "title": "Rate limit never fails a vendor",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "gst stays pending (not failed); vendor not Failed while waiting.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:19-80, app/services/vendor_revalidation/vendor_check_service.rb:183-207",
+    "tier": "dev",
+    "reval": {
+      "key": "F-01",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-02",
+    "feature": "revalidation.provider",
+    "title": "Breaker uses Retry-After",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "No GST calls for about Retry-After; log breaker_opened … reason=rate_limited. (Retry-After is used as sent, uncapped.)",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:47-80",
+    "tier": "dev",
+    "reval": {
+      "key": "F-02",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-03",
+    "feature": "revalidation.provider",
+    "title": "Breaker without Retry-After",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Wait about 15 min, then one test call.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:9",
+    "tier": "dev",
+    "reval": {
+      "key": "F-03",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-04",
+    "feature": "revalidation.provider",
+    "title": "5 failures in a row open the breaker; fewer do not",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "4 + success: no breaker; 5: breaker_opened.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:8",
+    "tier": "dev",
+    "reval": {
+      "key": "F-04",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-05",
+    "feature": "revalidation.provider",
+    "title": "Failed test call doubles the wait",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "15 → 30 → 60 min … max 24 h.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:9-10",
+    "tier": "dev",
+    "reval": {
+      "key": "F-05",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-06",
+    "feature": "revalidation.provider",
+    "title": "Only one test call when the breaker reopens",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "One call first (5-min probe lock); the rest come back with up to 2 min jitter.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:12-13",
+    "tier": "dev",
+    "reval": {
+      "key": "F-06",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-07",
+    "feature": "revalidation.provider",
+    "title": "24-hour deadline gives system_error",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Rows system_error 'verification is temporarily unavailable'; vendor System Error (or Failed if another check failed).",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:19, app/models/vendor_validation_history.rb:40",
+    "tier": "dev",
+    "reval": {
+      "key": "F-07",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-08",
+    "feature": "revalidation.provider",
+    "title": "Cleaner closes stuck rows after 25 h",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Rows closed as system_error; run summary logged.",
+    "rule": "app/workers/vendor_revalidation/sweeper_worker.rb:11-25",
+    "tier": "dev",
+    "reval": {
+      "key": "F-08",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-09",
+    "feature": "revalidation.provider",
+    "title": "Crashing vendor job",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Its rows closed as system_error after 3 retries; other vendors finish.",
+    "rule": "app/workers/vendor_revalidation/vendor_worker.rb:15-21",
+    "tier": "dev",
+    "reval": {
+      "key": "F-09",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-11",
+    "feature": "revalidation.provider",
+    "title": "Other providers continue",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "pan rows finish passed; only gst waits.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb (per provider host)",
+    "tier": "dev",
+    "reval": {
+      "key": "F-11",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-12",
+    "feature": "revalidation.provider",
+    "title": "Two GST providers are independent",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Only provider A's breaker opens.",
+    "rule": "lib/external_api/validation.rb:85-92 (provider_key = host)",
+    "tier": "dev",
+    "reval": {
+      "key": "F-12",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-13",
+    "feature": "revalidation.provider",
+    "title": "Rate stays under 30 calls per minute",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Calls spread; no provider rate-limit answers.",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:28-44 (spread at the cap)",
+    "tier": "dev",
+    "reval": {
+      "key": "F-13",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-14",
+    "feature": "revalidation.provider",
+    "title": "Recovery after a short outage",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "steps": [
+      "dev makes the provider answer as the case needs (or shortens the wait)",
+      "run [V-PASS]",
+      "read app logs"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Same rows move to passed; no duplicates.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:47-80",
+    "tier": "dev",
+    "reval": {
+      "key": "F-14",
+      "tier": "dev",
+      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+    }
+  },
+  {
+    "id": "API-XREV-F-10",
+    "feature": "revalidation.provider",
+    "title": "Revalidation switched off mid-run",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "silent config",
+      "run force on 5 vendors (jobs spread 2 s apart)",
+      "PUT enabled false 1.5 s later",
+      "wait until nothing is pending"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Rows not yet checked are closed system_error 'verification is temporarily unavailable'; none left pending.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:26-30",
+    "tier": "run",
+    "reval": {
+      "key": "F-10",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS",
+        "V-NODOCS2",
+        "V-NODOCS3",
+        "V-NODOCS4",
+        "V-NODOCS5"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-F-15",
+    "feature": "revalidation.provider",
+    "title": "Live onboarding not hurt during a run",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Not run unattended (manual): needs a person filling onboarding during a large run",
+    "steps": [
+      "run 20 vendors",
+      "meanwhile a new vendor fills onboarding v2"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Onboarding checks answer in normal time.",
+    "rule": "—",
+    "tier": "manual",
+    "reval": {
+      "key": "F-15",
+      "tier": "manual",
+      "why": "needs a person filling onboarding during a large run"
+    }
+  },
+  {
+    "id": "API-XREV-F-16",
+    "feature": "revalidation.provider",
+    "title": "Vendors cut off by a switch-off still get a final status",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "as F-10",
+      "read the final status of the vendors whose rows were closed"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Each has a final status (system_error).",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:26-30 (close) and :73-74 (finalize returns when disabled; the QA reset already cleared the status)",
+    "tier": "run",
+    "reval": {
+      "key": "F-16",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS",
+        "V-NODOCS2",
+        "V-NODOCS3",
+        "V-NODOCS4",
+        "V-NODOCS5"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-01",
+    "feature": "revalidation.status",
+    "title": "Any failed check makes the vendor Failed",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-BANKFAIL] (bank failed, nothing else failed last time)"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Final = precedence of its rows (Failed); errors list only the failed / system_error lines.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99, app/models/vendor_validation_history.rb:47-56",
+    "disagree": "Guide: V-PASS with bank changed to invalid — needs a data change; a vendor already in that state proves the same rule.",
+    "tier": "run",
+    "reval": {
+      "key": "G-01",
+      "tier": "run",
+      "needs": [
+        "V-BANKFAIL"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-02",
+    "feature": "revalidation.status",
+    "title": "Skipped never makes the vendor Failed",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS-SKIP; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-PASS-SKIP] (some passed, the rest not provided)"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Final Passed; skipped documents not in the errors.",
+    "rule": "app/models/vendor_validation_history.rb:39, app/models/vendor_validation_history.rb:47-56",
+    "tier": "run",
+    "reval": {
+      "key": "G-02",
+      "tier": "run",
+      "needs": [
+        "V-PASS-SKIP"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-03",
+    "feature": "revalidation.status",
+    "title": "Skipped is not shown as an error",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "open V-NODOCS on the listing (client session)"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "Errors empty; status 'Skipped'.",
+    "rule": "app/models/vendor_validation_history.rb:52 (failed, system_error only)",
+    "disagree": "Guide: …shown as skipped / not validated.",
+    "tier": "listing",
+    "reval": {
+      "key": "G-03",
+      "tier": "listing",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-04",
+    "feature": "revalidation.status",
+    "title": "system_error outranks passed",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "every vendor whose latest rows mix passed and system_error (no failure) — from the runs already recorded"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Final System Error, not Passed.",
+    "rule": "app/models/vendor_validation_history.rb:39",
+    "disagree": "Guide: via F-07 (dev) — the recorded runs already contain such vendors. TRD expected Pass: confirm with product.",
+    "tier": "audit",
+    "reval": {
+      "key": "G-04",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-G-05",
+    "feature": "revalidation.status",
+    "title": "Failed outranks system_error",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "every vendor whose latest rows mix failed and system_error"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Final Failed.",
+    "rule": "app/models/vendor_validation_history.rb:39",
+    "tier": "audit",
+    "reval": {
+      "key": "G-05",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-G-06",
+    "feature": "revalidation.status",
+    "title": "Types not due keep their older result",
+    "type": "Edge",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "V-BADPAN failed PAN on an earlier day",
+      "config: gst quarterly from today (due), pan yearly from 10 days ago (not due)",
+      "scheduler run [V-BADPAN]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Only gst rows today; final still Failed because PAN's latest row (earlier day) failed.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:76-90, app/models/vendor_validation_history.rb:68-80",
+    "tier": "run",
+    "reval": {
+      "key": "G-06",
+      "tier": "run",
+      "needs": [
+        "V-BADPAN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-07",
+    "feature": "revalidation.status",
+    "title": "All passed",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run [V-PASS]"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "Final Passed; last validated = this run's start (whole seconds, = the trigger's fired_at).",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:95 (Time.zone.at(run_started_at))",
+    "tier": "run",
+    "reval": {
+      "key": "G-07",
+      "tier": "run",
+      "needs": [
+        "V-PASS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-08",
+    "feature": "revalidation.status",
+    "title": "Error line format",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "open V-BADGST on the listing"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "Line reads 'GST <value>: <message>'.",
+    "rule": "app/models/vendor_validation_history.rb:53",
+    "tier": "listing",
+    "reval": {
+      "key": "G-08",
+      "tier": "listing",
+      "needs": [
+        "V-BADGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-09",
+    "feature": "revalidation.status",
+    "title": "One error line per bad row",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "open a vendor with 2+ failed / system_error rows on the listing"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "One line per bad row (joined with '; ').",
+    "rule": "app/models/vendor_validation_history.rb:47-56, app/controllers/concerns/companies_controller_helper.rb:705",
+    "tier": "listing",
+    "reval": {
+      "key": "G-09",
+      "tier": "listing",
+      "needs": [
+        "V-MULTIFAIL"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-10",
+    "feature": "revalidation.status",
+    "title": "Pass to Fail between days",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (manual): needs a vendor's document changed between two days",
+    "steps": [
+      "day 1 V-PASS passes",
+      "day 2 make GST invalid; run"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Day 2 final Failed.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99",
+    "tier": "manual",
+    "reval": {
+      "key": "G-10",
+      "tier": "manual",
+      "why": "needs a vendor's document changed between two days"
+    }
+  },
+  {
+    "id": "API-XREV-G-11",
+    "feature": "revalidation.status",
+    "title": "Fail to Pass between days",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (manual): as G-10",
+    "steps": [
+      "after G-10 fix GST; run next day"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Final Passed; error gone.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99",
+    "tier": "manual",
+    "reval": {
+      "key": "G-11",
+      "tier": "manual",
+      "why": "as G-10"
+    }
+  },
+  {
+    "id": "API-XREV-G-12",
+    "feature": "revalidation.status",
+    "title": "Older days' rows are kept",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "runs recorded on 2+ dates"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Each date has its own run id; an earlier day's rows are not changed once a later day's run began.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:29-31, app/workers/vendor_revalidation/qa_trigger_worker.rb:104",
+    "tier": "audit",
+    "reval": {
+      "key": "G-12",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-G-13",
+    "feature": "revalidation.status",
+    "title": "No duplicate rows within one run",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "steps": [
+      "run; re-trigger the same vendors the same day"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
+    "expected": "accept",
+    "expectedResult": "One row per vendor per document value for that run.",
+    "rule": "app/models/vendor_validation_history.rb:36 (unique index), app/workers/vendor_revalidation/qa_trigger_worker.rb:104",
+    "tier": "run",
+    "reval": {
+      "key": "G-13",
+      "tier": "run",
+      "needs": [
+        "V-PASS",
+        "V-BADGST"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-G-14",
+    "feature": "revalidation.status",
+    "title": "by_status adds up",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /runs/<the client's latest run>",
+      "count its rows in the database"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa/runs/<latest run>",
+    "expected": "accept",
+    "expectedResult": "Sum of by_status = total_rows = rows in the database; vendors and finished_vendors match; complete as the rows say.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:70-100",
+    "tier": "read",
+    "reval": {
+      "key": "G-14",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-G-15",
+    "feature": "revalidation.status",
+    "title": "top_errors lists failures",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /runs/<latest run>",
+      "group its failed / system_error rows in the database"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa/runs/<latest run>",
+    "expected": "accept",
+    "expectedResult": "Up to 10 entries, largest first, each with doc_type, status, message and the right count.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:85-88",
+    "tier": "read",
+    "reval": {
+      "key": "G-15",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-G-16",
+    "feature": "revalidation.status",
+    "title": "Run summary in logs",
+    "type": "Positive",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (dev): needs app logs",
+    "steps": [
+      "any complete run"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "One run_summary log line with counts matching the API.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:101-114",
+    "tier": "dev",
+    "reval": {
+      "key": "G-16",
+      "tier": "dev",
+      "why": "needs app logs"
+    }
+  },
+  {
+    "id": "API-XREV-G-17",
+    "feature": "revalidation.status",
+    "title": "Removing a document type from the config",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "V-BADPAN failed PAN",
+      "PUT the config without pan",
+      "open V-BADPAN on the listing"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config",
+    "expected": "accept",
+    "expectedResult": "The shown status matches the remaining documents.",
+    "rule": "app/models/vendor_validation_history.rb:47-56 (errors filtered by configured types) vs app/services/vendor_revalidation/vendor_check_service.rb:72-99 (status kept until the next run)",
+    "tier": "config",
+    "reval": {
+      "key": "G-17",
+      "tier": "config",
+      "needs": [
+        "V-BADPAN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-H-01",
+    "feature": "revalidation.listing",
+    "title": "Client with revalidation off shows nothing",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "on a client with revalidation off (e.g. 198678): GET the listing"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "No vendor_validation_* fields on any vendor.",
+    "rule": "app/controllers/api/companies_controller.rb:341,375-381",
+    "tier": "listing",
+    "reval": {
+      "key": "H-01",
+      "tier": "listing"
+    }
+  },
+  {
+    "id": "API-XREV-H-02",
+    "feature": "revalidation.listing",
+    "title": "Vendor never checked",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "open a linked vendor no run has finished"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "Status blank, no date, no errors.",
+    "rule": "app/controllers/concerns/companies_controller_helper.rb:702 (nil status → label 'Pending')",
+    "tier": "listing",
+    "reval": {
+      "key": "H-02",
+      "tier": "listing",
+      "needs": [
+        "V-NEVER"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-H-03",
+    "feature": "revalidation.listing",
+    "title": "Date filter From after To",
+    "type": "Negative",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (ui): a screen behaviour — procol-ui-tests",
+    "steps": [
+      "Last validated filter 30 Oct to 1 Oct"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Blocked or empty with a message.",
+    "rule": "app/controllers/concerns/companies_controller_filter_helper.rb",
+    "tier": "ui",
+    "reval": {
+      "key": "H-03",
+      "tier": "ui",
+      "why": "a screen behaviour — procol-ui-tests"
+    }
+  },
+  {
+    "id": "API-XREV-H-04",
+    "feature": "revalidation.listing",
+    "title": "Columns in every tab",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "GET each listing tab (verified, unverified, onboarding_in_progress, rejected), page 1"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "vendor_validation_status, vendor_last_validated_at and vendor_validation_errors on every vendor.",
+    "rule": "app/controllers/concerns/companies_controller_helper.rb:698-708",
+    "tier": "listing",
+    "reval": {
+      "key": "H-04",
+      "tier": "listing"
+    }
+  },
+  {
+    "id": "API-XREV-H-05",
+    "feature": "revalidation.listing",
+    "title": "Listing matches the rows",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "GET the verified tab, page 1",
+      "for each vendor: final status label and error lines worked out from the database"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "Status and errors equal for every vendor.",
+    "rule": "app/controllers/concerns/companies_controller_helper.rb:698-708, app/models/vendor_validation_history.rb:47-80",
+    "tier": "listing",
+    "reval": {
+      "key": "H-05",
+      "tier": "listing"
+    }
+  },
+  {
+    "id": "API-XREV-H-06",
+    "feature": "revalidation.listing",
+    "title": "Status filter",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (ui): the filter payload is built by the screen — procol-ui-tests",
+    "steps": [
+      "filter Passed, then Failed, then not validated"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Only matching vendors; 'pending' maps to vendors never checked.",
+    "rule": "app/controllers/concerns/companies_controller_filter_helper.rb:436",
+    "tier": "ui",
+    "reval": {
+      "key": "H-06",
+      "tier": "ui",
+      "why": "the filter payload is built by the screen — procol-ui-tests"
+    }
+  },
+  {
+    "id": "API-XREV-H-07",
+    "feature": "revalidation.listing",
+    "title": "Date range filter",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (ui): screen case",
+    "steps": [
+      "range covering the run date"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Only vendors validated in range.",
+    "rule": "app/controllers/concerns/companies_controller_filter_helper.rb",
+    "tier": "ui",
+    "reval": {
+      "key": "H-07",
+      "tier": "ui",
+      "why": "screen case"
+    }
+  },
+  {
+    "id": "API-XREV-H-08",
+    "feature": "revalidation.listing",
+    "title": "Filters together with search",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (ui): screen case",
+    "steps": [
+      "Failed + date range + vendor search"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Results match all three.",
+    "rule": "app/controllers/concerns/companies_controller_filter_helper.rb",
+    "tier": "ui",
+    "reval": {
+      "key": "H-08",
+      "tier": "ui",
+      "why": "screen case"
+    }
+  },
+  {
+    "id": "API-XREV-H-09",
+    "feature": "revalidation.listing",
+    "title": "Vendor page details",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "GET /api/companies/<vendor> (the vendor page) for a vendor with several results",
+      "compare revalidation_data.documents with its latest rows"
+    ],
+    "method": "GET",
+    "path": "/api/companies/:id",
+    "expected": "accept",
+    "expectedResult": "One entry per check: value, status, error (none for skipped), last run.",
+    "rule": "app/controllers/api/companies_controller.rb:44-85 (show → revalidation_data), app/controllers/concerns/companies_controller_helper.rb:711-725, app/models/vendor_validation_history.rb:59-66",
+    "tier": "listing",
+    "reval": {
+      "key": "H-09",
+      "tier": "listing",
+      "needs": [
+        "V-MULTIFAIL"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-H-10",
+    "feature": "revalidation.listing",
+    "title": "Excel download",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "download the verified tab's Excel",
+      "find Validation Status / Validation Errors"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors?download_excel=true",
+    "expected": "accept",
+    "expectedResult": "Both columns; errors one per line.",
+    "rule": "app/controllers/concerns/companies_controller_helper.rb:705 (joined with '; ')",
+    "tier": "listing",
+    "reval": {
+      "key": "H-10",
+      "tier": "listing"
+    }
+  },
+  {
+    "id": "API-XREV-H-11",
+    "feature": "revalidation.listing",
+    "title": "Shared vendor shows each client's own result",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Not run unattended (ui): needs two clients' logins and configs",
+    "steps": [
+      "V-OTHERCLIENT, log in as each client"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Each sees only its own status and errors.",
+    "rule": "app/models/vendor_validation_history.rb:68-80",
+    "tier": "ui",
+    "reval": {
+      "key": "H-11",
+      "tier": "ui",
+      "why": "needs two clients' logins and configs"
+    }
+  },
+  {
+    "id": "API-XREV-H-12",
+    "feature": "revalidation.listing",
+    "title": "Listing speed",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "GET the verified tab 3 times"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "Median ≤ 5 s.",
+    "rule": "app/controllers/api/companies_controller.rb:320-415",
+    "disagree": "Guide: with a 50-vendor run and the Failed filter.",
+    "tier": "listing",
+    "reval": {
+      "key": "H-12",
+      "tier": "listing"
+    }
+  },
+  {
+    "id": "API-XREV-I-01",
+    "feature": "revalidation.security",
+    "title": "PAN masked on screen",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "open V-BADPAN (failed PAN) on the listing"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "PAN masked (e.g. ******234F).",
+    "rule": "app/models/vendor_validation_history.rb:53 (value written in full)",
+    "tier": "listing",
+    "reval": {
+      "key": "I-01",
+      "tier": "listing",
+      "needs": [
+        "V-BADPAN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-I-02",
+    "feature": "revalidation.security",
+    "title": "Bank number masked on screen and Excel",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "open V-BANKFAIL (failed bank) on the listing"
+    ],
+    "method": "GET",
+    "path": "/api/companies/all_vendors",
+    "expected": "accept",
+    "expectedResult": "Account number masked.",
+    "rule": "app/models/vendor_validation_history.rb:53",
+    "tier": "listing",
+    "reval": {
+      "key": "I-02",
+      "tier": "listing",
+      "needs": [
+        "V-BANKFAIL"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-I-03",
+    "feature": "revalidation.security",
+    "title": "Masked in API responses",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+    "steps": [
+      "GET /api/companies/<V-BADPAN> (the vendor page's data)"
+    ],
+    "method": "GET",
+    "path": "/api/companies/:id",
+    "expected": "accept",
+    "expectedResult": "No full PAN or bank number in revalidation_data.",
+    "rule": "app/models/vendor_validation_history.rb:59-66 (value: row.value)",
+    "tier": "listing",
+    "reval": {
+      "key": "I-03",
+      "tier": "listing",
+      "needs": [
+        "V-BADPAN"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-I-04",
+    "feature": "revalidation.security",
+    "title": "Vendor cannot see revalidation results",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (ui): vendor portal screen case",
+    "steps": [
+      "log in as the vendor on the vendor portal"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "No validation status or errors shown.",
+    "rule": "app/controllers/concerns/companies_controller_helper.rb:713 (workspace.id == company.id → nil)",
+    "tier": "ui",
+    "reval": {
+      "key": "I-04",
+      "tier": "ui",
+      "why": "vendor portal screen case"
+    }
+  },
+  {
+    "id": "API-XREV-I-05",
+    "feature": "revalidation.security",
+    "title": "QA APIs blocked on production",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (code): never called against production; proved from the code",
+    "steps": [
+      "call the production base with an employee token"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Code 5 'Not authorized'.",
+    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 — the Rails.env.production? guard was removed in eaf002de08 and routes.rb:695-701 has none",
+    "tier": "code",
+    "reval": {
+      "key": "I-05",
+      "tier": "code",
+      "why": "never called against production; proved from the code"
+    }
+  },
+  {
+    "id": "API-XREV-I-06",
+    "feature": "revalidation.security",
+    "title": "No Slack or Sentry noise",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (code): needs Sentry access; from the code two paths still report to Sentry",
+    "steps": [
+      "run with many failures"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "No revalidation alerts in Slack or Sentry.",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:22-23 (Sentry on a client's start failure), lib/external_api/validation.rb:251 (Sentry on UNEXPECTED in revalidation)",
+    "tier": "code",
+    "reval": {
+      "key": "I-06",
+      "tier": "code",
+      "why": "needs Sentry access; from the code two paths still report to Sentry"
+    }
+  },
+  {
+    "id": "API-XREV-I-07",
+    "feature": "revalidation.security",
+    "title": "Breaker events logged",
+    "type": "Positive",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Not run unattended (dev): needs app logs",
+    "steps": [
+      "during F-02"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "breaker_opened and breaker_closed lines with provider name.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:47-80",
+    "tier": "dev",
+    "reval": {
+      "key": "I-07",
+      "tier": "dev",
+      "why": "needs app logs"
+    }
+  },
+  {
+    "id": "API-XREV-I-08",
+    "feature": "revalidation.security",
+    "title": "Onboarding messages unchanged",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Not run unattended (manual): needs a person filling onboarding",
+    "steps": [
+      "new vendor fills onboarding v2 with bad GST / PAN / bank"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Same error messages as before this release.",
+    "rule": "lib/external_api/validation.rb:240 (onboarding path unchanged)",
+    "tier": "manual",
+    "reval": {
+      "key": "I-08",
+      "tier": "manual",
+      "why": "needs a person filling onboarding"
+    }
+  },
+  {
+    "id": "API-XREV-I-09",
+    "feature": "revalidation.security",
+    "title": "Onboarding still alerts and retries as before",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Not run unattended (dev): needs a provider failure",
+    "steps": [
+      "dev makes a provider fail once during onboarding"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
+    "expected": "accept",
+    "expectedResult": "Onboarding retries and alerts as before.",
+    "rule": "lib/external_api/validation.rb:243-260",
+    "tier": "dev",
+    "reval": {
+      "key": "I-09",
+      "tier": "dev",
+      "why": "needs a provider failure"
+    }
+  },
+  {
+    "id": "API-XREV-I-10",
+    "feature": "revalidation.security",
+    "title": "Rollback",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "steps": [
+      "PUT enabled false",
+      "GET config, the listing, row counts, link statuses",
+      "restore"
+    ],
+    "method": "PUT",
+    "path": "/api/vendor_revalidation_qa/config + listing",
+    "expected": "accept",
+    "expectedResult": "enabled false; listing drops the columns; old rows kept; every vendor's link status unchanged.",
+    "rule": "app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341",
+    "tier": "config",
+    "reval": {
+      "key": "I-10",
+      "tier": "config"
+    }
+  },
+  {
+    "id": "API-XREV-R-01",
+    "feature": "revalidation.audit",
+    "title": "Run ids follow the documented formula",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "every run of the client"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "run_id = uuid v5(URL namespace, 'procol://vendor_revalidation/<client>/<date>').",
+    "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:29-31",
+    "tier": "audit",
+    "reval": {
+      "key": "R-01",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-02",
+    "feature": "revalidation.audit",
+    "title": "No document value checked twice in one run",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "group rows by run, vendor, document, value"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "No group has more than one row.",
+    "rule": "app/models/vendor_validation_history.rb:36, app/services/vendor_revalidation/vendor_check_service.rb:134-163",
+    "tier": "audit",
+    "reval": {
+      "key": "R-02",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-03",
+    "feature": "revalidation.audit",
+    "title": "Every vendor's final status follows the precedence",
+    "type": "Positive",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "vendors finished by the latest run: final status vs failed > system_error > passed > skipped over their latest rows"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Equal for every vendor.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99, app/models/vendor_validation_history.rb:39,68-80",
+    "tier": "audit",
+    "reval": {
+      "key": "R-03",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-04",
+    "feature": "revalidation.audit",
+    "title": "Row messages follow their status",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "latest run's rows"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "skipped: no value, 'not provided'; passed: no error; failed: a message; system_error: 'verification is temporarily unavailable'.",
+    "rule": "app/models/vendor_validation_history.rb:37-38, app/services/vendor_revalidation/vendor_check_service.rb:208-230",
+    "tier": "audit",
+    "reval": {
+      "key": "R-04",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-05",
+    "feature": "revalidation.audit",
+    "title": "Nothing stays pending past the sweeper",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "rows pending for more than 25 hours"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "None.",
+    "rule": "app/workers/vendor_revalidation/sweeper_worker.rb:11-25",
+    "tier": "audit",
+    "reval": {
+      "key": "R-05",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-06",
+    "feature": "revalidation.audit",
+    "title": "A full run covered exactly the eligible vendors",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "the config in force at the run's start (audit trail)",
+      "eligible vendors then vs vendors in the run"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "None missing, none extra.",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:53-58",
+    "tier": "audit",
+    "reval": {
+      "key": "R-06",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-07",
+    "feature": "revalidation.audit",
+    "title": "Last validated is the run's start",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "vendors finished by the latest run (made after d18f8ac4c9)"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Whole seconds, not after the vendor's first row.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:95",
+    "tier": "audit",
+    "reval": {
+      "key": "R-07",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-08",
+    "feature": "revalidation.audit",
+    "title": "value_index has no gaps",
+    "type": "Positive",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "latest run, per vendor and document"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "0..n-1.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:134-163",
+    "tier": "audit",
+    "reval": {
+      "key": "R-08",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-R-09",
+    "feature": "revalidation.audit",
+    "title": "Every finished vendor was finalised",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "vendors with no pending row in the latest run"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Their link carries this run's id and a final status (unless a later run has rows).",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:72-99,116-119",
+    "tier": "audit",
+    "reval": {
+      "key": "R-09",
+      "tier": "audit"
+    }
+  }
+]
