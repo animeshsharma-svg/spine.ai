@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RouteHandler } from "./index.js";
@@ -17,15 +17,118 @@ import { chat } from "../ai/llm.js";
  *  - variations around the steps that ran, taken from the case library when one
  *    fits (cited by id), else "Suggested" with an expected result to confirm;
  *  - regression: one per failure the run hit.
- * Nothing is saved here: the page shows them for review and exports the ticked ones.
+ * The set is kept with the run (data/run-cases/<key>.json, the key being the
+ * run's id), with what the tester did to it: a suggested case they ran keeps
+ * its Pass or Fail and the link to that run. Asking again shows the kept set;
+ * "Write again" writes a fresh one, and every case already run keeps its result
+ * in it. (They used to be written afresh on every ask and kept only in the
+ * page, so a case run a minute earlier came back "Suggested".)
  *
- *   POST /api/run-cases { transcript, ask?, mode?, kind?, company?, runIds? }
- *     → { cases: RunCase[], source: "ai" | "steps", note? }
+ *   POST /api/run-cases { transcript, ask?, mode?, kind?, company?, runIds?, key?, fresh? }
+ *     → { cases, source: "saved" | "ai" | "steps", note?, key?, savedAt? }
+ *   PUT  /api/run-cases { key, cases }   the table as it stands — results, edits, ticks
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DATA = join(here, "..", "..", "data");
 const UI_TESTS = join(here, "..", "..", "..", "procol-ui-tests");
+
+// ── kept with the run ──────────────────────────────────────────────────────
+
+const SAVED = join(DATA, "run-cases");
+
+/** A case as the table keeps it: what was written, plus what the tester did with it. */
+type KeptCase = RunCase & { why?: string; runId?: string | null; testedAt?: string; keep?: boolean; review?: Review };
+/** A person's sign-off on spine.ai's Pass or Fail: pending until they approve it or change it. */
+type Review = { state: "pending" | "approved" | "changed"; by?: string; at?: string; from?: string };
+const reviewOf = (r: any): Review | undefined =>
+  r && ["pending", "approved", "changed"].includes(r.state)
+    ? { state: r.state, by: str(r.by, 80) || undefined, at: typeof r.at === "string" && !Number.isNaN(Date.parse(r.at)) ? r.at : undefined, from: str(r.from, 20) || undefined }
+    : undefined;
+interface KeptSet {
+  key: string;
+  runIds: string[];
+  ask: string;
+  source: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  cases: KeptCase[];
+}
+
+function loadSet(key: string): KeptSet | undefined {
+  const d = readJson(join(SAVED, `${key}.json`));
+  return d && Array.isArray(d.cases) ? (d as KeptSet) : undefined;
+}
+function saveSet(set: KeptSet): void {
+  mkdirSync(SAVED, { recursive: true });
+  const file = join(SAVED, `${set.key}.json`);
+  writeFileSync(`${file}.tmp`, JSON.stringify(set, null, 1));
+  renameSync(`${file}.tmp`, file);
+}
+
+/**
+ * A fresh set, with the results of the old one carried in: a case already run
+ * keeps its status, why and run link, matched by library id or by a scenario
+ * that says the same thing; one the fresh set no longer has is kept at the end.
+ * A result is never dropped by writing again.
+ */
+function carryOver(fresh: RunCase[], old: KeptCase[]): KeptCase[] {
+  const out: KeptCase[] = fresh.map((c) => ({ ...c }));
+  const used = new Set<number>();
+  for (const c of out) {
+    const w = words(c.scenario);
+    let best = -1;
+    let bestJ = 0;
+    old.forEach((o, i) => {
+      if (used.has(i) || !o.testedAt) return;
+      if (c.libraryId && o.libraryId === c.libraryId) {
+        if (bestJ < 1) [best, bestJ] = [i, 1];
+        return;
+      }
+      const t = words(o.scenario);
+      const both = overlap(w, t);
+      const j = both / (w.size + t.size - both || 1);
+      if (j >= 0.6 && j > bestJ) [best, bestJ] = [i, j];
+    });
+    if (best < 0) continue;
+    const o = old[best];
+    used.add(best);
+    Object.assign(c, { scenario: o.scenario, expected: o.expected, status: o.status, why: o.why, runId: o.runId, testedAt: o.testedAt, automated: o.automated, review: o.review });
+  }
+  old.forEach((o, i) => {
+    if (o.testedAt && !used.has(i)) out.push({ ...o });
+  });
+  return out.map((c, i) => ({ ...c, id: `TC-${String(i + 1).padStart(3, "0")}` }));
+}
+
+/** One case from the page, back to the kept shape — only known fields, bounded. */
+function fromPage(c: any, i: number): KeptCase | null {
+  if (!c || !str(c.scenario)) return null;
+  return {
+    id: str(c.id, 12) || `TC-${String(i + 1).padStart(3, "0")}`,
+    module: str(c.module, 60),
+    feature: str(c.feature, 80),
+    scenario: str(c.scenario, 400),
+    preconditions: str(c.preconditions),
+    steps: (Array.isArray(c.steps) ? c.steps : []).map((s: unknown) => str(s, 300)).filter(Boolean).slice(0, 10),
+    testData: str(c.testData, 300),
+    expected: str(c.expected),
+    priority: PRIORITIES.has(c.priority) ? c.priority : "P1",
+    type: TYPES.has(c.type) ? c.type : "Positive",
+    layer: c.layer === "API" ? "API" : "UI",
+    sourceStep: str(c.sourceStep, 120),
+    status: str(c.status, 60) || "Suggested",
+    libraryId: str(c.libraryId, 60) || undefined,
+    similarTo: str(c.similarTo, 60) || undefined,
+    automated: str(c.automated, 60),
+    why: str(c.why, 400) || undefined,
+    runId: safeId(c.runId) ?? null,
+    testedAt: typeof c.testedAt === "string" && !Number.isNaN(Date.parse(c.testedAt)) ? c.testedAt : undefined,
+    keep: c.keep !== false,
+    review: reviewOf(c.review),
+  };
+}
 
 export interface RunCase {
   id: string;
@@ -224,6 +327,21 @@ function fromSteps(ask: string, lines: string[], layer: "UI" | "API"): RunCase[]
 
 export const handle: RouteHandler = async (ctx) => {
   if (ctx.path !== "/api/run-cases") return false;
+  // The table as it stands — a case's result after it ran, an edit, a tick.
+  if (ctx.req.method === "PUT") {
+    const b = await ctx.body();
+    const key = safeId(b?.key);
+    if (!key || !Array.isArray(b?.cases)) {
+      ctx.json({ error: "send the set's key and its cases" }, 400);
+      return true;
+    }
+    const cases = (b.cases as unknown[]).slice(0, 40).map(fromPage).filter((c): c is KeptCase => !!c);
+    const was = loadSet(key);
+    const now = new Date().toISOString();
+    saveSet({ key, runIds: was?.runIds ?? [key], ask: was?.ask ?? "", source: was?.source ?? "page", note: was?.note, createdAt: was?.createdAt ?? now, updatedAt: now, cases });
+    ctx.json({ ok: true, savedAt: now });
+    return true;
+  }
   if (ctx.req.method !== "POST") {
     ctx.json({ error: "POST the run's transcript" }, 405);
     return true;
@@ -231,6 +349,22 @@ export const handle: RouteHandler = async (ctx) => {
   const started = Date.now();
   const took = () => `${Math.round((Date.now() - started) / 1000)}s`;
   const b = await ctx.body();
+  const key = safeId(b?.key) ?? (Array.isArray(b?.runIds) ? safeId(b.runIds[0]) : undefined);
+  const kept = key ? loadSet(key) : undefined;
+  // Asked again: the set kept with this run, with what was done to it.
+  if (kept && b?.fresh !== true) {
+    console.log(`[run-cases] ${kept.cases.length} kept case(s) for ${key}`);
+    ctx.json({ cases: kept.cases, source: "saved", note: kept.note, key, savedAt: kept.updatedAt });
+    return true;
+  }
+  /** Keep the set with the run; a fresh one carries the old one's results. */
+  const keep = (cases: RunCase[], source: string, note?: string): KeptCase[] => {
+    if (!key) return cases;
+    const now = new Date().toISOString();
+    const merged = kept ? carryOver(cases, kept.cases) : cases;
+    saveSet({ key, runIds: runIdsOf(b), ask: str(b?.ask, 400), source, note, createdAt: kept?.createdAt ?? now, updatedAt: now, cases: merged });
+    return merged;
+  };
   const transcript = String(b?.transcript ?? "").slice(0, 16_000);
   const ask = str(b?.ask, 400);
   if (!transcript.trim()) {
@@ -275,16 +409,16 @@ export const handle: RouteHandler = async (ctx) => {
     note = `the AI did not answer (${str((e as Error).message, 120)})`;
   }
   if (!cases.length) {
-    cases = fromSteps(ask, [...transcript.split("\n"), ...stored], layer);
-    console.log(`[run-cases] ${cases.length} case(s) from the steps, without AI, in ${took()}${note ? ` — ${note}` : ""}`);
-    ctx.json({
-      cases,
-      source: "steps",
-      note: `Written without AI${note ? ` — ${note}` : ""}: the run's main flow and its failures only. Try again for variations.`,
-    });
+    const why = `Written without AI${note ? ` — ${note}` : ""}: the run's main flow and its failures only. Write again for variations.`;
+    const out = keep(fromSteps(ask, [...transcript.split("\n"), ...stored], layer), "steps", why);
+    console.log(`[run-cases] ${out.length} case(s) from the steps, without AI, in ${took()}${note ? ` — ${note}` : ""}`);
+    ctx.json({ cases: out, source: "steps", note: why, key });
     return true;
   }
-  console.log(`[run-cases] ${cases.length} case(s) written by AI in ${took()}`);
-  ctx.json({ cases, source: "ai", runIds });
+  const out = keep(cases, "ai");
+  console.log(`[run-cases] ${cases.length} case(s) written by AI in ${took()}${kept ? `, results carried from the kept set` : ""}`);
+  ctx.json({ cases: out, source: "ai", runIds, key });
   return true;
 };
+
+const runIdsOf = (b: any): string[] => (Array.isArray(b?.runIds) ? b.runIds : []).map(safeId).filter(Boolean).slice(0, 4) as string[];

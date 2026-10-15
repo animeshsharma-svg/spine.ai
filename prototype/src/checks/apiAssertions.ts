@@ -377,7 +377,9 @@ function judge(a: FieldAssertion, ctx: { data: unknown; status: number; ms: numb
     case "equals_made": {
       const want = ctx.made[a.ref ?? ""];
       if (!want) return r(null, `no ${a.ref} was produced earlier in this run`, { reason: "the earlier step that makes that record did not run" });
-      const bad = present.find((v) => String(v) !== String(want));
+      // An event with several line items: each row carries its own, and any of the event's is right.
+      const allowed = a.ref === "lineItemUuid" && ctx.made.lineItemUuids ? ctx.made.lineItemUuids.split(",") : [String(want)];
+      const bad = present.find((v) => !allowed.includes(String(v)));
       return r(bad === undefined, bad === undefined ? `${show(present[0])}` : `${show(bad)} (expected ${want})`, { seen: present[0], bad, expectedMade: want });
     }
   }
@@ -889,6 +891,23 @@ const fixRootNoun = (text: string | undefined, step: string) =>
   text && /\b[Ee]ach 's /.test(text) ? text.replace(/\b([Ee])ach 's /g, (_m, e) => `${e}ach ${rootNoun(step as StepKind)}'s `) : text;
 
 /** A saved step's field-check results with the off-topic ones removed and the totals recounted. */
+/**
+ * "The title comes back exactly as sent" failed on every API journey until
+ * 15 Oct: the API client renames a generated test title (API_Journey_…,
+ * QA_Platform_…) to "spine-API-automation-<n>" as it sends it, and the check
+ * compared the reply with the name from before the rename. Procol saved what
+ * it was sent, so on records made before the journey used the real name from
+ * the start, that pair reads as a pass — and every such run stops showing
+ * "1 broken" in Sessions and in its reports.
+ */
+function renamedTitleIsAsSent(r: AssertionResult): AssertionResult {
+  if (r.op !== "equals_request" || r.path !== "title" || r.pass !== false) return r;
+  const got = /"(spine-API-automation-\d+)"/.exec(String(r.actual ?? ""))?.[1];
+  const sent = /sent "((?:QA_Platform|API_Journey|API_Test)_[^"]*)"/.exec(String(r.actual ?? ""));
+  if (!got || !sent) return r;
+  return { ...r, pass: true, actual: `"${got}" — the name it was sent with (the API client gives test events this name as it sends them)`, humanActual: `It came back as “${got}”, the name it was sent with.` } as AssertionResult;
+}
+
 export function relevantStepAssertions<T extends { kind?: string; assertions?: StepAssertions }>(step: T): T {
   const a = step.assertions;
   if (!a?.results || !step.kind) return step;
@@ -896,6 +915,7 @@ export function relevantStepAssertions<T extends { kind?: string; assertions?: S
   const refOf = (r: AssertionResult) => r.op === "equals_request" ? /request's `([^`]+)`/.exec(r.expected ?? "")?.[1] : undefined;
   const results = a.results
     .filter((r) => isRelevantFieldCheck(kind, r.path, r.op, refOf(r)))
+    .map(renamedTitleIsAsSent)
     .map((r) => ({ ...r, humanTitle: fixRootNoun(r.humanTitle, kind), humanExpected: fixRootNoun(r.humanExpected, kind), humanActual: fixRootNoun(r.humanActual, kind) }));
   const passed = results.filter((r) => r.pass === true).length;
   const failed = results.filter((r) => r.pass === false).length;

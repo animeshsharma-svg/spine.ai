@@ -7,6 +7,7 @@ import { findByRecipe, listWords, readView, recipeOf, refLocator, viewText, wait
 import { SYSTEM, callModel, parseDecision, turnPrompt, type Decision } from "./brain.js";
 import { SAYS_STOP, askTester, offered, type Answer, type Option, type Question } from "./ask.js";
 import { controlHeld, released } from "../support/liveControl.js";
+import { earlierAnswer, forgetAnswer, learnAnswer } from "../support/learnedStore.js";
 
 /**
  * THE EXPLORER — a journey nobody has written steps for, worked out on screen.
@@ -69,6 +70,8 @@ export interface ExploreResult {
   reason?: string;
   /** the words on screen that showed the goal was reached */
   proof?: string;
+  /** part of the journey was done by the tester in the browser: partly tested, never a plain pass */
+  byHand?: boolean;
   /** what the tester answered along the way */
   told: string[];
   route: { followed?: string; followedSteps?: number; savedTo?: string };
@@ -192,11 +195,25 @@ const plain = (t: string) =>
  */
 function provenOnScreen(proof: string, view: ScreenView): boolean {
   const screen = plain([view.text, view.headings.join(" "), view.messages.join(" "), view.controls.map((c) => `${c.name} ${c.value ?? ""}`).join(" ")].join(" "));
-  const parts = plain(proof)
+  const parts = proofParts(proof);
+  return parts.length > 0 && parts.join("").length >= 6 && parts.every((x) => screen.includes(x));
+}
+
+const proofParts = (proof: string) =>
+  plain(proof)
     .split(/\s*(?:…|\.\.\.|\||;|,|\s-\s|\n)\s*/)
     .map((x) => x.replace(/^['\s]+|['\s.]+$/g, ""))
     .filter((x) => x.length >= 3);
-  return parts.length > 0 && parts.join("").length >= 6 && parts.every((x) => screen.includes(x));
+
+/**
+ * A proof that is only names of things — column headings, field labels —
+ * shows the place a value would be, not the value. "check it shows PO
+ * numbers" passed on "PO Number", the heading over an empty column.
+ */
+function onlyLabels(proof: string, view: ScreenView): boolean {
+  const labels = (view.labels ?? []).map((l) => plain(l).replace(/[\s*:]+$/g, "").toLowerCase()).filter(Boolean);
+  const parts = proofParts(proof).map((x) => x.toLowerCase());
+  return parts.length > 0 && labels.length > 0 && parts.every((x) => labels.includes(x));
 }
 
 /** The narration lines the dashboard reads (launch() in uiFlowRunner.ts). */
@@ -253,7 +270,34 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
 
   /** Ask the tester; a typed reply is kept as an instruction for the rest of the run. */
   let questions = 0;
+  /**
+   * The feedback loop for questions: an answer the tester gave to the same
+   * question on the same screen in an earlier run is used again, and the run
+   * says so. Asked a second time in one run means it did not help: the tester
+   * is asked, and their new answer replaces it. Never reused: "stop", "I'll do
+   * it myself" (it needs a person) and the yes to a click with effects
+   * (confirm questions are never learned — that is the tester's call each run).
+   */
+  const reused = new Set<string>();
+  const LEARNED_KINDS = new Set(["question", "stuck"]);
+  const STABLE = new Set(["other", "wait", "type", "more", "lookup"]);
   const ask = async (q: Question): Promise<Answer | null> => {
+    const where = pathNow();
+    const k = `${where}|${q.question}`;
+    if (LEARNED_KINDS.has(q.kind)) {
+      const before = earlierAnswer(companyId, where, q.question);
+      if (before && !reused.has(k)) {
+        reused.add(k);
+        const said = before.text || before.option || "";
+        tell({ n: 0, text: `I asked this on this screen before — using your earlier answer: “${said}”`, status: "info" });
+        told.push(`${q.question} → ${said} (your earlier answer)`);
+        return { option: before.option && STABLE.has(before.option) ? before.option : null, text: said };
+      }
+      if (before && reused.has(k)) {
+        forgetAnswer(companyId, where, q.question);
+        tell({ n: 0, text: "Your earlier answer to this didn't get me past it, so I'm asking again.", status: "info" });
+      }
+    }
     tell({ n: 0, text: `Asked you: ${q.question}`, status: "info" });
     // The screen as it is now, so the question can be answered by looking.
     const shot = await shoot(steps.length + 1, `question-${++questions}`);
@@ -262,6 +306,8 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
       const said = a.text || a.option || "";
       told.push(`${q.question} → ${said}`);
       tell({ n: 0, text: `You answered: ${said}`, status: "info" });
+      const keep = LEARNED_KINDS.has(q.kind) && a.option !== "stop" && a.option !== "self" && !(!a.option && SAYS_STOP.test(a.text));
+      if (keep) learnAnswer(companyId, where, q.question, { option: a.option, text: said });
     }
     return a;
   };
@@ -661,17 +707,37 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
       errorsInRow = 0;
       continue;
     }
+    // The check the goal asks for was made, and the app does not meet it — a
+    // result, not being stuck: the run ends Failed with what was seen.
+    if (d.action === "fail") {
+      const n = steps.length + 1;
+      const shot = await shoot(n, "check-failed");
+      const why = d.why.replace(/\.$/, "");
+      const words = `Checked — the app does not meet the goal: ${why}`;
+      const proof = (d.proof ?? "").trim();
+      steps.push({ step: words, status: "failed", detail: proof && provenOnScreen(proof, view) ? `On the screen: “${proof}”` : undefined, url: view.path, shot, ms: 0 });
+      tell({ n, text: words, status: "failed", url: view.path, shot });
+      return finish(result(false, { reason: why }));
+    }
     if (d.action === "done") {
       const proof = (d.proof ?? "").trim();
-      const shown = provenOnScreen(proof, view);
-      if (!shown) console.log(`[explore] said the goal is reached, quoting ${proof ? `“${proof}”` : "nothing"} — not found on the screen`);
+      const labelOnly = !!proof && onlyLabels(proof, view);
+      const shown = !labelOnly && provenOnScreen(proof, view);
+      if (labelOnly) {
+        console.log(`[explore] said the goal is reached, quoting “${proof}” — a heading or label, not a value`);
+        lastResult =
+          `“${proof}” is a column heading or field label — it shows where a value would be, not that one is there. ` +
+          `Quote a VALUE from the screen that shows the goal is reached. If the values are not there (the column is empty, the field is blank), answer "fail" and say so.`;
+        proofMisses++;
+        if (proofMisses < 3) continue;
+      } else if (!shown) console.log(`[explore] said the goal is reached, quoting ${proof ? `“${proof}”` : "nothing"} — not found on the screen`);
       if (shown) {
         const n = steps.length + 1;
         const shot = await shoot(n, "goal-reached");
         const words = `Checked the goal is reached — the screen shows “${proof}”`;
         steps.push({ step: words, status: "ok", detail: d.why || undefined, url: view.path, shot, ms: 0 });
         tell({ n, text: words, why: d.why, status: "ok", url: view.path, shot });
-        return finish(result(true, { proof }));
+        return finish(result(true, { proof, ...(byHandUsed ? { byHand: true } : {}) }));
       }
       proofMisses++;
       if (proofMisses < 2) {
@@ -697,7 +763,7 @@ export async function explore(page: Page, opts: ExploreOptions): Promise<Explore
         const words = "The goal is reached — on your word";
         steps.push({ step: words, status: "ok", detail: "You confirmed it; I could not quote proof from the screen.", url: view.path, shot, ms: 0 });
         tell({ n, text: words, status: "ok", url: view.path, shot });
-        return finish(result(true, { proof: "confirmed by the tester" }));
+        return finish(result(true, { proof: "confirmed by the tester", ...(byHandUsed ? { byHand: true } : {}) }));
       }
       proofMisses = 0;
       lastResult = a!.option === "more" ? "The tester says the goal is NOT reached yet. Keep going." : `The tester says: "${a!.text}". Do that.`;

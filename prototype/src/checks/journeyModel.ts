@@ -470,8 +470,12 @@ export const MAX_BIDDERS = 4;
 export function journeyPlan(featureIds: string[], opts: { stopAtTicked?: boolean; bidders?: number } = {}): JourneyPlan {
   const ids = new Set(featureIds);
   const wanted = featureIds.some(isJourneyFeature);
+  // No event type ticked: an auction feature means an auction — the RFQ-only
+  // default built an RFQ for "Rank based" and left the auction untested.
+  // (Convert RFQ → Auction starts from an RFQ, so it keeps the default.)
+  const auctionAsked = [...ids].some((f) => f.startsWith("auction.") && f !== "auction.convert");
   const eventType =
-    (Object.keys(EVENT_TYPES) as EventType[]).find((t) => ids.has(EVENT_TYPES[t].feature)) ?? "rfq_only";
+    (Object.keys(EVENT_TYPES) as EventType[]).find((t) => ids.has(EVENT_TYPES[t].feature)) ?? (auctionAsked ? "auction_only" : "rfq_only");
   const { label, stages } = EVENT_TYPES[eventType];
   const features: JourneyFeatures = {
     surrogate: ids.has("bids.surrogate"),

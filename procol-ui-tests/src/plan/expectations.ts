@@ -74,6 +74,16 @@ export async function runExpectationStep(x: ExpectCtx, step: PlanStep): Promise<
       const found = await findVisible(page, targetFromArgs({ label: field }), 10_000);
       const anchor = found?.locator ?? page.getByText(field, { exact: false }).first();
       if (!found && !(await anchor.count())) throw new Error(`no field "${field}" on screen`);
+      // Procol often tells the user in a message rather than next to the field
+      // ("Please fill project title!" for Title, 15 Oct). That is the app
+      // telling the user what is missing — what the case checks — so an error
+      // message that names the field counts, and the result says where it was.
+      const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+      const fieldWords = words(field).filter((w) => w.length > 2 && !["the", "field", "enter", "select", "your"].includes(w));
+      const namedInMessage = async () => {
+        const r = await waitForMessage(page, "error", { mark: x.prevMark, timeoutMs: 300 });
+        return [r.matched, ...r.seen].find((m) => !!m && ["error", "warning", "inline"].includes(m.kind) && fieldWords.length > 0 && fieldWords.every((w) => words(m.text).includes(w))) ?? null;
+      };
       // The field's own container: an antd form item, a grid cell or the nearest block holding both.
       const deadline = Date.now() + 10_000;
       let seen = "";
@@ -86,9 +96,16 @@ export async function runExpectationStep(x: ExpectCtx, step: PlanStep): Promise<
           })
           .catch(() => "");
         if (seen && (!want || norm(seen).includes(norm(want)))) return `the "${field}" field shows: ${seen.slice(0, 160)}`;
+        if (!seen) {
+          const m = await namedInMessage();
+          if (m) {
+            const differs = want && !norm(m.text).includes(norm(want)) ? ` (the case's wording was “${want}”)` : "";
+            return `the app showed the error for "${field}" as a message, not next to the field: “${m.text.slice(0, 160)}”${differs}`;
+          }
+        }
         await page.waitForTimeout(400);
       }
-      throw new Error(seen ? `the "${field}" field shows "${seen.slice(0, 160)}" — the case expects "${want}"` : `no error is shown at the "${field}" field`);
+      throw new Error(seen ? `the "${field}" field shows "${seen.slice(0, 160)}" — the case expects "${want}"` : `no error is shown at the "${field}" field, and no error message named it`);
     }
     case "expect_toast": {
       const kind = String(a.kind ?? "any").toLowerCase();

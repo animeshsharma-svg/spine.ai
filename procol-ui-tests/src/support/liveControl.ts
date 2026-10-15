@@ -70,8 +70,18 @@ export async function released(): Promise<void> {
   if (!controlHeld()) return;
   console.log("[control] the run is waiting before its next step while you have the browser");
   while (controlHeld()) await new Promise((r) => setTimeout(r, POLL_MS));
+  lastHandBack = Date.now();
   console.log("[control] you handed the browser back — the run carries on from this page");
 }
+
+/**
+ * When the tester last handed the browser back in this run (0: never). What
+ * they did meanwhile may have moved the journey on — published the event
+ * themselves — and the steps meant for the screen they left must not be
+ * driven against the one they handed back.
+ */
+let lastHandBack = 0;
+export const handedBackAt = (): number => lastHandBack;
 
 // ── the tester's inputs ──────────────────────────────────────────────────────
 let offset = -1;
@@ -96,6 +106,7 @@ async function tick(): Promise<void> {
   if (busy) return;
   const held = controlHeld();
   if (held && !wasHeld) console.log("[control] you took control of the browser");
+  if (!held && wasHeld) lastHandBack = Date.now();
   wasHeld = held;
   if (!held) return;
   const page = viewOf();

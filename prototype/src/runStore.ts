@@ -191,8 +191,13 @@ export function listRuns(limit = 20): RunSummary[] {
        * that had found real failures.
        */
       const checks = r.checkResults ?? [];
-      const checkPassed = checks.filter((c: any) => c.pass).length;
-      const checkInconclusive = checks.filter((c: any) => !c.pass && c.inconclusive).length;
+      // A check whose request lacked what its case tests (weakReason) proved
+      // only "no crash": not a pass of that case, on runs saved before such
+      // cases were set aside.
+      // ...and one that "passed" on a bare 404 never reached its endpoint (engine.ts classify).
+      const hollow = (c: any) => !!c.weakReason || (c.httpStatus === 404 && (!c.message || /^HTTP 404\b/i.test(String(c.message))));
+      const checkPassed = checks.filter((c: any) => c.pass && !hollow(c)).length;
+      const checkInconclusive = checks.filter((c: any) => (!c.pass && c.inconclusive) || (c.pass && hollow(c))).length;
       const checkFailed = checks.length - checkPassed - checkInconclusive;
 
       out.push({

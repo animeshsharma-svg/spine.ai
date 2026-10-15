@@ -120,6 +120,15 @@
   };
   async function load() {
     const seq = ++loadSeq;
+    // Until the client is known there is no list to show: an answer without it
+    // came back empty and read as "0 of 0 bugs" for a run that had six (15 Oct).
+    // Keep the loading rows, and ask again in a moment.
+    if (read(() => currentClient, null) == null) {
+      st.groups = null;
+      render();
+      setTimeout(() => { if (seq === loadSeq) load(); }, 600);
+      return;
+    }
     const qs = params();
     try {
       const [findings, triage, runs] = await Promise.all([
@@ -612,7 +621,8 @@
 
   function paintFoot(shown, total) {
     const n = q$("#bg-count");
-    if (n) n.textContent = `${num(shown)} of ${num(total)} bugs`;
+    // While the list is still loading there is no count to give.
+    if (n) n.textContent = st.groups == null && !st.err ? "Loading…" : `${num(shown)} of ${num(total)} bugs`;
   }
 
   /** Where the focus was inside the table, so a redraw puts it back. */
@@ -1344,14 +1354,45 @@
     else start();
   }
 
-  /** A run's bugs, exported from that run's page. */
+  /**
+   * A run's bugs, exported from that run's page.
+   *
+   * The menu needs the bug list, which can take a few seconds to load. With
+   * nothing on screen meanwhile, the button read as dead, and a second click
+   * while it loaded closed the menu the first one was about to open. Now the
+   * button says it is loading and a click during the wait is the same click.
+   */
+  let exporting = null;
   async function exportRun(runId, anchor) {
-    if (!runId) return;
-    if (st.groups == null || st.stale) await load();
-    if (st.groups == null) return toast("Couldn't load bugs", { label: "Retry", run: () => exportRun(runId, anchor) });
+    if (!runId || exporting) return;
     if (pop?.trigger === anchor) return closePop(true);
+    if (st.groups == null || st.stale) {
+      exporting = anchor;
+      const was = anchor?.innerHTML;
+      if (anchor) {
+        anchor.setAttribute("aria-busy", "true");
+        anchor.innerHTML = `${icon("download")}Loading bugs…`;
+      }
+      try {
+        await load();
+      } finally {
+        exporting = null;
+        if (anchor) {
+          anchor.removeAttribute("aria-busy");
+          anchor.innerHTML = was;
+        }
+      }
+    }
+    if (st.groups == null) return toast("Couldn't load bugs", { label: "Retry", run: () => exportRun(runId, anchor) });
     openExport(anchor, { runId });
   }
+  /** Load the bug list ahead, once a run's page offers "Export bugs from this run". */
+  let prefetched = false;
+  new MutationObserver(() => {
+    if (prefetched || !document.querySelector("#view-run [data-bugs-export]")) return;
+    prefetched = true;
+    if (st.groups == null) load();
+  }).observe(document.body, { childList: true, subtree: true });
 
   window.spineBugs = { exportRun, refresh: () => load(), curatedForClient };
 

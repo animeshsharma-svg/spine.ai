@@ -61,7 +61,11 @@ const ALLOW: AllowRule[] = [
   { method: "POST", re: /^\/template_responses\/create_surrogate_response$/, what: "surrogate technical response" },
   { method: "POST", re: /^\/bids\/template_input$/, what: "surrogate RFQ bid" },
   { method: "POST", re: /^\/v1\/bids$/, what: "create a bid" },
-  { method: "POST", re: /^\/evaluations(\/submit)?$/, what: "evaluate a technical stage" },
+  // Score with POST /evaluations; submit with PATCH /evaluations/submit — the
+  // route the journey's own submit uses. "POST /evaluations/submit" was listed
+  // here, a route that does not exist (404), so no submit case ever reached it.
+  { method: "POST", re: /^\/evaluations$/, what: "score a technical stage" },
+  { method: "PATCH", re: /^\/evaluations\/submit$/, what: "submit a technical evaluation" },
   { method: "POST", re: /^\/proposal$/, what: "create an award proposal" },
   { method: "POST", re: /^\/proposal\/[^/]+\/(add_response|approval_workflows|submit)(\?|$)/, what: "award proposal steps" },
   { method: "POST", re: /^\/product_categories$/, what: "create a category" },
@@ -84,6 +88,8 @@ const ALLOW: AllowRule[] = [
  * never reach an endpoint that might call a customer's ERP.
  */
 const ALLOW_CURATED: AllowRule[] = [
+  // The unrouted POST: EDGE-AWD-029 checks it answers 404 (routes.rb declares only PATCH submit). No route, no effect.
+  { method: "POST", re: /^\/evaluations\/submit$/, what: "the unrouted POST submit (a routing check)" },
   { method: "PATCH", re: /^\/purchase_requests\/partial_close$/, what: "partially close PR items" },
   { method: "POST", re: /^\/event_groups\/[^/]+\/pri_to_draft_project$/, what: "pull PR items into a draft event" },
   // Negative cases only — these reject before any ERP sync (verified in source).

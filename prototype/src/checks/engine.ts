@@ -348,6 +348,20 @@ export function classify(
     };
   }
 
+  // A bare 404 — nothing from the app but the status — is the route not being
+  // there for this method and path, not a refusal of what the case tests: four
+  // QCS cases POSTed to an endpoint that only takes PATCH, got 404, and scored
+  // "correctly rejected". Unless the case documents a not-found answer, the
+  // endpoint's logic was never reached and nothing was tested.
+  if (o.httpStatus === 404 && (!o.message || /^HTTP 404\b/i.test(o.message)) && !/\b404\b|not found|does not exist/i.test(documented ?? ""))
+    return {
+      pass: false,
+      inconclusive: true,
+      verdict:
+        `the server answered 404 with no message — there is no route for this method and path (it may take another ` +
+        `method, e.g. PATCH), so the request never reached the rule the case checks. Nothing was tested; fix the case's method or path.`,
+    };
+
   // Robustness: survived hostile input without crashing. Served or refused are
   // both fine — that's the server's choice, not a defect.
   if (expected === "no-5xx")

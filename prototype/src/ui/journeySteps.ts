@@ -99,8 +99,8 @@ function humanise(rest: string): string {
     m(/^✗ (.+)$/, (h) => `Passed over ${h[1]}`) ||
     m(/^· (.+)$/, (h) => h[1].charAt(0).toUpperCase() + h[1].slice(1)) ||
     // "[login] …" — the sign-in, narrated by the login page as a person sees it.
-    m(/^showing the login screen — signing in as (.+?) \(phone ending (\d+)\)$/i, (h) =>
-      `Opening the login screen to sign in as ${h[1]}, phone ending ${h[2]}`) ||
+    m(/^showing the login screen — signing in as (.+?) \(phone ending (\d+)\)(?: with (.+))?$/i, (h) =>
+      `Opening the login screen to sign in as ${h[1]}, phone ending ${h[2]}${h[3] ? `, with ${h[3]}` : ""}`) ||
     m(/^opened the sign-in page$/i, () => "The sign-in page is open") ||
     m(/^typed the phone number ending (\d+) and asked for a one-time code$/i, (h) =>
       `Typed the phone number ending ${h[1]} and asked for a one-time code`) ||
@@ -111,10 +111,23 @@ function humanise(rest: string): string {
       `The login screen did not let us in${h[1] ? ` — the app said: ${h[1]}` : ""}`) ||
     m(/^falling back to the saved web-console session so the journey can still run — (.+)$/i, (h) =>
       `Couldn't sign in on the login screen — ${plainReason(h[1])}. Trying the saved session instead`) ||
-    m(/^skipped the login screen — (.+?)\. Falling back to the saved session$/i, (h) =>
-      `Skipped the login screen — ${h[1]}. Using the saved session instead`) ||
+    // Not a failure: with no login code for the account the login screen
+    // cannot be finished, so the saved session is used — said as what
+    // happened, in grey (kindOf below), not as an orange warning (15 Oct).
+    // It used to say the operator's code "only comes by SMS"; it doesn't — UAT
+    // takes the client's code for it, which runs now use (dbLogin.ts).
+    m(/^skipped the login screen — (.+?)\. Falling back to the saved session$/i, (h) => {
+      const op = h[1].match(/^(.+?) is signed into through an operator's account \(phone ending (\d+)\), and that account has no UAT login code/i);
+      return op
+        ? `Signed in with the saved session, not the login screen — ${op[1]} is used through Procol's operator account (phone ending ${op[2]}), and the run had no login code for that account`
+        : `Signed in with the saved session, not the login screen — ${h[1]}`;
+    }) ||
     m(/^this company's signed-in user has no phone on record.*$/i, () =>
       "This company's signed-in user has no phone on record, so the configured buyer's phone was used") ||
+    // An optional confirm pop-up that never came (the vendor bid's
+    // "submit-confirm" before 15 Oct): not stuck — there was nothing to confirm.
+    m(/^recorded "((?:technical-)?submit-confirm)" on \S+ → stuck\/\S+$/i, () =>
+      "No confirm pop-up appeared after Submit, so there was nothing to confirm") ||
     // "[stuck] recorded "login-submit" on https://… → stuck/run__….json"
     m(/^recorded "(.+?)" on \S+ → stuck\/\S+$/i, (h) =>
       `Got stuck at ${labelWords(h[1])} — saved a screenshot of the page so the step can be fixed`) ||
@@ -169,7 +182,7 @@ function kindOf(tag: string, rest: string): JourneyStep["kind"] {
     if (/could not check/i.test(rest)) return "warn";
     return "ok";
   }
-  if (tag === "stuck") return "bad";
+  if (tag === "stuck") return /recorded "(?:technical-)?submit-confirm"/i.test(rest) ? "info" : "bad";
   // "[pick] ✓|✗|· …" (runPlan's open_event): passing an event over is a note, not a failure.
   if (tag === "pick") return /^✓/.test(rest) ? "ok" : /^✗/.test(rest) ? "warn" : "info";
   if (tag === "healer") {
@@ -192,7 +205,9 @@ function kindOf(tag: string, rest: string): JourneyStep["kind"] {
   // The sign-in says how it went in its own words.
   if (tag === "login") {
     if (/did not get in either/i.test(rest)) return "bad";
-    if (/did not let us in|falling back|skipped the login screen/i.test(rest)) return "warn";
+    if (/did not let us in|falling back/i.test(rest)) return "warn";
+    // Skipped on purpose (no code to type for this account): information, not a warning.
+    if (/skipped the login screen/i.test(rest)) return "info";
     if (/^signed in/i.test(rest)) return "ok";
     return "info";
   }

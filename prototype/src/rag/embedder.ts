@@ -18,6 +18,10 @@
  * and retrieval refuses to compare across a mismatch rather than returning
  * confident nonsense.
  */
+import { createHash } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { AI } from "../../config/settings.js";
 
 type Provider = "slingring" | "local";
@@ -42,16 +46,31 @@ export function embedProvider(): Provider {
  * the decision is made once, up front, not halfway through a build.
  */
 export async function ensureEmbedderReady(): Promise<string> {
-  if (embedProvider() === "slingring") {
-    try {
-      await slingringEmbed(["embedder readiness probe"]);
-    } catch (err) {
-      slingringEmbeddingsBroken = true;
-      console.warn(`[rag] Slingring embeddings unavailable (${(err as Error).message.slice(0, 140)}) — using the local embedder`);
+  // Probed ONCE per process. Every retrieval used to call this, and every call
+  // probed the gateway: a 91-case matcher eval made 91 extra requests and ran
+  // into "429 Rate limit exceeded" a third of the way through (15 Oct).
+  readyProbe ??= (async () => {
+    if (embedProvider() === "slingring") {
+      try {
+        await slingringEmbed(["embedder readiness probe"]);
+      } catch (err) {
+        const status = (err as { status?: number }).status ?? 0;
+        if (status === 429) {
+          // Busy, not broken: each call backs off and retries. Switching the
+          // whole process to the local model on a rate limit changed every
+          // score after it, mid-run — the matcher's run-to-run swing.
+          console.warn("[rag] Slingring embeddings are rate-limited right now — keeping them; each call backs off and retries");
+        } else {
+          slingringEmbeddingsBroken = true;
+          console.warn(`[rag] Slingring embeddings unavailable (${(err as Error).message.slice(0, 140)}) — using the local embedder`);
+        }
+      }
     }
-  }
-  return embedderId();
+    return embedderId();
+  })();
+  return readyProbe;
 }
+let readyProbe: Promise<string> | undefined;
 
 /** A stable name for the embedder in use — stored alongside the vectors. */
 export function embedderId(): string {
@@ -148,10 +167,110 @@ function normalise(v: number[]): number[] {
   return v.map((x) => x / n);
 }
 
+// ── one text, one vector ───────────────────────────────────────────────────
+/**
+ * The gateway does not return the same vector twice for the same text, and the
+ * matcher's SAME/PARTIAL thresholds sit where those small shifts flip the
+ * answer: same code, same corpus, same store, an hour apart, new-case
+ * detection read 40.0% then 93.3%, and memory hit@10 moved between 79.1% and
+ * 85.2% (eval report, 15 Oct). So a query's vector is kept the first time it is
+ * made and reused every time after — per embedder, so a vector is never
+ * compared with a store built by another. Only the gateway's vectors are kept:
+ * the local model already gives the same vector every time.
+ *
+ * Kept in data/embed-cache.jsonl (git-ignored), one line per text: a hash of
+ * embedder + text, and the vector as base64 Float32. EMBED_CACHE=off asks the
+ * gateway every time.
+ */
+const CACHE_FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "data", "embed-cache.jsonl");
+/** Lines kept when the file is compacted, newest first; it is compacted past MAX. */
+const CACHE_KEEP = 15_000;
+const CACHE_MAX = 20_000;
+let cache: Map<string, number[]> | undefined;
+
+const SLINGRING_ID = () => `slingring:${AI.slingring.models.embed}@${AI.slingring.embedDims}`;
+function cacheKey(text: string): string {
+  return createHash("sha1").update(`${SLINGRING_ID()}\n${text}`).digest("hex");
+}
+const encode = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString("base64");
+const decode = (b64: string) => {
+  const buf = Buffer.from(b64, "base64");
+  return Array.from(new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4));
+};
+
+function loadCache(): Map<string, number[]> {
+  if (cache) return cache;
+  cache = new Map();
+  try {
+    if (!existsSync(CACHE_FILE)) return cache;
+    const lines = readFileSync(CACHE_FILE, "utf8").split("\n").filter(Boolean);
+    for (const line of lines) {
+      try {
+        const { k, v } = JSON.parse(line);
+        if (typeof k === "string" && typeof v === "string") cache.set(k, decode(v));
+      } catch {
+        /* a torn line from an interrupted write: skipped */
+      }
+    }
+    if (lines.length > CACHE_MAX) {
+      const keep = [...cache.entries()].slice(-CACHE_KEEP);
+      cache = new Map(keep);
+      writeFileSync(CACHE_FILE, keep.map(([k, v]) => JSON.stringify({ k, v: encode(v) })).join("\n") + "\n");
+    }
+  } catch {
+    /* no cache is a slower run, never a broken one */
+  }
+  return cache;
+}
+
+function remember(key: string, v: number[]): void {
+  loadCache().set(key, v);
+  try {
+    mkdirSync(dirname(CACHE_FILE), { recursive: true });
+    appendFileSync(CACHE_FILE, JSON.stringify({ k: key, v: encode(v) }) + "\n");
+  } catch {
+    /* kept for this process only */
+  }
+}
+
+/** A gateway vector for one text: kept the first time, the same every time after. */
+async function slingringOne(text: string): Promise<number[]> {
+  if (process.env.EMBED_CACHE === "off") return (await slingringEmbed([text]))[0];
+  const key = cacheKey(text);
+  const kept = loadCache().get(key);
+  if (kept) return kept;
+  // Stored as Float32: hand back exactly what later reads will return.
+  const v = decode(encode((await slingringEmbed([text]))[0]));
+  remember(key, v);
+  return v;
+}
+
 // ── public ─────────────────────────────────────────────────────────────────
 export async function embedOne(text: string): Promise<number[]> {
-  if (embedProvider() === "slingring") return (await slingringEmbed([text]))[0];
+  if (embedProvider() === "slingring") return slingringOne(text);
   return localEmbedOne(text);
+}
+
+/**
+ * A QUERY'S VECTOR, MADE BY THE EMBEDDER THAT BUILT THE STORE IT IS COMPARED WITH.
+ *
+ * Retrieval compared against the store only when the process's current
+ * embedder was the store's, and the current one could change mid-run: a store
+ * built with the local model was searched by words only while the gateway
+ * answered, and by meaning once a 429 flipped the process to local — 62 of 91
+ * matcher rows changed between two identical runs (15 Oct). Now the store
+ * decides: a local store is searched with local vectors (offline, the same
+ * every time, no rate limit), a gateway store with cached gateway vectors.
+ * Null when that embedder cannot be used here (a gateway store with no key, or
+ * the gateway refusing): the caller searches by words and says so.
+ */
+export async function embedFor(storeEmbedder: string, text: string): Promise<number[] | null> {
+  if (storeEmbedder === `local:${AI.embeddings.model}`) return localEmbedOne(text).catch(() => null);
+  if (storeEmbedder === SLINGRING_ID()) {
+    if (!process.env[AI.slingring.apiKeyEnvVar] || slingringEmbeddingsBroken) return null;
+    return slingringOne(text).catch(() => null);
+  }
+  return null;
 }
 
 export async function embedMany(texts: string[]): Promise<number[][]> {

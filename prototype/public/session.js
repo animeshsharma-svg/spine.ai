@@ -48,6 +48,7 @@
     clock: null,
     asking: null,       // an open question from the run: { runId, n, card, options }
     onEnd: null,        // told how this turn ended (a case run from the test cases table, runCases.js)
+    shot: false,        // the Browser panel shows the run's last screenshot (a saved run has no live frames)
   };
 
   // ── elements ─────────────────────────────────────────────────────────────
@@ -141,6 +142,8 @@
     S.turn = { text: shown, runText: text, mode: S.mode, kind, replay, flowKeys: keys, bidders, target: target(), startedAt: Date.now(), plan: [], log: [], ended: {} };
     S.chat.push({ role: "user", text: shown });
 
+    // The live turn is reused: the last run's id must not carry over to this one.
+    if (el.turn) delete el.turn.dataset.runId;
     const turn = el.turn;
     if (turn) turn.dataset.kind = kind;
     el.narr.innerHTML = "";
@@ -180,6 +183,7 @@
     q$("#live-frame")?.removeAttribute("src");
 
     S.frames = 0;
+    S.shot = false;
     S.reqs = 0;
     S.tabPicked = false;
     const list = q$("#ss-req-list");
@@ -653,12 +657,14 @@
   function paintLive() {
     const live = q$("#ss-live");
     if (!live) return;
-    live.hidden = !S.frames;
+    if (!S.open) lastShot();
+    const shown = S.frames || S.shot;
+    live.hidden = !shown;
     live.dataset.state = S.open ? "live" : "ended";
-    live.lastChild.textContent = S.open ? "LIVE" : "LAST FRAME";
+    live.lastChild.textContent = S.open ? "LIVE" : S.frames ? "LAST FRAME" : "LAST SCREEN";
     const empty = q$("#ss-browser-empty");
     if (empty) {
-      empty.hidden = !!S.frames;
+      empty.hidden = !!shown;
       empty.textContent = S.open
         ? S.turn?.mode === "api" ? "This run talks to the API directly — open Requests to watch it." : "The browser appears here as soon as the run opens it."
         : S.turn?.replay && S.turn?.mode !== "api"
@@ -666,6 +672,33 @@
           : "No browser was used in this run.";
     }
     paintRerun();
+  }
+
+  /**
+   * A finished browser run with no live frame here (a saved run opened again,
+   * or one that ended before its first frame reached this tab): the last
+   * screenshot the run took, in place of "a saved run doesn't keep the
+   * browser". Asked for once per turn; a run that kept none keeps the words.
+   */
+  function lastShot() {
+    const t = S.turn;
+    if (!t || S.frames || t.shotAsked || t.mode === "api") return;
+    const id = t.replay ? S.id : t.runId;
+    if (!id) return;
+    t.shotAsked = true;
+    const img = q$("#live-frame");
+    const panel = q$("#live-frame-panel");
+    if (!img || !panel) return;
+    const loaded = () => {
+      img.removeEventListener("load", loaded);
+      if (S.turn !== t || S.frames) return;
+      S.shot = true;
+      panel.hidden = false;
+      paintLive();
+    };
+    img.addEventListener("load", loaded);
+    img.addEventListener("error", () => img.removeEventListener("load", loaded), { once: true });
+    img.src = `/api/run-last-shot?run=${encodeURIComponent(id)}`;
   }
 
   /**
@@ -782,7 +815,7 @@
    * The box a run ends on. `key` names the part of the turn it closes ("API",
    * "UI", a journey) so a part that reports twice replaces its own box.
    */
-  function end({ tone = "ok", key = "", title = "", lines = [], links = [] } = {}) {
+  function end({ tone = "ok", key = "", title = "", lines = [], links = [], tag = "" } = {}) {
     if (!S.on || !el.end) return;
     stopWorking();
     const k = key || "run";
@@ -792,7 +825,7 @@
     if (was && was.tone === "skip" && tone === "skip") return;
     const box = node(
       `<div class="ss-call ${h(tone)}" data-key="${h(k)}">` +
-      `<div class="ss-call-h">${icon(TAG_ICON[tone] || "info")}<span class="ss-call-tag">${h(TAG[tone] || tone)}</span>` +
+      `<div class="ss-call-h">${icon(TAG_ICON[tone] || "info")}<span class="ss-call-tag">${h(tag || TAG[tone] || tone)}</span>` +
       (key ? `<span class="ss-call-k">${h(key)}</span>` : "") + `</div>` +
       (title ? `<div class="ss-call-t">${h(title)}</div>` : "") +
       lines.filter(Boolean).map((l) => `<p>${h(l)}</p>`).join("") +
@@ -827,9 +860,12 @@
     S.open = false;
     if (told) {
       const cb = S.onEnd;
-      const o = outcome();
       S.onEnd = null;
-      setTimeout(() => { try { cb(o); } catch { /* the table's problem, not the run's */ } }, 0);
+      // Read once the run has written its closing box: an API features run
+      // goes idle (runFinished) a moment before showRunComplete writes DONE,
+      // and the table said "The run ended without a result" under a run that
+      // ended DONE (15 Oct).
+      setTimeout(() => { try { cb(outcome()); } catch { /* the table's problem, not the run's */ } }, 0);
     }
     stopWorking();
     paintCases();
@@ -892,15 +928,30 @@
         lines: unknown.slice(0, 3).map((r) => `${r.scenario || r.id}: ${r.message || r.verdict || ""}`),
       });
     }
+    // What the API test could not cover (the planner's gaps, said as an INFO
+    // note before the checks): every check passing is then only part of the
+    // case — "publish an RFQ and check every vendor gets the email" closed green
+    // with the email part never tested (15 Oct).
+    const gaps = (S.turn?.log ?? []).map((l) => String(l).match(/Not covered by this API test:\s*(.+?)\.?$/i)?.[1]).find(Boolean);
+    if (gaps) {
+      return end({
+        tone: "skip",
+        tag: "Partly tested",
+        key: "API",
+        title: `Partly tested — not covered: ${gaps}.`,
+        lines: [rows.length === 1 ? "The part it could test worked as expected." : `The parts it could test worked: all ${rows.length} API checks passed.`, ...rows.slice(0, 2).map((r) => r.message || r.verdict || "")],
+      });
+    }
     end({ tone: "ok", key: "API", title: rows.length === 1 ? "It worked as expected." : `All ${rows.length} API checks worked as expected.`, lines: rows.slice(0, 2).map((r) => r.message || r.verdict || "") });
   }
 
   // ── the typed UI case: the answer renderUiInstructResult already words ───
   function uiResult({ cls, title, lines = [], runId = "" }) {
     if (!S.on) return;
-    const tone = cls === "ok" ? "ok" : cls === "skip" ? "skip" : "bad";
+    // "part": steps the tester did by hand in the browser — grey, "Partly tested", never a green pass.
+    const tone = cls === "ok" ? "ok" : cls === "skip" || cls === "part" ? "skip" : "bad";
     // A run the explorer worked out has its run id: its bugs can be opened from here.
-    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), links: runId && tone === "bad" ? bugLinks(runId) : [] });
+    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), links: runId && tone === "bad" ? bugLinks(runId) : [], tag: cls === "part" ? "Partly tested" : "" });
   }
 
   /**
@@ -944,7 +995,12 @@
     const bugsRun = bugsHref?.match(/[?&]run=([^&#]+)/)?.[1];
     if (bugsRun) links.push(...bugLinks(decodeURIComponent(bugsRun)));
     else if (bugsHref) links.push({ label: "Bugs", href: bugsHref, icon: "bug" });
-    end(summary({ total, passed, failed, skipped, error, journey, note: subtitle, links }));
+    // Which checks failed, by name: "6 of 62 failed" alone, under a journey whose
+    // every step worked, read as "all worked, still failed" (15 Oct).
+    const failures = (read(() => checkRows, []) || [])
+      .filter((c) => !c.pass && !c.inconclusive)
+      .map((c) => ({ name: c.scenario || c.id, why: c.message || c.verdict || "" }));
+    end(summary({ total, passed, failed, skipped, error, journey, note: subtitle, links, failures }));
   }
 
   /**
@@ -952,7 +1008,7 @@
    * journey got, how the checks came out — and where the detail lives. The
    * counts are the run's own; nothing is recomputed.
    */
-  function summary({ total = 0, passed = 0, failed = 0, skipped = 0, error = null, journey = null, note = null, links = [], when = "" }) {
+  function summary({ total = 0, passed = 0, failed = 0, skipped = 0, error = null, journey = null, note = null, links = [], when = "", failures = [] }) {
     const stopped = !!journey?.stoppedAt;
     const unknown = Math.max(0, total - passed - failed);
     const ran = total || journey?.steps;
@@ -973,18 +1029,38 @@
           ".",
       );
     }
+    // The failed checks themselves, a line each (the first five; the rest are in the full report).
+    const named = failures.filter((f) => f && f.name).slice(0, 5);
+    if (failed && named.length) {
+      lines.push("The checks that failed:");
+      for (const f of named) {
+        // The library's names ("QA_Platform_publish_with_null_audience_raises_500")
+        // in words ("Publish with null audience raises"), as the check list shows them.
+        const raw = String(f.name).replace(/\s+/g, " ").trim();
+        const name = read(() => plainCaseTitle(raw), raw) || raw;
+        let why = String(f.why || "").replace(/\s+/g, " ").trim();
+        if (/^internal server error$/i.test(why)) why = "the server crashed (500 Internal Server Error)";
+        lines.push(`✗ ${name.slice(0, 120)}${why ? ` — ${why.slice(0, 140)}` : ""}`);
+      }
+      if (failed > named.length) lines.push(`…and ${failed - named.length} more in the full report.`);
+    }
     if (skipped) lines.push(`${skipped} check${skipped === 1 ? " was" : "s were"} not run — the full report says why.`);
     if (note && !error) lines.push(note);
     if (when) lines.push(when);
     if (ran && links.length) lines.push("Every check, with what was sent and what came back, is in the full report.");
+    // The journey worked and only checks around it failed: say both, in that order.
+    const journeyOk = !!journey?.steps && journey.worked === journey.steps && !stopped;
     return {
       tone: error ? "bad" : ok ? (ran ? "ok" : "skip") : "bad",
+      tag: !error && failed && journeyOk ? "Checks failed" : "",
       title: error
         ? `The run stopped: ${error}`
         : ok
           ? ran ? "Everything worked." : "Nothing was tested."
           : failed
-            ? `${failed} of ${total} check${total === 1 ? "" : "s"} failed.`
+            ? journeyOk
+              ? `The journey worked end to end, but ${failed} of the ${total} checks around it failed.`
+              : `${failed} of ${total} check${total === 1 ? "" : "s"} failed.`
             : `The journey stopped at step ${journey.stoppedAt}.`,
       lines,
       links,
@@ -1023,6 +1099,7 @@
       total: rows.length,
       passed: rows.filter((c) => c.pass).length,
       failed: rows.filter((c) => !c.pass && !c.inconclusive).length,
+      failures: rows.filter((c) => !c.pass && !c.inconclusive).map((c) => ({ name: c.scenario || c.title || c.id, why: c.message || c.actual || "" })),
       journey,
       when: at && !Number.isNaN(at.getTime())
         ? `Ran on ${at.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} at ${at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.`
@@ -1098,9 +1175,43 @@
     startTyped(text, MODES.includes(mode) ? mode : "ui");
     return true;
   }
+  /**
+   * A first message that is a question ("what is master QCS in Procol?") is
+   * answered, not run. It used to go straight to the test writer, which built
+   * a test for it — and sent a write request — for a question. The chat's own
+   * answer-or-run decision (/api/session/reply) is asked first; when it says
+   * run, the message runs as the next turn, the way a follow-up does.
+   */
+  async function answerQuestion(text, mode) {
+    begin({ text, mode, kind: "chat" });
+    working("Thinking");
+    let res = null;
+    try {
+      const r = await fetch("/api/session/reply", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: text, mode, kind: "chat", client: targetText(), context: "", history: [] }),
+      });
+      if (r.ok) res = await r.json();
+    } catch {
+      res = null;
+    }
+    stopWorking();
+    if (res?.action === "answer") {
+      S.chat.push({ role: "assistant", text: res.reply });
+      aiSay(res.reply);
+      idle();
+      return;
+    }
+    S.pendingAsk = { display: text, compiled: res?.testCase && res.testCase !== text ? res.testCase : "", note: res?.note || "" };
+    startTyped(res?.testCase || text, MODES.includes(res?.mode) ? res.mode : mode);
+  }
+
   /** The run this turn is (its saved session's id), once the server has named it. */
   function setRunId(id) {
     if (S.turn && id) S.turn.runId = String(id);
+    // On the turn itself too, so a turn kept above (a copy) still says which run it was (runCases.js).
+    if (S.turn && id && el.turn) el.turn.dataset.runId = String(id);
   }
   /** How this turn ended, the worst part first: failed, stopped, not tested, done. */
   function outcome() {
@@ -1430,7 +1541,7 @@
     working, head, act, note, browserPart,
     plan, planStep, planNote,
     explore, exploreStep, ask,
-    runCase, setRunId,
+    runCase, setRunId, answerQuestion,
     frame, request,
     end, apiCheck, apiEnd, uiResult, journeyEnd, runEnd, replayed,
     get on() { return S.on; },
@@ -1442,7 +1553,7 @@
     /** What was asked, when it started, where it ran, and whether it is a saved run opened again. */
     get turn() {
       const t = S.turn;
-      return t ? { text: t.text, mode: t.mode, kind: t.kind, replay: !!t.replay, startedAt: t.startedAt, target: t.target } : null;
+      return t ? { text: t.text, mode: t.mode, kind: t.kind, replay: !!t.replay, startedAt: t.startedAt, target: t.target, runId: t.runId || (t.replay ? S.id : null) } : null;
     },
     /** A browser plan's progress: steps finished, of how many. Null until a plan has arrived. */
     get progress() {

@@ -44,9 +44,22 @@ const INPUT_REJECTION = /required|mandatory|please (add|select|fill|choose)|inva
 const AUTOMATION_SIGNATURE =
   /locator|selector|strict mode violation|waiting for|element is not|Timeout .* exceeded.*(click|fill|waitFor)/i;
 
-export function judge(evidence: Evidence, failure?: Error | null): Verdict {
+/**
+ * opts.expected: what the case itself expected the app to say — a negative
+ * case's "Please fill project title!", already checked by its own step. The
+ * app saying it is the case passing, so it is never the finding: one used to
+ * be filed as a HIGH "rejected input" bug while the step that expected it was
+ * green, and the step that really failed went unmentioned.
+ */
+export function judge(evidence: Evidence, failure?: Error | null, opts: { expected?: string[] } = {}): Verdict {
   const { httpFailures, toasts } = evidence;
-  const errorToasts = toasts.filter((t) => t.severity === "error");
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const expected = (opts.expected ?? []).map(norm).filter((e) => e.length >= 4);
+  const wasExpected = (text: string) => {
+    const t = norm(text);
+    return expected.some((e) => t.includes(e) || e.includes(t));
+  };
+  const errorToasts = toasts.filter((t) => t.severity === "error" && !wasExpected(t.text));
   const message = failure?.message ?? "";
   const steps = evidence.notes.slice();
 

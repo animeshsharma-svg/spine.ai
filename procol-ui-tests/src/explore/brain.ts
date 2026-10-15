@@ -12,7 +12,7 @@
  * the screen before believing it.
  */
 
-export type ActionName = "click" | "dblclick" | "fill" | "select" | "press" | "goto" | "scroll" | "back" | "wait" | "ask" | "done" | "stuck";
+export type ActionName = "click" | "dblclick" | "fill" | "select" | "press" | "goto" | "scroll" | "back" | "wait" | "ask" | "done" | "fail" | "stuck";
 
 export interface Decision {
   action: ActionName;
@@ -27,7 +27,7 @@ export interface Decision {
   proof?: string;
 }
 
-const ACTIONS = new Set<ActionName>(["click", "dblclick", "fill", "select", "press", "goto", "scroll", "back", "wait", "ask", "done", "stuck"]);
+const ACTIONS = new Set<ActionName>(["click", "dblclick", "fill", "select", "press", "goto", "scroll", "back", "wait", "ask", "done", "fail", "stuck"]);
 
 export const SYSTEM = [
   `You are the explorer inside spine.ai, the QA platform that tests Procol, a B2B procurement web app.`,
@@ -67,6 +67,12 @@ export const SYSTEM = [
   `message, the list you were asked to open). Put in "proof" 2-8 words copied EXACTLY, character for character,`,
   `from VISIBLE TEXT, a heading or a control's name, that show it (e.g. "PO-2231 created", "Purchase Orders").`,
   `Copy, never describe: "the list of purchase orders is visible" is a description and will be rejected.`,
+  `A column heading, field label or button name is never proof that a value is there: for "check it shows PO`,
+  `numbers", quote a PO number from that column, not "PO Number".`,
+  `"fail" when you made the check the goal asks for and the app does NOT meet it: the column it asks about is`,
+  `empty, a value is wrong, the message it expects never appears. Say what you saw in "why" and put in "proof"`,
+  `words on the screen next to it (e.g. the column heading over the empty cells). Do not keep looking for a`,
+  `way to make it pass: a failed check is a result.`,
   `"stuck" when the app gives no way forward: the feature is not there for this account, an error you cannot get`,
   `past, or you have tried the sensible ways. Say why in "why" in plain words, and give 2-4 options the tester`,
   `could pick to unblock you.`,
@@ -75,7 +81,7 @@ export const SYSTEM = [
   `  click {ref}            dblclick {ref}          fill {ref, value}    select {ref, value}  (native select only)`,
   `  press {value: "Enter"|"Escape"|"Tab", ref?}    goto {value: "/path" in this app}`,
   `  scroll {value: "down"|"up", ref?}              back                 wait (the page is loading)`,
-  `  ask {question, options}                        done {proof}         stuck {why, options}`,
+  `  ask {question, options}                        done {proof}         fail {why, proof}    stuck {why, options}`,
   ``,
   `"why" is ONE short plain sentence a non-technical tester understands, about what you are doing and why`,
   `(e.g. "Opening Purchase Orders to find the PO to invoice"). No refs, CSS or code in it.`,
@@ -143,6 +149,7 @@ export function parseDecision(raw: string, refs: Set<number>): { decision: Decis
   if ((action === "fill" || action === "select") && d.value === undefined) return { decision: null, problem: `"${action}" needs a value` };
   if (action === "goto" && !d.value) return { decision: null, problem: `"goto" needs a path` };
   if (action === "ask" && !d.question) return { decision: null, problem: `"ask" needs a question` };
+  if (action === "fail" && !d.why) return { decision: null, problem: `"fail" needs a why: what the check found` };
   return { decision: d };
 }
 

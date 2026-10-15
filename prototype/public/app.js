@@ -255,16 +255,31 @@ function watchStreamEnd(es, onEnd, retry) {
     if (apiRunning === es) apiRunning = null;
     syncStopBtn();
   };
+  // The session's own closing box: without it a dropped run just went quiet
+  // there — no DONE, no FAILED, nothing saying it never finished (15 Oct).
+  const tellSession = () => {
+    const secs = runStartedAt ? Math.max(1, Math.round((Date.now() - runStartedAt) / 1000)) : 0;
+    window.spineSession?.end({
+      tone: "stop",
+      title: "The connection to the run was lost before it finished.",
+      lines: [
+        `It dropped${secs ? ` after ${secs} s` : ""} — the dashboard server restarted or the network went. That is not a test result.`,
+        "Whatever finished before it is above; nothing after it ran. Run it again for a full result.",
+      ],
+    });
+  };
   es.addEventListener("error", () => {
     // The `done` handler closes the stream itself, so reaching here means the
     // connection dropped rather than the run finishing.
     if (es.readyState === EventSource.CLOSED) {
       clearRunningRef();
+      tellSession();
       runFinished();
       onEnd?.();
       return;
     }
     es.close();
+    tellSession();
     const message =
       "The connection to the run was lost before it finished — most likely the server " +
       "restarted or the network dropped mid-run, not a test failure. Nothing was restarted " +
@@ -1842,9 +1857,15 @@ function runSelectedFeatures(ask, onEnd) {
     if (ask.qty) qs.set("qty", ask.qty);
     qs.set("vendors", String(ask.vendors));
     if (ask.bidders > 1) qs.set("bidders", String(ask.bidders));
-  } else if (apiLineItemCases()) {
-    qs.set("lineItems", String(Math.max(1, Number($("#api-line-items")?.value) || 1)));
+  } else {
+    // Main flow (no edge cases) is sent for every selection. It used to ride
+    // inside the line-item branch, so a selection without line-item cases —
+    // Rank based + Place a bid — ran all its edge cases on Main flow: 35
+    // checks where the page promised the journey and 1 (15 Oct).
     if ($("#api-edges") && !$("#api-edges").checked) qs.set("edges", "0");
+  }
+  if (!ask && apiLineItemCases()) {
+    qs.set("lineItems", String(Math.max(1, Number($("#api-line-items")?.value) || 1)));
     const qty = String($("#api-qty")?.value ?? "").trim();
     if (qty) qs.set("qty", qty);
     qs.set("vendors", String(Math.max(1, Number($("#api-vendors")?.value) || 1)));
@@ -2150,6 +2171,10 @@ function journeyAsk(text) {
   const lifecycle = /\b(award\w*|bid|bids|bidding|evaluat\w*)\b/.test(t);
   if (!lifecycle && !/\b(publish(es|ed|ing)?|creat(e|es|ed|ing)|float(s|ed)?|launch(es|ed)?|rais(e|es|ed)|set up|go live|make)\b/.test(t)) return null;
   if (/\b(without|zero|negative|invalid|empty|blank|missing|wrong|reject\w*|refus\w*|fail\w*|error\w*|exceed\w*|more than|beyond|limit\w*|duplicate\w*|expired|past|deadline|late|cannot|can ?not|can't|should ?n[o']t|not allowed|unauthori[sz]ed|forbidden|twice|edge|boundary)\b/.test(t)) return null;
+  // Something the journey cannot see (an email, a notification, a PDF): not the
+  // journey, which would pass without a word about it. The planner says what
+  // it has no step for, and the run is marked as only partly tested.
+  if (/\b(e-?mails?|mail|inbox|notifications?|notified|sms|whatsapp|pdf|download\w*|export\w*|print\w*|attachments?|slack|reminders?)\b/.test(t)) return null;
   const r = /\b(rfp|rfi|technical|tech)\b/.test(t);
   const q = /\b(rfq|rfqs|quotation)\b/.test(t);
   const a = /\b(auction|e-auction|eauction)\b/.test(t);
@@ -2382,9 +2407,12 @@ function wireRunStream(es, write, onEnd) {
     if (b.suggestion?.length) write(`   the default plan it would have run: ${b.suggestion.join(" → ")}`, "note");
   });
 
+  /** How many cases the run was given, for "N of M cases did not run". */
+  let planCases = 0;
   es.addEventListener("plan", (ev) => {
     const p = JSON.parse(ev.data);
     planSkipped = p.skipped?.length ?? 0;
+    planCases = p.cases || 0;
     runPlanned = p.runnable || 0;
     // A journey run carries no library cases; saying "0 checks from 0 cases"
     // would read as nothing happening while fifteen steps are on screen.
@@ -2431,20 +2459,35 @@ function wireRunStream(es, write, onEnd) {
      * different role, or a placeholder could not be resolved. Those are three
      * completely different problems, and only one of them is yours to fix.
      */
+    showSkips(p.skipped, p.cases);
+  });
+  /**
+   * Cases set aside after the first pass — waiting on a record no case in the
+   * run went on to make. The server sends the whole list again ("skips"); it
+   * used to go unheard, so the run said nothing about where those cases went
+   * (PR-EVT-002/005, 15 Oct), and the closing box counted only the first skips.
+   */
+  es.addEventListener("skips", (ev) => {
+    const d = JSON.parse(ev.data);
+    if (!Array.isArray(d.skipped)) return;
+    planSkipped = d.skipped.length;
+    showSkips(d.skipped, planCases || d.skipped.length);
+  });
+  function showSkips(skipped, cases) {
     const box = $("#skips");
     if (!box) return;
-    if (!p.skipped?.length) {
+    if (!skipped?.length) {
       box.hidden = true;
       return;
     }
     box.hidden = false;
     box.innerHTML = "";
-    const sum = el("summary", "", `${p.skipped.length} of ${p.cases} cases did not run — why`);
+    const sum = el("summary", "", `${skipped.length} of ${cases} cases did not run — why`);
     box.appendChild(sum);
     // Grouped by what a reader can do about it, in plain words; the runner's
     // own wording stays one click away for whoever is fixing the case.
     const groups = new Map();
-    for (const s of p.skipped) {
+    for (const s of skipped) {
       const g = skipGroup(s.reason || "");
       if (!groups.has(g.key)) groups.set(g.key, { ...g, items: [] });
       groups.get(g.key).items.push(s);
@@ -2465,7 +2508,7 @@ function wireRunStream(es, write, onEnd) {
       }
       box.appendChild(list);
     }
-  });
+  }
   es.addEventListener("check", (ev) => {
     const check = JSON.parse(ev.data).check;
     const i = checkRows.findIndex((c) => c.id === check.id);
@@ -5164,7 +5207,14 @@ function renderUiInstructResult(state, d = {}) {
     // Worked out on screen (the explorer): no planned steps to count against.
     const done = steps.filter((s) => s.status === "ok" && !/^Checked the goal|^The goal is reached/.test(s.step)).length;
     const replayed = steps.filter((s) => s.replayed).length;
-    if (d.passed) {
+    if (d.passed && d.byHand) {
+      cls = "part";
+      badge = "◐ Partly tested (UI)";
+      lines = [
+        "Partly tested — part of the journey was done by you in the browser, so the run did not test that part.",
+        d.proof && d.proof !== "confirmed by the tester" ? `The screen then showed “${d.proof}”.` : "",
+      ];
+    } else if (d.passed) {
       cls = "ok";
       badge = "✓ Passed (UI)";
       lines = [
@@ -5182,6 +5232,16 @@ function renderUiInstructResult(state, d = {}) {
         done ? `It got ${done} step${done === 1 ? "" : "s"} in; each has its screenshot above.` : "It stopped before taking a step.",
       ];
     }
+  } else if (d.passed && d.byHand) {
+    // Some steps were done by the tester in the browser (take control): those
+    // were not tested by the run, so the run is partly tested — never a pass.
+    const k = steps.filter((s) => s.byHand).length || Number(d.byHand) || 0;
+    cls = "part";
+    badge = "◐ Partly tested (UI)";
+    lines = [
+      `Partly tested — ${k} of ${n} step${n === 1 ? "" : "s"} ${k === 1 ? "was" : "were"} done by you in the browser, so the run did not test ${k === 1 ? "it" : "them"}.`,
+      `The run did the other ${n - k}, and they all passed.`,
+    ];
   } else if (d.passed) {
     cls = "ok";
     badge = "✓ Passed (UI)";
@@ -5386,20 +5446,21 @@ function runTestCase(textOverride) {
     if (err && !planError) planError = err[1].trim();
     // "[plan] 3/22 set_title ✓" — the runner's own progress, which is what
     // moves a row from waiting to running to done while you watch.
-    const m = l.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗)?/);
+    // "⊘": a step the tester had already done in the browser — not tested by the run.
+    const m = l.match(/\[plan\] (\d+)\/(\d+) (\S+)( ✓| ✗| ⊘)?/);
     if (m) {
       planStarted = true;
       const at = Number(m[1]) - 1;
       const row = checkRows[at];
+      const mark = (m[4] ?? "").trim();
       if (row) {
-        const mark = (m[4] ?? "").trim();
         row._running = !mark;
-        row.inconclusive = !mark;
+        row.inconclusive = !mark || mark === "⊘";
         row.pass = mark === "✓";
-        row.verdict = mark ? (mark === "✓" ? "did what it should" : "this step failed") : "running…";
+        row.verdict = mark ? (mark === "✓" ? "did what it should" : mark === "⊘" ? "done by you in the browser — not tested by the run" : "this step failed") : "running…";
         renderAutomation();
       }
-      window.spineSession?.planStep(at, m[4] ? (m[4].trim() === "✓" ? "ok" : "bad") : "run");
+      window.spineSession?.planStep(at, mark ? (mark === "✓" ? "ok" : mark === "⊘" ? "skip" : "bad") : "run", mark === "⊘" ? "Done by you in the browser — not tested by the run." : undefined);
       setRunBar(Number(m[1]), Number(m[2]));
       if (m[4]) planNext = Number(m[1]);
     }
@@ -5476,10 +5537,11 @@ function runTestCase(textOverride) {
       proof: planResult?.proof,
       reason: planResult?.reason || (d.exitCode === 0 ? "" : "the browser run ended before the journey was finished"),
       saved: !!planResult?.route?.savedTo,
+      byHand: !!planResult?.byHand,
       // Its bugs, when the app did something wrong on the way; being stuck is not one.
       runId: planVerdicts ? exploring.runId : "",
     });
-    else renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: d.exitCode === 0 && planResult?.passed !== false });
+    else renderUiInstructResult("result", { title: planTitle, steps: planResult?.steps ?? [], passed: d.exitCode === 0 && planResult?.passed !== false, byHand: planResult?.byHand || 0 });
     // The compiler itself can refuse to run: no step exists yet for the thing
     // the case checks, so it ran nothing rather than a substitute. Exit 0 in
     // that case means "nothing broke while doing nothing" — the opposite of
@@ -5489,7 +5551,7 @@ function runTestCase(textOverride) {
       d.notRun
         ? "Not tested — no step exists yet for what this case checks"
         : d.exitCode === 0
-          ? "✓ test case passed"
+          ? planResult?.byHand ? "◐ partly tested — some steps were done by you in the browser" : "✓ test case passed"
           : !planStarted
             ? `✗ Not tested — the run could not start${planError ? `: ${planError}` : ""}`
             : `✗ test case failed (exit ${d.exitCode})`,

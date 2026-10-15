@@ -476,8 +476,28 @@ const STATE_NOT_BUILT: Record<string, string> = {
 };
 
 /** Why this case cannot produce an informative result as written, if it cannot. */
+const WRITE_STEP = /\b(activat\w*|apply|applied|issue|patch|post|put|delete|remove|flip|publish|re-?publish|reject|attempt|add|create|submit|update|change|upload|cancel|withdraw\w*|extend|award|approve)\b/i;
+
 export function unrunnableReason(c: TestCaseRecord): string | null {
   if (c.notRunnable) return c.notRunnable;
+  // A case whose stored request is the generic payload, without the change it
+  // describes ("Activate with 501 uuids"), can only show the server did not
+  // crash. Run, it passed as the scenario it names: an RFQ run reported "16 of
+  // 16 passed" for sixteen of these, each a plain read of the event. Set aside
+  // until its request carries what it tests.
+  if (c.weakReason) return "its request does not include what the case tests yet (a generic payload), so it could only show the server did not crash — set aside until its request is written";
+  // The same thing, unlabelled: a read (GET) held only to "no server error",
+  // for a case whose steps make a change it never sends ("Apply the same
+  // company twice", "Withdraw, then re-issue") — a read of the event passed as
+  // that scenario. A step that is itself a GET is a read case, and stays.
+  // A request carried over from the journey's own step (pathSource "carried"),
+  // held only to "no server error": "The approval workflow is readable" sent
+  // the journey's add_response and passed on a 422. Not written for the case.
+  if ((c as any).pathSource === "carried" && c.expected === "no-5xx")
+    return "its request is borrowed from the journey's own step and does not include what the case tests, so it could only show the server did not crash — set aside until its request is written";
+  const steps = (Array.isArray((c as any).steps) ? (c as any).steps : []).map(String);
+  if (String(c.method).toUpperCase() === "GET" && c.expected === "no-5xx" && steps.some((st: string) => WRITE_STEP.test(st) && !/\bGET\b/.test(st)))
+    return "its request only reads (GET) while its steps make a change it never sends, so it could only show the server did not crash — set aside until its request is written";
   // A draft that must already carry a round of its own: not built here (the
   // own-draft builder makes an empty draft with one line item).
   if (
@@ -690,6 +710,29 @@ function caseSettingSkip(c: TestCaseRecord, settings: Record<string, boolean | n
       return `this case only holds when the company setting "${g.key}" is ${wantOn ? "ON" : "OFF"}; it is ${have ? "ON" : "OFF"} for this company, so the outcome it expects would not apply`;
   }
   return null;
+}
+
+export type SetAsideKind = "as-written" | "state" | "setting" | "access" | "other";
+
+/**
+ * WHY A CASE IS SET ASIDE, IN THE GROUPS RUN TESTS NAMES.
+ *
+ * Run tests promises only the cases a run will try, and says why the rest are
+ * set aside. It said "they need a state this run can't build" for every one,
+ * also for cases whose request does not send what they test (a GET held to
+ * no-5xx), and it promised a case the account's settings rule out — the run
+ * then ran 1 of the 2 it had promised (15 Oct). Decided here the way a run
+ * decides: unrunnableReason first, then the company setting (caseSettingSkip,
+ * as buildChecksFromCases does). Null: the run will try it.
+ */
+export function setAsideKind(c: TestCaseRecord, settings?: Record<string, boolean | null>): SetAsideKind | null {
+  const why = unrunnableReason(c);
+  if (!why) return caseSettingSkip(c, settings) ? "setting" : null;
+  if (/does not include what the case tests|only reads \(|paraphrase|^Manual case|not wired as its own check/i.test(why)) return "as-written";
+  if (/company setting|switched ON|_enabled off|is OFF on/i.test(why)) return "setting";
+  if (/app gate|is not enabled for this action|may not call|caller WITHOUT|unauthenticated caller|no access to|authenticated as|buyer without|another company|different company|ANOTHER company|another workspace|belongs? to (other|whichever) compan/i.test(why)) return "access";
+  if (/^needs\b/i.test(why)) return "state";
+  return "other";
 }
 
 /**

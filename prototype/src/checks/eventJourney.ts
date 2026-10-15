@@ -330,6 +330,8 @@ interface EventBuild {
   timing: StageTiming;
   eventGroupUuid?: string;
   lineItemUuid?: string;
+  /** every line item Procol created, in order — lineItemUuid is the first */
+  lineItems?: Array<{ uuid: string; productUuid: string; qualityUuid: string }>;
   /** the round trades, in the order they were attached */
   trades: Array<{ kind: StageKind; uuid: string }>;
   /** what the publish call answered */
@@ -389,8 +391,14 @@ interface Journey {
   evaluatorProblem?: string;
   /** the pricing round's product ids, read by the vendor (or the buyer, for a surrogate) */
   tradeProduct?: any;
+  /** every line item on the pricing round as the vendor reads it (tradeProduct is the first) */
+  tradeProducts?: Array<{ lineItemUuid: string; tradeProduct: any; productUuid?: string; qualityUuid?: string }>;
+  /** the company's products, read once, for line items 2..n */
+  productChoices?: any[];
   /** the technical round's forms, read by the vendor */
   techForm?: { formUuid: string; pageUuid: string; formCount: number };
+  /** every line-item form on the technical round (techForm is the first) */
+  techForms?: Array<{ formUuid: string; pageUuid: string }>;
   bidTotal?: number;
   bidPlaced: boolean;
   techResponded: boolean;
@@ -495,12 +503,15 @@ const clean = (text: unknown): string | undefined => {
 
 /** Fire one request through the sibling client; never throws. */
 async function fire(api: any, method: string, path: string, body?: unknown): Promise<{ call: JourneyCall; reply: Reply }> {
-  const call: JourneyCall = { method, path, ...(body === undefined ? {} : { body: redactBody(body) }) };
+  // Recorded after the call: the API client renames a generated event title in
+  // place as it sends (procol test tagAutomationTitle), and the record — the
+  // curl, the "came back as sent" field checks — must hold what was really sent.
+  const callOf = (): JourneyCall => ({ method, path, ...(body === undefined ? {} : { body: redactBody(body) }) });
   const t = Date.now();
   try {
     const r = await api.attempt(method, path, body === undefined ? {} : { body });
     return {
-      call,
+      call: callOf(),
       reply: {
         status: typeof r?.status === "number" ? r.status : 0,
         ok: !!r?.ok,
@@ -512,10 +523,63 @@ async function fire(api: any, method: string, path: string, body?: unknown): Pro
     };
   } catch (e) {
     return {
-      call,
+      call: callOf(),
       reply: { status: 0, ok: false, data: null, errorMessage: e instanceof Error ? e.message : String(e), ms: Date.now() - t },
     };
   }
+}
+
+/**
+ * A round's body carries one line item as the builders write it; with more on
+ * the draft, every one goes in — a pricing row each, and a line-item form each
+ * on a technical round — or the round quotes and evaluates only the first.
+ */
+function withEveryLineItem(body: any, sk: StageKind, lines: EventBuild["lineItems"]): void {
+  if (!lines || lines.length < 2) return;
+  if (sk === "rfp" && Array.isArray(body?.forms) && body.forms.length >= 2) {
+    const [general, form] = body.forms;
+    body.forms = [general, ...lines.map((li, i) => ({ ...form, order: 2 + i, event_group_line_item_uuid: li.uuid }))];
+    return;
+  }
+  if (Array.isArray(body?.data) && body.data.length === 1) {
+    const row = body.data[0];
+    body.data = lines.map((li, i) => ({
+      ...row,
+      product: { ...row.product, uuid: li.productUuid, event_group_line_item_uuid: li.uuid },
+      variant: { ...row.variant, uuid: li.qualityUuid },
+      order: i + 1,
+    }));
+  }
+}
+
+/** The name the API client gives a generated event as it sends it — used from the start, so every record agrees with Procol. */
+const spineTitle = () => `spine-API-automation-${Math.floor(10_000_000 + Math.random() * 90_000_000)}`;
+
+/**
+ * A buyer's counter offer: 10% below the vendor's price, as a buyer negotiates.
+ * It was the price plus ₹50 — the buyer asking the vendor to charge more.
+ */
+const counterOf = (price: number) => Math.max(1, Math.round(price * 0.9));
+
+/** Products for line items 2..n: different from the catalog's own, and orderable in the journey's unit. */
+async function moreProducts(j: Journey, want: number): Promise<Array<{ uuid: string; qualityUuid: string }>> {
+  if (want <= 0 || !j.s.resolveCatalogAlternatives) return [];
+  if (!j.productChoices) {
+    j.productChoices = await withWatchdog(j.s.resolveCatalogAlternatives(j.client.ctx.buyerApi), 45_000, "reading the company's products")
+      .then((a: any) => (Array.isArray(a?.products) ? a.products : []))
+      .catch(() => []);
+  }
+  const unit = String(j.unit).toLowerCase();
+  const seen = new Set([j.catalog.productUuid]);
+  const out: Array<{ uuid: string; qualityUuid: string }> = [];
+  for (const p of j.productChoices ?? []) {
+    if (out.length >= want) break;
+    if (!p?.uuid || !p?.qualityUuid || seen.has(p.uuid)) continue;
+    if (Array.isArray(p.units) && p.units.length && !p.units.some((u: string) => String(u).toLowerCase() === unit)) continue;
+    seen.add(p.uuid);
+    out.push({ uuid: String(p.uuid), qualityUuid: String(p.qualityUuid) });
+  }
+  return out;
 }
 
 // ── words ──────────────────────────────────────────────────────────────────
@@ -803,7 +867,7 @@ const createDraft: StepSpec = {
   needs: (j, _ev, done) => needBuyer(j, done),
   expected: (j) => {
     const n = Math.max(1, Math.floor(j.opts.lineItemCount ?? 1));
-    return `A draft event is created for ${j.company} with ${n === 1 ? "one line item" : `${n} line items`} (${j.qty} ${j.unit} of the catalog product${n === 1 ? "" : " each"}) and comes back with its id.`;
+    return `A draft event is created for ${j.company} with ${n === 1 ? "one line item" : `${n} line items, each a different catalog product`} (${j.qty} ${j.unit}${n === 1 ? "" : " each"}) and comes back with ${n === 1 ? "its id" : `${n} line item ids`}.`;
   },
   run: async (j, ev) => {
     const body = j.s.bodies.buildEventGroupBody({
@@ -813,23 +877,29 @@ const createDraft: StepSpec = {
       productQualityUuid: j.catalog.productQualityUuid,
     });
     const n = Math.max(1, Math.floor(j.opts.lineItemCount ?? 1));
-    if (n > 1 && Array.isArray(body.line_items) && body.line_items.length === 1) {
-      body.line_items = Array.from({ length: n }, () => ({ ...body.line_items[0] }));
+    // One product sent twice is kept once by Procol: "2 line items" made an
+    // event with one, and the step still said two. Each line item is now a
+    // different product from the company's catalog, and the count reported is
+    // the one Procol answers with.
+    const products = [{ uuid: j.catalog.productUuid, qualityUuid: j.catalog.productQualityUuid }, ...(n > 1 ? await moreProducts(j, n - 1) : [])];
+    if (Array.isArray(body.line_items) && body.line_items.length === 1 && products.length > 1) {
+      body.line_items = products.map((p) => ({ ...body.line_items[0], product_uuid: p.uuid, product_quality_uuid: p.qualityUuid }));
     }
     const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.eventGroups(), body);
     if (!reply.ok) return { call, reply };
     const uuid = reply.data?.uuid;
-    const lineItem = reply.data?.event_group_line_item_ids?.[0];
+    const ids: string[] = (Array.isArray(reply.data?.event_group_line_item_ids) ? reply.data.event_group_line_item_ids : []).map(String);
     if (!uuid) return { call, reply, shortfall: "the reply carried no event id" };
-    if (!lineItem) return { call, reply, shortfall: `draft ${uuid} came back without a line item id` };
+    if (!ids.length) return { call, reply, shortfall: `draft ${uuid} came back without a line item id` };
     ev.eventGroupUuid = String(uuid);
-    ev.lineItemUuid = String(lineItem);
-    return {
-      call,
-      reply,
-      actual: `Draft ${uuid} was created with ${body.line_items.length === 1 ? "one line item" : `${body.line_items.length} line items`} (${j.qty} ${j.unit}${body.line_items.length === 1 ? "" : " each"}).`,
-      produced: { eventGroupUuid: String(uuid), lineItemUuid: String(lineItem) },
-    };
+    ev.lineItemUuid = ids[0];
+    ev.lineItems = ids.map((id, i) => ({ uuid: id, productUuid: products[i]?.uuid ?? j.catalog.productUuid, qualityUuid: products[i]?.qualityUuid ?? j.catalog.productQualityUuid }));
+    const made = `Draft ${uuid} was created with ${ids.length === 1 ? "one line item" : `${ids.length} line items`} (${j.qty} ${j.unit}${ids.length === 1 ? "" : " each"})`;
+    const produced = { eventGroupUuid: String(uuid), lineItemUuid: ids[0], lineItemUuids: ids.join(","), lineItems: String(ids.length) };
+    if (products.length < n)
+      return { call, reply, produced, shortfall: `${made}, not the ${n} asked for: ${j.company}'s catalog has only ${count(products.length, "product")} that can be ordered in ${j.unit}` };
+    if (ids.length < n) return { call, reply, produced, shortfall: `${made}: ${count(n, "line item")} were sent and Procol kept ${ids.length}` };
+    return { call, reply, actual: `${made}.`, produced };
   },
 };
 
@@ -884,6 +954,7 @@ function addStage(kind: "add_stage_rfp" | "add_stage_pricing"): StepSpec {
               ...(j.opts.deliveryInDays ? { deliveryBy: ev.timing.bst + Math.round(j.opts.deliveryInDays * 86_400) } : {}),
             });
       if (j.audience || (j.vendorCompanyUuid && widerAudience(j))) (body as any).audience_company_uuids = audienceOf(j);
+      withEveryLineItem(body, sk, ev.lineItems);
       const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.createTrade(), body);
       if (!reply.ok) return { call, reply };
       const uuid = reply.data?.uuid;
@@ -942,10 +1013,11 @@ const publish: StepSpec = {
     const rounds = arrLen(reply.data?.stages) ?? uuids.length;
     ev.status = status;
     ev.roundCount = rounds;
+    const seenBy = arrLen((body as any).audience_company_uuids) ?? (j.vendorCompanyUuid ? 1 : 0);
     return {
       call,
       reply,
-      actual: `“${ev.title}” is now ${status} with ${count(rounds, "round")}, visible to 1 vendor.`,
+      actual: `“${ev.title}” is now ${status} with ${count(rounds, "round")}, visible to ${count(seenBy, "invited vendor")}.`,
       produced: { status, rounds: String(rounds) },
     };
   },
@@ -1018,28 +1090,38 @@ const vendorLogin: StepSpec = {
 const vendorOpenPricing: StepSpec = {
   kind: "vendor_open_pricing",
   needs: (j, ev, done) => first(needVendor(j, done), needPricing(j, ev, done), needPublished(j, ev, done)),
-  expected: (j) => `The vendor can open the pricing round and sees the line item (${j.qty} ${j.unit}) to quote on.`,
+  expected: (j, ev) => {
+    const n = ev.lineItems?.length ?? 1;
+    return `The vendor can open the pricing round and sees ${n === 1 ? "the line item" : `all ${n} line items`} (${j.qty} ${j.unit}${n === 1 ? "" : " each"}) to quote on.`;
+  },
   run: async (j, ev) => {
     const { call, reply } = await fire(j.actors.vendorApi, "GET", j.s.Endpoints.tradeDetails(tradeOf(ev, "pricing")!));
     if (!reply.ok) return { call, reply };
-    const details = reply.data?.order_details;
-    const p = details?.[0]?.product;
+    const details: any[] = Array.isArray(reply.data?.order_details) ? reply.data.order_details : [];
+    const p = details[0]?.product;
     if (!p?.trade_product_uuid) return { call, reply, shortfall: "the round came back without its line item's product ids" };
-    j.tradeProduct = {
-      trade_product_uuid: p.trade_product_uuid,
-      trade_product_id: p.trade_product_id,
-      trade_product_category_uuid: p.trade_product_category_uuid,
-      product_id: p.id,
-      product_code: p.product_code,
-    };
+    const tp = (x: any) => ({
+      trade_product_uuid: x.trade_product_uuid,
+      trade_product_id: x.trade_product_id,
+      trade_product_category_uuid: x.trade_product_category_uuid,
+      product_id: x.id,
+      product_code: x.product_code,
+    });
+    j.tradeProduct = tp(p);
+    j.tradeProducts = details
+      .filter((d) => d?.product?.trade_product_uuid)
+      .map((d, i) => ({
+        lineItemUuid: String(d.product.event_group_line_item_uuid ?? ev.lineItems?.[i]?.uuid ?? ev.lineItemUuid),
+        tradeProduct: tp(d.product),
+        productUuid: d.product.uuid ? String(d.product.uuid) : undefined,
+        qualityUuid: d.variant?.uuid ? String(d.variant.uuid) : undefined,
+      }));
     const qty = details[0]?.quantity?.value ?? details[0]?.creator_quantity?.value ?? j.qty;
     const unit = details[0]?.quantity?.unitSymbol ?? details[0]?.quantity?.unit ?? j.unit;
-    return {
-      call,
-      reply,
-      actual: `The vendor sees ${count(Array.isArray(details) ? details.length : 1, "line item")} (${qty} ${unit}) on the pricing round.`,
-      produced: { tradeProductUuid: String(p.trade_product_uuid) },
-    };
+    const sees = `The vendor sees ${count(j.tradeProducts.length, "line item")} (${qty} ${unit}${j.tradeProducts.length === 1 ? "" : " each"}) on the pricing round`;
+    const want = ev.lineItems?.length ?? 1;
+    if (j.tradeProducts.length < want) return { call, reply, shortfall: `${sees}, though the event has ${want}` };
+    return { call, reply, actual: `${sees}.`, produced: { tradeProductUuid: String(p.trade_product_uuid) } };
   },
 };
 
@@ -1056,6 +1138,8 @@ const vendorOpenTechnical: StepSpec = {
       return { call, reply, shortfall: `the round came back with ${count(arrLen(forms) ?? 0, "form")} and no line-item form to answer` };
     }
     j.techForm = { formUuid: String(lineItemForm.uuid), pageUuid: String(lineItemForm.page_uuids[0]), formCount: forms.length };
+    // One line-item form per line item, after the general form.
+    j.techForms = (forms as any[]).slice(1).filter((f) => f?.uuid && f?.page_uuids?.[0]).map((f) => ({ formUuid: String(f.uuid), pageUuid: String(f.page_uuids[0]) }));
     return {
       call,
       reply,
@@ -1092,16 +1176,19 @@ const techAnswer: StepSpec = {
       need(j, done, "no technical response was opened to answer", j.made.templateResponseUuid, "tech_start"),
       need(j, done, "the technical round's form was never read", j.techForm, "vendor_open_technical"),
     ),
-  expected: () => `The line-item form is answered (Specs: “auto spec answer”) and the app accepts the answers.`,
+  expected: (j) => {
+    const n = j.techForms?.length ?? 1;
+    return `${n === 1 ? "The line-item form is" : `All ${n} line-item forms are`} answered (Specs: “auto spec answer”) and the app accepts the answers.`;
+  },
   run: async (j, ev) => {
-    const body = j.s.bodies.buildTechnicalAnswerBody({
-      technicalTradeUuid: tradeOf(ev, "rfp"),
-      formUuid: j.techForm!.formUuid,
-      pageUuid: j.techForm!.pageUuid,
-    });
-    const { call, reply } = await fire(j.actors.vendorApi, "PUT", j.s.Endpoints.createPageResponses(j.made.templateResponseUuid), body);
-    if (!reply.ok) return { call, reply };
-    return { call, reply, actual: `The line-item form was answered (Specs: “auto spec answer”).` };
+    const forms = j.techForms?.length ? j.techForms : [j.techForm!];
+    let last: Awaited<ReturnType<typeof fire>> | undefined;
+    for (const f of forms) {
+      const body = j.s.bodies.buildTechnicalAnswerBody({ technicalTradeUuid: tradeOf(ev, "rfp"), formUuid: f.formUuid, pageUuid: f.pageUuid });
+      last = await fire(j.actors.vendorApi, "PUT", j.s.Endpoints.createPageResponses(j.made.templateResponseUuid), body);
+      if (!last.reply.ok) return last;
+    }
+    return { ...last!, actual: `${forms.length === 1 ? "The line-item form was" : `All ${forms.length} line-item forms were`} answered (Specs: “auto spec answer”).` };
   },
 };
 
@@ -1143,25 +1230,48 @@ const bidProducts: StepSpec = {
       need(j, done, "the pricing round's product ids were never read", j.tradeProduct, "vendor_open_pricing"),
       needDraft(j, ev, done),
     ),
-  expected: (j) =>
-    `The line item is priced at ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} — ${rupees(j.price * j.qty)} before tax — and the app accepts it.`,
+  expected: (j) => {
+    const n = j.tradeProducts?.length ?? 1;
+    return n === 1
+      ? `The line item is priced at ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} — ${rupees(j.price * j.qty)} before tax — and the app accepts it.`
+      : `All ${n} line items are priced at ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} each — ${rupees(j.price * j.qty * n)} before tax — and the app accepts it.`;
+  },
   run: async (j, ev) => {
-    const { body, total } = j.s.bodies.buildBidProductsBody({
-      pricingTradeUuid: tradeOf(ev, "pricing"),
-      vendorCompanyUuid: j.vendorCompanyUuid,
-      productUuid: j.catalog.productUuid,
-      productQualityUuid: j.catalog.productQualityUuid,
-      locationUuid: j.catalog.locationUuid,
-      lineItemUuid: ev.lineItemUuid,
-      quantityValue: j.qty,
-      quantityUnit: j.unit,
-      price: j.price,
-      tradeProduct: j.tradeProduct,
+    const lines = j.tradeProducts?.length ? j.tradeProducts : [{ lineItemUuid: ev.lineItemUuid!, tradeProduct: j.tradeProduct }];
+    let body: any;
+    let total = 0;
+    const rows: any[] = [];
+    lines.forEach((l, i) => {
+      const li = ev.lineItems?.find((x) => x.uuid === l.lineItemUuid);
+      const built = j.s.bodies.buildBidProductsBody({
+        pricingTradeUuid: tradeOf(ev, "pricing"),
+        vendorCompanyUuid: j.vendorCompanyUuid,
+        productUuid: l.productUuid ?? li?.productUuid ?? j.catalog.productUuid,
+        productQualityUuid: l.qualityUuid ?? li?.qualityUuid ?? j.catalog.productQualityUuid,
+        locationUuid: j.catalog.locationUuid,
+        lineItemUuid: l.lineItemUuid,
+        quantityValue: j.qty,
+        quantityUnit: j.unit,
+        price: j.price,
+        tradeProduct: l.tradeProduct,
+      });
+      total += built.total;
+      const row = built.body.sheets.inline_components.data[j.vendorCompanyUuid][0];
+      rows.push({ ...row, serial_number: { ...row.serial_number, value: i + 1 } });
+      body ??= built.body;
     });
+    body.sheets.inline_components.data[j.vendorCompanyUuid] = rows;
     const { call, reply } = await fire(j.actors.vendorApi, "POST", j.s.Endpoints.createBidProducts(j.made.bidUuid), body);
     if (!reply.ok) return { call, reply };
     j.bidTotal = total;
-    return { call, reply, actual: `Quoted ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} — ${rupees(total)} before tax.` };
+    return {
+      call,
+      reply,
+      actual:
+        lines.length === 1
+          ? `Quoted ${rupees(j.price)} per ${j.unit} for ${j.qty} ${j.unit} — ${rupees(total)} before tax.`
+          : `Quoted ${rupees(j.price)} per ${j.unit} on all ${lines.length} line items (${j.qty} ${j.unit} each) — ${rupees(total)} before tax.`,
+    };
   },
 };
 
@@ -1279,9 +1389,9 @@ const counterOffer: StepSpec = {
       need(j, done, "the pricing round's product ids were never read", j.tradeProduct, "vendor_open_pricing"),
       needDraft(j, ev, done),
     ),
-  expected: (j) => `The buyer counters ${j.vendorName}'s ${rupees(j.price)} per ${j.unit} with ${rupees(j.price + 50)} and the app raises the counter offer.`,
+  expected: (j) => `The buyer counters ${j.vendorName}'s ${rupees(j.price)} per ${j.unit} with a lower ${rupees(counterOf(j.price))} and the app raises the counter offer.`,
   run: async (j, ev) => {
-    const counterPrice = j.price + 50;
+    const counterPrice = counterOf(j.price);
     const body = j.s.bodies.buildCounterOfferBody({
       bidUuid: j.made.bidUuid,
       productUuid: j.catalog.productUuid,
@@ -1649,9 +1759,17 @@ const awardLines: StepSpec = {
   expected: (j) => `${j.qty} ${j.unit} of the line item is awarded to ${j.vendorName} on the proposal and the app accepts it.`,
   run: async (j, ev) => {
     const body = j.s.bodies.buildAwardResponseBody({ vendorCompanyUuid: j.vendorCompanyUuid, lineItemUuid: ev.lineItemUuid, quantityValue: j.qty });
+    // Every line item on the proposal, not only the first.
+    const lines = ev.lineItems?.length ? ev.lineItems : [];
+    const egli = body?.responses?.[j.vendorCompanyUuid]?.egli_data;
+    if (egli && lines.length > 1) for (const li of lines) egli[li.uuid] = { awarded_quantity: j.qty };
     const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.proposalAddResponse(j.made.proposalUuid), body);
     if (!reply.ok) return { call, reply };
-    return { call, reply, actual: `Awarded ${j.qty} ${j.unit} of the line item to ${j.vendorName}.` };
+    return {
+      call,
+      reply,
+      actual: lines.length > 1 ? `Awarded ${j.qty} ${j.unit} of each of the ${lines.length} line items to ${j.vendorName}.` : `Awarded ${j.qty} ${j.unit} of the line item to ${j.vendorName}.`,
+    };
   },
 };
 
@@ -2199,7 +2317,7 @@ function unitBlame(j: Journey, unit: string): string | undefined {
 function freshEvent(j: Journey, mode: "journey" | "variations"): EventBuild {
   j.res.rebuilds++;
   const suffix = `_retry${j.res.rebuilds}`;
-  if (mode === "variations") return { title: `QA_Platform_Variations_${Date.now()}`, timing: j.s.bodies.stageTiming(nowSec(), 1800), trades: [] };
+  if (mode === "variations") return { title: spineTitle(), timing: j.s.bodies.stageTiming(nowSec(), 1800), trades: [] };
   return { title: `${j.title}${suffix}`, timing: journeyTiming(nowSec(), j.stageSeconds), trades: [] };
 }
 
@@ -2429,7 +2547,7 @@ const VARIATIONS_NOTE =
  * that was refused is not tried again) and walked the same resilient way.
  */
 async function buildVariationsEvent(j: Journey): Promise<{ variationsEvent?: VariationsEvent; forCases?: JourneyRunResult["forCases"] }> {
-  const ev0: EventBuild = { title: `QA_Platform_Variations_${Date.now()}`, timing: j.s.bodies.stageTiming(nowSec(), 1800), trades: [] };
+  const ev0: EventBuild = { title: spineTitle(), timing: j.s.bodies.stageTiming(nowSec(), 1800), trades: [] };
   const kinds: StepKind[] = [
     "create_draft",
     ...j.plan.stages.map((sk): StepKind => (sk === "rfp" ? "add_stage_rfp" : "add_stage_pricing")),
@@ -2470,7 +2588,15 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
   const stageSeconds = opts.stageSeconds && opts.stageSeconds > 0 ? Math.floor(opts.stageSeconds) : 45;
-  const title = `${opts.titlePrefix ?? "API_Journey"}_${TITLE_TAG[plan.eventType]}_${Date.now()}`;
+  // The name Procol will show. The API client renames a generated title
+  // (API_Journey_…, QA_Platform_…) to "spine-API-automation-<n>" as it sends
+  // it, so a journey named the old way narrated one name, showed it in its
+  // curl, and failed its own "title came back as sent" check against the
+  // other. Named that way from the start, all three agree with Procol.
+  const title =
+    opts.titlePrefix && !/^(API_Journey|QA_Platform|API_Test)$/.test(opts.titlePrefix)
+      ? `${opts.titlePrefix}_${TITLE_TAG[plan.eventType]}_${Date.now()}`
+      : spineTitle();
   const planned = plan.steps.length;
   const budgetMs = opts.journeyBudgetMs && opts.journeyBudgetMs > 0 ? opts.journeyBudgetMs : BOUNDS.journeyMs;
 

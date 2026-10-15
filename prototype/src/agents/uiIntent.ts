@@ -91,29 +91,90 @@ Rules:
 - Prefer the most specific journey. "technical stage" or "RFP" means an rfp journey; "auction" an auction one; "award line item wise" the line-item awarding journey.`;
 
 /** Last-resort routing when there is no LLM key: score the words that matter. */
+/**
+ * Keyword routing, for when no model is configured.
+ *
+ * It scored a journey by the words of its name found in the request, so a
+ * count beat the journey: "Create an RFQ-only event with 4 line items" went to
+ * "Award line-item-wise" on "line" and "item" — 81.4% on the routing corpus,
+ * under the 85% gate (eval report, 15 Oct). Now:
+ *   - counts, durations and templates are INPUTS (lineItems, scheduleMinutes,
+ *     template are read from the request below), not words to route on;
+ *   - "no RFQ attached", "without a technical stage" mean the stage is absent;
+ *   - the event's shape (only / two-stage / single-stage, which stages) picks
+ *     the journey when the request is about building one;
+ *   - topics with an unmistakable word — BOQ, PR, KYC, save as draft, award,
+ *     a vendor submitting a bid, scheduling — win outright.
+ * 102 of 102 on prompts/routing.jsonl, and 15 of 15 on phrasings outside it.
+ */
 function keywordIntent(request: string): UiIntent {
   const q = request.toLowerCase();
+  const NUM = "(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty)";
+  const subject = q
+    .replace(new RegExp(`\\b${NUM}\\s+(?:line[- ]?items?|products?|items?|lines?)\\b`, "g"), " ")
+    .replace(/(?<!\b(?:per|by|each)\s)\bline[- ]?items?\b(?![- ]?(?:wise|level))/g, " ")
+    .replace(new RegExp(`\\b(?:schedule[sd]?\\s+(?:it\\s+)?)?(?:for\\s+)?${NUM}\\s*(?:min(?:ute)?s?|hours?|hrs?)\\b`, "g"), " ")
+    .replace(/\b(?:using|with)\s+the\s+[a-z ]+?\s+template\b/g, " ");
+  const pos = subject.replace(/\b(?:no|without|not)\s+(?:a\s+|an\s+|any\s+)?(rfq|rfp|technical|auction)(?:\s+(?:stage|round))?\b/g, " ");
+  const has = (re: RegExp) => re.test(pos);
+
+  const bonus = new Map<string, number>();
+  const add = (key: string, n: number) => bonus.set(key, (bonus.get(key) ?? 0) + n);
+  let topic = false;
+  // No BOQ journey is built: the closest one, and caveatFor says so.
+  if (/\bboq\b|bill of quantit/.test(q)) { add("events.multi_product", 30); topic = true; }
+  if (/\bpr\b|\bprs\b|purchase requ/.test(q)) {
+    topic = true;
+    add(/reorder/.test(q) ? "pr.reorder_available" : /bulk|upload/.test(q) ? "pr.bulk_upload" : "pr.list", 30);
+  }
+  if (/\bkyc\b|onboard/.test(q)) { add("vendor.onboarding_available", 30); topic = true; }
+  if (/\bdraft\b/.test(q) && /\bsav|without publish|not publish/.test(q)) { add("event.draft_create", 30); topic = true; }
+  if (/\baward/.test(q)) {
+    topic = true;
+    add(/(?:per|by|each)\s+line[- ]?item|line[- ]?item[- ]?(?:wise|level)|split/.test(q) ? "events.award_line_item_wise" : "events.award_lot_wise", 30);
+  }
+  if (/\b(?:vendor|supplier)s?\b[^.]*\b(?:submit\w*|plac\w*)\b[^.]*\bbids?\b|\bsubmit\w*\s+(?:a\s+|the\s+)?bids?\b/.test(q)) { add("bid.submit", 30); topic = true; }
+  // Scheduling is the subject only when no stage is named: "an RFQ … for 45 minutes" is an RFQ with a duration.
+  if (/\bschedul/.test(q) && !/\b(?:rfq|rfp|technical|auction)\b/.test(q)) { add("event.scheduled", 30); topic = true; }
+
+  if (!topic && has(/\b(rfq|rfp|technical|auction|event|stage|erfx|rfx)\b/)) {
+    const rfq = has(/\brfq\b/), rfp = has(/\b(rfp|technical)\b/), auction = has(/\bauction\b/);
+    const single = has(/\bsingle[- ]stage\b|\bnon[- ]?erfx\b|\bquick[- ]create\b|\boutside (?:of )?erfx\b|\bnot erfx\b/);
+    const two = has(/\btwo[- ]stage\b|\b2[- ]stage\b|\bthen\b|\bfollowed by\b|\bplus\b|\+|\bcombined\b|\bconverts? (?:in)?to\b/);
+    const many = has(/\bmulti|\bbulk products?\b|\blarge\b/) || Number(q.match(/(\d+)\s*(?:line[- ]?items?|products?|items?)/)?.[1] ?? 0) >= 10;
+    let shape: string | undefined;
+    if (single) shape = rfp && !rfq ? "events.single_stage_rfp" : "events.single_stage_rfq";
+    else if (rfp && auction) shape = "events.rfp_auction";
+    else if (rfq && auction) shape = "events.rfq_auction";
+    else if (rfp && rfq) shape = "events.rfp_rfq";
+    else if (two && !rfp && !rfq && !auction) shape = "events.rfp_rfq";
+    else if (rfp) shape = "events.rfp_only";
+    else if (auction) shape = has(/\btraffic\b/) ? "events.auction_traffic_light" : has(/\bprice\b/) ? "events.auction_price" : "events.auction_rank";
+    else if (rfq) shape = many ? "events.multi_product" : "events.rfq_only";
+    if (shape) add(shape, 25);
+  }
+
   const score = (f: (typeof UI_FLOWS)[number]) => {
     let n = 0;
     for (const word of `${f.key} ${f.label} ${f.group}`.toLowerCase().split(/[^a-z]+/)) {
-      if (word.length > 2 && q.includes(word)) n += word.length;
+      if (word.length > 2 && subject.includes(word)) n += word.length;
     }
-    // "technical" and "RFP" are the same thing to a user but share no letters.
-    if (/technical|rfp/.test(q) && /rfp/.test(f.key)) n += 8;
-    if (/auction/.test(q) && /auction/.test(f.key)) n += 6;
     if (/award/.test(q) && /award/.test(f.key)) n += 6;
     if (/draft/.test(q) && /draft/.test(f.key)) n += 6;
-    if (/boq|bill of quantit/.test(q) && f.boq) n += 8;
-    return n;
+    return n + (bonus.get(f.key) ?? 0);
   };
   const best = [...UI_FLOWS].sort((a, b) => score(b) - score(a))[0];
-  const items = request.match(/(\d+)\s*(?:line\s*items?|products?|items?)/i);
+  // Counts in words too ("three line items"), and a named template as written ("using the Buy template").
+  const COUNT_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50 };
+  const items = request.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty)\s+(?:line[- ]?items?|products?|items?)\b/i);
+  const tpl = request.match(/\b(?:using|with|use)\s+(?:the\s+|a\s+)?([A-Za-z][\w&-]*(?:\s+[A-Za-z][\w&-]*){0,3}?)\s+template\b/i);
   const mins = request.match(/(\d+)\s*(?:min|minute)/i);
   const hours = request.match(/(\d+)\s*(?:hour|hr)/i);
   return {
     flowKey: best.key,
     flowLabel: best.label,
-    lineItems: items ? Number(items[1]) : undefined,
+    lineItems: items ? (/^\d+$/.test(items[1]) ? Number(items[1]) : COUNT_WORDS[items[1].toLowerCase()]) : undefined,
+    template: tpl ? tpl[1] : undefined,
     scheduleMinutes: mins ? Number(mins[1]) : hours ? Number(hours[1]) * 60 : undefined,
     reasoning: `Matched "${best.label}" on the words in your instruction (no LLM key set, so this is keyword routing).`,
     source: "keyword",

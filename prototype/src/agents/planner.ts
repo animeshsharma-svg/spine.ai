@@ -150,6 +150,7 @@ const DOMAIN_RULES = `
 First decide WHICH SCREEN the test is about:
 - Is it about an EXISTING event (open it, inspect its participants / bids / status, act on it)? Then start with open_event{title|id} and STOP adding create steps — no open_create, no set_title. open_event lands on the event's project page.
 - Is the SUBJECT of the test the events LIST itself — its rows, filters, tabs, sorting, search, or merely that the Create Event control is reachable? Then use open_events_list + expect_events_list and STOP. Do not add open_create, set_title or anything else: those act on a different screen, and a plan that opens the create screen to test the list passes while proving nothing.
+  EXCEPT when the case also says an event the test itself publishes ("a just-published event", "a newly created event") must show up in the list: the list can only be checked for this plan's own event. Then build and publish that event first (the create steps below, through publish and expect_published), then open_events_list, filter_events as the case asks, and expect_event_in_list with NO title — it looks for this plan's own event.
 - Otherwise use open_create and the ordering rules below. open_events_list is NOT a fallback for a test you cannot express: it is only for tests whose subject is the list. If the test is about something this vocabulary cannot do — a conversion popover, a query string, a new browser tab — build the closest plan you CAN out of the create-screen steps rather than substituting the list.
 
 Combinations (the permutation map — pick the path that can actually reach what the case asks for):
@@ -385,6 +386,31 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
   // create repairs move that open to the front and bolt a title onto it.
   const LIST_STEPS = ["open_events_list", "expect_events_list", "expect_create_options", "filter_events", "expect_event_in_list", "expect_event_status"];
 
+  // "A JUST-PUBLISHED EVENT SHOWS UP IN THE LIST": the plan publishes it.
+  // The list can only be checked for this plan's own event (expect_event_in_list
+  // looks for the title this plan gave it). tc041 ("filters by status and a
+  // just-published event shows up in the results") compiled to a list-only
+  // plan that filtered and never looked for any event (eval report, 15 Oct).
+  // Decided before the screen is: with the create steps in, it is a create
+  // test that ends on the list, as tc042's plan already was.
+  const OWN_EVENT_IN_LIST =
+    /\b(?:just|newly|freshly|recently)[- ](?:published|created|made)\s+(?:event|rfq|rfp|auction|project)\b[^.]*\b(?:shows? up|appears?|is listed|is in|in the (?:list|results))/i;
+  if (OWN_EVENT_IN_LIST.test(testCase) && !has("open_event")) {
+    if (!has("publish") && !has("save_draft")) {
+      const firstList = steps.findIndex((s) => LIST_STEPS.includes(s.step));
+      const build = fallbackPlan(testCase).steps;
+      steps.splice(firstList < 0 ? steps.length : firstList, 0, ...build);
+      repairs.push("added the create steps through publish before the list — the case looks for an event it publishes itself, and the list can only be checked for this plan's own event");
+    }
+    if (!has("expect_event_in_list")) {
+      if (!has("open_events_list")) steps.push({ step: "open_events_list" });
+      const names = steps.map((s) => s.step);
+      const after = Math.max(names.lastIndexOf("open_events_list"), names.lastIndexOf("filter_events"), names.lastIndexOf("expect_events_list"));
+      steps.splice(after + 1, 0, { step: "expect_event_in_list" });
+      repairs.push("added expect_event_in_list — the case says the published event shows up in the list, and nothing looked for it");
+    }
+  }
+
   // A plan about an EXISTING event starts by opening it — no create screen,
   // no title. The create repairs turned "open the event, open its
   // participants, capture" into open_create → set_title → open_event, which
@@ -570,7 +596,7 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
    */
   if (has("expect_publish_blocked") && !skipped.size) {
     const OMISSIONS: Array<[RegExp, string, string]> = [
-      [/\b(no|without|missing|blank|empty)\s+(a\s+)?title\b/i, "set_title", "a title"],
+      [/\b(no|without|missing|blank|empty)\s+(a\s+)?(project\s+)?title\b/i, "set_title", "a title"],
       [/\b(no|without|missing)\s+(a\s+)?template\b/i, "select_template", "a template"],
       [/\b(no|without|missing|zero|0)\s+(line\s*)?items?\b/i, "add_line_items", "line items"],
       [/\b(no|without|missing)\s+(a\s+)?schedule\b/i, "set_schedule", "a schedule"],
@@ -579,7 +605,40 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     for (const [pattern, step, what] of OMISSIONS) {
       if (!pattern.test(testCase) || !has(step)) continue;
       steps.splice(indexOf(step), 1);
-      repairs.push(`removed ${step} — the case is about publishing with ${what === "participants" ? "no participants" : `no ${what}`}, so including it would defeat the test`);
+      // Left out on purpose, as an explicit skip is: the repairs below must not put it back.
+      skipped.add(step);
+      repairs.push(`removed ${step} — the case is about publishing without ${what}, so including it would defeat the test`);
+    }
+  }
+
+  /**
+   * NO TITLE MEANS AN EMPTY TITLE FIELD, NOT A TITLE LEFT ALONE.
+   *
+   * Procol fills the project title in from the line item ("RM-BLOCK/BRICK"),
+   * so leaving set_title out no longer leaves it empty: plan-mv9123up
+   * published "without a project title", was told "Project created
+   * successfully" and failed on our plan, not the product (15 Oct). The two
+   * runs that morning that drew "Please fill project title!" had cleared the
+   * field themselves — the compiler's choice, not a rule. Now it is a rule:
+   * the field is emptied right before the publish attempt, after every step
+   * that could fill it.
+   */
+  if (has("expect_publish_blocked") && /\b(no|without|missing|blank|empty)\s+(a\s+)?(project\s+)?title\b/i.test(testCase)) {
+    const clearsTitle = (st: PlanStep) =>
+      st.step === "fill" && /title/i.test(String(st.args?.label ?? "")) && String(st.args?.value ?? "") === "";
+    const at = steps.findIndex(clearsTitle);
+    const target = indexOf("expect_publish_blocked");
+    // The title is empty on purpose: the mandatory-title repair below must not add one.
+    skipped.add("set_title");
+    const inPlace = at >= 0 && at < target && steps.slice(at + 1, target).every((st) => st.step === "skip");
+    if (!inPlace) {
+      if (at >= 0) steps.splice(at, 1);
+      steps.splice(indexOf("expect_publish_blocked"), 0, { step: "fill", args: { label: "Enter the title of the project", value: "" } });
+      repairs.push(
+        at >= 0
+          ? "moved the title clearing to just before publishing — a step after it could fill the title in again"
+          : "added a step that empties the title field — Procol fills the title in from the line item, so leaving set_title out alone publishes with a title",
+      );
     }
   }
 

@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { BasePage } from "./BasePage.js";
+import { controlHeld, released } from "../support/liveControl.js";
 import { recordStuck } from "../oracle/stuck.js";
 import { CONFIG, TIMEOUTS, NAV } from "../config.js";
 import { uatLoginCodes, type UatCode } from "../db/uatOtp.js";
@@ -15,6 +16,19 @@ export class VendorPortalPage extends BasePage {
   constructor(page: Page) {
     super(page);
   }
+
+  /**
+   * The round the vendor answers on this event: "price" (an open RFQ or auction
+   * sheet) or "technical" (the Technical Stage's submission sheet — a 2-stage
+   * event keeps its RFQ locked until that is answered). Set by startBidding.
+   */
+  stage: "price" | "technical" = "price";
+  /** What the last fillBid filled, in words, for the run's narration. */
+  lastFill = "";
+  /** The price the last fillBid was asked for — the RFQ quote after a technical stage uses it too. */
+  private price = 100;
+  /** The technical stage was answered on the way to the price bid (a 2-stage event). */
+  answeredTechnical = false;
 
   async goto(): Promise<void> {
     await this.page.goto(`${CONFIG.vendorUrl.replace(/\/$/, "")}/login`, NAV);
@@ -156,17 +170,52 @@ export class VendorPortalPage extends BasePage {
    * Then some builds need an explicit "Add bid"/"Place bid" to make cells editable.
    */
   async startBidding(match?: string): Promise<void> {
-    // 1. Switch to the stage/bidding tab.
-    await this.clickIfPresent(
-      [
-        ...(match ? [this.page.getByRole("tab", { name: new RegExp(match, "i") })] : []),
-        this.page.getByRole("tab").filter({ hasNotText: /event overview/i }),
-        this.page.locator("[role='tab']").nth(1),
-      ],
-      { label: "stage-tab", timeout: TIMEOUTS.MEDIUM },
-    );
+    // 1. The round to answer. The portal's first tab is the event's Details —
+    // it used to be called "Event Overview", and "the first tab that isn't
+    // Event Overview" became Details itself: the bid step sat on the overview,
+    // found no price cells and waited for a Submit that never came (15 Oct).
+    // An open pricing round (RFQ / Auction) takes the bid. When it is locked
+    // (a Technical + RFQ event shows "RFQ 🔒"), the Technical Stage is what the
+    // vendor answers first.
+    const tabs = this.page.getByRole("tab");
+    await tabs.first().waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+    const names = (await tabs.allInnerTexts().catch(() => [] as string[])).map((t) => t.replace(/\s+/g, " ").trim());
+    const locked = async (i: number) => {
+      const t = tabs.nth(i);
+      return (await t.getAttribute("aria-disabled").catch(() => null)) === "true" || /disabled/i.test((await t.getAttribute("class").catch(() => "")) ?? "");
+    };
+    const isPrice = (n: string) => /^(rfq|auction|commercial|price|quote)/i.test(n);
+    const isTech = (n: string) => /technical|^rfp/i.test(n);
+    let at = -1;
+    this.stage = "price";
+    // The Technical Stage tab carries a green "Submitted" once it is answered.
+    if (names.some((n) => isTech(n) && /submitted/i.test(n))) this.answeredTechnical = true;
+    for (let i = 0; i < names.length && at < 0; i++) if (isPrice(names[i]) && !(await locked(i))) at = i;
+    const priceLocked = at < 0 && names.some(isPrice);
+    if (at < 0) {
+      for (let i = 0; i < names.length && at < 0; i++) if (isTech(names[i]) && !(await locked(i))) { at = i; this.stage = "technical"; }
+    }
+    if (at < 0) at = names.findIndex((n) => !!n && !/^(details|event overview|messages)$/i.test(n));
+    if (at >= 0) {
+      await tabs.nth(at).click({ timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+      console.log(
+        `[vendor] answering the “${names[at]}” round` +
+          (this.stage === "technical" && priceLocked ? " — its RFQ round is locked until the technical stage is answered" : ""),
+      );
+    } else {
+      await this.clickIfPresent(
+        [
+          ...(match ? [this.page.getByRole("tab", { name: new RegExp(match, "i") })] : []),
+          this.page.getByRole("tab").filter({ hasNotText: /event overview|^details$/i }),
+          this.page.locator("[role='tab']").nth(1),
+        ],
+        { label: "stage-tab", timeout: TIMEOUTS.MEDIUM },
+      );
+    }
     await this.waitForSpinnerHidden();
     await this.pause(1000);
+    // A technical submission sheet has no add-bid button; only a pricing round may.
+    if (this.stage === "technical") return;
     // 2. Explicit enter-bid affordance if present.
     await this.clickIfPresent(
       [
@@ -186,6 +235,8 @@ export class VendorPortalPage extends BasePage {
    * in the Price column, then type into the revealed input.
    */
   async fillBid(price = 100): Promise<number> {
+    this.price = price;
+    if (this.stage === "technical") return this.fillTechnical();
     await this.pause(1200);
     // The submission sheet is an ARIA grid (role=columnheader / role=row /
     // role=cell), not an HTML table. Find the Price column index among the
@@ -245,12 +296,133 @@ export class VendorPortalPage extends BasePage {
       await this.page.keyboard.press("Tab").catch(() => {});
     }
     if (filled === 0) console.log("BID_DIAG=" + JSON.stringify(info));
+    // Other required columns (marked *): "Quantity Available*" kept Submit Quote
+    // disabled with the price in (15 Oct). The quantity offered is the quantity
+    // requested on the same row; any other required cell gets a plain value.
+    const extra = await this.fillRequiredColumns();
+    this.lastFill = `filled ${filled} price cell(s)${extra ? ` and ${extra} other required cell(s)` : ""}`;
     return filled;
+  }
+
+  /** Fill empty cells of required (*) columns other than Price; returns how many were filled. */
+  private async fillRequiredColumns(): Promise<number> {
+    const p = this.page;
+    const plan = await p
+      .evaluate(() => {
+        const txt = (e: Element) => ((e as HTMLElement).innerText || "").replace(/\s+/g, " ").trim();
+        const heads = [...document.querySelectorAll("[role='columnheader']")];
+        const required = heads.map((h, i) => ({ i, name: txt(h) })).filter((h) => /\*\s*$/.test(h.name) && !/price/i.test(h.name));
+        const qtyReq = heads.findIndex((h) => /quantity requested/i.test(txt(h)));
+        const out: Array<{ mark: string; value: string }> = [];
+        let n = 0;
+        for (const row of document.querySelectorAll("[role='row']")) {
+          if (row.querySelector("[role='columnheader']")) continue;
+          const cells = [...row.querySelectorAll("[role='cell'], [role='gridcell']")];
+          const asked = qtyReq >= 0 ? (txt(cells[qtyReq] ?? document.body).match(/[\d.]+/)?.[0] ?? "") : "";
+          for (const r of required) {
+            const c = cells[r.i] as HTMLElement | undefined;
+            if (!c) continue;
+            // A placeholder ("10 Unit" in grey) is not a value: an input inside, if any, says.
+            const inp = c.querySelector("input, textarea") as HTMLInputElement | null;
+            const has = inp ? !!inp.value.trim() : !!txt(c) && !c.querySelector("[class*='placeholder' i]");
+            if (has) continue;
+            const mark = `rq${n++}`;
+            c.setAttribute("data-spine-req", mark);
+            out.push({ mark, value: /quantity/i.test(r.name) ? asked || "1" : "1" });
+          }
+        }
+        return out;
+      })
+      .catch(() => [] as Array<{ mark: string; value: string }>);
+    let filled = 0;
+    for (const { mark, value } of plan.slice(0, 40)) {
+      const cell = p.locator(`[data-spine-req="${mark}"]`).first();
+      await cell.scrollIntoViewIfNeeded().catch(() => {});
+      await cell.click().catch(() => {});
+      let input = cell.locator("input, textarea, [contenteditable='true']").first();
+      if (!(await input.count().catch(() => 0))) {
+        await cell.dblclick().catch(() => {});
+        input = cell.locator("input, textarea, [contenteditable='true']").first();
+      }
+      if (await input.count().catch(() => 0)) await input.fill(value).catch(() => {});
+      else await p.keyboard.type(value);
+      await p.keyboard.press("Tab").catch(() => {});
+      filled++;
+    }
+    if (filled) console.log(`[vendor] filled ${filled} other required cell(s) on the sheet (${[...new Set(plan.map((x) => x.value))].join(", ")})`);
+    return filled;
+  }
+
+  /**
+   * Answer the Technical Stage's submission sheet: Quick Fill copies the
+   * requested specifications into "Specifications Provided", and each empty
+   * question gets a plain test answer. Returns how many answers were given.
+   */
+  private async fillTechnical(): Promise<number> {
+    const p = this.page;
+    // The sheet loads behind placeholder bars for a few seconds: wait for its questions.
+    await p.getByText(/submission sheet/i).first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => {});
+    await p.locator("textarea").first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+    await this.pause(600);
+    // "Specifications Provided": a sheet column (required where the row says
+    // "Specs*"). Quick Fill did not fill it on 15 Oct — the cell stayed empty and
+    // red, and Submit refused — so each empty cell in that column is typed into,
+    // as the buyer's pricing sheet is: select the cell, type, Enter.
+    const marked = await p
+      .evaluate(() => {
+        let n = 0;
+        // A <table>, or an ARIA grid (role=row / columnheader / gridcell) — the portal uses the grid.
+        for (const table of document.querySelectorAll("table, [role='grid']")) {
+          const grid = table.getAttribute("role") === "grid";
+          const rows = [...table.querySelectorAll(grid ? "[role='row']" : "tr")];
+          const cellsOf = (r: Element) => [...r.querySelectorAll(grid ? "[role='columnheader'], [role='gridcell']" : ":scope > th, :scope > td")];
+          const head = rows.find((r) => /specifications provided/i.test((r as HTMLElement).innerText));
+          if (!head) continue;
+          const col = cellsOf(head).findIndex((c) => /specifications provided/i.test((c as HTMLElement).innerText));
+          if (col < 0) continue;
+          for (const r of rows) {
+            if (r === head) continue;
+            const cell = cellsOf(r)[col] as HTMLElement | undefined;
+            if (!cell || (cell.innerText || "").trim()) continue;
+            cell.setAttribute("data-spine-spec", String(n++));
+          }
+        }
+        return n;
+      })
+      .catch(() => 0);
+    let specs = 0;
+    for (let i = 0; i < Math.min(marked, 30); i++) {
+      const cell = p.locator(`[data-spine-spec="${i}"]`).first();
+      await cell.scrollIntoViewIfNeeded().catch(() => {});
+      await cell.click().catch(() => {});
+      await cell.dblclick().catch(() => {});
+      const box = cell.locator("input, textarea, [contenteditable='true']").first();
+      if (await box.count().catch(() => 0)) await box.fill("As requested").catch(() => {});
+      else await p.keyboard.type("As requested", { delay: 15 });
+      await p.keyboard.press("Enter").catch(() => {});
+      await this.pause(300);
+      specs++;
+    }
+    // The questions: every empty answer box on the sheet.
+    let answers = 0;
+    const boxes = p.locator("textarea");
+    const nBoxes = Math.min(await boxes.count().catch(() => 0), 30);
+    for (let i = 0; i < nBoxes; i++) {
+      const b = boxes.nth(i);
+      if (!(await b.isVisible().catch(() => false)) || (await b.isDisabled().catch(() => true))) continue;
+      if ((await b.inputValue().catch(() => "x")).trim()) continue;
+      await b.fill("spine.ai test response").catch(() => {});
+      answers++;
+    }
+    this.lastFill = `answered the Technical Stage's submission sheet — ${answers} question(s)${specs ? ` and ${specs} specification(s)` : ""}`;
+    console.log(`[vendor] ${this.lastFill}`);
+    return answers + specs;
   }
 
   /** Submit the bid and confirm any modal. */
   async submitBid(): Promise<void> {
     await this.dismissDistractions();
+    if (this.stage === "technical") return this.submitTechnical();
     // "Submit Quote" stays DISABLED until every term of the event is ticked:
     // the Terms and Conditions list under the sheet carries one checkbox per
     // term ("Your evaluation for this event will depend on Gross Total."). The
@@ -276,6 +448,18 @@ export class VendorPortalPage extends BasePage {
       if (ticked) console.log(`[vendor] ticked ${ticked} term(s) of the event before submitting`);
       const until = Date.now() + 8_000;
       while (Date.now() < until && (await disabled())) await this.pause(400);
+      // A tester who took the live browser here is looking at this very sheet:
+      // wait for them, then see what they did — they may have quoted it themselves.
+      if (controlHeld()) {
+        console.log("[vendor] you have the browser at the quote — waiting until you hand it back");
+        await released();
+        await this.pause(1_000);
+        if (await this.bidSubmitted()) {
+          this.lastFill = `${this.lastFill}; you submitted the quote yourself`;
+          console.log("[vendor] the quote is submitted (you did it while you had the browser)");
+          return;
+        }
+      }
       if (await disabled()) {
         const empty = await this.page
           .evaluate(() =>
@@ -284,6 +468,14 @@ export class VendorPortalPage extends BasePage {
               .filter((t) => /\*\s*$/.test(t)),
           )
           .catch(() => [] as string[]);
+        // A Technical + RFQ event whose technical response is already in: the
+        // quote waits on the buyer (see submitTechnical). Said, not failed.
+        if (this.answeredTechnical) {
+          this.stage = "technical";
+          this.lastFill = `the Technical Stage was already submitted; the RFQ sheet took a price, but Procol keeps “Submit Quote” disabled with no message, so the quote waits until the buyer acts on the technical stage`;
+          console.log(`[vendor] ${this.lastFill}`);
+          return;
+        }
         throw new Error(`"Submit Quote" stays disabled after the sheet was filled and ${ticked} term(s) ticked — required columns on the sheet: ${empty.join(", ") || "(none marked)"}`);
       }
     }
@@ -296,13 +488,88 @@ export class VendorPortalPage extends BasePage {
       ],
       { label: "submit-bid", timeout: TIMEOUTS.MEDIUM },
     );
-    await this.click(
+    // A confirm dialog, when the portal shows one. It usually does not: then
+    // nothing is recorded as stuck (it was, three times a bid, at 10 s each).
+    await this.clickIfPresent(
       [
         this.page.getByRole("dialog").getByRole("button", { name: /submit|confirm|yes|proceed/i }),
         this.page.getByRole("button", { name: /confirm|yes, submit|proceed/i }),
       ],
-      { label: "submit-confirm", timeout: TIMEOUTS.MEDIUM },
-    ).catch(() => {});
+      { label: "submit-confirm", timeout: 2_500 },
+    ).catch(() => false);
+  }
+
+  /**
+   * Submit the Technical Stage's sheet. Every edit is saved as a draft first —
+   * a bar says "Your changes have been saved as draft. Submit to proceed." with
+   * its own Submit — and a click that lands before that bar appears leaves the
+   * response a draft (seen 15 Oct). So: wait for the bar, press its Submit,
+   * confirm, and check the bar is gone; once more if it is not.
+   */
+  private async submitTechnical(): Promise<void> {
+    const p = this.page;
+    const draft = p.getByText(/saved as draft\.?\s*submit to proceed/i).first();
+    await draft.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const inBar = draft.locator("xpath=ancestor::*[.//button][1]").getByRole("button", { name: /^\s*submit\s*$/i }).first();
+      const submit = (await inBar.isVisible().catch(() => false)) ? inBar : p.getByRole("button", { name: /^\s*submit\s*$/i }).last();
+      const until = Date.now() + 10_000;
+      while (Date.now() < until && (await submit.isDisabled().catch(() => true))) await this.pause(400);
+      if (await submit.isDisabled().catch(() => true)) {
+        const required = await p
+          .evaluate(() =>
+            [...document.querySelectorAll("label, [class*='question' i], td, [role='cell']")]
+              .map((e) => (e as HTMLElement).innerText.trim())
+              .filter((t) => /\*\s*$/.test(t) && t.length < 80)
+              .slice(0, 6),
+          )
+          .catch(() => [] as string[]);
+        throw new Error(`the Technical Stage's "Submit" stays disabled after the sheet was answered${required.length ? ` — required on the sheet: ${required.join(", ")}` : ""}`);
+      }
+      await submit.scrollIntoViewIfNeeded().catch(() => {});
+      await submit.click({ timeout: TIMEOUTS.MEDIUM });
+      await this.clickIfPresent(
+        [
+          p.getByRole("dialog").getByRole("button", { name: /submit|confirm|yes|proceed/i }),
+          p.getByRole("button", { name: /confirm|yes, submit|proceed/i }),
+        ],
+        { label: "technical-submit-confirm", timeout: 2_500 },
+      ).catch(() => false);
+      await this.waitForSpinnerHidden();
+      await this.pause(1_500);
+      if (!(await draft.isVisible().catch(() => false))) {
+        this.answeredTechnical = true;
+        // The RFQ round may open as soon as the technical stage is in (it did on
+        // PROCOL DEMO, 15 Oct): then the vendor quotes it too, as a person would.
+        await this.pause(1_000);
+        const rfq = p.getByRole("tab").filter({ hasText: /^\s*(rfq|auction|commercial|price|quote)/i }).first();
+        const open = (await rfq.count().catch(() => 0)) > 0 && (await rfq.getAttribute("aria-disabled").catch(() => null)) !== "true";
+        if (!open) {
+          console.log("[vendor] submitted the Technical Stage — the RFQ round stays locked for now (it opens once the buyer qualifies this vendor)");
+          return;
+        }
+        console.log("[vendor] submitted the Technical Stage — the RFQ round opened, so quoting it now");
+        const technical = this.lastFill;
+        await this.startBidding();
+        if (this.stage !== "price") return;
+        const cells = await this.fillBid(this.price);
+        try {
+          await this.submitBid();
+          this.lastFill = `${technical}, then quoted the RFQ (${cells} price cell(s))`;
+        } catch (err) {
+          // Seen 15 Oct on a Technical + RFQ event: the RFQ sheet opens and takes
+          // a price, but "Submit Quote" stays disabled with no message — the
+          // quote waits on the buyer's side. The technical response is in; say
+          // what the screen showed rather than fail the vendor's whole bid.
+          if (!/stays disabled/i.test((err as Error).message)) throw err;
+          this.stage = "technical";
+          this.lastFill = `${technical}; the RFQ sheet opened and took a price, but Procol keeps “Submit Quote” disabled with no message, so the quote waits until the buyer acts on the technical stage`;
+          console.log(`[vendor] ${this.lastFill}`);
+        }
+        return;
+      }
+    }
+    throw new Error("the Technical Stage response stayed a draft — the page still says “saved as draft. Submit to proceed” after Submit was pressed twice");
   }
 
   /** True if a bid-submitted confirmation/state is visible. */
@@ -384,6 +651,13 @@ export class VendorPortalPage extends BasePage {
   async bidSubmitted(): Promise<boolean> {
     const toast = await this.successToastText(TIMEOUTS.SHORT);
     if (toast && /submit|success|placed/i.test(toast)) return true;
+    // A technical response: submitTechnical already saw the draft bar go; the
+    // sheet now reads as submitted (or offers a revision) rather than a draft.
+    if (this.stage === "technical") {
+      const draftGone = !(await this.page.getByText(/saved as draft/i).first().isVisible().catch(() => false));
+      const said = await this.page.getByText(/response submitted|submitted successfully|revise (response|bid)|edit response|^submitted$/i).first().isVisible().catch(() => false);
+      return said || draftGone;
+    }
     // The stage tab flips to a green "Submitted" badge after a successful quote.
     const marker = await this.find(
       [

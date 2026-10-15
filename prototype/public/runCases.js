@@ -8,7 +8,9 @@
  * one fits, and a regression case per failure. They come back as a table to
  * review — tick, edit the scenario or expected result, remove — and only the
  * ticked rows are exported, as Excel (the bug sheet's writer, bugsExport.js)
- * or CSV.
+ * or CSV. The set is kept with the run on the server, with every result, edit
+ * and tick: asking again shows it as it was left, and "Write again" makes a
+ * fresh set in which each case already run keeps its result.
  *
  * Kept out of session.js on purpose: it watches the thread for DONE boxes, so
  * the session screen needs no change to carry it.
@@ -34,6 +36,7 @@
     ["Status", (c) => c.status, 14],
     ["Result", (c) => c.why || "", 40],
     ["Tested", (c) => (c.testedAt ? new Date(c.testedAt).toLocaleString() : ""), 18],
+    ["Reviewed", (c) => reviewWords(c), 30],
     ["Run", (c) => (c.runId ? `${location.origin}/#/session/${c.runId}` : ""), 30],
     ["Library case", (c) => c.libraryId || (c.similarTo ? `similar to ${c.similarTo}` : ""), 18],
   ];
@@ -91,7 +94,10 @@
       if (id) runIds.add(decodeURIComponent(id));
     }
     const t = turn.id === "ss-turn" ? window.spineSession?.turn : null;
+    // Which run this is — the cases are kept under it (data/run-cases/<key>.json).
+    const key = turn.dataset.runId || t?.runId || [...runIds][0] || "";
     return {
+      key,
       transcript: transcript.slice(0, 16000),
       ask: turn.querySelector(".ss-user")?.textContent?.trim() || "",
       mode: t?.mode || turn.dataset.mode || "",
@@ -102,7 +108,7 @@
   }
 
   // ── asking for them, and the table to review them in ─────────────────────
-  async function write(turn, box, btn) {
+  async function write(turn, box, btn, fresh = false) {
     let panel = box.nextElementSibling?.classList.contains("rc-panel") ? box.nextElementSibling : null;
     if (!panel) {
       panel = document.createElement("section");
@@ -111,10 +117,14 @@
       box.after(panel);
     }
     btn.disabled = true;
-    panel.innerHTML = `<p class="rc-wait" role="status"><span class="rc-dot"></span>Writing test cases from this run — what it did, what went wrong, and the cases around it. This usually takes under a minute.</p>`;
+    panel.innerHTML = fresh
+      ? `<p class="rc-wait" role="status"><span class="rc-dot"></span>Writing a fresh set of test cases from this run. Cases you have already run keep their result. This usually takes under a minute.</p>`
+      : `<p class="rc-wait" role="status"><span class="rc-dot"></span>Getting the test cases for this run — written now if this run has none yet, which usually takes under a minute.</p>`;
     panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     try {
-      const body = JSON.stringify(gather(turn));
+      // A result or edit still waiting to be saved goes first, so what comes back has it.
+      await flushSaves();
+      const body = JSON.stringify({ ...gather(turn), fresh });
       const ask = () => fetch("/api/run-cases", { method: "POST", headers: { "content-type": "application/json" }, body });
       let res;
       try {
@@ -134,7 +144,7 @@
     } catch (e) {
       const why = e instanceof TypeError ? "the connection to spine.ai dropped twice (is the dashboard server running?)" : e.message;
       panel.innerHTML = `<p class="rc-error" role="alert">Couldn't write test cases: ${h(why)}. <button type="button" class="rc-link">Try again</button></p>`;
-      panel.querySelector(".rc-link").addEventListener("click", () => write(turn, box, btn));
+      panel.querySelector(".rc-link").addEventListener("click", () => write(turn, box, btn, fresh));
     } finally {
       btn.disabled = false;
     }
@@ -163,7 +173,9 @@
   function render(panel, d, turn) {
     const set = {
       id: `rc${++setNo}`,
-      cases: d.cases.map((c) => ({ ...c, keep: true, unconfirmed: /\(to confirm\)/i.test(c.expected || "") })),
+      key: d.key || "",
+      savedAt: d.savedAt || (d.key ? new Date().toISOString() : ""),
+      cases: d.cases.map((c) => ({ ...c, keep: c.keep !== false, unconfirmed: /\(to confirm\)/i.test(c.expected || "") })),
       note: d.note || "",
       ask: turn.querySelector(".ss-user")?.textContent?.trim() || "run",
     };
@@ -172,13 +184,73 @@
     paint(panel, set);
   }
 
+  // ── kept with the run ─────────────────────────────────────────────────────
+  const pending = new Map(); // set id → { t, go }
+  /** Save the table as it stands; typing waits a moment, a result is saved at once. */
+  function save(set, now = false) {
+    if (!set.key) return Promise.resolve();
+    clearTimeout(pending.get(set.id)?.t);
+    const go = () => {
+      pending.delete(set.id);
+      set.savedAt = new Date().toISOString();
+      const cases = set.cases.map(({ run, unconfirmed, ...c }) => c);
+      return fetch("/api/run-cases", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: set.key, cases }) }).catch(() => {});
+    };
+    if (now) return go();
+    pending.set(set.id, { t: setTimeout(go, 700), go });
+    return Promise.resolve();
+  }
+  function flushSaves() {
+    return Promise.all([...pending.values()].map((p) => (clearTimeout(p.t), p.go())));
+  }
+  const clock = (iso) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+
   /** Every place this set's table is on the page (the turn it came from may now be kept above). */
   function repaint(set) {
     for (const panel of document.querySelectorAll(`.rc-panel[data-set="${set.id}"]`)) paint(panel, set);
   }
 
   const isSuggested = (c) => /^suggested$/i.test(c.status || "");
+  const ico = (name) => `<svg class="ico" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const RESULT_TONE = { Pass: "ok", Fail: "bad", "Not tested": "warn", Stopped: "warn" };
+
+  // ── a person signs off every verdict ──────────────────────────────────────
+  /**
+   * HUMAN IN THE LOOP. A Pass or Fail that spine.ai gave — the run's own main
+   * flow, or a case run from here — is its verdict, not the answer: it waits
+   * for a person to approve it or change it, and the table, the tally and the
+   * export say who did and when. Running a case again sends it back for review.
+   */
+  const verdictNeedsReview = (c) => /^(pass|fail)/i.test(c.status || "");
+  const reviewer = () => {
+    try {
+      const u = window.spineAuth?.user?.();
+      return (u?.name || u?.email || "").trim() || "a tester";
+    } catch {
+      return "a tester";
+    }
+  };
+  function reviewWords(c) {
+    if (!verdictNeedsReview(c)) return "";
+    const r = c.review;
+    if (!r?.state || r.state === "pending") return "Waiting for review";
+    const when = r.at ? new Date(r.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+    return r.state === "approved" ? `Approved by ${r.by}${when ? ` · ${when}` : ""}` : `Changed from ${r.from} to ${c.status} by ${r.by}${when ? ` · ${when}` : ""}`;
+  }
+  function reviewCell(c, i) {
+    if (!verdictNeedsReview(c) || c.run) return "";
+    const r = c.review;
+    if (r?.state === "approved" || r?.state === "changed") return `<div class="rc-rev done">${ico("check")}${h(reviewWords(c))}</div>`;
+    const other = /^pass/i.test(c.status) ? "Fail" : "Pass";
+    return (
+      `<div class="rc-rev wait"><span class="rc-rev-t">Waiting for your review</span>` +
+      `<span class="rc-rev-b"><button type="button" class="rc-btn rc-ok" data-i="${i}">Approve</button>` +
+      `<button type="button" class="rc-btn ghost rc-flip" data-i="${i}" data-to="${other}">Change to ${other}</button></span></div>`
+    );
+  }
 
   function resultCell(c, i) {
     const r = c.run?.state;
@@ -189,7 +261,8 @@
       `<span class="rc-st ${tone}">${h(c.status)}</span>` +
       (c.why ? `<div class="rc-why">${h(c.why)}</div>` : "") +
       (c.runId ? `<a class="rc-src rc-go" href="#/session/${encodeURIComponent(c.runId)}">See the run</a>` : c.sourceStep ? `<div class="rc-src">from ${h(c.sourceStep)}</div>` : "") +
-      `<button type="button" class="rc-run" data-i="${i}">${c.testedAt || !isSuggested(c) ? "Run again" : "Run"}</button>`
+      reviewCell(c, i) +
+      `<button type="button" class="rc-run" data-i="${i}">${ico(c.testedAt || !isSuggested(c) ? "rotate-cw" : "play")}${c.testedAt || !isSuggested(c) ? "Run again" : "Run"}</button>`
     );
   }
 
@@ -198,12 +271,17 @@
     const kinds = ["Positive", "Negative", "Edge", "Regression"].map((k) => [k, cases.filter((c) => c.type === k).length]).filter(([, n]) => n);
     const tested = cases.filter((c) => c.testedAt);
     const passed = tested.filter((c) => c.status === "Pass").length;
-    const busy = cases.some((c) => c.run?.state === "running" || c.run?.state === "queued");
     panel.innerHTML =
       `<div class="rc-head"><h3>Test cases from this run</h3>` +
       `<p class="rc-sum">${cases.length} cases · ${kinds.map(([k, n]) => `${n} ${k.toLowerCase()}`).join(" · ")}. ` +
       `“Suggested” cases have not been run yet — run them here to turn each into a Pass or Fail. Scenario and expected result are editable before a run or export.</p>` +
       (tested.length ? `<p class="rc-tally">${tested.length} run from here: ${passed} passed, ${tested.length - passed} did not.</p>` : "") +
+      (() => {
+        const verdicts = cases.filter(verdictNeedsReview);
+        const waiting = verdicts.filter((c) => !c.review?.state || c.review.state === "pending").length;
+        return verdicts.length ? `<p class="rc-tally ${waiting ? "rc-wait-n" : ""}">${waiting ? `${waiting} of ${verdicts.length} verdicts waiting for your review` : `All ${verdicts.length} verdicts reviewed`}</p>` : "";
+      })() +
+      (set.key ? `<p class="rc-sum rc-kept">Saved with this run${set.savedAt ? ` · updated ${h(clock(set.savedAt))}` : ""}. “Write again” makes a fresh set; cases you have run keep their result.</p>` : "") +
       (set.note ? `<p class="rc-note">${h(set.note)}</p>` : "") +
       `</div>` +
       `<div class="rc-scroll"><table class="rc-table"><colgroup><col class="w-c"><col class="w-case"><col class="w-exp"><col class="w-res"></colgroup><thead><tr>` +
@@ -231,14 +309,16 @@
         )
         .join("") +
       `</tbody></table></div>` +
-      `<div class="rc-bar"><span class="rc-count" aria-live="polite"></span>` +
-      `<button type="button" class="rc-x rc-runall">Run all suggested</button>` +
-      `<button type="button" class="rc-x rc-runsel">Run ticked</button>` +
-      (busy ? `<button type="button" class="rc-link rc-cancel">Don't run the rest</button>` : "") +
-      `<span class="rc-gap"></span>` +
-      `<button type="button" class="rc-x" data-x="xlsx">Export Excel</button>` +
-      `<button type="button" class="rc-x" data-x="csv">Export CSV</button>` +
-      `<button type="button" class="rc-link rc-again">Write again</button></div>` +
+      `<div class="rc-bar">` +
+      `<div class="rc-runs">` +
+      `<button type="button" class="rc-btn primary rc-runall">${ico("play")}Run all suggested<span class="rc-n"></span></button>` +
+      `<button type="button" class="rc-btn rc-runsel">${ico("play")}Run ticked<span class="rc-n"></span></button>` +
+      `</div>` +
+      `<div class="rc-tools"><span class="rc-count" aria-live="polite"></span>` +
+      `<button type="button" class="rc-btn ghost" data-x="xlsx" title="Export the ticked cases as an Excel sheet">${ico("download")}Excel</button>` +
+      `<button type="button" class="rc-btn ghost" data-x="csv" title="Export the ticked cases as CSV">${ico("download")}CSV</button>` +
+      `<button type="button" class="rc-btn ghost rc-again" title="Write the cases again from this run">${ico("rotate-cw")}Write again</button>` +
+      `</div></div>` +
       `<p class="rc-hint">Cases run one at a time in the browser on ${h(window.spineSession?.turn?.target?.company || "this client")}, each as the next message in this session. ` +
       `A case that publishes creates a real event in UAT, and publishing emails the vendors it invites.</p>`;
 
@@ -246,16 +326,16 @@
       const n = cases.filter((c) => c.keep).length;
       const sug = cases.filter((c) => isSuggested(c) && !c.run).length;
       const ticked = cases.filter((c) => c.keep && !c.run).length;
-      panel.querySelector(".rc-count").textContent = `${n} of ${cases.length} selected`;
-      panel.querySelectorAll(".rc-x[data-x]").forEach((b) => (b.disabled = !n));
+      panel.querySelector(".rc-count").textContent = `${n} of ${cases.length} ticked`;
+      panel.querySelectorAll(".rc-btn[data-x]").forEach((b) => (b.disabled = !n));
       const all = panel.querySelector(".rc-all");
       all.checked = n === cases.length;
       all.indeterminate = n > 0 && n < cases.length;
       const ra = panel.querySelector(".rc-runall");
-      ra.textContent = `Run all suggested (${sug})`;
+      ra.querySelector(".rc-n").textContent = String(sug);
       ra.disabled = !sug;
       const rs = panel.querySelector(".rc-runsel");
-      rs.textContent = `Run ticked (${ticked})`;
+      rs.querySelector(".rc-n").textContent = String(ticked);
       rs.disabled = !ticked;
     };
     panel.querySelectorAll("tbody tr").forEach((tr) => {
@@ -265,8 +345,14 @@
         c.keep = e.target.checked;
         tr.classList.toggle("off", !c.keep);
         count();
+        save(set);
       });
-      tr.querySelectorAll(".rc-edit").forEach((ed) => ed.addEventListener("input", () => (c[ed.dataset.f] = ed.textContent.trim())));
+      tr.querySelectorAll(".rc-edit").forEach((ed) =>
+        ed.addEventListener("input", () => {
+          c[ed.dataset.f] = ed.textContent.trim();
+          save(set);
+        }),
+      );
       const more = tr.querySelector(".rc-more");
       more.addEventListener("click", () => {
         const det = tr.querySelector(".rc-detail");
@@ -274,6 +360,18 @@
         more.setAttribute("aria-expanded", String(!det.hidden));
       });
       tr.querySelector(".rc-run")?.addEventListener("click", () => enqueue(set, [i]));
+      tr.querySelector(".rc-ok")?.addEventListener("click", () => {
+        c.review = { state: "approved", by: reviewer(), at: new Date().toISOString() };
+        save(set, true);
+        repaint(set);
+      });
+      tr.querySelector(".rc-flip")?.addEventListener("click", (e) => {
+        const to = e.currentTarget.dataset.to;
+        c.review = { state: "changed", by: reviewer(), at: new Date().toISOString(), from: c.status };
+        c.status = to;
+        save(set, true);
+        repaint(set);
+      });
       tr.querySelector(".rc-unq")?.addEventListener("click", () => unqueue(set, i));
     });
     panel.querySelector(".rc-all").addEventListener("change", (e) => {
@@ -281,15 +379,15 @@
       panel.querySelectorAll(".rc-keep").forEach((b) => (b.checked = e.target.checked));
       panel.querySelectorAll("tbody tr").forEach((tr) => tr.classList.toggle("off", !e.target.checked));
       count();
+      save(set);
     });
     panel.querySelector(".rc-runall").addEventListener("click", () => enqueue(set, cases.map((c, i) => (isSuggested(c) && !c.run ? i : -1)).filter((i) => i >= 0)));
     panel.querySelector(".rc-runsel").addEventListener("click", () => enqueue(set, cases.map((c, i) => (c.keep && !c.run ? i : -1)).filter((i) => i >= 0)));
-    panel.querySelector(".rc-cancel")?.addEventListener("click", () => cancelQueue());
     const name = () => {
       const ask = set.ask.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
       return `spine-test-cases-${ask || "run"}-${new Date().toISOString().slice(0, 10)}`;
     };
-    panel.querySelectorAll(".rc-x[data-x]").forEach((b) =>
+    panel.querySelectorAll(".rc-btn[data-x]").forEach((b) =>
       b.addEventListener("click", () => {
         const rows = cases.filter((c) => c.keep);
         if (b.dataset.x === "xlsx" && window.spineBugExport?.xlsx) window.spineBugExport.xlsx(rows, { name: name(), sheet: "Test cases", columns: COLUMNS });
@@ -300,7 +398,7 @@
       const box = panel.previousElementSibling;
       const btn = box?.querySelector(".rc-open");
       const turn = panel.closest(".ss-turn, .ss-past");
-      if (box && btn && turn) write(turn, box, btn);
+      if (box && btn && turn) write(turn, box, btn, true);
     });
     count();
   }
@@ -383,10 +481,13 @@
     c.runId = o.runId || null;
     c.testedAt = new Date().toISOString();
     c.automated = "Yes — run from spine";
+    c.review = verdictNeedsReview(c) ? { state: "pending" } : undefined;
     c.run = null;
     current = null;
     // A stopped run stops the list: the rest waits for the reader.
     if (o.tone === "stop") cancelQueue();
+    // Kept with the run, so asking for this run's cases again shows this result.
+    save(job.set, true);
     repaint(job.set);
     setTimeout(pump, 800);
   }

@@ -1562,7 +1562,14 @@ export class CreateEventPage extends BasePage {
    * nothing. Returns false when the search finds nobody, which is a real
    * outcome a test may want to assert rather than an error.
    */
-  async addParticipantByName(name: string): Promise<boolean> {
+  /** The create screen is gone: the event was published (from the browser, by the tester) and the page is its project. */
+  leftCreateScreen(): boolean {
+    return /\/project\/[^/?#]+/.test(this.page.url());
+  }
+
+  /** Add a vendor by name. "present" when it was already selected — clicking it again would take it off. */
+  async addParticipantByName(name: string): Promise<boolean | "present"> {
+    if (this.leftCreateScreen()) return false;
     const p = this.page;
     const region = this.participantsRegion();
     await this.dismissDistractions();
@@ -1588,6 +1595,15 @@ export class CreateEventPage extends BasePage {
     const open = p.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden), .ant-dropdown:not(.ant-dropdown-hidden)");
     const byHeader = open.filter({ hasText: /vendors/i });
     const vendorPanel = (await byHeader.count()) ? byHeader.last() : open.last();
+    // Already on the event (hidden in the "+N"): its option shows as selected, and a click would deselect it.
+    const selected = vendorPanel
+      .locator(".ant-select-dropdown-menu-item-selected, .ant-select-item-option-selected, [aria-selected='true']")
+      .filter({ hasText: name })
+      .first();
+    if (await selected.count().catch(() => 0)) {
+      await p.keyboard.press("Escape").catch(() => {});
+      return "present";
+    }
     const picked = await this.pickFirstNamedOption(`vendor "${name}"`, vendorPanel);
     await p.keyboard.press("Escape").catch(() => {});
     // The chip is the proof the pick landed; waiting for it is both faster and
@@ -1636,15 +1652,30 @@ export class CreateEventPage extends BasePage {
       const logins = await vendorLogins();
       const withLogin = (names: string[]) => names.filter((n) => logins.some((v) => isQaVendorName(n, [v.name]))).length;
       let present = await this.participantNames();
+      // At most as many as the bids need. With a big audience the chips show
+      // four names and "+172": a vendor added here vanishes into the "+N", so
+      // counting the chips never reached the number, and the loop added every
+      // vendor with a login — 160 invited became 190+.
+      let ensured = withLogin(present);
       for (const v of logins) {
-        if (withLogin(present) >= opts.count) break;
+        if (ensured >= opts.count) break;
+        if (this.leftCreateScreen()) {
+          console.log("[create-event] the page has left the create screen (published from the browser?) — stopping the invite here");
+          return [];
+        }
         if (present.some((n) => isQaVendorName(n, [v.name]))) continue;
-        if (await this.addParticipantByName(v.name)) {
+        const how = await this.addParticipantByName(v.name);
+        if (how === "present") {
+          ensured++;
+          console.log(`[create-event] ${v.name} is already on the event — a vendor that can sign in to the vendor portal`);
+        } else if (how) {
+          ensured++;
           console.log(`[create-event] added ${v.name} — a vendor that can sign in to the vendor portal`);
           present = await this.participantNames();
         }
       }
     }
+    if (this.leftCreateScreen()) return [];
     const have = await this.participantCount();
     if (opts.count && have < opts.count) {
       throw new Error(

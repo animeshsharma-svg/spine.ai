@@ -54,6 +54,8 @@ export interface ScreenView {
   controls: Control[];
   /** the page's visible text, trimmed */
   text: string;
+  /** column headings and field labels showing now — names of things, never proof that a value is there */
+  labels: string[];
   /** a dropdown list open now, and what it shows */
   openList?: OpenList;
   /** the control that has the keyboard now, when it is one of the listed controls */
@@ -306,7 +308,14 @@ export async function readView(page: Page): Promise<ScreenView> {
     const active = document.activeElement;
     const holder = active && active !== document.body ? (active.closest("[data-spine-ref]") ?? active.querySelector?.("[data-spine-ref]")) : null;
     const focusedRef = holder ? Number(holder.getAttribute("data-spine-ref")) : 0;
-    return { title: document.title, dialog: dialogTitle || (top ? "a dialog" : ""), headings, messages, controls, text, focusedRef };
+    const labels = Array.from(
+      document.querySelectorAll("th, [role='columnheader'], label, .ant-form-item-label, .ant-descriptions-item-label, [class*='column-title' i], [class*='header-cell' i]"),
+    )
+      .filter(visible)
+      .map((l) => clean((l as HTMLElement).innerText, 60))
+      .filter(Boolean)
+      .slice(0, 120);
+    return { title: document.title, dialog: dialogTitle || (top ? "a dialog" : ""), headings, messages, controls, text, focusedRef, labels };
   }, MAX_CONTROLS);
 
   const openList = (await readOpenList(page)) ?? undefined;
@@ -322,7 +331,7 @@ export async function readView(page: Page): Promise<ScreenView> {
     [path, raw.dialog, raw.messages.join("|"), openList ? `${openList.state}:${openList.count}` : "", raw.controls.map((c) => `${c.role}:${c.name}:${c.value ?? ""}`).join("|"), raw.text.slice(0, 1500)].join("\n"),
   );
   const focused = raw.focusedRef ? raw.controls.find((c) => c.ref === raw.focusedRef) : undefined;
-  return { url, path, title: raw.title, dialog: raw.dialog || undefined, headings: raw.headings, messages: raw.messages, controls: raw.controls, text: raw.text, openList, focused, fingerprint };
+  return { url, path, title: raw.title, dialog: raw.dialog || undefined, headings: raw.headings, messages: raw.messages, controls: raw.controls, text: raw.text, labels: raw.labels ?? [], openList, focused, fingerprint };
 }
 
 /**

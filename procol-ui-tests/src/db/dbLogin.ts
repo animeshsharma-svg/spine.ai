@@ -116,17 +116,22 @@ export async function loginOnScreen(page: Page, companyId: number | null): Promi
   // vendor portal signs in the same way. Never the client's code for someone
   // else: asking for a code texts the real phone, and a code the backend will
   // not accept would only do that for nothing. Never printed.
+  //
+  // The one exception is the operator. Its own company has no code, and UAT
+  // accepts the client's code for it: PROCOL DEMO's code signed Procol Support
+  // in on the login screen (checked 15 Oct, after Aanya pointed out she had
+  // the code). Before that, every PROCOL DEMO run skipped the login screen.
   let codeFrom = "";
   let noCodeWhy = "no one-time code is saved for this account";
   if (!otp) {
-    const own = await uatLoginCodes({ phone: phoneOnRecord ?? phone }).catch(() => []);
+    const own = await uatLoginCodes({ phone: phoneOnRecord ?? phone }, operated ? companyId ?? undefined : undefined).catch(() => []);
     if (own[0]) {
       otp = own[0].otp;
       codeFrom = ` with ${own[0].source}`;
     } else if (operated) {
       noCodeWhy =
         `${operated} is signed into through an operator's account (phone ending ${phone.slice(-4)}), and that account has no UAT login code — ` +
-        "its code only comes by SMS to that phone";
+        `nor has ${operated}`;
     } else {
       noCodeWhy = `no UAT login code is on file for this user (phone ending ${phone.slice(-4)})`;
     }

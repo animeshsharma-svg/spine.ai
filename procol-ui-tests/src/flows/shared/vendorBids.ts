@@ -86,7 +86,7 @@ export async function vendorsBid(buyer: Page, ev: { title: string; projectId: st
       console.log(`[bid] ${v.name} opened the event`);
       await portal.startBidding(ev.title);
       const cells = await portal.fillBid(100 + i * 10);
-      console.log(`[bid] ${v.name} filled ${cells} price cell(s)`);
+      console.log(`[bid] ${v.name} ${portal.lastFill || `filled ${cells} price cell(s)`}`);
       await portal.submitBid();
       expect(await portal.bidSubmitted(), `${v.name}'s quote should be confirmed as submitted`).toBeTruthy();
       console.log(`[bid] ${v.name}'s bid is submitted`);

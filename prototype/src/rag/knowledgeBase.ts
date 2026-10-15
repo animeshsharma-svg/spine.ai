@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { embedOne, embedMany, similarity, embedderId, ensureEmbedderReady } from "./embedder.js";
+import { embedFor, embedMany, similarity, embedderId, ensureEmbedderReady } from "./embedder.js";
 import { allCases } from "../checks/testCatalog.js";
 import { spineDb } from "../db/spineDb.js";
 import { syncChunks, candidates, memoryStats } from "./pgMemory.js";
@@ -542,12 +542,12 @@ function hasIdentifier(ids: string[], c: { labels?: string[]; text: string }): b
 async function retrieveFromDb(query: string, k: number, opts: RetrieveOptions, built: string): Promise<Retrieved[]> {
   const db = (await spineDb())!;
   await ensureEmbedderReady();
-  const stale = built !== embedderId();
-  if (stale && !warnedMismatch) {
+  // The query is embedded by the store's own embedder (embedder.ts embedFor).
+  const q = await embedFor(built, query);
+  if (!q && !warnedMismatch) {
     warnedMismatch = true;
-    console.warn(`[rag] the memory was built with ${built} but ${embedderId()} is now in use — retrieving by words only until \`npm run rag:build\``);
+    console.warn(`[rag] the memory was built with ${built}, which cannot embed here — retrieving by words only until \`npm run rag:build\``);
   }
-  const q = stale ? null : await embedOne(query);
   const queryTerms = lexicalTerms(query);
   const ids = identifierTerms(queryTerms);
   const limit = Math.max(60, k * 8);
@@ -577,14 +577,14 @@ export async function retrieve(query: string, k = 5, opts: RetrieveOptions = {})
   // an empty retrieval reads to an agent as "there is nothing to know".
   const chunks = pool.length ? pool : all;
   await ensureEmbedderReady();
-  const { stale } = embedderMismatch();
-  if (stale && !warnedMismatch) {
+  // The query is embedded by the store's own embedder (embedder.ts embedFor),
+  // so the gateway's state mid-run cannot change how the store is searched.
+  // Only when that embedder cannot run here does term overlap carry the score.
+  const q = await embedFor(storeEmbedder, query);
+  if (!q && !warnedMismatch) {
     warnedMismatch = true;
-    console.warn(`[rag] the memory was built with ${storeEmbedder} but ${embedderId()} is now in use — retrieving by words only until \`npm run rag:build\``);
+    console.warn(`[rag] the memory was built with ${storeEmbedder}, which cannot embed here — retrieving by words only until \`npm run rag:build\``);
   }
-  // With a mismatched embedder the query vector is useless; skip the call and
-  // let term overlap carry the whole score rather than blending in zeros.
-  const q = stale ? null : await embedOne(query);
   const queryTerms = lexicalTerms(query);
   const ids = identifierTerms(queryTerms);
   return chunks

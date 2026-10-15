@@ -633,6 +633,11 @@
     const inc = Number(r.inconclusive) || 0;
     const passed = Number(r.passed) || 0;
     if (failed) return { word: `${num(failed)} broken`, cls: "bad" };
+    // Steps the tester did in the browser (take control) were not tested by the run.
+    const byHand = Number(r.byHand) || 0;
+    if (r.kind === "plan" && byHand) {
+      return { word: "Partly tested", cls: "grey", why: `${plural(byHand, "step was", "steps were")} done by you in the browser, so the run didn't test ${byHand === 1 ? "it" : "them"}.` };
+    }
     const fieldFailed = Number(r.journey?.fieldChecks?.failed) || 0;
     if (fieldFailed) return { word: `${num(fieldFailed)} broken`, cls: "bad", why: `${fieldFailed} field checks failed` };
     if (r.journey?.stoppedAt) return { word: "Stopped early", cls: "grey", why: r.journey.outcome };
@@ -834,6 +839,15 @@
     }, 50);
   }
 
+  /**
+   * "What is master QCS in Procol?" asks for an answer; "check the RFQ
+   * publishes" asks for a test. A question word or a closing "?" with none of
+   * the words that ask for something to be done or checked.
+   */
+  const QUESTION = /^\s*(what|what's|whats|why|how|which|where|when|who|whose|explain|describe|define|tell me|meaning of|difference between|is there|are there|does|do|can i|can you|could you|should|is it|are)\b/i;
+  const DOING = /\b(test|tests|testing|check|verify|validate|ensure|confirm|try|run|publish|create|place|submit|award|invite|bid on|open|add|delete|remove|upload|approve|reject|send|edit|update|login|log in|sign in)\b/i;
+  const looksLikeQuestion = (text) => (QUESTION.test(text) || /\?\s*$/.test(text)) && !DOING.test(text);
+
   function initAsk() {
     const form = q$("#home-ask");
     const box = q$("#home-q");
@@ -856,10 +870,15 @@
       const text = box.value.trim();
       const runBox = q$("#request");
       if (!text || busy() || !runBox || typeof runInstruction !== "function") return;
-      // The Run screen's own typed-case runner does the work: same streams
-      // (/api/run-case-api, /api/plan-run), same session, same reports.
-      runBox.value = text;
-      runInstruction(modeOf());
+      // A question is answered, not run (session.js answerQuestion).
+      if (looksLikeQuestion(text) && window.spineSession?.answerQuestion) {
+        window.spineSession.answerQuestion(text, modeOf());
+      } else {
+        // The Run screen's own typed-case runner does the work: same streams
+        // (/api/run-case-api, /api/plan-run), same session, same reports.
+        runBox.value = text;
+        runInstruction(modeOf());
+      }
       const id = session()?.id;
       location.hash = id ? sessionHref(id) : "#/run";
       box.value = "";
@@ -1025,9 +1044,10 @@
     } else if (typeof renderUiInstructResult === "function") {
       renderUiInstructResult(
         steps.length ? "result" : "notrun",
+        // byHand: steps the tester did in the browser — read as Partly tested, as it was live.
         rec.explored
-          ? { title: rec.title, steps, passed: rec.passed, explored: true, proof: rec.proof, reason: rec.reason, saved: rec.routeSaved }
-          : { title: rec.title, steps, passed: rec.passed, reason: steps.length ? undefined : "The run stopped before its first step." },
+          ? { title: rec.title, steps, passed: rec.passed, explored: true, proof: rec.proof, reason: rec.reason, saved: rec.routeSaved, byHand: rec.byHand || 0 }
+          : { title: rec.title, steps, passed: rec.passed, byHand: rec.byHand || 0, reason: steps.length ? undefined : "The run stopped before its first step." },
       );
     }
     ss.idle();

@@ -180,7 +180,14 @@ test("planned test case", async ({ page }) => {
     console.log(`[record] captured ${recorder.snapshot().length} API call(s) → ${file}`);
   }
   const evidence = await collector.stop();
-  const verdict = judge(evidence, failure);
+  // What the case itself expected the app to refuse with, as its own steps saw
+  // it ("blocked: Please fill project title!") — the oracle must not file that as the finding.
+  const expectedSays = (result?.steps ?? [])
+    .filter((s) => s.status === "ok" && (/blocked|refus|reject/i.test(s.step) || /^blocked:|refused by the app/i.test(String(s.detail ?? ""))))
+    .flatMap((s) => [String((s.args as any)?.because ?? (s.args as any)?.message ?? ""), String(s.detail ?? "").replace(/^blocked:\s*/i, "").split(" — ").pop() ?? ""])
+    .map((t) => t.replace(/^["“]|["”]$/g, "").trim())
+    .filter((t) => t.length >= 4);
+  const verdict = judge(evidence, failure, { expected: expectedSays });
   recordFinding(evidence, verdict);
 
   if (result && process.env.UI_PLAN_RESULT) {

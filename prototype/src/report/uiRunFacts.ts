@@ -85,8 +85,16 @@ export function whatItLeft(
   const lockedOut = rawOf(steps, /\[login\] the saved session did not get in either/i) || lostAfter;
   if (lockedOut)
     facts.push({ label: "Signed in", value: "no — the login screen failed and the saved session was sent back to the login page" });
-  else if (skipped)
-    facts.push({ label: "Signed in", value: `with a saved session — the login screen was skipped because ${skipped[1]}` });
+  else if (skipped) {
+    // Not a failure: an account the run has no login code for cannot finish the login screen.
+    const op = skipped[1].match(/^(.+?) is signed into through an operator's account \(phone ending (\d+)\), and that account has no UAT login code/i);
+    facts.push({
+      label: "Signed in",
+      value: op
+        ? `yes, with the saved session — ${op[1]} is used through Procol's operator account (phone ending ${op[2]}), and the run had no login code for that account, so the login screen was skipped`
+        : `yes, with the saved session — the login screen was skipped because ${skipped[1]}`,
+    });
+  }
   else if (fellBack)
     facts.push({ label: "Signed in", value: `with a saved session — couldn't sign in on the login screen (${plainReason(fellBack[1])})` });
   else if (onScreen) facts.push({ label: "Signed in", value: `on the login screen${phone ? `, phone ending ${phone[1]}` : ""}` });

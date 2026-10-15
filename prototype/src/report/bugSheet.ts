@@ -179,21 +179,34 @@ function textArea(id: string, field: string, value: string, placeholder: string)
  * the derived columns (Description, blast radius, evidence) stay read-only
  * because a re-run recomputes them and an edit there would be silently lost.
  */
-function row(group: DefectGroup, index: number, triage: TriageStore): string {
+/**
+ * The sheet's columns for one bug, worked out once — this sheet's rows and the
+ * simple run report (simpleReport.ts) both read them, so the two cannot give
+ * the same bug a different ID or priority.
+ */
+export function sheetFacts(group: DefectGroup, index: number, triage: TriageStore = loadTriage()) {
   // Older findings carry kinds this sheet has no column for ("contract_violation");
   // they are read as an unconfirmed product finding rather than crashing the page.
   const kind = KIND[group.kind] ?? { devType: "BE", chip: "chip-dev", verification: "unconfirmed" as const, status: "TO BE DISCUSSED" as const };
   const saved: Triage = triage[group.defectFingerprint] ?? {};
-  const id = group.defectFingerprint;
   // A curated row brings its own columns — someone already filled them in.
   const curated = (group as DefectGroup & { curated?: CuratedBug }).curated;
+  return {
+    kind,
+    saved,
+    curated,
+    issueId: curated?.issueId ?? group.knownBug?.id ?? `D__${String(index + 1).padStart(3, "0")}`,
+    status: saved.status ?? curated?.devStatus ?? group.knownBug?.status ?? kind.status,
+    priority: saved.priority ?? curated?.priority ?? group.knownBug?.priority ?? PRIORITY[group.severity],
+    blocker: saved.blocker ?? (curated ? (curated.blocker ? "YES" : "NO") : group.severity === "critical" ? "YES" : "NO"),
+    devType: saved.devType ?? curated?.devType ?? kind.devType,
+    module: saved.module ?? curated?.module ?? modulesOf(group.flows),
+  };
+}
 
-  const issueId = curated?.issueId ?? group.knownBug?.id ?? `D__${String(index + 1).padStart(3, "0")}`;
-  const status = saved.status ?? curated?.devStatus ?? group.knownBug?.status ?? kind.status;
-  const priority = saved.priority ?? curated?.priority ?? group.knownBug?.priority ?? PRIORITY[group.severity];
-  const blocker = saved.blocker ?? (curated ? (curated.blocker ? "YES" : "NO") : group.severity === "critical" ? "YES" : "NO");
-  const devType = saved.devType ?? curated?.devType ?? kind.devType;
-  const module = saved.module ?? curated?.module ?? modulesOf(group.flows);
+function row(group: DefectGroup, index: number, triage: TriageStore): string {
+  const { kind, saved, curated, issueId, status, priority, blocker, devType, module } = sheetFacts(group, index, triage);
+  const id = group.defectFingerprint;
   /**
    * Notes stays empty unless a person wrote something.
    *

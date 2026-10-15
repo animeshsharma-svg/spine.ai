@@ -22,6 +22,7 @@
  */
 import type { RouteHandler } from "./index.js";
 import { chat } from "../ai/llm.js";
+import { isBuilt, recall } from "../rag/knowledgeBase.js";
 
 type Mode = "api" | "ui" | "both";
 const MODES = new Set<Mode>(["api", "ui", "both"]);
@@ -49,7 +50,8 @@ const SYSTEM = [
   `the signed-in user should see or be able to do.`,
   ``,
   `ANSWER — they asked a question, want an explanation or a summary, a bug write-up, or the test case written out.`,
-  `Answer from the run record only. When the record does not say, say so plainly; never invent results, steps,`,
+  `Answer from the run record — or, for a question asked before any run, from the PRODUCT KNOWLEDGE given (Procol's`,
+  `own feature notes and test cases; name the ones you used). When neither says, say so plainly; never invent results, steps,`,
   `statuses, ids or numbers. To write a test case use: **Title**, **Preconditions**, **Test data**, **Steps**`,
   `(numbered), **Expected result** — built from what the run actually did. Keep answers short and concrete.`,
   ``,
@@ -103,6 +105,19 @@ export const handle: RouteHandler = async (ctx) => {
     .slice(-8)
     .map((m: any) => `${m?.role === "assistant" ? "spine.ai" : "Tester"}: ${cap(m?.text, 1500)}`)
     .join("\n");
+  // A question asked before any run ("what is master QCS?") has no record to
+  // answer from: Procol's own feature notes and test cases are looked up instead.
+  let knowledge = "";
+  if (!cap(b.context, 10).trim()) {
+    try {
+      if (await isBuilt()) {
+        const { expectations } = await recall(message, undefined, 6);
+        knowledge = (expectations ?? []).slice(0, 6).map((x: any) => `- [${x.source}] ${cap(String(x.text ?? "").replace(/\s+/g, " "), 700)}`).join("\n");
+      }
+    } catch {
+      knowledge = "";
+    }
+  }
   const user = [
     `Channel of the last run: ${mode}. Kind of run: ${cap(b.kind, 40) || "typed test case"}. Client: ${cap(b.client, 120) || "unknown"}.`,
     ``,
@@ -111,6 +126,8 @@ export const handle: RouteHandler = async (ctx) => {
     ``,
     `EARLIER IN THIS CHAT:`,
     history || "(nothing)",
+    ``,
+    ...(knowledge ? [``, `PRODUCT KNOWLEDGE (Procol's feature notes and test cases):`, knowledge] : []),
     ``,
     `NEW MESSAGE:`,
     message,

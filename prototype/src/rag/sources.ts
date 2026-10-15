@@ -425,12 +425,77 @@ const VERDICT_PLAIN: Record<string, string> = {
   "not-run": "not run",
 };
 
+/**
+ * The track record from the runs kept on disk (data/runs), for a machine with
+ * no spine DB. The memory used to index NO run history at all then — every
+ * "has X ever passed / is Y flaky" question missed (eval report, 15 Oct: 0 of
+ * 6). Same rows as case_track_record + results: per company, case or journey
+ * step, its runs, verdicts newest first, and the last reason it did not pass.
+ */
+function fileTrackRecord(): any[] {
+  const dir = join(DATA, "runs");
+  if (!existsSync(dir)) return [];
+  type Seen = { company_id: number | null; kind: string; case_id: string; title: string; at: string; verdict: string; reason: string };
+  const seen: Seen[] = [];
+  for (const file of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
+    const run = readJson<any>(join(dir, file));
+    if (!run) continue;
+    const company_id = Number(run.companyId) || null;
+    const at = String(run.ts ?? file.replace(/\.json$/, ""));
+    for (const c of run.checkResults ?? []) {
+      if (!c?.id) continue;
+      const verdict = c.inconclusive ? "inconclusive" : c.pass ? "pass" : "fail";
+      seen.push({ company_id, kind: "case", case_id: String(c.id), title: String(c.scenario ?? ""), at, verdict, reason: String(c.message ?? c.verdict ?? "") });
+    }
+    for (const st of run.journey?.steps ?? []) {
+      if (!st?.kind) continue;
+      const v = String(st.verdict ?? "");
+      const verdict = v === "worked" ? "worked" : /fail|broken|refused/.test(v) ? "fail" : v === "not-run" || v === "skipped" ? "not-run" : "inconclusive";
+      if (verdict === "not-run") continue; // a step that never got its turn is no evidence either way
+      seen.push({ company_id, kind: "journey-step", case_id: String(st.kind), title: String(st.title ?? ""), at, verdict, reason: String(st.actual ?? "") });
+    }
+  }
+  const groups = new Map<string, Seen[]>();
+  for (const x of seen) {
+    const key = `${x.company_id}|${x.kind}|${x.case_id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(x);
+  }
+  const rows: any[] = [];
+  for (const xs of groups.values()) {
+    xs.sort((a, b) => b.at.localeCompare(a.at));
+    const passed = xs.filter((x) => x.verdict === "pass" || x.verdict === "worked").length;
+    const failed = xs.filter((x) => x.verdict === "fail").length;
+    rows.push({
+      company_id: xs[0].company_id,
+      kind: xs[0].kind,
+      case_id: xs[0].case_id,
+      runs: xs.length,
+      passed,
+      failed,
+      inconclusive: xs.length - passed - failed,
+      last_seen: xs[0].at,
+      last_verdict: xs[0].verdict,
+      flaky: passed > 0 && failed > 0,
+      title: xs[0].title,
+      history: xs.slice(0, 8).map((x) => x.verdict),
+      last_bad_reason: xs.find((x) => x.verdict !== "pass" && x.verdict !== "worked")?.reason ?? null,
+    });
+  }
+  return rows;
+}
+
 async function experienceChunks(notes: string[]): Promise<Chunk[]> {
   const { spineDb } = await import("../db/spineDb.js");
   const db = await spineDb();
   if (!db) {
-    notes.push("experience: spine DB unreachable — run track record not refreshed");
-    return [];
+    const rows = fileTrackRecord();
+    notes.push(
+      rows.length
+        ? `experience: spine DB unreachable — track record built from the ${rows.length} case/step histories in data/runs`
+        : "experience: spine DB unreachable and no runs in data/runs — no track record",
+    );
+    return trackChunks(rows, "run track record (the runs kept in data/runs; the spine DB was not reachable)");
   }
   // Cases and journey steps always; field checks only once they have failed
   // (1,900 always-green field checks would bury everything else).
@@ -451,9 +516,14 @@ async function experienceChunks(notes: string[]): Promise<Chunk[]> {
            (SELECT reason FROM recent x WHERE x.company_id IS NOT DISTINCT FROM tr.company_id AND x.kind = tr.kind AND x.case_id = tr.case_id
                AND x.verdict NOT IN ('pass', 'worked') ORDER BY n LIMIT 1) AS last_bad_reason
       FROM tr`);
+  return trackChunks(r.rows, "run track record (spine DB case_track_record)");
+}
+
+/** One chunk per case or journey step, with a line per client — from the DB or from data/runs. */
+function trackChunks(trackRows: any[], from: string): Chunk[] {
   // one chunk per case (kind + id), with a line per client
   const byCase = new Map<string, any[]>();
-  for (const row of r.rows) {
+  for (const row of trackRows) {
     const key = `${row.kind}:${row.case_id}`;
     if (!byCase.has(key)) byCase.set(key, []);
     byCase.get(key)!.push(row);
@@ -477,7 +547,7 @@ async function experienceChunks(notes: string[]): Promise<Chunk[]> {
     });
     out.push({
       id: `track:${key}`,
-      source: "run track record (spine DB case_track_record)",
+      source: from,
       kind: "experience",
       module: "events",
       labels: [first.case_id, first.kind, ...(flaky ? ["flaky"] : []), everPassed ? "has-passed" : "never-passed"],

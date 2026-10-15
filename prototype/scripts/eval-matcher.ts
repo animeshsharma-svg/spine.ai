@@ -11,7 +11,7 @@
  * numbers are not just the tuning set read back.
  *
  * Usage:
- *   npx tsx scripts/eval-matcher.ts              rules only (no model)
+ *   npx tsx scripts/eval-matcher.ts              rules only (no model); scores the relations matchTestCase decided
  *   npx tsx scripts/eval-matcher.ts --llm        rules + fast-tier confirmation
  *   npx tsx scripts/eval-matcher.ts --tune       grid-search thresholds on dev (from the cache; no calls)
  *   --cache <file>   reuse / write the per-row candidate features (default prompts/.matcher-cache.json)
@@ -233,7 +233,12 @@ if (tune) {
 }
 
 // ── report ──────────────────────────────────────────────────────────────────
-const T = useLlm || rescoreArg >= 0 ? null : THRESHOLDS; // with the model (or a rescore) the relations are the ones recorded
+// The relations matchTestCase recorded are what it decided, and what is scored.
+// Re-deriving them from the features (relabel) leaves out its penalty terms and
+// re-sorts the candidates, so it described a different function from the one
+// the dashboard runs (eval report, 15 Oct); it is kept for --tune only, which
+// has to try thresholds the matcher did not run with.
+const T = null;
 const out = { dev: score("dev", T), test: score("test", T), all: score("all", T) };
 console.log(`\nmode: ${useLlm ? "rules + fast-tier confirmation" : "rules only"}`);
 console.log("  dev :", fmt(out.dev));

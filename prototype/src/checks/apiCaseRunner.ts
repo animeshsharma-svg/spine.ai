@@ -41,6 +41,7 @@ export interface ApiCaseOutcome {
 }
 
 type Mods = {
+  context: any;
   identities: any;
   config: any;
   contract: any;
@@ -53,7 +54,8 @@ let mods: Mods | undefined;
 async function load(): Promise<Mods> {
   if (mods) return mods;
   const imp = (rel: string) => import(pathToFileURL(join(PROCOL_TEST, "src", rel)).href);
-  const [identities, config, contract, oracle, evidence, findings] = await Promise.all([
+  const [context, identities, config, contract, oracle, evidence, findings] = await Promise.all([
+    imp("context.ts"),
     imp("identities.ts"),
     imp("config.ts"),
     imp("flows/eventsContract.ts"),
@@ -61,7 +63,7 @@ async function load(): Promise<Mods> {
     imp("oracle/evidence.ts"),
     imp("oracle/findings.ts"),
   ]);
-  mods = { identities, config, contract, oracle, evidence, findings };
+  mods = { context, identities, config, contract, oracle, evidence, findings };
   return mods;
 }
 
@@ -74,14 +76,35 @@ async function load(): Promise<Mods> {
  * that has been sitting around can be mutated by an earlier case.
  */
 const SESSION_TTL_MS = 20 * 60 * 1000;
-let session: { at: number; buyer: any; fx: any } | null = null;
+let session: { at: number; companyId: number; buyer: any; fx: any; dispose?: () => Promise<void> } | null = null;
 
-async function openSession(onLog?: (line: string) => void) {
-  if (session && Date.now() - session.at < SESSION_TTL_MS) return session;
+/**
+ * The buyer, signed in the way the journeys sign in: the company's saved
+ * web-console session (procol test context.ts), so no one-time code is needed.
+ * A one-time code was the only way before, and PROCOL DEMO's buyer has none —
+ * every case run from the dashboard's test-case table ended "No OTP for role
+ * buyer". The code login stays as the fallback for a client with no saved session.
+ */
+async function signInBuyer(m: Mods, companyId: number, onLog?: (line: string) => void) {
+  try {
+    const ctx = await m.context.resolveClientContext(companyId);
+    return { buyer: { api: ctx.buyerApi }, evaluatorUuid: String(ctx.evaluatorUuid ?? ""), vendorCompanyUuid: ctx.catalog?.vendorBidCompanyUuid as string | undefined, dispose: ctx.dispose as () => Promise<void> };
+  } catch (e) {
+    onLog?.(`no saved session to sign the buyer in with (${String((e as Error).message).split("\n")[0].slice(0, 140)}) — using a one-time code instead`);
+    const buyer = await m.identities.asBuyer();
+    const evaluator = await m.identities.asEvaluator();
+    return { buyer, evaluatorUuid: String(evaluator.login.userUuid ?? ""), vendorCompanyUuid: undefined, dispose: undefined };
+  }
+}
+
+async function openSession(onLog?: (line: string) => void, companyId?: number) {
   const m = await load();
+  const cid = Number(companyId) || m.context.activeCompanyId();
+  if (session && session.companyId === cid && Date.now() - session.at < SESSION_TTL_MS) return session;
+  await session?.dispose?.().catch(() => {});
+  session = null;
   onLog?.("logging in as the buyer…");
-  const buyer = await m.identities.asBuyer();
-  const evaluator = await m.identities.asEvaluator();
+  const { buyer, evaluatorUuid, vendorCompanyUuid, dispose } = await signInBuyer(m, cid, onLog);
   let vendor: any;
   try {
     vendor = await m.identities.asVendorEmail(m.config.CONFIG.inputs.vendorEmail);
@@ -89,13 +112,8 @@ async function openSession(onLog?: (line: string) => void) {
     vendor = undefined; // the vendor-side probe self-skips without one
   }
   onLog?.("building the shared fixtures (draft, staged, active, auction events)…");
-  const fx = await m.contract.buildContractFixtures(
-    buyer.api,
-    m.config.CONFIG.catalog.vendorBidCompanyUuid,
-    evaluator.login.userUuid!,
-    vendor,
-  );
-  session = { at: Date.now(), buyer, fx };
+  const fx = await m.contract.buildContractFixtures(buyer.api, vendorCompanyUuid || m.config.CONFIG.catalog.vendorBidCompanyUuid, evaluatorUuid, vendor);
+  session = { at: Date.now(), companyId: cid, buyer, fx, dispose };
   return session;
 }
 
@@ -167,11 +185,12 @@ export async function runApiCases(
   ids: string[],
   onResult: (r: ApiCaseOutcome) => void,
   onLog?: (line: string) => void,
+  companyId?: number,
 ): Promise<ApiCaseOutcome[]> {
   const m = await load();
   const index = await apiCaseIndex();
   const out: ApiCaseOutcome[] = [];
-  const { buyer, fx } = await openSession(onLog);
+  const { buyer, fx } = await openSession(onLog, companyId);
 
   for (const id of ids) {
     const started = Date.now();

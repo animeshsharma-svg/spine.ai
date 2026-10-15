@@ -32,6 +32,8 @@ export interface PlanRunStep {
   args?: Record<string, unknown>;
   shot?: string;
   replayed?: boolean;
+  /** done by the tester in the browser (take control), not tested by the run */
+  byHand?: boolean;
   ms?: number;
 }
 
@@ -55,6 +57,12 @@ export interface PlanRunRecord {
   proof?: string;
   /** the explorer saved its route for next time */
   routeSaved?: boolean;
+  /**
+   * Steps the tester did in the browser after taking control: the run did not
+   * test them, so a run with any is "Partly tested", never a pass — also when
+   * it is opened again from Sessions (15 Oct).
+   */
+  byHand?: number;
   /** rebuilt from the result file of a run from before runs were kept */
   recovered?: boolean;
 }
@@ -94,8 +102,15 @@ export function buildPlanRun(o: {
     reason: r.reason ? String(r.reason) : undefined,
     proof: r.proof ? String(r.proof) : undefined,
     routeSaved: !!r.route?.savedTo,
+    byHand: byHandOf(r),
   };
 }
+
+/** How many steps the tester did by hand: the result's count, else its marked steps (the explorer says only true). */
+const byHandOf = (r: any): number => {
+  const marked = (Array.isArray(r?.steps) ? r.steps : []).filter((s: any) => s?.byHand).length;
+  return Math.max(marked, typeof r?.byHand === "number" ? r.byHand : r?.byHand ? 1 : 0);
+};
 
 const stepsOf = (r: any): PlanRunStep[] =>
   (Array.isArray(r?.steps) ? r.steps : []).map((s: any) => ({
@@ -105,6 +120,7 @@ const stepsOf = (r: any): PlanRunStep[] =>
     ...(s.args && Object.keys(s.args).length ? { args: s.args } : {}),
     ...(s.shot ? { shot: String(s.shot) } : {}),
     ...(s.replayed ? { replayed: true } : {}),
+    ...(s.byHand ? { byHand: true } : {}),
     ...(Number.isFinite(s.ms) ? { ms: s.ms } : {}),
   }));
 
@@ -146,6 +162,7 @@ function recover(runId: string): PlanRunRecord | null {
     reason: result.reason ? String(result.reason) : undefined,
     proof: result.proof ? String(result.proof) : undefined,
     routeSaved: !!result.route?.savedTo,
+    byHand: byHandOf(result),
     recovered: true,
   };
 }

@@ -23,8 +23,10 @@ import { installObserver, observe, type Observation } from "./observe.js";
 import { resolveScreen, type PlanContext } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
 import { focusFrames } from "../support/liveCursor.js";
-import { askTester } from "../explore/ask.js";
-import { controlHeld, released } from "../support/liveControl.js";
+import { askTester, SAYS_STOP } from "../explore/ask.js";
+import { failedVendorEmails, learnVendorLogin, learnedVendorLogins } from "../support/learnedStore.js";
+import { lookUpVendor, vendorNameForEmail } from "../support/vendorDirectory.js";
+import { controlHeld, handedBackAt, released } from "../support/liveControl.js";
 import { needOf, roundNow, cannotTakeBid, takesBid } from "../db/pickEvent.js";
 
 /** The QA vendors invite_vendor put on this run's event (one plan per process). */
@@ -56,7 +58,12 @@ async function bidderEmail(want?: unknown): Promise<string> {
     // No invite step recorded who is on the event: the profile's vendor, as before.
     pool = [{ name: "the profile's vendor", email: CONFIG.vendorEmail }];
   } else {
-    const logins = await vendorLogins();
+    // The client's vendors with a login (the database), plus logins earlier runs
+    // learned (the Vendors module, or the tester) — minus ones that failed before.
+    const cid = Number(process.env.COMPANY_ID) || null;
+    const failed = failedVendorEmails(cid);
+    const known = [...(await vendorLogins()), ...learnedVendorLogins(cid).map((v) => ({ name: v.name, email: v.email }))];
+    const logins = known.filter((v, i) => !failed.has(v.email.toLowerCase()) && known.findIndex((x) => x.email.toLowerCase() === v.email.toLowerCase()) === i);
     const onEvent = logins.filter((v) => invitedVendors.some((n) => isQaVendorName(n, [v.name])));
     const own = onEvent.filter((v) => v.email.toLowerCase() === CONFIG.vendorEmail.toLowerCase());
     pool = [...own, ...onEvent.filter((v) => !own.includes(v))];
@@ -85,10 +92,61 @@ async function bidderEmail(want?: unknown): Promise<string> {
   if (!pick) {
     throw new Error(
       `a bid from another vendor needs one more vendor on the event that can sign in to the vendor portal — ` +
-        `${pool.length === 1 ? "the only one" : `all ${pool.length}`} (${who(pool)}) already bid in this run`,
+        `${pool.length === 1 ? "the only one" : `all ${pool.length}`} (${who(pool)}) already bid in this run` +
+        (allowRealVendors() ? "" : ". This run uses QA test vendors only (SPINE_QA_VENDORS_ONLY=1), so it does not sign in as a real vendor"),
     );
   }
   return pick.email;
+}
+
+/** bidderEmail ran out: no vendor on the event this run can sign in as (yet). */
+const NO_LOGIN = /needs one more vendor|has a user this run can sign in|needs \d+ vendors on the event/;
+
+/**
+ * Another vendor to bid as, when the ones this run knows have all bid.
+ *
+ * Aanya's order (15 Oct): ask the tester for a vendor's login; when they don't
+ * know, look the event's vendor up in the Vendors module and use its email —
+ * the vendor portal takes the inviting buyer's UAT login code. With nobody to
+ * ask (a run not started from the dashboard) it looks up straight away.
+ */
+async function anotherVendor(s: RunState, why: string): Promise<{ email: string; name: string; source: string }> {
+  const cid = Number(process.env.COMPANY_ID) || null;
+  const failed = failedVendorEmails(cid);
+  const tried = new Set(biddersUsed.map((e) => e.toLowerCase()));
+  const fresh = (e: string) => !tried.has(e.toLowerCase()) && !failed.has(e.toLowerCase());
+  const names = invitedVendors.filter((n) => n && !/^\+/.test(n.trim()));
+  const a = await askTester({
+    kind: "question",
+    question: "I need another vendor to bid as, and I don't have a login for one. Which vendor should I sign in as?",
+    detail:
+      `${why.replace(/\.$/, "")}. The vendor portal takes the buyer's UAT login code, so a vendor's email is enough — type one, or let me look one up.` +
+      (names.length ? ` Vendors on this event: ${names.slice(0, 4).join(", ")}.` : ""),
+    options: [
+      { id: "lookup", label: "Look it up in the Vendors module for me" },
+      { id: "stop", label: "Stop here" },
+    ],
+  });
+  if (a && (a.option === "stop" || (!a.option && SAYS_STOP.test(a.text)))) throw new Error("no other vendor to bid as, and you chose to stop here");
+  const typed = a && !a.option ? a.text.trim() : "";
+  const mail = typed.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0];
+  if (mail) {
+    const name = (await vendorNameForEmail(s.page, mail).catch(() => null)) ?? mail;
+    console.log(`[bid] signing in as the vendor you gave — ${mail}${name !== mail ? ` (${name})` : ""}`);
+    return { email: mail, name, source: "tester" };
+  }
+  // "idk", "look it up", the option, or nobody to ask: look the event's vendors up.
+  // A vendor name typed instead is looked up first.
+  const dontKnow = !a || a.option === "lookup" || /\b(idk|i ?do ?n'?t know|not sure|no idea|look (?:it )?up|find (?:it|one)|you find)\b/i.test(typed);
+  const lookFor = !dontKnow && typed ? [typed, ...names] : names;
+  if (!a) console.log("[bid] nobody to ask (the run was not started from the dashboard) — looking a vendor up in the Vendors module");
+  for (const n of lookFor) {
+    const v = await lookUpVendor(s.page, n).catch(() => null);
+    if (v && fresh(v.email)) return { email: v.email, name: n, source: "vendors-module" };
+  }
+  throw new Error(
+    `no other vendor to bid as — ${lookFor.length ? `none of ${lookFor.slice(0, 4).join(", ")} is in the Vendors module with an email this run has not already used` : "the event shows no other vendor's name to look up"}`,
+  );
 }
 
 /** "AMD is a real supplier, so …" — said when a named real supplier was swapped for the client's QA vendors. */
@@ -113,6 +171,8 @@ export interface StepResult {
   args?: Record<string, unknown>;
   status: "ok" | "failed" | "skipped";
   detail?: string;
+  /** done by the tester in the browser (take control), not by the run: never counted as tested */
+  byHand?: boolean;
   /** For generic steps: which locator strategy found the element (role+name, label, text, healer…). */
   strategy?: string;
   ms: number;
@@ -122,11 +182,15 @@ export interface PlanResult {
   title: string;
   steps: StepResult[];
   passed: boolean;
+  /** how many steps the tester did by hand — the run is then only partly tested, never passed */
+  byHand?: number;
   /** The observation pass: what the runner saw on each screen it visited (observe.ts). */
   observations?: Observation[];
 }
 
 interface RunState {
+  /** set by runStep when the tester had already done this step in the browser */
+  didByHand?: boolean;
   events: EventsPage;
   create: CreateEventPage;
   single: SingleStagePage;
@@ -534,8 +598,22 @@ async function createEventForCase(s: RunState, need: "bids" | "live"): Promise<s
   return `no live event fitted, so (as you chose) the run created “${s.title}”${need === "bids" ? ", placed a bid on it and let its bidding close" : ""}`;
 }
 
+/** Steps that drive the create screen — nothing to do once the event is published. */
+const CREATE_SCREEN_STEP = /^(compose_stages|expect_stages|set_title|select_template|add_line_items|expect_line_items|fill_sheet|set_schedule|invite_vendor|publish|save_draft|configure_single_stage)$/;
+
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
   const a = step.args ?? {};
+  // The tester took the browser and published the event themselves: the page
+  // handed back is the event's project, and a create-screen step driven
+  // against it only waits and fails (a run stuck after "I published it myself").
+  if (handedBackAt() && CREATE_SCREEN_STEP.test(step.step)) {
+    const id = s.page.url().match(/\/project\/([^/?#]+)/)?.[1];
+    if (id) {
+      s.projectId = s.projectId ?? id;
+      s.didByHand = true;
+      return `the event is already published (project ${id})`;
+    }
+  }
   // Generic read/verify/navigate/act steps (generic/run.ts). `attempt` runs
   // its inner step back through this function, so a domain step can be tried
   // as a negative ("attempt publish") with the same healed code.
@@ -1124,11 +1202,39 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       try {
         const portal = new VendorPortalPage(vendorPage);
         // A vendor on the event: the one named (vendor: "<name>" or vendor: 2),
-        // else the next one that has not bid yet in this plan.
-        const email = await bidderEmail(a.vendor);
-        await portal.goto();
-        const how = await portal.login(email);
+        // else the next one that has not bid yet in this plan. When none is left,
+        // ask the tester / look one up in the Vendors module (anotherVendor), and
+        // remember what worked — and what did not — for the next run.
+        const cid = Number(process.env.COMPANY_ID) || null;
+        let email = "";
+        let how = "";
+        let found: { email: string; name: string; source: string } | null = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          found = null;
+          try {
+            email = await bidderEmail(a.vendor);
+          } catch (err) {
+            if (!allowRealVendors() || !NO_LOGIN.test((err as Error).message)) throw err;
+            found = await anotherVendor(s, (err as Error).message);
+            email = found.email;
+          }
+          await portal.goto();
+          try {
+            how = await portal.login(email);
+            break;
+          } catch (err) {
+            const why = (err as Error).message.split("\n")[0].slice(0, 160);
+            learnVendorLogin(cid, { name: found?.name ?? email, email, source: found?.source ?? "database", ok: false, why });
+            biddersUsed.push(email);
+            console.log(`[bid] ${email} could not sign in to the vendor portal (${why}) — I'll remember that and try another vendor`);
+            if (attempt === 3) throw err;
+          }
+        }
         biddersUsed.push(email);
+        if (found) {
+          learnVendorLogin(cid, { name: found.name, email, source: found.source, ok: true });
+          console.log(`[bid] learned: ${found.name} signs in to the vendor portal as ${email} — the next run uses it without asking`);
+        }
         await portal.openEvent(s.title);
         await portal.startBidding(s.title);
         const cells = await portal.fillBid(Number(a.price ?? 100));
@@ -1136,6 +1242,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const ok = await portal.bidSubmitted();
         s.bidSubmitted = ok;
         if (!ok) throw new Error("the vendor portal did not confirm the quote as submitted");
+        if (portal.stage === "technical") {
+          return `technical response submitted from the vendor portal as ${email}, signed in with ${how} — ${portal.lastFill}`;
+        }
+        if (portal.answeredTechnical) return `bid placed from the vendor portal as ${email}, signed in with ${how}: ${portal.lastFill}`;
         return `bid placed from the vendor portal as ${email}, signed in with ${how} (${cells} cell(s))`;
       } finally {
         release();
@@ -1212,9 +1322,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         names = asked.filter((n) => isQaVendorName(n, qa));
       }
       const invited = await s.create.inviteVendors({ names, count: min });
+      if (s.create.leftCreateScreen()) {
+        const id = s.page.url().match(/\/project\/([^/?#]+)/)?.[1];
+        if (id) s.projectId = s.projectId ?? id;
+        s.didByHand = true;
+        return `you published the event yourself (project ${id ?? "?"}) while vendors were being added`;
+      }
       const present = await s.create.participantNames();
       invitedVendors = present.length ? present : invited;
-      const total = present.length || (await s.create.participantCount());
+      // The chips show four names and "+193": the count reads the "+N" too.
+      const total = (await s.create.participantCount()) || present.length;
       const shown = invited.length ? invited : present;
       return swapNote(real) + (shown.length ? `invited ${shown.join(", ")} (${total} total)` : `${total} participant(s)`);
     }
@@ -1460,6 +1577,14 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       s.stepNo = i + 1;
       s.later = plan.steps.slice(i + 1).map((x) => x.step);
       const detail = await runStep(s, step);
+      // Done by the tester in the browser, not by the run: recorded as such and
+      // never counted as tested — a run they finished by hand is partly tested.
+      if (s.didByHand) {
+        s.didByHand = false;
+        results.push({ step: step.step, args: step.args, status: "skipped", byHand: true, detail: `done by you in the browser, not tested by the run — ${detail ?? ""}`.replace(/ — $/, ""), ms: Date.now() - started });
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ⊘ done by you in the browser, not tested by the run`);
+        continue;
+      }
       results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
       await look(i, step.step, i === plan.steps.length - 1);
@@ -1492,5 +1617,6 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     }
   }
 
-  return { title: plan.title, steps: results, passed: !failed, observations };
+  const byHand = results.filter((r) => r.byHand).length;
+  return { title: plan.title, steps: results, passed: !failed, ...(byHand ? { byHand } : {}), observations };
 }

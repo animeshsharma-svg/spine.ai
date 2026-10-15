@@ -56,6 +56,14 @@
   const isPre = (f) => !!f.prerequisite && runnable(f);
   const heldBy = (f) => read(() => exclusiveHolder(f, selected, byFeatureId), null);
   const hasJourney = (f) => !!f.uiFlow && flows().some((fl) => fl.key === f.uiFlow);
+  /**
+   * No journey of its own, but every event journey does it (invite vendors,
+   * publish): it IS tested in the browser, by running an event journey. It was
+   * labelled "API only", which read as untested in the browser.
+   */
+  const eventJourneyFor = () => ["events.rfq_only", ...EVENT_FLOWS].find((k) => flows().some((fl) => fl.key === k)) || null;
+  const coveredByEvents = (f) => !hasJourney(f) && /event[- ]type journey|event journey/i.test(f.uiCoveredBy || "") && !!eventJourneyFor();
+  const inBrowser = (f) => hasJourney(f) || coveredByEvents(f);
   /** The browser journeys load after the features (seconds, for some accounts). */
   const flowsKnown = () => !!read(() => uiFlowsLoaded, true);
   /** Accounts whose API side is the PO flow: the case library cannot run there. */
@@ -107,14 +115,25 @@
     const placed = new Set();
     stagesCache = STAGES.map((st) => {
       const kids = [];
+      const sections = [];
       for (const m of st.mods) {
         const g = gs.find((x) => x.id === m);
-        if (g) { kids.push(...g.children); placed.add(g.id); }
+        if (g) {
+          kids.push(...g.children);
+          sections.push({ id: g.id, label: g.label, children: g.children });
+          placed.add(g.id);
+        }
       }
-      return { ...st, children: kids };
+      return { ...st, children: kids, sections };
     });
-    const rest = gs.filter((g) => !placed.has(g.id)).flatMap((g) => g.children);
-    if (rest.length) stagesCache[stagesCache.length - 1].children.push(...rest);
+    const restGroups = gs.filter((g) => !placed.has(g.id));
+    if (restGroups.length) {
+      const last = stagesCache[stagesCache.length - 1];
+      for (const g of restGroups) {
+        last.children.push(...g.children);
+        last.sections.push({ id: g.id, label: g.label, children: g.children });
+      }
+    }
     stagesCache = stagesCache.filter((st) => st.children.length);
     return stagesCache;
   }
@@ -150,10 +169,21 @@
       const res = await fetch(`/api/catalogue?c=${encodeURIComponent(String(client() ?? ""))}${read(() => baseParam(), "")}`, { cache: "no-store" });
       if (!res.ok) throw new Error(String(res.status));
       const body = await res.json();
+      // Per feature: its edge and main cases, and how many of each can run
+      // here at all — a case that needs a state the run cannot build is
+      // reported "not run" with its reason, so it is not promised up front.
       const map = {};
       for (const g of body.groups ?? []) {
         for (const f of g.features ?? g.children ?? []) {
-          map[f.id] = (f.cases ?? []).filter((c) => /^EDGE-/.test(String(c.id))).length;
+          // why: per depth, the set-aside cases by group (/api/catalogue `aside`).
+          const n = { edge: 0, edgeRun: 0, main: 0, mainRun: 0, why: { edge: {}, main: {} } };
+          for (const c of f.cases ?? []) {
+            const k = /^EDGE-/.test(String(c.id)) ? "edge" : "main";
+            n[k] += 1;
+            if (c.runnable !== false) n[`${k}Run`] += 1;
+            else n.why[k][c.aside || "other"] = (n.why[k][c.aside || "other"] || 0) + 1;
+          }
+          map[f.id] = n;
         }
       }
       Object.assign(edge, { key, map, failed: false });
@@ -164,15 +194,124 @@
     }
     renderPanel();
   }
-  /** { all, main } cases for these features; main is null until the split is known. */
+  /**
+   * WHAT THE RUN WILL RUN, ASKED OF THE RUN'S OWN CODE.
+   *
+   * The counts below were the page's copy of the run's rules, and the copy
+   * drifted: "the journey + 4 cases" for a run of 0, "the journey + 1 case"
+   * for a run of 35, 16 for a run of 14 (15 Oct). /api/run-preview answers
+   * with the features run's own filters, set-aside reasons and case builder,
+   * for both depths at once; the copy is only the estimate shown while it loads.
+   */
+  const preview = { key: null, data: null, asked: null, timer: 0 };
+  const previewKey = (list) => `${clientKey()}|${list.map((f) => f.id).sort().join(",")}`;
+  function askPreview(list) {
+    const key = previewKey(list);
+    if (!list.length || preview.asked === key) return;
+    preview.asked = key;
+    clearTimeout(preview.timer);
+    preview.timer = setTimeout(async () => {
+      try {
+        const qs = `c=${encodeURIComponent(String(client() ?? ""))}&features=${encodeURIComponent(list.map((f) => f.id).join(","))}`;
+        const res = await fetch(`/api/run-preview?${qs}${read(() => baseParam(), "")}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.json();
+        if (preview.asked !== key) return;
+        Object.assign(preview, { key, data });
+      } catch {
+        // The estimate stays; the next change asks again.
+        if (preview.asked === key) preview.asked = null;
+        return;
+      }
+      renderPanel();
+    }, 200);
+  }
+
+  /**
+   * The features the API run WALKS AS THE JOURNEY instead of replaying their
+   * library cases (src/checks/journeyModel.ts journeyWalksFeature): ticking one
+   * means "walk the collection for that event", and only its edge cases run
+   * after it. Counting all their library cases promised "66 cases" for a run
+   * that walked a 10-step journey and ran no case (accuracy check P1, 15 Oct).
+   */
+  const JOURNEY_WALKS = new Set([
+    "events.rfp_only", "events.rfq_only", "events.rfp_rfq", "events.rfp_auction", "events.auction_only",
+    "events.publish", "events.config", "bids.place", "bids.submit", "evaluation.score",
+    "award.proposal", "award.add_response", "award.submit",
+    // walked when ticked: the journey adds the step for them
+    "bids.surrogate", "bids.counter_offer", "negotiation.counter_offer", "auction.convert", "events.versioning",
+  ]);
+  /**
+   * What the run will really do, per depth: whether it walks the journey, how
+   * many cases it runs after it, and how many it sets aside because they need
+   * a state it cannot build here. Main flow runs no edge case of any feature
+   * (/api/features-run edges=0). Null counts until the catalogue has loaded.
+   */
   function caseCounts(list) {
-    let all = 0;
-    let edges = 0;
-    for (const f of list) {
-      all += f.cases || 0;
-      if (edge.map) edges += Math.min(f.cases || 0, edge.map[f.id] || 0);
+    // The run's own answer (/api/run-preview) once it is in; until then the
+    // estimate below, from the catalogue and the page's copy of the rules.
+    const key = previewKey(list);
+    if (preview.key === key && preview.data) {
+      const d = preview.data;
+      const shape = (x) => ({ run: x.run, maybe: x.maybe || 0, aside: Object.values(x.aside || {}).reduce((a, b) => a + b, 0), why: x.aside || {} });
+      return { journey: !!d.journey, all: shape(d.all), main: shape(d.main), exact: true };
     }
-    return { all, main: edge.map ? all - edges : null };
+    askPreview(list);
+    const journey = list.some((f) => JOURNEY_WALKS.has(f.id));
+    if (!edge.map) {
+      // Before the split is known: every case of the features the journey does not walk.
+      const all = list.filter((f) => !JOURNEY_WALKS.has(f.id)).reduce((n, f) => n + (f.cases || 0), 0);
+      return { journey, all: { run: all, aside: 0 }, main: null };
+    }
+    const all = { run: 0, aside: 0, why: {} };
+    const main = { run: 0, aside: 0, why: {} };
+    const add = (into, why) => { for (const [k, v] of Object.entries(why || {})) into.why[k] = (into.why[k] || 0) + v; };
+    for (const f of list) {
+      const n = edge.map[f.id] ?? { edge: 0, edgeRun: 0, main: f.cases || 0, mainRun: f.cases || 0, why: { edge: {}, main: {} } };
+      all.run += n.edgeRun;
+      all.aside += n.edge - n.edgeRun;
+      add(all, n.why?.edge);
+      if (JOURNEY_WALKS.has(f.id)) continue;
+      all.run += n.mainRun;
+      all.aside += n.main - n.mainRun;
+      add(all, n.why?.main);
+      main.run += n.mainRun;
+      main.aside += n.main - n.mainRun;
+      add(main, n.why?.main);
+    }
+    return { journey, all, main };
+  }
+  /**
+   * Why the cases a run will not try are set aside, a group each, biggest
+   * first (src/checks/caseLibrary.ts setAsideKind). One reason for all of them
+   * read "they need a state this run can't build", also for the 16 cases
+   * whose request did not send what they test (15 Oct).
+   */
+  const ASIDE_WORDS = {
+    "as-written": (n) => (n === 1 ? "1 doesn't send what it tests yet" : `${n} don't send what they test yet`),
+    state: (n) => `${n} ${n === 1 ? "needs" : "need"} an event state this run can't build`,
+    setting: (n) => `${n} ${n === 1 ? "needs" : "need"} a company setting that's off for this account`,
+    access: (n) => `${n} ${n === 1 ? "needs" : "need"} a different user or company than this run signs in as`,
+    "not-allowed": (n) => `${n} ${n === 1 ? "uses" : "use"} a request the run isn't allowed to send yet`,
+    other: (n) => `${n} can't run here`,
+  };
+  function asideWords(depth, journey) {
+    if (!depth) return "";
+    const parts = Object.entries(depth.why || {})
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, n]) => (ASIDE_WORDS[k] || ASIDE_WORDS.other)(n));
+    const aside = depth.aside ? `${plural(depth.aside, "case", "cases")} set aside, not run${parts.length ? `: ${parts.join(", ")}` : ""}.` : "";
+    // Waiting on a record: only the run can tell whether an earlier case makes it.
+    const maybe = depth.maybe
+      ? `${plural(depth.maybe, "more case runs", "more cases run")} only if an earlier ${journey ? "step or case" : "case"} creates the record ${depth.maybe === 1 ? "it needs" : "they need"}.`
+      : "";
+    return [aside, maybe].filter(Boolean).join(" ");
+  }
+  /** "the journey + 21 cases", "the journey", "11 cases" — the run as it will go. */
+  function runWords(journey, n) {
+    if (!journey) return plural(n, "case", "cases");
+    return n ? `the journey + ${plural(n, "case", "cases")}` : "the journey";
   }
 
   // ── what the run sends: depth and the event setup ────────────────────────
@@ -287,7 +426,8 @@
     if (isPre(f)) return `<span class="pl-tag" title="Every event goes through this step; it runs with whatever you pick">Always runs</span>`;
     const holder = heldBy(f);
     if (holder) return `<span class="pl-tag" title="An event has one type. Untick “${h(holder.label)}” to pick this instead.">One type per run</span>`;
-    if (flowsKnown() && !hasJourney(f)) return `<span class="pl-tag" title="No browser test for this yet: it runs through the API">API only</span>`;
+    if (flowsKnown() && coveredByEvents(f)) return `<span class="pl-tag cov" title="No journey of its own: every event journey does this in the browser, so a UI run runs an RFQ journey for it">In every event journey</span>`;
+    if (flowsKnown() && !hasJourney(f)) return `<span class="pl-tag" title="No browser test for this yet. Its API test cases run in an API or Both run; a UI-only run has nothing to open for it.">API tests only</span>`;
     return "";
   }
 
@@ -320,21 +460,35 @@
       const choosable = g.children.filter((f) => runnable(f) && !isPre(f));
       const on = choosable.filter((f) => s?.has(f.id)).length;
       const open = q ? true : openGroups.has(g.key);
-      const rows = open
-        ? `<div class="pl-frows">${shown
-            .map((f) => {
-              const ok = canTick(f);
-              const checked = s?.has(f.id) || isPre(f);
-              return (
-                `<div class="pl-frow${ok ? "" : " is-off"}">` +
-                `<label class="pl-flabel"><input type="checkbox" class="pl-cb" data-id="${h(f.id)}" data-fk="f:${h(f.id)}"${checked ? " checked" : ""}${ok ? "" : " disabled"} />` +
-                `<span class="pl-fname" title="${h(f.what || f.label)}">${h(f.label)}</span></label>` +
-                tagFor(f) +
-                `<span class="pl-fn">${f.cases ? fmt(f.cases) : "—"}</span></div>`
-              );
-            })
-            .join("")}</div>`
-        : "";
+      const row = (f) => {
+        const ok = canTick(f);
+        const checked = s?.has(f.id) || isPre(f);
+        return (
+          `<div class="pl-frow${ok ? "" : " is-off"}">` +
+          `<label class="pl-flabel"><input type="checkbox" class="pl-cb" data-id="${h(f.id)}" data-fk="f:${h(f.id)}"${checked ? " checked" : ""}${ok ? "" : " disabled"} />` +
+          `<span class="pl-fname" title="${h(f.what || f.label)}">${h(f.label)}</span></label>` +
+          tagFor(f) +
+          `<span class="pl-fn">${f.cases ? fmt(f.cases) : "—"}</span></div>`
+        );
+      };
+      // A stage made of several modules shows each under its own heading, so
+      // the event's own features are not mixed with ERFX, add-ons and auctions.
+      const secs = (g.sections || []).map((sec) => ({ ...sec, shown: shown.filter((f) => sec.children.includes(f)) })).filter((sec) => sec.shown.length);
+      const body =
+        secs.length > 1
+          ? secs
+              .map((sec) => {
+                const pick = sec.children.filter((f) => runnable(f) && !isPre(f));
+                const n = pick.filter((f) => s?.has(f.id)).length;
+                return (
+                  `<div class="pl-sub"><span class="pl-subname">${h(sec.label)}</span>` +
+                  `<span class="pl-subn${n ? " some" : ""}">${n}/${pick.length}</span></div>` +
+                  sec.shown.map(row).join("")
+                );
+              })
+              .join("")
+          : shown.map(row).join("");
+      const rows = open ? `<div class="pl-frows">${body}</div>` : "";
       parts.push(
         `<div class="pl-group${open ? " open" : ""}" data-group="${h(g.key)}">` +
           `<div class="pl-ghead" data-toggle="${h(g.key)}">` +
@@ -414,9 +568,9 @@
       card.tabIndex = on ? 0 : -1;
     }
     const main = q$("#pl-dn-main");
-    if (main) main.textContent = counts.main == null ? "— cases" : plural(counts.main, "case", "cases");
+    if (main) main.textContent = counts.main == null ? "— cases" : runWords(counts.journey, counts.main.run);
     const all = q$("#pl-dn-edges");
-    if (all) all.textContent = plural(counts.all, "case", "cases");
+    if (all) all.textContent = runWords(counts.journey, counts.all.run);
   }
 
   function renderTrack(list) {
@@ -436,14 +590,31 @@
   function renderPanel() {
     const list = picked();
     const N = list.length;
-    const M = list.filter(hasJourney).length;
+    const M = list.filter(inBrowser).length;
     const counts = caseCounts(list);
-    const shown = inputs.edges ? counts.all : counts.main;
+    const depth = inputs.edges ? counts.all : counts.main;
+    // The big number is what runs: the journey counts as one, then each case.
+    const shown = depth == null ? null : depth.run + (counts.journey ? 1 : 0);
 
     const big = q$("#pl-big");
     if (big) big.textContent = state() === "ready" && shown != null ? fmt(shown) : "—";
     const bigC = q$("#pl-big-c");
-    if (bigC) bigC.textContent = `cases from ${plural(N, "feature", "features")}`;
+    // Said as it will run: a ticked event feature is walked as the journey, not
+    // replayed case by case, and a case that cannot run here is not promised.
+    if (bigC) {
+      const from = `from ${plural(N, "feature", "features")}`;
+      bigC.textContent =
+        depth == null ? `cases ${from}`
+        : counts.journey ? `= ${runWords(true, depth.run)}, ${from}`
+        : `cases ${from}`;
+    }
+    // The cases the run will not try, and why, on a line of their own.
+    const asideEl = q$("#pl-aside");
+    if (asideEl) {
+      const text = state() === "ready" && N ? asideWords(depth, counts.journey) : "";
+      asideEl.textContent = text;
+      asideEl.hidden = !text;
+    }
     renderTrack(list);
     renderDepth(counts);
     renderSteppers();
@@ -475,7 +646,7 @@
       run.setAttribute("aria-expanded", String(menuOpen));
       q$("#pl-run-text").textContent = menuOpen
         ? "Choose how to run"
-        : shown != null && N ? `Run ${plural(shown, "case", "cases")}` : `Run ${plural(N, "feature", "features")}`;
+        : depth != null && N ? `Run ${runWords(counts.journey, depth.run)}` : `Run ${plural(N, "feature", "features")}`;
       q$("#pl-run-ico")?.setAttribute("href", menuOpen ? "#i-chevron-down" : "#i-chevron-up");
     }
     if (run?.disabled && menuOpen) closeMenu(false);
@@ -585,7 +756,10 @@
 
   function startUi() {
     applyInputs();
-    const { keys, bidders } = foldJourneys([...new Set(picked().filter(hasJourney).map((f) => f.uiFlow))]);
+    const own = [...new Set(picked().filter(hasJourney).map((f) => f.uiFlow))];
+    // Invite vendors / Publish event: run by an event journey, when none is picked already.
+    if (picked().some(coveredByEvents) && !own.some((k) => EVENT_FLOWS.includes(k))) own.push(eventJourneyFor());
+    const { keys, bidders } = foldJourneys(own.filter(Boolean));
     if (!keys.length) return false;
     const ui = read(() => uiSelected, null);
     if (!ui) return false;

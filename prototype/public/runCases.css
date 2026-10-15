@@ -79,25 +79,18 @@
 .rc-detail ol { margin: 4px 0; padding-left: 20px; }
 .rc-meta { color: var(--text-2); font-size: 12px; }
 
-.rc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
-.rc-count { margin-right: auto; font-size: 13px; color: var(--text-2); }
-.rc-x {
-  height: 36px; padding: 0 14px; border-radius: 10px; cursor: pointer;
-  border: 1px solid var(--primary-fill); background: var(--primary-fill); color: var(--on-primary, #fff);
-  font: 600 13px var(--font-sans);
-}
-.rc-x[data-x="csv"] { background: var(--card); color: var(--primary-text, var(--primary)); border-color: var(--primary-border); }
-.rc-x:disabled { opacity: .45; cursor: not-allowed; }
 .rc-again { margin-top: 0; }
 
-/* Running a case from the table: a Run button per row, Run all / Run ticked in the bar. */
+/* Running a case from the table: a Run button per row; the bar has the run
+   actions on the left and export / write again on the right. */
 .rc-run {
-  display: block; margin-top: 8px; height: 30px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+  height: 28px; padding: 0 11px; border-radius: 8px; cursor: pointer;
   border: 1px solid var(--primary-border); background: var(--card); color: var(--primary-text, var(--primary));
   font: 600 12.5px var(--font-sans);
 }
+.rc-run .ico { width: 12px; height: 12px; }
 .rc-run:hover { background: var(--primary-tint-2); }
-.rc-run:focus-visible, .rc-x:focus-visible, .rc-link:focus-visible { outline: 2px solid var(--focus, var(--primary-border)); outline-offset: 2px; }
 .rc-st.run { background: var(--warn-bg); color: var(--warn-text); }
 .rc-st.run::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--warn-dot); vertical-align: 1px; animation: rc-pulse 1.2s ease-in-out infinite; }
 .rc-table tr.running td { background: var(--tint-bg); }
@@ -105,14 +98,42 @@
 .rc-go { display: inline-block; color: var(--primary-text, var(--primary)); text-decoration: underline; text-underline-offset: 2px; }
 .rc-unq { display: block; }
 .rc-tally { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--text); }
-.rc-gap { flex: 1 1 0; min-width: 0; }
-.rc-count { margin-right: 0; }
-.rc-x.rc-runall, .rc-x.rc-runsel { background: var(--card); color: var(--primary-text, var(--primary)); border-color: var(--primary-border); }
-.rc-x.rc-runall:not(:disabled) { background: var(--primary-fill); color: var(--on-primary, #fff); border-color: var(--primary-fill); }
-.rc-hint { margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
-@container (max-width: 620px) {
-  .rc-gap { display: none; }
-  .rc-run { display: inline-block; }
+.rc-kept { margin-top: 4px; font-size: 12.5px; }
+
+.rc-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-subtle, var(--border));
 }
+.rc-runs, .rc-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rc-count { font-size: 12.5px; color: var(--text-2); margin-right: 4px; }
+.rc-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px;
+  border-radius: 9px; border: 1px solid var(--primary-border); background: var(--card);
+  color: var(--primary-text, var(--primary)); font: 600 13px var(--font-sans); cursor: pointer; white-space: nowrap;
+}
+.rc-btn .ico { width: 14px; height: 14px; flex: none; }
+.rc-btn:hover:not(:disabled) { background: var(--primary-tint-2); }
+.rc-btn.primary { background: var(--primary-fill); border-color: var(--primary-fill); color: var(--on-primary, #fff); }
+.rc-btn.primary:hover:not(:disabled) { background: var(--primary-fill); filter: brightness(1.06); }
+.rc-btn.ghost { border-color: transparent; background: transparent; color: var(--text-2); padding: 0 9px; }
+.rc-btn.ghost:hover:not(:disabled) { background: var(--tint-bg); color: var(--text-strong); }
+.rc-btn:disabled { opacity: .45; cursor: not-allowed; }
+.rc-n {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-grid; place-items: center;
+  font: 600 11.5px var(--font-mono); background: var(--primary-tint-2); color: var(--primary-text, var(--primary));
+}
+.rc-btn.primary .rc-n { background: rgba(255, 255, 255, .22); color: inherit; }
+.rc-btn:focus-visible, .rc-run:focus-visible, .rc-link:focus-visible { outline: 2px solid var(--focus, var(--primary-border)); outline-offset: 2px; }
+.rc-hint { margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
 
 @media (prefers-reduced-motion: reduce) { .rc-dot, .rc-st.run::before { animation: none; } }
+
+/* A person signs off every verdict (runCases.js reviewCell). */
+.rc-rev { margin-top: 6px; font-size: 12.5px; }
+.rc-rev.wait { padding: 6px 8px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-text); }
+.rc-rev-t { display: block; font-weight: 600; margin-bottom: 4px; }
+.rc-rev-b { display: flex; flex-wrap: wrap; gap: 6px; }
+.rc-rev-b .rc-btn { height: 26px; padding: 0 10px; font-size: 12px; }
+.rc-rev.done { display: flex; gap: 4px; align-items: center; color: var(--ok-text); }
+.rc-rev.done .ico { width: 13px; height: 13px; }
+.rc-tally.rc-wait-n { color: var(--warn-text); }

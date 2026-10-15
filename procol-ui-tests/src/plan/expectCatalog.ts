@@ -18,7 +18,7 @@ export const EXPECTATION_STEPS: StepSpec[] = [
   {
     name: "expect_field_error",
     assertion: true,
-    purpose: "Assert an inline error is shown AT a field (its form item / cell), optionally containing text — not a toast somewhere else.",
+    purpose: "Assert the app reports an error FOR a field: inline at the field (its form item / cell), or — as Procol often does — in an error message that names the field (\"Please fill project title!\" for Title). Optionally containing text. For a message that names no field, use expect_toast.",
     args: { field: "the field's label as on screen", message: "substring the error must contain (optional)" },
   },
   {

@@ -16,6 +16,7 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { readEvidence } from "./checks/vendorBulkExtras.js";
+import { resolveVbuWorkspace } from "./checks/vendorBulk.js";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getCapabilityMap, openClientContext, runFlow } from "./executor.js";
 import { needsEventFixture } from "./checks/eventsFixture.js";
@@ -26,7 +27,7 @@ import { mergeFieldChecks } from "./report/journeyReport.js";
 import { runEventJourney, journeyToSetupSteps, journeyToSetupSummary } from "./checks/eventJourney.js";
 import { FEATURE_TREE, defaultSelection, findFeature } from "../config/featureTree.js";
 import { apiModulesFor, singleApiModule } from "../config/apiModules.js";
-import { caseCountsByFeature, lineItemCaseCountsByFeature, casesForFeatures, buildChecksFromCases, idsFromReply, loadCases, resolveCaseContext, resolveActor, configRequirementOf, orderForSharedCopy } from "./checks/caseLibrary.js";
+import { caseCountsByFeature, lineItemCaseCountsByFeature, casesForFeatures, buildChecksFromCases, idsFromReply, loadCases, resolveCaseContext, resolveActor, configRequirementOf, orderForSharedCopy, resolveCaseSettings, setAsideKind } from "./checks/caseLibrary.js";
 import { disposeVendorSession } from "./checks/actors.js";
 import { runOrchestrator } from "./agents/orchestrator.js";
 import type { CheckResult } from "./ai/types.js";
@@ -64,6 +65,7 @@ import { isTriageField, loadTriage, saveTriageField } from "./triageStore.js";
 import { featuresOfRun, latestRun, renderTestReport } from "./report/testReport.js";
 import { renderUiReport, uiShotPath } from "./report/uiReport.js";
 import { renderUiRunReport } from "./report/uiRunReport.js";
+import { renderSimpleApiReport, renderSimpleBugReport, renderSimpleUiReport } from "./report/simpleReport.js";
 import { readPoRun, readPoRunHtml, deletePoRun, listPoRuns } from "./poRunStore.js";
 import { defectsFromPoRun } from "./report/poRunDefects.js";
 import { checkToken, poInputSummary, runPoFlow } from "./poRunner.js";
@@ -79,6 +81,62 @@ import { flowToCases, loadRecording } from "./checks/flowToCases.js";
 import { replayCase, disposeReplay } from "./checks/flowReplay.js";
 import { parsePastedCases, runPastedCases } from "./checks/pastedCases.js";
 import { dispatch as dispatchRoute } from "./routes/index.js";
+
+/**
+ * WHICH IDS A REAL RUN HAD, so Run tests can promise what a run will build.
+ *
+ * A case whose request needs an id the run cannot fill waits for an earlier
+ * case to create it, and only the run knows whether one will. Each features
+ * run notes the NAMES of the ids it had — never the values: the client's own
+ * records (a PR, a vendor, a category…) per company, its role, and the ids a
+ * journey made per journey shape. /api/run-preview builds cases with them.
+ */
+interface RunCtxKeys {
+  clients: Record<string, { keys: string[]; role?: string; at: string }>;
+  journeys: Record<string, { keys: string[]; at: string }>;
+}
+const runCtxFile = () => join(DATA_DIR, "run-ctx-keys.json");
+function readRunCtxKeys(): RunCtxKeys {
+  try {
+    const j = JSON.parse(readFileSync(runCtxFile(), "utf8"));
+    return { clients: j.clients ?? {}, journeys: j.journeys ?? {} };
+  } catch {
+    return { clients: {}, journeys: {} };
+  }
+}
+function noteRunCtxKeys(update: (k: RunCtxKeys) => void): void {
+  try {
+    const k = readRunCtxKeys();
+    update(k);
+    writeFileSync(runCtxFile(), JSON.stringify(k, null, 2));
+  } catch {
+    /* a note for the preview, never a reason for a run to fail */
+  }
+}
+/** The names of the ids in a case context: strings and numbers only, never their values. */
+const idKeys = (o: Record<string, unknown>) => Object.keys(o).filter((k) => typeof o[k] === "string" || typeof o[k] === "number");
+/** What resolveCaseContext usually fills, for an account no run has noted yet. */
+const USUAL_CLIENT_KEYS = ["productUuid", "productQualityUuid", "locationUuid", "vendorUuid", "vendorCompanyId", "prId", "prItemId", "categoryUuid", "familyUuid", "cityUuid", "teamUuid", "userUuid"];
+const previewVbuCache = new Map<number, { at: number; vbu: unknown }>();
+async function previewVbu(companyId: number): Promise<unknown> {
+  const hit = previewVbuCache.get(companyId);
+  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.vbu;
+  const vbu = await resolveVbuWorkspace(companyId).catch(() => null);
+  if (vbu) previewVbuCache.set(companyId, { at: Date.now(), vbu });
+  return vbu ?? undefined;
+}
+
+/** Company settings for /api/catalogue, cached ten minutes per company (three SELECTs each). */
+const catalogueSettingsCache = new Map<number, { at: number; settings: Record<string, boolean | null> }>();
+async function catalogueSettings(companyId: number): Promise<Record<string, boolean | null>> {
+  const hit = catalogueSettingsCache.get(companyId);
+  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.settings;
+  const settings = await resolveCaseSettings(companyId).catch(() => ({}) as Record<string, boolean | null>);
+  // A failed read is not kept: the next load tries again.
+  if (Object.values(settings).some((v) => v !== null)) catalogueSettingsCache.set(companyId, { at: Date.now(), settings });
+  return settings;
+}
+
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROCOL_TEST_DIR = join(here, "..", "..", "procol test");
@@ -184,6 +242,12 @@ function expectRefusalOverLimit(plan: { steps: Array<{ step: string; args?: Reco
 }
 
 const PORT = Number(process.env.PORT ?? 4300);
+/** This report's own address with &full=1 — the old, detailed page, linked from the simple one. */
+const withFull = (url: URL): string => {
+  const q = new URLSearchParams(url.searchParams);
+  q.set("full", "1");
+  return `${url.pathname}?${q}`;
+};
 
 // Curated demo clients (PROCOL DEMO is the known-fresh default).
 const CLIENTS = [
@@ -307,9 +371,77 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    /**
+     * WHAT A FEATURES RUN OF THIS SELECTION WILL RUN, for Run tests.
+     *
+     * The page counted from its own copy of the run's rules, and the copy
+     * drifted: "the journey + 4 cases" for a run that walked them and ran 0,
+     * "the journey + 1 case" for a run of 35 checks, 16 for a run of 14
+     * (15 Oct). This answers with the run's own code — the same edge and
+     * journey filters (/api/features-run), the same set-aside reasons
+     * (setAsideKind) and the same case builder, fed the ids a real run of this
+     * account had. A case waiting for a record an earlier case may create is
+     * said as "maybe": only the run can know whether it will.
+     */
+    if (path === "/api/run-preview") {
+      const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
+      const ids = (url.searchParams.get("features") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+      const account = isTokenClient(c) ? tokenClient(c) : undefined;
+      const plan = journeyPlan(ids, { stopAtTicked: true, bidders: 1 });
+      const isEdge = (cs: { id: string }) => /^EDGE-/.test(cs.id);
+      const settings = account ? undefined : await catalogueSettings(c);
+      const known = readRunCtxKeys();
+      const noted = known.clients[String(c)];
+      const shape = plan.wanted ? known.journeys[plan.steps.join(">")] : undefined;
+      // A journey always makes the event, its round and its line item; the rest only once seen.
+      const journeyKeys = plan.wanted ? shape?.keys ?? ["eventGroupUuid", "tradeId", "lineItemUuid"] : [];
+      const ctx: Record<string, unknown> = { caseSettings: settings, vbu: account ? undefined : await previewVbu(c), vbuCreate: true };
+      for (const k of [...(noted?.keys?.length ? noted.keys : USUAL_CLIENT_KEYS), ...journeyKeys]) ctx[k] = `preview-${k}`;
+      const fake: any = {
+        ctx: { companyId: c, catalog: { productUuid: "preview", productQualityUuid: "preview", locationUuid: "preview" }, vendor: { uuid: "preview" }, buyerApi: {}, buyerUserId: 0 },
+      };
+      // The builder's own refusals, in the page's groups. "not on the allowlist":
+      // the run may not send that request at all yet (EVAL-QCS-001…004, 15 Oct).
+      const kindOfSkip = (why: string) =>
+        /not on the allowlist/i.test(why) ? "not-allowed"
+        : /authenticated as|role|permission|app is not enabled|may not call/i.test(why) ? "access"
+        : /setting|workspace|switched/i.test(why) ? "setting"
+        : "other";
+      const depth = (withEdges: boolean) => {
+        let cases = casesForFeatures(ids);
+        if (!withEdges) cases = cases.filter((cs) => !isEdge(cs));
+        if (plan.wanted) cases = cases.filter((cs) => isEdge(cs) || !journeyWalksFeature(cs.feature, plan));
+        const aside: Record<string, number> = {};
+        const rest = [];
+        for (const cs of cases) {
+          const k = setAsideKind(cs, settings);
+          if (k) aside[k] = (aside[k] ?? 0) + 1;
+          else rest.push(cs);
+        }
+        const built = buildChecksFromCases(fake, rest, ctx as any, { role: noted?.role }, {});
+        for (const sk of built.skipped) {
+          const k = kindOfSkip(sk.reason);
+          aside[k] = (aside[k] ?? 0) + 1;
+        }
+        return { cases: cases.length, run: built.checks.length, maybe: built.deferred.length, aside };
+      };
+      return json(res, {
+        journey: plan.wanted,
+        walked: plan.wanted ? ids.filter((x) => journeyWalksFeature(x, plan)) : [],
+        main: depth(false),
+        all: depth(true),
+        // false until a run of this account has noted the ids it had: the counts are then an estimate
+        knownClient: !!noted?.keys?.length,
+        knownJourney: !plan.wanted || !!shape,
+      });
+    }
+
     if (path === "/api/catalogue") {
       const c = Number(url.searchParams.get("c") ?? DEFAULT_CLIENT.companyId);
       const account = isTokenClient(c) ? tokenClient(c) : undefined;
+      // The company settings some cases depend on, read as a run reads them,
+      // so a case this account's settings rule out is not promised.
+      const settings = account ? undefined : await catalogueSettings(c);
       const scope = account?.featureScope;
       const inScope = (feature: string) =>
         !scope || scope.some((s) => feature === s || feature.startsWith(`${s}.`));
@@ -342,6 +474,10 @@ const server = createServer(async (req, res) => {
            */
           pathSource: (t as any).pathSource ?? null,
           writtenRef: (t as any).writtenRef ?? null,
+          // Why a run sets it aside here, grouped (caseLibrary setAsideKind):
+          // "as-written", "state", "setting", "access", "other"; null when a
+          // run tries it. Run tests promises only those (accuracy check P1).
+          ...((aside) => ({ runnable: aside === null, aside }))(setAsideKind(t, settings)),
         }));
 
       // Grouped the way the tree groups, so the drawer reads like the rest of
@@ -473,6 +609,8 @@ const server = createServer(async (req, res) => {
           provider: "",
           kind: "plan" as const,
           explored: r.explored,
+          // steps the tester did in the browser: Sessions reads the run as "Partly tested"
+          byHand: r.byHand || 0,
           steps: r.steps.length,
           // the step strip, one entry per step
           items: r.steps.map((s) => (s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "nc")),
@@ -716,6 +854,7 @@ const server = createServer(async (req, res) => {
             });
           },
           (line) => send("line", { line }),
+          c,
         );
         const savedRunId = newRunId();
         saveRun({
@@ -1468,7 +1607,35 @@ const server = createServer(async (req, res) => {
         });
       }
       send("line", { line: "Opening a session for this client…" });
-      let client = await openClientContext(c, baseOverride(url));
+      /**
+       * BOUNDED. A stalled UAT database held a run here for about ten minutes,
+       * then ended "Connection terminated due to connection timeout" (15 Oct).
+       * After 60 s the run stops and says so in plain words; a session that
+       * opens after that is closed again, never used.
+       */
+      const opening = openClientContext(c, baseOverride(url));
+      let client: Awaited<typeof opening>;
+      try {
+        client = await new Promise<Awaited<typeof opening>>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error("no session within 60 s")), 60_000);
+          opening.then(
+            (v) => { clearTimeout(timer); resolve(v); },
+            (e) => { clearTimeout(timer); reject(e); },
+          );
+        });
+      } catch (err: any) {
+        const why = String(err?.message ?? err);
+        const late = /^no session within/.test(why);
+        if (late) opening.then((v) => v.dispose().catch(() => {}), () => {});
+        const silent = late || /connection terminated|timeout|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET/i.test(why);
+        send("fatal", {
+          message:
+            `couldn't open a session for this client${late ? " within 60 s" : ""} — ` +
+            (silent ? "the UAT database or app didn't answer" : why) +
+            ". Nothing was run; try again in a minute",
+        });
+        return res.end();
+      }
       /** Contexts replaced mid-run; disposed together once the run ends. */
       const stale: Array<{ dispose?: () => Promise<unknown> }> = [];
       try {
@@ -1477,6 +1644,14 @@ const server = createServer(async (req, res) => {
         // vendor bulk cases that failed, without the whole feature.
         const onlyCases = (url.searchParams.get("cases") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
         if (onlyCases.length) cases = cases.filter((cs) => onlyCases.includes(cs.id));
+        // Edge and negative cases (EDGE-…) run unless the reader picked Main
+        // flow (edges=0). That held only for the features the journey walks:
+        // with Main flow, Invite vendors still ran its 17 edge cases, and a run
+        // with no journey ignored the choice (accuracy check P1, 15 Oct).
+        // Case ids asked for by name run as asked.
+        const withEdges = url.searchParams.get("edges") !== "0";
+        const isEdge = (cs: { id: string }) => /^EDGE-/.test(cs.id);
+        if (!withEdges && !onlyCases.length) cases = cases.filter((cs) => !isEdge(cs));
         // Read real ids (a PR, a vendor, a category, a city…) out of the live
         // client so cases referencing them can actually run.
         // Off by default: writing to real proposals/bids/trades is opt-in only.
@@ -1484,8 +1659,19 @@ const server = createServer(async (req, res) => {
         // does not, so these look-ups run alongside it instead of before it.
         const caseCtxP = resolveCaseContext(client, {
           allowExistingRecordWrites: url.searchParams.get("allowWrites") === "1",
+        }).then((ctx) => {
+          // Noted before the journey adds its own ids, for /api/run-preview.
+          const keys = idKeys(ctx as any);
+          noteRunCtxKeys((k) => { k.clients[String(c)] = { ...k.clients[String(c)], keys, at: new Date().toISOString() }; });
+          return ctx;
         });
-        const actorP = resolveActor(client);
+        const actorP = resolveActor(client).then((a) => {
+          if (a.role) noteRunCtxKeys((k) => {
+            const was = k.clients[String(c)];
+            k.clients[String(c)] = { keys: was?.keys ?? [], at: was?.at ?? new Date().toISOString(), role: a.role };
+          });
+          return a;
+        });
         const companyCfgP = loadCompanyConfig(client, c);
 
         /**
@@ -1526,10 +1712,8 @@ const server = createServer(async (req, res) => {
            */
           // Edge and negative cases (EDGE-…, data/api-cases-extra) are not the
           // journey tried again — each changes ONE thing a working request sends
-          // and expects a refusal — so they stay unless the reader turned them off.
-          const withEdges = url.searchParams.get("edges") !== "0";
-          const isEdge = (cs: { id: string }) => /^EDGE-/.test(cs.id);
-          cases = cases.filter((cs) => (withEdges && isEdge(cs)) || !journeyWalksFeature(cs.feature, plan));
+          // and expects a refusal — so they stay (Main flow already dropped them).
+          cases = cases.filter((cs) => isEdge(cs) || !journeyWalksFeature(cs.feature, plan));
           // Cases that end the shared copy's life (withdraw, close, revert to
           // draft, force-end…) go last, or every case after them would be
           // testing a dead event and report its refusal as a result.
@@ -1613,6 +1797,7 @@ const server = createServer(async (req, res) => {
           // The second event's ids are what `{{eventGroupUuid}}`, `{{tradeId}}`
           // and `{{lineItemUuid}}` resolve to in the cases that follow.
           const caseCtx = await caseCtxP;
+          const hadKeys = new Set(idKeys(caseCtx as any));
           if (walked.forCases) Object.assign(caseCtx, walked.forCases);
           // Without a second copy, the cases that remain act on the journey's
           // own event — by then closed, which a case about a live event will
@@ -1641,6 +1826,9 @@ const server = createServer(async (req, res) => {
               ...(made.proposalUuid ? { proposalUuid: made.proposalUuid } : {}),
             });
           }
+          // The ids this journey shape gave the cases, for /api/run-preview.
+          const gave = idKeys(caseCtx as any).filter((k) => !hadKeys.has(k));
+          noteRunCtxKeys((k) => { k.journeys[plan.steps.join(">")] = { keys: gave, at: new Date().toISOString() }; });
         }
 
         // How many line items the events this run creates should carry. Capped
@@ -2339,6 +2527,7 @@ const server = createServer(async (req, res) => {
               beIds,
               (r) => send("api-case", { id: k.id, result: r }),
               (line) => send("note", { id: k.id, line }),
+              c,
             );
             const failed = results.filter((r) => r.status === "failed").length;
             const passed = results.filter((r) => r.status === "passed").length;
@@ -2629,6 +2818,8 @@ const server = createServer(async (req, res) => {
       // cases is not a report about that run.
       const features = asked.length ? asked : featuresOfRun(run);
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      // The simple, shareable page (simpleReport.ts); the full one stays one link away (&full=1).
+      if (run && !asked.length && url.searchParams.get("full") !== "1") return res.end(renderSimpleApiReport(run, withFull(url)));
       return res.end(renderTestReport({ features, run }));
     }
 
@@ -2892,7 +3083,7 @@ const server = createServer(async (req, res) => {
        * and, when it broke, the step it stopped at.
        */
       const runId = url.searchParams.get("run");
-      if (runId) return res.end(renderUiRunReport(runId));
+      if (runId) return res.end(url.searchParams.get("full") === "1" ? renderUiRunReport(runId) : renderSimpleUiReport(runId, withFull(url)));
       return res.end(renderUiReport());
     }
 
@@ -3006,6 +3197,11 @@ const server = createServer(async (req, res) => {
         return res.end();
       }
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      // The simple, shareable page (simpleReport.ts) unless the full sheet is asked for (&full=1).
+      const sheet = (found: Parameters<typeof renderBugSheet>[0], scope: NonNullable<Parameters<typeof renderBugSheet>[1]>) =>
+        url.searchParams.get("full") === "1"
+          ? renderBugSheet(found, scope)
+          : renderSimpleBugReport(found ?? [], { runId: scope.runId, ts: scope.ts, request: scope.request, companyName: scope.companyName, notes: scope.notes }, withFull(url));
       /**
        * Scoped to one run when asked.
        *
@@ -3019,7 +3215,7 @@ const server = createServer(async (req, res) => {
         if (run) {
           const found = defectsFromRun(runId);
           return res.end(
-            renderBugSheet(found, {
+            sheet(found, {
               runId,
               ts: run.ts,
               request: run.request,
@@ -3040,7 +3236,7 @@ const server = createServer(async (req, res) => {
         const poRun = readPoRun(runId);
         if (poRun) {
           return res.end(
-            renderBugSheet(defectsFromPoRun(poRun), {
+            sheet(defectsFromPoRun(poRun), {
               runId,
               ts: poRun.startedAt,
               request: "PO automation: create a purchase order and take it through approval",
@@ -3065,7 +3261,7 @@ const server = createServer(async (req, res) => {
         if (rfpRun) {
           const m = rfpRun.model ?? {};
           return res.end(
-            renderBugSheet(defectsFromRfpRun(rfpRun), {
+            sheet(defectsFromRfpRun(rfpRun), {
               runId,
               ts: rfpRun.startedAt,
               request: `RFP event publish: ${(rfpRun.inputs.features ?? (rfpRun.inputs as any).parts ?? []).join(", ")}`,
@@ -3100,7 +3296,7 @@ const server = createServer(async (req, res) => {
           ...uiRunDefects(runId),
         ];
         return res.end(
-          renderBugSheet(found, {
+          sheet(found, {
             runId,
             ts: trail?.startedAt,
             request: trail?.flowKey ? `browser journey: ${trail.flowKey}` : undefined,

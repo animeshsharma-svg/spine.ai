@@ -42,7 +42,7 @@
 import { allCases, caseById, type CatalogCase } from "./testCatalog.js";
 import { spineDb } from "../db/spineDb.js";
 import { candidates as pgCandidates } from "../rag/pgMemory.js";
-import { embedOne, embedderId, ensureEmbedderReady } from "../rag/embedder.js";
+import { embedFor, embedderId, ensureEmbedderReady } from "../rag/embedder.js";
 import { retrieve } from "../rag/knowledgeBase.js";
 import { chat, llmMode, usageReport } from "../ai/llm.js";
 
@@ -643,7 +643,8 @@ async function memoryCandidates(query: string, limit: number): Promise<{ hits: M
       const built = (await db.query(`SELECT embedder FROM memory_builds ORDER BY id DESC LIMIT 1`)).rows[0]?.embedder as string | undefined;
       if (built) {
         await ensureEmbedderReady();
-        const vec = built === embedderId() ? await embedOne(query) : null;
+        // Embedded by the store's own embedder, whatever the process is using (embedder.ts embedFor).
+        const vec = await embedFor(built, query);
         const terms = memTerms(query);
         const rows = await pgCandidates(db, built, vec, terms, { kinds: ["test-case"] }, limit);
         const hits: MemoryHit[] = [];

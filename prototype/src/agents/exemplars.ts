@@ -45,7 +45,7 @@ import { allCases, caseById } from "../checks/testCatalog.js";
 import { allStoredApiPlans } from "../checks/compiledPlans.js";
 import { frameOf, normalizeText, conceptsIn, type Frame } from "../checks/caseMatcher.js";
 import { spineDb, toVector } from "../db/spineDb.js";
-import { embedOne, embedderId, ensureEmbedderReady } from "../rag/embedder.js";
+import { embedFor, embedderId, ensureEmbedderReady } from "../rag/embedder.js";
 import { candidates as pgCandidates } from "../rag/pgMemory.js";
 import type { ApiPlan, ActorId, RecipeId } from "./apiPlanner.js";
 
@@ -529,7 +529,7 @@ export async function findExemplars(text: string, opts: FindOptions = {}): Promi
       const built = (await db.query(`SELECT embedder FROM memory_builds ORDER BY id DESC LIMIT 1`)).rows[0]?.embedder as string | undefined;
       if (built) {
         await ensureEmbedderReady();
-        const vec = built === embedderId() ? await embedOne(text.slice(0, 2000)) : null;
+        const vec = await embedFor(built, text.slice(0, 2000));
         if (vec) {
           const rows = await pgCandidates(db, built, vec, [], { kinds: ["automation-exemplar" as never] }, 60);
           for (const r of rows) {
@@ -636,9 +636,10 @@ export async function addExemplar(e: Exemplar): Promise<{ filed: boolean; embedd
   try {
     const built = (await db.query(`SELECT embedder FROM memory_builds ORDER BY id DESC LIMIT 1`)).rows[0]?.embedder as string | undefined;
     await ensureEmbedderReady();
-    const emb = embedderId();
+    // Embedded the way the store was built, so the new exemplar is found by meaning.
+    const emb = built ?? embedderId();
     const chunk = exemplarChunks().find((c) => c.id === `exemplar:${e.id}`)!;
-    const vec = built === emb ? await embedOne(chunk.text) : null;
+    const vec = built ? await embedFor(built, chunk.text) : null;
     const col = emb.startsWith("slingring:") ? "embedding" : "embedding_small";
     const { chunkHash } = await import("../rag/pgMemory.js");
     await db.query(
