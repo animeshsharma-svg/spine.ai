@@ -1,0 +1,219 @@
+{
+  "_about": "Plain-language write-up of each vendor revalidation bug, for the bug sheet (npm run reval:bugsheet). Ids match config/revalBugs.json and test-cases/vendor-revalidation-findings.md.",
+  "bugs": {
+    "REV-01": {
+      "short": "A customer's admin can use Procol's private revalidation controls, for any customer",
+      "where": "Revalidation QA controls (the API Procol uses to set up and start revalidation)",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "Log in as GMMCO's own admin. This is a customer login, not a Procol staff login.",
+        "Ask the revalidation controls for GMMCO's settings.",
+        "Ask the same controls for another customer's settings (PROCOL DEMO)."
+      ],
+      "expected": "Both requests are refused with \"Not authorized\" (error code 5). Only Procol staff may use these controls.",
+      "actual": "Both requests are answered (OK, HTTP 200) with the full settings, for GMMCO and for PROCOL DEMO. The same login can also change any customer's settings and start a check of all its vendors. We did not try that, because it would change real data.",
+      "impact": "Any customer's admin can switch revalidation on or off for other customers, read their results, and start paid GST / PAN / bank checks for all their vendors. The block that kept these controls off the live (production) system was also removed, so this would be open on production once released.",
+      "fix": "Allow Procol staff only. Put back the production block. Check that the person belongs to the customer they ask about.",
+      "tech": "Commit eaf002de08 (\"access\", 15 Oct) changed the access rule to \"Procol employee OR any super admin\" and deleted the production check — app/controllers/api/vendor_revalidation_qa_controller.rb:103-106. routes.rb:695-701 has no block either."
+    },
+    "REV-02": {
+      "short": "An empty vendor list starts a check of every vendor the customer has",
+      "where": "Revalidation QA controls — \"start a run\"",
+      "proof": "Found in the code — not tried on purpose",
+      "steps": [
+        "Start a revalidation run and send an empty list of vendors (vendor_ids: []), or an empty number of vendors (vendor_limit: \"\")."
+      ],
+      "expected": "The request is refused, the same way any other wrong vendor list is refused.",
+      "actual": "The code reads an empty list as \"no limit\" and checks every vendor of the customer — about 800 for GMMCO — against the real, paid GST / PAN / MSME / bank services. We did not send it.",
+      "impact": "One script that builds an empty list by mistake runs a full, paid check of the whole customer.",
+      "fix": "Refuse an empty vendor list. Make \"all vendors\" something a person has to ask for by name.",
+      "tech": "parse_vendor_scope treats a blank list as no scope (vendor_revalidation_qa_controller.rb:164-185); QaTriggerWorker.select_vendors then returns every vendor (qa_trigger_worker.rb:50-56)."
+    },
+    "REV-03": {
+      "short": "The customer's own rules (like \"name must match\") are never applied in revalidation",
+      "where": "The GST / bank check inside revalidation",
+      "proof": "Found in the code",
+      "steps": [
+        "A customer has an onboarding rule, for example: the legal name on the GST must match the vendor's name.",
+        "A vendor's GST is valid but registered to a different name.",
+        "Revalidation checks that vendor."
+      ],
+      "expected": "The GST check fails with the same \"name mismatch\" message the vendor would get during onboarding.",
+      "actual": "Revalidation stops right after the provider says the number is valid and never looks at the customer's rules, so the vendor passes.",
+      "impact": "Vendors that onboarding would reject show as Passed in revalidation.",
+      "fix": "Apply the customer's rules to values read from the onboarding form before saving the result — or tell product this is provider-only by design.",
+      "tech": "lib/external_api/validation.rb:238 returns the revalidation result before apply_response_rules on line 240."
+    },
+    "REV-04": {
+      "short": "Full PAN and bank account numbers are shown on screen, in the vendor page and in the Excel",
+      "where": "Vendor listing (Validation Errors column), vendor page (Revalidation details), Excel download",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "Log in as a GMMCO buyer and open the vendor listing.",
+        "Look at the Validation Errors of a vendor whose PAN or bank check failed.",
+        "Open that vendor's page (Revalidation details)."
+      ],
+      "expected": "PAN and account numbers are masked, for example ******789J or ******8901. The TRD asks for masking on the listing, the vendor page and the download.",
+      "actual": "The listing shows \"PAN SHII789JSJ: PAN input is incorrect\" and \"BANK 12345678901 / QATZ0100070: Invalid IFSC code\" in full. The vendor page's data also returns the full PAN and the full account number with its IFSC. (The values in our screenshots belong to Procol test vendors.)",
+      "impact": "Anyone who can see the vendor listing, or receives the Excel, sees every vendor's full PAN and bank account number.",
+      "fix": "Mask PAN and account numbers (keep the last 4) when building the error line and the vendor-page details.",
+      "tech": "app/models/vendor_validation_history.rb:53 builds the error line with the raw value; :62 returns the raw value to the vendor page."
+    },
+    "REV-05": {
+      "short": "The PAN format check accepts any text that just contains a PAN",
+      "where": "The PAN format check that runs before calling the PAN provider",
+      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "steps": [
+        "A vendor's PAN field holds a 15-character GST number (a GST number contains the PAN inside it).",
+        "Revalidation checks the PAN."
+      ],
+      "expected": "The format check fails at once with \"PAN input is incorrect\". No provider call is made.",
+      "actual": "The format check is not anchored to the start and end of the value, so text that merely contains a PAN passes. The value is then sent to the paid PAN provider.",
+      "impact": "Wrong values reach the provider (cost) and get the provider's message instead of the clear format message.",
+      "fix": "Anchor the PAN pattern (start-to-end), or check the full value.",
+      "tech": "lib/external_api/validation.rb:74 uses value.match(regex); the PAN regex stored in validation_types is [A-Z]{5}[0-9]{4}[A-Z]{1} with no ^ and $."
+    },
+    "REV-06": {
+      "short": "A vendor that was never checked shows \"Pending\"",
+      "where": "Vendor listing — Validation Status column",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "Open the vendor listing as a GMMCO buyer.",
+        "Find a vendor that no revalidation run has checked yet (for example a newly invited vendor)."
+      ],
+      "expected": "Status is blank (no date, no errors). The guide says blank.",
+      "actual": "Status shows \"Pending\". A buyer reads that as \"a check is running\", but nothing is running for this vendor.",
+      "impact": "Confusing status. Buyers may wait for a result that will not come until the next scheduled run.",
+      "fix": "Show blank (or \"Not checked yet\") when the vendor has never been checked. Keep \"Pending\" for checks really in progress.",
+      "tech": "app/controllers/concerns/companies_controller_helper.rb:702 labels an empty status as 'pending'."
+    },
+    "REV-07": {
+      "short": "In the Excel, all errors of a vendor are squeezed into one line with \";\"",
+      "where": "Vendor listing → Excel download → Validation Errors column",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "Open the vendor listing as a GMMCO buyer and download the Excel.",
+        "Look at the Validation Errors of a vendor with more than one failed document."
+      ],
+      "expected": "One error per line inside the cell.",
+      "actual": "All errors are joined on one line with \"; \" — for example \"PAN QATZQ0568Q: verification is temporarily unavailable; GST GB905680000: GST input is incorrect\". {{n_excel_joined}} cells were like this in GMMCO's Excel on {{today}}.",
+      "impact": "Hard to read; harder to filter or count errors in Excel.",
+      "fix": "Join with a line break for the Excel cell.",
+      "tech": "app/controllers/concerns/companies_controller_helper.rb:705 joins with \"; \" for both the listing and the Excel."
+    },
+    "REV-08": {
+      "short": "Switching revalidation off during a run leaves some vendors with no result at all",
+      "where": "A revalidation run that is switched off half-way",
+      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "steps": [
+        "Start a run for several vendors.",
+        "Switch revalidation off for the customer before the run finishes."
+      ],
+      "expected": "Vendors not yet checked get a clear final status (System Error), or keep their previous status.",
+      "actual": "Their checks are closed as System Error, but the vendor's final status is never written — and a QA-started run had already cleared it — so the listing shows \"Pending\" with no reason.",
+      "impact": "Vendors look unchecked after an interrupted run.",
+      "fix": "Write the final status when closing checks because revalidation was switched off.",
+      "tech": "vendor_check_service.rb:26-30 closes the rows; finalize returns early when the client is disabled (:73-74)."
+    },
+    "REV-09": {
+      "short": "Two test runs started together for different vendors can cancel one of them",
+      "where": "Revalidation QA controls — \"start a run\"",
+      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "steps": [
+        "Start a run for vendor A.",
+        "Straight away, start another run (same day) for vendor B."
+      ],
+      "expected": "Both runs finish, each with its own vendor's results.",
+      "actual": "Starting the second run deletes every waiting job of that day's run, including vendor A's. Run A then says \"started\" but never finishes.",
+      "impact": "Testers lose runs and see results that never arrive.",
+      "fix": "Only delete waiting jobs for the vendors the new run is about.",
+      "tech": "qa_trigger_worker.rb:113-124 (delete_jobs matches on the run id only)."
+    },
+    "REV-10": {
+      "short": "A test run started shortly before 11 pm makes that night's automatic run skip the customer",
+      "where": "The nightly 11 pm automatic run",
+      "proof": "Found in the code",
+      "steps": [
+        "Start a test run for a customer at, say, 10:30 pm.",
+        "Wait for the automatic 11 pm run."
+      ],
+      "expected": "The automatic run still runs for that customer.",
+      "actual": "The test run takes the same \"tonight's run is taken\" marker the automatic run uses, for one hour, so the automatic run skips the customer that night.",
+      "impact": "A customer's scheduled checks silently do not happen that night.",
+      "fix": "Use a separate marker for test runs.",
+      "tech": "qa_trigger_worker.rb:39 sets the claim key used by scheduler_worker.rb:82."
+    },
+    "REV-11": {
+      "short": "Removing a document type from the settings leaves vendors \"Failed\" with no reason shown",
+      "where": "Vendor listing after the settings change",
+      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "steps": [
+        "A vendor failed only its PAN check.",
+        "Procol removes PAN from the customer's revalidation settings.",
+        "Open the vendor listing."
+      ],
+      "expected": "The vendor's status follows the documents still configured (for example Passed), or still shows the PAN reason.",
+      "actual": "The PAN error line disappears (only configured documents are listed) but the status stays Failed until the next run, so the vendor shows Failed with no reason.",
+      "impact": "Buyers see a failed vendor and cannot tell why.",
+      "fix": "Work out the shown status from the configured documents, or update it when the settings change.",
+      "tech": "vendor_validation_history.rb:47-56 vs vendor_check_service.rb:72-99."
+    },
+    "REV-12": {
+      "short": "One provider time-out makes a vendor \"System Error\" even when everything else passed",
+      "where": "Final vendor status",
+      "proof": "Needs a product decision",
+      "steps": [
+        "A vendor's GST, PAN and MSME pass; the bank check cannot reach the provider for 24 hours."
+      ],
+      "expected": "The TRD says an unverified check never affects a Pass.",
+      "actual": "The build ranks System Error above Passed, so the vendor shows System Error. {{n_syserr_passed}} GMMCO vendors show System Error this way today.",
+      "impact": "Vendors look broken because of a provider problem, not their documents.",
+      "fix": "Product to confirm which is right; if the TRD stands, rank System Error below Passed.",
+      "tech": "vendor_validation_history.rb:39 (failed > system_error > passed > skipped)."
+    },
+    "REV-13": {
+      "short": "Revalidation still sends some errors to Sentry",
+      "where": "Error alerts",
+      "proof": "Found in the code",
+      "steps": ["A customer's nightly start fails, or a provider answers something unexpected during revalidation."],
+      "expected": "No Slack or Sentry alerts from revalidation (the guide says only a log line).",
+      "actual": "Both of those cases are still reported to Sentry.",
+      "impact": "Alert noise for the on-call team during big runs.",
+      "fix": "Log only, or tag and mute revalidation events in Sentry.",
+      "tech": "scheduler_worker.rb:22-23; lib/external_api/validation.rb:251."
+    },
+    "REV-14": {
+      "short": "Risk: vendors of other company types could be checked but never shown",
+      "where": "Which vendors a run checks vs which the listing shows",
+      "proof": "Found in the code — not seen in UAT data",
+      "steps": ["A customer has a linked company of a type the listing hides (for example a buying firm)."],
+      "expected": "Revalidation checks the same vendors the listing shows.",
+      "actual": "Since 15 Oct the run no longer filters by company type, while the listing still shows only selling firms, brokerages and subsidiaries. In GMMCO's runs every checked vendor was a selling firm, so no one is affected today.",
+      "impact": "Hidden checks (and provider cost) for vendors nobody can see.",
+      "fix": "Keep the company-type filter in the run, or show those vendors.",
+      "tech": "run_worker.rb:53-58 (filter dropped in d18f8ac4c9) vs companies_controller.rb:346."
+    },
+    "REV-15": {
+      "short": "The \"vendor detail\" request fails with a server error for every vendor",
+      "where": "GET /api/companies/vendor_detail (used by vendor detail views)",
+      "proof": "Confirmed on UAT (found while testing; older than revalidation)",
+      "steps": ["As a GMMCO buyer, open the vendor detail of any vendor (the request /api/companies/vendor_detail?company_id=…)."],
+      "expected": "The vendor's details are returned.",
+      "actual": "Server error 500: \"undefined method `integration_status' for Company\". Same on both UAT servers (rfx-uat-api and sec-api-v1) for every vendor we tried.",
+      "impact": "Any screen that uses this request is broken. (The vendor page's Revalidation details use a different request and work.)",
+      "fix": "Stop reading integration_status from the company; it belongs to the buyer–vendor link.",
+      "tech": "app/serializers/base_serializer.rb:18 called from companies_controller.rb:561."
+    },
+    "REV-16": {
+      "short": "The revalidation UAT server shows its full internal error page to anyone",
+      "where": "https://rfx-uat-api.ag-ri.in — any request that hits a server error",
+      "proof": "Confirmed on UAT (found while testing)",
+      "steps": ["Make any request that fails on rfx-uat-api, for example the vendor detail request above."],
+      "expected": "A short error answer, like the other UAT server gives: {\"status\":500,\"error\":\"Internal Server Error\"}.",
+      "actual": "The full Rails debug page comes back: the exception, the code path and a dump of the vendor record (name, address, email).",
+      "impact": "Anyone who can reach this UAT server can read internal code paths and vendor data from error pages.",
+      "fix": "Turn off the detailed error pages on the rfx UAT environment.",
+      "tech": "consider_all_requests_local / show_exceptions on the rfx UAT environment."
+    }
+  }
+}
