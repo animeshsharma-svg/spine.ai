@@ -66,11 +66,10 @@ function single(id: string, eventType: string, items: number, outcome: Combo["ou
   return { id, title: `Single-stage ${eventType}${cfg.auctionSubtype ? ` ${cfg.auctionSubtype.replace("_", " ")}` : ""}${cfg.awarding ? ` · award ${cfg.awarding.replace("_", " ")}` : ""} · ${items} item${items === 1 ? "" : "s"} · ${outcome}`, entry: "single-stage", stages: [eventType], strategy: cfg.auctionSubtype, awarding: cfg.awarding, items, outcome, steps };
 }
 
-function boq(id: string, items: number, outcome: Combo["outcome"], extra: { inv?: string } = {}): Combo {
-  const steps: Step[] = [{ step: "open_create", args: { path: "boq" } }, { step: "set_title" }, { step: "select_template" }, { step: "add_line_items", args: { count: items } }, { step: "fill_sheet" }];
-  if (outcome !== "draft") steps.push({ step: "set_schedule", args: { minutes: 30 } }, { step: "invite_vendor", args: { count: 1 } });
-  steps.push(...outcomeSteps(outcome, extra));
-  return { id, title: `BOQ · ${items} item${items === 1 ? "" : "s"} · ${outcome}`, entry: "boq", stages: ["boq"], items, outcome, steps };
+/** BOQ line items arrive by upload, which no browser step does yet: the combination stops at the template. */
+function boq(id: string, extra: { inv?: string } = {}): Combo {
+  const steps: Step[] = [{ step: "open_create", args: { path: "boq" } }, { step: "set_title" }, { step: "select_template" }, { step: "expect_template_selected" }, { step: "expect_no_error" }, ...(extra.inv ? [inv(extra.inv)] : [])];
+  return { id, title: "BOQ · create screen with a BOQ template (items need an upload)", entry: "boq", stages: ["boq"], items: 0, outcome: "publish", steps };
 }
 
 function outcomeSteps(outcome: Combo["outcome"], extra: { vendors?: number; inv?: string }): Step[] {
@@ -115,9 +114,7 @@ const COMBOS: Combo[] = [
   single("S8", "auction", 1, "publish", { auctionSubtype: "traffic_light", awarding: "lot", rangeLower: 80, rangeUpper: 120 }, { inv: "single-stage-traffic-light-live" }),
   single("S9", "auction", 2, "publish", { auctionSubtype: "traffic_light", awarding: "line_item", rangeLower: 80, rangeUpper: 120 }),
   single("S10", "rfq", 1, "draft", { awarding: "lot" }),
-  boq("B1", 2, "publish", { inv: "boq-live" }),
-  boq("B2", 5, "draft"),
-  boq("B3", 1, "surrogate", { inv: "boq-master-qcs" }),
+  boq("B1", { inv: "boq-template-selected" }),
 ];
 
 const argv = process.argv.slice(2);
