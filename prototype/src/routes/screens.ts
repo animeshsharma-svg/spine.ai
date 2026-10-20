@@ -18,7 +18,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RouteHandler } from "./index.js";
-import { caseFromEffect, getScreen, listScreens, newCaseOnScreen, screenImage } from "../agents/screenModel.js";
+import { caseFromEffect, getScreen, listScreens, newCaseOnScreen, planForScreenCase, screenImage } from "../agents/screenModel.js";
 import { getWalk, listWalks, runningWalk, startWalk, stopWalk, subscribeWalk, WALKS } from "../agents/screenWalk.js";
 import { getDraftAutomation } from "../agents/drafts.js";
 import { runUiPlan, readPlanResult } from "../ui/uiFlowRunner.js";
@@ -124,18 +124,28 @@ export const handle: RouteHandler = async (ctx) => {
   // Run one screen case's stored plan, spotlight on; the same stream shape as /api/plan-run.
   if (ctx.path === "/api/screens/run") {
     const draft = sp.get("draft") ?? "";
+    const screen = sp.get("screen") ?? undefined;
     const c = Number(sp.get("c")) || 198678;
     const out = ctx.sse();
+    // The plan: the drafts table first, then the screen record (kept there too), else compiled
+    // now from the case's own words with the route to its screen in front.
     const auto = draft ? await getDraftAutomation(draft).catch(() => null) : null;
-    const plan = auto?.uiPlan as { title?: string; steps?: unknown[] } | undefined;
+    let plan = auto?.uiPlan as { title?: string; steps?: unknown[] } | undefined;
     if (!plan?.steps?.length) {
-      out.send("run-error", { line: auto ? `${draft} has no browser plan yet (its coverage is "${auto.coverage}"${auto.gaps?.length ? `: ${auto.gaps[0]}` : ""})` : `no stored case ${draft}` });
-      out.send("done", { exitCode: 1 });
-      out.end();
-      return true;
+      out.send("stage", { name: "compile", line: `Finding ${draft}'s browser plan…` });
+      const r = await planForScreenCase(draft, screen, (l) => out.send("log", { line: l }));
+      if (r.why || !r.plan?.steps?.length) {
+        out.send("run-error", { line: r.why ?? `${draft} has no browser plan yet` });
+        out.send("done", { exitCode: 1 });
+        out.end();
+        return true;
+      }
+      plan = r.plan;
+      if (r.compiledNow) out.send("stage", { name: "compile", line: `Compiled ${draft}: ${plan.steps!.length} step(s), coverage ${r.coverage}` });
     }
     const runId = `scr-${Date.now().toString(36)}`;
-    out.send("stage", { name: "execute", line: `Running ${draft}: ${plan.steps.length} step(s), spotlight on` });
+    const steps = plan.steps ?? [];
+    out.send("stage", { name: "execute", line: `Running ${draft}: ${steps.length} step(s), spotlight on` });
     const { stop } = runUiPlan({ plan, companyId: c, runId, headed: false }, (e) => {
       const ending = e.type === "done" || e.type === "run-error";
       if (ending) {

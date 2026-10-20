@@ -71,6 +71,8 @@ export interface ScreenCase {
   controls?: number[];
   /** when a person turned an effect into this case */
   fromEffect?: number;
+  /** the compiled browser plan, kept here too so the case runs even when the drafts table is away */
+  plan?: unknown;
 }
 
 export interface ScreenRecord {
@@ -389,7 +391,7 @@ export async function recordScreen(
       if (r.cases.some((c) => c.id === s.id)) continue;
       const steps = (s.steps ?? []).map(String);
       const coverage = s.coverage === "full" || s.coverage === "partial" ? s.coverage : "none";
-      r.cases.push({ id: s.id, title: s.title, kind: s.kind, grounded: s.grounded, steps, expected: String(s.expected ?? ""), setup: s.setup, coverage, gaps: s.gaps ?? [], controls: controls.filter((c) => `${s.title} ${steps.join(" ")}`.toLowerCase().includes(c.name.toLowerCase()) && c.name.length >= 4).map((c) => c.n!).slice(0, 6) });
+      r.cases.push({ id: s.id, title: s.title, kind: s.kind, grounded: s.grounded, steps, expected: String(s.expected ?? ""), setup: s.setup, coverage, gaps: s.gaps ?? [], ...(s.plan ? { plan: s.plan } : {}), controls: controls.filter((c) => `${s.title} ${steps.join(" ")}`.toLowerCase().includes(c.name.toLowerCase()) && c.name.length >= 4).map((c) => c.n!).slice(0, 6) });
     }
     if (res) say(`[screen] ${r.label}: ${res.saved.length} case(s) written, ${res.alreadyCovered.length} already in the catalog, ${res.dropped.length} dropped`);
   }
@@ -436,7 +438,7 @@ export async function caseFromEffect(id: string, n: number, opts: { companyId?: 
     companyId: opts.companyId ?? r.companyId,
   };
   const saved = await saveDraft(draft);
-  const sc: ScreenCase = { id: saved.id, title, grounded: e.rule ?? "screen", steps, expected, setup: draft.setup, coverage: draft.coverage, gaps: draft.gaps, controls: [n], fromEffect: n };
+  const sc: ScreenCase = { id: saved.id, title, grounded: e.rule ?? "screen", steps, expected, setup: draft.setup, coverage: draft.coverage, gaps: draft.gaps, controls: [n], fromEffect: n, ...(draft.uiPlan ? { plan: draft.uiPlan } : {}) };
   r.cases.push(sc);
   r.updatedAt = new Date().toISOString();
   saveRecord(r);
@@ -479,11 +481,37 @@ export async function newCaseOnScreen(id: string, text: string, opts: { companyI
     companyId: opts.companyId ?? r.companyId,
   };
   const saved = await saveDraft(draft);
-  const sc: ScreenCase = { id: saved.id, title, grounded: "screen", steps: draft.steps, expected: typed, setup: reach, coverage: compiled.coverage, gaps: compiled.gaps ?? [], controls: r.controls.filter((c) => c.name.length >= 4 && typed.toLowerCase().includes(c.name.toLowerCase())).map((c) => c.n!).slice(0, 6) };
+  const sc: ScreenCase = { id: saved.id, title, grounded: "screen", steps: draft.steps, expected: typed, setup: reach, coverage: compiled.coverage, gaps: compiled.gaps ?? [], plan: compiled.plan, controls: r.controls.filter((c) => c.name.length >= 4 && typed.toLowerCase().includes(c.name.toLowerCase())).map((c) => c.n!).slice(0, 6) };
   r.cases.unshift(sc);
   r.updatedAt = new Date().toISOString();
   saveRecord(r);
   writeKnowledge(r);
   opts.onLine?.(`[screen] ${r.label}: case ${sc.id} written from "${typed.slice(0, 80)}" — plan ${compiled.coverage}`);
   return { case: sc, plan: compiled.plan, coverage: compiled.coverage, gaps: compiled.gaps ?? [], reasoning: compiled.reasoning };
+}
+
+/**
+ * The browser plan behind a screen case: the one stored with it, else compiled now from the
+ * case's own words with the route to its screen in front (and kept for next time).
+ */
+export async function planForScreenCase(caseId: string, screenId?: string, onLine?: (l: string) => void): Promise<{ plan?: { title?: string; steps?: unknown[] }; coverage?: string; gaps?: string[]; why?: string; compiledNow?: boolean }> {
+  const screens = screenId ? [getScreen(screenId)].filter((x): x is ScreenRecord => !!x) : listScreens().map((x) => getScreen(x.id)).filter((x): x is ScreenRecord => !!x);
+  for (const r of screens) {
+    const c = r.cases.find((x) => x.id === caseId);
+    if (!c) continue;
+    const stored = c.plan as { steps?: unknown[] } | undefined;
+    if (stored?.steps?.length) return { plan: stored as { title?: string; steps?: unknown[] }, coverage: c.coverage, gaps: c.gaps };
+    const reach = r.reachedBy.length ? `Reach the ${r.label} screen the way the walk did: ${r.reachedBy.map((s) => s.step.replace(/_/g, " ")).join(", then ")}.` : `Open the ${r.label} screen (${r.path}).`;
+    const text = `${c.title}. ${c.setup ? `Setup: ${c.setup} ` : ""}${reach} Steps: ${c.steps.join(" ")} Expected: ${c.expected}${r.state && r.state !== "none" ? ` The event is in state "${r.state}".` : ""}`;
+    onLine?.(`[screen] compiling ${caseId} from its words (no stored plan)…`);
+    const compiled = await compileTestCase(text, "events", { tier: "reason" }).catch((e) => ({ why: (e as Error).message }));
+    if ("why" in compiled) return { why: `could not compile ${caseId}: ${compiled.why}` };
+    if (!compiled.plan?.steps?.length || compiled.coverage === "none") return { why: `${caseId} cannot be expressed in browser steps yet${compiled.gaps?.[0] ? `: ${compiled.gaps[0]}` : ""}` };
+    c.plan = compiled.plan;
+    c.coverage = compiled.coverage;
+    c.gaps = compiled.gaps ?? [];
+    saveRecord(r);
+    return { plan: compiled.plan, coverage: compiled.coverage, gaps: compiled.gaps, compiledNow: true };
+  }
+  return { why: `no screen holds the case ${caseId}` };
 }

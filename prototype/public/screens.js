@@ -479,10 +479,10 @@
     runEs?.close();
     const panel = livePanel(box, `Running ${id}`);
     b.disabled = true;
-    const es = new EventSource(`/api/screens/run?draft=${encodeURIComponent(id)}&c=${clientId()}`);
+    const es = new EventSource(`/api/screens/run?draft=${encodeURIComponent(id)}&screen=${encodeURIComponent(state.screen?.id || "")}&c=${clientId()}`);
     runEs = es;
     panel.stopButton?.addEventListener("click", () => { es.close(); panel.done("stopped", false); b.disabled = false; });
-    es.addEventListener("stage", (ev) => panel.log(JSON.parse(ev.data).line, "head"));
+    es.addEventListener("stage", (ev) => { const st = JSON.parse(ev.data); panel.line(st.line); panel.log(st.line, "head"); });
     es.addEventListener("queued", (ev) => panel.line(JSON.parse(ev.data).line));
     es.addEventListener("log", (ev) => {
       const line = String(JSON.parse(ev.data).line || "");
