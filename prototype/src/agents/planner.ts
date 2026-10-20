@@ -113,6 +113,28 @@ function labelsForPrompt(labels: Record<string, string[]> | undefined): string {
 
 const lc = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
+/**
+ * The screen library (data/screens, built by the screen walk): each screen the browser has
+ * photographed, with the steps that reached it. Read from disk, never imported, so the library
+ * module can import the compiler without a cycle. Empty until a walk has run.
+ */
+function screensForPrompt(): string {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "data", "screens");
+  if (!existsSync(dir)) return "";
+  const lines: string[] = [];
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json") && x !== "index.json").slice(0, 60)) {
+    try {
+      const r = JSON.parse(readFileSync(join(dir, f), "utf8")) as { label: string; path: string; state?: string; reachedBy?: Array<{ step: string; args?: Record<string, unknown> }>; controls?: Array<{ kind: string; name: string }> };
+      const reach = (r.reachedBy ?? []).map((st) => `${st.step}${st.args && Object.keys(st.args).length ? JSON.stringify(st.args) : ""}`).join(" → ");
+      const ctrls = (r.controls ?? []).filter((c) => c.kind === "button" || c.kind === "tab").slice(0, 14).map((c) => c.name).join(" · ");
+      lines.push(`- ${r.label} (${r.path}${r.state && r.state !== "none" ? `, on a ${r.state} event` : ""}): reached by ${reach || "(not recorded)"}${ctrls ? `; shows ${ctrls}` : ""}`);
+    } catch {
+      /* a half-written record */
+    }
+  }
+  return lines.join("\n");
+}
+
 /** Is a label known to exist in the product (source or seen live)? */
 export function labelIsKnown(word: string, labels: Record<string, string[]> | undefined): boolean {
   // "button Add Bid" / 'tab "Responses"' — the role word is not part of the label.
@@ -1212,11 +1234,13 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   }
 
   const knownLabels = labelsForPrompt(catalog.labels);
+  const knownScreens = opts.withholdGeneric ? "" : screensForPrompt();
   const prompt = [
     `STEP CATALOG:\n${catalogForPrompt(catalog.steps)}`,
     DOMAIN_RULES,
     opts.withholdGeneric ? "" : GENERIC_RULES,
     knownLabels ? `KNOWN LABELS (exact strings the product renders, by screen — from its source and from live runs):\n${knownLabels}` : "",
+    knownScreens ? `KNOWN SCREENS (photographed by the screen walk — the steps that reach each one; reuse them to get to the screen a case is about):\n${knownScreens}` : "",
     expectations.length ? `WHAT THE RULES SAY ABOUT THIS AREA:\n${expectations.map((e) => `- ${e}`).join("\n")}` : "",
     experience.length ? `WHAT HAS BROKEN HERE BEFORE (worth asserting):\n${experience.map((e) => `- ${e}`).join("\n")}` : "",
     opts.prepared ? preparedRules(opts.prepared) : "",

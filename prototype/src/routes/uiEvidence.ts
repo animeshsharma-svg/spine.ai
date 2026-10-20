@@ -4,7 +4,7 @@
  *
  *   GET /api/ui-evidence?path=<absolute path from a step's evidence.screenshot>
  *
- * Serves only .png files inside procol-ui-tests/evidence/ (where observe.ts writes them);
+ * Serves only .png / .jpg files inside procol-ui-tests/evidence/ (where observe.ts writes them);
  * anything else is refused, so the route cannot be used to read other files.
  */
 import { existsSync, readFileSync, realpathSync } from "node:fs";
@@ -25,12 +25,12 @@ export const handle: RouteHandler = async (ctx) => {
     real = "";
   }
   const root = existsSync(EVIDENCE) ? realpathSync(EVIDENCE) : EVIDENCE;
-  if (!real || !real.startsWith(root + sep) || !/\.png$/i.test(real)) {
+  if (!real || !real.startsWith(root + sep) || !/\.(png|jpe?g)$/i.test(real)) {
     ctx.res.writeHead(404, { "content-type": "text/plain" });
     ctx.res.end("no such evidence");
     return true;
   }
-  ctx.res.writeHead(200, { "content-type": "image/png", "cache-control": "private, max-age=86400" });
+  ctx.res.writeHead(200, { "content-type": /\.png$/i.test(real) ? "image/png" : "image/jpeg", "cache-control": "private, max-age=86400" });
   ctx.res.end(readFileSync(real));
   return true;
 };

@@ -58,7 +58,7 @@ let catRunning = null; // the open EventSource while cases are running
 // welcome = the landing page, login = sign in (both public/welcome.js — no app shell)
 // plan = Plan a run (public/plan.js), which replaced API automation and UI automation
 // sessions = every run kept, as sessions (public/sessions.js), which replaced Reports
-const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "crosscheck", "product", "matrix", "success", "history"];
+const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "reports", "sessions", "bugs", "crosscheck", "product", "matrix", "success", "history", "screens"];
 
 /**
  * Old addresses that now live elsewhere: the hash is rewritten, so a bookmark
@@ -3430,6 +3430,10 @@ function runUiJourney(flow, onDone, opts = {}) {
     if (framePanel) framePanel.hidden = false;
     window.spineSession?.frame();
   });
+  es.addEventListener("spot", (ev) => {
+    const { spot } = JSON.parse(ev.data);
+    window.spineSession?.spot(spot);
+  });
   // A stream that dies mid-journey resolves the sequence too, or the run after
   // it would never start and the panel would wait on a journey that is gone.
   watchStreamEnd(es, () => {
@@ -5114,6 +5118,10 @@ function runTestCase(textOverride) {
     if (framePanel) framePanel.hidden = false;
     window.spineSession?.frame();
   });
+  es.addEventListener("spot", (ev) => {
+    const { spot } = JSON.parse(ev.data);
+    window.spineSession?.spot(spot);
+  });
 
   es.addEventListener("stage", (ev) => {
     const st = JSON.parse(ev.data);
@@ -5243,7 +5251,7 @@ function runTestCase(textOverride) {
         (s.detail ? ` — ${s.detail}` : "");
     });
     r.steps.forEach((s, i) =>
-      window.spineSession?.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || ""),
+      window.spineSession?.planStep(i, s.status === "ok" ? "ok" : s.status === "failed" ? "bad" : "skip", s.detail || "", s.spotlights),
     );
     renderAutomation();
     setRunBar(r.steps.length, r.steps.length);

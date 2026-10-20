@@ -173,6 +173,7 @@
     const fp = q$("#live-frame-panel");
     if (fp) fp.hidden = true;
     q$("#live-frame")?.removeAttribute("src");
+    spotsReset();
 
     S.frames = 0;
     S.reqs = 0;
@@ -371,7 +372,7 @@
   }
 
   /** state: "run" | "ok" | "bad" | "skip" */
-  function planStep(i, state, detail) {
+  function planStep(i, state, detail, spotlights) {
     if (!S.on || !S.turn?.plan?.[i]) return;
     const li = q$(`.ss-steps > [data-i="${i}"]`, el.narr);
     if (!li) return;
@@ -385,6 +386,27 @@
       if (d) {
         d.textContent = s.detail;
         d.hidden = !s.detail;
+      }
+    }
+    // The step's own pictures: each action framed, each assertion verified (spotlight.ts).
+    if (Array.isArray(spotlights) && spotlights.length) {
+      let strip = q$(".ss-step-spots", li);
+      if (!strip) {
+        strip = document.createElement("div");
+        strip.className = "ss-step-spots";
+        (q$(".ss-step-detail", li)?.parentElement || li).appendChild(strip);
+      }
+      strip.innerHTML = "";
+      for (const sp of spotlights) {
+        const t = document.createElement("img");
+        t.className = "ss-step-spot";
+        t.dataset.action = sp.action;
+        t.loading = "lazy";
+        t.src = spotUrl(sp);
+        t.alt = spotCaption(sp);
+        t.title = spotCaption(sp);
+        t.addEventListener("click", () => spotOpen(sp));
+        strip.appendChild(t);
       }
     }
     if (state === "run") working(`Step ${i + 1} of ${S.turn.plan.length}: ${s.verb}`);
@@ -1056,8 +1078,73 @@
   window.addEventListener("hashchange", seen);
   document.addEventListener("visibilitychange", seen);
 
+  // ── the spotlight strip: thumbnails of every framed action, newest last ──
+  const spots = [];
+  function spotsReset() {
+    spots.length = 0;
+    const box = q$("#ss-spots");
+    if (box) box.hidden = true;
+    const strip = q$("#ss-spots-strip");
+    if (strip) strip.innerHTML = "";
+    const n = q$("#ss-spots-n");
+    if (n) n.textContent = "0";
+  }
+  function spotUrl(sp) {
+    return `/api/ui-evidence?path=${encodeURIComponent(sp.file)}`;
+  }
+  function spotCaption(sp) {
+    return `${sp.step ? `Step ${sp.step} · ` : ""}${sp.action}${sp.target ? ` · ${sp.target}` : ""}`;
+  }
+  function spotOpen(sp) {
+    const big = document.createElement("figure");
+    big.className = "ss-spot-big";
+    const img = document.createElement("img");
+    img.src = spotUrl(sp);
+    img.alt = spotCaption(sp);
+    const cap = document.createElement("figcaption");
+    cap.textContent = spotCaption(sp);
+    big.append(img, cap);
+    big.addEventListener("click", () => big.remove());
+    document.body.appendChild(big);
+  }
+  /** A spotlight picture arrived from the run (the "spot" SSE event). */
+  function spot(sp) {
+    if (!sp || !sp.file) return;
+    spots.push(sp);
+    const box = q$("#ss-spots");
+    const strip = q$("#ss-spots-strip");
+    if (!box || !strip) return;
+    box.hidden = false;
+    const el = document.createElement("div");
+    el.className = "ss-spot";
+    el.dataset.action = sp.action;
+    el.title = spotCaption(sp);
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = spotUrl(sp);
+    img.alt = spotCaption(sp);
+    const cap = document.createElement("div");
+    cap.className = "ss-spot-cap";
+    cap.textContent = spotCaption(sp);
+    el.append(img, cap);
+    el.addEventListener("click", () => spotOpen(sp));
+    strip.appendChild(el);
+    strip.scrollLeft = strip.scrollWidth;
+    const n = q$("#ss-spots-n");
+    if (n) n.textContent = String(spots.length);
+    if (S.frames === 0) {
+      // the picture itself is a frame of the screen — show it where the browser goes
+      const fi = q$("#live-frame");
+      const fp = q$("#live-frame-panel");
+      if (fi && fp) { fi.src = spotUrl(sp); fp.hidden = false; }
+      frame();
+    }
+  }
+  q$("#ss-spots-open")?.addEventListener("click", () => spots.length && spotOpen(spots[spots.length - 1]));
+
   window.spineSession = {
     begin, ensure, idle, stopped, showing,
+    spot,
     working, head, act, note,
     plan, planStep,
     frame, request,

@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { spotlightMark } from "../spotlight.js";
 import { existsSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -538,6 +539,7 @@ async function execute(
         throw new Error(`the text "${text}" is not on screen within ${Math.round(timeoutMs / 1000)}s${t.within ? ` inside ${t.within}` : ""} — the screen reads: ${body.slice(0, 220)}…`);
       }
       noteSeen(text, page.url(), found.strategy);
+      await spotlightMark(found.locator, `"${text}" is on screen`).catch(() => {});
       return { detail: `"${text}" is on screen`, strategy: found.strategy };
     }
 
@@ -552,6 +554,7 @@ async function execute(
       const found = await findVisible(page, t, timeoutMs);
       if (!found) throw new Error(`${describe(t)} is not visible within ${Math.round(timeoutMs / 1000)}s`);
       noteSeen(targetWords(t)[0], page.url(), found.strategy);
+      await spotlightMark(found.locator, `${describe(t)} is visible`).catch(() => {});
       return { detail: `${describe(t)} is visible${found.visible > 1 ? ` (${found.visible} matches)` : ""}`, strategy: found.strategy };
     }
 

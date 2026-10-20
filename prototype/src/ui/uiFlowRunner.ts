@@ -178,12 +178,14 @@ export interface UiRunEvent {
   // indistinguishable from its own connection-failure event — the exact
   // collision that made "run error" appear after every normal, successful run
   // elsewhere in this codebase. Every consumer forwards e.type verbatim.
-  type: "start" | "log" | "done" | "run-error" | "queued" | "frame";
+  type: "start" | "log" | "done" | "run-error" | "queued" | "frame" | "spot";
   line?: string;
   command?: string;
   exitCode?: number;
   /** base64 JPEG — a live preview frame for the dashboard's split view. */
   frame?: string;
+  /** a spotlight picture: the control a step acted on, framed (procol-ui-tests/src/plan/spotlight.ts) */
+  spot?: { file: string; action: string; target: string; step: number; stepName: string; box?: { x: number; y: number; w: number; h: number }; url: string; at: string };
 }
 
 /**
@@ -238,6 +240,14 @@ function launch(
         if (!line.trim()) continue;
         if (line.startsWith("[frame] ")) {
           emit({ type: "frame", frame: line.slice("[frame] ".length) });
+          continue;
+        }
+        if (line.startsWith("[spot] ")) {
+          try {
+            emit({ type: "spot", spot: JSON.parse(line.slice("[spot] ".length)) });
+          } catch {
+            /* a torn line — the file is still named in the run result */
+          }
           continue;
         }
         // Mirror the run's own narration into the slot so the dashboard strip

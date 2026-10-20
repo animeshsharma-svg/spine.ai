@@ -24,6 +24,7 @@ import { qaVendorNames, isQaVendorName, allowRealVendors } from "../db/qaVendors
 import { runExpectationStep } from "./expectations.js";
 import { installObserver, observe, type Observation } from "./observe.js";
 import { screenInventory } from "./inventory.js";
+import { installSpotlight, beginStep, stepShots, spotlightVerify, spotlightMap, type SpotShot } from "./spotlight.js";
 import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
 import { join as joinInv, dirname as dirnameInv } from "node:path";
 import { fileURLToPath as fileUrlInv } from "node:url";
@@ -62,6 +63,8 @@ export interface StepResult {
   };
   /** The run broke one of the app's rules by its own setup, satisfied it, and retried. */
   recovered?: { appSaid: string; rule: string; why: string; did: string[] };
+  /** The spotlight pictures taken during this step: each action framed, each assertion verified (spotlight.ts). */
+  spotlights?: SpotShot[];
 }
 
 export interface PlanResult {
@@ -733,10 +736,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       for (const until = Date.now() + 20_000; Date.now() < until && (await busy.isVisible().catch(() => false)); ) await s.page.waitForTimeout(250);
       const o = await observe(s.page, s.stepNo, `inventory-${label}`, { force: true }).catch(() => null);
       const inv = await screenInventory(s.page);
+      const map = await spotlightMap(s.page, label, inv.controls).catch(() => null);
       const fallbackDir = joinInv(dirnameInv(fileUrlInv(import.meta.url)), "..", "..", "evidence", "inventories");
       const file = o?.screenshot ? o.screenshot.replace(/\.png$/, ".inventory.json") : joinInv(fallbackDir, `${label}-${Date.now()}.inventory.json`);
       mkdirInv(dirnameInv(file), { recursive: true });
-      writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o?.screenshot ?? null, aria: o?.snapshot ?? null, ...inv }, null, 2));
+      writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o?.screenshot ?? null, map, aria: o?.snapshot ?? null, runId: process.env.QA_RUN_ID ?? null, stepNo: s.stepNo, ...inv }, null, 2));
       console.log(`[inventory] ${file}`);
       const by = inv.controls.reduce<Record<string, number>>((m, c) => ((m[c.kind] = (m[c.kind] ?? 0) + 1), m), {});
       return `inventory of "${label}" at ${inv.path}: ${inv.controls.length} controls (${Object.entries(by).map(([k, n]) => `${n} ${k}`).join(", ")})`;
@@ -1287,7 +1291,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)${plan.context?.state ? ` on a ${plan.context.state} event built by API` : ""}`);
   const results: StepResult[] = [];
   const observations: Observation[] = [];
-  installObserver(page, process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`);
+  const runId = process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`;
+  installObserver(page, runId);
+  installSpotlight(page, joinInv(process.cwd(), "evidence", runId.replace(/[^\w.-]+/g, "_")));
   /** The observation pass after a step — bounded, and never the reason a step fails. */
   const look = async (i: number, name: string, force: boolean) => {
     const o = await Promise.race([
@@ -1329,8 +1335,10 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       s.curMark = await toastMark(s.page);
       s.lastStrategy = undefined;
       s.stepNo = i + 1;
+      beginStep(i + 1, step.step, plan.steps.length);
       const detail = await runStep(s, step);
-      results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started });
+      if (/^expect_/.test(step.step)) await spotlightVerify(page, `${step.step}${detail ? ` — ${detail}` : ""}`).catch(() => {});
+      results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
       await look(i, step.step, i === plan.steps.length - 1);
     } catch (err) {
@@ -1390,7 +1398,8 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
           s.curMark = await toastMark(s.page);
           const detail2 = await runStep(s, step);
           const told = chain.map((c) => `the app refused "${c.appSaid}" (${c.rule}); ${c.why}`).join(", then ");
-          results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: ${told}`, recovered: { ...chain[0], did: chain.flatMap((c) => c.did) }, ms: Date.now() - started });
+          if (/^expect_/.test(step.step)) await spotlightVerify(page, `${step.step}${detail2 ? ` — ${detail2}` : ""}`).catch(() => {});
+          results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: ${told}`, recovered: { ...chain[0], did: chain.flatMap((c) => c.did) }, ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
           console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail2 ?? ""} (after recovering from ${chain.map((c) => `"${c.appSaid}"`).join(" and ")})`);
           await look(i, step.step, false);
           recoveredStep = true;
@@ -1426,7 +1435,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       const ruleNote = lastRule ? ` — the app's own rule (${lastRule.rule!.source})${recoveryFor(lastRule.t) ? "" : "; no known way for the run to satisfy it"}` : said.length ? ` — the app said "${said[0]}", which is not one of its known rules` : "";
       const failedAt = results.length;
       const failText = (lastRefusal ?? detail) + (lastRefusal && !lastRule ? " — the app said this after the recoveries above; it is not one of the dashboard's own rules" : ruleNote);
-      results.push({ step: step.step, args: step.args, status: "failed", detail: failText, ms: Date.now() - started });
+      results.push({ step: step.step, args: step.args, status: "failed", detail: failText, ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${failText}`);
       const before = observations.length;
       await look(i, step.step, true);
