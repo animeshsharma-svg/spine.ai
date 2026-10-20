@@ -50,7 +50,7 @@ cases. (About 3 minutes; the full walk set is 30+ minutes.)
 
 ## Numbers to have ready (as of 21 Oct, 03:00)
 
-- Screens in the library: **45** · controls on them: **1,250** (1,093 described) · test cases written from screens: **228+**
+- Screens in the library: **46** · controls on them: **1,310** (1,150 described) · test cases written from screens: **243**
 - Event combinations: **22 of 22 passed** (eRFX 12, single-stage 9, BOQ 1) · **919 spotlight pictures** in that run alone
 - Walks: all 7 pass end to end (events list, eRFX create → publish → bid → Master QCS, single-stage auction, BOQ template, compare & award, proposal, RFQ → auction)
 - What the night found about the product (each with a picture): a counter offer cannot be sent on a surrogate bid; the single-stage screen has no Save as draft; BOQ line items arrive only by upload; a non-preset duration lands on different presets per stage and publish is refused
