@@ -1096,8 +1096,15 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         if (!added.length) await s.single.inviteVendor();
         return added.length ? `invited ${added.join(", ")} (single-stage)` : "vendors invited (single-stage)";
       }
-      const names = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
-      const min = a.count !== undefined ? Number(a.count) : vendorCount();
+      const min = a.count !== undefined ? Number(a.count) : (vendorCount() ?? 0);
+      let names = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
+      // "count: 2" with no names: the default road invites ONE QA vendor and reports one
+      // participant (E4, 2026-10-21), so a second surrogate bid found nobody to bid for. Name
+      // as many QA test vendors as the case needs, in the order the tenant lists them.
+      if (!names.length && min > 1 && !allowRealVendors()) {
+        names = (await qaVendorNames()).slice(0, min);
+        if (names.length < min) throw new Error(`the case needs ${min} vendors but this tenant has only ${names.length} QA test vendor(s) — automation needs update: create more with the bidding matrix's vendor setup`);
+      }
       const invited = await s.create.inviteVendors({ names, count: min });
       const total = await s.create.participantCount();
       return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s)`;
