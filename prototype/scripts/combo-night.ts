@@ -23,6 +23,7 @@ config({ path: join(here, "..", ".env") });
 process.env.SLINGRING_FAST_TIMEOUT_MS ??= "45000";
 const { runUiPlan, readPlanResult } = await import("../src/ui/uiFlowRunner.js");
 const { recordScreen } = await import("../src/agents/screenModel.js");
+const { buildUiState } = await import("../src/ui/uiSetup.js");
 
 type Step = { step: string; args?: Record<string, unknown> };
 interface Combo {
@@ -35,6 +36,8 @@ interface Combo {
   items: number;
   outcome: "publish" | "draft" | "convert" | "counter-offer" | "surrogate" | "two-vendors";
   steps: Step[];
+  /** an event state the API builds first (the browser then opens it with open_prepared) */
+  state?: "bid" | "live" | "closed" | "proposal";
 }
 
 const inv = (label: string): Step => ({ step: "inventory_screen", args: { label } });
@@ -102,7 +105,18 @@ const COMBOS: Combo[] = [
   erfx("E8", ["rfq"], 1, "draft"),
   erfx("E9", ["rfp", "rfq"], 1, "draft", { inv: "draft-two-stage-in-list" }),
   erfx("E10", ["rfq"], 1, "convert", { inv: "converted-auction-create" }),
-  erfx("E11", ["rfq"], 2, "counter-offer", { inv: "counter-offer-sent" }),
+  // A counter offer needs the VENDOR's own bid: the Counter Offer button is disabled on a
+  // surrogate bid (captured 2026-10-21, combo-e11). The API builds the bid state first.
+  {
+    id: "E11",
+    title: "eRFX rfq · vendor's bid in (built by API) · counter-offer",
+    entry: "erfx",
+    stages: ["rfq"],
+    items: 1,
+    outcome: "counter-offer",
+    state: "bid",
+    steps: [{ step: "open_prepared", args: { screen: "responses" } }, { step: "place_counter_offer", args: { price: 90 } }, { step: "expect_counter_offer_sent" }, inv("counter-offer-sent")],
+  },
   erfx("E12", ["auction"], 5, "publish"),
   single("S1", "rfq", 1, "surrogate", { awarding: "lot" }, { inv: "single-stage-rfq-live" }),
   single("S2", "rfq", 2, "publish", { awarding: "line_item" }),
@@ -174,8 +188,21 @@ for (const c of picked) {
   console.log(`[${t()}] ▶ ${c.id} ${c.title} (${c.steps.length} steps, run ${runId})`);
   const inventories: string[] = [];
   let pictures = 0;
+  let context: Record<string, unknown> | undefined;
+  if (c.state) {
+    console.log(`[${t()}]   building a "${c.state}" event through the API…`);
+    const b: any = await buildUiState(companyId, c.state, {}).catch((e) => ({ ok: false, why: (e as Error).message }));
+    const x = b.ok ? b.context : null;
+    if (!x) {
+      console.log(`[${t()}] ✗ ${c.id} the API could not build the ${c.state} state: ${b.why}`);
+      results.push({ id: c.id, title: c.title, entry: c.entry, stages: c.stages, strategy: c.strategy, awarding: c.awarding, items: c.items, outcome: c.outcome, runId, passed: null, steps: c.steps.length, ok: 0, failedAt: `the API could not build the ${c.state} state: ${b.why}`, pictures: 0, ms: Date.now() - t0, screens: [] });
+      save();
+      continue;
+    }
+    context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId };
+  }
   const result: any = await new Promise((resolve) => {
-    runUiPlan({ plan: { title: `combo ${c.id}: ${c.title}`, steps: c.steps }, companyId, runId, headed: false }, (e: any) => {
+    runUiPlan({ plan: { title: `combo ${c.id}: ${c.title}`, steps: c.steps, ...(context ? { context } : {}) }, companyId, runId, headed: false }, (e: any) => {
       if (e.type === "spot") pictures++;
       const line = String(e.line ?? "");
       const m = /\[inventory\]\s+(\S+\.inventory\.json)/.exec(line);
