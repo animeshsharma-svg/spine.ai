@@ -130,6 +130,9 @@ async function spotlight(loc: Locator, verb: string, value?: string): Promise<vo
     const box = await loc.boundingBox({ timeout: 1_500 }).catch(() => null);
     if (!box || box.width <= 0 || box.height <= 0) return;
     const target = clip((await nameOf(loc)) || verb, 60);
+    // Closing a pop-up the product threw in the way ("Not now" on the notification prompt, a
+    // tour's "Skip") is housekeeping, not the test: no picture, or the strip fills with them.
+    if (verb === "click" && /^(not now|skip|skip tour|got it|later|maybe later|dismiss|no thanks|remind me later)$/i.test(target)) return;
     const label = `Step ${current.no}${current.total ? `/${current.total}` : ""} · ${verb}${value && verb !== "press" ? ` “${clip(value, 28)}”` : value ? ` ${value}` : ""} · ${target}`;
     await draw(page, { x: box.x, y: box.y, w: box.width, h: box.height }, label, ACCENT, `${current.name.replace(/_/g, " ")}`);
     await snap(page, verb, target, { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) });
