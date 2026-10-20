@@ -142,7 +142,7 @@
     const passed = run.results.filter((r) => r.passed).length;
     const rows = run.results
       .map(
-        (r) => `<tr class="${r.passed ? "ok" : r.passed === false ? "bad" : ""}"><td><code>${esc(r.id)}</code></td><td>${esc(r.title)}</td><td>${r.ok}/${r.steps}</td><td>${r.pictures}</td><td>${r.passed ? `<span class="pill good">Passed</span>` : r.passed === false ? `<span class="pill bad">Failed</span>` : `<span class="pill idle">Not run</span>`}</td><td class="scr-combo-why">${r.failedAt ? esc(r.failedAt) : ""}${r.evidence ? ` <a href="${evidence(r.evidence)}" target="_blank" rel="noopener">picture</a>` : ""}</td></tr>`,
+        (r) => `<tr class="${r.passed ? "scr-row-ok" : r.passed === false ? "scr-row-bad" : ""}"><td><code>${esc(r.id)}</code></td><td>${esc(r.title)}</td><td>${r.ok}/${r.steps}</td><td>${r.pictures}</td><td>${r.passed ? `<span class="pill good">Passed</span>` : r.passed === false ? `<span class="pill bad">Failed</span>` : `<span class="pill idle">Not run</span>`}</td><td class="scr-combo-why">${r.failedAt ? esc(r.failedAt) : ""}${r.evidence ? ` <a href="${evidence(r.evidence)}" target="_blank" rel="noopener">picture</a>` : ""}</td></tr>`,
       )
       .join("");
     return `<section>
