@@ -2,20 +2,20 @@
   {
     "id": "API-XREV-A-01",
     "feature": "revalidation.access",
-    "title": "Non-Procol-employee token is refused",
-    "type": "Negative",
+    "title": "A client's buyer can use revalidation for its own company",
+    "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
     "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
     "steps": [
-      "GET /config?client_company_id=<client> with the client's own super-admin session (not a Procol employee)"
+      "GET /runs/<the client's latest run>?workspace_id=<client> with the client's own buyer login"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/runs/<latest run>?workspace_id=<client>",
     "expected": "accept",
-    "expectedResult": "Code 5 'Not authorized'; nothing returned.",
-    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 (check_qa_access = is_procol_employee? || is_super_admin, since eaf002de08)",
-    "disagree": "Guide: Code 5 Not authorized for any client user.",
+    "expectedResult": "Answered with the run (product decision: a buyer allowed to edit vendors runs revalidation for its own company).",
+    "rule": "app/controllers/api/vendor_validation_controller.rb run_status; VendorValidationHistoryPolicy#run_status? (company read_record)",
+    "disagree": "Guide: Code 5 Not authorized for any client user — superseded by the product decision.",
     "tier": "read",
     "reval": {
       "key": "A-01",
@@ -31,14 +31,14 @@
     "severity": "High",
     "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
     "steps": [
-      "GET /config with no access-token header",
-      "GET /config with a random access-token"
+      "GET /runs/<today's run> with no access-token",
+      "then with a random access-token"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/runs/<run>",
     "expected": "accept",
-    "expectedResult": "Refused each time (auth error or code 5); no config in the body.",
-    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:9 (before_action check_qa_access)",
+    "expectedResult": "Refused each time, no run data.",
+    "rule": "Api::ApiController authentication",
     "tier": "read",
     "reval": {
       "key": "A-02",
@@ -48,19 +48,19 @@
   {
     "id": "API-XREV-A-03",
     "feature": "revalidation.access",
-    "title": "Unknown client",
+    "title": "A company that does not exist",
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
     "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
     "steps": [
-      "GET /config?client_company_id=999999999"
+      "GET /runs/<today's run>?workspace_id=999999999"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa/config?client_company_id=999999999",
+    "path": "/api/vendor_validation/runs/<run>?workspace_id=999999999",
     "expected": "accept",
-    "expectedResult": "422, code 2 'client_company_id not found'.",
-    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:108-111",
+    "expectedResult": "Refused, or no rows — never another company's data.",
+    "rule": "Current.workspace resolution",
     "tier": "read",
     "reval": {
       "key": "A-03",
@@ -74,21 +74,22 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "PUT /config with \"config\": \"abc\"",
       "PUT with \"config\": [1]",
       "GET /config"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 'config must be an object' each time; GET shows the config unchanged.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:122-123",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-04",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -98,21 +99,22 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "PUT the current config without enabled",
       "then with \"enabled\": \"yes\"",
       "then with \"enabled\": \"true\" (a string)"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 'enabled must be true or false' each time; config unchanged.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:124",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-05",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -122,7 +124,7 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "vendor_statuses []",
       "vendor_statuses [\"approved\"]",
@@ -130,14 +132,15 @@
       "vendor_statuses \"active\" (not a list)"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 'vendor_statuses must be a non-empty list from: in_active, active, invited, onboarding_in_progress, in_review, rejected, in_approval, blacklisted' (the enum's order) each time; config unchanged.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:126-130",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-06",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -147,20 +150,21 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "\"validations\": {}",
       "\"validations\": []"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 'validations must be a non-empty object'; config unchanged.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:132-134",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-07",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -170,19 +174,20 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "add \"aadhaar\": {...} to validations"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 'unsupported doc types: aadhaar'; config unchanged.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:136-137",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-08",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -192,20 +197,21 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "gst frequency weekly",
       "gst frequency missing"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 \"gst: unsupported frequency 'weekly'\"; with none, \"gst: unsupported frequency ''\".",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:46-50",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-09",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -215,21 +221,22 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "gst start_date 2026-13-45",
       "then 15-10-2026",
       "then 2026-02-30"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 \"gst: invalid start_date '<value>'\" each time (Date.iso8601).",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:51,60-65",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-10",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -239,20 +246,21 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "gst paths []",
       "gst paths missing"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 'gst: paths must be a non-empty list'.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:53-54",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-11",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -262,21 +270,22 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "gst paths [\"vendor.gst\"]",
       "then [\"form.\"]",
       "then [\"company.GST_NO\"]"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 \"gst: unsupported path '<value>'\" each time.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:56-57, app/services/vendor_revalidation/value_reader.rb:46-55",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-12",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -286,20 +295,19 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
     "steps": [
-      "PUT a config with enabled false",
-      "POST /trigger mode force, vendor_ids [V-NODOCS]"
+      "on a client with revalidation off (e.g. PROCOL DEMO 198678), with its buyer login: POST /trigger mode force, one vendor"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
-    "expectedResult": "422 'vendor revalidation is not enabled for this client (needs vendor onboarding v2 and config enabled: true)'.",
-    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:30-32",
-    "tier": "config",
+    "expectedResult": "422, code 8 'Vendor revalidation is not enabled for this client' — nothing runs.",
+    "rule": "vendor_validation_controller.rb#trigger",
+    "tier": "read",
     "reval": {
       "key": "A-13",
-      "tier": "config",
+      "tier": "read",
       "needs": [
         "V-NODOCS"
       ]
@@ -312,14 +320,14 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "POST /trigger without mode",
       "mode now",
       "mode FORCE"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'mode must be one of: force, scheduler' each time (case-sensitive).",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:34-35",
@@ -339,12 +347,12 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "POST /trigger with vendor_ids [V-NODOCS] and vendor_limit 1"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'send either vendor_ids or vendor_limit, not both'.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:167-169",
@@ -364,7 +372,7 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "vendor_limit 0",
       "-1",
@@ -372,7 +380,7 @@
       "1.5"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'vendor_limit must be a positive integer' for each.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:171-175",
@@ -389,13 +397,13 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "vendor_ids [\"abc\", 1.5]",
       "vendor_ids [\"1x\"]"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'vendor_ids must be a list of integers'. (Numeric strings such as \"123\" are accepted.)",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:178-179",
@@ -412,12 +420,12 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "vendor_ids [V-NOTCLIENT] — an active vendor linked to another client only"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 \"vendor_ids not among this client's vendors in the configured statuses: <id>\".",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:181-182",
@@ -437,13 +445,13 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
-      "PUT vendor_statuses [\"active\"]",
-      "vendor_ids [V-STATUS-invited]"
+      "pick a vendor linked in a status the client's settings do not check (e.g. onboarding_in_progress for GMMCO)",
+      "POST /trigger vendor_ids [that vendor]"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "Same message as A-18 with that id.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:181-182, app/workers/vendor_revalidation/run_worker.rb:53-58",
@@ -463,21 +471,22 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "find a link status with no eligible vendor for the client (database)",
       "PUT vendor_statuses [that status]",
       "POST /trigger vendor_limit 1"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'no vendors match the configured vendor_statuses'.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:43-44",
-    "tier": "config",
+    "tier": "ops",
     "reval": {
       "key": "A-20",
-      "tier": "config"
+      "tier": "ops",
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -487,12 +496,12 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "run_at = now − 10 min (IST)"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'run_at is in the past'.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:151",
@@ -512,12 +521,12 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "run_at = now + 31 days"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'run_at must be within 30 days from now'.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:152",
@@ -537,13 +546,13 @@
     "type": "Negative",
     "priority": "P3",
     "severity": "Low",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "run_at tomorrow",
       "run_at 2026-02-30T10:00:00"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "422 'run_at must be a time like <now+1h, ISO with +05:30> (IST if no offset)'.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162",
@@ -563,20 +572,21 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run.",
     "steps": [
       "DELETE /trigger/abc123",
       "(a job already started: covered in B-12)"
     ],
     "method": "DELETE",
-    "path": "/api/vendor_revalidation_qa/trigger/abc123",
+    "path": "/api/vendor_validation/trigger/abc123",
     "expected": "accept",
     "expectedResult": "404, code 2 'trigger not found or already started'.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:60-64",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-24",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run"
     }
   },
   {
@@ -591,7 +601,7 @@
       "GET /runs/<random uuid>"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa/runs/<random uuid>",
+    "path": "/api/vendor_validation/runs/<random uuid>",
     "expected": "accept",
     "expectedResult": "200 with total_rows 0, vendors 0, complete false; no error.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:70-100",
@@ -604,24 +614,26 @@
   {
     "id": "API-XREV-A-26",
     "feature": "revalidation.access",
-    "title": "run_at 30 seconds in the past is accepted",
+    "title": "run_at a few seconds in the past is accepted",
     "type": "Edge",
     "priority": "P3",
     "severity": "Low",
-    "preconditions": "Not run unattended (dev): covered by the code (PAST_TOLERANCE 1 minute) and by A-21's boundary; run by hand if wanted — a clock difference between this machine and the server makes the 30 s margin flaky",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed).",
     "steps": [
-      "run_at = now − 30 s"
+      "run_at = now − 20 s (the guide says 30 s; 20 s leaves room for clock difference)"
     ],
-    "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
+    "method": "POST",
+    "path": "/api/vendor_revalidation_qa/trigger",
     "expected": "accept",
     "expectedResult": "Accepted (1-minute tolerance); runs now.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:6,151",
-    "tier": "dev",
+    "tier": "run",
     "reval": {
       "key": "A-26",
-      "tier": "dev",
-      "why": "covered by the code (PAST_TOLERANCE 1 minute) and by A-21's boundary; run by hand if wanted — a clock difference between this machine and the server makes the 30 s margin flaky"
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
     }
   },
   {
@@ -631,20 +643,21 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.",
     "steps": [
       "PUT the current config with vendor_statuses in reverse order",
       "GET /config"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "GET config equals the PUT exactly; PUT answers with it too; enabled = config.enabled AND vendor_onboarding_v2.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:12-27,113-120",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-27",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API"
     }
   },
   {
@@ -654,20 +667,21 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.",
     "steps": [
       "PUT with only gst",
       "GET"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "Only gst is in the config; the other document types are gone.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:16-27",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-28",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API"
     }
   },
   {
@@ -677,16 +691,14 @@
     "type": "Positive",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
-      "silent config",
-      "run_at <tomorrow>T15:00:00 (no offset)",
-      "cancel at once"
+      "run_at <tomorrow>T15:00:00 (no offset), one vendor with nothing to check"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
-    "expectedResult": "scheduled_for <tomorrow>T15:00:00+05:30; run_scheduled_on tomorrow and that date's run id; cancel → state cancelled.",
+    "expectedResult": "scheduled_for <tomorrow>T15:00:00+05:30; run_scheduled_on tomorrow and that date's run id. (No cancel any more: it runs tomorrow on that one vendor.)",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:146-162",
     "tier": "config",
     "reval": {
@@ -700,19 +712,20 @@
   {
     "id": "API-XREV-A-30",
     "feature": "revalidation.access",
-    "title": "A client's super admin reads another client's config",
+    "title": "Another company's runs cannot be read or started",
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
     "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
     "steps": [
-      "GET /config?client_company_id=<another client> with this client's super-admin session"
+      "GET /runs/<this client's latest run>?workspace_id=<another company>",
+      "POST /trigger?workspace_id=<another company> with one of this client's vendors"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa/config?client_company_id=<other client>",
+    "path": "GET/POST /api/vendor_validation/… ?workspace_id=<other company>",
     "expected": "accept",
-    "expectedResult": "Code 5 'Not authorized'.",
-    "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:103-111 (set_client takes any client_company_id)",
+    "expectedResult": "No rows of this client come back, and the run is refused.",
+    "rule": "TriggerService.run_summary (rows where client_company_id = Current.workspace); vendor_validation_controller.rb#trigger uses Current.workspace",
     "tier": "read",
     "reval": {
       "key": "A-30",
@@ -726,14 +739,12 @@
     "type": "Edge",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
-      "silent config",
-      "run_at <day>T20:00:00Z (= 01:30 IST next day)",
-      "cancel"
+      "run_at <day>T20:00:00Z (= 01:30 IST next day), one vendor with nothing to check"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "run_scheduled_on = the IST date (next day) and its run id.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:45-46 (run_at.to_date in IST)",
@@ -753,19 +764,20 @@
     "type": "Negative",
     "priority": "P3",
     "severity": "Low",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
     "steps": [
       "\"gst\": \"yearly\""
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "422 'gst: settings must be an object' (a message the guide's table does not list).",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:47",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-32",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks)"
     }
   },
   {
@@ -775,19 +787,20 @@
     "type": "Edge",
     "priority": "P3",
     "severity": "Low",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.",
     "steps": [
       "gst paths \"form.gstin\" (a string, not a list)"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "path": "/api/vendor_validation/config",
     "expected": "accept",
     "expectedResult": "Accepted (Array.wrap); the guide documents paths as a list only.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:53",
-    "tier": "config",
+    "tier": "removed",
     "reval": {
       "key": "A-33",
-      "tier": "config"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API"
     }
   },
   {
@@ -802,7 +815,7 @@
       "POST /trigger with \"vendor_ids\": [] (or vendor_limit \"\" / null)"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
     "expectedResult": "Refused, like any other bad scope.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:164-185 (raw_ids.blank? → no scope), app/workers/vendor_revalidation/qa_trigger_worker.rb:50-56 (no scope → all vendors)",
@@ -814,24 +827,48 @@
     }
   },
   {
-    "id": "API-XREV-B-01",
-    "feature": "revalidation.schedule",
-    "title": "Scheduler mode with nothing due",
+    "id": "API-XREV-A-35",
+    "feature": "revalidation.access",
+    "title": "A buyer who may not edit vendors cannot start a run",
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run unattended (manual): needs a GMMCO buyer login without vendor-edit rights",
     "steps": [
-      "config: gst quarterly, start = today − 10 days",
-      "POST /trigger mode scheduler, vendor_ids [V-NODOCS]",
-      "GET /runs/<run_id>?job_id="
+      "log in as a buyer whose role lacks vendor (company) update rights",
+      "POST /trigger mode force, one vendor"
     ],
     "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "path": "/api/vendor_validation/trigger",
     "expected": "accept",
-    "expectedResult": "trigger.state nothing_due; no rows created for the vendor.",
+    "expectedResult": "Refused (not authorized); reading a run needs only read rights.",
+    "rule": "app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)",
+    "tier": "manual",
+    "reval": {
+      "key": "A-35",
+      "tier": "manual",
+      "why": "needs a GMMCO buyer login without vendor-edit rights"
+    }
+  },
+  {
+    "id": "API-XREV-B-01",
+    "feature": "revalidation.schedule",
+    "title": "Scheduler mode picks exactly the types due today",
+    "type": "Negative",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed).",
+    "steps": [
+      "read the client's settings (database)",
+      "POST /trigger mode scheduler, vendor_ids [V-NODOCS]",
+      "GET /runs"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_validation/trigger",
+    "expected": "accept",
+    "expectedResult": "Started with exactly the document types due today (trigger.doc_types), or nothing_due when none is due.",
     "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:28-32, app/workers/vendor_revalidation/scheduler_worker.rb:34-44",
-    "disagree": "Guide: …complete false.",
+    "disagree": "Guide: gst quarterly with start = today − 10 → nothing_due (needs a settings change)",
     "tier": "run",
     "reval": {
       "key": "B-01",
@@ -848,24 +885,25 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "find a GST run of this client 1–2 days ago (date D)",
       "config: gst monthly, start = D one month back (so D is the due date)",
       "scheduler trigger today"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "nothing_due: rows exist for gst on D, inside due_date…today.",
     "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:60-69 (due_date...run_date, exclusive)",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-02",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -875,23 +913,24 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "config: msme one_time, start = today − 5",
       "scheduler trigger today"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "nothing_due.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:34-37",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-03",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -901,23 +940,24 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "config: cin monthly with its cycle date 3 days ago (no rows)",
       "scheduler trigger today"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "nothing_due.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:12,34-44",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-04",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -927,7 +967,7 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run.",
     "steps": [
       "silent config",
       "trigger run_at now + 2 min",
@@ -935,18 +975,19 @@
       "wait past run_at",
       "GET /runs?job_id="
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Cancel answers state cancelled; afterwards still cancelled; the vendor's rows untouched.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:60-68",
-    "tier": "run",
+    "tier": "removed",
     "reval": {
       "key": "B-05",
-      "tier": "run",
+      "tier": "removed",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run"
     }
   },
   {
@@ -956,25 +997,26 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "silent config",
       "trigger run_at now + 2 min",
       "PUT enabled false",
       "wait past run_at"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "trigger.state disabled; no rows created or reset.",
     "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:24-27",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-06",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -984,15 +1026,14 @@
     "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed).",
     "steps": [
-      "config: the client's document types, each starting 20 days ahead",
-      "run force [V-PASS]"
+      "run force [V-PASS] under the client's settings"
     ],
     "method": "POST",
     "path": "/api/vendor_revalidation_qa/trigger",
     "expected": "accept",
-    "expectedResult": "Rows for every configured type; by_doc_type lists them all; by_status adds up.",
+    "expectedResult": "trigger.doc_types and the rows cover every configured document type, whatever its start date.",
     "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:30",
     "tier": "run",
     "reval": {
@@ -1010,23 +1051,24 @@
     "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "config: gst quarterly, start = today",
       "scheduler trigger now"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "state started; gst rows only.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:39-43",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-08",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1036,25 +1078,26 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "for monthly / quarterly / six_monthly / yearly: start = today minus 1/3/6/12 months → scheduler trigger",
       "then start whose cycle date was 3 days ago → scheduler trigger",
       "quarterly with start 2 months ago → scheduler trigger"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Due (started) exactly on whole cycles; nothing_due 3 days after a cycle date and on a non-cycle month.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:14,39-43",
     "disagree": "Guide: run_at on 10 Nov / Jan / Apr / Oct — not possible: run_at is capped at 30 days and a future trigger only fires then; the same rule is proved by moving the start date instead.",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-09",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1064,24 +1107,25 @@
     "type": "Edge",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "on the last day of a month shorter than 31 days: config gst monthly from the newest 31st",
       "scheduler trigger"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Due on the clamped month end (e.g. 30 Nov).",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:39-43 (start_date >> months clamps)",
     "disagree": "Guide: …and not on 1 Dec — but the 2-day catch-up makes 30 Nov's due date still due on 1 Dec if not run.",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-10",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1091,23 +1135,24 @@
     "type": "Edge",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "config: a document type the client has never checked (cin), monthly, cycle date 2 days ago",
       "scheduler trigger"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Due and started.",
     "rule": "app/workers/vendor_revalidation/scheduler_worker.rb:12,35",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "B-11",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1117,11 +1162,9 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed).",
     "steps": [
-      "silent config",
-      "run force twice",
-      "DELETE the first job after it started"
+      "run force on a vendor with nothing to check, twice"
     ],
     "method": "POST",
     "path": "/api/vendor_revalidation_qa/trigger",
@@ -1144,7 +1187,7 @@
     "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed).",
     "steps": [
       "run force [V-PASS, V-BADGST]",
       "run them again"
@@ -1171,7 +1214,7 @@
     "type": "Edge",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed).",
     "steps": [
       "run [V-PASS, V-BADGST]",
       "run [V-PASS] only"
@@ -1198,10 +1241,9 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed).",
     "steps": [
-      "silent config",
-      "trigger run_at now + 2 min",
+      "trigger run_at now + 2 min on a vendor with nothing to check",
       "poll"
     ],
     "method": "POST",
@@ -1225,10 +1267,9 @@
     "type": "Positive",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).",
     "steps": [
-      "silent config",
-      "run vendor_limit 3 twice"
+      "run vendor_limit 3 twice under the client's settings"
     ],
     "method": "POST",
     "path": "/api/vendor_revalidation_qa/trigger",
@@ -1295,10 +1336,9 @@
     "type": "Edge",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2 under the client's own settings (they are not changed).",
     "steps": [
-      "silent config",
-      "trigger [V-NODOCS] and [V-NODOCS2] for the same run_at (now + 90 s)",
+      "trigger two vendors with nothing to check for the same run_at (now + 90 s)",
       "wait for both"
     ],
     "method": "POST",
@@ -1323,7 +1363,7 @@
     "type": "Edge",
     "priority": "P3",
     "severity": "Low",
-    "preconditions": "Not run unattended (code): needs the nightly scheduler; proved from the code: the QA trigger sets the same claim key with a 1-hour TTL, so the nightly start_run returns early",
+    "preconditions": "Not run: fixed in the 20 Oct 2026 rewrite: the nightly claim is now taken only by a full run (trigger_service.rb), so a partial test run no longer stops that night's run.",
     "steps": [
       "QA trigger at 10:30 pm IST",
       "nightly scheduler at 11 pm"
@@ -1333,11 +1373,11 @@
     "expected": "accept",
     "expectedResult": "The nightly run still starts.",
     "rule": "app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82",
-    "tier": "code",
+    "tier": "removed",
     "reval": {
       "key": "B-20",
-      "tier": "code",
-      "why": "needs the nightly scheduler; proved from the code: the QA trigger sets the same claim key with a 1-hour TTL, so the nightly start_run returns early"
+      "tier": "removed",
+      "why": "fixed in the 20 Oct 2026 rewrite: the nightly claim is now taken only by a full run (trigger_service.rb), so a partial test run no longer stops that night's run"
     }
   },
   {
@@ -1347,15 +1387,14 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).",
     "steps": [
-      "silent config, vendor_statuses [\"active\"]",
-      "run vendor_limit 3"
+      "run vendor_limit 3 under the client's settings"
     ],
     "method": "POST",
     "path": "/api/vendor_revalidation_qa/trigger",
     "expected": "accept",
-    "expectedResult": "Every chosen vendor is linked as active; no rows for others.",
+    "expectedResult": "Every chosen vendor is linked in one of the configured statuses.",
     "rule": "app/workers/vendor_revalidation/run_worker.rb:53-58",
     "disagree": "Guide: vendor_limit 50 — cut to 3 to keep runs small (the rule is the same).",
     "tier": "run",
@@ -1395,7 +1434,7 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
     "steps": [
       "silent config, vendor_statuses [\"active\",\"invited\"]",
       "trigger vendor_ids [V-INACTIVE] (linked, company inactive)"
@@ -1421,19 +1460,20 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "GET /config for an active client without onboarding v2"
     ],
-    "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "enabled false, vendor_onboarding_v2 false. (The write half — enable it, trigger refused — is manual: an empty config cannot be put back.)",
     "rule": "app/models/company.rb:925-927",
-    "tier": "config",
+    "tier": "ops",
     "reval": {
       "key": "C-04",
-      "tier": "config"
+      "tier": "ops",
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1443,10 +1483,9 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).",
     "steps": [
-      "for each link status with an eligible vendor: silent config with vendor_statuses [that status]",
-      "run [V-STATUS-<status>]"
+      "for each status in the client's settings: run [V-STATUS-<status>]"
     ],
     "method": "POST",
     "path": "/api/vendor_revalidation_qa/trigger",
@@ -1466,23 +1505,24 @@
     "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "config: pan paths [\"company.misc.pan\"]",
       "run [V-MISC]"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "A PAN row whose value is the vendor's misc.pan (bulk-uploaded vendors are linked as referral, so they are eligible).",
     "rule": "app/workers/vendor_revalidation/run_worker.rb:55, app/services/vendor_revalidation/value_reader.rb:148-162",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "C-06",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-MISC"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1584,7 +1624,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed).",
     "steps": [
       "run [V-NODOCS] under the client's config"
     ],
@@ -1661,23 +1701,24 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKHALF; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "config: bank paths [{bank_account_no: company.misc.bank_account_number, ifsc: company.misc.bank_ifsc_code}]",
       "run [V-BANKHALF]"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "bank skipped 'not provided'.",
     "rule": "app/services/vendor_revalidation/value_reader.rb:86-97",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "D-04",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-BANKHALF"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1687,23 +1728,24 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "gst paths [\"company.gst_number_wrong\", \"company.gst_no\"]",
       "run [V-COMPANYGST]"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "No error; the GST row's value is the company's gst_no.",
     "rule": "app/services/vendor_revalidation/value_reader.rb:150 (& Company.column_names)",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "D-05",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-COMPANYGST"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1713,24 +1755,25 @@
     "type": "Edge",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "gst paths [\"company.gst_no\", \"company.pan_no\"] — both have a value",
       "run"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Only the first (gst_no) is checked.",
     "rule": "app/services/vendor_revalidation/value_reader.rb:24-44",
     "disagree": "Guide: form A vs company B — needs a prepared vendor; two company columns prove the same rule.",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "D-06",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-COMPANYGST"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1740,24 +1783,25 @@
     "type": "Edge",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "gst paths [\"form.<a field no form has>\", \"company.gst_no\"]",
       "run"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "GST from the company record is checked.",
     "rule": "app/services/vendor_revalidation/value_reader.rb:24-44,125-143",
     "disagree": "Guide: …no name-match rule applied (no rule is applied on any path — REV-03).",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "D-07",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-COMPANYGST"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1767,7 +1811,7 @@
     "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-2GST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-2GST under the client's own settings (they are not changed).",
     "steps": [
       "run [V-2GST]"
     ],
@@ -1792,23 +1836,24 @@
     "type": "Positive",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "pan paths [\"company.misc.pan\"]",
       "run [V-MISC]"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "PAN read from misc.",
     "rule": "app/services/vendor_revalidation/value_reader.rb:148-162",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "D-09",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-MISC"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1865,23 +1910,24 @@
     "type": "Edge",
     "priority": "P3",
     "severity": "Low",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-SPACES; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "gst paths [company.gst_no] for a vendor whose gst_no has spaces around it",
       "run"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Checked and stored as the trimmed value.",
     "rule": "app/services/vendor_revalidation/value_reader.rb:62",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "D-12",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-SPACES"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -1891,7 +1937,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed).",
     "steps": [
       "snapshot the vendor's template_responses, link status and company record",
       "run [V-PASS]",
@@ -1941,7 +1987,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADGST under the client's own settings (they are not changed).",
     "steps": [
       "run [V-BADGST]"
     ],
@@ -1966,23 +2012,24 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "gst paths [\"company.pan_no\"] — a 10-character PAN read as GST",
       "run"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "gst failed 'GST input is incorrect' from the pre-check (no provider call).",
     "rule": "lib/external_api/validation.rb:66-77",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "E-02",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-COMPANYPAN"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -2018,7 +2065,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-2GST-MIXED; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-2GST-MIXED under the client's own settings (they are not changed).",
     "steps": [
       "run [V-2GST-MIXED]"
     ],
@@ -2070,23 +2117,24 @@
     "type": "Negative",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-FOREIGN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "gst paths [company.gst_no] for a vendor whose gst_no is foreign (GB…)",
       "run"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "gst failed 'GST input is incorrect' (pre-check).",
     "rule": "lib/external_api/validation.rb:74-75",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "E-06",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-FOREIGN"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -2096,7 +2144,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADPAN under the client's own settings (they are not changed).",
     "steps": [
       "run [V-BADPAN]"
     ],
@@ -2121,23 +2169,24 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "pan paths [\"company.gst_no\"] — a 15-character GSTIN read as PAN",
       "run"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "pan failed 'PAN input is incorrect' from the pre-check.",
     "rule": "lib/external_api/validation.rb:74 (value.match(regex) — the PAN regex [A-Z]{5}[0-9]{4}[A-Z]{1} has no anchors, so a GSTIN containing a PAN passes)",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "E-08",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-COMPANYGST"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -2147,23 +2196,24 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "msme paths [\"company.pan_no\"]",
       "run"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "msme failed 'MSME input is incorrect' (pre-check).",
     "rule": "lib/external_api/validation.rb:74-75",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "E-09",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-COMPANYPAN"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -2173,7 +2223,7 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL under the client's own settings (they are not changed).",
     "steps": [
       "run [V-BANKFAIL]"
     ],
@@ -2222,7 +2272,7 @@
     "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed).",
     "steps": [
       "run [V-PASS]"
     ],
@@ -2691,29 +2741,30 @@
     "type": "Edge",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "silent config",
       "run force on 5 vendors (jobs spread 2 s apart)",
       "PUT enabled false 1.5 s later",
       "wait until nothing is pending"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Rows not yet checked are closed system_error 'verification is temporarily unavailable'; none left pending.",
     "rule": "app/services/vendor_revalidation/vendor_check_service.rb:26-30",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "F-10",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS",
         "V-NODOCS2",
         "V-NODOCS3",
         "V-NODOCS4",
         "V-NODOCS5"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -2747,27 +2798,28 @@
     "type": "Edge",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "as F-10",
       "read the final status of the vendors whose rows were closed"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Each has a final status (system_error).",
     "rule": "app/services/vendor_revalidation/vendor_check_service.rb:26-30 (close) and :73-74 (finalize returns when disabled; the QA reset already cleared the status)",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "F-16",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-NODOCS",
         "V-NODOCS2",
         "V-NODOCS3",
         "V-NODOCS4",
         "V-NODOCS5"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -2777,7 +2829,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL under the client's own settings (they are not changed).",
     "steps": [
       "run [V-BANKFAIL] (bank failed, nothing else failed last time)"
     ],
@@ -2803,7 +2855,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS-SKIP; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS-SKIP under the client's own settings (they are not changed).",
     "steps": [
       "run [V-PASS-SKIP] (some passed, the rest not provided)"
     ],
@@ -2899,24 +2951,25 @@
     "type": "Edge",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "V-BADPAN failed PAN on an earlier day",
       "config: gst quarterly from today (due), pan yearly from 10 days ago (not due)",
       "scheduler run [V-BADPAN]"
     ],
-    "method": "POST",
-    "path": "/api/vendor_revalidation_qa/trigger",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "Only gst rows today; final still Failed because PAN's latest row (earlier day) failed.",
     "rule": "app/services/vendor_revalidation/vendor_check_service.rb:76-90, app/models/vendor_validation_history.rb:68-80",
-    "tier": "run",
+    "tier": "ops",
     "reval": {
       "key": "G-06",
-      "tier": "run",
+      "tier": "ops",
       "needs": [
         "V-BADPAN"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -2926,7 +2979,7 @@
     "type": "Positive",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed).",
     "steps": [
       "run [V-PASS]"
     ],
@@ -3070,7 +3123,7 @@
     "type": "Negative",
     "priority": "P0",
     "severity": "Critical",
-    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed).",
     "steps": [
       "run; re-trigger the same vendors the same day"
     ],
@@ -3102,7 +3155,7 @@
       "count its rows in the database"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa/runs/<latest run>",
+    "path": "/api/vendor_validation/runs/<latest run>",
     "expected": "accept",
     "expectedResult": "Sum of by_status = total_rows = rows in the database; vendors and finished_vendors match; complete as the rows say.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:70-100",
@@ -3119,20 +3172,21 @@
     "type": "Positive",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): top_errors in the run status.",
     "steps": [
       "GET /runs/<latest run>",
       "group its failed / system_error rows in the database"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa/runs/<latest run>",
+    "path": "/api/vendor_validation/runs/<latest run>",
     "expected": "accept",
     "expectedResult": "Up to 10 entries, largest first, each with doc_type, status, message and the right count.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:85-88",
-    "tier": "read",
+    "tier": "removed",
     "reval": {
       "key": "G-15",
-      "tier": "read"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): top_errors in the run status"
     }
   },
   {
@@ -3165,24 +3219,25 @@
     "type": "Edge",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "V-BADPAN failed PAN",
       "PUT the config without pan",
       "open V-BADPAN on the listing"
     ],
-    "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config",
+    "method": "GET",
+    "path": "/api/vendor_revalidation_qa",
     "expected": "accept",
     "expectedResult": "The shown status matches the remaining documents.",
     "rule": "app/models/vendor_validation_history.rb:47-56 (errors filtered by configured types) vs app/services/vendor_revalidation/vendor_check_service.rb:72-99 (status kept until the next run)",
-    "tier": "config",
+    "tier": "ops",
     "reval": {
       "key": "G-17",
-      "tier": "config",
+      "tier": "ops",
       "needs": [
         "V-BADPAN"
-      ]
+      ],
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {
@@ -3569,7 +3624,7 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Not run unattended (code): never called against production; proved from the code",
+    "preconditions": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the private QA controls — starting a run is now a buyer feature meant for production.",
     "steps": [
       "call the production base with an employee token"
     ],
@@ -3578,11 +3633,11 @@
     "expected": "accept",
     "expectedResult": "Code 5 'Not authorized'.",
     "rule": "app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 — the Rails.env.production? guard was removed in eaf002de08 and routes.rb:695-701 has none",
-    "tier": "code",
+    "tier": "removed",
     "reval": {
       "key": "I-05",
-      "tier": "code",
-      "why": "never called against production; proved from the code"
+      "tier": "removed",
+      "why": "removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the private QA controls — starting a run is now a buyer feature meant for production"
     }
   },
   {
@@ -3684,21 +3739,22 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+    "preconditions": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
     "steps": [
       "PUT enabled false",
       "GET config, the listing, row counts, link statuses",
       "restore"
     ],
     "method": "PUT",
-    "path": "/api/vendor_revalidation_qa/config + listing",
+    "path": "/api/vendor_validation/config + listing",
     "expected": "accept",
     "expectedResult": "enabled false; listing drops the columns; old rows kept; every vendor's link status unchanged.",
     "rule": "app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341",
-    "tier": "config",
+    "tier": "ops",
     "reval": {
       "key": "I-10",
-      "tier": "config"
+      "tier": "ops",
+      "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
     }
   },
   {

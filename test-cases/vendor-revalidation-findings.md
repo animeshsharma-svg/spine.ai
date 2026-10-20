@@ -7,7 +7,8 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 
 | Id | Severity | Status | Finding | Cases |
 | --- | --- | --- | --- | --- |
-| REV-01 | Critical | confirmed live 2026-10-15 | The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production | A-01, A-30, I-05 |
+| REV-17 | Medium | from the code (20 Oct 2026 rewrite) | Revalidation settings are no longer checked when they are saved |  |
+| REV-01 | Critical | fixed in the 20 Oct 2026 rewrite — A-30 re-checks it | A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production | A-30, I-05 |
 | REV-02 | High | from the code — not sent on purpose | An empty vendor scope (vendor_ids: [] or vendor_limit "") revalidates every vendor of the client | A-34 |
 | REV-03 | High | from the code | Client onboarding rules (name match etc.) are never applied in revalidation | E-05, E-11 |
 | REV-04 | High | confirmed live 2026-10-15 | PAN and bank account numbers are shown in full in the listing errors, the vendor page and the Excel | I-01, I-02, I-03 |
@@ -16,7 +17,7 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 | REV-07 | Low | confirmed live 2026-10-15 | Validation errors are joined with '; ' instead of one per line in the Excel | H-10 |
 | REV-08 | Medium | to confirm live (F-16) | Switching revalidation off mid-run leaves the cut-off vendors with no final status | F-16 |
 | REV-09 | Medium | to confirm live (B-19) | A QA trigger can delete another trigger's queued run for the same day | B-19 |
-| REV-10 | Low | from the code | A QA trigger in the hour before 11 pm makes the nightly run skip the client | B-20 |
+| REV-10 | Low | fixed in the 20 Oct 2026 rewrite | A QA trigger in the hour before 11 pm makes the nightly run skip the client | B-20 |
 | REV-11 | Medium | to confirm live (G-17) | Removing a document type from the config hides its error lines but keeps the status it caused | G-17 |
 | REV-12 | Low | product decision | A system error outranks a pass (TRD: 'unverified' never affects Pass) | G-04 |
 | REV-13 | Low | from the code | Revalidation still reports to Sentry | I-06 |
@@ -25,24 +26,35 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 | REV-16 | Low | confirmed live 2026-10-15 (found in passing) | rfx-uat-api answers errors with the full Rails debug page |  |
 
 
-## REV-01 — The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production
+## REV-17 — Revalidation settings are no longer checked when they are saved
 
-**Severity** Critical · **Status** confirmed live 2026-10-15 · **Cases** A-01, A-30, I-05
+**Severity** Medium · **Status** from the code (20 Oct 2026 rewrite) · **Cases** 
 
-Commit eaf002de08 ('access', 15 Oct) changed check_qa_access to `is_procol_employee? || is_super_admin` and removed the `Rails.env.production?` guard; routes.rb has none either. set_client takes any client_company_id, and run_status / cancel take no client at all. GMMCO's super-admin session (a client user) got 200 and the whole config for GMMCO, and 200 for PROCOL DEMO's config. The same user can PUT any client's config and trigger provider runs (cost) for any client — on production too once this merges.
+The rewrite deleted the settings API together with all its checks (enabled must be true/false, known statuses, known document types, frequency, start date, paths). Settings are now saved by Procol ops through the general custom-configuration screen, which does not know these rules. A wrong value is accepted silently; the nightly scheduler then skips that document type and only writes a config_error log line, so the customer's vendors are simply not re-checked.
 
-**Evidence.** GET /api/vendor_revalidation_qa/config?client_company_id=47053 and =198678 with GMMCO user 20030's session → 200 (A-01, A-30).
+**Evidence.** app/controllers/api/vendor_revalidation_qa_controller.rb (config_error) deleted in 0f365a7e52; scheduler_worker.rb due? only logs settings_error.
 
-**Suggested fix.** Allow Procol employees only (or a dedicated QA role) and restore the production guard; scope set_client / run_status / cancel to clients the caller may administer.
+**Suggested fix.** Validate vendor_revalidation_config wherever it is saved (move the old config_error rules into a CustomConfiguration validation).
+
+
+## REV-01 — A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production
+
+**Severity** Critical · **Status** fixed in the 20 Oct 2026 rewrite — A-30 re-checks it · **Cases** A-30, I-05
+
+Client super admins are allowed on purpose (product decision: they may run their own revalidation). But the controls never check WHICH customer is asked for: set_client takes any client_company_id, and run_status / cancel take no customer at all. GMMCO's super admin got 200 and PROCOL DEMO's settings; the same login can change any customer's settings and start paid provider checks for any customer's vendors. Commit eaf002de08 ('access', 15 Oct) also removed the Rails.env.production? block, and routes.rb has none, so this is open on production once released.
+
+**Evidence.** GET /api/vendor_revalidation_qa/config?client_company_id=198678 with GMMCO user 20030's session → 200 with PROCOL DEMO's settings (A-30).
+
+**Suggested fix.** Let a client super admin act only on their own customer (compare client_company_id with the caller's workspace; scope run_status and cancel the same way). Restore the production block or replace it with this ownership check.
 
 
 ## REV-02 — An empty vendor scope (vendor_ids: [] or vendor_limit "") revalidates every vendor of the client
 
 **Severity** High · **Status** from the code — not sent on purpose · **Cases** A-34
 
-parse_vendor_scope treats a blank vendor_ids / vendor_limit as 'no scope'; select_vendors then returns every eligible vendor. A script that builds vendor_ids from an empty search runs the whole client against the real providers.
+The trigger still treats a blank vendor_ids / vendor_limit as 'no scope' and checks every vendor of the company against the paid providers — and since the 20 Oct rewrite any buyer allowed to edit vendors can send it, from the product's own API.
 
-**Evidence.** qa controller parse_vendor_scope (CTL:164-185), QaTriggerWorker.select_vendors (QTW:50-56).
+**Evidence.** vendor_validation_controller.rb parse_vendor_scope; trigger_service.rb select_vendors (@ a717f107ce).
 
 **Suggested fix.** Refuse an explicitly empty vendor_ids / blank vendor_limit ('vendor_ids must not be empty'); require mode force without scope to say so (e.g. all_vendors: true).
 
@@ -126,7 +138,7 @@ QaTriggerWorker#delete_jobs deletes every queued RunWorker job of the run id, no
 
 ## REV-10 — A QA trigger in the hour before 11 pm makes the nightly run skip the client
 
-**Severity** Low · **Status** from the code · **Cases** B-20
+**Severity** Low · **Status** fixed in the 20 Oct 2026 rewrite · **Cases** B-20
 
 The QA trigger sets the nightly claim key for its run date (nx, 1 hour). start_run then finds the claim taken and returns.
 

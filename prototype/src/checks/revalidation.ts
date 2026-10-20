@@ -61,7 +61,15 @@ const BUGS_FILE = join(here, "..", "..", "config", "revalBugs.json");
 
 // ── environment ─────────────────────────────────────────────────────────
 export const QA_HOST = (process.env.VR_API_BASE ?? "https://rfx-uat-api.ag-ri.in").replace(/\/+$/, "").replace(/\/api$/, "");
-const QA = "/api/vendor_revalidation_qa";
+/**
+ * Since 20 Oct 2026 (procol-backend 0f365a7e52 "revamp apis", a717f107ce) the
+ * private QA controls are gone. A buyer who may edit vendors starts a run for
+ * their OWN company (workspace_id), and reads its progress; the settings are
+ * set by Procol ops only and there is no cancel.
+ */
+const QA = "/api/vendor_validation";
+/** what changed on 20 Oct, for the reasons cases give */
+export const REVAMP = "the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / a717f107ce)";
 const employeeToken = () => process.env.VR_QA_TOKEN?.trim() || undefined;
 const writeClients = () => new Set((process.env.VR_WRITE_CLIENTS ?? "47053").split(",").map((s) => Number(s.trim())).filter(Boolean));
 const MAX_VENDORS = 5;
@@ -85,7 +93,7 @@ const LAST_VALIDATED_FIX = Date.parse("2026-10-15T11:28:09Z");
 export interface RevalSpec {
   /** guide id, e.g. "B-13" — scenarios are keyed by it */
   key: string;
-  tier: "read" | "audit" | "listing" | "config" | "run" | "dev" | "manual" | "ui" | "code";
+  tier: "read" | "audit" | "listing" | "config" | "run" | "dev" | "manual" | "ui" | "code" | "ops" | "removed";
   /** test vendors the case needs (V-PASS …), for the report */
   needs?: string[];
   /** why a dev / manual / ui / code case is not run */
@@ -292,7 +300,10 @@ for (const s of ALL_STATUSES)
     SELECT c.id v FROM buyer_seller_company_mappings b JOIN companies c ON c.id = b.dealing_with_company_id
      WHERE ${ELIGIBLE} AND b.status = ${BSCM_STATUS[s]} ORDER BY (b.vendor_validation_status IS NULL OR b.vendor_validation_status = 3) DESC, c.id LIMIT 1` };
 
-export async function findRole(client: number, role: string): Promise<{ id: number; how: string } | null> {
+export async function findRole(client: number, role: string, statuses?: string[]): Promise<{ id: number; how: string } | null> {
+  // only links in these statuses (the ones the client's settings check); ids come from our own map, never from input
+  const only = statuses?.length ? ` AND b.status = ANY(ARRAY[${statuses.map((st) => BSCM_STATUS[st]).filter((n) => n != null).join(",") || "-1"}]::int[])` : "";
+  const narrow = (sql: string) => (only ? sql.split(ELIGIBLE).join(`${ELIGIBLE}${only}`) : sql);
   try {
     const pinned = JSON.parse(readFileSync(VENDORS_FILE, "utf8"))?.[String(client)]?.[role];
     if (typeof pinned === "number") return { id: pinned, how: `recorded in config/revalidationVendors.json` };
@@ -301,7 +312,7 @@ export async function findRole(client: number, role: string): Promise<{ id: numb
   }
   const c = COMPANY_ROLE_SQL[role];
   if (c) {
-    const r = await q(c.sql, [client]);
+    const r = await q(narrow(c.sql), [client]);
     return r[0] ? { id: r[0].v, how: `found: ${c.why}` } : null;
   }
   const s = ROLE_SQL[role];
@@ -316,7 +327,7 @@ export async function findRole(client: number, role: string): Promise<{ id: numb
        WHERE h.client_company_id = $1 AND h.status <> 0 AND ${ELIGIBLE} AND c.category = 1),
     lastrun AS (SELECT * FROM runs WHERE rk = 1 AND $2::date IS NOT NULL)
     ${s.sql}`;
-  const r = await q(sql, [client, todayIST()]);
+  const r = await q(narrow(sql), [client, todayIST()]);
   return r[0] ? { id: r[0].v, how: `found: ${s.why}` } : null;
 }
 
@@ -329,7 +340,7 @@ function headersFor(client: Client, as: As, appVersion?: string): Record<string,
   const h: Record<string, string> = { "Content-Type": "application/json", "User-Agent": "procol-qa-platform/revalidation" };
   if (as === "employee") {
     const t = employeeToken();
-    if (!t) throw new NotRunnable("needs a Procol employee access-token in prototype/.env as VR_QA_TOKEN (UAT, rfx-uat-api)");
+    if (!t) throw new NotRunnable("needs the client's buyer access-token (a login allowed to edit vendors) in prototype/.env as VR_QA_TOKEN");
     h["access-token"] = t;
   } else if (as === "session") {
     const api: any = client.ctx.buyerApi;
@@ -389,7 +400,7 @@ export class H {
     if (!this.checks.length) return { pass: false, verdict: "nothing was asserted — a case that checks nothing proves nothing" };
     return bad.length
       ? { pass: false, verdict: `${bad.join(" · ")}${summary ? ` [${summary}]` : ""}` }
-      : { pass: true, verdict: `${good} check(s) held${summary ? `: ${summary}` : ""}` };
+      : { pass: true, verdict: `${summary ? `${summary} — ` : ""}confirmed: ${this.checks.map(([, w]) => w).join(" · ")}` };
   }
 
   async call(as: As, method: string, path: string, body?: unknown, opts: { host?: string; appVersion?: string } = {}): Promise<Reply> {
@@ -411,13 +422,17 @@ export class H {
     this.ev.calls.push({ as, method, path, body, status: r.status, reply: short(data), ms: r.ms, at: new Date(t0).toISOString() });
     return r;
   }
-  qa(as: As, method: string, path: string, body?: unknown) {
-    return this.call(as, method, `${QA}${path}`, body);
+  qa(as: As, method: string, path: string, body?: unknown, workspace = this.clientId) {
+    return this.call(as, method, `${QA}${path}${path.includes("?") ? "&" : "?"}workspace_id=${workspace}`, body);
   }
 
   async role(name: string): Promise<number> {
     if (this.ev.roles[name]) return this.ev.roles[name].id;
-    const r = await findRole(this.clientId, name);
+    // Vendors a run is started for must be in a link status the client's
+    // settings check; the refusal and listing roles are taken as they are.
+    const anyStatus = /^V-(NOTCLIENT|INACTIVE|STATUS-|NEVER)/.test(name);
+    const cfg = anyStatus ? null : await this.settings();
+    const r = await findRole(this.clientId, name, cfg ? cfg.config?.vendor_statuses ?? [] : undefined);
     if (!r) throw new NotRunnable(`test vendor ${name} not found for client ${this.clientId} — record its id in config/revalidationVendors.json`);
     this.ev.roles[name] = r;
     return r.id;
@@ -428,32 +443,32 @@ export class H {
     return ids;
   }
 
-  // ── config ──
+  // ── settings (read from the database: the API to read or change them was removed) ──
+  private cfgCache: any;
+  async settings(): Promise<{ config: any; enabled: boolean }> {
+    if (this.cfgCache) return this.cfgCache;
+    const r = await q(
+      `SELECT modifications->'value' v FROM custom_configurations WHERE config_key = 'vendor_revalidation_config' AND item_type = 'Company' AND item_id = $1 AND status = 1 ORDER BY id DESC LIMIT 1`,
+      [this.clientId],
+    );
+    const config = r[0]?.v ?? {};
+    this.cfgCache = { config, enabled: config.enabled === true };
+    return this.cfgCache;
+  }
   async getConfig(): Promise<any> {
-    const r = await this.qa("employee", "GET", `/config?client_company_id=${this.clientId}`);
-    if (r.status !== 200) throw new Error(`GET /config answered ${r.status} ${r.message ?? ""}`);
-    return r.data;
+    return this.settings();
   }
-  /** a PUT the case means to succeed */
-  async putConfig(config: any): Promise<Reply> {
-    this.assertWritable();
-    this.configChanged = true;
-    const r = await this.qa("employee", "PUT", "/config", { client_company_id: this.clientId, config });
-    if (r.status !== 200) throw new Error(`PUT /config was refused (${r.status} ${r.message}) — the case's own config should be valid`);
-    this.currentStatuses = [...(config.vendor_statuses ?? [])];
-    this.currentDocs = Object.keys(config.validations ?? {});
-    return r;
+  /** changing the settings has no API any more: the case needs Procol ops */
+  async putConfig(_config: any): Promise<Reply> {
+    throw new NotRunnable(`changing the client's revalidation settings has no API since ${REVAMP} — needs Procol ops to set them`);
   }
-  /** a PUT the case means to be refused; if it is not, the guard still restores */
-  async putRaw(body: any): Promise<Reply> {
-    this.assertWritable();
-    this.configChanged = true;
-    return this.qa("employee", "PUT", "/config", body);
+  async putRaw(_body: any): Promise<Reply> {
+    throw new NotRunnable(`the settings API was removed in ${REVAMP}`);
   }
   private assertWritable() {
     if (!writeClients().has(this.clientId))
-      throw new NotRunnable(`writes are allowed only for client(s) ${[...writeClients()].join(", ")} (VR_WRITE_CLIENTS)`);
-    if (this.original === undefined) throw new Error("a write outside the config guard — refusing");
+      throw new NotRunnable(`runs are started only for client(s) ${[...writeClients()].join(", ")} (VR_WRITE_CLIENTS)`);
+    if (this.original === undefined) throw new Error("a run outside the guard — refusing");
   }
   /** a config whose only document reads a column that does not exist: every row skipped, no provider call */
   silent(statuses: readonly string[] = this.original?.config?.vendor_statuses ?? ALL_STATUSES, start = this.today) {
@@ -477,17 +492,11 @@ export class H {
     if (Array.isArray(ids) && ids.length > MAX_VENDORS) throw new Error(`refusing more than ${MAX_VENDORS} vendors in one trigger`);
     if (typeof body.vendor_limit === "number" && body.vendor_limit > MAX_VENDORS) throw new Error(`refusing vendor_limit above ${MAX_VENDORS}`);
     if (!opts.refused) {
-      // Rows dated today for a document type count as "checked" for the
-      // client's own nightly run, which would then skip that type tonight.
-      const runsToday = !body.run_at || String(body.run_at).startsWith(this.today) || Date.parse(String(body.run_at)) < Date.parse(`${this.today}T18:30:00Z`);
-      const clash = this.currentDocs.filter((d) => this.nightlyDue.includes(d));
-      if (runsToday && clash.length)
-        throw new NotRunnable(`the client's own 11 pm run is due tonight for ${clash.join(", ")} and has not run yet; a QA run today would make it skip ${clash.length > 1 ? "them" : "it"} — run after it has finished, or tomorrow`);
-      // what a buyer sees now, read BEFORE the trigger resets it
+      // what a buyer sees now, read BEFORE the trigger resets it (for the evidence)
       const chosen = Array.isArray(ids) ? ids.map(Number) : typeof body.vendor_limit === "number" ? (await eligibleIds(this.clientId, this.currentStatuses)).slice(0, body.vendor_limit) : [];
       for (const v of chosen) await this.markTouched(v);
     }
-    const r = await this.qa("employee", "POST", "/trigger", { client_company_id: this.clientId, ...body });
+    const r = await this.qa("employee", "POST", "/trigger", body);
     if (r.status === 200 && r.data?.job_id) this.jobs.add(r.data.job_id);
     return r;
   }
@@ -498,6 +507,7 @@ export class H {
   }
   async status(runId: string, jobId?: string): Promise<any> {
     const r = await this.qa("employee", "GET", `/runs/${runId}${jobId ? `?job_id=${jobId}` : ""}`);
+    if (r.status !== 200) throw new Error(`run status answered ${r.status} ${r.message ?? ""}`);
     return r.data;
   }
   /** poll until the trigger settles: complete, or a terminal state */
@@ -531,7 +541,7 @@ export class H {
 
   // ── the guard ──
   async guarded<T>(fn: () => Promise<T>): Promise<T> {
-    if (!employeeToken()) throw new NotRunnable("needs a Procol employee access-token in prototype/.env as VR_QA_TOKEN (UAT, rfx-uat-api)");
+    if (!employeeToken()) throw new NotRunnable("needs the client's buyer access-token (a login allowed to edit vendors) in prototype/.env as VR_QA_TOKEN");
     if (!writeClients().has(this.clientId)) throw new NotRunnable(`writes are allowed only for client(s) ${[...writeClients()].join(", ")} (VR_WRITE_CLIENTS)`);
     mkdirSync(BACKUP_DIR, { recursive: true });
     const lock = join(BACKUP_DIR, `${this.clientId}.lock`);
@@ -552,78 +562,21 @@ export class H {
     const ist = new Date(Date.now() + 5.5 * 3600_000);
     const minutes = ist.getUTCHours() * 60 + ist.getUTCMinutes();
     if (minutes >= 21 * 60 + 50 && minutes <= 23 * 60 + 30)
-      throw new NotRunnable("too close to the 11 pm IST nightly run (no config changes or triggers between 21:50 and 23:30 IST)");
+      throw new NotRunnable("too close to the 11 pm IST nightly run (no runs started between 21:50 and 23:30 IST)");
     const busy = await q(`SELECT count(*)::int n FROM vendor_validation_histories WHERE client_company_id = $1 AND status = 0`, [this.clientId]);
-    if (busy[0].n > 0) throw new NotRunnable(`a run is in progress for client ${this.clientId} (${busy[0].n} rows pending) — not touching its config now`);
+    if (busy[0].n > 0) throw new NotRunnable(`a run is in progress for client ${this.clientId} (${busy[0].n} rows pending) — not starting another now`);
     writeFileSync(lock, String(process.pid));
-    const backup = join(BACKUP_DIR, `${this.clientId}.json`);
     try {
-      if (existsSync(backup)) {
-        // a run that died mid-case: put its saved config back before anything else
-        const saved = JSON.parse(readFileSync(backup, "utf8"));
-        const r = await this.qa("employee", "PUT", "/config", { client_company_id: this.clientId, config: saved.config });
-        this.note(`restored the config saved by an interrupted run (${saved.savedAt}): HTTP ${r.status}`);
-        if (r.status !== 200) throw new Error("could not restore the config an interrupted run left behind — fix it by hand before running again");
-        rmSync(backup);
-      }
-      this.original = await this.getConfig();
+      this.original = await this.settings();
       this.currentStatuses = [...(this.original.config?.vendor_statuses ?? [])];
       this.currentDocs = Object.keys(this.original.config?.validations ?? {});
-      this.nightlyDue = this.original.enabled ? await nightlyDueToday(this.clientId, this.original.config, this.today) : [];
-      if (this.nightlyDue.length) this.note(`the client's own nightly run is still due today for ${this.nightlyDue.join(", ")}`);
-      writeFileSync(backup, JSON.stringify({ savedAt: new Date().toISOString(), config: this.original.config }, null, 1));
-      try {
-        return await fn();
-      } finally {
-        await this.restore(backup);
-      }
+      if (!this.original.enabled) throw new NotRunnable(`revalidation is off for client ${this.clientId}`);
+      return await fn();
     } finally {
       rmSync(lock, { force: true });
     }
   }
 
-  private async restore(backup: string) {
-    const out: string[] = [];
-    for (const j of this.jobs) {
-      const r = await this.qa("employee", "DELETE", `/trigger/${j}`).catch(() => null);
-      if (r?.status === 200) out.push(`cancelled waiting trigger ${j}`);
-    }
-    if (this.configChanged) {
-      const orig = this.original.config;
-      if (!orig || !Object.keys(orig).length) {
-        out.push("the original config was empty, which the API cannot save back; left as the case set it — CHECK BY HAND");
-      } else {
-        const r = await this.qa("employee", "PUT", "/config", { client_company_id: this.clientId, config: orig });
-        const now = await this.getConfig().catch(() => null);
-        const ok = r.status === 200 && sameJson(now?.config, orig);
-        out.push(ok ? "config restored and read back identical" : `CONFIG NOT RESTORED (PUT ${r.status}) — the saved copy is in ${backup}`);
-        if (!ok) {
-          this.ev.restore = out.join("; ");
-          throw new Error(`config of client ${this.clientId} NOT restored — saved copy in ${backup}`);
-        }
-      }
-      // Vendors whose shown status this case's own config changed: run them
-      // again under the original config so the buyer's screen is as it was.
-      const before = [...this.touched.entries()];
-      if (before.length) {
-        const after = await finalsOf(this.clientId, before.map(([v]) => v));
-        const redo = before.filter(([v, was]) => after.get(v)?.status !== was && !(was == null && after.get(v)?.status === "skipped")).map(([v]) => v);
-        const eligible = await eligibleUnder(this.clientId, orig?.vendor_statuses ?? []);
-        const can = redo.filter((v) => eligible.has(v)).slice(0, MAX_VENDORS);
-        if (can.length && orig?.enabled) {
-          const r = await this.qa("employee", "POST", "/trigger", { client_company_id: this.clientId, mode: "force", vendor_ids: can });
-          if (r.status === 200) {
-            const { timedOut } = await this.wait(r.data, 10 * 60_000);
-            out.push(`re-ran ${can.join(", ")} under the original config${timedOut ? " (still pending after 10 min; they will finish on their own)" : ""}`);
-          } else out.push(`could not re-run ${can.join(", ")}: ${r.status} ${r.message}`);
-        }
-        const left = redo.filter((v) => !can.includes(v));
-        if (left.length) out.push(`shown status changed and not re-run (outside the original statuses): ${left.join(", ")}`);
-      }
-    }
-    rmSync(backup, { force: true });
-    this.ev.restore = out.join("; ") || "nothing to restore";
-  }
 }
 
 async function eligibleUnder(client: number, statuses: string[]): Promise<Set<number>> {
@@ -728,23 +681,47 @@ const S: Record<string, Scenario> = {};
 // ── A. access and input ────────────────────────────────────────────────
 const NOT_AUTHORIZED = (r: Reply) => r.status !== 200 && r.code === 5;
 S["A-01"] = async (h) => {
-  const r = await h.qa("session", "GET", `/config?client_company_id=${h.clientId}`);
-  h.expect(NOT_AUTHORIZED(r), `the client's own super-admin session (not a Procol employee) must get code 5 'Not authorized' — got HTTP ${r.status}${r.status === 200 ? " with the whole config" : ` ${r.message}`}`);
-  return "GET /config with the client's session";
+  // Product decision (QA lead, 19 Oct 2026): a client's buyer who may edit
+  // vendors runs revalidation for their own company.
+  const run = await latestRun(h.clientId);
+  const id = run?.runId ?? runIdFor(h.clientId, h.today);
+  const r = await h.qa("session", "GET", `/runs/${id}`);
+  h.expect(r.status === 200, `the client's own buyer login reads its own run (HTTP ${r.status}${r.message ? ` '${r.message}'` : ""})`);
+  if (run) h.expect(r.data?.total_rows > 0, `the reply carries the run's rows (total_rows ${r.data?.total_rows})`);
+  return `GET /api/vendor_validation/runs/${run?.date ?? "today"} as the client's buyer`;
 };
 S["A-30"] = async (h) => {
+  // Another company cannot be reached: neither its runs nor a trigger for it.
   const other = h.clientId === 198678 ? 47053 : 198678;
-  const r = await h.qa("session", "GET", `/config?client_company_id=${other}`);
-  h.expect(NOT_AUTHORIZED(r), `client ${h.clientId}'s session reading client ${other}'s config must get code 5 — got HTTP ${r.status}${r.status === 200 ? ` and ${short(r.data, 160)}` : ""}`);
-  return `another client's config (${other}) with this client's session`;
+  const mine = await latestRun(h.clientId);
+  if (!mine) throw new NotRunnable("this client has no run to look for from another company");
+  const r = await h.qa("session", "GET", `/runs/${mine.runId}`, undefined, other);
+  const leaked = r.status === 200 && Number(r.data?.total_rows) > 0;
+  h.expect(!leaked, `client ${h.clientId}'s run read with workspace_id=${other} shows none of its rows (HTTP ${r.status}, total_rows ${r.data?.total_rows ?? "—"})`);
+  const t = await h.qa("session", "POST", "/trigger", { mode: "force", vendor_ids: [await h.role("V-STATUS-active")] }, other);
+  h.expect(t.status !== 200, `a run for client ${h.clientId}'s vendor sent with workspace_id=${other} is refused (HTTP ${t.status}${t.message ? ` '${t.message}'` : ""})`);
 };
 S["A-02"] = async (h) => {
   for (const as of ["none", "garbage"] as const) {
-    const r = await h.qa(as, "GET", `/config?client_company_id=${h.clientId}`);
-    h.expect(r.status !== 200 && !r.data?.config, `${as === "none" ? "no access-token" : "a random access-token"}: refused with no config (got HTTP ${r.status}${r.message ? ` '${r.message}'` : ""})`);
+    const r = await h.qa(as, "GET", `/runs/${runIdFor(h.clientId, h.today)}`);
+    h.expect(r.status !== 200 && r.data?.total_rows === undefined, `${as === "none" ? "no access-token" : "a random access-token"}: refused with no run data (got HTTP ${r.status}${r.message ? ` '${r.message}'` : ""})`);
   }
 };
+S["A-03"] = async (h) => {
+  const r = await h.qa("session", "GET", `/runs/${runIdFor(h.clientId, h.today)}`, undefined, 999999999);
+  h.expect(r.status !== 200 || Number(r.data?.total_rows) === 0, `workspace_id=999999999 (no such company) gives no data (HTTP ${r.status}${r.message ? ` '${r.message}'` : ""})`);
+};
 const readAs = (): As => (employeeToken() ? "employee" : "session");
+S["A-26"] = async (h) =>
+  h.guarded(async () => {
+    // 20 s in the past: inside the 1-minute tolerance even with a few seconds of clock difference
+    const r = await h.trigger({ mode: "force", vendor_ids: [await h.role("V-NODOCS")], run_at: istIso(-20_000) });
+    h.expect(r.status === 200, `run_at 20 seconds ago is accepted (got ${r.status} '${r.message ?? ""}')`);
+    if (r.status === 200) {
+      const { s } = await h.wait(r.data, 5 * 60_000);
+      h.expect(s?.trigger?.state === "started", `it runs straight away (state ${s?.trigger?.state})`);
+    }
+  });
 S["A-03"] = async (h) => {
   const as = readAs();
   const r = await h.qa(as, "GET", "/config?client_company_id=999999999");
@@ -826,63 +803,70 @@ S["A-28"] = async (h) =>
     h.expect(sameJson(Object.keys(got.config?.validations ?? {}), ["gst"]), `only gst left in the config (got ${Object.keys(got.config?.validations ?? {}).join(", ")})`);
   });
 
-/** triggers that must be refused; the config is set first so the refusal is the one under test */
-const refusedTrigger = (setup: (h: H) => any, sends: (h: H) => Promise<Array<[string, Record<string, any>, string | RegExp, number?]>>): Scenario => async (h) =>
+/** run requests that must be refused (code 8 since the 20 Oct rewrite); the client's own settings stay as they are */
+const refusedTrigger = (sends: (h: H) => Promise<Array<[string, Record<string, any>, string | RegExp, number?]>>): Scenario => async (h) =>
   h.guarded(async () => {
-    const cfg = setup(h);
-    if (cfg) await h.putConfig(cfg);
     for (const [label, body, want, http] of await sends(h)) {
       const r = await h.trigger(body, { refused: true });
-      const ok = r.status === (http ?? 422) && r.code === 2 && (typeof want === "string" ? r.message === want : want.test(r.message ?? ""));
-      h.expect(ok, `${label}: refused ${http ?? 422} '${typeof want === "string" ? want : want.source}' (got ${r.status} '${r.message ?? short(r.data, 160)}')`);
+      const ok = r.status === (http ?? 422) && r.code === 8 && (typeof want === "string" ? r.message === want : want.test(r.message ?? ""));
+      h.expect(ok, `${label}: refused ${http ?? 422}, code 8, '${typeof want === "string" ? want : want.source}' (got ${r.status} code ${r.code ?? "—"} '${r.message ?? short(r.data, 160)}')`);
     }
   });
-const DISABLED_MSG = "vendor revalidation is not enabled for this client (needs vendor onboarding v2 and config enabled: true)";
-S["A-13"] = refusedTrigger((h) => ({ ...h.silent(), enabled: false }), async (h) => [["force on a disabled client", { mode: "force", vendor_ids: [await h.role("V-NODOCS")] }, DISABLED_MSG]]);
-S["A-14"] = refusedTrigger((h) => h.silent(), async (h) => {
+const DISABLED_MSG = "Vendor revalidation is not enabled for this client";
+S["A-13"] = async (h) => {
+  // On a client with revalidation off (e.g. PROCOL DEMO), with its own buyer login. Refused, so nothing runs.
+  if ((await h.settings()).enabled) throw new NotRunnable(`revalidation is on for client ${h.clientId}; run this case on a client with it off (e.g. 198678)`);
+  const r = await h.qa("session", "POST", "/trigger", { mode: "force", vendor_ids: [await h.role("V-STATUS-active")] });
+  h.expect(r.status === 422 && r.code === 8 && r.message === DISABLED_MSG, `refused 422, code 8, '${DISABLED_MSG}' (got ${r.status} code ${r.code ?? "—"} '${r.message ?? short(r.data, 120)}')`);
+};
+S["A-14"] = refusedTrigger(async (h) => {
   const v = await h.role("V-NODOCS");
   return [["no mode", { vendor_ids: [v] }, "mode must be one of: force, scheduler"], ["mode now", { mode: "now", vendor_ids: [v] }, "mode must be one of: force, scheduler"], ["mode FORCE", { mode: "FORCE", vendor_ids: [v] }, "mode must be one of: force, scheduler"]];
 });
-S["A-15"] = refusedTrigger((h) => h.silent(), async (h) => [["vendor_ids and vendor_limit", { mode: "force", vendor_ids: [await h.role("V-NODOCS")], vendor_limit: 1 }, "send either vendor_ids or vendor_limit, not both"]]);
-S["A-16"] = refusedTrigger((h) => h.silent(), async () => [
+S["A-15"] = refusedTrigger(async (h) => [["vendor_ids and vendor_limit", { mode: "force", vendor_ids: [await h.role("V-NODOCS")], vendor_limit: 1 }, "send either vendor_ids or vendor_limit, not both"]]);
+S["A-16"] = refusedTrigger(async () => [
   ["vendor_limit 0", { mode: "force", vendor_limit: 0 }, "vendor_limit must be a positive integer"],
   ["vendor_limit -1", { mode: "force", vendor_limit: -1 }, "vendor_limit must be a positive integer"],
   ['vendor_limit "abc"', { mode: "force", vendor_limit: "abc" }, "vendor_limit must be a positive integer"],
   ["vendor_limit 1.5", { mode: "force", vendor_limit: 1.5 }, "vendor_limit must be a positive integer"],
 ]);
-S["A-17"] = refusedTrigger((h) => h.silent(), async () => [
+S["A-17"] = refusedTrigger(async () => [
   ['vendor_ids ["abc", 1.5]', { mode: "force", vendor_ids: ["abc", 1.5] }, "vendor_ids must be a list of integers"],
   ['vendor_ids ["1x"]', { mode: "force", vendor_ids: ["1x"] }, "vendor_ids must be a list of integers"],
 ]);
-S["A-18"] = refusedTrigger((h) => h.silent(), async (h) => {
+S["A-18"] = refusedTrigger(async (h) => {
   const v = await h.role("V-NOTCLIENT");
   return [["a vendor not linked to this client", { mode: "force", vendor_ids: [v] }, `vendor_ids not among this client's vendors in the configured statuses: ${v}`]];
 });
-S["A-19"] = refusedTrigger((h) => h.silent(["active"]), async (h) => {
-  const v = await h.role("V-STATUS-invited");
-  return [["an invited vendor when only active is configured", { mode: "force", vendor_ids: [v] }, `vendor_ids not among this client's vendors in the configured statuses: ${v}`]];
-});
-S["A-20"] = async (h) => {
-  // a status set with no eligible vendor at all for this client
-  let empty: string | undefined;
-  for (const s of ALL_STATUSES) if (!(await eligibleIds(h.clientId, [s])).length) (empty ??= s);
-  if (!empty) throw new NotRunnable("every link status has at least one eligible vendor for this client");
-  h.note(`no eligible vendor is linked with status ${empty}`);
-  return refusedTrigger((x) => x.silent([empty!]), async () => [[`vendor_statuses ["${empty}"]`, { mode: "force", vendor_limit: 1 }, "no vendors match the configured vendor_statuses"]])(h);
+S["A-19"] = async (h) => {
+  // a vendor linked in a status the client's settings do not check
+  const cfg = await h.settings();
+  const off = ALL_STATUSES.filter((st) => !(cfg.config?.vendor_statuses ?? []).includes(st));
+  let v: number | undefined;
+  let st: string | undefined;
+  for (const o of off) {
+    try {
+      v = await h.role(`V-STATUS-${o}`);
+      st = o;
+      break;
+    } catch {
+      /* next status */
+    }
+  }
+  if (!v) throw new NotRunnable("no vendor is linked in a status the settings leave out");
+  return refusedTrigger(async () => [[`a vendor linked as ${st} (not in the client's statuses)`, { mode: "force", vendor_ids: [v!] }, `vendor_ids not among this client's vendors in the configured statuses: ${v}`]])(h);
 };
-S["A-21"] = refusedTrigger((h) => h.silent(), async (h) => [["run_at 10 minutes ago", { mode: "force", vendor_ids: [await h.role("V-NODOCS")], run_at: istIso(-10 * 60_000) }, "run_at is in the past"]]);
-S["A-22"] = refusedTrigger((h) => h.silent(), async (h) => [["run_at 31 days ahead", { mode: "force", vendor_ids: [await h.role("V-NODOCS")], run_at: istIso(31 * 86_400_000) }, "run_at must be within 30 days from now"]]);
-S["A-23"] = refusedTrigger((h) => h.silent(), async (h) => {
+S["A-20"] = async () => {
+  throw new NotRunnable(`needs the client's vendor_statuses set to a status with no vendor — settings have no API since ${REVAMP}`);
+};
+S["A-21"] = refusedTrigger(async (h) => [["run_at 10 minutes ago", { mode: "force", vendor_ids: [await h.role("V-NODOCS")], run_at: istIso(-10 * 60_000) }, "run_at is in the past"]]);
+S["A-22"] = refusedTrigger(async (h) => [["run_at 31 days ahead", { mode: "force", vendor_ids: [await h.role("V-NODOCS")], run_at: istIso(31 * 86_400_000) }, "run_at must be within 30 days from now"]]);
+S["A-23"] = refusedTrigger(async (h) => {
   const v = await h.role("V-NODOCS");
   const like = /^run_at must be a time like \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+05:30 \(IST if no offset\)$/;
   return [["run_at tomorrow", { mode: "force", vendor_ids: [v], run_at: "tomorrow" }, like], ["run_at 2026-02-30T10:00", { mode: "force", vendor_ids: [v], run_at: "2026-02-30T10:00:00" }, like]];
 });
-S["A-24"] = async (h) =>
-  h.guarded(async () => {
-    const r = await h.qa("employee", "DELETE", "/trigger/abc123");
-    h.expect(r.status === 404 && r.code === 2 && r.message === "trigger not found or already started", `unknown job → 404 'trigger not found or already started' (got ${r.status} '${r.message}')`);
-  });
-S["C-03"] = refusedTrigger((h) => h.silent(["active", "invited"]), async (h) => {
+S["C-03"] = refusedTrigger(async (h) => {
   const v = await h.role("V-INACTIVE");
   return [["a vendor whose company is inactive", { mode: "force", vendor_ids: [v] }, `vendor_ids not among this client's vendors in the configured statuses: ${v}`]];
 });
@@ -898,19 +882,16 @@ S["C-04"] = async (h) => {
 };
 S["A-29"] = async (h) =>
   h.guarded(async () => {
-    await h.putConfig(h.silent());
     const tomorrow = addDays(h.today, 1);
     const r = await h.trigger({ mode: "force", vendor_ids: [await h.role("V-NODOCS")], run_at: `${tomorrow}T15:00:00` });
     h.expect(r.status === 200, `accepted (got ${r.status} '${r.message ?? ""}')`);
     h.expect(String(r.data?.scheduled_for) === `${tomorrow}T15:00:00+05:30`, `scheduled_for ${tomorrow}T15:00:00+05:30 (got ${r.data?.scheduled_for})`);
     h.expect(r.data?.run_scheduled_on === tomorrow && r.data?.run_id === runIdFor(h.clientId, tomorrow), `run date ${tomorrow} and its run id`);
-    const c = await h.qa("employee", "DELETE", `/trigger/${r.data?.job_id}`);
-    h.expect(c.status === 200 && c.data?.state === "cancelled", `cancelled straight after (got ${c.status} ${short(c.data, 80)})`);
+    h.note(`cancel was removed in ${REVAMP}: this trigger runs at ${tomorrow} 15:00 IST on one vendor with nothing to check`);
   });
 S["A-31"] = async (h) =>
   h.guarded(async () => {
     // 20:00 UTC is 01:30 IST the next day: the run belongs to the IST date.
-    await h.putConfig(h.silent());
     const at = new Date(Date.now() + 26 * 3600_000);
     const utcDay = at.toISOString().slice(0, 10);
     const sent = `${utcDay}T20:00:00Z`;
@@ -919,7 +900,7 @@ S["A-31"] = async (h) =>
     h.expect(r.status === 200, `accepted (got ${r.status} '${r.message ?? ""}')`);
     h.expect(r.data?.run_scheduled_on === istDay, `run_at ${sent} is ${istDay} 01:30 IST → run_scheduled_on ${istDay} (got ${r.data?.run_scheduled_on})`);
     h.expect(r.data?.run_id === runIdFor(h.clientId, istDay), "run id is the IST date's");
-    await h.qa("employee", "DELETE", `/trigger/${r.data?.job_id}`);
+    h.note(`cancel was removed in ${REVAMP}: this trigger runs at ${istDay} 01:30 IST on one vendor with nothing to check`);
   });
 
 // ── B. triggers and schedule ──────────────────────────────────────────
@@ -935,11 +916,15 @@ async function schedulerState(h: H, validations: Record<string, any>): Promise<{
 const silentDoc = (frequency: string, start: string, doc = "gst") => ({ [doc]: { paths: [NO_SUCH_COLUMN], frequency, start_date: start } });
 S["B-01"] = async (h) =>
   h.guarded(async () => {
-    const { state } = await schedulerState(h, silentDoc("quarterly", addDays(h.today, -10)));
-    h.expect(state === "nothing_due", `gst quarterly from ${addDays(h.today, -10)} is not due today → nothing_due (got ${state})`);
-    const v = await h.role("V-NODOCS");
-    const fresh = (await rowsOf(h.clientId, { runId: runIdFor(h.clientId, h.today), vendors: [v] })).filter((r) => Date.parse(r.createdAt) > Date.now() - 6 * 60_000);
-    h.expect(!fresh.length, `no rows created for the vendor (found ${fresh.length})`);
+    // Scheduler mode picks exactly the document types due today under the client's own settings.
+    const cfg = (await h.settings()).config;
+    const due = Object.entries<any>(cfg.validations ?? {}).filter(([, st]) => dueDates(st?.frequency, st?.start_date, h.today).length).map(([d]) => d);
+    const r = await h.trigger({ mode: "scheduler", vendor_ids: [await h.role("V-NODOCS")] });
+    if (r.status !== 200) throw new Error(`trigger refused: ${r.status} ${r.message}`);
+    const { s, timedOut } = await h.wait(r.data, 5 * 60_000);
+    if (timedOut) throw new NotRunnable(`Blocked: trigger still ${s?.trigger?.state} after 5 min`);
+    if (!due.length) h.expect(s?.trigger?.state === "nothing_due", `nothing is due on ${h.today} under the client's settings → nothing_due (got ${s?.trigger?.state})`);
+    else h.expect(s?.trigger?.state === "started" && sameJson([...(s.trigger.doc_types ?? [])].sort(), [...due].sort()), `due today: ${due.join(", ")} → started with exactly those (got ${s?.trigger?.state}, ${short(s?.trigger?.doc_types)})`);
   });
 S["B-02"] = async (h) =>
   h.guarded(async () => {
@@ -994,13 +979,12 @@ S["B-06"] = async (h) =>
   });
 S["B-07"] = async (h) =>
   h.guarded(async () => {
-    const future = addDays(h.today, 20);
-    const docs = Object.keys(h.original.config.validations ?? {});
-    const validations = Object.fromEntries(docs.map((d) => [d, h.doc(d, { start_date: future })]));
-    await h.putConfig(h.withDocs(validations));
+    const docs = Object.keys((await h.settings()).config.validations ?? {});
     const { s } = await h.run({ mode: "force", vendor_ids: [await h.role("V-PASS")] });
     h.expect(s.trigger?.state === "started", `started (got ${s.trigger?.state})`);
-    h.expect(sameJson(Object.keys(s.by_doc_type ?? {}).sort(), [...docs].sort()), `force checks every configured type although each starts ${future}: by_doc_type ${Object.keys(s.by_doc_type ?? {}).join(", ")} = ${docs.join(", ")}`);
+    h.expect(sameJson([...(s.trigger?.doc_types ?? [])].sort(), [...docs].sort()), `force checks every configured type whatever its dates: ${short(s.trigger?.doc_types)} = ${docs.join(", ")}`);
+    const rows = await rowsOf(h.clientId, { runId: s.run_id, vendors: s.trigger?.vendor_ids ?? [] });
+    h.expect(sameJson([...new Set(rows.map((x) => x.doc))].sort(), [...docs].sort()), `rows for every configured type (${[...new Set(rows.map((x) => x.doc))].join(", ")})`);
     h.sums(s);
   });
 S["B-08"] = async (h) =>
@@ -1043,7 +1027,6 @@ S["B-11"] = async (h) =>
   });
 S["B-12"] = async (h) =>
   h.guarded(async () => {
-    await h.putConfig(h.silent());
     const v = await h.role("V-NODOCS");
     const a = await h.run({ mode: "force", vendor_ids: [v] });
     const b = await h.run({ mode: "force", vendor_ids: [v] });
@@ -1085,7 +1068,6 @@ S["B-14"] = async (h) =>
   });
 S["B-15"] = async (h) =>
   h.guarded(async () => {
-    await h.putConfig(h.silent());
     const runAt = Date.now() + 2 * 60_000;
     const r = await h.trigger({ mode: "force", vendor_ids: [await h.role("V-NODOCS")], run_at: istIso(2 * 60_000) });
     const s0 = await h.status(r.data.run_id, r.data.job_id);
@@ -1097,10 +1079,9 @@ S["B-15"] = async (h) =>
   });
 S["B-16"] = async (h) =>
   h.guarded(async () => {
-    await h.putConfig(h.silent());
     const a = await h.run({ mode: "force", vendor_limit: 3 });
     const b = await h.run({ mode: "force", vendor_limit: 3 });
-    const want = (await eligibleIds(h.clientId, h.silent().vendor_statuses)).slice(0, 3);
+    const want = (await eligibleIds(h.clientId, (await h.settings()).config.vendor_statuses ?? [])).slice(0, 3);
     h.expect(sameJson(a.s.trigger?.vendor_ids, b.s.trigger?.vendor_ids), `same vendors both times (${a.s.trigger?.vendor_ids} / ${b.s.trigger?.vendor_ids})`);
     h.expect(sameJson(a.s.trigger?.vendor_ids, want), `the 3 lowest eligible vendor ids (${want})`);
   });
@@ -1109,7 +1090,6 @@ S["B-19"] = async (h) =>
     // Two triggers for different vendors firing together: the second one's
     // QA reset deletes every queued RunWorker job of the run (delete_jobs
     // matches on run id only), which can drop the first trigger's run.
-    await h.putConfig(h.silent());
     const [a, b] = await h.roles("V-NODOCS", "V-NODOCS2");
     const at = istIso(90_000);
     const ta = await h.trigger({ mode: "force", vendor_ids: [a], run_at: at });
@@ -1122,19 +1102,17 @@ S["B-19"] = async (h) =>
 // ── C. coverage ───────────────────────────────────────────────────────
 S["C-01"] = async (h) =>
   h.guarded(async () => {
-    await h.putConfig(h.silent(["active"]));
+    const statuses: string[] = (await h.settings()).config.vendor_statuses ?? [];
     const { s } = await h.run({ mode: "force", vendor_limit: 3 });
     const ids: number[] = s.trigger?.vendor_ids ?? [];
     const f = await finalsOf(h.clientId, ids);
-    h.expect(ids.length > 0 && ids.every((v) => f.get(v)?.linkStatus === BSCM_STATUS.active), `every chosen vendor is linked as active (${ids.map((v) => `${v}:${f.get(v)?.linkStatus}`).join(", ")})`);
-    const rows = await rowsOf(h.clientId, { runId: s.run_id });
-    const fresh = rows.filter((r) => Date.parse(r.createdAt) >= Date.parse(s.trigger?.fired_at ?? "") - 1000);
-    h.expect(fresh.every((r) => ids.includes(r.vendor)), "no rows for any vendor outside the configured status");
+    const allowed = statuses.map((st) => BSCM_STATUS[st]);
+    h.expect(ids.length > 0 && ids.every((v) => allowed.includes(f.get(v)!.linkStatus)), `every chosen vendor is linked in a configured status (${statuses.join(", ")}): ${ids.map((v) => `${v}:${f.get(v)?.linkStatus}`).join(", ")}`);
   });
 S["C-05"] = async (h) =>
   h.guarded(async () => {
     let tried = 0;
-    for (const st of ALL_STATUSES) {
+    for (const st of (await h.settings()).config.vendor_statuses ?? []) {
       let v: number;
       try {
         v = await h.role(`V-STATUS-${st}`);
@@ -1143,11 +1121,10 @@ S["C-05"] = async (h) =>
         continue;
       }
       tried++;
-      await h.putConfig(h.silent([st]));
       const { s } = await h.run({ mode: "force", vendor_ids: [v] });
       h.expect(s.total_rows > 0 && s.finished_vendors === 1, `${st}: rows created and the vendor finished (rows ${s.total_rows})`);
     }
-    if (!tried) throw new NotRunnable("no eligible vendor in any link status");
+    if (!tried) throw new NotRunnable("no eligible vendor in the configured statuses");
   });
 const miscPan: Scenario = async (h) =>
   h.guarded(async () => {
@@ -1168,8 +1145,7 @@ async function runOne(h: H, role: string, validations?: Record<string, any>) {
   const v = await h.role(role);
   if (validations) await h.putConfig(h.withDocs(validations));
   else if (!(await eligibleUnder(h.clientId, h.original.config?.vendor_statuses ?? [])).has(v))
-    // the vendor's link status is outside the client's statuses: same documents, every status
-    await h.putConfig(h.withDocs(h.original.config.validations));
+    throw new NotRunnable(`test vendor ${role} (${v}) is not in a link status the client's settings check`);
   const { s, t } = await h.run({ mode: "force", vendor_ids: [v] });
   const rows = await rowsOf(h.clientId, { runId: s.run_id, vendors: [v] });
   const final = (await finalsOf(h.clientId, [v])).get(v);
@@ -1228,7 +1204,6 @@ S["D-13"] = async (h) =>
       company: await q(`SELECT gst_no, pan_no, misc FROM companies WHERE id = $1`, [v]),
     });
     const before = await snap();
-    if (!(await eligibleUnder(h.clientId, h.original.config?.vendor_statuses ?? [])).has(v)) await h.putConfig(h.withDocs(h.original.config.validations));
     await h.run({ mode: "force", vendor_ids: [v] });
     h.expect(before === (await snap()), "the vendor's onboarding forms, link status and company record are unchanged by the run");
   });
@@ -1703,7 +1678,7 @@ const PRI: Record<string, string> = { Critical: "P0", High: "P1", Medium: "P2", 
 
 /** why a revalidation case will not run here, or null */
 export function revalSkipReason(spec: RevalSpec): string | null {
-  if (["dev", "manual", "ui", "code"].includes(spec.tier)) return spec.why ?? `${spec.tier} case — not run unattended`;
+  if (["dev", "manual", "ui", "code", "ops", "removed"].includes(spec.tier)) return spec.why ?? `${spec.tier} case — not run unattended`;
   if (!S[spec.key]) return `no runner for ${spec.key} yet`;
   return null;
 }

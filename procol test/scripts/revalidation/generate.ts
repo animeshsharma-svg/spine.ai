@@ -56,8 +56,10 @@ function howItRuns(c: RevCase): string {
     case "read": return "Runs every time: a GET to the QA API, nothing changes.";
     case "audit": return "Runs every time: SELECTs on the runs already recorded, no request at all.";
     case "listing": return "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.";
-    case "config": return "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.";
-    case "run": return `Needs VR_QA_TOKEN. A real run on ${c.needs?.length ? c.needs.join(", ") : "1–3 vendors"}; config saved and restored, vendors whose shown status the case changed are re-run under the original config.`;
+    case "config": return "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.";
+    case "run": return `Needs VR_QA_TOKEN. A real run on ${c.needs?.length ? c.needs.join(", ") : "1–3 vendors"} under the client's own settings (they are not changed).`;
+    case "ops": return `Not run: ${c.why}.`;
+    case "removed": return `Not run: ${c.why}.`;
     default: return `Not run unattended (${c.tier}): ${c.why ?? ""}`;
   }
 }
@@ -87,7 +89,7 @@ const runnable = CASES.map((c) => {
 writeFileSync(OUT_JSON, JSON.stringify(runnable, null, 2) + "\n");
 
 // ── the catalog, for people ──────────────────────────────────────────
-const tierWord: Record<string, string> = { read: "read", audit: "audit", listing: "listing", config: "config (token)", run: "run (token)", dev: "dev", manual: "manual", ui: "ui", code: "code" };
+const tierWord: Record<string, string> = { read: "read", audit: "audit", listing: "listing", config: "refused request (token)", run: "run (token)", dev: "dev", manual: "manual", ui: "ui", code: "code", ops: "needs ops", removed: "feature removed" };
 const count = (pred: (c: RevCase) => boolean) => CASES.filter(pred).length;
 const md: string[] = [];
 md.push(`# Vendor revalidation — test cases
@@ -110,14 +112,17 @@ Every case mirrors a runnable case in \`prototype/data/api-cases-extra/revalidat
 | read — a GET to the QA API | ${count((c) => c.tier === "read")} | nothing |
 | audit — SELECTs on recorded runs | ${count((c) => c.tier === "audit")} | nothing |
 | listing — the buyer's listing / vendor page / Excel vs the database | ${count((c) => c.tier === "listing")} | nothing (the client's session) |
-| config — PUTs and refused triggers, config restored | ${count((c) => c.tier === "config")} | \`VR_QA_TOKEN\` |
-| run — a real run on 1–5 named vendors, config restored | ${count((c) => c.tier === "run")} | \`VR_QA_TOKEN\` |
-| dev / manual / ui / code — reported as not run, with why | ${count((c) => !RUNS.has(c.tier))} | a person or dev |
+| refused request — a run request the API must refuse | ${count((c) => c.tier === "config")} | \`VR_QA_TOKEN\` |
+| run — a real run on 1–5 named vendors, client's own settings | ${count((c) => c.tier === "run")} | \`VR_QA_TOKEN\` |
+| needs ops — the case needs GMMCO's settings changed (no API since 20 Oct) | ${count((c) => c.tier === "ops")} | Procol ops |
+| feature removed on 20 Oct (settings API, cancel, top_errors, QA controls) | ${count((c) => c.tier === "removed")} | — |
+| dev / manual / ui / code — reported as not run, with why | ${count((c) => ["dev", "manual", "ui", "code"].includes(c.tier))} | a person or dev |
 
-**Host and token.** The QA API exists only on \`https://rfx-uat-api.ag-ri.in\` (override with \`VR_API_BASE\`); the
-platform's usual host answers 404. The database is the same, so the client's session works there for reads.
-\`VR_QA_TOKEN\` in \`prototype/.env\` is a Procol employee's \`access-token\` copied from that host (never logged).
-Writes are allowed only for clients in \`VR_WRITE_CLIENTS\` (default 47053).
+**Host and token.** Since the 20 Oct 2026 rewrite a buyer allowed to edit vendors starts a run for their own company:
+\`POST /api/vendor_validation/trigger?workspace_id=<client>\` and \`GET /api/vendor_validation/runs/<run_id>?job_id=&workspace_id=\`,
+on \`https://rfx-uat-api.ag-ri.in\` only (override with \`VR_API_BASE\`). The settings API and cancel were removed;
+settings are set by Procol ops. \`VR_QA_TOKEN\` in \`prototype/.env\` is that buyer's \`access-token\` (never logged).
+Runs are started only for clients in \`VR_WRITE_CLIENTS\` (default 47053).
 
 **Safety, in the order it matters.** \`vendor_ids: []\` is never sent (the API reads it as every vendor — REV-02); no
 trigger without a scope or with more than 5 vendors; the config is backed up to \`prototype/data/reval-backup/\` before

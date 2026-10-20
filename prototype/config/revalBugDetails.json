@@ -2,18 +2,18 @@
   "_about": "Plain-language write-up of each vendor revalidation bug, for the bug sheet (npm run reval:bugsheet). Ids match config/revalBugs.json and test-cases/vendor-revalidation-findings.md.",
   "bugs": {
     "REV-01": {
-      "short": "A customer's admin can use Procol's private revalidation controls, for any customer",
+      "short": "A customer's admin can read and change ANOTHER customer's revalidation settings",
       "where": "Revalidation QA controls (the API Procol uses to set up and start revalidation)",
-      "proof": "Confirmed on UAT",
+      "proof": "Fixed in the 20 Oct rewrite (was confirmed on UAT 15–16 Oct) — test A-30 re-checks it",
       "steps": [
-        "Log in as GMMCO's own admin. This is a customer login, not a Procol staff login.",
-        "Ask the revalidation controls for GMMCO's settings.",
+        "Log in as GMMCO's admin (a customer super admin).",
+        "Ask the revalidation controls for GMMCO's own settings — this is allowed on purpose.",
         "Ask the same controls for another customer's settings (PROCOL DEMO)."
       ],
-      "expected": "Both requests are refused with \"Not authorized\" (error code 5). Only Procol staff may use these controls.",
-      "actual": "Both requests are answered (OK, HTTP 200) with the full settings, for GMMCO and for PROCOL DEMO. The same login can also change any customer's settings and start a check of all its vendors. We did not try that, because it would change real data.",
-      "impact": "Any customer's admin can switch revalidation on or off for other customers, read their results, and start paid GST / PAN / bank checks for all their vendors. The block that kept these controls off the live (production) system was also removed, so this would be open on production once released.",
-      "fix": "Allow Procol staff only. Put back the production block. Check that the person belongs to the customer they ask about.",
+      "expected": "GMMCO's admin sees and changes GMMCO's settings only. Asking for another customer is refused with \"Not authorized\" (error code 5). The controls stay blocked on production unless that is decided too.",
+      "actual": "The request for PROCOL DEMO is answered (OK, HTTP 200) with PROCOL DEMO's settings. The same login can also change any customer's settings and start a check of all its vendors (not tried — it would change another customer's data). The production block was removed in the same change.",
+      "impact": "One customer's admin can switch revalidation on or off for other customers, read their results, and start paid GST / PAN / bank checks for all of their vendors — on production too once released.",
+      "fix": "Check that the customer asked about is the admin's own customer (settings, start run, run status and cancel). Put the production block back, or keep it off only with that ownership check.",
       "tech": "Commit eaf002de08 (\"access\", 15 Oct) changed the access rule to \"Procol employee OR any super admin\" and deleted the production check — app/controllers/api/vendor_revalidation_qa_controller.rb:103-106. routes.rb:695-701 has no block either."
     },
     "REV-02": {
@@ -24,7 +24,7 @@
         "Start a revalidation run and send an empty list of vendors (vendor_ids: []), or an empty number of vendors (vendor_limit: \"\")."
       ],
       "expected": "The request is refused, the same way any other wrong vendor list is refused.",
-      "actual": "The code reads an empty list as \"no limit\" and checks every vendor of the customer — about 800 for GMMCO — against the real, paid GST / PAN / MSME / bank services. We did not send it.",
+      "actual": "The code reads an empty list as \"no limit\" and checks every vendor of the customer — about 800 for GMMCO — against the real, paid GST / PAN / MSME / bank services. Since the 20 Oct rewrite any buyer allowed to edit vendors can send this from the product's own API. We did not send it.",
       "impact": "One script that builds an empty list by mistake runs a full, paid check of the whole customer.",
       "fix": "Refuse an empty vendor list. Make \"all vendors\" something a person has to ask for by name.",
       "tech": "parse_vendor_scope treats a blank list as no scope (vendor_revalidation_qa_controller.rb:164-185); QaTriggerWorker.select_vendors then returns every vendor (qa_trigger_worker.rb:50-56)."
@@ -132,7 +132,7 @@
     "REV-10": {
       "short": "A test run started shortly before 11 pm makes that night's automatic run skip the customer",
       "where": "The nightly 11 pm automatic run",
-      "proof": "Found in the code",
+      "proof": "Fixed in the 20 Oct rewrite",
       "steps": [
         "Start a test run for a customer at, say, 10:30 pm.",
         "Wait for the automatic 11 pm run."
@@ -175,7 +175,9 @@
       "short": "Revalidation still sends some errors to Sentry",
       "where": "Error alerts",
       "proof": "Found in the code",
-      "steps": ["A customer's nightly start fails, or a provider answers something unexpected during revalidation."],
+      "steps": [
+        "A customer's nightly start fails, or a provider answers something unexpected during revalidation."
+      ],
       "expected": "No Slack or Sentry alerts from revalidation (the guide says only a log line).",
       "actual": "Both of those cases are still reported to Sentry.",
       "impact": "Alert noise for the on-call team during big runs.",
@@ -186,7 +188,9 @@
       "short": "Risk: vendors of other company types could be checked but never shown",
       "where": "Which vendors a run checks vs which the listing shows",
       "proof": "Found in the code — not seen in UAT data",
-      "steps": ["A customer has a linked company of a type the listing hides (for example a buying firm)."],
+      "steps": [
+        "A customer has a linked company of a type the listing hides (for example a buying firm)."
+      ],
       "expected": "Revalidation checks the same vendors the listing shows.",
       "actual": "Since 15 Oct the run no longer filters by company type, while the listing still shows only selling firms, brokerages and subsidiaries. In GMMCO's runs every checked vendor was a selling firm, so no one is affected today.",
       "impact": "Hidden checks (and provider cost) for vendors nobody can see.",
@@ -197,7 +201,9 @@
       "short": "The \"vendor detail\" request fails with a server error for every vendor",
       "where": "GET /api/companies/vendor_detail (used by vendor detail views)",
       "proof": "Confirmed on UAT (found while testing; older than revalidation)",
-      "steps": ["As a GMMCO buyer, open the vendor detail of any vendor (the request /api/companies/vendor_detail?company_id=…)."],
+      "steps": [
+        "As a GMMCO buyer, open the vendor detail of any vendor (the request /api/companies/vendor_detail?company_id=…)."
+      ],
       "expected": "The vendor's details are returned.",
       "actual": "Server error 500: \"undefined method `integration_status' for Company\". Same on both UAT servers (rfx-uat-api and sec-api-v1) for every vendor we tried.",
       "impact": "Any screen that uses this request is broken. (The vendor page's Revalidation details use a different request and work.)",
@@ -208,12 +214,27 @@
       "short": "The revalidation UAT server shows its full internal error page to anyone",
       "where": "https://rfx-uat-api.ag-ri.in — any request that hits a server error",
       "proof": "Confirmed on UAT (found while testing)",
-      "steps": ["Make any request that fails on rfx-uat-api, for example the vendor detail request above."],
+      "steps": [
+        "Make any request that fails on rfx-uat-api, for example the vendor detail request above."
+      ],
       "expected": "A short error answer, like the other UAT server gives: {\"status\":500,\"error\":\"Internal Server Error\"}.",
       "actual": "The full Rails debug page comes back: the exception, the code path and a dump of the vendor record (name, address, email).",
       "impact": "Anyone who can reach this UAT server can read internal code paths and vendor data from error pages.",
       "fix": "Turn off the detailed error pages on the rfx UAT environment.",
       "tech": "consider_all_requests_local / show_exceptions on the rfx UAT environment."
+    },
+    "REV-17": {
+      "short": "Revalidation settings are no longer checked when they are saved",
+      "where": "Revalidation settings of a customer (saved by Procol ops)",
+      "proof": "Found in the code (20 Oct rewrite)",
+      "steps": [
+        "Procol ops save a customer's revalidation settings with a mistake, for example frequency \"weekly\" or a start date \"15-10-2026\"."
+      ],
+      "expected": "The save is refused with a clear message, as the old settings API did (\"gst: unsupported frequency 'weekly'\").",
+      "actual": "The rewrite deleted the settings API together with all its checks. Settings are now saved through the general custom-configuration screen, which does not know these rules, so the mistake is saved. The nightly run then quietly skips that document type and only writes a log line.",
+      "impact": "A customer's vendors silently stop being re-checked, and nobody is told.",
+      "fix": "Validate the revalidation settings wherever they are saved (move the old checks into the custom configuration save).",
+      "tech": "config_error in app/controllers/api/vendor_revalidation_qa_controller.rb was deleted in 0f365a7e52; scheduler_worker.rb due? only logs settings_error."
     }
   }
 }

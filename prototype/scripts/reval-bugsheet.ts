@@ -323,6 +323,8 @@ const NOT_RUN: Record<string, string> = {
   manual: "Not run — needs a person to change real vendor data or a second customer's settings.",
   ui: "Not run — a check on the buyer's screen.",
   code: "Not run on purpose — found by reading the code. Trying it would change real data, or it needs production or Sentry access.",
+  ops: "Not run — needs Procol ops to change GMMCO's revalidation settings (there is no settings API since the 20 Oct rewrite).",
+  removed: "Not run — the feature this test was about was removed in the 20 Oct rewrite.",
 };
 const plainSaw = (v: string) => v.replace(/\s*\[after: [^\]]*\]/, "").replace(/\[vendors: ([^\]]*)\]/, (_m, x) => `(test vendor ${x.replace(/V-[A-Z0-9-]+=/g, "#")})`).replace(/\d+ check\(s\) held:?\s*/, "").replace(/^not run — /, "");
 const results = cases.map((c: any) => {
@@ -344,7 +346,7 @@ const results = cases.map((c: any) => {
     result = "Couldn't tell";
     saw = plainSaw(r.verdict);
   } else {
-    result = { dev: "Not run — needs a developer", manual: "Not run — manual", ui: "Not run — screen check", code: "Not run — found in code" }[c.reval.tier as string] ?? "Not run";
+    result = { dev: "Not run — needs a developer", manual: "Not run — manual", ui: "Not run — screen check", code: "Not run — found in code", ops: "Not run — needs ops to change settings", removed: "No longer applies — feature removed" }[c.reval.tier as string] ?? "Not run";
     saw = `${NOT_RUN[c.reval.tier] ?? ""}${c.reval.why ? ` Detail: ${c.reval.why}` : ""}`;
   }
   return { id: key, area: AREA[c.feature] ?? c.feature, title: c.title, priority: c.severity, result, checked: c.expectedResult, saw, bug: bug ?? "", where: r?.company ?? "" };

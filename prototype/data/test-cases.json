@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T16:31:39.447Z",
+  "generatedAt": "2026-10-20T14:13:26.975Z",
   "cases": [
     {
       "id": "UI-ENV-001",
@@ -95232,21 +95232,20 @@
       "group": "API-XREV-A",
       "section": "API access and input validation",
       "sectionNo": 1,
-      "title": "Non-Procol-employee token is refused",
-      "why": "Guide A-01 (API). Finding REV-01 (Critical): The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production.",
+      "title": "A client's buyer can use revalidation for its own company",
+      "why": "Guide A-01 (API).",
       "setup": "Runs every time: a GET to the QA API, nothing changes.",
-      "steps": "1. GET /config?client_company_id=<client> with the client's own super-admin session (not a Procol employee)",
-      "expected": "Code 5 'Not authorized'; nothing returned. _Guide:_ Code 5 Not authorized for any client user.",
+      "steps": "1. GET /runs/<the client's latest run>?workspace_id=<client> with the client's own buyer login",
+      "expected": "Answered with the run (product decision: a buyer allowed to edit vendors runs revalidation for its own company). _Guide:_ Code 5 Not authorized for any client user — superseded by the product decision.",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
       "priority": "P0",
       "verdict": "automate",
       "refs": [
         "API-XREV-A",
-        "app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 (check_qa_access = is_procol_employee? || is_super_admin, since eaf002de08)",
-        "REV-01"
+        "app/controllers/api/vendor_validation_controller.rb run_status; VendorValidationHistoryPolicy#run_status? (company read_record)"
       ],
-      "source": "P0 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 (check_qa_access = is_procol_employee? || is_super_admin, since eaf002de08)` · `REV-01`"
+      "source": "P0 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_validation_controller.rb run_status; VendorValidationHistoryPolicy#run_status? (company read_record)`"
     },
     {
       "id": "API-XREV-A-02",
@@ -95257,17 +95256,17 @@
       "title": "Missing / wrong token is refused",
       "why": "Guide A-02 (API).",
       "setup": "Runs every time: a GET to the QA API, nothing changes.",
-      "steps": "1. GET /config with no access-token header 2. GET /config with a random access-token",
-      "expected": "Refused each time (auth error or code 5); no config in the body.",
+      "steps": "1. GET /runs/<today's run> with no access-token 2. then with a random access-token",
+      "expected": "Refused each time, no run data.",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
       "priority": "P1",
       "verdict": "automate",
       "refs": [
         "API-XREV-A",
-        "app/controllers/api/vendor_revalidation_qa_controller.rb:9 (before_action check_qa_access)"
+        "Api::ApiController authentication"
       ],
-      "source": "P1 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:9 (before_action check_qa_access)`"
+      "source": "P1 · automate · `API-XREV-A` · read · `Api::ApiController authentication`"
     },
     {
       "id": "API-XREV-A-03",
@@ -95275,20 +95274,20 @@
       "group": "API-XREV-A",
       "section": "API access and input validation",
       "sectionNo": 1,
-      "title": "Unknown client",
+      "title": "A company that does not exist",
       "why": "Guide A-03 (API).",
       "setup": "Runs every time: a GET to the QA API, nothing changes.",
-      "steps": "1. GET /config?client_company_id=999999999",
-      "expected": "422, code 2 'client_company_id not found'.",
+      "steps": "1. GET /runs/<today's run>?workspace_id=999999999",
+      "expected": "Refused, or no rows — never another company's data.",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
       "priority": "P2",
       "verdict": "automate",
       "refs": [
         "API-XREV-A",
-        "app/controllers/api/vendor_revalidation_qa_controller.rb:108-111"
+        "Current.workspace resolution"
       ],
-      "source": "P2 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:108-111`"
+      "source": "P2 · automate · `API-XREV-A` · read · `Current.workspace resolution`"
     },
     {
       "id": "API-XREV-A-04",
@@ -95298,18 +95297,18 @@
       "sectionNo": 1,
       "title": "Config not an object",
       "why": "Guide A-04 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. PUT /config with \"config\": \"abc\" 2. PUT with \"config\": [1] 3. GET /config",
       "expected": "422 'config must be an object' each time; GET shows the config unchanged.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:122-123"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:122-123`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:122-123`"
     },
     {
       "id": "API-XREV-A-05",
@@ -95319,18 +95318,18 @@
       "sectionNo": 1,
       "title": "enabled missing or not true/false",
       "why": "Guide A-05 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. PUT the current config without enabled 2. then with \"enabled\": \"yes\" 3. then with \"enabled\": \"true\" (a string)",
       "expected": "422 'enabled must be true or false' each time; config unchanged.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:124"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:124`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:124`"
     },
     {
       "id": "API-XREV-A-06",
@@ -95340,18 +95339,18 @@
       "sectionNo": 1,
       "title": "vendor_statuses empty or unknown",
       "why": "Guide A-06 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. vendor_statuses [] 2. vendor_statuses [\"approved\"] 3. vendor_statuses [\"active\",\"approved\"] 4. vendor_statuses \"active\" (not a list)",
       "expected": "422 'vendor_statuses must be a non-empty list from: in_active, active, invited, onboarding_in_progress, in_review, rejected, in_approval, blacklisted' (the enum's order) each time; config unchanged.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:126-130"
       ],
-      "source": "P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:126-130`"
+      "source": "P1 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:126-130`"
     },
     {
       "id": "API-XREV-A-07",
@@ -95361,18 +95360,18 @@
       "sectionNo": 1,
       "title": "validations empty",
       "why": "Guide A-07 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. \"validations\": {} 2. \"validations\": []",
       "expected": "422 'validations must be a non-empty object'; config unchanged.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:132-134"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:132-134`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:132-134`"
     },
     {
       "id": "API-XREV-A-08",
@@ -95382,18 +95381,18 @@
       "sectionNo": 1,
       "title": "Unknown document type",
       "why": "Guide A-08 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. add \"aadhaar\": {...} to validations",
       "expected": "422 'unsupported doc types: aadhaar'; config unchanged.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:136-137"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:136-137`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:136-137`"
     },
     {
       "id": "API-XREV-A-09",
@@ -95403,18 +95402,18 @@
       "sectionNo": 1,
       "title": "Bad frequency",
       "why": "Guide A-09 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. gst frequency weekly 2. gst frequency missing",
       "expected": "422 \"gst: unsupported frequency 'weekly'\"; with none, \"gst: unsupported frequency ''\".",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/workers/vendor_revalidation/scheduler_worker.rb:46-50"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:46-50`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:46-50`"
     },
     {
       "id": "API-XREV-A-10",
@@ -95424,18 +95423,18 @@
       "sectionNo": 1,
       "title": "Bad start date",
       "why": "Guide A-10 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. gst start_date 2026-13-45 2. then 15-10-2026 3. then 2026-02-30",
       "expected": "422 \"gst: invalid start_date '<value>'\" each time (Date.iso8601).",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/workers/vendor_revalidation/scheduler_worker.rb:51,60-65"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:51,60-65`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:51,60-65`"
     },
     {
       "id": "API-XREV-A-11",
@@ -95445,18 +95444,18 @@
       "sectionNo": 1,
       "title": "No paths",
       "why": "Guide A-11 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. gst paths [] 2. gst paths missing",
       "expected": "422 'gst: paths must be a non-empty list'.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/workers/vendor_revalidation/scheduler_worker.rb:53-54"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:53-54`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:53-54`"
     },
     {
       "id": "API-XREV-A-12",
@@ -95466,18 +95465,18 @@
       "sectionNo": 1,
       "title": "Bad path syntax",
       "why": "Guide A-12 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. gst paths [\"vendor.gst\"] 2. then [\"form.\"] 3. then [\"company.GST_NO\"]",
       "expected": "422 \"gst: unsupported path '<value>'\" each time.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/workers/vendor_revalidation/scheduler_worker.rb:56-57, app/services/vendor_revalidation/value_reader.rb:46-55"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:56-57, app/services/vendor_revalidation/value_reader.rb:46-55`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:56-57, app/services/vendor_revalidation/value_reader.rb:46-55`"
     },
     {
       "id": "API-XREV-A-13",
@@ -95487,18 +95486,18 @@
       "sectionNo": 1,
       "title": "Trigger on a disabled client",
       "why": "Guide A-13 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
-      "steps": "1. PUT a config with enabled false 2. POST /trigger mode force, vendor_ids [V-NODOCS]",
-      "expected": "422 'vendor revalidation is not enabled for this client (needs vendor onboarding v2 and config enabled: true)'.",
+      "setup": "Runs every time: a GET to the QA API, nothing changes. Test vendors: V-NODOCS.",
+      "steps": "1. on a client with revalidation off (e.g. PROCOL DEMO 198678), with its buyer login: POST /trigger mode force, one vendor",
+      "expected": "422, code 8 'Vendor revalidation is not enabled for this client' — nothing runs.",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
       "priority": "P0",
       "verdict": "automate",
       "refs": [
         "API-XREV-A",
-        "app/controllers/api/vendor_revalidation_qa_controller.rb:30-32"
+        "vendor_validation_controller.rb#trigger"
       ],
-      "source": "P0 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:30-32`"
+      "source": "P0 · automate · `API-XREV-A` · read · `vendor_validation_controller.rb#trigger`"
     },
     {
       "id": "API-XREV-A-14",
@@ -95508,7 +95507,7 @@
       "sectionNo": 1,
       "title": "Mode missing or wrong",
       "why": "Guide A-14 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.",
       "steps": "1. POST /trigger without mode 2. mode now 3. mode FORCE",
       "expected": "422 'mode must be one of: force, scheduler' each time (case-sensitive).",
       "recordsCurrentBehaviour": false,
@@ -95519,7 +95518,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:34-35"
       ],
-      "source": "P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:34-35`"
+      "source": "P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:34-35`"
     },
     {
       "id": "API-XREV-A-15",
@@ -95529,7 +95528,7 @@
       "sectionNo": 1,
       "title": "Both vendor_ids and vendor_limit",
       "why": "Guide A-15 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.",
       "steps": "1. POST /trigger with vendor_ids [V-NODOCS] and vendor_limit 1",
       "expected": "422 'send either vendor_ids or vendor_limit, not both'.",
       "recordsCurrentBehaviour": false,
@@ -95540,7 +95539,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:167-169"
       ],
-      "source": "P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:167-169`"
+      "source": "P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:167-169`"
     },
     {
       "id": "API-XREV-A-16",
@@ -95550,7 +95549,7 @@
       "sectionNo": 1,
       "title": "vendor_limit not positive",
       "why": "Guide A-16 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
       "steps": "1. vendor_limit 0 2. -1 3. \"abc\" 4. 1.5",
       "expected": "422 'vendor_limit must be a positive integer' for each.",
       "recordsCurrentBehaviour": false,
@@ -95561,7 +95560,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:171-175"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:171-175`"
+      "source": "P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:171-175`"
     },
     {
       "id": "API-XREV-A-17",
@@ -95571,7 +95570,7 @@
       "sectionNo": 1,
       "title": "vendor_ids not integers",
       "why": "Guide A-17 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.",
       "steps": "1. vendor_ids [\"abc\", 1.5] 2. vendor_ids [\"1x\"]",
       "expected": "422 'vendor_ids must be a list of integers'. (Numeric strings such as \"123\" are accepted.)",
       "recordsCurrentBehaviour": false,
@@ -95582,7 +95581,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:178-179"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:178-179`"
+      "source": "P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:178-179`"
     },
     {
       "id": "API-XREV-A-18",
@@ -95592,7 +95591,7 @@
       "sectionNo": 1,
       "title": "Vendor not of this client",
       "why": "Guide A-18 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NOTCLIENT.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NOTCLIENT.",
       "steps": "1. vendor_ids [V-NOTCLIENT] — an active vendor linked to another client only",
       "expected": "422 \"vendor_ids not among this client's vendors in the configured statuses: <id>\".",
       "recordsCurrentBehaviour": false,
@@ -95603,7 +95602,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:181-182"
       ],
-      "source": "P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182`"
+      "source": "P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182`"
     },
     {
       "id": "API-XREV-A-19",
@@ -95613,8 +95612,8 @@
       "sectionNo": 1,
       "title": "Vendor in a status not configured",
       "why": "Guide A-19 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-STATUS-invited.",
-      "steps": "1. PUT vendor_statuses [\"active\"] 2. vendor_ids [V-STATUS-invited]",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-STATUS-invited.",
+      "steps": "1. pick a vendor linked in a status the client's settings do not check (e.g. onboarding_in_progress for GMMCO) 2. POST /trigger vendor_ids [that vendor]",
       "expected": "Same message as A-18 with that id.",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
@@ -95624,7 +95623,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:181-182, app/workers/vendor_revalidation/run_worker.rb:53-58"
       ],
-      "source": "P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182, app/workers/vendor_revalidation/run_worker.rb:53-58`"
+      "source": "P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182, app/workers/vendor_revalidation/run_worker.rb:53-58`"
     },
     {
       "id": "API-XREV-A-20",
@@ -95634,18 +95633,18 @@
       "sectionNo": 1,
       "title": "No vendor matches statuses",
       "why": "Guide A-20 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
       "steps": "1. find a link status with no eligible vendor for the client (database) 2. PUT vendor_statuses [that status] 3. POST /trigger vendor_limit 1",
       "expected": "422 'no vendors match the configured vendor_statuses'.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:43-44"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:43-44`"
+      "source": "P2 · manual · `API-XREV-A` · needs ops · `app/controllers/api/vendor_revalidation_qa_controller.rb:43-44`"
     },
     {
       "id": "API-XREV-A-21",
@@ -95655,7 +95654,7 @@
       "sectionNo": 1,
       "title": "run_at in the past",
       "why": "Guide A-21 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.",
       "steps": "1. run_at = now − 10 min (IST)",
       "expected": "422 'run_at is in the past'.",
       "recordsCurrentBehaviour": false,
@@ -95666,7 +95665,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:151"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:151`"
+      "source": "P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:151`"
     },
     {
       "id": "API-XREV-A-22",
@@ -95676,7 +95675,7 @@
       "sectionNo": 1,
       "title": "run_at more than 30 days ahead",
       "why": "Guide A-22 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.",
       "steps": "1. run_at = now + 31 days",
       "expected": "422 'run_at must be within 30 days from now'.",
       "recordsCurrentBehaviour": false,
@@ -95687,7 +95686,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:152"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:152`"
+      "source": "P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:152`"
     },
     {
       "id": "API-XREV-A-23",
@@ -95697,7 +95696,7 @@
       "sectionNo": 1,
       "title": "run_at not a time",
       "why": "Guide A-23 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.",
       "steps": "1. run_at tomorrow 2. run_at 2026-02-30T10:00:00",
       "expected": "422 'run_at must be a time like <now+1h, ISO with +05:30> (IST if no offset)'.",
       "recordsCurrentBehaviour": false,
@@ -95708,7 +95707,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162"
       ],
-      "source": "P3 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162`"
+      "source": "P3 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162`"
     },
     {
       "id": "API-XREV-A-24",
@@ -95718,18 +95717,18 @@
       "sectionNo": 1,
       "title": "Cancel unknown or started job",
       "why": "Guide A-24 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run.",
       "steps": "1. DELETE /trigger/abc123 2. (a job already started: covered in B-12)",
       "expected": "404, code 2 'trigger not found or already started'.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:60-64"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-64`"
+      "source": "P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-64`"
     },
     {
       "id": "API-XREV-A-25",
@@ -95758,20 +95757,20 @@
       "group": "API-XREV-A",
       "section": "API access and input validation",
       "sectionNo": 1,
-      "title": "run_at 30 seconds in the past is accepted",
+      "title": "run_at a few seconds in the past is accepted",
       "why": "Guide A-26 (API).",
-      "setup": "Not run unattended (dev): covered by the code (PAST_TOLERANCE 1 minute) and by A-21's boundary; run by hand if wanted — a clock difference between this machine and the server makes the 30 s margin flaky",
-      "steps": "1. run_at = now − 30 s",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.",
+      "steps": "1. run_at = now − 20 s (the guide says 30 s; 20 s leaves room for clock difference)",
       "expected": "Accepted (1-minute tolerance); runs now.",
       "recordsCurrentBehaviour": false,
-      "oracle": "—",
+      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
       "priority": "P3",
-      "verdict": "manual",
+      "verdict": "automate",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:6,151"
       ],
-      "source": "P3 · manual · `API-XREV-A` · dev · `app/controllers/api/vendor_revalidation_qa_controller.rb:6,151`"
+      "source": "P3 · automate · `API-XREV-A` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:6,151`"
     },
     {
       "id": "API-XREV-A-27",
@@ -95781,18 +95780,18 @@
       "sectionNo": 1,
       "title": "GET config returns the saved config",
       "why": "Guide A-27 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.",
       "steps": "1. PUT the current config with vendor_statuses in reverse order 2. GET /config",
       "expected": "GET config equals the PUT exactly; PUT answers with it too; enabled = config.enabled AND vendor_onboarding_v2.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:12-27,113-120"
       ],
-      "source": "P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:12-27,113-120`"
+      "source": "P1 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:12-27,113-120`"
     },
     {
       "id": "API-XREV-A-28",
@@ -95802,18 +95801,18 @@
       "sectionNo": 1,
       "title": "PUT replaces the whole config",
       "why": "Guide A-28 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.",
       "steps": "1. PUT with only gst 2. GET",
       "expected": "Only gst is in the config; the other document types are gone.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:16-27"
       ],
-      "source": "P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:16-27`"
+      "source": "P1 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:16-27`"
     },
     {
       "id": "API-XREV-A-29",
@@ -95823,9 +95822,9 @@
       "sectionNo": 1,
       "title": "run_at without offset is IST",
       "why": "Guide A-29 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
-      "steps": "1. silent config 2. run_at <tomorrow>T15:00:00 (no offset) 3. cancel at once",
-      "expected": "scheduled_for <tomorrow>T15:00:00+05:30; run_scheduled_on tomorrow and that date's run id; cancel → state cancelled.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.",
+      "steps": "1. run_at <tomorrow>T15:00:00 (no offset), one vendor with nothing to check",
+      "expected": "scheduled_for <tomorrow>T15:00:00+05:30; run_scheduled_on tomorrow and that date's run id. (No cancel any more: it runs tomorrow on that one vendor.)",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
       "priority": "P2",
@@ -95834,7 +95833,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:146-162"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:146-162`"
+      "source": "P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:146-162`"
     },
     {
       "id": "API-XREV-A-30",
@@ -95842,21 +95841,21 @@
       "group": "API-XREV-A",
       "section": "API access and input validation",
       "sectionNo": 1,
-      "title": "A client's super admin reads another client's config",
-      "why": "Added from the code (not in the guide). Finding REV-01 (Critical): The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production.",
+      "title": "Another company's runs cannot be read or started",
+      "why": "Added from the code (not in the guide). Finding REV-01 (Critical): A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production.",
       "setup": "Runs every time: a GET to the QA API, nothing changes.",
-      "steps": "1. GET /config?client_company_id=<another client> with this client's super-admin session",
-      "expected": "Code 5 'Not authorized'.",
+      "steps": "1. GET /runs/<this client's latest run>?workspace_id=<another company> 2. POST /trigger?workspace_id=<another company> with one of this client's vendors",
+      "expected": "No rows of this client come back, and the run is refused.",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
       "priority": "P0",
       "verdict": "automate",
       "refs": [
         "API-XREV-A",
-        "app/controllers/api/vendor_revalidation_qa_controller.rb:103-111 (set_client takes any client_company_id)",
+        "TriggerService.run_summary (rows where client_company_id = Current.workspace); vendor_validation_controller.rb#trigger uses Current.workspace",
         "REV-01"
       ],
-      "source": "P0 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-111 (set_client takes any client_company_id)` · `REV-01`"
+      "source": "P0 · automate · `API-XREV-A` · read · `TriggerService.run_summary (rows where client_company_id = Current.workspace); vendor_validation_controller.rb#trigger uses Current.workspace` · `REV-01`"
     },
     {
       "id": "API-XREV-A-31",
@@ -95866,8 +95865,8 @@
       "sectionNo": 1,
       "title": "run_at with a UTC offset late in the evening belongs to the next IST date",
       "why": "Added from the code (not in the guide).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.",
-      "steps": "1. silent config 2. run_at <day>T20:00:00Z (= 01:30 IST next day) 3. cancel",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.",
+      "steps": "1. run_at <day>T20:00:00Z (= 01:30 IST next day), one vendor with nothing to check",
       "expected": "run_scheduled_on = the IST date (next day) and its run id.",
       "recordsCurrentBehaviour": false,
       "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
@@ -95877,7 +95876,7 @@
         "API-XREV-A",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:45-46 (run_at.to_date in IST)"
       ],
-      "source": "P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:45-46 (run_at.to_date in IST)`"
+      "source": "P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:45-46 (run_at.to_date in IST)`"
     },
     {
       "id": "API-XREV-A-32",
@@ -95887,18 +95886,18 @@
       "sectionNo": 1,
       "title": "Document settings that are not an object",
       "why": "Added from the code (not in the guide).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).",
       "steps": "1. \"gst\": \"yearly\"",
       "expected": "422 'gst: settings must be an object' (a message the guide's table does not list).",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P3",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/workers/vendor_revalidation/scheduler_worker.rb:47"
       ],
-      "source": "P3 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:47`"
+      "source": "P3 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:47`"
     },
     {
       "id": "API-XREV-A-33",
@@ -95908,18 +95907,18 @@
       "sectionNo": 1,
       "title": "A single path given as a string is accepted",
       "why": "Added from the code (not in the guide).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.",
       "steps": "1. gst paths \"form.gstin\" (a string, not a list)",
       "expected": "Accepted (Array.wrap); the guide documents paths as a list only.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P3",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-A",
         "app/workers/vendor_revalidation/scheduler_worker.rb:53"
       ],
-      "source": "P3 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:53`"
+      "source": "P3 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:53`"
     },
     {
       "id": "API-XREV-A-34",
@@ -95944,16 +95943,37 @@
       "source": "P1 · automate-later · `API-XREV-A` · code · `app/controllers/api/vendor_revalidation_qa_controller.rb:164-185 (raw_ids.blank? → no scope), app/workers/vendor_revalidation/qa_trigger_worker.rb:50-56 (no scope → all vendors)` · `REV-02`"
     },
     {
+      "id": "API-XREV-A-35",
+      "layer": "api",
+      "group": "API-XREV-A",
+      "section": "API access and input validation",
+      "sectionNo": 1,
+      "title": "A buyer who may not edit vendors cannot start a run",
+      "why": "Added from the code (not in the guide).",
+      "setup": "Not run unattended (manual): needs a GMMCO buyer login without vendor-edit rights",
+      "steps": "1. log in as a buyer whose role lacks vendor (company) update rights 2. POST /trigger mode force, one vendor",
+      "expected": "Refused (not authorized); reading a run needs only read rights.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "—",
+      "priority": "P1",
+      "verdict": "manual",
+      "refs": [
+        "API-XREV-A",
+        "app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)"
+      ],
+      "source": "P1 · manual · `API-XREV-A` · manual · `app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)`"
+    },
+    {
       "id": "API-XREV-B-01",
       "layer": "api",
       "group": "API-XREV-B",
       "section": "Triggers and schedule",
       "sectionNo": 2,
-      "title": "Scheduler mode with nothing due",
+      "title": "Scheduler mode picks exactly the types due today",
       "why": "Guide B-01 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
-      "steps": "1. config: gst quarterly, start = today − 10 days 2. POST /trigger mode scheduler, vendor_ids [V-NODOCS] 3. GET /runs/<run_id>?job_id=",
-      "expected": "trigger.state nothing_due; no rows created for the vendor. _Guide:_ …complete false.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.",
+      "steps": "1. read the client's settings (database) 2. POST /trigger mode scheduler, vendor_ids [V-NODOCS] 3. GET /runs",
+      "expected": "Started with exactly the document types due today (trigger.doc_types), or nothing_due when none is due. _Guide:_ gst quarterly with start = today − 10 → nothing_due (needs a settings change)",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
       "priority": "P1",
@@ -95972,18 +95992,18 @@
       "sectionNo": 2,
       "title": "Scheduler does not repeat a type already checked since its due date",
       "why": "Guide B-02 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. find a GST run of this client 1–2 days ago (date D) 2. config: gst monthly, start = D one month back (so D is the due date) 3. scheduler trigger today",
       "expected": "nothing_due: rows exist for gst on D, inside due_date…today.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/qa_trigger_worker.rb:60-69 (due_date...run_date, exclusive)"
       ],
-      "source": "P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:60-69 (due_date...run_date, exclusive)`"
+      "source": "P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/qa_trigger_worker.rb:60-69 (due_date...run_date, exclusive)`"
     },
     {
       "id": "API-XREV-B-03",
@@ -95993,18 +96013,18 @@
       "sectionNo": 2,
       "title": "one_time does not run again",
       "why": "Guide B-03 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. config: msme one_time, start = today − 5 2. scheduler trigger today",
       "expected": "nothing_due.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/scheduler_worker.rb:34-37"
       ],
-      "source": "P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:34-37`"
+      "source": "P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:34-37`"
     },
     {
       "id": "API-XREV-B-04",
@@ -96014,18 +96034,18 @@
       "sectionNo": 2,
       "title": "Catch-up stops after 2 days",
       "why": "Guide B-04 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. config: cin monthly with its cycle date 3 days ago (no rows) 2. scheduler trigger today",
       "expected": "nothing_due.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/scheduler_worker.rb:12,34-44"
       ],
-      "source": "P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:12,34-44`"
+      "source": "P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:12,34-44`"
     },
     {
       "id": "API-XREV-B-05",
@@ -96035,18 +96055,18 @@
       "sectionNo": 2,
       "title": "Cancelled trigger does nothing",
       "why": "Guide B-05 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run. Test vendors: V-NODOCS.",
       "steps": "1. silent config 2. trigger run_at now + 2 min 3. DELETE /trigger/<job_id> 4. wait past run_at 5. GET /runs?job_id=",
       "expected": "Cancel answers state cancelled; afterwards still cancelled; the vendor's rows untouched.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:60-68"
       ],
-      "source": "P1 · automate · `API-XREV-B` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-68`"
+      "source": "P1 · manual · `API-XREV-B` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-68`"
     },
     {
       "id": "API-XREV-B-06",
@@ -96056,18 +96076,18 @@
       "sectionNo": 2,
       "title": "Config switched off before a scheduled trigger fires",
       "why": "Guide B-06 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. silent config 2. trigger run_at now + 2 min 3. PUT enabled false 4. wait past run_at",
       "expected": "trigger.state disabled; no rows created or reset.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/qa_trigger_worker.rb:24-27"
       ],
-      "source": "P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:24-27`"
+      "source": "P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/qa_trigger_worker.rb:24-27`"
     },
     {
       "id": "API-XREV-B-07",
@@ -96077,9 +96097,9 @@
       "sectionNo": 2,
       "title": "Force checks every configured type regardless of dates",
       "why": "Guide B-07 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.",
-      "steps": "1. config: the client's document types, each starting 20 days ahead 2. run force [V-PASS]",
-      "expected": "Rows for every configured type; by_doc_type lists them all; by_status adds up.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.",
+      "steps": "1. run force [V-PASS] under the client's settings",
+      "expected": "trigger.doc_types and the rows cover every configured document type, whatever its start date.",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
       "priority": "P0",
@@ -96098,18 +96118,18 @@
       "sectionNo": 2,
       "title": "Scheduler on the start date",
       "why": "Guide B-08 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. config: gst quarterly, start = today 2. scheduler trigger now",
       "expected": "state started; gst rows only.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P0",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/scheduler_worker.rb:39-43"
       ],
-      "source": "P0 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43`"
+      "source": "P0 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43`"
     },
     {
       "id": "API-XREV-B-09",
@@ -96119,18 +96139,18 @@
       "sectionNo": 2,
       "title": "Each cycle length",
       "why": "Guide B-09 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. for monthly / quarterly / six_monthly / yearly: start = today minus 1/3/6/12 months → scheduler trigger 2. then start whose cycle date was 3 days ago → scheduler trigger 3. quarterly with start 2 months ago → scheduler trigger",
       "expected": "Due (started) exactly on whole cycles; nothing_due 3 days after a cycle date and on a non-cycle month. _Guide:_ run_at on 10 Nov / Jan / Apr / Oct — not possible: run_at is capped at 30 days and a future trigger only fires then; the same rule is proved by moving the start date instead.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/scheduler_worker.rb:14,39-43"
       ],
-      "source": "P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:14,39-43`"
+      "source": "P1 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:14,39-43`"
     },
     {
       "id": "API-XREV-B-10",
@@ -96140,18 +96160,18 @@
       "sectionNo": 2,
       "title": "Month end",
       "why": "Guide B-10 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. on the last day of a month shorter than 31 days: config gst monthly from the newest 31st 2. scheduler trigger",
       "expected": "Due on the clamped month end (e.g. 30 Nov). _Guide:_ …and not on 1 Dec — but the 2-day catch-up makes 30 Nov's due date still due on 1 Dec if not run.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/scheduler_worker.rb:39-43 (start_date >> months clamps)"
       ],
-      "source": "P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43 (start_date >> months clamps)`"
+      "source": "P1 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43 (start_date >> months clamps)`"
     },
     {
       "id": "API-XREV-B-11",
@@ -96161,18 +96181,18 @@
       "sectionNo": 2,
       "title": "Catch-up within 2 days",
       "why": "Guide B-11 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.",
       "steps": "1. config: a document type the client has never checked (cin), monthly, cycle date 2 days ago 2. scheduler trigger",
       "expected": "Due and started.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/scheduler_worker.rb:12,35"
       ],
-      "source": "P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:12,35`"
+      "source": "P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:12,35`"
     },
     {
       "id": "API-XREV-B-12",
@@ -96182,8 +96202,8 @@
       "sectionNo": 2,
       "title": "Same-day triggers share one run id",
       "why": "Guide B-12 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
-      "steps": "1. silent config 2. run force twice 3. DELETE the first job after it started",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.",
+      "steps": "1. run force on a vendor with nothing to check, twice",
       "expected": "Same run_id = uuid v5('procol://vendor_revalidation/<client>/<date>'); cancel after start → 404.",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
@@ -96203,7 +96223,7 @@
       "sectionNo": 2,
       "title": "Re-trigger rebuilds with no duplicates",
       "why": "Guide B-13 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS, V-BADGST.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed). Test vendors: V-PASS, V-BADGST.",
       "steps": "1. run force [V-PASS, V-BADGST] 2. run them again",
       "expected": "Same row count and per-status counts; rows rebuilt (new ids); one row per vendor per document value.",
       "recordsCurrentBehaviour": false,
@@ -96224,7 +96244,7 @@
       "sectionNo": 2,
       "title": "Re-trigger of a subset leaves others alone",
       "why": "Guide B-14 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS, V-BADGST.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed). Test vendors: V-PASS, V-BADGST.",
       "steps": "1. run [V-PASS, V-BADGST] 2. run [V-PASS] only",
       "expected": "V-BADGST's rows unchanged; V-PASS's rebuilt.",
       "recordsCurrentBehaviour": false,
@@ -96245,8 +96265,8 @@
       "sectionNo": 2,
       "title": "Scheduled trigger starts on time",
       "why": "Guide B-15 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
-      "steps": "1. silent config 2. trigger run_at now + 2 min 3. poll",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.",
+      "steps": "1. trigger run_at now + 2 min on a vendor with nothing to check 2. poll",
       "expected": "state scheduled before; started within 2 minutes after run_at.",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
@@ -96266,8 +96286,8 @@
       "sectionNo": 2,
       "title": "vendor_limit picks the same vendors every time",
       "why": "Guide B-16 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
-      "steps": "1. silent config 2. run vendor_limit 3 twice",
+      "setup": "Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).",
+      "steps": "1. run vendor_limit 3 twice under the client's settings",
       "expected": "Same 3 vendor ids, the lowest eligible ids.",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
@@ -96329,8 +96349,8 @@
       "sectionNo": 2,
       "title": "Two triggers for different vendors firing together both run",
       "why": "Added from the code (not in the guide). Finding REV-09 (Medium): A QA trigger can delete another trigger's queued run for the same day.",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS, V-NODOCS2.",
-      "steps": "1. silent config 2. trigger [V-NODOCS] and [V-NODOCS2] for the same run_at (now + 90 s) 3. wait for both",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2 under the client's own settings (they are not changed). Test vendors: V-NODOCS, V-NODOCS2.",
+      "steps": "1. trigger two vendors with nothing to check for the same run_at (now + 90 s) 2. wait for both",
       "expected": "Both complete with their vendor's rows.",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
@@ -96351,19 +96371,19 @@
       "sectionNo": 2,
       "title": "A QA trigger takes the nightly run's claim for that date",
       "why": "Added from the code (not in the guide). Finding REV-10 (Low): A QA trigger in the hour before 11 pm makes the nightly run skip the client.",
-      "setup": "Not run unattended (code): needs the nightly scheduler; proved from the code: the QA trigger sets the same claim key with a 1-hour TTL, so the nightly start_run returns early",
+      "setup": "Not run: fixed in the 20 Oct 2026 rewrite: the nightly claim is now taken only by a full run (trigger_service.rb), so a partial test run no longer stops that night's run.",
       "steps": "1. QA trigger at 10:30 pm IST 2. nightly scheduler at 11 pm",
       "expected": "The nightly run still starts.",
       "recordsCurrentBehaviour": false,
       "oracle": "—",
       "priority": "P3",
-      "verdict": "automate-later",
+      "verdict": "manual",
       "refs": [
         "API-XREV-B",
         "app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82",
         "REV-10"
       ],
-      "source": "P3 · automate-later · `API-XREV-B` · code · `app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82` · `REV-10`"
+      "source": "P3 · manual · `API-XREV-B` · feature removed · `app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82` · `REV-10`"
     },
     {
       "id": "API-XREV-C-01",
@@ -96373,9 +96393,9 @@
       "sectionNo": 3,
       "title": "Status not in vendor_statuses is left out",
       "why": "Guide C-01 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
-      "steps": "1. silent config, vendor_statuses [\"active\"] 2. run vendor_limit 3",
-      "expected": "Every chosen vendor is linked as active; no rows for others. _Guide:_ vendor_limit 50 — cut to 3 to keep runs small (the rule is the same).",
+      "setup": "Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).",
+      "steps": "1. run vendor_limit 3 under the client's settings",
+      "expected": "Every chosen vendor is linked in one of the configured statuses. _Guide:_ vendor_limit 50 — cut to 3 to keep runs small (the rule is the same).",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
       "priority": "P0",
@@ -96415,7 +96435,7 @@
       "sectionNo": 3,
       "title": "Inactive vendor company is left out",
       "why": "Guide C-03 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-INACTIVE.",
+      "setup": "Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-INACTIVE.",
       "steps": "1. silent config, vendor_statuses [\"active\",\"invited\"] 2. trigger vendor_ids [V-INACTIVE] (linked, company inactive)",
       "expected": "Refused: \"vendor_ids not among this client's vendors in the configured statuses: <id>\" (inactive companies are never eligible).",
       "recordsCurrentBehaviour": false,
@@ -96426,7 +96446,7 @@
         "API-XREV-C",
         "app/workers/vendor_revalidation/run_worker.rb:56 (Company.active)"
       ],
-      "source": "P2 · automate · `API-XREV-C` · config (token) · `app/workers/vendor_revalidation/run_worker.rb:56 (Company.active)`"
+      "source": "P2 · automate · `API-XREV-C` · refused request (token) · `app/workers/vendor_revalidation/run_worker.rb:56 (Company.active)`"
     },
     {
       "id": "API-XREV-C-04",
@@ -96436,18 +96456,18 @@
       "sectionNo": 3,
       "title": "Client not on onboarding v2",
       "why": "Guide C-04 (API).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
       "steps": "1. GET /config for an active client without onboarding v2",
       "expected": "enabled false, vendor_onboarding_v2 false. (The write half — enable it, trigger refused — is manual: an empty config cannot be put back.)",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-C",
         "app/models/company.rb:925-927"
       ],
-      "source": "P1 · automate · `API-XREV-C` · config (token) · `app/models/company.rb:925-927`"
+      "source": "P1 · manual · `API-XREV-C` · needs ops · `app/models/company.rb:925-927`"
     },
     {
       "id": "API-XREV-C-05",
@@ -96457,8 +96477,8 @@
       "sectionNo": 3,
       "title": "Each link status is included when configured",
       "why": "Guide C-05 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.",
-      "steps": "1. for each link status with an eligible vendor: silent config with vendor_statuses [that status] 2. run [V-STATUS-<status>]",
+      "setup": "Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).",
+      "steps": "1. for each status in the client's settings: run [V-STATUS-<status>]",
       "expected": "Rows created; vendor finished.",
       "recordsCurrentBehaviour": false,
       "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
@@ -96478,18 +96498,18 @@
       "sectionNo": 3,
       "title": "Bulk-uploaded vendor is included",
       "why": "Guide C-06 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-MISC.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-MISC.",
       "steps": "1. config: pan paths [\"company.misc.pan\"] 2. run [V-MISC]",
       "expected": "A PAN row whose value is the vendor's misc.pan (bulk-uploaded vendors are linked as referral, so they are eligible).",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P0",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-C",
         "app/workers/vendor_revalidation/run_worker.rb:55, app/services/vendor_revalidation/value_reader.rb:148-162"
       ],
-      "source": "P0 · automate · `API-XREV-C` · run (token) · `app/workers/vendor_revalidation/run_worker.rb:55, app/services/vendor_revalidation/value_reader.rb:148-162`"
+      "source": "P0 · manual · `API-XREV-C` · needs ops · `app/workers/vendor_revalidation/run_worker.rb:55, app/services/vendor_revalidation/value_reader.rb:148-162`"
     },
     {
       "id": "API-XREV-C-07",
@@ -96584,7 +96604,7 @@
       "sectionNo": 4,
       "title": "All paths empty gives skipped",
       "why": "Guide D-01 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.",
       "steps": "1. run [V-NODOCS] under the client's config",
       "expected": "Every row skipped 'not provided'; final status skipped (listing label 'Skipped'). _Guide:_ …shown as not validated.",
       "recordsCurrentBehaviour": false,
@@ -96647,18 +96667,18 @@
       "sectionNo": 4,
       "title": "Bank with account but no IFSC",
       "why": "Guide D-04 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-BANKHALF; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BANKHALF.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-BANKHALF.",
       "steps": "1. config: bank paths [{bank_account_no: company.misc.bank_account_number, ifsc: company.misc.bank_ifsc_code}] 2. run [V-BANKHALF]",
       "expected": "bank skipped 'not provided'.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-D",
         "app/services/vendor_revalidation/value_reader.rb:86-97"
       ],
-      "source": "P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:86-97`"
+      "source": "P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:86-97`"
     },
     {
       "id": "API-XREV-D-05",
@@ -96668,18 +96688,18 @@
       "sectionNo": 4,
       "title": "Column that does not exist",
       "why": "Guide D-05 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.",
       "steps": "1. gst paths [\"company.gst_number_wrong\", \"company.gst_no\"] 2. run [V-COMPANYGST]",
       "expected": "No error; the GST row's value is the company's gst_no.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-D",
         "app/services/vendor_revalidation/value_reader.rb:150 (& Company.column_names)"
       ],
-      "source": "P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:150 (& Company.column_names)`"
+      "source": "P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:150 (& Company.column_names)`"
     },
     {
       "id": "API-XREV-D-06",
@@ -96689,18 +96709,18 @@
       "sectionNo": 4,
       "title": "First path with a value wins",
       "why": "Guide D-06 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.",
       "steps": "1. gst paths [\"company.gst_no\", \"company.pan_no\"] — both have a value 2. run",
       "expected": "Only the first (gst_no) is checked. _Guide:_ form A vs company B — needs a prepared vendor; two company columns prove the same rule.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-D",
         "app/services/vendor_revalidation/value_reader.rb:24-44"
       ],
-      "source": "P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:24-44`"
+      "source": "P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:24-44`"
     },
     {
       "id": "API-XREV-D-07",
@@ -96710,18 +96730,18 @@
       "sectionNo": 4,
       "title": "Falls to company record when form is empty",
       "why": "Guide D-07 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.",
       "steps": "1. gst paths [\"form.<a field no form has>\", \"company.gst_no\"] 2. run",
       "expected": "GST from the company record is checked. _Guide:_ …no name-match rule applied (no rule is applied on any path — REV-03).",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-D",
         "app/services/vendor_revalidation/value_reader.rb:24-44,125-143"
       ],
-      "source": "P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:24-44,125-143`"
+      "source": "P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:24-44,125-143`"
     },
     {
       "id": "API-XREV-D-08",
@@ -96731,7 +96751,7 @@
       "sectionNo": 4,
       "title": "Several values give several rows",
       "why": "Guide D-08 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-2GST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-2GST.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-2GST under the client's own settings (they are not changed). Test vendors: V-2GST.",
       "steps": "1. run [V-2GST]",
       "expected": "One gst row per value, value_index 0..n-1.",
       "recordsCurrentBehaviour": false,
@@ -96752,18 +96772,18 @@
       "sectionNo": 4,
       "title": "Extra data with nested key",
       "why": "Guide D-09 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-MISC.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-MISC.",
       "steps": "1. pan paths [\"company.misc.pan\"] 2. run [V-MISC]",
       "expected": "PAN read from misc.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-D",
         "app/services/vendor_revalidation/value_reader.rb:148-162"
       ],
-      "source": "P2 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:148-162`"
+      "source": "P2 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:148-162`"
     },
     {
       "id": "API-XREV-D-10",
@@ -96815,18 +96835,18 @@
       "sectionNo": 4,
       "title": "Spaces are trimmed",
       "why": "Guide D-12 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-SPACES; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-SPACES.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-SPACES.",
       "steps": "1. gst paths [company.gst_no] for a vendor whose gst_no has spaces around it 2. run",
       "expected": "Checked and stored as the trimmed value.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P3",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-D",
         "app/services/vendor_revalidation/value_reader.rb:62"
       ],
-      "source": "P3 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:62`"
+      "source": "P3 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:62`"
     },
     {
       "id": "API-XREV-D-13",
@@ -96836,7 +96856,7 @@
       "sectionNo": 4,
       "title": "Onboarding form is never changed",
       "why": "Guide D-13 (UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.",
       "steps": "1. snapshot the vendor's template_responses, link status and company record 2. run [V-PASS] 3. snapshot again",
       "expected": "Unchanged.",
       "recordsCurrentBehaviour": false,
@@ -96878,7 +96898,7 @@
       "sectionNo": 5,
       "title": "GST that does not exist",
       "why": "Guide E-01 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BADGST.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-BADGST under the client's own settings (they are not changed). Test vendors: V-BADGST.",
       "steps": "1. run [V-BADGST]",
       "expected": "gst failed; vendor Failed; listing error 'GST <value>: <message>'.",
       "recordsCurrentBehaviour": false,
@@ -96899,18 +96919,18 @@
       "sectionNo": 5,
       "title": "GST wrong format",
       "why": "Guide E-02 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYPAN.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYPAN.",
       "steps": "1. gst paths [\"company.pan_no\"] — a 10-character PAN read as GST 2. run",
       "expected": "gst failed 'GST input is incorrect' from the pre-check (no provider call).",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-E",
         "lib/external_api/validation.rb:66-77"
       ],
-      "source": "P1 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:66-77`"
+      "source": "P1 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:66-77`"
     },
     {
       "id": "API-XREV-E-03",
@@ -96941,7 +96961,7 @@
       "sectionNo": 5,
       "title": "One of two GSTs invalid",
       "why": "Guide E-04 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-2GST-MIXED; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-2GST-MIXED.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-2GST-MIXED under the client's own settings (they are not changed). Test vendors: V-2GST-MIXED.",
       "steps": "1. run [V-2GST-MIXED]",
       "expected": "1 gst passed, 1 failed; vendor Failed; the error names only the bad GST.",
       "recordsCurrentBehaviour": false,
@@ -96984,18 +97004,18 @@
       "sectionNo": 5,
       "title": "Foreign tax number in GST field",
       "why": "Guide E-06 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-FOREIGN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-FOREIGN.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-FOREIGN.",
       "steps": "1. gst paths [company.gst_no] for a vendor whose gst_no is foreign (GB…) 2. run",
       "expected": "gst failed 'GST input is incorrect' (pre-check).",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-E",
         "lib/external_api/validation.rb:74-75"
       ],
-      "source": "P2 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:74-75`"
+      "source": "P2 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:74-75`"
     },
     {
       "id": "API-XREV-E-07",
@@ -97005,7 +97025,7 @@
       "sectionNo": 5,
       "title": "PAN that does not exist",
       "why": "Guide E-07 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BADPAN.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-BADPAN under the client's own settings (they are not changed). Test vendors: V-BADPAN.",
       "steps": "1. run [V-BADPAN]",
       "expected": "pan failed; vendor Failed.",
       "recordsCurrentBehaviour": false,
@@ -97026,19 +97046,19 @@
       "sectionNo": 5,
       "title": "PAN wrong format",
       "why": "Guide E-08 (API). Finding REV-05 (Medium): The PAN format pre-check accepts any text that merely contains a PAN.",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.",
       "steps": "1. pan paths [\"company.gst_no\"] — a 15-character GSTIN read as PAN 2. run",
       "expected": "pan failed 'PAN input is incorrect' from the pre-check.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-E",
         "lib/external_api/validation.rb:74 (value.match(regex) — the PAN regex [A-Z]{5}[0-9]{4}[A-Z]{1} has no anchors, so a GSTIN containing a PAN passes)",
         "REV-05"
       ],
-      "source": "P1 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:74 (value.match(regex) — the PAN regex [A-Z]{5}[0-9]{4}[A-Z]{1} has no anchors, so a GSTIN containing a PAN passes)` · `REV-05`"
+      "source": "P1 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:74 (value.match(regex) — the PAN regex [A-Z]{5}[0-9]{4}[A-Z]{1} has no anchors, so a GSTIN containing a PAN passes)` · `REV-05`"
     },
     {
       "id": "API-XREV-E-09",
@@ -97048,18 +97068,18 @@
       "sectionNo": 5,
       "title": "Udyam number wrong format",
       "why": "Guide E-09 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYPAN.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYPAN.",
       "steps": "1. msme paths [\"company.pan_no\"] 2. run",
       "expected": "msme failed 'MSME input is incorrect' (pre-check).",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-E",
         "lib/external_api/validation.rb:74-75"
       ],
-      "source": "P1 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:74-75`"
+      "source": "P1 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:74-75`"
     },
     {
       "id": "API-XREV-E-10",
@@ -97069,7 +97089,7 @@
       "sectionNo": 5,
       "title": "Bank account wrong",
       "why": "Guide E-10 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BANKFAIL.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL under the client's own settings (they are not changed). Test vendors: V-BANKFAIL.",
       "steps": "1. run [V-BANKFAIL]",
       "expected": "bank failed; vendor Failed. _Guide:_ one vendor each for wrong account / wrong IFSC / closed — the others need prepared vendors.",
       "recordsCurrentBehaviour": false,
@@ -97112,7 +97132,7 @@
       "sectionNo": 5,
       "title": "All documents valid",
       "why": "Guide E-12 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.",
       "steps": "1. run [V-PASS]",
       "expected": "Every row passed; vendor Passed; listing Passed with no errors.",
       "recordsCurrentBehaviour": false,
@@ -97511,18 +97531,18 @@
       "sectionNo": 6,
       "title": "Revalidation switched off mid-run",
       "why": "Guide F-10 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.",
       "steps": "1. silent config 2. run force on 5 vendors (jobs spread 2 s apart) 3. PUT enabled false 1.5 s later 4. wait until nothing is pending",
       "expected": "Rows not yet checked are closed system_error 'verification is temporarily unavailable'; none left pending.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-F",
         "app/services/vendor_revalidation/vendor_check_service.rb:26-30"
       ],
-      "source": "P2 · automate · `API-XREV-F` · run (token) · `app/services/vendor_revalidation/vendor_check_service.rb:26-30`"
+      "source": "P2 · manual · `API-XREV-F` · needs ops · `app/services/vendor_revalidation/vendor_check_service.rb:26-30`"
     },
     {
       "id": "API-XREV-F-15",
@@ -97553,19 +97573,19 @@
       "sectionNo": 6,
       "title": "Vendors cut off by a switch-off still get a final status",
       "why": "Added from the code (not in the guide). Finding REV-08 (Medium): Switching revalidation off mid-run leaves the cut-off vendors with no final status.",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.",
       "steps": "1. as F-10 2. read the final status of the vendors whose rows were closed",
       "expected": "Each has a final status (system_error).",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-F",
         "app/services/vendor_revalidation/vendor_check_service.rb:26-30 (close) and :73-74 (finalize returns when disabled; the QA reset already cleared the status)",
         "REV-08"
       ],
-      "source": "P2 · automate · `API-XREV-F` · run (token) · `app/services/vendor_revalidation/vendor_check_service.rb:26-30 (close) and :73-74 (finalize returns when disabled; the QA reset already cleared the status)` · `REV-08`"
+      "source": "P2 · manual · `API-XREV-F` · needs ops · `app/services/vendor_revalidation/vendor_check_service.rb:26-30 (close) and :73-74 (finalize returns when disabled; the QA reset already cleared the status)` · `REV-08`"
     },
     {
       "id": "API-XREV-G-01",
@@ -97575,7 +97595,7 @@
       "sectionNo": 7,
       "title": "Any failed check makes the vendor Failed",
       "why": "Guide G-01 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BANKFAIL.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-BANKFAIL under the client's own settings (they are not changed). Test vendors: V-BANKFAIL.",
       "steps": "1. run [V-BANKFAIL] (bank failed, nothing else failed last time)",
       "expected": "Final = precedence of its rows (Failed); errors list only the failed / system_error lines. _Guide:_ V-PASS with bank changed to invalid — needs a data change; a vendor already in that state proves the same rule.",
       "recordsCurrentBehaviour": false,
@@ -97596,7 +97616,7 @@
       "sectionNo": 7,
       "title": "Skipped never makes the vendor Failed",
       "why": "Guide G-02 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS-SKIP; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS-SKIP.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS-SKIP under the client's own settings (they are not changed). Test vendors: V-PASS-SKIP.",
       "steps": "1. run [V-PASS-SKIP] (some passed, the rest not provided)",
       "expected": "Final Passed; skipped documents not in the errors.",
       "recordsCurrentBehaviour": false,
@@ -97681,18 +97701,18 @@
       "sectionNo": 7,
       "title": "Types not due keep their older result",
       "why": "Guide G-06 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BADPAN.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-BADPAN.",
       "steps": "1. V-BADPAN failed PAN on an earlier day 2. config: gst quarterly from today (due), pan yearly from 10 days ago (not due) 3. scheduler run [V-BADPAN]",
       "expected": "Only gst rows today; final still Failed because PAN's latest row (earlier day) failed.",
       "recordsCurrentBehaviour": false,
-      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "oracle": "—",
       "priority": "P0",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-G",
         "app/services/vendor_revalidation/vendor_check_service.rb:76-90, app/models/vendor_validation_history.rb:68-80"
       ],
-      "source": "P0 · automate · `API-XREV-G` · run (token) · `app/services/vendor_revalidation/vendor_check_service.rb:76-90, app/models/vendor_validation_history.rb:68-80`"
+      "source": "P0 · manual · `API-XREV-G` · needs ops · `app/services/vendor_revalidation/vendor_check_service.rb:76-90, app/models/vendor_validation_history.rb:68-80`"
     },
     {
       "id": "API-XREV-G-07",
@@ -97702,7 +97722,7 @@
       "sectionNo": 7,
       "title": "All passed",
       "why": "Guide G-07 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.",
       "steps": "1. run [V-PASS]",
       "expected": "Final Passed; last validated = this run's start (whole seconds, = the trigger's fired_at).",
       "recordsCurrentBehaviour": false,
@@ -97828,7 +97848,7 @@
       "sectionNo": 7,
       "title": "No duplicate rows within one run",
       "why": "Guide G-13 (API).",
-      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS, V-BADGST.",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed). Test vendors: V-PASS, V-BADGST.",
       "steps": "1. run; re-trigger the same vendors the same day",
       "expected": "One row per vendor per document value for that run.",
       "recordsCurrentBehaviour": false,
@@ -97870,18 +97890,18 @@
       "sectionNo": 7,
       "title": "top_errors lists failures",
       "why": "Guide G-15 (API).",
-      "setup": "Runs every time: a GET to the QA API, nothing changes.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): top_errors in the run status.",
       "steps": "1. GET /runs/<latest run> 2. group its failed / system_error rows in the database",
       "expected": "Up to 10 entries, largest first, each with doc_type, status, message and the right count.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-G",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:85-88"
       ],
-      "source": "P2 · automate · `API-XREV-G` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:85-88`"
+      "source": "P2 · manual · `API-XREV-G` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:85-88`"
     },
     {
       "id": "API-XREV-G-16",
@@ -97912,19 +97932,19 @@
       "sectionNo": 7,
       "title": "Removing a document type from the config",
       "why": "Added from the code (not in the guide). Finding REV-11 (Medium): Removing a document type from the config hides its error lines but keeps the status it caused.",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-BADPAN.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-BADPAN.",
       "steps": "1. V-BADPAN failed PAN 2. PUT the config without pan 3. open V-BADPAN on the listing",
       "expected": "The shown status matches the remaining documents.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P2",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-G",
         "app/models/vendor_validation_history.rb:47-56 (errors filtered by configured types) vs app/services/vendor_revalidation/vendor_check_service.rb:72-99 (status kept until the next run)",
         "REV-11"
       ],
-      "source": "P2 · automate · `API-XREV-G` · config (token) · `app/models/vendor_validation_history.rb:47-56 (errors filtered by configured types) vs app/services/vendor_revalidation/vendor_check_service.rb:72-99 (status kept until the next run)` · `REV-11`"
+      "source": "P2 · manual · `API-XREV-G` · needs ops · `app/models/vendor_validation_history.rb:47-56 (errors filtered by configured types) vs app/services/vendor_revalidation/vendor_check_service.rb:72-99 (status kept until the next run)` · `REV-11`"
     },
     {
       "id": "API-XREV-H-01",
@@ -98274,20 +98294,20 @@
       "section": "Security, logs and onboarding regression",
       "sectionNo": 9,
       "title": "QA APIs blocked on production",
-      "why": "Guide I-05 (Dev). Finding REV-01 (Critical): The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production.",
-      "setup": "Not run unattended (code): never called against production; proved from the code",
+      "why": "Guide I-05 (Dev). Finding REV-01 (Critical): A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production.",
+      "setup": "Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the private QA controls — starting a run is now a buyer feature meant for production.",
       "steps": "1. call the production base with an employee token",
       "expected": "Code 5 'Not authorized'.",
       "recordsCurrentBehaviour": false,
       "oracle": "—",
       "priority": "P1",
-      "verdict": "automate-later",
+      "verdict": "manual",
       "refs": [
         "API-XREV-I",
         "app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 — the Rails.env.production? guard was removed in eaf002de08 and routes.rb:695-701 has none",
         "REV-01"
       ],
-      "source": "P1 · automate-later · `API-XREV-I` · code · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 — the Rails.env.production? guard was removed in eaf002de08 and routes.rb:695-701 has none` · `REV-01`"
+      "source": "P1 · manual · `API-XREV-I` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 — the Rails.env.production? guard was removed in eaf002de08 and routes.rb:695-701 has none` · `REV-01`"
     },
     {
       "id": "API-XREV-I-06",
@@ -98382,18 +98402,18 @@
       "sectionNo": 9,
       "title": "Rollback",
       "why": "Guide I-10 (API+UI).",
-      "setup": "Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.",
+      "setup": "Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.",
       "steps": "1. PUT enabled false 2. GET config, the listing, row counts, link statuses 3. restore",
       "expected": "enabled false; listing drops the columns; old rows kept; every vendor's link status unchanged.",
       "recordsCurrentBehaviour": false,
-      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "oracle": "—",
       "priority": "P1",
-      "verdict": "automate",
+      "verdict": "manual",
       "refs": [
         "API-XREV-I",
         "app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341"
       ],
-      "source": "P1 · automate · `API-XREV-I` · config (token) · `app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341`"
+      "source": "P1 · manual · `API-XREV-I` · needs ops · `app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341`"
     },
     {
       "id": "API-XREV-R-01",

@@ -5,7 +5,7 @@ The scheduling engine re-checks every vendor's GST, PAN, MSME and bank on the cy
 it on the vendor listing, the vendor page and the Excel download.
 
 These are the guide's 138 automation cases (`test-cases/Vendor_Revalidation_QA_Automation_Guide.md`, Part 2) read
-against the code — **procol-backend rfx-uat-main @ 76b986a012 (15 Oct 2026)** — plus 21 cases the code revealed. Each case keeps the guide's
+against the code — **procol-backend rfx-uat-main @ 76b986a012 (15 Oct 2026)** — plus 22 cases the code revealed. Each case keeps the guide's
 id; **Expected** is what the build does (what the runner asserts); where the guide says otherwise it is quoted, and a
 finding (REV-nn, `test-cases/vendor-revalidation-findings.md`) is named where the code contradicts the guide or the TRD.
 Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidation.json`; both are generated from
@@ -18,14 +18,17 @@ Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidati
 | read — a GET to the QA API | 7 | nothing |
 | audit — SELECTs on recorded runs | 14 | nothing |
 | listing — the buyer's listing / vendor page / Excel vs the database | 13 | nothing (the client's session) |
-| config — PUTs and refused triggers, config restored | 31 | `VR_QA_TOKEN` |
-| run — a real run on 1–5 named vendors, config restored | 45 | `VR_QA_TOKEN` |
-| dev / manual / ui / code — reported as not run, with why | 49 | a person or dev |
+| refused request — a run request the API must refuse | 12 | `VR_QA_TOKEN` |
+| run — a real run on 1–5 named vendors, client's own settings | 23 | `VR_QA_TOKEN` |
+| needs ops — the case needs GMMCO's settings changed (no API since 20 Oct) | 26 | Procol ops |
+| feature removed on 20 Oct (settings API, cancel, top_errors, QA controls) | 18 | — |
+| dev / manual / ui / code — reported as not run, with why | 47 | a person or dev |
 
-**Host and token.** The QA API exists only on `https://rfx-uat-api.ag-ri.in` (override with `VR_API_BASE`); the
-platform's usual host answers 404. The database is the same, so the client's session works there for reads.
-`VR_QA_TOKEN` in `prototype/.env` is a Procol employee's `access-token` copied from that host (never logged).
-Writes are allowed only for clients in `VR_WRITE_CLIENTS` (default 47053).
+**Host and token.** Since the 20 Oct 2026 rewrite a buyer allowed to edit vendors starts a run for their own company:
+`POST /api/vendor_validation/trigger?workspace_id=<client>` and `GET /api/vendor_validation/runs/<run_id>?job_id=&workspace_id=`,
+on `https://rfx-uat-api.ag-ri.in` only (override with `VR_API_BASE`). The settings API and cancel were removed;
+settings are set by Procol ops. `VR_QA_TOKEN` in `prototype/.env` is that buyer's `access-token` (never logged).
+Runs are started only for clients in `VR_WRITE_CLIENTS` (default 47053).
 
 **Safety, in the order it matters.** `vendor_ids: []` is never sent (the API reads it as every vendor — REV-02); no
 trigger without a scope or with more than 5 vendors; the config is backed up to `prototype/data/reval-backup/` before
@@ -42,197 +45,197 @@ Skipped are preferred, so a run changes nothing a buyer sees.
 
 Who may call the QA API and every refusal it gives. Config cases PUT a bad config and check it was refused AND left the saved config alone.
 
-#### API-XREV-A-01 — Non-Procol-employee token is refused
-- **Why it matters.** Guide A-01 (API). Finding REV-01 (Critical): The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production.
+#### API-XREV-A-01 — A client's buyer can use revalidation for its own company
+- **Why it matters.** Guide A-01 (API).
 - **Setup.** Runs every time: a GET to the QA API, nothing changes.
-- **Steps.** 1. GET /config?client_company_id=<client> with the client's own super-admin session (not a Procol employee)
-- **Expected.** Code 5 'Not authorized'; nothing returned. _Guide:_ Code 5 Not authorized for any client user.
+- **Steps.** 1. GET /runs/<the client's latest run>?workspace_id=<client> with the client's own buyer login
+- **Expected.** Answered with the run (product decision: a buyer allowed to edit vendors runs revalidation for its own company). _Guide:_ Code 5 Not authorized for any client user — superseded by the product decision.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P0 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 (check_qa_access = is_procol_employee? || is_super_admin, since eaf002de08)` · `REV-01`
+- **Trace.** P0 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_validation_controller.rb run_status; VendorValidationHistoryPolicy#run_status? (company read_record)`
 
 #### API-XREV-A-02 — Missing / wrong token is refused
 - **Why it matters.** Guide A-02 (API).
 - **Setup.** Runs every time: a GET to the QA API, nothing changes.
-- **Steps.** 1. GET /config with no access-token header 2. GET /config with a random access-token
-- **Expected.** Refused each time (auth error or code 5); no config in the body.
+- **Steps.** 1. GET /runs/<today's run> with no access-token 2. then with a random access-token
+- **Expected.** Refused each time, no run data.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:9 (before_action check_qa_access)`
+- **Trace.** P1 · automate · `API-XREV-A` · read · `Api::ApiController authentication`
 
-#### API-XREV-A-03 — Unknown client
+#### API-XREV-A-03 — A company that does not exist
 - **Why it matters.** Guide A-03 (API).
 - **Setup.** Runs every time: a GET to the QA API, nothing changes.
-- **Steps.** 1. GET /config?client_company_id=999999999
-- **Expected.** 422, code 2 'client_company_id not found'.
+- **Steps.** 1. GET /runs/<today's run>?workspace_id=999999999
+- **Expected.** Refused, or no rows — never another company's data.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:108-111`
+- **Trace.** P2 · automate · `API-XREV-A` · read · `Current.workspace resolution`
 
 #### API-XREV-A-04 — Config not an object
 - **Why it matters.** Guide A-04 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. PUT /config with "config": "abc" 2. PUT with "config": [1] 3. GET /config
 - **Expected.** 422 'config must be an object' each time; GET shows the config unchanged.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:122-123`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:122-123`
 
 #### API-XREV-A-05 — enabled missing or not true/false
 - **Why it matters.** Guide A-05 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. PUT the current config without enabled 2. then with "enabled": "yes" 3. then with "enabled": "true" (a string)
 - **Expected.** 422 'enabled must be true or false' each time; config unchanged.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:124`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:124`
 
 #### API-XREV-A-06 — vendor_statuses empty or unknown
 - **Why it matters.** Guide A-06 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. vendor_statuses [] 2. vendor_statuses ["approved"] 3. vendor_statuses ["active","approved"] 4. vendor_statuses "active" (not a list)
 - **Expected.** 422 'vendor_statuses must be a non-empty list from: in_active, active, invited, onboarding_in_progress, in_review, rejected, in_approval, blacklisted' (the enum's order) each time; config unchanged.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:126-130`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:126-130`
 
 #### API-XREV-A-07 — validations empty
 - **Why it matters.** Guide A-07 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. "validations": {} 2. "validations": []
 - **Expected.** 422 'validations must be a non-empty object'; config unchanged.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:132-134`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:132-134`
 
 #### API-XREV-A-08 — Unknown document type
 - **Why it matters.** Guide A-08 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. add "aadhaar": {...} to validations
 - **Expected.** 422 'unsupported doc types: aadhaar'; config unchanged.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:136-137`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:136-137`
 
 #### API-XREV-A-09 — Bad frequency
 - **Why it matters.** Guide A-09 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. gst frequency weekly 2. gst frequency missing
 - **Expected.** 422 "gst: unsupported frequency 'weekly'"; with none, "gst: unsupported frequency ''".
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:46-50`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:46-50`
 
 #### API-XREV-A-10 — Bad start date
 - **Why it matters.** Guide A-10 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. gst start_date 2026-13-45 2. then 15-10-2026 3. then 2026-02-30
 - **Expected.** 422 "gst: invalid start_date '<value>'" each time (Date.iso8601).
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:51,60-65`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:51,60-65`
 
 #### API-XREV-A-11 — No paths
 - **Why it matters.** Guide A-11 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. gst paths [] 2. gst paths missing
 - **Expected.** 422 'gst: paths must be a non-empty list'.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:53-54`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:53-54`
 
 #### API-XREV-A-12 — Bad path syntax
 - **Why it matters.** Guide A-12 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. gst paths ["vendor.gst"] 2. then ["form."] 3. then ["company.GST_NO"]
 - **Expected.** 422 "gst: unsupported path '<value>'" each time.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:56-57, app/services/vendor_revalidation/value_reader.rb:46-55`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:56-57, app/services/vendor_revalidation/value_reader.rb:46-55`
 
 #### API-XREV-A-13 — Trigger on a disabled client
 - **Why it matters.** Guide A-13 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
-- **Steps.** 1. PUT a config with enabled false 2. POST /trigger mode force, vendor_ids [V-NODOCS]
-- **Expected.** 422 'vendor revalidation is not enabled for this client (needs vendor onboarding v2 and config enabled: true)'.
+- **Setup.** Runs every time: a GET to the QA API, nothing changes. Test vendors: V-NODOCS.
+- **Steps.** 1. on a client with revalidation off (e.g. PROCOL DEMO 198678), with its buyer login: POST /trigger mode force, one vendor
+- **Expected.** 422, code 8 'Vendor revalidation is not enabled for this client' — nothing runs.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P0 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:30-32`
+- **Trace.** P0 · automate · `API-XREV-A` · read · `vendor_validation_controller.rb#trigger`
 
 #### API-XREV-A-14 — Mode missing or wrong
 - **Why it matters.** Guide A-14 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
 - **Steps.** 1. POST /trigger without mode 2. mode now 3. mode FORCE
 - **Expected.** 422 'mode must be one of: force, scheduler' each time (case-sensitive).
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:34-35`
+- **Trace.** P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:34-35`
 
 #### API-XREV-A-15 — Both vendor_ids and vendor_limit
 - **Why it matters.** Guide A-15 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
 - **Steps.** 1. POST /trigger with vendor_ids [V-NODOCS] and vendor_limit 1
 - **Expected.** 422 'send either vendor_ids or vendor_limit, not both'.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:167-169`
+- **Trace.** P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:167-169`
 
 #### API-XREV-A-16 — vendor_limit not positive
 - **Why it matters.** Guide A-16 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.
 - **Steps.** 1. vendor_limit 0 2. -1 3. "abc" 4. 1.5
 - **Expected.** 422 'vendor_limit must be a positive integer' for each.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:171-175`
+- **Trace.** P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:171-175`
 
 #### API-XREV-A-17 — vendor_ids not integers
 - **Why it matters.** Guide A-17 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes.
 - **Steps.** 1. vendor_ids ["abc", 1.5] 2. vendor_ids ["1x"]
 - **Expected.** 422 'vendor_ids must be a list of integers'. (Numeric strings such as "123" are accepted.)
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:178-179`
+- **Trace.** P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:178-179`
 
 #### API-XREV-A-18 — Vendor not of this client
 - **Why it matters.** Guide A-18 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NOTCLIENT.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NOTCLIENT.
 - **Steps.** 1. vendor_ids [V-NOTCLIENT] — an active vendor linked to another client only
 - **Expected.** 422 "vendor_ids not among this client's vendors in the configured statuses: <id>".
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182`
+- **Trace.** P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182`
 
 #### API-XREV-A-19 — Vendor in a status not configured
 - **Why it matters.** Guide A-19 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-STATUS-invited.
-- **Steps.** 1. PUT vendor_statuses ["active"] 2. vendor_ids [V-STATUS-invited]
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-STATUS-invited.
+- **Steps.** 1. pick a vendor linked in a status the client's settings do not check (e.g. onboarding_in_progress for GMMCO) 2. POST /trigger vendor_ids [that vendor]
 - **Expected.** Same message as A-18 with that id.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182, app/workers/vendor_revalidation/run_worker.rb:53-58`
+- **Trace.** P1 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:181-182, app/workers/vendor_revalidation/run_worker.rb:53-58`
 
 #### API-XREV-A-20 — No vendor matches statuses
 - **Why it matters.** Guide A-20 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.
 - **Steps.** 1. find a link status with no eligible vendor for the client (database) 2. PUT vendor_statuses [that status] 3. POST /trigger vendor_limit 1
 - **Expected.** 422 'no vendors match the configured vendor_statuses'.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:43-44`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · needs ops · `app/controllers/api/vendor_revalidation_qa_controller.rb:43-44`
 
 #### API-XREV-A-21 — run_at in the past
 - **Why it matters.** Guide A-21 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
 - **Steps.** 1. run_at = now − 10 min (IST)
 - **Expected.** 422 'run_at is in the past'.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:151`
+- **Trace.** P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:151`
 
 #### API-XREV-A-22 — run_at more than 30 days ahead
 - **Why it matters.** Guide A-22 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
 - **Steps.** 1. run_at = now + 31 days
 - **Expected.** 422 'run_at must be within 30 days from now'.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:152`
+- **Trace.** P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:152`
 
 #### API-XREV-A-23 — run_at not a time
 - **Why it matters.** Guide A-23 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
 - **Steps.** 1. run_at tomorrow 2. run_at 2026-02-30T10:00:00
 - **Expected.** 422 'run_at must be a time like <now+1h, ISO with +05:30> (IST if no offset)'.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P3 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162`
+- **Trace.** P3 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162`
 
 #### API-XREV-A-24 — Cancel unknown or started job
 - **Why it matters.** Guide A-24 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run.
 - **Steps.** 1. DELETE /trigger/abc123 2. (a job already started: covered in B-12)
 - **Expected.** 404, code 2 'trigger not found or already started'.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-64`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-64`
 
 #### API-XREV-A-25 — Run status for unknown run
 - **Why it matters.** Guide A-25 (API).
@@ -242,69 +245,69 @@ Who may call the QA API and every refusal it gives. Config cases PUT a bad confi
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
 - **Trace.** P3 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:70-100`
 
-#### API-XREV-A-26 — run_at 30 seconds in the past is accepted
+#### API-XREV-A-26 — run_at a few seconds in the past is accepted
 - **Why it matters.** Guide A-26 (API).
-- **Setup.** Not run unattended (dev): covered by the code (PAST_TOLERANCE 1 minute) and by A-21's boundary; run by hand if wanted — a clock difference between this machine and the server makes the 30 s margin flaky
-- **Steps.** 1. run_at = now − 30 s
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
+- **Steps.** 1. run_at = now − 20 s (the guide says 30 s; 20 s leaves room for clock difference)
 - **Expected.** Accepted (1-minute tolerance); runs now.
-- **Oracle.** —
-- **Trace.** P3 · manual · `API-XREV-A` · dev · `app/controllers/api/vendor_revalidation_qa_controller.rb:6,151`
+- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
+- **Trace.** P3 · automate · `API-XREV-A` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:6,151`
 
 #### API-XREV-A-27 — GET config returns the saved config
 - **Why it matters.** Guide A-27 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.
 - **Steps.** 1. PUT the current config with vendor_statuses in reverse order 2. GET /config
 - **Expected.** GET config equals the PUT exactly; PUT answers with it too; enabled = config.enabled AND vendor_onboarding_v2.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:12-27,113-120`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:12-27,113-120`
 
 #### API-XREV-A-28 — PUT replaces the whole config
 - **Why it matters.** Guide A-28 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.
 - **Steps.** 1. PUT with only gst 2. GET
 - **Expected.** Only gst is in the config; the other document types are gone.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:16-27`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-A` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:16-27`
 
 #### API-XREV-A-29 — run_at without offset is IST
 - **Why it matters.** Guide A-29 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
-- **Steps.** 1. silent config 2. run_at <tomorrow>T15:00:00 (no offset) 3. cancel at once
-- **Expected.** scheduled_for <tomorrow>T15:00:00+05:30; run_scheduled_on tomorrow and that date's run id; cancel → state cancelled.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
+- **Steps.** 1. run_at <tomorrow>T15:00:00 (no offset), one vendor with nothing to check
+- **Expected.** scheduled_for <tomorrow>T15:00:00+05:30; run_scheduled_on tomorrow and that date's run id. (No cancel any more: it runs tomorrow on that one vendor.)
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:146-162`
+- **Trace.** P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:146-162`
 
-#### API-XREV-A-30 — A client's super admin reads another client's config
-- **Why it matters.** Added from the code (not in the guide). Finding REV-01 (Critical): The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production.
+#### API-XREV-A-30 — Another company's runs cannot be read or started
+- **Why it matters.** Added from the code (not in the guide). Finding REV-01 (Critical): A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production.
 - **Setup.** Runs every time: a GET to the QA API, nothing changes.
-- **Steps.** 1. GET /config?client_company_id=<another client> with this client's super-admin session
-- **Expected.** Code 5 'Not authorized'.
+- **Steps.** 1. GET /runs/<this client's latest run>?workspace_id=<another company> 2. POST /trigger?workspace_id=<another company> with one of this client's vendors
+- **Expected.** No rows of this client come back, and the run is refused.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P0 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-111 (set_client takes any client_company_id)` · `REV-01`
+- **Trace.** P0 · automate · `API-XREV-A` · read · `TriggerService.run_summary (rows where client_company_id = Current.workspace); vendor_validation_controller.rb#trigger uses Current.workspace` · `REV-01`
 
 #### API-XREV-A-31 — run_at with a UTC offset late in the evening belongs to the next IST date
 - **Why it matters.** Added from the code (not in the guide).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-NODOCS.
-- **Steps.** 1. silent config 2. run_at <day>T20:00:00Z (= 01:30 IST next day) 3. cancel
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
+- **Steps.** 1. run_at <day>T20:00:00Z (= 01:30 IST next day), one vendor with nothing to check
 - **Expected.** run_scheduled_on = the IST date (next day) and its run id.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-A` · config (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:45-46 (run_at.to_date in IST)`
+- **Trace.** P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:45-46 (run_at.to_date in IST)`
 
 #### API-XREV-A-32 — Document settings that are not an object
 - **Why it matters.** Added from the code (not in the guide).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API (config checks).
 - **Steps.** 1. "gst": "yearly"
 - **Expected.** 422 'gst: settings must be an object' (a message the guide's table does not list).
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P3 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:47`
+- **Oracle.** —
+- **Trace.** P3 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:47`
 
 #### API-XREV-A-33 — A single path given as a string is accepted
 - **Why it matters.** Added from the code (not in the guide).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the settings API.
 - **Steps.** 1. gst paths "form.gstin" (a string, not a list)
 - **Expected.** Accepted (Array.wrap); the guide documents paths as a list only.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P3 · automate · `API-XREV-A` · config (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:53`
+- **Oracle.** —
+- **Trace.** P3 · manual · `API-XREV-A` · feature removed · `app/workers/vendor_revalidation/scheduler_worker.rb:53`
 
 #### API-XREV-A-34 — An empty vendor scope runs every vendor of the client
 - **Why it matters.** Added from the code (not in the guide). Finding REV-02 (High): An empty vendor scope (vendor_ids: [] or vendor_limit "") revalidates every vendor of the client.
@@ -314,109 +317,117 @@ Who may call the QA API and every refusal it gives. Config cases PUT a bad confi
 - **Oracle.** —
 - **Trace.** P1 · automate-later · `API-XREV-A` · code · `app/controllers/api/vendor_revalidation_qa_controller.rb:164-185 (raw_ids.blank? → no scope), app/workers/vendor_revalidation/qa_trigger_worker.rb:50-56 (no scope → all vendors)` · `REV-02`
 
+#### API-XREV-A-35 — A buyer who may not edit vendors cannot start a run
+- **Why it matters.** Added from the code (not in the guide).
+- **Setup.** Not run unattended (manual): needs a GMMCO buyer login without vendor-edit rights
+- **Steps.** 1. log in as a buyer whose role lacks vendor (company) update rights 2. POST /trigger mode force, one vendor
+- **Expected.** Refused (not authorized); reading a run needs only read rights.
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-A` · manual · `app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)`
+
 ## 2. Triggers and schedule
 
 Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id and re-triggers. Scheduler cases set start dates relative to today so every cycle can be proved on the day the suite runs; they read a column that does not exist, so no provider is called.
 
-#### API-XREV-B-01 — Scheduler mode with nothing due
+#### API-XREV-B-01 — Scheduler mode picks exactly the types due today
 - **Why it matters.** Guide B-01 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
-- **Steps.** 1. config: gst quarterly, start = today − 10 days 2. POST /trigger mode scheduler, vendor_ids [V-NODOCS] 3. GET /runs/<run_id>?job_id=
-- **Expected.** trigger.state nothing_due; no rows created for the vendor. _Guide:_ …complete false.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
+- **Steps.** 1. read the client's settings (database) 2. POST /trigger mode scheduler, vendor_ids [V-NODOCS] 3. GET /runs
+- **Expected.** Started with exactly the document types due today (trigger.doc_types), or nothing_due when none is due. _Guide:_ gst quarterly with start = today − 10 → nothing_due (needs a settings change)
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:28-32, app/workers/vendor_revalidation/scheduler_worker.rb:34-44`
 
 #### API-XREV-B-02 — Scheduler does not repeat a type already checked since its due date
 - **Why it matters.** Guide B-02 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. find a GST run of this client 1–2 days ago (date D) 2. config: gst monthly, start = D one month back (so D is the due date) 3. scheduler trigger today
 - **Expected.** nothing_due: rows exist for gst on D, inside due_date…today.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:60-69 (due_date...run_date, exclusive)`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/qa_trigger_worker.rb:60-69 (due_date...run_date, exclusive)`
 
 #### API-XREV-B-03 — one_time does not run again
 - **Why it matters.** Guide B-03 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. config: msme one_time, start = today − 5 2. scheduler trigger today
 - **Expected.** nothing_due.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:34-37`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:34-37`
 
 #### API-XREV-B-04 — Catch-up stops after 2 days
 - **Why it matters.** Guide B-04 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. config: cin monthly with its cycle date 3 days ago (no rows) 2. scheduler trigger today
 - **Expected.** nothing_due.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:12,34-44`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:12,34-44`
 
 #### API-XREV-B-05 — Cancelled trigger does nothing
 - **Why it matters.** Guide B-05 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): cancelling a scheduled run. Test vendors: V-NODOCS.
 - **Steps.** 1. silent config 2. trigger run_at now + 2 min 3. DELETE /trigger/<job_id> 4. wait past run_at 5. GET /runs?job_id=
 - **Expected.** Cancel answers state cancelled; afterwards still cancelled; the vendor's rows untouched.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-68`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-B` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:60-68`
 
 #### API-XREV-B-06 — Config switched off before a scheduled trigger fires
 - **Why it matters.** Guide B-06 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. silent config 2. trigger run_at now + 2 min 3. PUT enabled false 4. wait past run_at
 - **Expected.** trigger.state disabled; no rows created or reset.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:24-27`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/qa_trigger_worker.rb:24-27`
 
 #### API-XREV-B-07 — Force checks every configured type regardless of dates
 - **Why it matters.** Guide B-07 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.
-- **Steps.** 1. config: the client's document types, each starting 20 days ahead 2. run force [V-PASS]
-- **Expected.** Rows for every configured type; by_doc_type lists them all; by_status adds up.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.
+- **Steps.** 1. run force [V-PASS] under the client's settings
+- **Expected.** trigger.doc_types and the rows cover every configured document type, whatever its start date.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P0 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:30`
 
 #### API-XREV-B-08 — Scheduler on the start date
 - **Why it matters.** Guide B-08 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. config: gst quarterly, start = today 2. scheduler trigger now
 - **Expected.** state started; gst rows only.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P0 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43`
+- **Oracle.** —
+- **Trace.** P0 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43`
 
 #### API-XREV-B-09 — Each cycle length
 - **Why it matters.** Guide B-09 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. for monthly / quarterly / six_monthly / yearly: start = today minus 1/3/6/12 months → scheduler trigger 2. then start whose cycle date was 3 days ago → scheduler trigger 3. quarterly with start 2 months ago → scheduler trigger
 - **Expected.** Due (started) exactly on whole cycles; nothing_due 3 days after a cycle date and on a non-cycle month. _Guide:_ run_at on 10 Nov / Jan / Apr / Oct — not possible: run_at is capped at 30 days and a future trigger only fires then; the same rule is proved by moving the start date instead.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:14,39-43`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:14,39-43`
 
 #### API-XREV-B-10 — Month end
 - **Why it matters.** Guide B-10 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. on the last day of a month shorter than 31 days: config gst monthly from the newest 31st 2. scheduler trigger
 - **Expected.** Due on the clamped month end (e.g. 30 Nov). _Guide:_ …and not on 1 Dec — but the 2-day catch-up makes 30 Nov's due date still due on 1 Dec if not run.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43 (start_date >> months clamps)`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:39-43 (start_date >> months clamps)`
 
 #### API-XREV-B-11 — Catch-up within 2 days
 - **Why it matters.** Guide B-11 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS.
 - **Steps.** 1. config: a document type the client has never checked (cin), monthly, cycle date 2 days ago 2. scheduler trigger
 - **Expected.** Due and started.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:12,35`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:12,35`
 
 #### API-XREV-B-12 — Same-day triggers share one run id
 - **Why it matters.** Guide B-12 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
-- **Steps.** 1. silent config 2. run force twice 3. DELETE the first job after it started
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
+- **Steps.** 1. run force on a vendor with nothing to check, twice
 - **Expected.** Same run_id = uuid v5('procol://vendor_revalidation/<client>/<date>'); cancel after start → 404.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:29-31, app/controllers/api/vendor_revalidation_qa_controller.rb:60-64`
 
 #### API-XREV-B-13 — Re-trigger rebuilds with no duplicates
 - **Why it matters.** Guide B-13 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS, V-BADGST.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed). Test vendors: V-PASS, V-BADGST.
 - **Steps.** 1. run force [V-PASS, V-BADGST] 2. run them again
 - **Expected.** Same row count and per-status counts; rows rebuilt (new ids); one row per vendor per document value.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -424,7 +435,7 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 
 #### API-XREV-B-14 — Re-trigger of a subset leaves others alone
 - **Why it matters.** Guide B-14 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS, V-BADGST.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed). Test vendors: V-PASS, V-BADGST.
 - **Steps.** 1. run [V-PASS, V-BADGST] 2. run [V-PASS] only
 - **Expected.** V-BADGST's rows unchanged; V-PASS's rebuilt.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -432,16 +443,16 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 
 #### API-XREV-B-15 — Scheduled trigger starts on time
 - **Why it matters.** Guide B-15 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
-- **Steps.** 1. silent config 2. trigger run_at now + 2 min 3. poll
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
+- **Steps.** 1. trigger run_at now + 2 min on a vendor with nothing to check 2. poll
 - **Expected.** state scheduled before; started within 2 minutes after run_at.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:54`
 
 #### API-XREV-B-16 — vendor_limit picks the same vendors every time
 - **Why it matters.** Guide B-16 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.
-- **Steps.** 1. silent config 2. run vendor_limit 3 twice
+- **Setup.** Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).
+- **Steps.** 1. run vendor_limit 3 twice under the client's settings
 - **Expected.** Same 3 vendor ids, the lowest eligible ids.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/run_worker.rb:53-58, app/workers/vendor_revalidation/qa_trigger_worker.rb:50-56`
@@ -464,19 +475,19 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 
 #### API-XREV-B-19 — Two triggers for different vendors firing together both run
 - **Why it matters.** Added from the code (not in the guide). Finding REV-09 (Medium): A QA trigger can delete another trigger's queued run for the same day.
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS, V-NODOCS2.
-- **Steps.** 1. silent config 2. trigger [V-NODOCS] and [V-NODOCS2] for the same run_at (now + 90 s) 3. wait for both
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2 under the client's own settings (they are not changed). Test vendors: V-NODOCS, V-NODOCS2.
+- **Steps.** 1. trigger two vendors with nothing to check for the same run_at (now + 90 s) 2. wait for both
 - **Expected.** Both complete with their vendor's rows.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:113-124 (delete_jobs deletes every queued RunWorker job of the run, not only the chosen vendors')` · `REV-09`
 
 #### API-XREV-B-20 — A QA trigger takes the nightly run's claim for that date
 - **Why it matters.** Added from the code (not in the guide). Finding REV-10 (Low): A QA trigger in the hour before 11 pm makes the nightly run skip the client.
-- **Setup.** Not run unattended (code): needs the nightly scheduler; proved from the code: the QA trigger sets the same claim key with a 1-hour TTL, so the nightly start_run returns early
+- **Setup.** Not run: fixed in the 20 Oct 2026 rewrite: the nightly claim is now taken only by a full run (trigger_service.rb), so a partial test run no longer stops that night's run.
 - **Steps.** 1. QA trigger at 10:30 pm IST 2. nightly scheduler at 11 pm
 - **Expected.** The nightly run still starts.
 - **Oracle.** —
-- **Trace.** P3 · automate-later · `API-XREV-B` · code · `app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82` · `REV-10`
+- **Trace.** P3 · manual · `API-XREV-B` · feature removed · `app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82` · `REV-10`
 
 ## 3. Vendor coverage
 
@@ -484,9 +495,9 @@ Which vendors a run picks: link status in vendor_statuses, source referral/proco
 
 #### API-XREV-C-01 — Status not in vendor_statuses is left out
 - **Why it matters.** Guide C-01 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.
-- **Steps.** 1. silent config, vendor_statuses ["active"] 2. run vendor_limit 3
-- **Expected.** Every chosen vendor is linked as active; no rows for others. _Guide:_ vendor_limit 50 — cut to 3 to keep runs small (the rule is the same).
+- **Setup.** Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).
+- **Steps.** 1. run vendor_limit 3 under the client's settings
+- **Expected.** Every chosen vendor is linked in one of the configured statuses. _Guide:_ vendor_limit 50 — cut to 3 to keep runs small (the rule is the same).
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P0 · automate · `API-XREV-C` · run (token) · `app/workers/vendor_revalidation/run_worker.rb:53-58`
 
@@ -500,35 +511,35 @@ Which vendors a run picks: link status in vendor_statuses, source referral/proco
 
 #### API-XREV-C-03 — Inactive vendor company is left out
 - **Why it matters.** Guide C-03 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-INACTIVE.
+- **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-INACTIVE.
 - **Steps.** 1. silent config, vendor_statuses ["active","invited"] 2. trigger vendor_ids [V-INACTIVE] (linked, company inactive)
 - **Expected.** Refused: "vendor_ids not among this client's vendors in the configured statuses: <id>" (inactive companies are never eligible).
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-C` · config (token) · `app/workers/vendor_revalidation/run_worker.rb:56 (Company.active)`
+- **Trace.** P2 · automate · `API-XREV-C` · refused request (token) · `app/workers/vendor_revalidation/run_worker.rb:56 (Company.active)`
 
 #### API-XREV-C-04 — Client not on onboarding v2
 - **Why it matters.** Guide C-04 (API).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.
 - **Steps.** 1. GET /config for an active client without onboarding v2
 - **Expected.** enabled false, vendor_onboarding_v2 false. (The write half — enable it, trigger refused — is manual: an empty config cannot be put back.)
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-C` · config (token) · `app/models/company.rb:925-927`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-C` · needs ops · `app/models/company.rb:925-927`
 
 #### API-XREV-C-05 — Each link status is included when configured
 - **Why it matters.** Guide C-05 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on 1–3 vendors; config saved and restored, vendors whose shown status the case changed are re-run under the original config.
-- **Steps.** 1. for each link status with an eligible vendor: silent config with vendor_statuses [that status] 2. run [V-STATUS-<status>]
+- **Setup.** Needs VR_QA_TOKEN. A real run on 1–3 vendors under the client's own settings (they are not changed).
+- **Steps.** 1. for each status in the client's settings: run [V-STATUS-<status>]
 - **Expected.** Rows created; vendor finished.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P1 · automate · `API-XREV-C` · run (token) · `app/workers/vendor_revalidation/run_worker.rb:53-58`
 
 #### API-XREV-C-06 — Bulk-uploaded vendor is included
 - **Why it matters.** Guide C-06 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-MISC.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-MISC.
 - **Steps.** 1. config: pan paths ["company.misc.pan"] 2. run [V-MISC]
 - **Expected.** A PAN row whose value is the vendor's misc.pan (bulk-uploaded vendors are linked as referral, so they are eligible).
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P0 · automate · `API-XREV-C` · run (token) · `app/workers/vendor_revalidation/run_worker.rb:55, app/services/vendor_revalidation/value_reader.rb:148-162`
+- **Oracle.** —
+- **Trace.** P0 · manual · `API-XREV-C` · needs ops · `app/workers/vendor_revalidation/run_worker.rb:55, app/services/vendor_revalidation/value_reader.rb:148-162`
 
 #### API-XREV-C-07 — Vendor under two clients is kept separate
 - **Why it matters.** Guide C-07 (API+UI).
@@ -568,7 +579,7 @@ Paths are tried in order; the first that gives a value wins. Several cases point
 
 #### API-XREV-D-01 — All paths empty gives skipped
 - **Why it matters.** Guide D-01 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
 - **Steps.** 1. run [V-NODOCS] under the client's config
 - **Expected.** Every row skipped 'not provided'; final status skipped (listing label 'Skipped'). _Guide:_ …shown as not validated.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -592,39 +603,39 @@ Paths are tried in order; the first that gives a value wins. Several cases point
 
 #### API-XREV-D-04 — Bank with account but no IFSC
 - **Why it matters.** Guide D-04 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-BANKHALF; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BANKHALF.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-BANKHALF.
 - **Steps.** 1. config: bank paths [{bank_account_no: company.misc.bank_account_number, ifsc: company.misc.bank_ifsc_code}] 2. run [V-BANKHALF]
 - **Expected.** bank skipped 'not provided'.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:86-97`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:86-97`
 
 #### API-XREV-D-05 — Column that does not exist
 - **Why it matters.** Guide D-05 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.
 - **Steps.** 1. gst paths ["company.gst_number_wrong", "company.gst_no"] 2. run [V-COMPANYGST]
 - **Expected.** No error; the GST row's value is the company's gst_no.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:150 (& Company.column_names)`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:150 (& Company.column_names)`
 
 #### API-XREV-D-06 — First path with a value wins
 - **Why it matters.** Guide D-06 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.
 - **Steps.** 1. gst paths ["company.gst_no", "company.pan_no"] — both have a value 2. run
 - **Expected.** Only the first (gst_no) is checked. _Guide:_ form A vs company B — needs a prepared vendor; two company columns prove the same rule.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:24-44`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:24-44`
 
 #### API-XREV-D-07 — Falls to company record when form is empty
 - **Why it matters.** Guide D-07 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.
 - **Steps.** 1. gst paths ["form.<a field no form has>", "company.gst_no"] 2. run
 - **Expected.** GST from the company record is checked. _Guide:_ …no name-match rule applied (no rule is applied on any path — REV-03).
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:24-44,125-143`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:24-44,125-143`
 
 #### API-XREV-D-08 — Several values give several rows
 - **Why it matters.** Guide D-08 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-2GST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-2GST.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-2GST under the client's own settings (they are not changed). Test vendors: V-2GST.
 - **Steps.** 1. run [V-2GST]
 - **Expected.** One gst row per value, value_index 0..n-1.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -632,11 +643,11 @@ Paths are tried in order; the first that gives a value wins. Several cases point
 
 #### API-XREV-D-09 — Extra data with nested key
 - **Why it matters.** Guide D-09 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-MISC; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-MISC.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-MISC.
 - **Steps.** 1. pan paths ["company.misc.pan"] 2. run [V-MISC]
 - **Expected.** PAN read from misc.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:148-162`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:148-162`
 
 #### API-XREV-D-10 — Extended field path
 - **Why it matters.** Guide D-10 (API).
@@ -656,15 +667,15 @@ Paths are tried in order; the first that gives a value wins. Several cases point
 
 #### API-XREV-D-12 — Spaces are trimmed
 - **Why it matters.** Guide D-12 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-SPACES; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-SPACES.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-SPACES.
 - **Steps.** 1. gst paths [company.gst_no] for a vendor whose gst_no has spaces around it 2. run
 - **Expected.** Checked and stored as the trimmed value.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P3 · automate · `API-XREV-D` · run (token) · `app/services/vendor_revalidation/value_reader.rb:62`
+- **Oracle.** —
+- **Trace.** P3 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:62`
 
 #### API-XREV-D-13 — Onboarding form is never changed
 - **Why it matters.** Guide D-13 (UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.
 - **Steps.** 1. snapshot the vendor's template_responses, link status and company record 2. run [V-PASS] 3. snapshot again
 - **Expected.** Unchanged.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -684,7 +695,7 @@ The format pre-check runs before any provider call; pointing a document at the w
 
 #### API-XREV-E-01 — GST that does not exist
 - **Why it matters.** Guide E-01 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BADGST.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-BADGST under the client's own settings (they are not changed). Test vendors: V-BADGST.
 - **Steps.** 1. run [V-BADGST]
 - **Expected.** gst failed; vendor Failed; listing error 'GST <value>: <message>'.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -692,11 +703,11 @@ The format pre-check runs before any provider call; pointing a document at the w
 
 #### API-XREV-E-02 — GST wrong format
 - **Why it matters.** Guide E-02 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYPAN.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYPAN.
 - **Steps.** 1. gst paths ["company.pan_no"] — a 10-character PAN read as GST 2. run
 - **Expected.** gst failed 'GST input is incorrect' from the pre-check (no provider call).
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:66-77`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:66-77`
 
 #### API-XREV-E-03 — Cancelled GST
 - **Why it matters.** Guide E-03 (API+UI).
@@ -708,7 +719,7 @@ The format pre-check runs before any provider call; pointing a document at the w
 
 #### API-XREV-E-04 — One of two GSTs invalid
 - **Why it matters.** Guide E-04 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-2GST-MIXED; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-2GST-MIXED.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-2GST-MIXED under the client's own settings (they are not changed). Test vendors: V-2GST-MIXED.
 - **Steps.** 1. run [V-2GST-MIXED]
 - **Expected.** 1 gst passed, 1 failed; vendor Failed; the error names only the bad GST.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -724,15 +735,15 @@ The format pre-check runs before any provider call; pointing a document at the w
 
 #### API-XREV-E-06 — Foreign tax number in GST field
 - **Why it matters.** Guide E-06 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-FOREIGN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-FOREIGN.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-FOREIGN.
 - **Steps.** 1. gst paths [company.gst_no] for a vendor whose gst_no is foreign (GB…) 2. run
 - **Expected.** gst failed 'GST input is incorrect' (pre-check).
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:74-75`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:74-75`
 
 #### API-XREV-E-07 — PAN that does not exist
 - **Why it matters.** Guide E-07 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BADPAN.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-BADPAN under the client's own settings (they are not changed). Test vendors: V-BADPAN.
 - **Steps.** 1. run [V-BADPAN]
 - **Expected.** pan failed; vendor Failed.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -740,23 +751,23 @@ The format pre-check runs before any provider call; pointing a document at the w
 
 #### API-XREV-E-08 — PAN wrong format
 - **Why it matters.** Guide E-08 (API). Finding REV-05 (Medium): The PAN format pre-check accepts any text that merely contains a PAN.
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-COMPANYGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYGST.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYGST.
 - **Steps.** 1. pan paths ["company.gst_no"] — a 15-character GSTIN read as PAN 2. run
 - **Expected.** pan failed 'PAN input is incorrect' from the pre-check.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:74 (value.match(regex) — the PAN regex [A-Z]{5}[0-9]{4}[A-Z]{1} has no anchors, so a GSTIN containing a PAN passes)` · `REV-05`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:74 (value.match(regex) — the PAN regex [A-Z]{5}[0-9]{4}[A-Z]{1} has no anchors, so a GSTIN containing a PAN passes)` · `REV-05`
 
 #### API-XREV-E-09 — Udyam number wrong format
 - **Why it matters.** Guide E-09 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-COMPANYPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-COMPANYPAN.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-COMPANYPAN.
 - **Steps.** 1. msme paths ["company.pan_no"] 2. run
 - **Expected.** msme failed 'MSME input is incorrect' (pre-check).
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-E` · run (token) · `lib/external_api/validation.rb:74-75`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-E` · needs ops · `lib/external_api/validation.rb:74-75`
 
 #### API-XREV-E-10 — Bank account wrong
 - **Why it matters.** Guide E-10 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BANKFAIL.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-BANKFAIL under the client's own settings (they are not changed). Test vendors: V-BANKFAIL.
 - **Steps.** 1. run [V-BANKFAIL]
 - **Expected.** bank failed; vendor Failed. _Guide:_ one vendor each for wrong account / wrong IFSC / closed — the others need prepared vendors.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -772,7 +783,7 @@ The format pre-check runs before any provider call; pointing a document at the w
 
 #### API-XREV-E-12 — All documents valid
 - **Why it matters.** Guide E-12 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.
 - **Steps.** 1. run [V-PASS]
 - **Expected.** Every row passed; vendor Passed; listing Passed with no errors.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -928,11 +939,11 @@ Mostly dev-assisted. The switch-off mid-run is the one the QA API can stage.
 
 #### API-XREV-F-10 — Revalidation switched off mid-run
 - **Why it matters.** Guide F-10 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.
 - **Steps.** 1. silent config 2. run force on 5 vendors (jobs spread 2 s apart) 3. PUT enabled false 1.5 s later 4. wait until nothing is pending
 - **Expected.** Rows not yet checked are closed system_error 'verification is temporarily unavailable'; none left pending.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-F` · run (token) · `app/services/vendor_revalidation/vendor_check_service.rb:26-30`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-F` · needs ops · `app/services/vendor_revalidation/vendor_check_service.rb:26-30`
 
 #### API-XREV-F-15 — Live onboarding not hurt during a run
 - **Why it matters.** Guide F-15 (Manual).
@@ -944,11 +955,11 @@ Mostly dev-assisted. The switch-off mid-run is the one the QA API can stage.
 
 #### API-XREV-F-16 — Vendors cut off by a switch-off still get a final status
 - **Why it matters.** Added from the code (not in the guide). Finding REV-08 (Medium): Switching revalidation off mid-run leaves the cut-off vendors with no final status.
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-NODOCS, V-NODOCS2, V-NODOCS3, V-NODOCS4, V-NODOCS5.
 - **Steps.** 1. as F-10 2. read the final status of the vendors whose rows were closed
 - **Expected.** Each has a final status (system_error).
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P2 · automate · `API-XREV-F` · run (token) · `app/services/vendor_revalidation/vendor_check_service.rb:26-30 (close) and :73-74 (finalize returns when disabled; the QA reset already cleared the status)` · `REV-08`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-F` · needs ops · `app/services/vendor_revalidation/vendor_check_service.rb:26-30 (close) and :73-74 (finalize returns when disabled; the QA reset already cleared the status)` · `REV-08`
 
 ## 7. Final status, errors and history
 
@@ -956,7 +967,7 @@ failed > system_error > passed > skipped over each document type's latest rows; 
 
 #### API-XREV-G-01 — Any failed check makes the vendor Failed
 - **Why it matters.** Guide G-01 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-BANKFAIL; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BANKFAIL.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-BANKFAIL under the client's own settings (they are not changed). Test vendors: V-BANKFAIL.
 - **Steps.** 1. run [V-BANKFAIL] (bank failed, nothing else failed last time)
 - **Expected.** Final = precedence of its rows (Failed); errors list only the failed / system_error lines. _Guide:_ V-PASS with bank changed to invalid — needs a data change; a vendor already in that state proves the same rule.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -964,7 +975,7 @@ failed > system_error > passed > skipped over each document type's latest rows; 
 
 #### API-XREV-G-02 — Skipped never makes the vendor Failed
 - **Why it matters.** Guide G-02 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS-SKIP; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS-SKIP.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS-SKIP under the client's own settings (they are not changed). Test vendors: V-PASS-SKIP.
 - **Steps.** 1. run [V-PASS-SKIP] (some passed, the rest not provided)
 - **Expected.** Final Passed; skipped documents not in the errors.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -996,15 +1007,15 @@ failed > system_error > passed > skipped over each document type's latest rows; 
 
 #### API-XREV-G-06 — Types not due keep their older result
 - **Why it matters.** Guide G-06 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-BADPAN; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-BADPAN.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-BADPAN.
 - **Steps.** 1. V-BADPAN failed PAN on an earlier day 2. config: gst quarterly from today (due), pan yearly from 10 days ago (not due) 3. scheduler run [V-BADPAN]
 - **Expected.** Only gst rows today; final still Failed because PAN's latest row (earlier day) failed.
-- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P0 · automate · `API-XREV-G` · run (token) · `app/services/vendor_revalidation/vendor_check_service.rb:76-90, app/models/vendor_validation_history.rb:68-80`
+- **Oracle.** —
+- **Trace.** P0 · manual · `API-XREV-G` · needs ops · `app/services/vendor_revalidation/vendor_check_service.rb:76-90, app/models/vendor_validation_history.rb:68-80`
 
 #### API-XREV-G-07 — All passed
 - **Why it matters.** Guide G-07 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS under the client's own settings (they are not changed). Test vendors: V-PASS.
 - **Steps.** 1. run [V-PASS]
 - **Expected.** Final Passed; last validated = this run's start (whole seconds, = the trigger's fired_at).
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -1052,7 +1063,7 @@ failed > system_error > passed > skipped over each document type's latest rows; 
 
 #### API-XREV-G-13 — No duplicate rows within one run
 - **Why it matters.** Guide G-13 (API).
-- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST; config saved and restored, vendors whose shown status the case changed are re-run under the original config. Test vendors: V-PASS, V-BADGST.
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-PASS, V-BADGST under the client's own settings (they are not changed). Test vendors: V-PASS, V-BADGST.
 - **Steps.** 1. run; re-trigger the same vendors the same day
 - **Expected.** One row per vendor per document value for that run.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
@@ -1068,11 +1079,11 @@ failed > system_error > passed > skipped over each document type's latest rows; 
 
 #### API-XREV-G-15 — top_errors lists failures
 - **Why it matters.** Guide G-15 (API).
-- **Setup.** Runs every time: a GET to the QA API, nothing changes.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): top_errors in the run status.
 - **Steps.** 1. GET /runs/<latest run> 2. group its failed / system_error rows in the database
 - **Expected.** Up to 10 entries, largest first, each with doc_type, status, message and the right count.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-G` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:85-88`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-G` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:85-88`
 
 #### API-XREV-G-16 — Run summary in logs
 - **Why it matters.** Guide G-16 (Dev).
@@ -1084,11 +1095,11 @@ failed > system_error > passed > skipped over each document type's latest rows; 
 
 #### API-XREV-G-17 — Removing a document type from the config
 - **Why it matters.** Added from the code (not in the guide). Finding REV-11 (Medium): Removing a document type from the config hides its error lines but keeps the status it caused.
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called. Test vendors: V-BADPAN.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-BADPAN.
 - **Steps.** 1. V-BADPAN failed PAN 2. PUT the config without pan 3. open V-BADPAN on the listing
 - **Expected.** The shown status matches the remaining documents.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P2 · automate · `API-XREV-G` · config (token) · `app/models/vendor_validation_history.rb:47-56 (errors filtered by configured types) vs app/services/vendor_revalidation/vendor_check_service.rb:72-99 (status kept until the next run)` · `REV-11`
+- **Oracle.** —
+- **Trace.** P2 · manual · `API-XREV-G` · needs ops · `app/models/vendor_validation_history.rb:47-56 (errors filtered by configured types) vs app/services/vendor_revalidation/vendor_check_service.rb:72-99 (status kept until the next run)` · `REV-11`
 
 ## 8. Vendor listing, vendor page and Excel
 
@@ -1227,12 +1238,12 @@ Masking, the vendor portal, the production guard and switching the feature off.
 - **Trace.** P2 · manual · `API-XREV-I` · ui · `app/controllers/concerns/companies_controller_helper.rb:713 (workspace.id == company.id → nil)`
 
 #### API-XREV-I-05 — QA APIs blocked on production
-- **Why it matters.** Guide I-05 (Dev). Finding REV-01 (Critical): The QA revalidation API is open to every client super admin, for every client, and is no longer blocked on production.
-- **Setup.** Not run unattended (code): never called against production; proved from the code
+- **Why it matters.** Guide I-05 (Dev). Finding REV-01 (Critical): A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production.
+- **Setup.** Not run: removed in the 20 Oct 2026 rewrite (procol-backend 0f365a7e52 / 5350f76a98 / a717f107ce (20 Oct 2026)): the private QA controls — starting a run is now a buyer feature meant for production.
 - **Steps.** 1. call the production base with an employee token
 - **Expected.** Code 5 'Not authorized'.
 - **Oracle.** —
-- **Trace.** P1 · automate-later · `API-XREV-I` · code · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 — the Rails.env.production? guard was removed in eaf002de08 and routes.rb:695-701 has none` · `REV-01`
+- **Trace.** P1 · manual · `API-XREV-I` · feature removed · `app/controllers/api/vendor_revalidation_qa_controller.rb:103-106 — the Rails.env.production? guard was removed in eaf002de08 and routes.rb:695-701 has none` · `REV-01`
 
 #### API-XREV-I-06 — No Slack or Sentry noise
 - **Why it matters.** Guide I-06 (Dev). Finding REV-13 (Low): Revalidation still reports to Sentry.
@@ -1268,11 +1279,11 @@ Masking, the vendor portal, the production guard and switching the feature off.
 
 #### API-XREV-I-10 — Rollback
 - **Why it matters.** Guide I-10 (API+UI).
-- **Setup.** Needs VR_QA_TOKEN (Procol employee). The config is saved before and put back after; no provider is called.
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite.
 - **Steps.** 1. PUT enabled false 2. GET config, the listing, row counts, link statuses 3. restore
 - **Expected.** enabled false; listing drops the columns; old rows kept; every vendor's link status unchanged.
-- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P1 · automate · `API-XREV-I` · config (token) · `app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341`
+- **Oracle.** —
+- **Trace.** P1 · manual · `API-XREV-I` · needs ops · `app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341`
 
 ## 10. Audit of the runs already recorded
 
