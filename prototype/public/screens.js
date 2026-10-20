@@ -130,7 +130,7 @@
 
   // ── the library ───────────────────────────────────────────────────────────────────────────
   async function loadList() {
-    const [r, combos] = await Promise.all([fetch("/api/screens").then((x) => x.json()), fetch("/api/screens/combos").then((x) => x.json()).catch(() => ({ run: null }))]);
+    const [r, combos] = await Promise.all([fetch("/api/screens", { cache: "no-store" }).then((x) => x.json()), fetch("/api/screens/combos", { cache: "no-store" }).then((x) => x.json()).catch(() => ({ run: null }))]);
     state.data = r;
     state.combos = combos.run;
     paintList();
@@ -270,7 +270,7 @@
 
   // ── one screen ────────────────────────────────────────────────────────────────────────────
   async function loadScreen() {
-    const r = await fetch(`/api/screens/one?id=${encodeURIComponent(state.id)}`).then((x) => x.json());
+    const r = await fetch(`/api/screens/one?id=${encodeURIComponent(state.id)}`, { cache: "no-store" }).then((x) => x.json());
     if (!r.screen) {
       root().innerHTML = `<a class="scr-back" href="#/screens">← Screens</a><p class="scr-empty">${esc(r.why || "no such screen")}</p>`;
       return;
