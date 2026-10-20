@@ -973,10 +973,42 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1);
       return "sheet filled";
     }
-    case "fill_questionnaires":
+    case "fill_questionnaires": {
+      if (await isSingleStageScreen(s)) {
+        // The single-stage RFP screen is the questionnaire itself: numbered questions with an
+        // "Enter answer here…" box each (captured 2026-10-21, combo-s3), no RFI sections.
+        const boxes = s.page.locator("textarea, input[type='text']").filter({ visible: true });
+        let filled = 0;
+        for (let i = 0; i < (await boxes.count()); i++) {
+          const b = boxes.nth(i);
+          const ph = ((await b.getAttribute("placeholder").catch(() => "")) ?? "").toLowerCase();
+          if (!/answer/.test(ph)) continue;
+          if (((await b.inputValue().catch(() => "")) ?? "").trim()) continue;
+          await b.fill("Automated answer", { timeout: 5_000 }).then(() => filled++).catch(() => {});
+        }
+        return filled ? `${filled} answer(s) typed (single-stage questionnaire)` : "no empty answer boxes on this screen (single-stage)";
+      }
       await s.create.fillVendorAssessment();
       return "RFI sections filled";
+    }
     case "assign_evaluator": {
+      if (await isSingleStageScreen(s)) {
+        // One "Evaluator: Search people or teams" select above the questionnaire.
+        const picker = s.page.locator(".ant-select").filter({ hasText: /people or teams/i }).first();
+        const input = s.page.locator("input[placeholder*='people or teams' i]").first();
+        const target = (await picker.count()) ? picker : input;
+        if (!(await target.count())) throw new Error("no Evaluator picker on this single-stage screen (not evidence about the product)");
+        await target.click({ timeout: 10_000 });
+        await s.page.keyboard.type("a", { delay: 40 }).catch(() => {});
+        const options = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item, .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item");
+        await options.first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+        const named = options.filter({ hasText: /\S/ }).first();
+        if (!(await named.count())) throw new Error("the Evaluator picker opened but lists nobody to assign");
+        const who = ((await named.innerText().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+        await named.click({ timeout: 5_000 });
+        await s.page.keyboard.press("Escape").catch(() => {});
+        return `evaluator assigned: ${who.slice(0, 60)} (single-stage)`;
+      }
       const n = await s.create.assignEvaluatorToAllLineItems();
       if (!n) throw new Error("no evaluator could be assigned, and a technical stage cannot publish without one");
       return `${n} evaluator control(s)`;
