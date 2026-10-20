@@ -62,7 +62,7 @@
     "REV-05": {
       "short": "The PAN format check accepts any text that just contains a PAN",
       "where": "The PAN format check that runs before calling the PAN provider",
-      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
       "steps": [
         "A vendor's PAN field holds a 15-character GST number (a GST number contains the PAN inside it).",
         "Revalidation checks the PAN."
@@ -71,7 +71,8 @@
       "actual": "The format check is not anchored to the start and end of the value, so text that merely contains a PAN passes. The value is then sent to the paid PAN provider.",
       "impact": "Wrong values reach the provider (cost) and get the provider's message instead of the clear format message.",
       "fix": "Anchor the PAN pattern (start-to-end), or check the full value.",
-      "tech": "lib/external_api/validation.rb:74 uses value.match(regex); the PAN regex stored in validation_types is [A-Z]{5}[0-9]{4}[A-Z]{1} with no ^ and $."
+      "tech": "lib/external_api/validation.rb:74 uses value.match(regex); the PAN regex stored in validation_types is [A-Z]{5}[0-9]{4}[A-Z]{1} with no ^ and $.",
+      "story": ""
     },
     "REV-06": {
       "short": "A vendor that was never checked shows \"Pending\"",
@@ -104,7 +105,7 @@
     "REV-08": {
       "short": "Switching revalidation off during a run leaves some vendors with no result at all",
       "where": "A revalidation run that is switched off half-way",
-      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
       "steps": [
         "Start a run for several vendors.",
         "Switch revalidation off for the customer before the run finishes."
@@ -113,12 +114,13 @@
       "actual": "Their checks are closed as System Error, but the vendor's final status is never written — and a QA-started run had already cleared it — so the listing shows \"Pending\" with no reason.",
       "impact": "Vendors look unchecked after an interrupted run.",
       "fix": "Write the final status when closing checks because revalidation was switched off.",
-      "tech": "vendor_check_service.rb:26-30 closes the rows; finalize returns early when the client is disabled (:73-74)."
+      "tech": "vendor_check_service.rb:26-30 closes the rows; finalize returns early when the client is disabled (:73-74).",
+      "story": ""
     },
     "REV-09": {
       "short": "Two test runs started together for different vendors can cancel one of them",
       "where": "Revalidation QA controls — \"start a run\"",
-      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
       "steps": [
         "Start a run for vendor A.",
         "Straight away, start another run (same day) for vendor B."
@@ -127,7 +129,8 @@
       "actual": "Starting the second run deletes every waiting job of that day's run, including vendor A's. Run A then says \"started\" but never finishes.",
       "impact": "Testers lose runs and see results that never arrive.",
       "fix": "Only delete waiting jobs for the vendors the new run is about.",
-      "tech": "qa_trigger_worker.rb:113-124 (delete_jobs matches on the run id only)."
+      "tech": "qa_trigger_worker.rb:113-124 (delete_jobs matches on the run id only).",
+      "story": ""
     },
     "REV-10": {
       "short": "A test run started shortly before 11 pm makes that night's automatic run skip the customer",
@@ -146,7 +149,7 @@
     "REV-11": {
       "short": "Removing a document type from the settings leaves vendors \"Failed\" with no reason shown",
       "where": "Vendor listing after the settings change",
-      "proof": "Found in the code — needs a Procol staff token to confirm on UAT",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
       "steps": [
         "A vendor failed only its PAN check.",
         "Procol removes PAN from the customer's revalidation settings.",
@@ -156,7 +159,8 @@
       "actual": "The PAN error line disappears (only configured documents are listed) but the status stays Failed until the next run, so the vendor shows Failed with no reason.",
       "impact": "Buyers see a failed vendor and cannot tell why.",
       "fix": "Work out the shown status from the configured documents, or update it when the settings change.",
-      "tech": "vendor_validation_history.rb:47-56 vs vendor_check_service.rb:72-99."
+      "tech": "vendor_validation_history.rb:47-56 vs vendor_check_service.rb:72-99.",
+      "story": ""
     },
     "REV-12": {
       "short": "One provider time-out makes a vendor \"System Error\" even when everything else passed",
