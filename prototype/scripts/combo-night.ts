@@ -93,7 +93,10 @@ function outcomeSteps(outcome: Combo["outcome"], extra: { vendors?: number; inv?
   }
 }
 
-/** The grid. Ids: E = eRFX, S = single-stage, B = BOQ. */
+/**
+ * The grid. Ids: E = eRFX, S = single-stage, B = BOQ. Not in it: a single-stage draft — that
+ * screen offers only "Publish Event", no "Save as draft" (captured 2026-10-21, combo-s10).
+ */
 const COMBOS: Combo[] = [
   erfx("E1", ["auction"], 1, "surrogate", { inv: "live-auction-erfx" }),
   erfx("E2", ["auction"], 3, "publish"),
@@ -127,7 +130,6 @@ const COMBOS: Combo[] = [
   single("S7", "auction", 2, "surrogate", { auctionSubtype: "price", awarding: "line_item" }),
   single("S8", "auction", 1, "publish", { auctionSubtype: "traffic_light", awarding: "lot", rangeLower: 80, rangeUpper: 120 }, { inv: "single-stage-traffic-light-live" }),
   single("S9", "auction", 2, "publish", { auctionSubtype: "traffic_light", awarding: "line_item", rangeLower: 80, rangeUpper: 120 }),
-  single("S10", "rfq", 1, "draft", { awarding: "lot" }),
   boq("B1", { inv: "boq-template-selected" }),
 ];
 

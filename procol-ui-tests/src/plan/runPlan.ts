@@ -1168,6 +1168,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.projectId = s.create.projectId() ?? s.projectId;
       return `published as ${s.create.projectId()}`;
     case "save_draft":
+      // The single-stage screen offers only "Publish Event" (captured 2026-10-21): say so
+      // rather than spend ten seconds looking for a button the product does not draw there.
+      if (await isSingleStageScreen(s)) throw new Error("the single-stage create screen has no Save as draft — only Publish Event; a draft needs the eRFX screen");
       await s.create.saveAsDraft();
       return "saved as draft";
 
