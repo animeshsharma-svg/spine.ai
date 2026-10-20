@@ -14,7 +14,7 @@
  * page shows them); every run's steps and pictures stay in procol-ui-tests/evidence/<runId>/.
  */
 import { config } from "dotenv";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -155,9 +155,14 @@ interface ComboResult {
   ms: number;
   screens: string[];
 }
+// A re-run of some combinations (--only) keeps the other combinations' latest results beside
+// the new ones, so the dashboard's table always shows the whole grid.
+const LATEST = join(OUT, "latest.json");
+const kept: ComboResult[] = only?.length && existsSync(LATEST) ? ((JSON.parse(readFileSync(LATEST, "utf8")).results ?? []) as ComboResult[]).filter((r) => !only.includes(r.id)) : [];
 const results: ComboResult[] = [];
+const ordered = () => COMBOS.map((c) => results.find((r) => r.id === c.id) ?? kept.find((r) => r.id === c.id)).filter((r): r is ComboResult => !!r);
 const save = (done = false) => {
-  const body = { file, startedAt, companyId, done, endedAt: done ? new Date().toISOString() : null, total: picked.length, results };
+  const body = { file, startedAt, companyId, done, endedAt: done ? new Date().toISOString() : null, total: picked.length + kept.length, results: ordered() };
   writeFileSync(file, JSON.stringify(body, null, 2));
   writeFileSync(join(OUT, "latest.json"), JSON.stringify(body, null, 2));
 };
