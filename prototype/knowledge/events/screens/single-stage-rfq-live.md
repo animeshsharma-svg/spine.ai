@@ -1,0 +1,28 @@
+# Screen: single-stage-rfq-live (/project/Y1hOY1hk/master_qcs)
+
+Captured 2026-10-20 on company 198678. 13 controls, 13 with a known effect, 1 test cases written from it.
+
+## How to reach the single-stage-rfq-live screen
+
+Plan steps: open_create {"path":"single-stage"} → configure_single_stage {"eventType":"rfq","awarding":"lot"} → set_title → select_template → add_line_items {"count":1} → fill_sheet → set_schedule {"minutes":30} → invite_vendor {"count":1} → publish → expect_published → place_surrogate_bid → expect_bid_submitted → open_master_qcs. Path: `/project/Y1hOY1hk/master_qcs`.
+Headings on it: spine-ui-automation-10832771 | QA_Platform Vendor 1 1790820862139 | AAC BLOCKS •1100000401 •Variant 1.
+
+## What each control on single-stage-rfq-live does
+
+- **Copy** (button): Clicking Copy starts copying the current project. Affects: It creates a cloned project record without changing the current event.. Leads to: A clone confirmation dialog or the cloned project's details screen.. Rule R-FLA-021-1. Check: Click Copy and verify that a clone confirmation or newly created cloned project appears.
+- **icon: copy** (button): Clicking the copy icon copies the associated value to the clipboard. Affects: Nothing in the event data or workflow.. Leads to: stays here. Check: Click the icon and verify the expected identifier or value can be pasted elsewhere.
+- **Ask Clara** (button): Clicking Ask Clara opens Clara for analysis of the current project. Affects: It creates or runs an analysis todo but does not directly change the event record.. Leads to: Clara analysis flow, potentially followed by the returned redirect URL.. Rule R-FLA-017-4. Check: Click Ask Clara and verify Clara starts analysis and, when completed, the UI follows the returned redirect URL.
+- **Create New Version** (button): Clicking Create New Version starts creation of a new project version. Affects: It creates a new draft-version workflow while preserving the existing project version.. Leads to: The project creation screen for the new version.. Rule R-FLA-019-3. Check: Click Create New Version and verify the create screen opens with the new-version context.
+- **Messages** (button): Clicking Messages opens the project's communication hub. Affects: Nothing in the event data; it only opens project communications.. Leads to: The messages or chat drawer.. Rule R-FLA-017-3. Check: Click Messages and verify the communication drawer opens for this project.
+- **Hide fields** (button): Clicking Hide fields hides optional fields in the current view. Affects: Only the current view's field visibility; it does not change event data.. Leads to: stays here. Check: Click Hide fields and verify the additional fields disappear and the control changes to show them again.
+- **Download Report** (button): Clicking Download Report downloads a report for the displayed project or bids. Affects: Nothing in the event data or workflow.. Leads to: stays here while a report file is downloaded.. Check: Click Download Report and verify a report download starts.
+- **Start Awarding** (button): Clicking Start Awarding begins the awarding flow when the lot is eligible. Affects: It moves the event from bid review toward awarding, unless project or lot conditions disable awarding or a pending bid justification requires resolution.. Leads to: The awarding screen or a bid-justification modal.. Rule R-FLA-028-2. Check: Click Start Awarding for an eligible lot and verify the awarding screen opens, or verify the documented disabling condition prevents the action.
+- **Project Details** (tab): Clicking Project Details switches to the project's details overview. Affects: Nothing in the event data; it changes the selected project-details tab.. Leads to: The Project Details tab.. Rule R-FLA-016-5. Check: Click Project Details and verify the overview content and tab selection change.
+- **spine-ui-automation-...** (tab): Clicking the stage tab switches the project-details view to that stage. Affects: Nothing in the event data; it changes the active stage tab.. Leads to: The selected stage's details or QCS screen.. Rule R-FLA-016-5. Check: Click the stage tab and verify its stage content is rendered and the tab is selected.
+- **Master QCS** (tab): Clicking Master QCS selects the master quotation comparison view. Affects: Nothing in the event data; it keeps the buyer in the master QCS stage view.. Leads to: stays here. Rule R-FLA-016-5. Check: Click Master QCS and verify it remains selected and the master QCS content is displayed.
+- **Project** (link): Clicking Project navigates back to the project-level page. Affects: Nothing in the event data or workflow.. Leads to: The project details or project listing screen.. Check: Click Project and verify the application leaves the current QCS view for the project-level screen.
+- **QA_Platform Vendor 1 1790820862139** (column): Clicking the vendor column opens that vendor's proposal or bid details. Affects: Nothing in the bid record; it changes the review screen for the selected proposal.. Leads to: The proposal page for the vendor, or contract details when a non-draft contract exists.. Rule R-FLA-030-2. Check: Click the vendor name and verify the corresponding proposal or contract-details route opens with the correct lot.
+
+## Test cases written from the single-stage-rfq-live screen
+
+- GEN-SCR-195: Ask Clara analyzes data and redirects to awarding. Steps: Click "Ask Clara". Wait for the action to complete. Expected: The app shows "Awarding initiated successfully, redirecting to awarding flow..." and navigates to the returned redirect_url. [plan: partial]

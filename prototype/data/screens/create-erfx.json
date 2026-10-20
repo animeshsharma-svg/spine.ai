@@ -5,9 +5,7 @@
   "url": "https://cpanel.ag-ri.in/orders/quick-create?projectCreation=true",
   "state": "none",
   "title": "Procol Console",
-  "headings": [
-    "Hello Procol,"
-  ],
+  "headings": [],
   "messages": [
     "Please add line items in the manage line items section and choose a template to proceed!"
   ],
@@ -163,7 +161,7 @@
     },
     {
       "kind": "button",
-      "name": "Now - 12:50 am, 21st Oct ( 30 Mins )",
+      "name": "Now - 01:09 am, 21st Oct ( 30 Mins )",
       "disabled": true,
       "danger": false,
       "box": {
@@ -176,32 +174,6 @@
       "n": 12
     },
     {
-      "kind": "button",
-      "name": "Give Feedback",
-      "disabled": false,
-      "danger": false,
-      "box": {
-        "x": 891,
-        "y": 497,
-        "w": 320,
-        "h": 40
-      },
-      "n": 13
-    },
-    {
-      "kind": "button",
-      "name": "View Tickets",
-      "disabled": false,
-      "danger": false,
-      "box": {
-        "x": 891,
-        "y": 548,
-        "w": 320,
-        "h": 24
-      },
-      "n": 14
-    },
-    {
       "kind": "tab",
       "name": "Auction",
       "selected": true,
@@ -211,7 +183,7 @@
         "w": 103,
         "h": 40
       },
-      "n": 15
+      "n": 13
     },
     {
       "kind": "link",
@@ -222,18 +194,7 @@
         "w": 49,
         "h": 18
       },
-      "n": 16
-    },
-    {
-      "kind": "link",
-      "name": "View Tickets",
-      "box": {
-        "x": 891,
-        "y": 547,
-        "w": 320,
-        "h": 21
-      },
-      "n": 17
+      "n": 14
     },
     {
       "kind": "field",
@@ -248,7 +209,7 @@
         "w": 545,
         "h": 32
       },
-      "n": 18
+      "n": 15
     },
     {
       "kind": "select",
@@ -262,7 +223,7 @@
         "w": 1090,
         "h": 32
       },
-      "n": 19
+      "n": 16
     }
   ],
   "effects": [
@@ -270,10 +231,10 @@
       "n": 1,
       "control": "Ask Clara",
       "kind": "button",
-      "does": "Opens the AI‑generated RFP helper and sends the project line items to the AI service.",
-      "affects": "calls `/ask_ai_chats/rfp_questions` and stores the returned AI summary in `claraSummary`.",
-      "leadsTo": "stays here (AI panel appears)",
-      "check": "Click the button and verify that the Clara summary panel appears with generated text.",
+      "does": "Opens the Ask Clara assistant.",
+      "affects": "Nothing until Clara is used to generate or update event content.",
+      "leadsTo": "Ask Clara panel",
+      "check": "Click Ask Clara and verify that the assistant panel opens.",
       "rule": "R-FCR-042-4",
       "confidence": "code"
     },
@@ -281,41 +242,42 @@
       "n": 2,
       "control": "Add Attachments",
       "kind": "button",
-      "does": "Opens the attachments drawer so the buyer can upload files for the event.",
-      "affects": "adds uploaded file objects to `terms_and_conditions.attachments`.",
-      "leadsTo": "drawer opens",
-      "check": "Click the button and confirm that a file‑upload drawer appears.",
-      "confidence": "known"
+      "does": "Opens the interface for adding attachments.",
+      "affects": "Adds attachment records to the event when files are selected.",
+      "leadsTo": "Attachments drawer or dialog",
+      "check": "Click Add Attachments and verify that a file-selection interface appears.",
+      "confidence": "guess"
     },
     {
       "n": 3,
       "control": "Add T&Cs",
       "kind": "button",
-      "does": "Opens the Terms & Conditions editor where the buyer can type or paste clauses.",
-      "affects": "populates `terms_and_conditions.clauses` in the request body.",
-      "leadsTo": "dialog opens",
-      "check": "Click the button and verify that a T&C text area is displayed.",
-      "confidence": "known"
+      "does": "Opens the terms and conditions editor.",
+      "affects": "Changes the event's terms_and_conditions data when clauses or attachments are saved.",
+      "leadsTo": "Terms and conditions drawer or dialog",
+      "check": "Click Add T&Cs and verify that the terms editor opens.",
+      "rule": "R-FCR-008-3",
+      "confidence": "code"
     },
     {
       "n": 4,
       "control": "Items 0",
       "kind": "button",
-      "does": "Opens the Manage Line Items modal to add, edit or delete line items.",
-      "affects": "creates/updates the `line_items` array for the project.",
-      "leadsTo": "modal opens",
-      "check": "Click the button and ensure a line‑item table with Add/Edit controls appears.",
-      "rule": "R-FCR-014-3",
+      "does": "Opens the line-item manager showing zero items.",
+      "affects": "Allows the event's line_items collection to be added, edited, or deleted.",
+      "leadsTo": "Manage line items drawer or dialog",
+      "check": "Click Items 0 and verify that the manage line items interface opens with no items.",
+      "rule": "R-FCR-014-4",
       "confidence": "code"
     },
     {
       "n": 5,
       "control": "Save as draft",
       "kind": "button",
-      "does": "Attempts to save the current project as a draft, but the control is disabled.",
-      "affects": "nothing (button is disabled).",
+      "does": "Cannot save the event as a draft because the control is disabled.",
+      "affects": "Nothing because no draft save request is made.",
       "leadsTo": "stays here",
-      "check": "Hover over the button and verify the tooltip \"Please choose a template and add a product\".",
+      "check": "Verify that clicking Save as draft produces no request or navigation and that the disabled state remains.",
       "rule": "R-FCR-024-2",
       "confidence": "code"
     },
@@ -323,21 +285,21 @@
       "n": 6,
       "control": "Publish",
       "kind": "button",
-      "does": "Validates required fields and, if all checks pass, publishes the event (creates stages and makes them active).",
-      "affects": "sends a POST/PATCH with `status:\"active\"` and creates the event stages.",
-      "leadsTo": "event is created and the UI redirects to the new event page.",
-      "check": "Click Publish with a title, template and at least one line item; verify the event appears in the Events list.",
-      "rule": "R-FCR-013-1",
+      "does": "Validates the project and publishes the event when the required title, template, line items, and participants are present.",
+      "affects": "Creates or activates the event and advances it from creation toward the published event flow.",
+      "leadsTo": "Published event or project details screen",
+      "check": "Complete the required fields, click Publish, and verify a successful event-creation result and navigation.",
+      "rule": "R-FCR-019-2",
       "confidence": "code"
     },
     {
       "n": 7,
       "control": "Rank on lot",
       "kind": "button",
-      "does": "Toggles the auction to use a lot‑based ranking strategy.",
-      "affects": "`strategy` is set to `rank` and `closingOn` to `lot_based` in the auction configuration.",
-      "leadsTo": "stays here",
-      "check": "Toggle the button and inspect the payload; it should contain `strategy:\"rank\"` and `closingOn:\"lot_based\"`.",
+      "does": "Opens or changes the auction setting for ranking bids by lot.",
+      "affects": "Changes the auction's ranking or lot-based closing configuration.",
+      "leadsTo": "Auction configuration drawer or stays here",
+      "check": "Click Rank on lot and verify that the lot-ranking setting changes or its configuration opens.",
       "rule": "R-FCR-009-1",
       "confidence": "code"
     },
@@ -345,10 +307,10 @@
       "n": 8,
       "control": "Select Templates",
       "kind": "button",
-      "does": "Opens the template selector drawer; choosing a template replaces the current template and may reset data.",
-      "affects": "`templateUuid` is set; existing line items, savings, currencies and participants may be cleared.",
-      "leadsTo": "drawer opens; after selection the screen refreshes with the new template.",
-      "check": "Open the selector, pick a different template and confirm a confirmation dialog appears warning about data reset.",
+      "does": "Opens template selection for the event stage.",
+      "affects": "Sets the stage template required to configure and proceed with the event.",
+      "leadsTo": "Template selection drawer",
+      "check": "Click Select Templates and verify that available templates are displayed.",
       "rule": "R-FCR-026-4",
       "confidence": "code"
     },
@@ -356,11 +318,12 @@
       "n": 9,
       "control": "Participants",
       "kind": "button",
-      "does": "Opens the Participants drawer to add vendor companies to the event.",
-      "affects": "populates `audience_company_uuids` with the selected vendor IDs.",
-      "leadsTo": "drawer opens",
-      "check": "Click the button and verify a searchable list of companies appears.",
-      "confidence": "known"
+      "does": "Opens participant management.",
+      "affects": "Changes the event's audience_company_uuids and therefore which vendors can participate.",
+      "leadsTo": "Participants drawer",
+      "check": "Click Participants and verify that vendors can be added or removed.",
+      "rule": "R-FCR-017-1",
+      "confidence": "code"
     },
     {
       "n": 10,
@@ -370,8 +333,8 @@
       "affects": "nothing (disabled).",
       "leadsTo": "stays here",
       "check": "Hover and confirm tooltip \"Please choose a template and add a product\".",
-      "rule": "R-FCR-024-2",
-      "confidence": "code"
+      "confidence": "code",
+      "rule": "R-FCR-024-2"
     },
     {
       "n": 11,
@@ -381,90 +344,60 @@
       "affects": "nothing (disabled).",
       "leadsTo": "stays here",
       "check": "Hover and verify the same tooltip as other disabled footer buttons.",
-      "rule": "R-FCR-024-2",
-      "confidence": "code"
+      "confidence": "code",
+      "rule": "R-FCR-024-2"
     },
     {
       "n": 12,
-      "control": "Now - 12:50 am, 21st Oct ( 30 Mins )",
+      "control": "Now - 01:09 am, 21st Oct ( 30 Mins )",
       "kind": "button",
-      "does": "Button is disabled because scheduling a custom duration requires a template to be chosen first.",
-      "affects": "nothing (disabled).",
+      "does": "Cannot be clicked because the event schedule control is disabled.",
+      "affects": "Nothing because no start or end schedule can be changed from this control.",
       "leadsTo": "stays here",
-      "check": "Hover and verify tooltip \"Please select template for <stage title>\".",
-      "rule": "R-FCR-016-2",
-      "confidence": "code"
+      "check": "Verify that clicking the disabled schedule control does not open a scheduler.",
+      "confidence": "unknown"
     },
     {
       "n": 13,
-      "control": "Give Feedback",
-      "kind": "button",
-      "does": "Opens a feedback dialog where the buyer can submit comments about the creation flow.",
-      "affects": "creates a feedback record (not part of the event payload).",
-      "leadsTo": "dialog opens",
-      "check": "Click the button and ensure a modal with a textarea and Submit button appears.",
-      "confidence": "known"
+      "control": "Auction",
+      "kind": "tab",
+      "does": "Keeps the Auction event-mode tab selected.",
+      "affects": "The event remains in auction mode rather than switching to another event mode.",
+      "leadsTo": "stays here",
+      "check": "Verify that Auction is highlighted and that its configuration content is displayed.",
+      "rule": "R-FCR-009-1",
+      "confidence": "code"
     },
     {
       "n": 14,
-      "control": "View Tickets",
-      "kind": "button",
-      "does": "Navigates to the Tickets page for the current user.",
-      "affects": "none (navigation only).",
-      "leadsTo": "Tickets page",
-      "check": "Click the button and verify the URL changes to `/tickets` and the tickets list loads.",
+      "control": "Events",
+      "kind": "link",
+      "does": "Navigates back to the Events area.",
+      "affects": "Nothing in the current event data.",
+      "leadsTo": "Events screen",
+      "check": "Click Events and verify that the Events page loads.",
       "confidence": "known"
     },
     {
       "n": 15,
-      "control": "Auction",
-      "kind": "tab",
-      "does": "Selects the Auction tab, showing auction‑specific configuration options.",
-      "affects": "sets the UI mode to `auction`; no data change.",
-      "leadsTo": "stays here with Auction tab content displayed",
-      "check": "Verify the tab is highlighted and auction fields become visible.",
-      "confidence": "known"
-    },
-    {
-      "n": 16,
-      "control": "Events",
-      "kind": "link",
-      "does": "Navigates to the main Events list view.",
-      "affects": "none (navigation).",
-      "leadsTo": "Events list page",
-      "check": "Click the link and confirm the URL changes to `/events` and the list loads.",
-      "confidence": "known"
-    },
-    {
-      "n": 17,
-      "control": "View Tickets",
-      "kind": "link",
-      "does": "Navigates to the Tickets view (duplicate of control 14).",
-      "affects": "none (navigation).",
-      "leadsTo": "Tickets page",
-      "check": "Click the link and verify the Tickets page opens.",
-      "confidence": "known"
-    },
-    {
-      "n": 18,
       "control": "Enter the title of the project",
       "kind": "field",
-      "does": "Accepts user input and stores it as the project title.",
-      "affects": "`title` field in the project payload.",
+      "does": "Accepts and updates the project title.",
+      "affects": "Changes the event group's title used in draft or publish payloads and validation.",
       "leadsTo": "stays here",
-      "check": "Enter text, submit the form, and verify the request body contains the entered title.",
+      "check": "Enter a title and verify that the field value is retained.",
       "rule": "R-FCR-013-1",
       "confidence": "code"
     },
     {
-      "n": 19,
+      "n": 16,
       "control": "Search vendors you want to add",
       "kind": "select",
-      "does": "Provides a searchable dropdown to add vendors, but is disabled until a template is selected.",
-      "affects": "none while disabled.",
+      "does": "Cannot search for or add vendors because the vendor selector is disabled.",
+      "affects": "No participant or audience_company_uuids record can be changed from this field.",
       "leadsTo": "stays here",
-      "check": "Hover and confirm tooltip \"Please select template for <stage title>\" and that the control cannot be opened.",
-      "rule": "R-FCR-016-2",
+      "check": "Verify that the selector cannot be focused or opened while disabled.",
+      "rule": "R-FCR-017-1",
       "confidence": "code"
     }
   ],
@@ -710,20 +643,139 @@
       "verdict": "partly"
     }
   ],
-  "cases": [],
-  "reachedBy": [],
+  "cases": [
+    {
+      "id": "GEN-SCR-074",
+      "title": "Save as draft becomes enabled after adding a line item and selecting a template",
+      "kind": "state",
+      "grounded": "R-FCR-016-2",
+      "steps": [
+        "Click button \"Select Templates\".",
+        "Choose any template from the list.",
+        "Click button \"Items 0\".",
+        "Add a line item with a product and quantity.",
+        "Observe the state of button \"Save as draft\"."
+      ],
+      "expected": "Button \"Save as draft\" is now enabled. Tooltip on the button is no longer shown.",
+      "setup": "Screen is loaded with no line items and no template selected.",
+      "coverage": "full",
+      "gaps": [],
+      "controls": [
+        4,
+        5,
+        8
+      ]
+    },
+    {
+      "id": "GEN-SCR-075",
+      "title": "Publish button shows tooltip when no participants are added",
+      "kind": "negative",
+      "grounded": "R-FCR-017-1",
+      "steps": [
+        "Click button \"Publish\"."
+      ],
+      "expected": "A toast or modal appears with message \"Please add participants to proceed!\" and publishing is blocked.",
+      "setup": "Template selected and at least one line item added, but no participants added.",
+      "coverage": "full",
+      "gaps": [],
+      "controls": [
+        6,
+        9
+      ]
+    },
+    {
+      "id": "GEN-SCR-076",
+      "title": "Attempt to publish with empty project title shows validation message",
+      "kind": "negative",
+      "grounded": "R-FCR-013-1",
+      "steps": [
+        "Click button \"Publish\"."
+      ],
+      "expected": "A validation toast appears with text \"Please fill project title!\" and the publish action is aborted.",
+      "setup": "Leave the title field blank, select a template and add a line item.",
+      "coverage": "full",
+      "gaps": [],
+      "controls": [
+        6
+      ]
+    },
+    {
+      "id": "GEN-SCR-077",
+      "title": "Changing the selected template prompts confirmation dialog",
+      "kind": "positive",
+      "grounded": "R-FCR-026-4",
+      "steps": [
+        "Click button \"Select Templates\".",
+        "Choose a different template."
+      ],
+      "expected": "A modal appears with message \"Changing template will reset data. Are you sure?\" and options \"Yes\" and \"Cancel\".",
+      "setup": "A template is already selected and line items are added.",
+      "coverage": "partial",
+      "gaps": [
+        "Reliably choose a different template when the case provides no alternative template name."
+      ],
+      "controls": [
+        8
+      ]
+    },
+    {
+      "id": "GEN-SCR-078",
+      "title": "Publish with auction mode but no valid auction strategy shows error",
+      "kind": "negative",
+      "grounded": "R-FCR-029-4",
+      "steps": [
+        "Click button \"Publish\"."
+      ],
+      "expected": "A toast appears with message \"Please select a valid auction strategy\" and the project is not published.",
+      "setup": "Create a quick‑create auction project, select a template and add at least one line item, but leave the auction strategy unset.",
+      "coverage": "partial",
+      "gaps": [
+        "The catalog cannot unset or create an invalid auction strategy; configure_single_stage only accepts valid strategies and defaults to Rank."
+      ],
+      "controls": [
+        6,
+        13
+      ]
+    },
+    {
+      "id": "GEN-SCR-079",
+      "title": "Disabled \"Now - 01:09 am, 21st Oct ( 30 Mins )\" button shows tooltip until schedule is set",
+      "kind": "state",
+      "grounded": "R-FCR-016-2",
+      "steps": [
+        "Hover over button \"Now - 01:09 am, 21st Oct ( 30 Mins )\"."
+      ],
+      "expected": "Button remains disabled and a tooltip appears with text \"Please select template for <stage title>\" or \"Please add line items\".",
+      "setup": "Screen loaded with no template selected and no line items.",
+      "coverage": "partial",
+      "gaps": [
+        "The catalog cannot assert an OR condition accepting either the exact stage-specific message \"Please select template for <stage title>\" or \"Please add line items\"; it checks the template guidance substring only."
+      ],
+      "controls": [
+        12
+      ]
+    }
+  ],
+  "reachedBy": [
+    {
+      "step": "open_create",
+      "args": {
+        "path": "erfx"
+      }
+    }
+  ],
   "companyId": 198678,
-  "runId": "plan-mvh1fiaf",
+  "runId": "walk-create-erfx-mvh23wdj",
   "evidence": {
-    "screenshot": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/plan-mvh1fiaf/06-inventory-create-erfx.png",
-    "map": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/plan-mvh1fiaf/map-06-create-erfx.png",
-    "inventory": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/plan-mvh1fiaf/06-inventory-create-erfx.inventory.json"
+    "screenshot": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-create-erfx-mvh23wdj/02-inventory-create-erfx.png",
+    "map": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-create-erfx-mvh23wdj/map-02-create-erfx.png",
+    "inventory": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-create-erfx-mvh23wdj/02-inventory-create-erfx.inventory.json"
   },
   "images": {
     "plain": "/Users/animesh/Desktop/procol/prototype/data/screens/img/create-erfx.png",
     "map": "/Users/animesh/Desktop/procol/prototype/data/screens/img/create-erfx-map.png"
   },
-  "takenAt": "2026-10-20T18:50:31.319Z",
-  "updatedAt": "2026-10-20T19:00:51.860Z",
-  "captures": 1
+  "takenAt": "2026-10-20T19:09:18.576Z",
+  "updatedAt": "2026-10-20T19:14:48.477Z",
+  "captures": 2
 }
