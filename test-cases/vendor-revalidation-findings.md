@@ -7,6 +7,8 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 
 | Id | Severity | Status | Finding | Cases |
 | --- | --- | --- | --- | --- |
+| REV-22 | Medium | seen in the recorded runs 2026-10-21 - confirm with dev | Attestr was asked 38 questions in one minute - above the 30-per-minute cap | F-13 |
+| REV-21 | Medium | seen in the recorded runs 2026-10-21 — confirm with dev | Checks are given up as System Error after about 16-17 hours, not after the documented 24 hours | F-07 |
 | REV-20 | Low | confirmed on the preview screen 2026-10-20 | The vendor page shows times as '23:00 PM' - a 24-hour clock with AM/PM added | H-09 |
 | REV-19 | Critical | confirmed live 2026-10-20 | A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever | B-12, B-15, A-26 |
 | REV-18 | Low | confirmed live 2026-10-20 | An impossible start date (30 Feb) is not refused; it is rolled over to the next real date | A-23 |
@@ -29,6 +31,28 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 | REV-16 | Low | confirmed live 2026-10-15 (found in passing) | rfx-uat-api answers errors with the full Rails debug page |  |
 
 
+## REV-22 — Attestr was asked 38 questions in one minute - above the 30-per-minute cap
+
+**Severity** Medium · **Status** seen in the recorded runs 2026-10-21 - confirm with dev · **Cases** F-13
+
+In the 14 Oct run (the first run ever, so the 24-hour answer cache was empty) 38 PAN/MSME/bank rows got their provider answer within the minute of 13:07 UTC (18:37 IST), and 105 rows of all kinds in the next minute. The engine is meant to keep each provider at 30 calls per minute (ProviderGuard RATE_LIMIT_PER_MINUTE) and the run worker spreads vendor jobs at that rate; a burst above it risks the provider's own rate limit, which then opens the breaker for everyone.
+
+**Evidence.** vendor_validation_histories: passed rows grouped by provider and minute of last_run_at (query in the F-13 audit).
+
+**Suggested fix.** Dev to compare with the provider's request log for 13:07-13:08 UTC on 14 Oct; if real, make the guard count calls across all Attestr document types (they share one host) and keep the spread in RunWorker aligned with it.
+
+
+## REV-21 — Checks are given up as System Error after about 16-17 hours, not after the documented 24 hours
+
+**Severity** Medium · **Status** seen in the recorded runs 2026-10-21 — confirm with dev · **Cases** F-07
+
+In both recorded GMMCO runs, every row that ended as System Error ('verification is temporarily unavailable') was closed in the same two-minute window: 16.1 h after the start of the 15 Oct run (started 23:00 IST, closed 15:06-15:08 IST next day) and 17.2 h after the start of the 14 Oct run (started 18:36 IST, closed 11:47-11:49 IST next day). The guide and the code say rows get 24 hours (plus a 1-hour grace for the cleaner). Two different durations in one two-minute window each time looks like a batch close by something other than the per-row deadline - a Sidekiq restart or a deploy at that time, or the vendor job's retries running out (VendorWorker retry: 3 then close_pending! 'retries_exhausted').
+
+**Evidence.** vendor_validation_histories: status 4 rows per run, last_run_at minus the run's first created_at (query in the F-07 audit).
+
+**Suggested fix.** Dev to check the Sidekiq logs at 15:07 IST on 16 Oct and 11:48 IST on 15 Oct for rows_closed reason= lines; if the close came from a restart or retries, make the deadline the only thing that gives up a row.
+
+
 ## REV-20 — The vendor page shows times as '23:00 PM' - a 24-hour clock with AM/PM added
 
 **Severity** Low · **Status** confirmed on the preview screen 2026-10-20 · **Cases** H-09
@@ -44,11 +68,11 @@ On the vendor page's Revalidation Details card, 'Last validated' and 'Last Run A
 
 **Severity** Critical · **Status** confirmed live 2026-10-20 · **Cases** B-12, B-15, A-26
 
-Since the 20 Oct rewrite, POST /api/vendor_validation/trigger answers 200 with a job id, but the run never begins: GET /runs/<run_id>?job_id= keeps saying state 'scheduled', no row is created and no vendor is checked. Seen for 4 runs on GMMCO between 20:01 and 20:16 IST (force with no start time, force with a start time 20 s ago, and one scheduled 2 minutes ahead), watched for 6–15 minutes each. A scheduler-mode run with nothing due did finish ('nothing_due'), so the job itself is picked up — it stops in the part that only runs when there is work: TriggerService#reset / delete_jobs (which walks every Sidekiq queue, the scheduled set and the retry set) or the RunWorker hand-off. The worker has retry: false, so a failure there is silent and the state never moves.
+Since the 20 Oct rewrite, POST /api/vendor_validation/trigger answers 200 with a job id, but the run never begins: GET /runs/<run_id>?job_id= keeps saying state 'scheduled', no row is created and no vendor is checked. Seen six times on GMMCO - 20 Oct 20:01, 20:06, 20:16, 20:55, 21:0x and 21 Oct 00:05 IST - for a forced run with no start time, a forced run with run_at 20 s in the past, a run scheduled 2 minutes ahead and a run for a vendor of another company; each watched for 2 to 15 minutes. A scheduler-mode run with nothing due DID finish (state 'nothing_due'), so the TriggerWorker job is picked up from the batch_low queue and dies only in the part that runs when there is work: TriggerService#call after due_doc_types - the reset step (delete rows of the run date, clear the vendors' status, delete Redis locks, walk every Sidekiq queue plus the scheduled and retry sets in delete_jobs) and then RunWorker.perform_async. The worker has retry: false, so the failure is silent: no retry, nothing written to the job state, and the API keeps answering 'scheduled' for 7 days. The database shows the symptom too: no row dated 20 or 21 Oct exists for GMMCO although six runs were accepted. Nothing from outside can tell which line raises; the Sidekiq Dead set (jobs with retry off land there) and the log lines for VendorRevalidation::TriggerWorker at those times will.
 
-**Evidence.** Runs 2d448f72-dbf3-5e99-b78e-facd11f966d5 (jobs 1ceeac833123d7ae8b151d9e, e2bfc669fb5b7d6fd79aa360 and B-12/B-15's jobs): state 'scheduled', total_rows 0 after 6–15 min; vendor_validation_histories has no row dated 2026-10-20 for client 47053.
+**Evidence.** Runs 2d448f72-dbf3-5e99-b78e-facd11f966d5 (20 Oct; jobs 1ceeac833123d7ae8b151d9e, e2bfc669fb5b7d6fd79aa360, 336d40bacccec22600527906 and B-12/B-15's) and 2a967c9c-5381-5ca5-98f6-76da20080e38 (21 Oct 00:05, job 3b6c30e5da1a991a78f47e89): state 'scheduled', total_rows 0 throughout; vendor_validation_histories has no row dated 2026-10-20 or 2026-10-21 for client 47053.
 
-**Suggested fix.** Look at the Sidekiq logs for TriggerWorker on UAT at those times; make reset/delete_jobs cheap (or move it into RunWorker), and save state 'failed' with the error when TriggerService raises.
+**Suggested fix.** Open Sidekiq's Dead tab on UAT and the logs around the times above for VendorRevalidation::TriggerWorker; fix the raise (most likely in TriggerService#reset / delete_jobs); and in TriggerService#call wrap the work in a rescue that saves state 'failed' with the error message, so a buyer is never told 'scheduled' for ever.
 
 
 ## REV-18 — An impossible start date (30 Feb) is not refused; it is rolled over to the next real date

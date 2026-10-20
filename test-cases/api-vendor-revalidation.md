@@ -16,13 +16,13 @@ Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidati
 | How a case runs | Cases | Needs |
 | --- | --- | --- |
 | read — a GET to the QA API | 7 | nothing |
-| audit — SELECTs on recorded runs | 14 | nothing |
+| audit — SELECTs on recorded runs | 21 | nothing |
 | listing — the buyer's listing / vendor page / Excel vs the database | 13 | nothing (the client's session) |
 | refused request — a run request the API must refuse | 12 | `VR_QA_TOKEN` |
 | run — a real run on 1–5 named vendors, client's own settings | 23 | `VR_QA_TOKEN` |
 | needs ops — the case needs GMMCO's settings changed (no API since 20 Oct) | 26 | Procol ops |
 | feature removed on 20 Oct (settings API, cancel, top_errors, QA controls) | 18 | — |
-| dev / manual / ui / code — reported as not run, with why | 47 | a person or dev |
+| dev / manual / ui / code — reported as not run, with why | 40 | a person or dev |
 
 **Host and token.** Since the 20 Oct 2026 rewrite a buyer allowed to edit vendors starts a run for their own company:
 `POST /api/vendor_validation/trigger?workspace_id=<client>` and `GET /api/vendor_validation/runs/<run_id>?job_id=&workspace_id=`,
@@ -465,14 +465,6 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 - **Oracle.** —
 - **Trace.** P2 · manual · `API-XREV-B` · dev · `app/workers/vendor_revalidation/scheduler_worker.rb:74-77`
 
-#### API-XREV-B-18 — Nightly run time
-- **Why it matters.** Guide B-18 (Dev).
-- **Setup.** Not run unattended (dev): needs the nightly scheduler and app logs
-- **Steps.** 1. config due today; do not trigger
-- **Expected.** Run starts at 11 pm IST (log run_started).
-- **Oracle.** —
-- **Trace.** P2 · manual · `API-XREV-B` · dev · `config/sidekiq.yml (0 23 * * * Asia/Kolkata)`
-
 #### API-XREV-B-19 — Two triggers for different vendors firing together both run
 - **Why it matters.** Added from the code (not in the guide). Finding REV-09 (Medium): A QA trigger can delete another trigger's queued run for the same day.
 - **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS, V-NODOCS2 under the client's own settings (they are not changed). Test vendors: V-NODOCS, V-NODOCS2.
@@ -488,6 +480,14 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 - **Expected.** The nightly run still starts.
 - **Oracle.** —
 - **Trace.** P3 · manual · `API-XREV-B` · feature removed · `app/workers/vendor_revalidation/qa_trigger_worker.rb:39 ($redis.set claim nx, ex 3600), app/workers/vendor_revalidation/scheduler_worker.rb:82` · `REV-10`
+
+#### API-XREV-B-18 — Nightly run time
+- **Why it matters.** Guide B-18 (Dev).
+- **Setup.** Runs every time: SELECTs on the runs already recorded, no request at all.
+- **Steps.** 1. from the recorded runs: the time the first row of each run was created (IST)
+- **Expected.** A run started at 23:00 IST — the 15 Oct run's first row is dated 23:00:00 IST exactly.
+- **Oracle.** The database rows (SELECT only).
+- **Trace.** P2 · automate · `API-XREV-B` · audit · `config/sidekiq.yml (0 23 * * * Asia/Kolkata)`
 
 ## 3. Vendor coverage
 
@@ -833,14 +833,6 @@ The format pre-check runs before any provider call; pointing a document at the w
 
 Mostly dev-assisted. The switch-off mid-run is the one the QA API can stage.
 
-#### API-XREV-F-01 — Rate limit never fails a vendor
-- **Why it matters.** Guide F-01 (Dev).
-- **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
-- **Steps.** 1. dev makes the provider answer as the case needs (or shortens the wait) 2. run [V-PASS] 3. read app logs
-- **Expected.** gst stays pending (not failed); vendor not Failed while waiting.
-- **Oracle.** —
-- **Trace.** P0 · manual · `API-XREV-F` · dev · `app/services/vendor_revalidation/provider_guard.rb:19-80, app/services/vendor_revalidation/vendor_check_service.rb:183-207`
-
 #### API-XREV-F-02 — Breaker uses Retry-After
 - **Why it matters.** Guide F-02 (Dev).
 - **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
@@ -881,22 +873,6 @@ Mostly dev-assisted. The switch-off mid-run is the one the QA API can stage.
 - **Oracle.** —
 - **Trace.** P2 · manual · `API-XREV-F` · dev · `app/services/vendor_revalidation/provider_guard.rb:12-13`
 
-#### API-XREV-F-07 — 24-hour deadline gives system_error
-- **Why it matters.** Guide F-07 (Dev).
-- **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
-- **Steps.** 1. dev makes the provider answer as the case needs (or shortens the wait) 2. run [V-PASS] 3. read app logs
-- **Expected.** Rows system_error 'verification is temporarily unavailable'; vendor System Error (or Failed if another check failed).
-- **Oracle.** —
-- **Trace.** P0 · manual · `API-XREV-F` · dev · `app/services/vendor_revalidation/vendor_check_service.rb:19, app/models/vendor_validation_history.rb:40`
-
-#### API-XREV-F-08 — Cleaner closes stuck rows after 25 h
-- **Why it matters.** Guide F-08 (Dev).
-- **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
-- **Steps.** 1. dev makes the provider answer as the case needs (or shortens the wait) 2. run [V-PASS] 3. read app logs
-- **Expected.** Rows closed as system_error; run summary logged.
-- **Oracle.** —
-- **Trace.** P2 · manual · `API-XREV-F` · dev · `app/workers/vendor_revalidation/sweeper_worker.rb:11-25`
-
 #### API-XREV-F-09 — Crashing vendor job
 - **Why it matters.** Guide F-09 (Dev).
 - **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
@@ -904,14 +880,6 @@ Mostly dev-assisted. The switch-off mid-run is the one the QA API can stage.
 - **Expected.** Its rows closed as system_error after 3 retries; other vendors finish.
 - **Oracle.** —
 - **Trace.** P1 · manual · `API-XREV-F` · dev · `app/workers/vendor_revalidation/vendor_worker.rb:15-21`
-
-#### API-XREV-F-11 — Other providers continue
-- **Why it matters.** Guide F-11 (Dev).
-- **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
-- **Steps.** 1. dev makes the provider answer as the case needs (or shortens the wait) 2. run [V-PASS] 3. read app logs
-- **Expected.** pan rows finish passed; only gst waits.
-- **Oracle.** —
-- **Trace.** P1 · manual · `API-XREV-F` · dev · `app/services/vendor_revalidation/provider_guard.rb (per provider host)`
 
 #### API-XREV-F-12 — Two GST providers are independent
 - **Why it matters.** Guide F-12 (Dev).
@@ -921,21 +889,53 @@ Mostly dev-assisted. The switch-off mid-run is the one the QA API can stage.
 - **Oracle.** —
 - **Trace.** P2 · manual · `API-XREV-F` · dev · `lib/external_api/validation.rb:85-92 (provider_key = host)`
 
+#### API-XREV-F-01 — Rate limit never fails a vendor
+- **Why it matters.** Guide F-01 (Dev).
+- **Setup.** Runs every time: SELECTs on the runs already recorded, no request at all.
+- **Steps.** 1. from the recorded runs: rows that waited more than 30 minutes before an answer 2. failed rows that carry the wait message
+- **Expected.** Rows that waited got a real answer later; no row was marked Failed because of the wait.
+- **Oracle.** The database rows (SELECT only).
+- **Trace.** P0 · automate · `API-XREV-F` · audit · `app/services/vendor_revalidation/provider_guard.rb:19-80, app/services/vendor_revalidation/vendor_check_service.rb call_provider`
+
+#### API-XREV-F-07 — 24-hour deadline gives system_error
+- **Why it matters.** Guide F-07 (Dev). Finding REV-21 (Medium): Checks are given up as System Error after about 16-17 hours, not after the documented 24 hours.
+- **Setup.** Runs every time: SELECTs on the runs already recorded, no request at all.
+- **Steps.** 1. from the recorded runs: for every row given up as System Error, hours between the run's start and the close
+- **Expected.** Given up 24 h after the run started, with 'verification is temporarily unavailable'.
+- **Oracle.** The database rows (SELECT only).
+- **Trace.** P0 · automate · `API-XREV-F` · audit · `app/services/vendor_revalidation/vendor_check_service.rb run_deadline (24 h), app/workers/vendor_revalidation/sweeper_worker.rb (+1 h grace)` · `REV-21`
+
+#### API-XREV-F-08 — Cleaner closes stuck rows after 25 h
+- **Why it matters.** Guide F-08 (Dev).
+- **Setup.** Runs every time: SELECTs on the runs already recorded, no request at all.
+- **Steps.** 1. from the recorded runs: rows still pending 25 h after their run started; every run finished
+- **Expected.** None left pending; every run finished.
+- **Oracle.** The database rows (SELECT only).
+- **Trace.** P2 · automate · `API-XREV-F` · audit · `app/workers/vendor_revalidation/sweeper_worker.rb:11-25`
+
+#### API-XREV-F-11 — Other providers continue
+- **Why it matters.** Guide F-11 (Dev).
+- **Setup.** Runs every time: SELECTs on the runs already recorded, no request at all.
+- **Steps.** 1. from the recorded runs: vendors with one document given up (System Error) and another document answered in the same run
+- **Expected.** Such vendors exist — one provider's trouble did not stop the others.
+- **Oracle.** The database rows (SELECT only).
+- **Trace.** P1 · automate · `API-XREV-F` · audit · `app/services/vendor_revalidation/provider_guard.rb (per provider host)`
+
 #### API-XREV-F-13 — Rate stays under 30 calls per minute
 - **Why it matters.** Guide F-13 (Dev).
-- **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
-- **Steps.** 1. dev makes the provider answer as the case needs (or shortens the wait) 2. run [V-PASS] 3. read app logs
-- **Expected.** Calls spread; no provider rate-limit answers.
-- **Oracle.** —
-- **Trace.** P2 · manual · `API-XREV-F` · dev · `app/workers/vendor_revalidation/run_worker.rb:28-44 (spread at the cap)`
+- **Setup.** Runs every time: SELECTs on the runs already recorded, no request at all.
+- **Steps.** 1. from the recorded runs: passed rows per provider per minute (GST provider vs Attestr)
+- **Expected.** No provider answered more than 30 checks in one minute (answers from the 24-hour cache can push the count higher without a call — the provider logs decide).
+- **Oracle.** The database rows (SELECT only).
+- **Trace.** P2 · automate · `API-XREV-F` · audit · `app/workers/vendor_revalidation/run_worker.rb:28-44, app/services/vendor_revalidation/provider_guard.rb:7`
 
 #### API-XREV-F-14 — Recovery after a short outage
 - **Why it matters.** Guide F-14 (Dev).
-- **Setup.** Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT
-- **Steps.** 1. dev makes the provider answer as the case needs (or shortens the wait) 2. run [V-PASS] 3. read app logs
-- **Expected.** Same rows move to passed; no duplicates.
-- **Oracle.** —
-- **Trace.** P1 · manual · `API-XREV-F` · dev · `app/services/vendor_revalidation/provider_guard.rb:47-80`
+- **Setup.** Runs every time: SELECTs on the runs already recorded, no request at all.
+- **Steps.** 1. from the recorded runs: rows that waited more than 30 minutes and then passed; duplicate rows
+- **Expected.** The same rows passed later; no duplicates were created.
+- **Oracle.** The database rows (SELECT only).
+- **Trace.** P1 · automate · `API-XREV-F` · audit · `app/services/vendor_revalidation/provider_guard.rb:47-80, app/models/vendor_validation_history.rb unique index`
 
 #### API-XREV-F-10 — Revalidation switched off mid-run
 - **Why it matters.** Guide F-10 (API).

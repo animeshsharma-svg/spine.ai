@@ -262,9 +262,9 @@
         "Check its progress every 15 seconds with the run_id and job_id from the reply."
       ],
       "expected": "Within a minute the state moves to \"started\", rows appear for the vendor, and when they are done \"complete\" is true.",
-      "actual": "The start request is accepted (OK) but the state stays \"scheduled\": no row is created and no vendor is checked. We watched 4 runs on 20 Oct between 8:01 and 8:16 pm IST for 6 to 15 minutes each — a forced run, a run with a start time 20 seconds ago and a run scheduled 2 minutes ahead. A scheduler run with nothing due did finish (\"nothing_due\"), so the job is picked up and stops in the step that only runs when there is real work.",
-      "impact": "Nobody can revalidate a vendor on demand: the buyer is told it started, nothing happens, and no error is shown anywhere.",
-      "fix": "Check the UAT Sidekiq logs for TriggerWorker at those times. The likely place is the reset step that walks every Sidekiq queue, scheduled set and retry set; make it cheaper, and save a \"failed\" state with the error when the worker crashes (it has retry off, so a crash is silent).",
+      "actual": "The start request is accepted (OK) but the state stays \"scheduled\" for good: no row is created and no vendor is checked. We saw it six times - on 20 Oct at 8:01, 8:06, 8:16, 8:55 and 9:0x pm and on 21 Oct at 12:05 am - for a forced run, a run with a start time 20 seconds in the past, a run scheduled 2 minutes ahead and a run for another company's vendor, each watched for 2 to 15 minutes. A scheduler run with nothing to do DID finish (\"nothing_due\"), so the job is picked up and dies only in the part that runs when there is real work.",
+      "impact": "Nobody can revalidate a vendor on demand - which is now the only way to start a run besides the nightly one. The buyer is told it started, nothing happens, no error is shown anywhere, and the run shows \"scheduled\" for 7 days. Every test that needs a run (20 of them) is blocked.",
+      "fix": "Open Sidekiq's Dead tab on UAT (jobs with retry off land there) and the logs for VendorRevalidation::TriggerWorker at the times above. The likely place is the reset step: it deletes the run's rows, clears the vendors' status, deletes Redis locks and then walks every Sidekiq queue plus the scheduled and retry sets. Also save a \"failed\" state with the error when the worker crashes, so a buyer is never told \"scheduled\" for ever.",
       "tech": "app/services/vendor_revalidation/trigger_service.rb#call → reset / delete_jobs → RunWorker.perform_async; trigger_worker.rb retry: false. Run 2d448f72-dbf3-5e99-b78e-facd11f966d5, jobs 1ceeac833123d7ae8b151d9e and e2bfc669fb5b7d6fd79aa360."
     },
     "REV-20": {
@@ -280,6 +280,34 @@
       "impact": "Looks like a mistake, and the two screens disagree about the same moment.",
       "fix": "Use one date format on both screens.",
       "tech": "procol-client-dashboard feat/vendor-revalidation-details: revalidationDetails.jsx and columns.jsx call appFormatDate(value, DATE_KIND.DATE_TIME)."
+    },
+    "REV-21": {
+      "short": "Checks are given up as \"System Error\" after about 16-17 hours, not after the documented 24 hours",
+      "where": "The nightly run - rows that wait on a provider",
+      "proof": "Seen in the recorded runs - confirm with dev",
+      "steps": [
+        "Look at the two GMMCO runs (14 Oct, started 6:36 pm; 15 Oct, started 11:00 pm).",
+        "For every row that ended as System Error, compare its close time with the run's start."
+      ],
+      "expected": "A row waits up to 24 hours for the provider, then is given up as System Error (the cleaner adds 1 hour of grace).",
+      "actual": "All the given-up rows of the 15 Oct run were closed 16.1 hours after the start (between 3:06 and 3:08 pm on 16 Oct), and all of the 14 Oct run 17.2 hours after its start (11:47-11:49 am on 15 Oct). Two different waits, each ending in a two-minute burst, look like something closed them all at once - a restart, a deploy, or the vendor job running out of retries - not the 24-hour deadline.",
+      "impact": "Vendors are marked System Error 7-8 hours earlier than designed; a provider that comes back after lunch is not given its chance.",
+      "fix": "Check the Sidekiq logs at those two times for the reason the rows were closed; make the deadline the only thing that gives up a row.",
+      "tech": "vendor_check_service.rb close / close_pending! reasons: 'deadline', 'retries_exhausted', 'swept', 'disabled'; vendor_worker.rb retry: 3."
+    },
+    "REV-22": {
+      "short": "The PAN/MSME/bank provider was asked 38 questions in one minute - above the 30-per-minute cap",
+      "where": "The nightly run - calls to the document providers",
+      "proof": "Seen in the recorded runs - confirm with dev",
+      "steps": [
+        "Take the 14 Oct run (the first run ever, so no answer could come from the 24-hour cache).",
+        "Count, per provider, how many checks were answered in each minute."
+      ],
+      "expected": "At most 30 checks per minute per provider (the engine's own limit).",
+      "actual": "38 PAN/MSME/bank checks were answered in the minute of 6:37 pm IST, and 105 checks of all kinds in the minute after.",
+      "impact": "The provider may start refusing calls (rate limit), which opens the engine's circuit breaker and delays every vendor.",
+      "fix": "Compare with the provider's own request log; count PAN, MSME and bank calls together (they go to the same provider) and keep the vendor-job spread in line with the cap.",
+      "tech": "provider_guard.rb RATE_LIMIT_PER_MINUTE = 30 per provider host; run_worker.rb spreads jobs at 60 * doc_types / 30 seconds per vendor."
     }
   }
 }

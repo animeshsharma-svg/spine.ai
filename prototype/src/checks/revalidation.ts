@@ -1668,6 +1668,68 @@ S["G-12"] = async (h) => {
   h.expect(!off.length, `an earlier day's rows were not changed once a later day's run began${off.length ? ` (${off.map((r: any) => r.d).join(", ")} changed later)` : ""}`);
 };
 
+// ── recorded nightly runs as evidence for the provider / schedule cases ──
+const IST = (c: string) => `to_char(${c} at time zone 'UTC' at time zone 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS')`;
+async function recordedRuns(client: number) {
+  return q(`SELECT run_id::text r, to_char(run_scheduled_on, 'YYYY-MM-DD') d, ${IST("min(created_at)")} started, ${IST("max(last_run_at)")} finished,
+      count(*)::int rows, bool_or(partial_run) partial FROM vendor_validation_histories WHERE client_company_id = $1 GROUP BY 1, 2 ORDER BY 2`, [client]);
+}
+S["B-18"] = async (h) => {
+  const runs = await recordedRuns(h.clientId);
+  if (!runs.length) throw new NotRunnable("no run recorded for this client");
+  const nightly = runs.filter((r: any) => /23:0[0-4]:/.test(r.started));
+  h.note(`runs recorded: ${runs.map((r: any) => `${r.d} started ${r.started.slice(11)} IST (${r.rows} rows)`).join("; ")}`);
+  h.expect(nightly.length > 0, `at least one run started at 23:00 IST, the nightly time — ${nightly.length ? nightly.map((r: any) => `${r.d} at ${r.started.slice(11)}`).join(", ") : "none did (" + runs.map((r: any) => r.started.slice(11)).join(", ") + ")"}`);
+};
+S["F-07"] = async (h) => {
+  // rows the engine gave up on: how long after the run's start were they closed?
+  const r = await q(`WITH r AS (SELECT run_id, min(created_at) t0 FROM vendor_validation_histories WHERE client_company_id = $1 GROUP BY 1)
+      SELECT to_char(h.run_scheduled_on, 'YYYY-MM-DD') d, count(*)::int n, round(min(extract(epoch FROM (h.last_run_at - r.t0)) / 3600)::numeric, 1) min_h,
+             round(max(extract(epoch FROM (h.last_run_at - r.t0)) / 3600)::numeric, 1) max_h, min(h.error_message) msg
+        FROM vendor_validation_histories h JOIN r ON r.run_id = h.run_id WHERE h.client_company_id = $1 AND h.status = 4 GROUP BY 1 ORDER BY 1`, [h.clientId]);
+  if (!r.length) throw new NotRunnable("no run with system_error rows recorded for this client");
+  for (const x of r) {
+    h.expect(x.msg === SYSTEM_ERROR, `${x.d}: the ${x.n} given-up rows say '${SYSTEM_ERROR}' (got '${x.msg}')`);
+    h.expect(Number(x.min_h) >= 23.5 && Number(x.max_h) <= 25.5, `${x.d}: rows were given up 24 h after the run started (the documented deadline) — they were closed ${x.min_h}–${x.max_h} h after the start`);
+  }
+};
+S["F-08"] = async (h) => {
+  const late = await q(`WITH r AS (SELECT run_id, min(created_at) t0 FROM vendor_validation_histories WHERE client_company_id = $1 GROUP BY 1)
+      SELECT count(*)::int n FROM vendor_validation_histories h JOIN r ON r.run_id = h.run_id WHERE h.client_company_id = $1 AND h.status = 0 AND now() > r.t0 + interval '25 hours'`, [h.clientId]);
+  const runs = await recordedRuns(h.clientId);
+  h.expect(late[0].n === 0, `no row is still pending 25 h after its run started — the cleaner closed them (${late[0].n} left)`);
+  h.expect(runs.every((x: any) => x.finished), `every recorded run has finished (${runs.map((x: any) => `${x.d}: ${x.finished ? "finished " + x.finished.slice(11) + " IST" : "not finished"}`).join("; ")})`);
+};
+S["F-13"] = async (h) => {
+  // a passed row = the provider answered (or the 24-hour cache did); GST has its own provider, the rest share Attestr
+  const r = await q(`SELECT CASE WHEN doc_type = 1 THEN 'GST provider' ELSE 'Attestr (PAN/MSME/bank)' END p, to_char(last_run_at, 'YYYY-MM-DD HH24:MI') m, count(*)::int n
+      FROM vendor_validation_histories WHERE client_company_id = $1 AND status = 1 GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 6`, [h.clientId]);
+  if (!r.length) throw new NotRunnable("no passed rows recorded");
+  const worst = r[0];
+  h.note(`busiest minutes: ${r.map((x: any) => `${x.p} ${x.m} UTC: ${x.n}`).join("; ")}`);
+  h.expect(Number(worst.n) <= 30, `no provider answered more than 30 checks in one minute (busiest: ${worst.p}, ${worst.n} in the minute of ${worst.m} UTC)${Number(worst.n) > 30 ? " — above the 30-per-minute cap unless those answers came from the 24-hour cache; the provider logs decide" : ""}`);
+};
+S["F-14"] = async (h) => {
+  const waited = await q(`SELECT count(*)::int n, round(max(extract(epoch FROM (last_run_at - created_at)) / 3600)::numeric, 1) max_h FROM vendor_validation_histories
+      WHERE client_company_id = $1 AND status = 1 AND last_run_at > created_at + interval '30 minutes'`, [h.clientId]);
+  if (!waited[0].n) throw new NotRunnable("no recorded row waited more than 30 minutes before passing — no provider trouble to recover from in the data");
+  const dups = await q(`SELECT count(*)::int n FROM (SELECT run_id, vendor_company_id, doc_type, value FROM vendor_validation_histories WHERE client_company_id = $1 GROUP BY 1, 2, 3, 4 HAVING count(*) > 1) d`, [h.clientId]);
+  h.expect(true, `${waited[0].n} rows waited on the provider (up to ${waited[0].max_h} h) and then passed — the same rows, not new ones`);
+  h.expect(dups[0].n === 0, `no duplicate row was created while waiting (${dups[0].n} duplicates)`);
+};
+S["F-01"] = async (h) => {
+  const bad = await q(`SELECT count(*)::int n FROM vendor_validation_histories WHERE client_company_id = $1 AND status = 2 AND error_message = $2`, [h.clientId, SYSTEM_ERROR]);
+  const waited = await q(`SELECT count(*)::int n FROM vendor_validation_histories WHERE client_company_id = $1 AND status IN (1, 2) AND last_run_at > created_at + interval '30 minutes'`, [h.clientId]);
+  if (!waited[0].n) throw new NotRunnable("no recorded row waited on a provider");
+  h.expect(bad[0].n === 0, `a provider wait never became 'Failed': no failed row carries the wait message (${bad[0].n} do); ${waited[0].n} rows waited more than 30 minutes and then got a real answer`);
+};
+S["F-11"] = async (h) => {
+  const r = await q(`SELECT count(DISTINCT (a.run_id, a.vendor_company_id))::int n FROM vendor_validation_histories a WHERE a.client_company_id = $1 AND a.status = 4
+      AND EXISTS (SELECT 1 FROM vendor_validation_histories b WHERE b.run_id = a.run_id AND b.vendor_company_id = a.vendor_company_id AND b.doc_type <> a.doc_type AND b.status IN (1, 2))`, [h.clientId]);
+  if (!r[0].n) throw new NotRunnable("in the recorded runs no vendor had one document time out while another document got an answer");
+  h.expect(true, `${r[0].n} vendor-runs had one document given up (System Error) while another document of the same vendor was answered — the other provider carried on`);
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // wiring into the case library
 // ═══════════════════════════════════════════════════════════════════════

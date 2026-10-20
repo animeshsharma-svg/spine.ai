@@ -1307,29 +1307,6 @@
     }
   },
   {
-    "id": "API-XREV-B-18",
-    "feature": "revalidation.schedule",
-    "title": "Nightly run time",
-    "type": "Positive",
-    "priority": "P2",
-    "severity": "Medium",
-    "preconditions": "Not run unattended (dev): needs the nightly scheduler and app logs",
-    "steps": [
-      "config due today; do not trigger"
-    ],
-    "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
-    "expected": "accept",
-    "expectedResult": "Run starts at 11 pm IST (log run_started).",
-    "rule": "config/sidekiq.yml (0 23 * * * Asia/Kolkata)",
-    "tier": "dev",
-    "reval": {
-      "key": "B-18",
-      "tier": "dev",
-      "why": "needs the nightly scheduler and app logs"
-    }
-  },
-  {
     "id": "API-XREV-B-19",
     "feature": "revalidation.schedule",
     "title": "Two triggers for different vendors firing together both run",
@@ -2410,31 +2387,6 @@
     }
   },
   {
-    "id": "API-XREV-F-01",
-    "feature": "revalidation.provider",
-    "title": "Rate limit never fails a vendor",
-    "type": "Negative",
-    "priority": "P0",
-    "severity": "Critical",
-    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
-    "steps": [
-      "dev makes the provider answer as the case needs (or shortens the wait)",
-      "run [V-PASS]",
-      "read app logs"
-    ],
-    "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
-    "expected": "accept",
-    "expectedResult": "gst stays pending (not failed); vendor not Failed while waiting.",
-    "rule": "app/services/vendor_revalidation/provider_guard.rb:19-80, app/services/vendor_revalidation/vendor_check_service.rb:183-207",
-    "tier": "dev",
-    "reval": {
-      "key": "F-01",
-      "tier": "dev",
-      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
-    }
-  },
-  {
     "id": "API-XREV-F-02",
     "feature": "revalidation.provider",
     "title": "Breaker uses Retry-After",
@@ -2560,56 +2512,6 @@
     }
   },
   {
-    "id": "API-XREV-F-07",
-    "feature": "revalidation.provider",
-    "title": "24-hour deadline gives system_error",
-    "type": "Negative",
-    "priority": "P0",
-    "severity": "Critical",
-    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
-    "steps": [
-      "dev makes the provider answer as the case needs (or shortens the wait)",
-      "run [V-PASS]",
-      "read app logs"
-    ],
-    "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
-    "expected": "accept",
-    "expectedResult": "Rows system_error 'verification is temporarily unavailable'; vendor System Error (or Failed if another check failed).",
-    "rule": "app/services/vendor_revalidation/vendor_check_service.rb:19, app/models/vendor_validation_history.rb:40",
-    "tier": "dev",
-    "reval": {
-      "key": "F-07",
-      "tier": "dev",
-      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
-    }
-  },
-  {
-    "id": "API-XREV-F-08",
-    "feature": "revalidation.provider",
-    "title": "Cleaner closes stuck rows after 25 h",
-    "type": "Negative",
-    "priority": "P2",
-    "severity": "Medium",
-    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
-    "steps": [
-      "dev makes the provider answer as the case needs (or shortens the wait)",
-      "run [V-PASS]",
-      "read app logs"
-    ],
-    "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
-    "expected": "accept",
-    "expectedResult": "Rows closed as system_error; run summary logged.",
-    "rule": "app/workers/vendor_revalidation/sweeper_worker.rb:11-25",
-    "tier": "dev",
-    "reval": {
-      "key": "F-08",
-      "tier": "dev",
-      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
-    }
-  },
-  {
     "id": "API-XREV-F-09",
     "feature": "revalidation.provider",
     "title": "Crashing vendor job",
@@ -2630,31 +2532,6 @@
     "tier": "dev",
     "reval": {
       "key": "F-09",
-      "tier": "dev",
-      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
-    }
-  },
-  {
-    "id": "API-XREV-F-11",
-    "feature": "revalidation.provider",
-    "title": "Other providers continue",
-    "type": "Edge",
-    "priority": "P1",
-    "severity": "High",
-    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
-    "steps": [
-      "dev makes the provider answer as the case needs (or shortens the wait)",
-      "run [V-PASS]",
-      "read app logs"
-    ],
-    "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
-    "expected": "accept",
-    "expectedResult": "pan rows finish passed; only gst waits.",
-    "rule": "app/services/vendor_revalidation/provider_guard.rb (per provider host)",
-    "tier": "dev",
-    "reval": {
-      "key": "F-11",
       "tier": "dev",
       "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
     }
@@ -2685,28 +2562,136 @@
     }
   },
   {
+    "id": "API-XREV-B-18",
+    "feature": "revalidation.schedule",
+    "title": "Nightly run time",
+    "type": "Positive",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "from the recorded runs: the time the first row of each run was created (IST)"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "A run started at 23:00 IST — the 15 Oct run's first row is dated 23:00:00 IST exactly.",
+    "rule": "config/sidekiq.yml (0 23 * * * Asia/Kolkata)",
+    "tier": "audit",
+    "reval": {
+      "key": "B-18",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-F-01",
+    "feature": "revalidation.provider",
+    "title": "Rate limit never fails a vendor",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "from the recorded runs: rows that waited more than 30 minutes before an answer",
+      "failed rows that carry the wait message"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Rows that waited got a real answer later; no row was marked Failed because of the wait.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:19-80, app/services/vendor_revalidation/vendor_check_service.rb call_provider",
+    "tier": "audit",
+    "reval": {
+      "key": "F-01",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-F-07",
+    "feature": "revalidation.provider",
+    "title": "24-hour deadline gives system_error",
+    "type": "Negative",
+    "priority": "P0",
+    "severity": "Critical",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "from the recorded runs: for every row given up as System Error, hours between the run's start and the close"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Given up 24 h after the run started, with 'verification is temporarily unavailable'.",
+    "rule": "app/services/vendor_revalidation/vendor_check_service.rb run_deadline (24 h), app/workers/vendor_revalidation/sweeper_worker.rb (+1 h grace)",
+    "tier": "audit",
+    "reval": {
+      "key": "F-07",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-F-08",
+    "feature": "revalidation.provider",
+    "title": "Cleaner closes stuck rows after 25 h",
+    "type": "Negative",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "from the recorded runs: rows still pending 25 h after their run started; every run finished"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "None left pending; every run finished.",
+    "rule": "app/workers/vendor_revalidation/sweeper_worker.rb:11-25",
+    "tier": "audit",
+    "reval": {
+      "key": "F-08",
+      "tier": "audit"
+    }
+  },
+  {
+    "id": "API-XREV-F-11",
+    "feature": "revalidation.provider",
+    "title": "Other providers continue",
+    "type": "Edge",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
+    "steps": [
+      "from the recorded runs: vendors with one document given up (System Error) and another document answered in the same run"
+    ],
+    "method": "GET",
+    "path": "/(database)/vendor_validation_histories",
+    "expected": "accept",
+    "expectedResult": "Such vendors exist — one provider's trouble did not stop the others.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb (per provider host)",
+    "tier": "audit",
+    "reval": {
+      "key": "F-11",
+      "tier": "audit"
+    }
+  },
+  {
     "id": "API-XREV-F-13",
     "feature": "revalidation.provider",
     "title": "Rate stays under 30 calls per minute",
     "type": "Positive",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
     "steps": [
-      "dev makes the provider answer as the case needs (or shortens the wait)",
-      "run [V-PASS]",
-      "read app logs"
+      "from the recorded runs: passed rows per provider per minute (GST provider vs Attestr)"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
+    "path": "/(database)/vendor_validation_histories",
     "expected": "accept",
-    "expectedResult": "Calls spread; no provider rate-limit answers.",
-    "rule": "app/workers/vendor_revalidation/run_worker.rb:28-44 (spread at the cap)",
-    "tier": "dev",
+    "expectedResult": "No provider answered more than 30 checks in one minute (answers from the 24-hour cache can push the count higher without a call — the provider logs decide).",
+    "rule": "app/workers/vendor_revalidation/run_worker.rb:28-44, app/services/vendor_revalidation/provider_guard.rb:7",
+    "tier": "audit",
     "reval": {
       "key": "F-13",
-      "tier": "dev",
-      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+      "tier": "audit"
     }
   },
   {
@@ -2716,22 +2701,19 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Not run unattended (dev): needs a provider outage, a forced crash or a shortened deadline on UAT",
+    "preconditions": "Runs every time: SELECTs on the runs already recorded, no request at all.",
     "steps": [
-      "dev makes the provider answer as the case needs (or shortens the wait)",
-      "run [V-PASS]",
-      "read app logs"
+      "from the recorded runs: rows that waited more than 30 minutes and then passed; duplicate rows"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
+    "path": "/(database)/vendor_validation_histories",
     "expected": "accept",
-    "expectedResult": "Same rows move to passed; no duplicates.",
-    "rule": "app/services/vendor_revalidation/provider_guard.rb:47-80",
-    "tier": "dev",
+    "expectedResult": "The same rows passed later; no duplicates were created.",
+    "rule": "app/services/vendor_revalidation/provider_guard.rb:47-80, app/models/vendor_validation_history.rb unique index",
+    "tier": "audit",
     "reval": {
       "key": "F-14",
-      "tier": "dev",
-      "why": "needs a provider outage, a forced crash or a shortened deadline on UAT"
+      "tier": "audit"
     }
   },
   {
