@@ -48,7 +48,7 @@ function erfx(id: string, stages: string[], items: number, outcome: Combo["outco
   for (const st of stages) steps.push(...stageWork(st, items));
   const pricing = stages.find((s) => s !== "rfp") ?? stages[0];
   if (stages.length > 1) steps.push({ step: "switch_stage", args: { stage: pricing } });
-  steps.push({ step: "set_schedule", args: { minutes: 45 } }, { step: "invite_vendor", args: { count: extra.vendors ?? 1 } });
+  steps.push({ step: "set_schedule", args: { minutes: 30 } }, { step: "invite_vendor", args: { count: extra.vendors ?? 1 } });
   steps.push(...outcomeSteps(outcome, extra));
   return { id, title: `eRFX ${stages.join(" + ")} · ${items} item${items === 1 ? "" : "s"} · ${outcome}${extra.vendors ? ` · ${extra.vendors} vendors` : ""}`, entry: "erfx", stages, items, outcome, steps };
 }
@@ -62,13 +62,13 @@ function single(id: string, eventType: string, items: number, outcome: Combo["ou
   ];
   if (eventType === "rfp") steps.push({ step: "fill_questionnaires" }, { step: "assign_evaluator" });
   else steps.push({ step: "add_line_items", args: { count: items } }, { step: "fill_sheet" });
-  steps.push({ step: "set_schedule", args: { minutes: 45 } }, { step: "invite_vendor", args: { count: 1 } }, ...outcomeSteps(outcome, extra));
+  steps.push({ step: "set_schedule", args: { minutes: 30 } }, { step: "invite_vendor", args: { count: 1 } }, ...outcomeSteps(outcome, extra));
   return { id, title: `Single-stage ${eventType}${cfg.auctionSubtype ? ` ${cfg.auctionSubtype.replace("_", " ")}` : ""}${cfg.awarding ? ` · award ${cfg.awarding.replace("_", " ")}` : ""} · ${items} item${items === 1 ? "" : "s"} · ${outcome}`, entry: "single-stage", stages: [eventType], strategy: cfg.auctionSubtype, awarding: cfg.awarding, items, outcome, steps };
 }
 
 function boq(id: string, items: number, outcome: Combo["outcome"], extra: { inv?: string } = {}): Combo {
   const steps: Step[] = [{ step: "open_create", args: { path: "boq" } }, { step: "set_title" }, { step: "select_template" }, { step: "add_line_items", args: { count: items } }, { step: "fill_sheet" }];
-  if (outcome !== "draft") steps.push({ step: "set_schedule", args: { minutes: 45 } }, { step: "invite_vendor", args: { count: 1 } });
+  if (outcome !== "draft") steps.push({ step: "set_schedule", args: { minutes: 30 } }, { step: "invite_vendor", args: { count: 1 } });
   steps.push(...outcomeSteps(outcome, extra));
   return { id, title: `BOQ · ${items} item${items === 1 ? "" : "s"} · ${outcome}`, entry: "boq", stages: ["boq"], items, outcome, steps };
 }

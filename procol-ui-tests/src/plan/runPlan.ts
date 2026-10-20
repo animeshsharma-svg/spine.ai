@@ -998,6 +998,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         await s.create.saveSchedule();
         if (s.create.scheduleWindows.length < stages) throw new Error(`the Schedule drawer showed ${s.create.scheduleWindows.length} of ${stages} stages — the others keep their previous end time, which the app refuses beside a Duration (BUG-85)`);
       }
+      // Two stages must end together, or the technical stage ends after the RFQ and publish is
+      // refused ("RFP duration exceeds RFQ end time"). A duration that is not a preset lands on
+      // a different preset per block (45 asked → 60 on the technical block, 30 on the RFQ,
+      // 2026-10-21), so when the blocks disagree, schedule every block on the 30-minute preset.
+      const ends = new Set(s.create.scheduleWindows.map((w) => w.endsAt));
+      if (stages > 1 && s.create.scheduleWindows.length > 1 && ends.size > 1) {
+        console.log(`[create-event] the stages end at different times (${[...ends].join(" / ")}) — scheduling every stage on the 30-minute preset`);
+        process.env.UI_SCHEDULE_MINUTES = "30";
+        await s.page.waitForTimeout(1_000);
+        await s.create.saveSchedule();
+      }
       // Report what the app holds — each stage block's own "Event will end at" line — never
       // what was typed (a 3-minute end that did not take was reported as "saved (3 min)").
       const windows = s.create.scheduleWindows.map((w) => `${w.stage.replace(/^\d+\.\s*/, "")} ends ${w.endsAt}`).join(" · ");
