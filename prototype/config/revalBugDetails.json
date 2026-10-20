@@ -235,6 +235,47 @@
       "impact": "A customer's vendors silently stop being re-checked, and nobody is told.",
       "fix": "Validate the revalidation settings wherever they are saved (move the old checks into the custom configuration save).",
       "tech": "config_error in app/controllers/api/vendor_revalidation_qa_controller.rb was deleted in 0f365a7e52; scheduler_worker.rb due? only logs settings_error."
+    },
+    "REV-18": {
+      "short": "An impossible start date (30 February) is not refused; it is rolled over to another date",
+      "where": "Start a revalidation run — the run_at (start time) field",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "As GMMCO's buyer, start a run for one vendor with run_at \"2026-02-30T10:00:00\" (30 February does not exist)."
+      ],
+      "expected": "Refused with \"run_at must be a time like … (IST if no offset)\" because the date does not exist.",
+      "actual": "The server quietly turns 30 Feb into 2 Mar 2026 and answers \"run_at is in the past\". A future impossible date such as 31 November would be accepted and the run scheduled for 1 December.",
+      "impact": "A typo in the date schedules the run on a different day without any warning.",
+      "fix": "Read run_at strictly and refuse dates that do not exist.",
+      "tech": "vendor_validation_controller.rb parse_time uses Time.zone.parse (lenient)."
+    },
+    "REV-19": {
+      "short": "A revalidation run that has vendors to check never starts — it stays \"scheduled\" for ever",
+      "where": "Start a revalidation run (the new buyer API, POST /api/vendor_validation/trigger) and its progress (GET /runs)",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "As GMMCO's buyer, start a run for one vendor: mode force, vendor_ids [one vendor].",
+        "Check its progress every 15 seconds with the run_id and job_id from the reply."
+      ],
+      "expected": "Within a minute the state moves to \"started\", rows appear for the vendor, and when they are done \"complete\" is true.",
+      "actual": "The start request is accepted (OK) but the state stays \"scheduled\": no row is created and no vendor is checked. We watched 4 runs on 20 Oct between 8:01 and 8:16 pm IST for 6 to 15 minutes each — a forced run, a run with a start time 20 seconds ago and a run scheduled 2 minutes ahead. A scheduler run with nothing due did finish (\"nothing_due\"), so the job is picked up and stops in the step that only runs when there is real work.",
+      "impact": "Nobody can revalidate a vendor on demand: the buyer is told it started, nothing happens, and no error is shown anywhere.",
+      "fix": "Check the UAT Sidekiq logs for TriggerWorker at those times. The likely place is the reset step that walks every Sidekiq queue, scheduled set and retry set; make it cheaper, and save a \"failed\" state with the error when the worker crashes (it has retry off, so a crash is silent).",
+      "tech": "app/services/vendor_revalidation/trigger_service.rb#call → reset / delete_jobs → RunWorker.perform_async; trigger_worker.rb retry: false. Run 2d448f72-dbf3-5e99-b78e-facd11f966d5, jobs 1ceeac833123d7ae8b151d9e and e2bfc669fb5b7d6fd79aa360."
+    },
+    "REV-20": {
+      "short": "The vendor page shows times as \"23:00 PM\" - a 24-hour clock with AM/PM added",
+      "where": "Vendor page -> Revalidation Details card (Last validated, Last Run At)",
+      "proof": "Confirmed on the preview screen",
+      "steps": [
+        "Open any vendor that has been checked, e.g. /vendors/RGtwWkRr?tab=info on the preview dashboard.",
+        "Scroll down to Revalidation Details."
+      ],
+      "expected": "A normal time, the same as the vendor list shows: \"October 15, 2026 11:00 PM\".",
+      "actual": "\"15-Oct-2026 23:00 PM\" and \"16-Oct-2026 15:07 PM\": a 24-hour time with PM added. The list shows the same moment as \"October 15, 2026 11:00 PM\".",
+      "impact": "Looks like a mistake, and the two screens disagree about the same moment.",
+      "fix": "Use one date format on both screens.",
+      "tech": "procol-client-dashboard feat/vendor-revalidation-details: revalidationDetails.jsx and columns.jsx call appFormatDate(value, DATE_KIND.DATE_TIME)."
     }
   }
 }

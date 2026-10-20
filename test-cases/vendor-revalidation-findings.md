@@ -7,6 +7,9 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 
 | Id | Severity | Status | Finding | Cases |
 | --- | --- | --- | --- | --- |
+| REV-20 | Low | confirmed on the preview screen 2026-10-20 | The vendor page shows times as '23:00 PM' - a 24-hour clock with AM/PM added | H-09 |
+| REV-19 | Critical | confirmed live 2026-10-20 | A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever | B-12, B-15, A-26 |
+| REV-18 | Low | confirmed live 2026-10-20 | An impossible start date (30 Feb) is not refused; it is rolled over to the next real date | A-23 |
 | REV-17 | Medium | from the code (20 Oct 2026 rewrite) | Revalidation settings are no longer checked when they are saved |  |
 | REV-01 | Critical | fixed in the 20 Oct 2026 rewrite — A-30 re-checks it | A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production | A-30, I-05 |
 | REV-02 | High | from the code — not sent on purpose | An empty vendor scope (vendor_ids: [] or vendor_limit "") revalidates every vendor of the client | A-34 |
@@ -24,6 +27,39 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 | REV-14 | Medium | to confirm by audit (C-09) | Vendors of other company categories are revalidated but never shown | C-09 |
 | REV-15 | Medium | confirmed live 2026-10-15 (found in passing) | GET /api/companies/vendor_detail answers 500 for every vendor |  |
 | REV-16 | Low | confirmed live 2026-10-15 (found in passing) | rfx-uat-api answers errors with the full Rails debug page |  |
+
+
+## REV-20 — The vendor page shows times as '23:00 PM' - a 24-hour clock with AM/PM added
+
+**Severity** Low · **Status** confirmed on the preview screen 2026-10-20 · **Cases** H-09
+
+On the vendor page's Revalidation Details card, 'Last validated' and 'Last Run At' read '15-Oct-2026 23:00 PM' and '16-Oct-2026 15:07 PM'. The vendor list shows the same moment as 'October 15, 2026 11:00 PM', so the two screens disagree and the card's format is wrong either way.
+
+**Evidence.** https://client-feat-vendor-revalidation-details.preview.procol.tech/vendors/RGtwWkRr?tab=info, Revalidation Details card (screenshot vendor-page-revalidation-passed.png).
+
+**Suggested fix.** Use one date format on both screens (revalidationDetails.jsx / columns.jsx use appFormatDate with DATE_KIND.DATE_TIME).
+
+
+## REV-19 — A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever
+
+**Severity** Critical · **Status** confirmed live 2026-10-20 · **Cases** B-12, B-15, A-26
+
+Since the 20 Oct rewrite, POST /api/vendor_validation/trigger answers 200 with a job id, but the run never begins: GET /runs/<run_id>?job_id= keeps saying state 'scheduled', no row is created and no vendor is checked. Seen for 4 runs on GMMCO between 20:01 and 20:16 IST (force with no start time, force with a start time 20 s ago, and one scheduled 2 minutes ahead), watched for 6–15 minutes each. A scheduler-mode run with nothing due did finish ('nothing_due'), so the job itself is picked up — it stops in the part that only runs when there is work: TriggerService#reset / delete_jobs (which walks every Sidekiq queue, the scheduled set and the retry set) or the RunWorker hand-off. The worker has retry: false, so a failure there is silent and the state never moves.
+
+**Evidence.** Runs 2d448f72-dbf3-5e99-b78e-facd11f966d5 (jobs 1ceeac833123d7ae8b151d9e, e2bfc669fb5b7d6fd79aa360 and B-12/B-15's jobs): state 'scheduled', total_rows 0 after 6–15 min; vendor_validation_histories has no row dated 2026-10-20 for client 47053.
+
+**Suggested fix.** Look at the Sidekiq logs for TriggerWorker on UAT at those times; make reset/delete_jobs cheap (or move it into RunWorker), and save state 'failed' with the error when TriggerService raises.
+
+
+## REV-18 — An impossible start date (30 Feb) is not refused; it is rolled over to the next real date
+
+**Severity** Low · **Status** confirmed live 2026-10-20 · **Cases** A-23
+
+run_at is read with Time.zone.parse, which does not reject impossible calendar dates: 2026-02-30T10:00:00 becomes 2 Mar 2026 and is then refused as 'run_at is in the past' instead of 'run_at must be a time like …'. A future impossible date (e.g. 2026-11-31) would be accepted and the run scheduled for 1 Dec.
+
+**Evidence.** POST /api/vendor_validation/trigger?workspace_id=47053 with run_at 2026-02-30T10:00:00 → 422 code 8 'run_at is in the past' (A-23, 20 Oct 2026 20:0x IST).
+
+**Suggested fix.** Parse run_at strictly (Time.iso8601 or Date.valid_date? on the date part) and refuse impossible dates with the 'must be a time like' message.
 
 
 ## REV-17 — Revalidation settings are no longer checked when they are saved

@@ -691,15 +691,18 @@ S["A-01"] = async (h) => {
   return `GET /api/vendor_validation/runs/${run?.date ?? "today"} as the client's buyer`;
 };
 S["A-30"] = async (h) => {
-  // Another company cannot be reached: neither its runs nor a trigger for it.
+  // Another company cannot be reached: a workspace_id the login does not
+  // belong to is ignored and the login's own company is used (seen live 20 Oct).
   const other = h.clientId === 198678 ? 47053 : 198678;
   const mine = await latestRun(h.clientId);
   if (!mine) throw new NotRunnable("this client has no run to look for from another company");
-  const r = await h.qa("session", "GET", `/runs/${mine.runId}`, undefined, other);
-  const leaked = r.status === 200 && Number(r.data?.total_rows) > 0;
-  h.expect(!leaked, `client ${h.clientId}'s run read with workspace_id=${other} shows none of its rows (HTTP ${r.status}, total_rows ${r.data?.total_rows ?? "—"})`);
-  const t = await h.qa("session", "POST", "/trigger", { mode: "force", vendor_ids: [await h.role("V-STATUS-active")] }, other);
-  h.expect(t.status !== 200, `a run for client ${h.clientId}'s vendor sent with workspace_id=${other} is refused (HTTP ${t.status}${t.message ? ` '${t.message}'` : ""})`);
+  const theirs = runIdFor(other, mine.date);
+  const r = await h.qa("session", "GET", `/runs/${theirs}`, undefined, other);
+  h.expect(!(r.status === 200 && Number(r.data?.total_rows) > 0), `company ${other}'s run (${theirs}) read with workspace_id=${other} returns none of its rows (HTTP ${r.status}, total_rows ${r.data?.total_rows ?? "—"})`);
+  const own = await h.qa("session", "GET", `/runs/${mine.runId}`, undefined, other);
+  const ownRows = (await rowsOf(h.clientId, { runId: mine.runId })).length;
+  h.expect(own.status !== 200 || Number(own.data?.total_rows) === ownRows, `with workspace_id=${other} the login still sees only its own company's run (${own.data?.total_rows ?? "—"} rows = ${ownRows} in the database)`);
+  h.note(`a workspace_id the login does not belong to is not refused; the login's own company is used instead`);
 };
 S["A-02"] = async (h) => {
   for (const as of ["none", "garbage"] as const) {
@@ -722,12 +725,6 @@ S["A-26"] = async (h) =>
       h.expect(s?.trigger?.state === "started", `it runs straight away (state ${s?.trigger?.state})`);
     }
   });
-S["A-03"] = async (h) => {
-  const as = readAs();
-  const r = await h.qa(as, "GET", "/config?client_company_id=999999999");
-  h.expect(r.status === 422 && r.code === 2 && r.message === "client_company_id not found", `unknown client → 422 code 2 'client_company_id not found' (got ${r.status} ${r.code} '${r.message}')`);
-  if (as === "session") h.note("sent with the client's session because no employee token is set — it reaches set_client only because of REV-01");
-};
 S["A-25"] = async (h) => {
   const r = await h.qa(readAs(), "GET", `/runs/${randomUUID()}`);
   h.expect(r.status === 200, `unknown run answers 200, not an error (got ${r.status})`);

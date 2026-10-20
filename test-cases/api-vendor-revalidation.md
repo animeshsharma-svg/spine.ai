@@ -222,12 +222,12 @@ Who may call the QA API and every refusal it gives. Config cases PUT a bad confi
 - **Trace.** P2 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:152`
 
 #### API-XREV-A-23 — run_at not a time
-- **Why it matters.** Guide A-23 (API).
+- **Why it matters.** Guide A-23 (API). Finding REV-18 (Low): An impossible start date (30 Feb) is not refused; it is rolled over to the next real date.
 - **Setup.** Needs VR_QA_TOKEN (the client's buyer access-token). A run request the API must refuse; nothing runs and nothing changes. Test vendors: V-NODOCS.
 - **Steps.** 1. run_at tomorrow 2. run_at 2026-02-30T10:00:00
 - **Expected.** 422 'run_at must be a time like <now+1h, ISO with +05:30> (IST if no offset)'.
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
-- **Trace.** P3 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162`
+- **Trace.** P3 · automate · `API-XREV-A` · refused request (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:149-150,158-162` · `REV-18`
 
 #### API-XREV-A-24 — Cancel unknown or started job
 - **Why it matters.** Guide A-24 (API).
@@ -246,12 +246,12 @@ Who may call the QA API and every refusal it gives. Config cases PUT a bad confi
 - **Trace.** P3 · automate · `API-XREV-A` · read · `app/controllers/api/vendor_revalidation_qa_controller.rb:70-100`
 
 #### API-XREV-A-26 — run_at a few seconds in the past is accepted
-- **Why it matters.** Guide A-26 (API).
+- **Why it matters.** Guide A-26 (API). Finding REV-19 (Critical): A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever.
 - **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
 - **Steps.** 1. run_at = now − 20 s (the guide says 30 s; 20 s leaves room for clock difference)
 - **Expected.** Accepted (1-minute tolerance); runs now.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P3 · automate · `API-XREV-A` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:6,151`
+- **Trace.** P3 · automate · `API-XREV-A` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:6,151` · `REV-19`
 
 #### API-XREV-A-27 — GET config returns the saved config
 - **Why it matters.** Guide A-27 (API).
@@ -280,8 +280,8 @@ Who may call the QA API and every refusal it gives. Config cases PUT a bad confi
 #### API-XREV-A-30 — Another company's runs cannot be read or started
 - **Why it matters.** Added from the code (not in the guide). Finding REV-01 (Critical): A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production.
 - **Setup.** Runs every time: a GET to the QA API, nothing changes.
-- **Steps.** 1. GET /runs/<this client's latest run>?workspace_id=<another company> 2. POST /trigger?workspace_id=<another company> with one of this client's vendors
-- **Expected.** No rows of this client come back, and the run is refused.
+- **Steps.** 1. GET /runs/<the other company's run id>?workspace_id=<other company> 2. GET /runs/<this client's run>?workspace_id=<other company>
+- **Expected.** Nothing of the other company comes back; a workspace_id the login does not belong to is ignored and the login's own company is used (it is not refused).
 - **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
 - **Trace.** P0 · automate · `API-XREV-A` · read · `TriggerService.run_summary (rows where client_company_id = Current.workspace); vendor_validation_controller.rb#trigger uses Current.workspace` · `REV-01`
 
@@ -418,12 +418,12 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 - **Trace.** P2 · manual · `API-XREV-B` · needs ops · `app/workers/vendor_revalidation/scheduler_worker.rb:12,35`
 
 #### API-XREV-B-12 — Same-day triggers share one run id
-- **Why it matters.** Guide B-12 (API).
+- **Why it matters.** Guide B-12 (API). Finding REV-19 (Critical): A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever.
 - **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
 - **Steps.** 1. run force on a vendor with nothing to check, twice
 - **Expected.** Same run_id = uuid v5('procol://vendor_revalidation/<client>/<date>'); cancel after start → 404.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:29-31, app/controllers/api/vendor_revalidation_qa_controller.rb:60-64`
+- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/scheduler_worker.rb:29-31, app/controllers/api/vendor_revalidation_qa_controller.rb:60-64` · `REV-19`
 
 #### API-XREV-B-13 — Re-trigger rebuilds with no duplicates
 - **Why it matters.** Guide B-13 (API).
@@ -442,12 +442,12 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 - **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:104 (reset limited to the chosen vendors)`
 
 #### API-XREV-B-15 — Scheduled trigger starts on time
-- **Why it matters.** Guide B-15 (API).
+- **Why it matters.** Guide B-15 (API). Finding REV-19 (Critical): A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever.
 - **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
 - **Steps.** 1. trigger run_at now + 2 min on a vendor with nothing to check 2. poll
 - **Expected.** state scheduled before; started within 2 minutes after run_at.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
-- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:54`
+- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `app/controllers/api/vendor_revalidation_qa_controller.rb:54` · `REV-19`
 
 #### API-XREV-B-16 — vendor_limit picks the same vendors every time
 - **Why it matters.** Guide B-16 (API).
