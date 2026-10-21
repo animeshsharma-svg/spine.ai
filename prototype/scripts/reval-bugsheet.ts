@@ -468,7 +468,7 @@ const results = cases.map((c: any) => {
     result = "Failed";
     saw = `${bug ? `Bug ${bug}: ${details[bug]?.short ?? ""}. ` : ""}What we saw: ${plainSaw(r.verdict)}`;
   } else if (r && /^not run/.test(r.verdict)) {
-    result = /VR_QA_TOKEN|employee|buyer access-token/.test(r.verdict) ? "Not run — needs the buyer token" : /no API since|settings API/.test(r.verdict) ? "Not run — needs ops to change settings" : "Not run — set-up missing";
+    result = /Procol employee token|Config type is not supported/.test(r.verdict) ? "Not run — needs a Procol staff token to change GMMCO's settings" : /VR_QA_TOKEN|buyer access-token/.test(r.verdict) ? "Not run — needs the buyer token" : /no API since|settings API/.test(r.verdict) ? "Not run — needs ops to change settings" : /still pending after 15 min/.test(r.verdict) ? "Not run — blocked by REV-25 (a row held by the provider)" : /not found for client/.test(r.verdict) ? "Not run — needs a test vendor in that state (none eligible today)" : "Not run — set-up missing";
     saw = `Not run — ${plainSaw(r.verdict)}`;
   } else if (r) {
     result = /Connection terminated|ENETUNREACH|fetch failed/.test(r.verdict) ? "Couldn't tell — network dropped" : "Couldn't tell";
@@ -486,7 +486,7 @@ const passed = tally((x: any) => x.result === "Passed");
 const failed = tally((x: any) => x.result === "Failed");
 const network = tally((x: any) => /network/.test(x.result));
 const token = tally((x: any) => /buyer token/.test(x.result));
-const ops = tally((x: any) => /needs ops/.test(x.result));
+const ops = tally((x: any) => /needs ops|staff token/.test(x.result));
 const removed = tally((x: any) => /No longer applies/.test(x.result));
 const blocked = tally((x: any) => /^Blocked by REV-19/.test(x.result));
 const otherNot = results.length - passed - failed - network - token - ops - removed - blocked;
