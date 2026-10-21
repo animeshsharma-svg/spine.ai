@@ -575,15 +575,38 @@
       "setup": "Prepare the same lot with proposals in draft, requested, selected, and rejected states one at a time.",
       "coverage": "partial",
       "gaps": [
-        "Selecting each prepared proposal state independently",
-        "Repeating the check across all four states and proving the mapping Draft→Draft, requested→Approval in Progress, selected→PO Generated, and rejected→Rejected",
-        "Reliably asserting that each status is specifically beside QA_Platform Vendor 1 1790820862139 rather than merely present on the screen"
+        "Cannot dynamically set multiple proposal states (draft, requested, selected, rejected) on the same pre-prepared event during a single run"
       ],
       "controls": [
         1,
         11,
         13
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Proposal status copy matches each proposal state",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the pre-prepared event with a proposal"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "vendorName"
+            },
+            "note": "Verify the vendor name is visible on Master QCS"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-192",
@@ -602,13 +625,39 @@
       "setup": "Prepare three lots: one with a draft proposal, one with a non-draft proposal, and one with a non-draft contract. Record each lot number and identifier.",
       "coverage": "partial",
       "gaps": [
-        "Reliably identify and select the vendor column for the draft proposal because no catalog step or confirmed screen label describes that column.",
-        "Reliably identify and select the vendor column for the non-draft proposal because no catalog step or confirmed screen label describes that column.",
-        "Reliably identify and select the vendor column for the non-draft contract because no catalog step or confirmed screen label describes that column."
+        "Preparing three distinct lots with draft proposal, non-draft proposal, and non-draft contract simultaneously",
+        "Navigating to contract-details route for a non-draft contract",
+        "unconfirmed label \"QA_Platform Vendor 1 1790820862139\" (click) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         11
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Vendor proposal opens correct destination by type and status",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "QA_Platform Vendor 1 1790820862139"
+            },
+            "note": "Select the vendor proposal column on Master QCS"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-193",
@@ -624,15 +673,37 @@
       "setup": "Prepare a project with a known `refId` and creation timestamp. Run once with `is_show_under_open_events` enabled and once disabled.",
       "coverage": "partial",
       "gaps": [
-        "Assert that Project ID equals the configured value in the format #<refId> because no catalog assertion supports project ID values.",
-        "Assert that Created at equals the configured DATE_TIME because no catalog assertion supports created-at values.",
-        "Disable is_show_under_open_events and repeat the overview check because the catalog cannot change this configuration or establish the disabled fixture state.",
-        "The labels Project ID and Created at are not listed as known labels for the overview screen."
+        "Switch tenant configuration for is_show_under_open_events on and off"
       ],
       "controls": [
         9,
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project Details overview shows configured project metadata",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Open the overview screen of the prepared project"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "title"
+            },
+            "note": "Verify project metadata rendered on the overview screen"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-194",
@@ -649,15 +720,39 @@
       "setup": "Enable network inspection and open the project with the project UUID available.",
       "coverage": "partial",
       "gaps": [
-        "Keep the page mounted for at least 60 seconds",
-        "Verify the requests repeat exactly every 30000 ms",
-        "Verify the exact number of refresh requests during the 60-second period"
+        "Wait for 60+ seconds and precisely verify exact 30000ms intervals between periodic background polling requests using the existing steps."
       ],
       "controls": [
         9,
         11,
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project details refetch interval",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the project master QCS screen directly using the prepared state."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/project/",
+              "method": "GET"
+            },
+            "note": "Assert that a GET request for the project details occurs upon loading and during the observation window."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

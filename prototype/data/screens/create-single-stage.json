@@ -503,7 +503,60 @@
       "setup": "Open create-single-stage.",
       "coverage": "full",
       "gaps": [],
-      "controls": []
+      "controls": [],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "RFP opens single-stage setup",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Reach the same single-stage create screen as the walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required title for a create test."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "RFP"
+            },
+            "note": "Exercise the RFP control directly."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Configuration for Event"
+            },
+            "note": "Verify the event setup interface opened."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Event Type",
+              "value": "RFP"
+            },
+            "note": "Verify the setup is for RFP."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify the browser remains on event creation rather than an unrelated page."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-109",
@@ -519,7 +572,44 @@
       "gaps": [],
       "controls": [
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Events returns from single-stage creation to list",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Reach the starting screen using the walk's route."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required title for a create-screen plan."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Events"
+            },
+            "note": "Exercise the case's navigation control rather than navigating directly to the list."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "events_list"
+            },
+            "note": "Verify the events-list route is ready and the single-stage create screen has been left."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-110",
@@ -535,7 +625,46 @@
       "gaps": [],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Disabled template selector explains missing line items",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Reach the fresh single-stage screen without line items or a selected template."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required test title without changing the template or line-item prerequisites."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "Select Templates",
+              "text": "Please add line items"
+            },
+            "note": "Hover the selector and assert its explanation."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Select Templates"
+            },
+            "note": "Verify the selector remains disabled after hovering."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-111",
@@ -552,7 +681,57 @@
       "gaps": [],
       "controls": [
         5
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Terms unavailable on initial single-stage setup",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Reach the initial single-stage setup directly."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required test title without enabling terms configuration."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "select_template",
+              "reason": "Keep the initial prerequisite unmet."
+            },
+            "note": "Prevent automatic template setup from enabling the control."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Terms & Conditions"
+            },
+            "note": "Assert the terms control is visibly disabled."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "role": "button",
+                "name": "Terms & Conditions"
+              },
+              "expect": "nothing_opens"
+            },
+            "note": "Verify attempting to click does not open a terms editor."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-112",
@@ -571,7 +750,62 @@
       "controls": [
         7,
         9
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Empty single-stage title disables publishing",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Reach the single-stage create screen directly, as in the screen walk."
+          },
+          {
+            "step": "click",
+            "args": {
+              "placeholder": "Enter the title of this event"
+            },
+            "note": "Focus the event title field."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Enter the title of this event",
+              "value": ""
+            },
+            "note": "Leave the title empty and confirm the field holds the empty value."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "set_title",
+              "reason": "The test deliberately leaves the required event title empty."
+            },
+            "note": "Prevent automatic title completion from invalidating the test."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Publish Event"
+            },
+            "note": "Assert publishing is unavailable while the title is empty."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Verify the browser remains on the create screen rather than a published event page."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

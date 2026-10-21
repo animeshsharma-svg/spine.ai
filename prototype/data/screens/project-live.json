@@ -1753,16 +1753,75 @@
       "setup": "Use a project with one stage that has a ref_id, one stage without a ref_id, pending actions, and participant totals.",
       "coverage": "partial",
       "gaps": [
-        "Verify that Stage Code is shown only when at least one specific stage row has a ref_id.",
-        "Verify the active/total participant format and missing 0 values on the specific corresponding stage rows.",
-        "Verify missing dates show '-' on the specific corresponding stage rows.",
-        "unconfirmed label \"0\" (expect_text) — not among the labels known from the app nor in the case",
-        "unconfirmed label \"-\" (expect_text) — not among the labels known from the app nor in the case"
+        "The fixed prepared project cannot supply both a stage with ref_id and a stage without ref_id, so the conditional Stage Code column and both row variants cannot be verified.",
+        "The prepared state does not specify pending actions or active participant counts, and no supported API-value assertion exposes those fields to verify their displayed values or the active/total format reliably.",
+        "The prepared state does not guarantee missing participant counts or missing dates, and catalog steps cannot create those conditions to verify the 0 and '-' fallbacks."
       ],
       "controls": [
         7,
         14
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Published Stages columns and values",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared live project's summary."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Display the published-stage table."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Stage Title"
+            },
+            "note": "Verify the stage-title header."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Pending Actions"
+            },
+            "note": "Verify the pending-actions header."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants"
+            },
+            "note": "Verify the participants column text is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Starts At"
+            },
+            "note": "Verify the bidding-start header."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Ends At"
+            },
+            "note": "Verify the bidding-end header."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-229",
@@ -1776,13 +1835,47 @@
       ],
       "expected": "The headings show the response counts as Line Items 2 and Participants 1.",
       "setup": "Use a project with two line-item responses and one participant response.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "The fixed prepared project has only one line item; the requested two-line-item response setup and Line Items 2 heading cannot be checked."
+      ],
       "controls": [
         16,
         20,
         26
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project details response-count headings",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project's details screen."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Line Items 1"
+            },
+            "note": "Check the line-item heading against the available one-item fixture, not the unsupported two-item expectation."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants 1"
+            },
+            "note": "Verify the requested participant count is displayed in the heading."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-230",
@@ -1795,11 +1888,19 @@
       ],
       "expected": "The create screen opens for the draft stage and retains the draftEventId. No auction-team permission check blocks the navigation.",
       "setup": "Use a project containing a draft RFQ-to-auction stage.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The catalog cannot directly observe whether an auction-team permission check was executed or skipped internally."
+        "The fixed prepared event contains a live RFQ, not a draft RFQ-to-auction stage, and no catalog step can establish the required draft stage in this state.",
+        "Cannot verify that clicking the draft stage opens its create screen and retains its draftEventId without the required draft stage and its identifier.",
+        "Cannot verify that auction-team permission checks do not block draft-stage navigation using the live RFQ fixture."
       ],
-      "controls": []
+      "controls": [],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-231",
@@ -1814,17 +1915,22 @@
       ],
       "expected": "Project ID is displayed as \"#<refId>\" and Created at is displayed as a date and time. \"Open Tender Event: Yes\" appears only when is_show_under_open_events is enabled.",
       "setup": "Use a project with a known refId and created-at value. Run once with is_show_under_open_events enabled and once with it disabled.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Validate that Project ID is specifically formatted as '#<refId>' rather than merely displaying a Project ID value",
-        "Validate that Created at contains a correctly formatted date and time value",
-        "Toggle or compare the is_show_under_open_events configuration between enabled and disabled states",
-        "Assert that 'Open Tender Event: Yes' is absent when is_show_under_open_events is disabled"
+        "Compare Project ID with \"#<refId>\": no catalog assertion exposes the prepared project's refId for comparison.",
+        "Compare Created at with the project's known creation timestamp and verify date-and-time formatting: no catalog assertion exposes created-at or validates that format.",
+        "Run with is_show_under_open_events both enabled and disabled and assert the corresponding presence or absence of \"Open Tender Event: Yes\": the prepared configuration is fixed and its flag value is unspecified."
       ],
       "controls": [
         6,
         20
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-232",
@@ -1840,20 +1946,24 @@
       ],
       "expected": "Filtering occurs after the 300-millisecond debounce, not for every intermediate keystroke. Results match the vendor name or vendor code, and no more than 20 results appear on the page.",
       "setup": "Use more than 20 participants, including several whose vendor name or code matches a unique search term.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "300-millisecond debounce timing after the final character",
-        "Filtering not occurring for each intermediate keystroke",
-        "Replacing the search with a specific vendor code and verifying the matching results",
-        "Exact vendor name and vendor code values are not provided",
-        "Observing that returned results match the entered vendor name or code"
+        "The fixed prepared event has one participant, not more than 20 with multiple matching vendor names and codes; the required result-limit fixture cannot be established.",
+        "No catalog step controls typing intervals below 300 milliseconds or verifies that filtering waits 300 milliseconds after the final character without filtering intermediate input.",
+        "No concrete vendor-name or vendor-code search term is supplied, and the catalog cannot feed the prepared vendor's runtime name or code into the search field to verify matching results."
       ],
       "controls": [
         22,
         26,
         56,
         57
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

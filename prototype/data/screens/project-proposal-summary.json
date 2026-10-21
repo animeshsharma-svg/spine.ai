@@ -1657,10 +1657,10 @@
       "setup": "Use a project with at least one published stage without ref_id, one stage with pending actions, and stages with and without bidding dates.",
       "coverage": "partial",
       "gaps": [
-        "Verify Participants values use the active/total format for each row.",
-        "Verify populated Bidding Starts At and Bidding Ends At values use DATE_TIME formatting.",
-        "Verify the exact rows and values displayed in the Published Stages table.",
-        "unconfirmed label \"-\" (expect_text) — not among the labels known from the app nor in the case"
+        "Establish that every published stage lacks ref_id before asserting Stage Code is absent; the prepared fixture does not specify ref_id and no catalog assertion reads it.",
+        "Provide a stage with pending actions and multiple stages with and without bidding dates in the fixed prepared project.",
+        "Verify active/total participant values against their source counts, including missing counts rendered as 0; the available API-value assertions do not expose those counts.",
+        "Verify DATE_TIME formatting against source bidding dates and missing dates rendered as '-'; the catalog has no date-format assertion and the prepared fixture does not supply missing-date rows."
       ],
       "controls": [
         7,
@@ -1669,7 +1669,75 @@
         23,
         24,
         25
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Published Stages columns and formatting",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the fixed project's summary page."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Display the published stages table."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Stage Title"
+            },
+            "note": "Check the stage title header."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Pending Actions"
+            },
+            "note": "Check the pending actions header."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Participants"
+            },
+            "note": "Check the participants heading is present."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Bidding Starts At"
+            },
+            "note": "Check the bidding start header."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Bidding Ends At"
+            },
+            "note": "Check the bidding end header."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "published-stages-formatting"
+            },
+            "note": "Record table values and Stage Code visibility for manual inspection without claiming to validate unsupported formatting or fixture conditions."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-148",
@@ -1685,8 +1753,7 @@
       "setup": "Use a project whose line-item response count and participant response count are known.",
       "coverage": "partial",
       "gaps": [
-        "Changing either the line-item or participant response count",
-        "Refreshing the project details page after changing a response count and proving the updated tags persist"
+        "Change the line-item or participant response count in the fixed prepared project and verify that refreshing project details updates the corresponding header tag."
       ],
       "controls": [
         11,
@@ -1694,7 +1761,39 @@
         14,
         17,
         23
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project panel response-count tags",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open project details for the prepared project with one line item and one responding vendor."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Line Items 1"
+            },
+            "note": "Check that the Line Items header displays the known count tag."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants 1"
+            },
+            "note": "Check that the Participants header displays the known count tag."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-149",
@@ -1709,12 +1808,53 @@
       "setup": "Use a project with an analyze_data todo and a returned redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "Exact selection or completion of the internal \"analyze-data\" action if it is not exposed with that visible label",
-        "The exact redirect_url returned by the action"
+        "Ensure the fixed prepared proposal has an analyze_data todo whose action returns a redirect_url.",
+        "Read the action's returned redirect_url and assert that the browser destination matches it exactly."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara analyze-data completion and redirect",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the required prepared project summary."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger the project's Ask Clara action."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the expected completion notification, including if it has already faded."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Check arrival at the awarding flow; this does not verify equality with the returned redirect_url."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-150",
@@ -1729,15 +1869,22 @@
       ],
       "expected": "A confirmation appears stating 'Are you sure you want to delete <title> line item with <qty> quantity'. The line item remains present because deletion is not confirmed.",
       "setup": "Use a project with a line item whose title is known and whose quantity is known.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The exact dynamic confirmation text containing the generated line-item title and quantity cannot be asserted because the case provides neither value.",
-        "The specific target line item cannot be identified because no product or title is provided."
+        "Open the target line item's Actions row menu: no catalog step or confirmed accessible name identifies this row-menu control.",
+        "Assert the exact confirmation 'Are you sure you want to delete <title> line item with <qty> quantity' using the prepared item's actual title and quantity; the catalog cannot interpolate captured values into an expected message.",
+        "Verify the item remains after leaving its deletion confirmation unconfirmed, because the confirmation cannot be reached with the identified controls."
       ],
       "controls": [
         11,
         27
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-151",
@@ -1752,18 +1899,23 @@
       ],
       "expected": "Project ID is shown as '#<refId>'. Created at uses DATE_TIME formatting. Open Tender Event shows 'Yes' only when is_show_under_open_events is enabled; it is not shown as Yes when the configuration is disabled.",
       "setup": "Use a project with a known refId and creation timestamp. Test once with is_show_under_open_events enabled and once with it disabled.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Exact Project ID value rendered as '#<refId>'",
-        "Created at uses DATE_TIME formatting",
-        "Open Tender Event shows 'Yes' only when is_show_under_open_events is enabled and is not 'Yes' when disabled",
-        "Selecting Project Details before opening Overview"
+        "Compare Project ID with '#<refId>': the prepared refId is not supplied and expect_api_value has no refId key.",
+        "Compare Created at with the project's creation timestamp in DATE_TIME format: neither the timestamp nor a corresponding value or formatting assertion is available.",
+        "Exercise is_show_under_open_events both enabled and disabled and verify the corresponding presence or absence of 'Yes': the prepared event has fixed, unspecified default settings and no step can change this configuration."
       ],
       "controls": [
         6,
         14,
         17
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

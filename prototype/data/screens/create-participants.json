@@ -1180,12 +1180,203 @@
       "setup": "Open the schedule drawer for an RFQ event using the default duration configuration.",
       "coverage": "partial",
       "gaps": [
-        "Verify the complete set of available duration presets, including the configured values or the exact defaults of 30 minutes, 1 hour, 4 hours, and 24 hours.",
-        "Verify that the schedule summary displays the exact duration preset selected."
+        "Reliably assert the selected duration in the saved schedule summary: no confirmed summary locator or rendered duration format is provided."
       ],
       "controls": [
         29
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "RFQ duration presets and schedule summary",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Begin the requested create-screen flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's technical-plus-RFQ setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the RFQ pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add project-level items as in the walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete technical configuration."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete the technical questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Supply the required technical evaluator."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Make RFQ the current stage for scheduling."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the initial schedule as required by the setup."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Reach the requested create-participants state."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the schedule drawer to inspect its duration controls."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Schedule Event"
+            },
+            "note": "Verify that the schedule drawer opened."
+          },
+          {
+            "step": "select",
+            "args": {
+              "label": "End time",
+              "option": "Duration"
+            },
+            "note": "Use duration-based scheduling."
+          },
+          {
+            "step": "click",
+            "args": {
+              "label": "Event will last for"
+            },
+            "note": "Open the duration choices."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "30 mins"
+            },
+            "note": "Check the default thirty-minute preset."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "1 hour"
+            },
+            "note": "Check the default one-hour preset."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "4 hours"
+            },
+            "note": "Check the default four-hour preset."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "24 hours"
+            },
+            "note": "Check the default twenty-four-hour preset."
+          },
+          {
+            "step": "select",
+            "args": {
+              "label": "Event will last for",
+              "option": "1 hour"
+            },
+            "note": "Choose a preset different from the initial duration and verify the selection."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule"
+            },
+            "note": "Commit the selected duration."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Check that saving the schedule did not produce an application error."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "rfq-one-hour-schedule-summary"
+            },
+            "note": "Record the saved summary for manual duration verification; this is not a summary-value assertion."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-106",
@@ -1204,7 +1395,162 @@
         6,
         23,
         30
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Recurring event changes Publish label",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open a new non-recurring eRFX event."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the event a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's technical-stage and RFQ setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical-stage template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the RFQ stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the walk's two project-level line items."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ pricing sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete the technical stage."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete the technical questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Assign the required evaluators."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to RFQ as in the walk."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the initial non-recurring schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Reach the specified create-participants state."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Verify the original publish action label."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the schedule drawer to configure recurrence."
+          },
+          {
+            "step": "toggle",
+            "args": {
+              "label": "Mark as Recurring Event",
+              "on": true
+            },
+            "note": "Enable recurrence and confirm the toggle is on."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule"
+            },
+            "note": "Commit the recurring schedule and return to the create screen."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Save Recurring Event"
+            },
+            "note": "Assert the publish action now uses the recurring-event label."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Publish",
+              "visible": false
+            },
+            "note": "Assert the original Publish action has been replaced."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-107",
@@ -1219,10 +1565,16 @@
       "setup": "Open a new RFQ event with the items grid visible.",
       "coverage": "none",
       "gaps": [
-        "Whether Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount headers show required markers",
-        "Whether the GST header lacks a required marker"
+        "Assert required markers on the Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount headers.",
+        "Assert that the GST header has no required marker; no catalog step reads header required-marker state, and exact rendered marker text is not provided."
       ],
-      "controls": []
+      "controls": [],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-224",
@@ -1238,15 +1590,177 @@
       ],
       "expected": "The schedule saves, but publishing is refused with \"Please add end time for the event\".",
       "setup": "Open a new RFQ event with the schedule drawer available.",
-      "coverage": "partial",
-      "gaps": [
-        "Directly assert that the schedule was persisted successfully after clicking Save Schedule."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6,
         20,
         29
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish rejects custom duration without end time",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the create flow used by the walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply a title so missing-title validation cannot mask the schedule error."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walked two-stage setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the RFQ stage separately."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the walked line items and enable schedule controls."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required RFQ sheet data."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete technical requirements."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Avoid an unrelated missing-evaluator refusal."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the RFQ stage for scheduling."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the initial schedule as in the walk."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Reach create-participants with the participant prerequisite satisfied."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the schedule drawer."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Duration"
+            },
+            "note": "Open the duration choices."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Custom duration"
+            },
+            "note": "Choose custom duration without entering an end time."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss the duration popover without completing its end time."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule"
+            },
+            "note": "Attempt to save the incomplete custom schedule."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Verify saving does not report a validation error."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule",
+              "visible": false
+            },
+            "note": "Verify the schedule drawer closed after saving."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add end time for the event"
+            },
+            "note": "Verify publishing refuses specifically because the custom duration has no end time."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-225",
@@ -1260,13 +1774,23 @@
       ],
       "expected": "Select date is enabled for input, and Select time is available for the fixed-time schedule.",
       "setup": "Open a new RFQ event. Confirm Select date is initially disabled.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "none",
+      "gaps": [
+        "Verify that the schedule drawer's Select date input is initially disabled and becomes enabled: no confirmed target or input-disabled-state assertion is provided for this field.",
+        "Select Fixed time from Start now: the documented Start time options are Start now and Schedule for later, while Fixed time belongs to End time.",
+        "Verify Select time is available for the fixed-time schedule: its control and label are not confirmed on the schedule drawer."
+      ],
       "controls": [
         25,
         26,
         28
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-226",
@@ -1290,7 +1814,220 @@
         21,
         23,
         30
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Recurring schedule shared across Technical and RFQ stages",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the requested create-screen setup."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Create Technical and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the Technical Stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply its technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the RFQ template separately."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add project-level items as in the screen walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ pricing sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to technical configuration."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and item-level questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Complete Technical Stage prerequisites."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Use RFQ as the stage where recurrence is saved."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the initial schedule as in the requested setup."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Reach the create-participants state."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the current stage's schedule."
+          },
+          {
+            "step": "toggle",
+            "args": {
+              "label": "Mark as Recurring Event",
+              "on": true
+            },
+            "note": "Enable recurring scheduling."
+          },
+          {
+            "step": "select",
+            "args": {
+              "label": "Repeats",
+              "option": "Daily"
+            },
+            "note": "Choose a concrete recurrence frequency to verify across stages."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Repeat Every",
+              "value": "1"
+            },
+            "note": "Configure a daily interval of one."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule"
+            },
+            "note": "Save the recurring configuration."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Inspect recurrence on the other stage."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Open the Technical Stage schedule."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Repeats",
+              "value": "Daily"
+            },
+            "note": "Assert daily recurrence propagated to the Technical Stage."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Repeat Every",
+              "value": "1"
+            },
+            "note": "Assert the Technical Stage carries the saved interval."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Close the schedule without modifying it."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the source stage."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the saved RFQ schedule."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Repeats",
+              "value": "Daily"
+            },
+            "note": "Assert RFQ retains the same daily recurrence."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Repeat Every",
+              "value": "1"
+            },
+            "note": "Assert RFQ retains the same recurrence interval."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-227",
@@ -1304,8 +2041,8 @@
       "setup": "Open the line-item grid on the RFQ event.",
       "coverage": "none",
       "gaps": [
-        "Assert that Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount each display a required marker.",
-        "Assert that GST does not display a required marker."
+        "Assert that Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount each display a required marker in the grid header.",
+        "Assert that the GST grid header does not display a required marker."
       ],
       "controls": [
         31,
@@ -1314,7 +2051,13 @@
         34,
         35,
         36
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     }
   ],
   "reachedBy": [

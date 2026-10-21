@@ -826,14 +826,111 @@
       ],
       "expected": "Publishing fails and the exact message \"Please add end time for the event\" appears.",
       "setup": "Use an otherwise valid event with a title, required line-item data, and at least one participant.",
-      "coverage": "partial",
-      "gaps": [
-        "The exact interaction with the displayed 'Now - 01:23 am, 21st Oct ( 30 Mins )' duration summary and confirmation that the custom-duration popover closes while its end time remains unset cannot be expressed precisely by a catalog step."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         12,
         13
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Custom duration without an end time blocks publishing",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Open single-stage create screen"
+          },
+          {
+            "step": "configure_single_stage",
+            "args": {
+              "eventType": "auction",
+              "auctionSubtype": "rank",
+              "awarding": "lot"
+            },
+            "note": "Configure event type and awarding rule"
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the event a title"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Select a pricing template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add required line items"
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Fill the pricing sheet"
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Add a required participant"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Now - 01:23 am, 21st Oct ( 30 Mins )"
+            },
+            "note": "Open the schedule drawer"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "menuitem",
+              "name": "Custom duration"
+            },
+            "note": "Choose the custom duration option"
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Close the duration popover without setting an end time"
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "set_schedule",
+              "reason": "Intentionally omitting proper schedule configuration to test validation block"
+            },
+            "note": "Skip saving a valid schedule"
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "role": "button",
+                "name": "Publish Event"
+              },
+              "because": "Please add end time for the event"
+            },
+            "note": "Attempt to publish and assert the exact refusal message"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-118",
@@ -853,7 +950,77 @@
         8,
         9,
         16
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Participants opens participant management on single-stage sheet",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Open event creation screen for single-stage"
+          },
+          {
+            "step": "configure_single_stage",
+            "args": {
+              "eventType": "auction",
+              "auctionSubtype": "rank",
+              "awarding": "lot"
+            },
+            "note": "Configure single stage"
+          },
+          {
+            "step": "set_title",
+            "note": "Give the event a title"
+          },
+          {
+            "step": "select_template",
+            "note": "Pick pricing template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill pricing sheet"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Participants"
+            },
+            "note": "Click Participants"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Invite Vendor"
+            },
+            "note": "Click Invite Vendor"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "label": "Search vendors you want to add",
+              "visible": true
+            },
+            "note": "Assert vendor search is visible"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

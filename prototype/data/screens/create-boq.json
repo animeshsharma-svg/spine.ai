@@ -633,7 +633,59 @@
       "gaps": [],
       "controls": [
         5
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ publish blocked without template or sheet",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Reach the create-boq screen directly."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Avoid an unrelated missing-title refusal."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "select_template",
+              "reason": "The case requires no template; also leave the BOQ sheet unuploaded."
+            },
+            "note": "Preserve the missing prerequisites under test."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please choose a template and upload a BOQ sheet to proceed"
+            },
+            "note": "Click Publish and verify refusal with the specified message."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Select Templates"
+            },
+            "note": "Verify template selection remains disabled in this state."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Add Attachments"
+            },
+            "note": "Verify the attachment upload entry point remains available."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-125",
@@ -647,11 +699,85 @@
       "setup": "Open /orders/quick-create without an uploaded BOQ sheet.",
       "coverage": "partial",
       "gaps": [
-        "Confirm that the uploaded file is specifically recognized as a BOQ sheet"
+        "Verify that the opened interface allows choosing a BOQ sheet: the catalog provides no BOQ fixture or confirmed file-input label for this interface."
       ],
       "controls": [
         2
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ Add Attachments opens upload interface",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Reach the empty BOQ create screen without uploading a sheet."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required unique title for this create test."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add Attachments"
+            },
+            "note": "Exercise the attachment entry point rather than the separate Upload Sheet control."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that an interface actually opens."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "boq-add-attachments-interface"
+            },
+            "note": "Record the file-selection controls for the BOQ-specific check that cannot yet be automated."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss the interface without uploading a sheet."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "visible": false
+            },
+            "note": "Verify that the interface closed."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify that dismissal leaves the browser on the create route."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Add Attachments"
+            },
+            "note": "Verify that the create screen's attachment control remains available."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-126",
@@ -665,13 +791,79 @@
       "setup": "Open /orders/quick-create with no terms and conditions configured.",
       "coverage": "partial",
       "gaps": [
-        "Entering or selecting terms and conditions in the editor or picker",
-        "Saving terms and returning to the create screen",
-        "Asserting that the Terms & Conditions configuration becomes enabled after saved terms are added"
+        "Add and save terms in the editor or picker: no domain step or confirmed editor field and save-control labels are provided.",
+        "Verify that saved terms configuration becomes available from the create screen, since saving terms cannot be expressed reliably."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ terms editor opens and cancels without saving",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Reach the fresh BOQ create screen with no terms configured."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required title for this create test."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add T&Cs"
+            },
+            "note": "Open terms and conditions editing."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that clicking Add T&Cs opens an editor or picker dialog."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "boq-terms-editor"
+            },
+            "note": "Record editor controls to support implementing the currently unsupported save branch."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss the editor without saving."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "visible": false
+            },
+            "note": "Verify the editor closed."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Terms & Conditions"
+            },
+            "note": "Verify cancelling without saving leaves terms configuration disabled."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-248",
@@ -690,7 +882,51 @@
       "controls": [
         4,
         7
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ setup controls explain missing data",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Reach the BOQ create screen through the documented flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required test title without providing template or BOQ data."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Please choose a template and upload a BOQ sheet to proceed"
+            },
+            "note": "Verify the setup message explains what is missing."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Verify saving a draft is disabled in the incomplete setup."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Select Templates"
+            },
+            "note": "Verify template selection is disabled in the current state."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-249",
@@ -704,11 +940,50 @@
       "setup": "Open the create screen.",
       "coverage": "partial",
       "gaps": [
-        "The catalog has no dedicated step to verify the Clara panel or drawer specifically; unconfirmed accessible name: Clara"
+        "The assistance interface's dialog role is unconfirmed; it may render as a panel instead."
       ],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Open Clara from BOQ creation",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Reach the BOQ create screen as in the walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required create-test title."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Open Clara using the confirmed control."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Clara"
+            },
+            "note": "Check that the assistance interface opened; this dialog locator is unconfirmed."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-250",
@@ -724,7 +999,44 @@
       "gaps": [],
       "controls": [
         13
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Return from BOQ creation to Events",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Reach the BOQ create screen through the same entry point as the walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required title for a create-screen plan."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Events"
+            },
+            "note": "Exercise the requested return control rather than navigating directly to the destination."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "events_list"
+            },
+            "note": "Assert that the events area is ready and the browser has left the create-screen route."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

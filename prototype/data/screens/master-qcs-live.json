@@ -595,7 +595,41 @@
       "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "New version clone confirmation",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared project."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Create New Version"
+            },
+            "note": "Open the confirmation without creating the clone."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "modal",
+              "text": "Cloning is supported only for the Technical and RFQ stages."
+            },
+            "note": "Assert the confirmation modal appears with the supported-stage warning."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-245",
@@ -610,12 +644,54 @@
       "setup": "Open a project whose Clara todo is \"analyze_data\". Configure the analysis response with a valid redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "Exact returned redirect_url value",
-        "Completion and response of the analysis request because its endpoint is unspecified"
+        "Configure or verify that the prepared project's Clara todo is analyze_data.",
+        "Configure the analysis response with a valid redirect_url.",
+        "Assert that the destination exactly matches redirect_url from the analysis response; only the awarding route can be checked with the supplied information."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara analysis redirects to awarding",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the required prepared event with its existing bid."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger Clara's action on the event."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Check the expected analysis success notification."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Verify arrival on a ready awarding screen, without claiming an exact response-URL comparison."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-246",
@@ -628,15 +704,23 @@
       ],
       "expected": "The overview shows \"Project ID\" as \"#<refId>\", \"Created at\" as the configured DATE_TIME, and \"Open Tender Event: Yes\".",
       "setup": "Configure a project with refId, a known creation date, and is_show_under_open_events enabled. Open the project.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Exact Project ID value formatted as #<refId> because refId is not provided and no catalog assertion reads it.",
-        "Exact Created at value matching the configured DATE_TIME because no catalog step can assert this field's dynamic timestamp."
+        "Configure refId and a known creation date in the fixed prepared event.",
+        "Compare Project ID with #<refId>: no expected refId is supplied, and expect_api_value does not support project reference IDs.",
+        "Compare Created at with the configured DATE_TIME: no expected timestamp is supplied, and expect_api_value does not support creation timestamps.",
+        "Enable is_show_under_open_events on the fixed prepared event and verify Open Tender Event: Yes under that precondition."
       ],
       "controls": [
         9,
         13
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-247",
@@ -649,14 +733,23 @@
       ],
       "expected": "Draft proposals show \"Draft\", requested proposals show \"Approval in Progress\", selected proposals show \"PO Generated\", and rejected proposals show \"Rejected\".",
       "setup": "Prepare Master QCS data containing proposals in draft, requested, selected, and rejected states for the displayed vendor column.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Verify that each status label is attached to the correct vendor column or proposal.",
-        "Verify the underlying proposal state-to-label mapping for each individual proposal."
+        "Prepare proposals in draft, requested, selected, and rejected states in the fixed bid-only event.",
+        "Verify draft proposals show \"Draft\" in the vendor column.",
+        "Verify requested proposals show \"Approval in Progress\" in the vendor column.",
+        "Verify selected proposals show \"PO Generated\" in the vendor column.",
+        "Verify rejected proposals show \"Rejected\" in the vendor column."
       ],
       "controls": [
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

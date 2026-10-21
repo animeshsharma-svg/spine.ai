@@ -309,13 +309,146 @@
       "setup": "Open /orders.",
       "coverage": "partial",
       "gaps": [
-        "The catalog cannot definitively assert that the second creation screen is the BOQ-specific flow rather than another generic create screen; no BOQ-specific navigation assertion or screen step is available."
+        "Verify that the BOQ destination is specifically the BOQ-based flow rather than another creation flow: no confirmed BOQ-specific URL parameter or unique initial-screen marker is supplied."
       ],
       "controls": [
         2,
         8,
         9
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Creation menu routes to eRFX and BOQ flows",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            }
+          },
+          {
+            "step": "set_title"
+          },
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Start at /orders."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list and Create Event control rendered."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "History"
+            },
+            "note": "Reproduce the screen walk."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Reproduce the screen walk."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Recurring"
+            },
+            "note": "Reproduce the screen walk."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Live"
+            },
+            "note": "Return to Live as in the walk."
+          },
+          {
+            "step": "expect_create_options",
+            "args": {
+              "options": [
+                "eRFX Project",
+                "BOQ based RFX Project"
+              ]
+            },
+            "note": "Open the actual menu and verify both requested entry points."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "menuitem",
+              "name": "eRFX Project Manage sourcing via a project approach"
+            },
+            "note": "Exercise the eRFX menu link rather than directly opening its destination."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Assert the project creation screen opened."
+          },
+          {
+            "step": "expect_stages",
+            "args": {
+              "stages": [
+                "auction"
+              ]
+            },
+            "note": "Confirm the eRFX stage-tab screen with its default Auction stage."
+          },
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Return to /orders for the second menu path."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list is ready again."
+          },
+          {
+            "step": "expect_create_options",
+            "args": {
+              "options": [
+                "BOQ based RFX Project"
+              ]
+            },
+            "note": "Reopen the menu and confirm the BOQ entry is offered."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "menuitem",
+              "name": "BOQ based RFX Project Source BOQ via a project approach"
+            },
+            "note": "Exercise the BOQ menu link."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Assert navigation to a ready creation screen without claiming this proves BOQ identity."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "boq-menu-destination"
+            },
+            "note": "Record the destination for manual BOQ-specific verification."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-072",
@@ -332,15 +465,113 @@
       "setup": "Open /orders with \"Live 8583\" selected.",
       "coverage": "partial",
       "gaps": [
-        "Exact selected state of each tab, including the numeric labels History 2035, Drafts 183, and Live 8583",
-        "That each tab displays its corresponding event set or exact event count"
+        "Assert the initial Live tab, every clicked tab, and the final Live tab have the selected state; no catalog assertion reads a tab's selected state.",
+        "Assert the Recurring-specific event view is displayed; no named Recurring screen or confirmed route is supplied."
       ],
       "controls": [
         3,
         4,
         5,
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Event list tab switching",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open /orders as required by the walk."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the event list renders before switching tabs."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "History"
+            },
+            "note": "Switch to History without relying on a changing event count."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Assert the History route and its ready view."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Switch to Drafts."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Assert the Drafts route and its ready view."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Recurring"
+            },
+            "note": "Switch to Recurring as requested."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Check rendering remains healthy; this does not prove Recurring selection or its event set."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "recurring-list-after-switch"
+            },
+            "note": "Record the unsupported Recurring-specific outcome for manual inspection."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Live"
+            },
+            "note": "Return to Live at the end of the tab-switching sequence."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "events_list"
+            },
+            "note": "Check return to a ready events-list route; this does not assert Live selection."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the final list renders without an error."
+          },
+          {
+            "step": "expect_create_options",
+            "args": {
+              "options": [
+                "Single Stage",
+                "eRFX",
+                "BOQ"
+              ]
+            },
+            "note": "Complete the requested walk to the create-event menu; this assertion is separate from tab-switching coverage."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-073",
@@ -354,14 +585,21 @@
       ],
       "expected": "The list shows matching event titles and excludes events that do not match the entered text.",
       "setup": "Open /orders with \"Live 8583\" selected and identify a visible event title.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The distinctive part of the identified event title to enter was not provided.",
-        "A concrete nonmatching event title or list-wide assertion that every nonmatching event is excluded cannot be expressed with the available catalog steps."
+        "Identify a currently visible event title, extract a distinctive fragment, and pass that dynamic value into fill; remember has no supported value substitution.",
+        "Assert that the refreshed list contains matching titles and excludes all nonmatching events for the dynamically identified search text.",
+        "Assert the exact Live count of 8583 without an unconfirmed control label; filter_events selects Live independently of its count."
       ],
       "controls": [
         10
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      }
     }
   ],
   "reachedBy": [

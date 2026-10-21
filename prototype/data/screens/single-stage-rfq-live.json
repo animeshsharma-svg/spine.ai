@@ -577,11 +577,53 @@
       "setup": "Mock the Ask Clara action as an analyze_data todo and return a valid redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "The exact redirect_url returned by the backend cannot be inspected or compared."
+        "Mock the Ask Clara action as an analyze_data todo and return a valid redirect_url (API/mocking setup cannot be performed directly by UI test steps)"
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara analyzes data and redirects to awarding",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Start on Master QCS where Ask Clara is available"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click the Ask Clara button to trigger analysis"
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the success toast appears"
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "proposal",
+              "path": "/awarding/"
+            },
+            "note": "Assert the app navigates to the awarding flow"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

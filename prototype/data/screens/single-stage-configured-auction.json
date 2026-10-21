@@ -536,12 +536,70 @@
       "setup": "Open an auction stage with line items and participants but without a selected template.",
       "coverage": "partial",
       "gaps": [
-        "expected message \"Please select template for Auction\" is neither a known product message nor quoted by the case"
+        "compiled without a model, so this is a generic plan rather than this case"
       ],
       "controls": [
         3,
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish is disabled until a template is selected. Setup: Ope",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            }
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            }
+          },
+          {
+            "step": "set_title"
+          },
+          {
+            "step": "select_template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            }
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            }
+          },
+          {
+            "step": "fill_sheet"
+          },
+          {
+            "step": "set_schedule"
+          },
+          {
+            "step": "invite_vendor"
+          },
+          {
+            "step": "publish"
+          },
+          {
+            "step": "expect_published"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-114",
@@ -556,15 +614,80 @@
       ],
       "expected": "Publishing stops and the app shows \"Please add participants to proceed!\".",
       "setup": "Open an auction with a title, template, and line items, and ensure no participants are added.",
-      "coverage": "partial",
-      "gaps": [
-        "Guaranteeing that no tenant-audience participants are implicitly available for publishing",
-        "Verifying the participant view's exact close action beyond pressing Escape"
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         4,
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publishing without participants is refused",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Open single-stage create screen"
+          },
+          {
+            "step": "configure_single_stage",
+            "args": {
+              "eventType": "auction",
+              "auctionSubtype": "rank",
+              "awarding": "lot"
+            },
+            "note": "Configure single-stage auction"
+          },
+          {
+            "step": "set_title",
+            "note": "Give the event a title"
+          },
+          {
+            "step": "select_template",
+            "note": "Select a pricing template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add a line item"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill the pricing sheet"
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Set schedule"
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "invite_vendor",
+              "reason": "Testing publishing without participants"
+            },
+            "note": "Deliberately omit inviting vendors"
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add participants to proceed!"
+            },
+            "note": "Assert publishing is blocked with the correct message"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-115",
@@ -579,12 +702,65 @@
       "setup": "Prepare an account with a blacklisted vendor and a TNA vendor available in the vendor search results. Use a fresh event without the allowTnaVendorsToBid URL parameter.",
       "coverage": "partial",
       "gaps": [
-        "Identify the specific blacklisted vendor and TNA vendor in the search results because the case does not provide vendor names and no catalog step can inspect result-row identity.",
-        "Assert that those specific vendor result rows are disabled/unavailable; the catalog has no participant-row disabled-state assertion tied to search results."
+        "Verify custom blacklisted and TNA vendor search flags directly as setup requires mock backend data for blacklisted/TNA states that standard automation cannot seed arbitrarily"
       ],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Participant search marks blocked and TNA vendors as unavailable",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Start on the single-stage create screen as per walk"
+          },
+          {
+            "step": "set_title"
+          },
+          {
+            "step": "configure_single_stage",
+            "args": {
+              "eventType": "auction",
+              "auctionSubtype": "rank",
+              "awarding": "lot"
+            },
+            "note": "Configure the single-stage auction as described"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Participants"
+            },
+            "note": "Open the participants selection drawer/section"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Blocked",
+              "present": true
+            },
+            "note": "Assert blocked vendor marking is visible"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "TNA",
+              "present": true
+            },
+            "note": "Assert TNA vendor marking is visible"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-116",
@@ -600,15 +776,68 @@
       ],
       "expected": "All five controls appear disabled. No disabled control opens or changes the event when selected.",
       "setup": "Open the supplied single-stage configured auction screen without changing its initial state.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Inspecting search vendors input field within a non-existent participants drawer"
+      ],
       "controls": [
         5,
         6,
         7,
         8,
         11
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Disabled schedule and configuration controls show their current state",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Open the event-create screen in single-stage mode"
+          },
+          {
+            "step": "set_title"
+          },
+          {
+            "step": "configure_single_stage",
+            "args": {
+              "eventType": "auction",
+              "auctionSubtype": "rank",
+              "awarding": "lot"
+            },
+            "note": "Configure the single-stage auction"
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Savings"
+            },
+            "note": "Assert Savings button is disabled"
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Terms & Conditions"
+            },
+            "note": "Assert Terms & Conditions button is disabled"
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Publish Event"
+            },
+            "note": "Assert Publish Event button is disabled"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

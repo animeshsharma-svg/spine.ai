@@ -1686,15 +1686,83 @@
       "setup": "Use a project with two published stages. Give one stage a ref_id and leave the other without a ref_id. Include a stage with missing participant counts and a stage with missing dates.",
       "coverage": "partial",
       "gaps": [
-        "Correlating each row's ref_id presence with whether its Stage Code is shown or omitted",
-        "Verifying the exact active/total Participants value for each row, including missing counts rendered as 0",
-        "Verifying that every populated date uses the expected DATE_TIME format rather than another rendered date string",
-        "unconfirmed label \"-\" (expect_text) — not among the labels known from the app nor in the case"
+        "The prepared event has only one published RFQ stage; no available step can add the second published stage in this fixed state.",
+        "Cannot set or remove stage ref_id values to verify Stage Code visibility with mixed ref_id rows and its omission when every row lacks ref_id.",
+        "Cannot create missing participant counts or missing dates in the prepared event to verify the 0 and '-' fallbacks.",
+        "Cannot verify dynamic active/total participant counts or DATE_TIME formatting against stage data: the catalog provides neither those API comparison keys nor a formatting-pattern assertion."
       ],
       "controls": [
         7,
         13
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Published stage columns and formatting",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project's summary."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Display the published stages table."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Stage Title"
+            },
+            "note": "Assert the stage title header is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Pending Actions"
+            },
+            "note": "Assert the pending actions header is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants"
+            },
+            "note": "Assert the participants header is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Starts At"
+            },
+            "note": "Assert the bidding start header is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Ends At"
+            },
+            "note": "Assert the bidding end header is displayed."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "published-stages-values"
+            },
+            "note": "Record row values for manual formatting review without claiming automated verification."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-120",
@@ -1709,15 +1777,46 @@
       "setup": "Use a project whose line-item responses count to 3 and participant responses count to 2.",
       "coverage": "partial",
       "gaps": [
-        "Confirm that 3 and 2 are specifically response-count tags rather than other text within the Line Items and Participants panels.",
-        "unconfirmed label \"3\" (expect_text) — not among the labels known from the app nor in the case",
-        "unconfirmed label \"2\" (expect_text) — not among the labels known from the app nor in the case"
+        "The prepared event has only one line item and one invited vendor, with no submitted responses; it cannot provide or verify line-item response count 3 and participant response count 2.",
+        "Visible header text can be checked, but the catalog cannot independently verify that each number is rendered as a count-tag component rather than ordinary header text."
       ],
       "controls": [
         15,
         18,
         24
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project panel header response counts",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project's details screen."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Line Items 1"
+            },
+            "note": "Check the line-item header count supported by this fixture; this does not prove the requested response count of 3."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants 1"
+            },
+            "note": "Check the participant header count supported by this fixture; this does not prove the requested response count of 2."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-121",
@@ -1734,17 +1833,24 @@
       ],
       "expected": "The results filter after the debounce period and show the matching participant. With the search cleared, no page contains more than 20 participant rows. The participant table shows Vendor Name, Vendor Code, Location, Type, Tags, and Reason for not participating.",
       "setup": "Use a project with more than 20 participants and at least one participant whose name or code is unique.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The unique vendor name or code to enter was not provided.",
-        "An explicit wait of at least 300 milliseconds for debounce cannot be expressed.",
-        "The matching participant cannot be asserted without the vendor name or code."
+        "The prepared event has one participant, not more than 20, and participants cannot be added in this fixed state.",
+        "No concrete unique vendor name or code is supplied, and no catalog step can feed the API-provided vendor name into the search field.",
+        "No catalog step can measure or verify that filtering occurs only after the 300-millisecond debounce period.",
+        "The one-participant fixture cannot verify pagination or the 20-participant limit across pages."
       ],
       "controls": [
         20,
         24,
         54
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-122",
@@ -1758,15 +1864,22 @@
       ],
       "expected": "The create screen opens for the draft RFQ-to-auction stage. The screen receives the draftEventId for that stage. No auction-team check blocks navigation.",
       "setup": "Use a project containing a draft RFQ-to-auction stage with a known draft event ID.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Verify that the screen receives the draftEventId for the selected stage.",
-        "Verify that no auction-team check blocks navigation internally."
+        "The prepared project has no draft RFQ-to-auction stage named spine-ui-automation-68664046, and the available setup cannot supply one.",
+        "No known draft event ID is supplied to verify that the destination receives the stage's draftEventId.",
+        "Without the required draft stage, opening its create screen and verifying navigation is not blocked by an auction-team check cannot be tested."
       ],
       "controls": [
         7,
         8
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-123",
@@ -1780,17 +1893,22 @@
       ],
       "expected": "Project ID displays as \"#12345\" and Created at displays as DATE_TIME. Open Tender Event displays \"Yes\" only when is_show_under_open_events is enabled; it is not shown as Yes when the configuration is disabled.",
       "setup": "Use a project with refId 12345 and a known creation timestamp. Run once with is_show_under_open_events enabled and once with it disabled.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Repeat the check with is_show_under_open_events disabled because no catalog step changes or verifies that tenant configuration.",
-        "Assert the exact dynamic project ID format such as #12345.",
-        "Assert that Created at contains a valid DATE_TIME value.",
-        "Assert that Open Tender Event displays Yes only when the setting is enabled."
+        "Set or verify the prepared project's refId as 12345; no catalog assertion reads refId from the prepared API data.",
+        "Compare Created at against the project's known creation timestamp formatted as DATE_TIME; the timestamp is not supplied and is not supported by expect_api_value.",
+        "Run with is_show_under_open_events both enabled and disabled and verify the corresponding Yes/not-Yes values; the prepared configuration is fixed and no step changes it."
       ],
       "controls": [
         6,
         18
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

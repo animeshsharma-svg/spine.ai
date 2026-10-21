@@ -945,14 +945,21 @@
       ],
       "expected": "A column selection interface opens. The existing pricing-sheet columns remain visible and additional available columns can be reviewed.",
       "setup": "Open the create-pricing-sheet screen.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Verify the complete column-selection interface contents and that all additional available columns can be reviewed.",
-        "Verify the exact set of selectable columns or whether already-added columns are disabled in the Add Columns menu."
+        "Assert that the column selection interface opened: no dedicated assertion or confirmed locator for this interface is supplied.",
+        "Assert that additional available columns can be reviewed: no confirmed available-column labels or selection controls are supplied.",
+        "Compare the complete set of existing pricing-sheet columns before and after opening the interface; the catalog can check specified headers or the presence of headers, but cannot snapshot and compare the complete header set."
       ],
       "controls": [
         9
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-091",
@@ -965,12 +972,17 @@
       ],
       "expected": "Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount show required markers. GST does not show a required marker.",
       "setup": "Open the create-pricing-sheet screen with Items 2 displayed.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Whether Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount show required markers.",
-        "Whether GST omits its required marker."
+        "Assert required markers on the Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount headers, and no required marker on GST; no catalog assertion reads header required-marker state, and the markers' exact rendered text and structure are not known."
       ],
-      "controls": []
+      "controls": [],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-092",
@@ -988,12 +1000,160 @@
       "setup": "Open a new unsaved create-pricing-sheet screen with the two existing line items.",
       "coverage": "partial",
       "gaps": [
-        "The UI does not expose the draft's persistent identifier, so it cannot prove that the second save updated the same backend record rather than replacing it with a new record having the same title."
+        "Compare the persistent draft ID before and after the second save to prove that the same record was updated, rather than replaced.",
+        "unconfirmed label \"QA-draft-update-7f32b86d-initial\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
       ],
       "controls": [
         5,
         20
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Repeated draft save updates without duplication",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start a new unsaved project."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the title required by the create flow."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walked pricing-sheet setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "configure the rfp stage on its own tab"
+          },
+          {
+            "step": "select_template",
+            "note": "rfp needs its own template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Create the two existing line items specified by the setup."
+          },
+          {
+            "step": "fill_questionnaires"
+          },
+          {
+            "step": "assign_evaluator"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "configure the rfq stage on its own tab"
+          },
+          {
+            "step": "select_template",
+            "note": "rfq needs its own template"
+          },
+          {
+            "step": "fill_sheet"
+          },
+          {
+            "step": "save_draft",
+            "args": {},
+            "note": "Save the previously unsaved project."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Draft Project created successfully"
+            },
+            "note": "Verify the first save reports draft creation."
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": "QA-draft-update-7f32b86d-renamed"
+            },
+            "note": "Change only the title without reopening the draft."
+          },
+          {
+            "step": "save_draft",
+            "args": {},
+            "note": "Save again in the same editing session."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Draft Project updated successfully"
+            },
+            "note": "Verify the second save reports an update rather than creation."
+          },
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Inspect saved drafts for duplication."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Restrict inspection to drafts."
+          },
+          {
+            "step": "expect_event_in_list",
+            "args": {
+              "title": "QA-draft-update-7f32b86d-renamed"
+            },
+            "note": "Verify the renamed draft exists."
+          },
+          {
+            "step": "expect_count",
+            "args": {
+              "text": "QA-draft-update-7f32b86d-renamed",
+              "count": 1
+            },
+            "note": "Require exactly one matching renamed draft."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search Title",
+              "value": "QA-draft-update-7f32b86d-initial"
+            },
+            "note": "Search for a duplicate left under the original title."
+          },
+          {
+            "step": "expect_count",
+            "args": {
+              "text": "QA-draft-update-7f32b86d-initial",
+              "count": 0
+            },
+            "note": "Verify no draft remains under the original title."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-093",
@@ -1008,13 +1168,175 @@
       "setup": "Open a valid event setup with at least one participant and leave the displayed 30-minute schedule unchanged.",
       "coverage": "partial",
       "gaps": [
-        "Exact dynamic ending time corresponding to the 30-minute duration",
-        "The specific invited vendor identity in the confirmation summary when the case does not name a vendor",
-        "unconfirmed label \"30\" (expect_text) — not among the labels known from the app nor in the case"
+        "Compare the confirmation's dynamically calculated ending time with the unchanged default schedule: no catalog step calculates or compares these times.",
+        "Verify the confirmation's vendor summary matches the invited participant exactly: no confirmed summary field or count label is supplied.",
+        "Prove that no event was persisted before confirmation; remaining on the create screen with the confirmation open checks only the UI state.",
+        "unconfirmed label \"30 Mins\" (expect_text) — not among the labels known from the app nor in the case",
+        "unconfirmed label \"Vendors invited:\" (expect_text) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish previews the unchanged 30-minute schedule",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the requested create-pricing-sheet walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the mandatory event title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Use the walk's technical and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding products."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the two items used in the documented walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Reach the requested populated pricing-sheet screen."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Complete technical prerequisites so unrelated validation does not block the preview."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete technical questions, including the line-item sections."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Satisfy the technical evaluation requirement."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the pricing sheet before publishing."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide at least one participant without inventing a vendor identity."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "30 Mins"
+            },
+            "note": "Verify the displayed default duration; deliberately do not call set_schedule."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Open the confirmation without executing the final publish action."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that a confirmation dialog actually appears."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Starts on: Now",
+              "within": "dialog"
+            },
+            "note": "Check the expected immediate-start summary."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "30 Mins",
+              "within": "dialog"
+            },
+            "note": "Check that the confirmation includes the unchanged 30-minute duration."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Vendors invited:",
+              "within": "dialog"
+            },
+            "note": "Assert that the participant summary is included."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Check that opening the confirmation has not navigated to a published project."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "unconfirmed-publish-schedule-summary"
+            },
+            "note": "Record the ending time and vendor details for manual comparison, leaving the confirmation uncompleted."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-213",
@@ -1031,7 +1353,120 @@
       "controls": [
         6,
         13
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish blocked without participants",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open project creation."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide a valid project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Use the two-stage configuration from the screen walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add project-level items as in the walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Enter valid values for required pricing-sheet columns."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Complete remaining technical-stage prerequisites."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Prevent missing evaluators from introducing another invalid condition."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the pricing stage."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule so participants are the deliberately missing prerequisite."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "invite_vendor",
+              "reason": "Leave vendor search empty and do not add participants."
+            },
+            "note": "Preserve the negative-test premise."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add participants to proceed!"
+            },
+            "note": "Press Publish and assert refusal with the specified participant validation message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-214",
@@ -1043,11 +1478,158 @@
       ],
       "expected": "The event is saved as a draft. The draft retains the entered title and line-item values.",
       "setup": "Enter a project title and valid values for all required line-item columns.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Compare every required line-item pricing-sheet cell after reopening against the value entered by fill_sheet; no catalog step captures and compares all grid cell values."
+      ],
       "controls": [
         5
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Initial draft creation and retention",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Begin the specified create-screen flow."
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": "Initial draft retention"
+            },
+            "note": "Enter a known title to verify after reopening."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Match the pricing-sheet screen walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "configure the rfp stage on its own tab"
+          },
+          {
+            "step": "select_template",
+            "note": "rfp needs its own template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add two project-level line items as in the walk."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Verify that both line items remain."
+          },
+          {
+            "step": "fill_questionnaires"
+          },
+          {
+            "step": "assign_evaluator"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "configure the rfq stage on its own tab"
+          },
+          {
+            "step": "select_template",
+            "note": "rfq needs its own template"
+          },
+          {
+            "step": "fill_sheet"
+          },
+          {
+            "step": "save_draft",
+            "args": {},
+            "note": "Save the initial draft without publishing."
+          },
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Locate the saved event."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Inspect saved drafts."
+          },
+          {
+            "step": "expect_event_status",
+            "args": {
+              "status": "Draft"
+            },
+            "note": "Assert that this event exists with draft status."
+          },
+          {
+            "step": "open_event",
+            "args": {},
+            "note": "Reopen this plan's saved draft to inspect persisted data."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": "Initial draft retention"
+            },
+            "note": "Verify that the entered title was retained."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Inspect the saved pricing sheet."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Verify that both line items remain."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "quantity"
+            },
+            "note": "Verify that the displayed quantity matches persisted event data."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "unit"
+            },
+            "note": "Verify that the displayed unit matches persisted event data."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-215",
@@ -1063,11 +1645,110 @@
       "setup": "Open a pricing sheet that already has a template and populated event data.",
       "coverage": "partial",
       "gaps": [
-        "Reliably choose and verify a different template from the template picker."
+        "Reliably choose a template different from the current selection: no alternative template name is supplied, and select_template without a name defaults to the first offered template."
       ],
       "controls": [
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Template change confirmation",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the create screen used by the pricing-sheet walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the event a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walked technical and RFQ stage setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical stage's template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the commercial pricing sheet."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the initial pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Populate line items as in the pricing-sheet walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Create populated sheet data that a template change could reset."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Buy Template"
+            },
+            "note": "Open the existing template's chooser."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Attempt another template selection using the default; this does not guarantee a different template."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "modal",
+              "text": "Changing template will reset data. Are you sure?"
+            },
+            "note": "Assert the requested warning rather than substituting the different wording documented elsewhere."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Yes",
+              "within": "dialog"
+            },
+            "note": "Assert the requested confirmation action and stop without accepting the reset."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-216",
@@ -1090,7 +1771,9 @@
       "setup": "Open the create-pricing-sheet screen.",
       "coverage": "partial",
       "gaps": [
-        "Exact matching section identity for every navigation control when the product does not expose a distinct known heading inside the opened overlay."
+        "Verify the matching contents of the Add Columns selector, Add Attachments area, Add T&Cs editor, Details section, Price Components section, and Terms & Conditions editor: no confirmed section-specific labels or domain assertions are provided.",
+        "Reliably close every editor: Escape is available, but the catalog does not establish that each of these editors supports it.",
+        "Match the literal schedule timestamp from the recorded walk: the current schedule is time-dependent, so the plan uses the known Schedule control instead."
       ],
       "controls": [
         2,
@@ -1099,7 +1782,368 @@
         9,
         10,
         11
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Pricing sheet navigation sections",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the recorded create-pricing-sheet flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required unique project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's two-stage project."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply its technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing-sheet stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Create the two rows used by the recorded screen."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Finish the requested setup."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Items 2"
+            },
+            "note": "Open the item section without changing its contents."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "placeholder": "Search and add line items using product name"
+            },
+            "note": "Identify the Manage Line Items drawer by its confirmed search control."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify the item section did not navigate away."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Cancel"
+            },
+            "note": "Close the item drawer without edits."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "placeholder": "Search and add line items using product name",
+              "visible": false
+            },
+            "note": "Verify the item drawer closed."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add Columns"
+            },
+            "note": "Exercise the column selector entry point."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "pricing-add-columns"
+            },
+            "note": "Record the selector for review; this does not assert its identity."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Check route retention after Add Columns."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Try dismissing the selector; support for Escape is unconfirmed."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add Attachments"
+            },
+            "note": "Exercise the attachment entry point."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "pricing-add-attachments"
+            },
+            "note": "Record the resulting area without claiming an attachment-editor assertion."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Check route retention after Add Attachments."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Try dismissing the attachment area."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add T&Cs"
+            },
+            "note": "Exercise the terms-editor entry point."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "pricing-add-terms"
+            },
+            "note": "Record the editor whose identifying contents are not documented."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Check route retention after Add T&Cs."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Try dismissing the terms editor."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Details"
+            },
+            "note": "Exercise the Details control."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "pricing-details"
+            },
+            "note": "Record the Details result for manual identification."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Check route retention after Details."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Try dismissing any Details overlay."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Price Components"
+            },
+            "note": "Exercise the Price Components control."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "pricing-price-components"
+            },
+            "note": "Record the resulting section without treating its toolbar label as proof."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Check route retention after Price Components."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Try dismissing any Price Components overlay."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Participants"
+            },
+            "note": "Open the create-screen participant section."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Invite Vendor"
+            },
+            "note": "Verify the participant invitation control appears."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify participant navigation stays on create."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss any participant overlay before the next control."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Savings"
+            },
+            "note": "Open savings configuration without modifying it."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Savings Calculation"
+            },
+            "note": "Verify the matching savings drawer opens."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify savings configuration stays on create."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Try closing the savings drawer."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Terms & Conditions"
+            },
+            "note": "Exercise the footer terms entry point separately from Add T&Cs."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "pricing-terms-and-conditions"
+            },
+            "note": "Record the matching-editor evidence for manual review."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Check route retention after Terms & Conditions."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Try dismissing the footer terms editor."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Use the documented schedule chip identity rather than the stale recorded timestamp."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Schedule Event"
+            },
+            "note": "Verify the schedule editor opens."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify the schedule editor remains on the create route."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

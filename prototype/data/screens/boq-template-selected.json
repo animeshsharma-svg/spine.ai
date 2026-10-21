@@ -813,7 +813,72 @@
       "controls": [
         5,
         11
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ publish blocked without participants",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Open the BOQ auction creation screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide a valid project title."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply an available BOQ template."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the required template-selected starting screen."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide a valid BOQ row."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the product sheet to avoid unrelated validation failures."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid auction schedule."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "invite_vendor",
+              "reason": "The case requires no participants."
+            },
+            "note": "Keep the audience empty deliberately."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add participants to proceed!"
+            },
+            "note": "Click Publish and assert refusal with the required participants message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-156",
@@ -829,11 +894,61 @@
       "setup": "Use a project that is not an RFQ-to-Auction conversion, is not a recurring stage, is not routed to the Auction Team, and is not a service-RFP grouping. Enable draft project creation for the tenant.",
       "coverage": "partial",
       "gaps": [
-        "Whether Save as draft is disabled when draft project creation is disabled by a tenant setting."
+        "Enable draft project creation for the tenant; no catalog step changes tenant settings.",
+        "Repeat with draft project creation disabled and verify Save as draft is disabled; no catalog step disables that setting."
       ],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Draft availability for eligible BOQ projects",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Start a fresh BOQ project rather than an RFQ-to-Auction conversion or service-RFP grouping."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            }
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the title required by the specified screen walk."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the BOQ template-selected state without adding prerequisites absent from the case."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the template-selected starting state."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Check the case's expected eligible-state outcome; this requires the tenant eligibility settings to be supplied externally."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-157",
@@ -849,12 +964,88 @@
       ],
       "expected": "Publishing fails with the message \"Please add end time for the event\".",
       "setup": "Open a valid project with at least one participant and a valid title.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Reliably choose custom duration, leave its end time empty, and dismiss the BOQ schedule popover: no catalog step or confirmed control sequence establishes this state; skipping set_schedule does not clear the default end time."
+      ],
       "controls": [
         5,
         13
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ publish rejects a missing end time",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Follow the requested BOQ screen walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply a valid unique title."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply an available BOQ template."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the requested template-selected starting screen."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide a BOQ row so missing items do not cause rejection."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required sheet values."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Satisfy the participant prerequisite."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "boq-before-missing-end-time-test"
+            },
+            "note": "Record the schedule control for the unsupported custom-duration setup; this is evidence, not an assertion."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "set_schedule",
+              "reason": "Do not automatically commit a valid schedule in a missing-end-time test; this omission alone does not establish an empty end time."
+            },
+            "note": "Prevent automatic repair of the intentionally incomplete schedule."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add end time for the event"
+            },
+            "note": "Require the precise missing-end-time refusal, not an unrelated publishing failure; the unsupported setup may prevent this assertion from passing."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-158",
@@ -869,12 +1060,122 @@
       "setup": "Configure the event to publish to the Auction Team. Add participants and enter a project title longer than 45 characters.",
       "coverage": "partial",
       "gaps": [
-        "Exact character-count validation that the project title is truncated to precisely 45 characters, including whether an ellipsis is rendered."
+        "Configure the event to publish to the Auction Team: no catalog step or confirmed configuration control supports this setup.",
+        "Assert that the rendered project title is exactly 45 characters: available text checks can verify the expected prefix and absence of the full title, but not its exact rendered length."
       ],
       "controls": [
         5,
         14
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Auction Team publish confirmation",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Start the required BOQ template-selection walk."
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": "12345678901234567890123456789012345678901234567890"
+            },
+            "note": "Use a known 50-character title to exercise truncation."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply an available BOQ template."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the required boq-template-selected starting screen."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply a BOQ row so unrelated completeness checks do not block confirmation."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required sheet values."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the participants required by the case."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule before opening publish confirmation."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Open confirmation without approving publication."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Send to Auction Team"
+            },
+            "note": "Assert the confirmation modal's Auction Team title."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "123456789012345678901234567890123456789012345",
+              "within": "dialog"
+            },
+            "note": "Check that the first 45 title characters appear in the modal."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "12345678901234567890123456789012345678901234567890",
+              "present": false,
+              "within": "dialog"
+            },
+            "note": "Check that the full untruncated title is not displayed in the modal."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Publish Event",
+              "within": "dialog"
+            },
+            "note": "Assert the required Publish Event wording."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Send to Auction Team",
+              "within": "dialog"
+            },
+            "note": "Assert the confirmation action uses the Auction Team label."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-159",
@@ -890,15 +1191,73 @@
       "setup": "Open quick-create from an existing RFQ and select an Auction event using the existing BOQ template.",
       "coverage": "partial",
       "gaps": [
-        "Directly attempting to replace the Product or Quantity Requested values and asserting the edit is refused.",
-        "Verifying that no product or quantity value changed after an attempted edit.",
-        "The conversion-specific explanatory copy stating that product changes are unavailable."
+        "The requested BOQ create-screen walk does not open an existing RFQ in conversion mode, and no catalog step converts an RFQ while explicitly selecting its existing BOQ template.",
+        "No catalog step attempts to replace individual Product or Quantity Requested grid-cell values; expect_sheet_cells verifies the application's locked-cell markings instead."
       ],
       "controls": [
         14,
         18,
         19
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ product and quantity fields are read-only",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Follow the explicitly requested BOQ screen walk."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            }
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required unique event title."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply an available BOQ template without inventing a template name."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the boq-template-selected state was reached."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Ensure there is a data row whose product and quantity cells can be checked."
+          },
+          {
+            "step": "expect_sheet_cells",
+            "args": {
+              "row": 1,
+              "readonly": [
+                "Product",
+                "Quantity Requested"
+              ]
+            },
+            "note": "Assert both target cells are marked read-only rather than merely checking that the sheet rendered."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-160",
@@ -910,14 +1269,21 @@
       ],
       "expected": "The Clara summary panel renders and displays the project's existing summary.",
       "setup": "Use a project that has a claraSummary and a tenant where Clara is disabled.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Configure the tenant with Clara disabled.",
-        "Provide or verify the project's existing Clara summary content."
+        "Establish that the create-screen project has an existing claraSummary; no summary value or existing project identifier is supplied.",
+        "Select or configure a tenant where Clara is disabled; no qualifying tenant ID is supplied and catalog steps cannot change tenant settings.",
+        "Assert that the Clara summary panel renders and displays the existing summary: no confirmed panel locator or expected summary text is available."
       ],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-251",
@@ -935,7 +1301,121 @@
       "gaps": [],
       "controls": [
         5
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ publish confirmation and Edit Schedule",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Open the BOQ creation screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide a unique project title."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Choose an available BOQ template."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the recorded boq-template-selected starting state."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add a BOQ row with a valid quantity."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required line-item values."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule before opening confirmation."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Ensure at least one participant is included."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Open confirmation without committing publication."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that a confirmation dialog opens."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Publish Event",
+              "within": "dialog"
+            },
+            "note": "Verify the confirmation title."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Publish",
+              "within": "dialog"
+            },
+            "note": "Verify the confirm action is labeled Publish without clicking it."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Edit Schedule",
+              "within": "dialog"
+            },
+            "note": "Verify the alternative action is labeled Edit Schedule."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Edit Schedule",
+              "within": "dialog"
+            },
+            "note": "Choose schedule editing instead of confirming publication."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Schedule Event"
+            },
+            "note": "Assert that the schedule drawer opens."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-252",
@@ -953,7 +1433,82 @@
       "gaps": [],
       "controls": [
         7
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ template change reset warning",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Open BOQ creation using the documented route."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required event title."
+          },
+          {
+            "step": "select_template",
+            "args": {
+              "name": "New BOQ 2"
+            },
+            "note": "Apply the BOQ template named in the case."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {
+              "name": "New BOQ 2"
+            },
+            "note": "Verify the template applied before preparing existing data."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Populate the BOQ with one line item."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Verify the populated-state prerequisite."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "New BOQ 2"
+            },
+            "note": "Initiate changing the selected BOQ template."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "modal",
+              "text": "Changing template will reset data. Are you sure?"
+            },
+            "note": "Assert the reset warning appears with the required wording."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Yes",
+              "within": "dialog"
+            },
+            "note": "Verify the confirmation label and leave the change unconfirmed."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-253",
@@ -970,7 +1525,59 @@
       "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ draft saving disabled without rows",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Open the BOQ create screen in its initial state."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Follow the specified screen walk."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the template-selected state without adding BOQ rows."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the required starting state."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Assert Save as draft is visibly disabled."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "role": "button",
+                "name": "Save as draft"
+              },
+              "expect": "refused"
+            },
+            "note": "Verify the disabled control cannot be activated to start saving a draft."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-254",
@@ -982,14 +1589,19 @@
       ],
       "expected": "An attachment picker or attachment panel opens, allowing the tester to begin adding an attachment without leaving the BOQ creation screen.",
       "setup": "Open the BOQ creation screen.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Whether a native browser file picker opens",
-        "The exact attachment panel or picker controls and whether they allow beginning an upload"
+        "Assert that an attachment picker or attachment panel opens and is ready to add an attachment: no native file-picker assertion or confirmed attachment-panel label is available."
       ],
       "controls": [
         2
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-255",
@@ -1006,7 +1618,71 @@
       "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "BOQ Rank on lot configuration",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "boq"
+            },
+            "note": "Open the BOQ auction creation screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required unique event title."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the template-selected BOQ screen used in the walk."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify that the template is applied before opening configuration."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Rank on lot"
+            },
+            "note": "Open the lot-ranking auction configuration."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Configuration for Event"
+            },
+            "note": "Assert that the configuration opened."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Choose a Strategy",
+              "value": "Rank Based"
+            },
+            "note": "Verify the selected strategy is rank-based, not merely an available option."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "How will you award the event?",
+              "value": "I'll award the entire lot to single Vendor"
+            },
+            "note": "Verify the configuration selects the entire lot rather than partial, line-item-level awarding."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

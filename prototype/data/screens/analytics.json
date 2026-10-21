@@ -1138,13 +1138,18 @@
       "setup": "Use a project with known line-item response and participant response counts.",
       "coverage": "none",
       "gaps": [
-        "Assert the line-item response panel header displays a count tag.",
-        "Assert the participant response panel header displays a count tag.",
-        "Assert the two panel count tags match their respective line-item and participant response counts."
+        "Identify and read the line-item panel header count tag and assert it matches the prepared event's one line-item response.",
+        "Identify and read the participant panel header count tag and assert it matches the prepared event's one participant response."
       ],
       "controls": [
         23
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "analytics",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-133",
@@ -1159,13 +1164,54 @@
       "setup": "Use a project for which Clara returns an analyze_data todo and a redirect URL.",
       "coverage": "partial",
       "gaps": [
-        "The exact control for starting the available awarding analysis is not defined in the catalog; unconfirmed label: Start Awarding Analysis",
-        "The returned redirect URL cannot be captured or compared dynamically",
-        "unconfirmed label \"Start Awarding Analysis\" (click) — not among the labels known from the app nor in the case"
+        "Guarantee that Clara returns an analyze_data todo and a redirect URL for the fixed prepared event.",
+        "Start a separate available awarding analysis if Clara requires another interaction: its control label is not provided.",
+        "Compare the destination with the exact URL returned by Clara; the catalog can assert the awarding route but cannot extract and compare that response URL."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "analytics",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Clara awarding analysis redirect",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "analytics"
+            },
+            "note": "Open the required prepared RFQ Analytics screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Invoke Clara from the event."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Require the specified awarding-initiation message."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Verify navigation to the awarding screen, without claiming equality with Clara's returned URL."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-134",
@@ -1177,15 +1223,20 @@
       ],
       "expected": "The project messages view or drawer opens without leaving the project screen.",
       "setup": "Remain on this project screen.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "That the browser remains on the same project route after opening Messages.",
-        "The specific messages view or drawer content, beyond a visible dialog surface."
+        "Assert that the project Messages view or drawer actually opens: no confirmed messaging-panel locator or dedicated assertion is available."
       ],
       "controls": [
         5,
         29
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "analytics",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-260",
@@ -1200,13 +1251,18 @@
       "setup": "Open the analytics screen and keep the current event loaded.",
       "coverage": "none",
       "gaps": [
-        "Verify the clipboard contains the associated visible project value",
-        "Paste the copied value into a text editor and compare it with the visible project value"
+        "Paste the clipboard into a text editor and assert that the pasted content matches the associated visible project value."
       ],
       "controls": [
         1,
         29
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "analytics",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-261",
@@ -1219,13 +1275,19 @@
       ],
       "expected": "A Clara analysis or assistance flow opens, and the analytics screen does not show an unhandled error.",
       "setup": "Open the analytics screen and keep the current event loaded.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The exact Clara analysis response or destination after the flow loads"
+        "Verify that a Clara analysis or assistance flow has loaded: no confirmed flow-specific element or destination is supplied, and screen health alone does not prove that Clara opened."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "analytics",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-262",
@@ -1239,12 +1301,51 @@
       "setup": "Open the analytics screen and keep the current event loaded.",
       "coverage": "partial",
       "gaps": [
-        "The messages view is specifically scoped to this event.",
-        "The drawer's message thread or event context contents."
+        "Verify that the opened messages belong to the current event: no confirmed event-context field or messages-context assertion is supplied."
       ],
       "controls": [
         5
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "analytics",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Open event messages from Analytics",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "analytics"
+            },
+            "note": "Open Analytics on the prepared event."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Messages"
+            },
+            "note": "Open messages from the current event."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that the Messages action opens a drawer or dialog."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "analytics-event-messages"
+            },
+            "note": "Record the messages context for manual verification; this does not assert event association."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-263",
@@ -1257,14 +1358,20 @@
       ],
       "expected": "The response data changes to the product-based view, and the product information remains available without an error.",
       "setup": "Open the analytics screen with the displayed product response row visible.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Directly verify that the response rows are regrouped by product rather than another grouping mode"
+        "Assert that the response table changes specifically to product-based grouping; no catalog step or confirmed grouping marker identifies that outcome."
       ],
       "controls": [
         7,
         32
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "analytics",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

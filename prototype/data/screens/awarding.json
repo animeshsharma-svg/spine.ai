@@ -595,11 +595,66 @@
       "setup": "Use the current proposal with no awarded vendors.",
       "coverage": "partial",
       "gaps": [
-        "The absence of a vendor summary specifically containing awarded amounts or awarded items cannot be asserted semantically because the catalog has no region- or field-level step for that summary."
+        "Use the current existing proposal: the supplied prepared state is a bid event, not a proposal.",
+        "Explicitly assert that no vendor summary with awarded amounts or items appears: no confirmed summary-card or metric locator is provided."
       ],
       "controls": [
         14
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Empty awarded-vendor summary",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the required prepared event without changing its state."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Start Awarding"
+            },
+            "note": "Enter awarding without allocating or awarding a vendor."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Verify that the awarding screen opened."
+          },
+          {
+            "step": "expect_award_counters",
+            "args": {
+              "vendors": "0/1"
+            },
+            "note": "Assert that none of the single invited vendor has been awarded."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Awarded Vendors (0/1)"
+            },
+            "note": "Open the awarded-vendor summary."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No vendors awarded"
+            },
+            "note": "Assert the required empty-state message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-139",
@@ -611,13 +666,20 @@
       ],
       "expected": "A hidden-fields view or menu opens and shows the fields currently hidden from the awarding sheet.",
       "setup": "Open the current awarding screen.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Assert that the displayed fields exactly match the columns currently hidden from the awarding sheet."
+        "Assert that the hidden-fields view opens: no confirmed label or container role is supplied for the resulting view.",
+        "Assert that the view lists the currently hidden awarding-sheet fields: no expected field names or catalog step for reading hidden-column configuration is available."
       ],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-140",
@@ -633,14 +695,20 @@
       "setup": "Open the current awarding screen in a window that is not already fullscreen.",
       "coverage": "none",
       "gaps": [
-        "Whether the awarding screen expands into browser fullscreen after clicking Fullscreen",
-        "Whether the screen returns to its normal layout after exiting fullscreen",
-        "Whether fullscreen is exited through the browser controls"
+        "Ensure the browser window starts outside fullscreen.",
+        "Assert that clicking Fullscreen expands the awarding screen into fullscreen.",
+        "Reliably exit browser fullscreen and assert restoration of the normal layout; pressing Escape is only a best-effort exit."
       ],
       "controls": [
         5,
         14
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-269",
@@ -656,14 +724,65 @@
       "setup": "Open a proposal with one vendor layer and no awarded vendors. Repeat with one awarded vendor.",
       "coverage": "partial",
       "gaps": [
-        "Explicitly reloading the awarding screen after the award and observing the proposal refetch",
-        "Observing the transient \"Calculating ...\" state during proposal refetch",
-        "Independently verifying available vendor layers beyond the awarding control and counter"
+        "Award the vendor by modifying the test fixture externally rather than through the awarding UI.",
+        "Control a proposal refetch after reloading and assert the transient 'Calculating ...' counter while the request is pending."
       ],
       "controls": [
         11,
         14
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Awarded Vendors counter before and after allocation",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the prepared event with one line item and one bidding vendor."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Start Awarding"
+            },
+            "note": "Enter the awarding screen from the prepared Master QCS."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Verify the awarding screen opened."
+          },
+          {
+            "step": "expect_award_counters",
+            "args": {
+              "vendors": "0/1"
+            },
+            "note": "Assert no vendor is awarded out of the single available vendor layer."
+          },
+          {
+            "step": "allocate_award",
+            "args": {},
+            "note": "Award the available line item to the sole vendor through the supported UI flow."
+          },
+          {
+            "step": "expect_award_counters",
+            "args": {
+              "vendors": "1/1"
+            },
+            "note": "Assert the awarded-vendor count increased while the available-layer total remained one."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-270",
@@ -676,13 +795,20 @@
       ],
       "expected": "The summary shows \"No vendors awarded\" and does not show vendor amount or awarded-item values.",
       "setup": "Open a proposal with no awarded vendors.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Precise absence of dynamic vendor amount values and awarded-item values in the expanded summary"
+        "Reach a proposal with no awarded vendors: the prepared event is in live bid state, start_awarding requires a closed event, and close_event is unavailable.",
+        "Click \"Awarded Vendors (0/1)\" and verify the empty summary message and absence of vendor amounts and awarded-item values in that required state."
       ],
       "controls": [
         11
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-271",
@@ -696,15 +822,21 @@
       ],
       "expected": "The screen displays \"No bids are placed yet!\" and does not display bid values for the item.",
       "setup": "Open an awarding proposal for an event where no vendor has placed a bid.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Conditionally click \"AAC BLOCKS\" only when the item section is collapsed.",
-        "Assert generically that no bid values are displayed within the AAC BLOCKS item section without known value text or a dedicated bid-value absence assertion."
+        "The prepared event has a submitted bid, and no available step can turn it into the required no-bid event.",
+        "Cannot verify that the no-bid awarding content displays \"No bids are placed yet!\" and contains no bid values for AAC BLOCKS using this fixture."
       ],
       "controls": [
         8,
         14
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-272",
@@ -721,16 +853,21 @@
       "setup": "Open the awarding screen with tickets available.",
       "coverage": "none",
       "gaps": [
-        "No catalog assertion identifies or verifies that the tickets view opened.",
-        "No catalog step returns from the tickets view to the awarding screen.",
-        "No catalog assertion verifies that awarding data was not modified.",
-        "The second View Tickets control cannot be reached and verified after returning to awarding."
+        "Ensure tickets are available on the fixed prepared event.",
+        "Verify that either control opens the tickets view: no confirmed destination route or tickets-view identifying element is supplied.",
+        "Verify that all awarding data remains unchanged; award counters alone cannot establish this."
       ],
       "controls": [
         13,
         14,
         15
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

@@ -1115,15 +1115,64 @@
       "setup": "Use a proposal where ntd_required_on_proposal is enabled and a saved document template exists.",
       "coverage": "partial",
       "gaps": [
-        "Assert that the first saved document template, specifically, was selected.",
-        "Move to another document section because no catalog step can identify or navigate document sections.",
-        "Verify that the changed section was saved automatically after navigation."
+        "The prepared proposal uses default settings; no catalog step can enable ntd_required_on_proposal or create the required saved document template.",
+        "Verify that the loaded document is the first saved template: its expected identity and ordering are not supplied.",
+        "Move to another document section: no section navigation label or dedicated catalog step is supplied.",
+        "Verify that the changed section is saved automatically: field entry confirms only the current input value, not persistence, and no known autosave request contract or document reload step is supplied."
       ],
       "controls": [
         5,
         17,
         21
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "proposal",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Proposal document loading and editing",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Open the existing draft award proposal."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Document"
+            },
+            "note": "Select the proposal Document panel."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "placeholder": "Enter answer here..."
+            },
+            "note": "Assert that the document content exposes an answer field."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Enter answer here...",
+              "value": "Procurement is required to support planned operations."
+            },
+            "note": "Enter a nonempty answer and confirm the field holds it; this does not assert autosave."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "proposal-document-edited"
+            },
+            "note": "Record the edited document and available section controls for the unsupported navigation and persistence checks."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-142",
@@ -1142,7 +1191,46 @@
         4,
         17,
         21
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "proposal",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Required proposal answer blocks submission",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Open the existing draft award proposal."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Enter answer here...",
+              "value": ""
+            },
+            "note": "Ensure the required answer is empty."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "role": "button",
+                "name": "Submit Proposal"
+              },
+              "expect": "refused",
+              "because": "Please fill all the required fields"
+            },
+            "note": "Assert submission is refused with the required-fields validation message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-143",
@@ -1154,13 +1242,21 @@
       ],
       "expected": "The submit request is refused and the message \"Insufficient parameters\" is shown. The proposal remains unsubmitted.",
       "setup": "Sign in as a viewer who is not the proposal creator. Use a draft proposal with all required fields completed.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Establishing that the current user is a non-creator of the proposal"
+        "Sign in as a viewer and establish that this user is not the proposal creator; switch_company changes tenants, not user roles.",
+        "Guarantee that all required proposal fields are completed in the prepared draft.",
+        "Exercise submission as the non-creator, verify the refusal message \"Insufficient parameters\", and confirm that the proposal remains unsubmitted."
       ],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "proposal",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-144",
@@ -1173,11 +1269,51 @@
       ],
       "expected": "The rows show each applicable stage, followed by Master QCS, followed by Proposed PO form.",
       "setup": "Use a proposal containing at least one lot stage and one non-RFQ or auction stage. Do not configure skip_custom_po.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "The prepared proposal has only one RFQ stage; it cannot supply the requested combination of a lot stage and a non-RFQ/non-auction stage.",
+        "No catalog step can configure skip_custom_po; the prepared event uses default settings."
+      ],
       "controls": [
         8
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "proposal",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Proposal comparison sheet row order",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Open the existing draft award proposal."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Comparison Sheets"
+            },
+            "note": "Display the proposal's comparison sheet rows."
+          },
+          {
+            "step": "expect_order",
+            "args": {
+              "items": [
+                "RFQ",
+                "Master QCS",
+                "Proposed PO form"
+              ]
+            },
+            "note": "Assert the prepared proposal's applicable stage appears before Master QCS and Proposed PO form, in that order."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-145",
@@ -1193,13 +1329,55 @@
       "setup": "Open a proposal whose status is not draft.",
       "coverage": "partial",
       "gaps": [
-        "Whether an attempted change is autosaved or whether no autosave request is sent"
+        "Verify that autosave does not trigger when attempting to edit a read-only document response"
       ],
       "controls": [
         5,
         17,
         21
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "proposal",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Document is read-only after the proposal leaves draft status",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Open the non-draft proposal page"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Document"
+            },
+            "note": "Select the Document section"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "textbox",
+              "name": "Enter answer here...",
+              "within": "dialog"
+            },
+            "note": "Attempt to select or interact with the response field"
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Enter answer here..."
+            },
+            "note": "Assert the response field is disabled/read-only"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-146",
@@ -1212,13 +1390,40 @@
       ],
       "expected": "Select date is visibly disabled and does not open or accept input.",
       "setup": "Open the proposal in its current state without completing any prerequisite that could make the date applicable.",
-      "coverage": "partial",
-      "gaps": [
-        "The specific prerequisite for enabling Select date and the transition to an enabled state cannot be identified or verified with the catalog."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         18
-      ]
+      ],
+      "prep": {
+        "state": "proposal",
+        "screen": "proposal",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Select date remains disabled without prerequisite",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Open the award proposal page on the prepared event"
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "label": "Select date"
+              },
+              "expect": "refused"
+            },
+            "note": "Assert that trying to select the date field is refused because the prerequisite is not met"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

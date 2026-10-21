@@ -259,14 +259,52 @@
       ],
       "expected": "An Ask Clara assistant panel or screen opens without leaving the events area.",
       "setup": "Load /orders with History 2035 selected.",
-      "coverage": "partial",
-      "gaps": [
-        "The exact Ask Clara assistant panel or screen opening state is not defined by a domain assertion step.",
-        "The specific event-row context in which Ask Clara is available is not expressible without a known event title or project id."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "closed",
+        "screen": "history_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara opens from History",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Open the prepared events list with History selected."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Launch the assistant from event history."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Ask Clara"
+            },
+            "note": "Check that the assistant opens, subject to confirmation of its dialog role and accessible name."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders"
+            },
+            "note": "Verify opening the assistant did not navigate away from the events area."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-061",
@@ -278,14 +316,20 @@
       ],
       "expected": "An export dialog, menu, or download flow opens for the historical events.",
       "setup": "Load /orders with History 2035 selected and at least one historical event visible.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "An export menu opening instead of a dialog",
-        "A file download being initiated or completed"
+        "Assert that Export opens a historical-events export dialog or menu, or starts a download: no confirmed export-result control or download-verification step is available.",
+        "Guarantee the History tab count is exactly 2035 in the prepared environment."
       ],
       "controls": [
         2
-      ]
+      ],
+      "prep": {
+        "state": "closed",
+        "screen": "history_list",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-062",
@@ -302,15 +346,96 @@
       "setup": "Load /orders with \"History 2035\" selected.",
       "coverage": "partial",
       "gaps": [
-        "Direct assertion that each clicked tab has selected state styling",
-        "Verification of the numeric tab counts: Live 8583, Drafts 183, and History 2035"
+        "Directly assert the selected state of each status tab, including History at the end; no catalog assertion reads a tab's selected state.",
+        "Assert Recurring-specific view readiness; expect_navigated has no recurring_list screen, so only its tab query can be checked."
       ],
       "controls": [
         4,
         5,
         6,
         7
-      ]
+      ],
+      "prep": {
+        "state": "closed",
+        "screen": "history_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Switch event status tabs and return to History",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Start on the prepared event's History list."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Live"
+            },
+            "note": "Switch to Live without depending on changing tab counts."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "tab=live"
+            },
+            "note": "Check that navigation identifies the Live view."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "events_list"
+            },
+            "note": "Verify the events screen is ready."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Switch to Drafts."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Verify the Drafts route and screen readiness."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Recurring"
+            },
+            "note": "Switch to Recurring."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "tab=recurring"
+            },
+            "note": "Check that navigation identifies Recurring; this does not directly assert selected styling or view readiness."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "History"
+            },
+            "note": "Return to History as required."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Verify the final route and ready view are History."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-063",
@@ -326,7 +451,40 @@
       "gaps": [],
       "controls": [
         8
-      ]
+      ],
+      "prep": {
+        "state": "closed",
+        "screen": "history_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "History search with no matching title",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Start on the prepared events list with History selected."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search Title",
+              "value": "ZZZ-no-matching-history-event-99999-f72c49"
+            },
+            "note": "Search for a unique title that should match no historical event."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No Results found"
+            },
+            "note": "Verify the history search resolves to the filtered empty-results state."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-064",
@@ -343,12 +501,87 @@
       "setup": "Load /orders with \"History 2035\" selected.",
       "coverage": "partial",
       "gaps": [
-        "Prove that the event list contents remain exactly unchanged after the attempted date interactions."
+        "Directly assert that neither date control receives keyboard or pointer focus.",
+        "Assert that the entire event list remains unchanged after both interactions; no stable list-region target or list snapshot comparison is supplied."
       ],
       "controls": [
         9,
         10
-      ]
+      ],
+      "prep": {
+        "state": "closed",
+        "screen": "history_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "History date filters remain disabled",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Open the prepared History list without creating or searching for an event."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Starting from"
+            },
+            "note": "Check that the starting-date control is disabled."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "text": "Starting from"
+              }
+            },
+            "note": "Require positive evidence that clicking the starting-date control is refused."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "fill",
+              "args": {
+                "label": "Starting from",
+                "value": "2026-10-20"
+              }
+            },
+            "note": "Verify that the disabled starting-date control refuses date input."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Ending at"
+            },
+            "note": "Check that the ending-date control is disabled."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "text": "Ending at"
+              }
+            },
+            "note": "Require positive evidence that clicking the ending-date control is refused."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "fill",
+              "args": {
+                "label": "Ending at",
+                "value": "2026-10-21"
+              }
+            },
+            "note": "Verify that the disabled ending-date control refuses date input."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

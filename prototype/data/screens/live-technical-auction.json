@@ -1747,17 +1747,83 @@
       "setup": "Prepare one project with a published stage row containing ref_id and one project where no stage row contains ref_id. Include a missing participant count and a missing bidding date.",
       "coverage": "partial",
       "gaps": [
-        "Compare a project with at least one stage ref_id against a separate project with no stage ref_id to verify conditional Stage Code visibility.",
-        "Verify the exact participant active/total value for a specific row, including coercion of a missing participant value to 0, without known fixture values or a row-scoped value assertion.",
-        "Verify that missing date values render '-' in the specific affected row.",
-        "Verify all other listed columns as structured table columns rather than visible text.",
-        "unconfirmed label \"-\" (expect_text) — not among the labels known from the app nor in the case"
+        "Cannot prepare or select two projects with controlled ref_id presence and absence; the fixed prepared project's ref_id values are unspecified, so Stage Code visibility cannot be asserted for either condition.",
+        "Cannot introduce a missing participant count or compare active/total formatting against stage counts using the catalog's supported API-value keys.",
+        "Cannot introduce a missing bidding date to verify that its cell displays '-'."
       ],
       "controls": [
         7,
         14,
         20
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": true,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Published Stages columns and formatting",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the fixed prepared project's summary."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Display the published stages table."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Stage Title"
+            },
+            "note": "Verify the stage title column is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Pending Actions"
+            },
+            "note": "Verify the pending actions column is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants"
+            },
+            "note": "Verify the participants column label is present; this does not check count formatting."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Starts At"
+            },
+            "note": "Verify the bidding start column is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Ends At"
+            },
+            "note": "Verify the bidding end column is present."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "published-stages-columns-and-values"
+            },
+            "note": "Record the available rows for manual inspection without claiming conditional columns or value formatting have been verified."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-178",
@@ -1770,14 +1836,48 @@
       ],
       "expected": "The line-item panel header shows a count tag of 2 and the participant panel header shows a count tag of 1.",
       "setup": "Use the displayed project with two line-item responses and one participant response.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Verify the Line Items 2 header for two line-item responses: the fixed prepared event contains only one line item."
+      ],
       "controls": [
         13,
         15,
         26,
         60
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": true,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Summary line-item and participant count tags",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project's summary containing both panel headers."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Line Items 1"
+            },
+            "note": "Verify the line-item header count matches the available one-line-item fixture, not the requested count of two."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants 1"
+            },
+            "note": "Verify the participant header shows the requested count of one."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-179",
@@ -1791,17 +1891,24 @@
       ],
       "expected": "The create screen opens for the draft stage and carries the draftEventId for that stage. No auction-team check prevents the navigation.",
       "setup": "Prepare a non-draft project containing a draft RFQ-to-auction stage.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Whether an internal auction-team check was evaluated or bypassed, beyond observing successful navigation",
-        "That the draftEventId belongs to the selected Auction stage rather than merely being present in the URL"
+        "Establish the required non-draft project containing a draft RFQ-to-auction stage within the fixed prepared state.",
+        "Click the required draft Auction entry and verify its create-screen destination and stage-specific draftEventId; that entry is unavailable in this prepared event.",
+        "Verify that no auction-team check blocks the draft auction navigation, since the required navigation cannot be exercised."
       ],
       "controls": [
         7,
         9,
         18,
         63
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": true,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-180",
@@ -1816,17 +1923,23 @@
       ],
       "expected": "Project ID is shown as '#<refId>' and Created at uses DATE_TIME formatting. Open Tender Event shows 'Yes' only when is_show_under_open_events is enabled; it is not shown as Yes when disabled.",
       "setup": "Prepare one project with refId and created-at data, with is_show_under_open_events enabled. Repeat with the configuration disabled.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Inspect that Project ID is formatted exactly as '#<refId>'",
-        "Verify that Created at uses DATE_TIME formatting",
-        "Toggle is_show_under_open_events to disabled and repeat the check",
-        "Verify Open Tender Event changes between 'Yes' and not 'Yes' across the enabled and disabled tenant states"
+        "Prepare or verify projects with is_show_under_open_events explicitly enabled and disabled; the prepared event has fixed default settings and no step changes this configuration.",
+        "Compare Project ID with '#<refId>': expect_api_value does not support refId, and no expected reference ID is supplied.",
+        "Compare Created at with the creation timestamp rendered using DATE_TIME formatting: neither the timestamp nor an assertion for this formatting is available.",
+        "Assert Open Tender Event is Yes when enabled and is not Yes when disabled: neither configuration state is established, and the field's exact label and locator are unconfirmed."
       ],
       "controls": [
         6,
         20
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": true,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-181",
@@ -1842,12 +1955,54 @@
       "setup": "Prepare the project with an analyze_data Clara todo and configure the response with a valid redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "Exact returned redirect_url value",
-        "The specific analyze-data todo context"
+        "Prepare an analyze_data Clara todo on the fixed live project.",
+        "Configure the Clara response with a valid redirect_url.",
+        "Compare the destination URL with the exact redirect_url returned by Clara; only the known awarding route can be asserted."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": true,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Clara analyze-data awarding redirect",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the required prepared project summary."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger the Clara action."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "any",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the expected notification, including if it has already faded."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Wait for the awarding destination to be ready; this does not verify equality with the returned redirect_url."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

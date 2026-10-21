@@ -729,11 +729,54 @@
       ],
       "expected": "A cloning modal opens and says \"Cloning is supported only for the Technical and RFQ stages.\" Do not confirm the clone.",
       "setup": "Open a project containing Technical and RFQ stages.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "The prepared project contains only an RFQ stage; the required project containing both Technical and RFQ stages cannot be established in this fixed state."
+      ],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "participants",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Create New Version clone warning",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the prepared project's Participants tab."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Create New Version"
+            },
+            "note": "Open the cloning flow without using the domain step that confirms it."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that the cloning modal opens."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Cloning is supported only for the Technical and RFQ stages.",
+              "within": "dialog"
+            },
+            "note": "Verify the supported-stage warning and leave the clone unconfirmed."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-238",
@@ -747,12 +790,53 @@
       "setup": "Open a project with an Ask Clara analyze_data todo and a returned awarding redirect URL.",
       "coverage": "partial",
       "gaps": [
-        "That an analyze_data todo specifically existed before clicking Ask Clara",
-        "The exact returned redirect URL; only navigation to the /awarding/ route can be asserted"
+        "Ensure the prepared live project has an Ask Clara analyze_data todo with a returned awarding redirect URL.",
+        "Compare the final browser URL with the exact redirect URL returned by Ask Clara; only the awarding route can be asserted."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "participants",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara awarding redirect",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the required prepared project's Participants screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger the Ask Clara action."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the expected awarding initiation message."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Check navigation to the awarding flow, not the distinct proposal page; this does not establish exact returned-URL equality."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-239",
@@ -769,7 +853,70 @@
       "gaps": [],
       "controls": [
         14
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "participants",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "RFQ tab returns to Responses",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the prepared live RFQ."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Project Details"
+            },
+            "note": "Establish the requested starting view."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Verify Project Details opened."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "RFQ"
+            },
+            "note": "Return to the pricing round."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Responses"
+            },
+            "note": "Select the RFQ Responses view."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Assert the Responses route and screen are ready."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No bids placed yet.Click hereto view response template."
+            },
+            "note": "Assert the no-bids message specified by the case."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

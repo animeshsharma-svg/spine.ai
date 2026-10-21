@@ -1679,13 +1679,87 @@
       "setup": "Use a project whose stages have no ref_id on any row, one stage with no participant count, and missing bidding dates.",
       "coverage": "partial",
       "gaps": [
-        "Create or load a published-stage fixture with missing participant data so the table displays \"0\".",
-        "Create or load a published-stage fixture with missing bidding dates so the table displays \"-\"."
+        "Cannot customize the prepared state event to have stages without ref_id",
+        "Cannot force missing bidding dates or participant counts to test fallback display ('-' and '0')"
       ],
       "controls": [
         7,
         13
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Published stages show correct columns and fallback values",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the summary screen of the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Open the Published Stages section as requested"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Stage Title",
+              "present": true
+            },
+            "note": "Assert Stage Title column is shown"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Pending Actions",
+              "present": true
+            },
+            "note": "Assert Pending Actions column is shown"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants",
+              "present": true
+            },
+            "note": "Assert Participants column is shown"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Starts At",
+              "present": true
+            },
+            "note": "Assert Bidding Starts At column is shown"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Ends At",
+              "present": true
+            },
+            "note": "Assert Bidding Ends At column is shown"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Stage Code",
+              "present": false
+            },
+            "note": "Assert Stage Code column is absent"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-153",
@@ -1701,15 +1775,79 @@
       ],
       "expected": "Each selected tab renders its corresponding content. Returning to \"Project Details\" renders the project details screen again.",
       "setup": "Use a project with an RFQ stage and Master QCS data available.",
-      "coverage": "partial",
-      "gaps": [
-        "The catalog has no dedicated assertion for the RFQ tab's exact content or route; the RFQ check uses a known visible content label instead."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         15,
         17,
         18
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Valid project detail tabs switch to their content",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Start on the summary page of the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "RFQ"
+            },
+            "note": "Click the RFQ tab"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "RFQ",
+              "present": true
+            },
+            "note": "Assert RFQ content is rendered"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Master QCS"
+            },
+            "note": "Click the Master QCS tab"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Master QCS",
+              "present": true
+            },
+            "note": "Assert Master QCS content is rendered"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Project Details"
+            },
+            "note": "Click the Project Details tab"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Project Details",
+              "present": true
+            },
+            "note": "Assert returning to Project Details renders the project details screen"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-154",
@@ -1726,7 +1864,41 @@
       "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Create New Version shows supported stages explanation",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project summary"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Create New Version"
+            },
+            "note": "Click Create New Version to open the cloning modal"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Cloning is supported only for the Technical and RFQ stages.",
+              "present": true
+            },
+            "note": "Assert the modal explains that cloning is supported only for Technical and RFQ stages"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

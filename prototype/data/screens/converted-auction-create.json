@@ -994,7 +994,8 @@
       "setup": "Open the converted-auction-create screen.",
       "coverage": "partial",
       "gaps": [
-        "Directly verify that the displayed content changes to the corresponding section rather than only confirming the named section text is visible."
+        "Reliably assert that Details displays its corresponding content: no confirmed section container or distinctive content label is supplied.",
+        "Reliably assert that Price Components displays its corresponding content: no confirmed section container or distinctive content label is supplied."
       ],
       "controls": [
         8,
@@ -1002,7 +1003,156 @@
         10,
         18,
         28
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Converted auction detail sections",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the requested RFQ creation flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the source event a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            },
+            "note": "Conversion requires a published RFQ."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the RFQ stage as in the supplied walk."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply an item for the source RFQ."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required pricing-sheet fields."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the source event schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide a participant before publishing."
+          },
+          {
+            "step": "publish",
+            "args": {},
+            "note": "Publish the source RFQ."
+          },
+          {
+            "step": "expect_published",
+            "args": {},
+            "note": "Verify publication before conversion."
+          },
+          {
+            "step": "convert_to_auction",
+            "args": {},
+            "note": "Reach the converted-auction create screen."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Check the conversion completed without an application error."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Details"
+            },
+            "note": "Exercise the Details section control."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "converted-auction-details"
+            },
+            "note": "Record the resulting content for manual verification; this is not a section assertion."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss an overlay if the section opened one."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Price Components"
+            },
+            "note": "Exercise the Price Components section control."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "converted-auction-price-components"
+            },
+            "note": "Record the resulting content for manual verification; this is not a section assertion."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss an overlay before opening Participants."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Participants"
+            },
+            "note": "Open the participant section directly rather than using an invitation flow."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "All Vendors"
+            },
+            "note": "Verify participant-selection content appears, rather than merely checking that its toolbar button remains visible."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-168",
@@ -1016,11 +1166,141 @@
       "setup": "Open a converted auction containing at least one line item. Enable network inspection.",
       "coverage": "partial",
       "gaps": [
-        "Assert the exact Clara panel or flow opened after clicking Ask Clara"
+        "Assert that the Clara panel or flow opens: no confirmed panel label or dedicated assertion is available.",
+        "Assert that the GET request occurs after the POST request; sequential expect_request steps do not establish request chronology.",
+        "Correlate the UUID in /external_requests/:uuid with the AI request initiated by Ask Clara."
       ],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Ask Clara requests from a converted auction",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the specified RFQ-to-auction setup."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the source event a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            },
+            "note": "Create the RFQ required for conversion."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the RFQ tab."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply a pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply the line item required by Ask Clara."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required pricing-sheet data."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit a valid bidding schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Satisfy the participant requirement for publication."
+          },
+          {
+            "step": "publish",
+            "args": {},
+            "note": "Publish the source RFQ."
+          },
+          {
+            "step": "expect_published",
+            "args": {},
+            "note": "Verify publication reached a real project."
+          },
+          {
+            "step": "convert_to_auction",
+            "args": {},
+            "note": "Reach the converted-auction create screen."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Check conversion completed without an application error."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Verify the converted auction contains the required line item."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger Clara from the converted auction."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/ask_ai_chats/rfp_questions",
+              "method": "POST"
+            },
+            "note": "Assert the AI-chat POST was sent and received a successful response."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/external_requests/",
+              "method": "GET"
+            },
+            "note": "Assert an external-request GET was sent and received a successful response, without claiming UUID correlation or ordering."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "converted-auction-ask-clara"
+            },
+            "note": "Record the resulting UI for manual panel verification; this is not an assertion that Clara opened."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

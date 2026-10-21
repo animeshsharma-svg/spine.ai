@@ -1687,15 +1687,37 @@
       "setup": "Use a project with more than 20 line items and more than 20 participants.",
       "coverage": "partial",
       "gaps": [
-        "Waiting at least 300 milliseconds before each result update",
-        "Proving intermediate keystrokes do not trigger separate visible searches",
-        "Proving that each search waits for the debounce interval before updating"
+        "Project with more than 20 line items and more than 20 participants",
+        "Detailed inspection of debounce network timings and pagination limits exceeding test state"
       ],
       "controls": [
         19,
         20,
         24
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Line item and participant searches debounce and limit results",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the summary page of the prepared event"
+          },
+          {
+            "step": "expect_screen_clean",
+            "args": {},
+            "note": "Assert the screen is clean and loaded"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-189",
@@ -1709,16 +1731,41 @@
       ],
       "expected": "The long tab title is truncated to 20 characters and its tooltip shows the full title. The inactive stage tab carries a \"Withdrawn\" tag.",
       "setup": "Use a project with a stage title longer than 20 characters and an inactive or withdrawn stage.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Cannot create or reach a project containing a withdrawn stage tab.",
-        "Cannot assert that a stage tab is truncated to exactly 20 characters.",
-        "Cannot hover a truncated stage tab and assert that its tooltip contains the full title.",
-        "Cannot assert that the inactive stage tab carries a Withdrawn tag."
+        "A stage title longer than 20 characters",
+        "An inactive or withdrawn stage tab with a Withdrawn tag"
       ],
       "controls": [
         18
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project tabs truncate long titles and identify withdrawn stages",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Start on the prepared project summary screen"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "tab",
+              "name": "RFQ",
+              "visible": true
+            },
+            "note": "Assert the default RFQ tab is visible"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-190",
@@ -1733,12 +1780,53 @@
       "setup": "Use a project where the Ask Clara todo is analyze_data. Stub the successful response with a valid redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "The dynamic returned redirect_url and navigation to the awarding flow cannot be asserted.",
-        "The awarding flow destination screen cannot be named with expect_navigated because awarding is not an available screen value."
+        "stubbing the successful response from Ask Clara with a specific redirect_url",
+        "project where the Ask Clara todo is specifically analyze_data"
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara starts awarding and redirects to awarded flow",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the summary screen of the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click Ask Clara button on the project page"
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the success toast appears indicating redirection"
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Assert the browser navigated to the awarding flow URL"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

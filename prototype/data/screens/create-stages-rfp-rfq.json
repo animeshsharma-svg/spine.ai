@@ -775,7 +775,102 @@
       "controls": [
         4,
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Template selection requires a line item",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the requested create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Name the test event."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walked create-stages-rfp-rfq screen."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 0
+            },
+            "note": "Verify the initial Items 0 condition."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Select Templates"
+            },
+            "note": "Verify template selection is blocked before adding an item."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "Select Templates",
+              "text": "Please add line items"
+            },
+            "note": "Hover over the control and check the specified explanation."
+          },
+          {
+            "step": "select_template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Use Items to add one product with a valid quantity without first selecting a template."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Verify the prerequisite line item was added."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical stage containing Vendor Assessment."
+          },
+          {
+            "step": "hover",
+            "args": {
+              "role": "button",
+              "name": "Select Templates"
+            },
+            "note": "Repeat the requested hover after adding the item."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Select Templates"
+            },
+            "note": "Verify the enabled-control branch of the expected post-addition outcome."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-081",
@@ -787,14 +882,117 @@
       ],
       "expected": "The event is not published. The message \"Payment Terms and Conditions are mandatory\" appears.",
       "setup": "Prepare a valid event with a title, line items, participants, and required evaluators. Do not save payment terms.",
-      "coverage": "partial",
-      "gaps": [
-        "Configure Payment Terms and Conditions or explicitly set them to an incomplete state before publishing",
-        "Configure or bypass tenant-specific mandatory savings and other publish gates that could prevent the payment-terms message from being reached"
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish blocks missing payment terms",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the eRFX create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reach the two-stage setup using the walk's opening sequence."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the project-level line item before completing its questionnaires."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item technical questions."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Supply all required evaluators."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Visit and configure the RFQ stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required pricing-sheet data."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit the schedule so a missing schedule does not cause the refusal."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Satisfy the participants prerequisite."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "click",
+              "reason": "Deliberately omit opening and saving Payment Terms; payment terms must remain unsaved."
+            },
+            "note": "Preserve the missing-payment-terms premise."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Payment Terms and Conditions are mandatory"
+            },
+            "note": "Click Publish and require both refusal and the exact missing-payment-terms message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-082",
@@ -808,11 +1006,135 @@
       "setup": "Prepare a valid event with a project title, line items, participants, evaluators, and saved payment terms.",
       "coverage": "partial",
       "gaps": [
-        "Directly verify through the backend that no event record has been created yet."
+        "Save payment terms: no domain step or confirmed payment-term editor fields and save controls are supplied.",
+        "Definitively assert that no event was created: remaining on the create URL does not prove backend non-creation, and no confirmed event-creation request endpoint is supplied."
       ],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish opens confirmation without committing",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start on the eRFX create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply a unique project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Follow the walk's opening sequence for the two-stage screen."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure and review the technical stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add a project-level item before filling its technical questionnaire."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item technical questions."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Satisfy evaluator requirements."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure and review the RFQ stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply a pricing template to the RFQ."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the pricing sheet for the shared line item."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit the event schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply the required participant."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Open confirmation without using publish, which would commit the event."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Publish Event"
+            },
+            "note": "Assert that the expected confirmation dialog opens."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Publish",
+              "within": "dialog"
+            },
+            "note": "Assert that the dialog contains the Publish action without clicking it."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify that confirmation has not navigated away from creation; this is not proof of backend non-creation."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-083",
@@ -826,11 +1148,95 @@
       "setup": "Remain on the Vendor Assessment screen.",
       "coverage": "partial",
       "gaps": [
-        "Selecting or adding an attachment within the attachment interface"
+        "Verify that the attachment interface offers a file-selection or add-attachment control: no confirmed control label is provided."
       ],
       "controls": [
         2
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Add Attachments opens and closes on Vendor Assessment",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start on the recorded eRFX create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's Vendor Assessment starting state."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Vendor Assessment"
+            },
+            "note": "Confirm the required starting screen is visible."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add Attachments"
+            },
+            "note": "Open the attachment interface."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that the attachment modal opened."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "vendor-assessment-attachments"
+            },
+            "note": "Record attachment controls for manual inspection; this is not an assertion of file-selection capability."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss the attachment interface."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "visible": false
+            },
+            "note": "Verify the modal closed."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Vendor Assessment"
+            },
+            "note": "Verify Vendor Assessment remains available after dismissal."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-203",
@@ -851,7 +1257,87 @@
       "controls": [
         4,
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Technical template selection requires line items",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open a new eRFX create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the test project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reach the recorded setup with the Technical Stage active and no line items."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Select Templates"
+            },
+            "note": "Assert template selection is blocked before adding an item."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "Select Templates",
+              "text": "Please add line items"
+            },
+            "note": "Hover over the control and verify the required explanation."
+          },
+          {
+            "step": "select_template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Open Items and add one product with a valid quantity without first selecting a template."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Verify the item was added."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the Technical Stage's Vendor Assessment screen."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Select Templates"
+            },
+            "note": "Assert adding the line item unlocks template selection."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-204",
@@ -869,7 +1355,127 @@
       "controls": [
         6,
         16
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Empty project title blocks publishing",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the project creation screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Initially provide a title, following the requested walk."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Compose the technical and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage independently."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the RFQ pricing sheet."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply a pricing template before adding products."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply the required project-level line item."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required buyer pricing-sheet fields."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to technical configuration after the line item exists."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item technical questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Supply all required technical evaluators."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the RFQ stage for the remaining setup."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Save the required event schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Ensure a participant is present."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": ""
+            },
+            "note": "Clear the title and confirm the field is empty."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please fill project title!"
+            },
+            "note": "Press Publish and assert refusal with the exact title-validation message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-205",
@@ -881,13 +1487,124 @@
       ],
       "expected": "The event is not published. The app shows \"Payment Terms and Conditions are mandatory\".",
       "setup": "Prepare an event with a title, line item, participant, and evaluator. Open Terms & Conditions and leave payment terms unset or unsaved.",
-      "coverage": "partial",
-      "gaps": [
-        "Explicitly open and verify the Payment Terms modal fields are blank or that no valid paymentTnc object has been saved."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish blocked without saved payment terms",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the multi-stage create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reach the technical-stage and RFQ setup in the requested order."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage independently."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the required project-level line item once."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete technical questions so they do not cause the refusal."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Satisfy the evaluator prerequisite."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure and review the RFQ stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required pricing-sheet fields."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule before attempting publication."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Satisfy the participant prerequisite."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Terms & Conditions"
+            },
+            "note": "Open Terms & Conditions without entering or saving payment terms."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Return to creation without committing payment terms."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Payment Terms and Conditions are mandatory"
+            },
+            "note": "Attempt publication and require both refusal and the specified payment-terms validation message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-206",
@@ -903,7 +1620,76 @@
       "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Items 0 opens line-item management",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the documented create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reach Vendor Assessment through the same setup as the screen walk."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 0
+            },
+            "note": "Verify the empty-line-item precondition."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Line Items are not added, please add them in Manage Line Items section"
+            },
+            "note": "Verify the message identifies the required next action."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Items 0"
+            },
+            "note": "Test the toolbar control directly without a template."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Manage Line Items"
+            },
+            "note": "Assert that line-item management opened."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "placeholder": "Search and add line items using product name"
+            },
+            "note": "Verify the opened section offers the control for adding line items."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

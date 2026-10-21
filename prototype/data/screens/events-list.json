@@ -485,7 +485,48 @@
       "setup": "Open the events‑list screen with the URL `…/orders?tab=unknown`.",
       "coverage": "full",
       "gaps": [],
-      "controls": []
+      "controls": [],
+      "plan": {
+        "title": "Invalid tab falls back to Live",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Enter the events list using the walk's navigation."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the initial list rendered successfully."
+          },
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "path",
+              "path": "/orders?tab=unknown"
+            },
+            "note": "Load the events list with the invalid tab query."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the invalid query does not break list rendering."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "tab=live"
+            },
+            "note": "Assert the invalid value was replaced with live, which drives Live tab selection."
+          }
+        ]
+      },
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-049",
@@ -498,11 +539,66 @@
       ],
       "expected": "The \"Create Event M\" button appears in the empty‑state area (repeated as per design).",
       "setup": "Ensure there are no Live events and clear any filters in the Search Title field.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Ensure there are no Live events: no catalog step can establish an empty Live dataset.",
+        "Verify the repeated button is specifically inside the empty-state area: no confirmed region locator is provided."
+      ],
       "controls": [
         2
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Empty Live tab repeats Create Event",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Reach the events list using the walk's entry point."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list rendered without an error."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Live"
+            },
+            "note": "Select the tab whose empty state is under test."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search Title",
+              "value": ""
+            },
+            "note": "Clear the title search rather than manufacture an empty search result."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No events live right now. Click here to create a new event"
+            },
+            "note": "Require the actual empty Live state; a populated tenant must not silently pass."
+          },
+          {
+            "step": "expect_count",
+            "args": {
+              "role": "button",
+              "name": "Create Event M",
+              "min": 2
+            },
+            "note": "Assert the creation button is repeated, not merely present once in the toolbar."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-050",
@@ -516,10 +612,15 @@
       "setup": "Navigate to the History tab and then to the Drafts tab.",
       "coverage": "none",
       "gaps": [
-        "Assert that no numeric badge element is displayed next to the History tab.",
-        "Assert that no numeric badge element is displayed next to the Drafts tab."
+        "Assert that neither the History tab nor the Drafts tab displays a numeric badge: no catalog step targets tab badges or checks for numeric text within a tab independently of its label."
       ],
-      "controls": []
+      "controls": [],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-051",
@@ -535,7 +636,60 @@
       "gaps": [],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Ask Clara opens assistance dialog",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Reach the events list using the walk's navigation."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the events list rendered successfully."
+          },
+          {
+            "step": "expect_count",
+            "args": {
+              "role": "dialog",
+              "count": 0
+            },
+            "note": "Verify the starting state has no open modal dialog."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Open AI assistance."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Ask Clara"
+            },
+            "note": "Assert a modal dialog titled Ask Clara appears."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "textbox",
+              "within": "Ask Clara"
+            },
+            "note": "Assert the assistance dialog presents a question input."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-055",
@@ -548,14 +702,21 @@
       ],
       "expected": "History cards are grouped under date headers formatted as application dates. No separate History badge count is shown.",
       "setup": "Use an account with history events on at least two dates.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Date-based grouping of History cards under application-formatted date headers for 2035",
-        "Absence of a separate History badge count"
+        "Ensure the account has history events on at least two distinct dates.",
+        "Assert that History cards are grouped under date headers and that those headers use the application's date format.",
+        "Assert that no separate History badge count is shown; no badge-specific target or assertion is available."
       ],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-056",
@@ -575,7 +736,56 @@
       "controls": [
         5,
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Drafts and Recurring empty states",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list using the documented entry point."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the list rendered without an error."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Select Drafts without depending on its changing count badge."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No Drafts Found"
+            },
+            "note": "Assert the correct Drafts empty-state message."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Recurring"
+            },
+            "note": "Select the Recurring tab."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No Recurring Events Found"
+            },
+            "note": "Assert the correct Recurring empty-state message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-057",
@@ -588,13 +798,39 @@
       ],
       "expected": "Search Title includes the text \"or reference id\" in its placeholder.",
       "setup": "Use an account with showReferenceId enabled.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that the Search Title placeholder includes the text \"or reference id\"."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         7
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Reference ID hint in event search placeholder",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list using the account with showReferenceId enabled."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list rendered successfully."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "placeholder": "or reference id"
+            },
+            "note": "Assert the visible search input's placeholder includes the reference-ID hint without typing into it."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-058",
@@ -610,13 +846,81 @@
       "setup": "Open the events list on the selected Live 8583 tab.",
       "coverage": "partial",
       "gaps": [
-        "Directly focus Starting from or Ending at to verify focus is rejected",
-        "Verify the fields' values remain unchanged after attempted input"
+        "Verify that both input values remain unchanged: no initial values are supplied, and remember compares element text rather than input values.",
+        "Directly verify that neither field receives keyboard focus; the catalog has no focused-element assertion."
       ],
       "controls": [
         8,
         9
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Disabled events-list date range fields",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Reach the events list using the walk's entry point."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list rendered before testing its fields."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Live"
+            },
+            "note": "Ensure the date fields are tested on Live without relying on its changing event count."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "label": "Starting from"
+              }
+            },
+            "note": "Try to focus the start-date field and require positive evidence that interaction is refused."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "label": "Ending at"
+              }
+            },
+            "note": "Try to focus the end-date field and require positive evidence that interaction is refused."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "fill",
+              "args": {
+                "label": "Starting from"
+              }
+            },
+            "note": "Attempt input using the executor's default value and require refusal rather than a locator or automation failure."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "fill",
+              "args": {
+                "label": "Ending at"
+              }
+            },
+            "note": "Require the end-date field to reject input as well."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-059",
@@ -633,12 +937,73 @@
       "setup": "Open the events list.",
       "coverage": "partial",
       "gaps": [
-        "The catalog has no dedicated step that identifies or verifies the Clara interface destination after selecting Ask Clara."
+        "Verify that the Clara interface opens: no catalog step or confirmed destination label identifies the Clara interface; clicking Ask Clara and capturing the result does not prove it opened."
       ],
       "controls": [
         1,
         2
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "events_list",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Events-list header destinations",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Reach the events list using the walk's entry step."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list rendered and its Create Event control is available."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Exercise the Clara header action."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "events-list-after-ask-clara"
+            },
+            "note": "Record the resulting interface for manual verification; this is not an assertion that Clara opened."
+          },
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Return to the events list."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list is ready before testing the second header action."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Create Event M"
+            },
+            "note": "Exercise the header control itself rather than bypassing it with open_create."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Assert the action actually reaches the ready event-creation screen."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

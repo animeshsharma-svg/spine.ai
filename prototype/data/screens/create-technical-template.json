@@ -770,7 +770,81 @@
       "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Items 0 opens line-item management",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start a new project with zero line items."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Name the new project."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's two-stage setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Open the technical stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the create-technical-template screen."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 0
+            },
+            "note": "Verify the zero-line-item precondition."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Items 0"
+            },
+            "note": "Activate the empty line-item toolbar control."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Manage Line Items"
+            },
+            "note": "Verify that line-item management opens."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Please add line items to proceed!"
+            },
+            "note": "Verify that the screen explains line items are required before continuing."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-085",
@@ -787,7 +861,95 @@
       "gaps": [],
       "controls": [
         5
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Draft disabled without line items",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the multi-stage create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide a title to isolate the line-item requirement."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Match the walkthrough's stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Visit the technical stage as the walkthrough does."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the technical-template screen."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Test the specified non-RFP stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Prevent the missing-template gate from masking the expected tooltip."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 0
+            },
+            "note": "Verify the no-line-items premise."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "add_line_items",
+              "reason": "The test requires no line items."
+            },
+            "note": "Deliberately leave the draft prerequisite unmet."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Assert that saving a draft cannot be clicked."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "Save as draft",
+              "text": "Please add line items"
+            },
+            "note": "Hover over the disabled control and assert the reason shown."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-086",
@@ -801,15 +963,23 @@
       ],
       "expected": "The blacklisted vendor is disabled and marked \"Blocked\". The TNA vendor is disabled and marked \"TNA\". Neither vendor can be selected.",
       "setup": "Use a fresh project. Ensure the vendor search results include one blacklisted vendor and one TNA vendor, with no URL option allowing TNA vendors to bid.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The test does not provide the blacklisted vendor or TNA vendor names, so their individual rows cannot be targeted.",
-        "No catalog step can assert that each specific vendor row is disabled or that attempting to select either vendor is refused."
+        "Ensure search results contain a blacklisted vendor and a TNA vendor: no vendor identities or prepared fixtures are supplied, and catalog steps cannot configure these vendor statuses.",
+        "Establish that no URL option allows TNA vendors to bid: the relevant parameter is unspecified and no catalog assertion checks URL substring absence.",
+        "Assert each designated vendor result is disabled and cannot be selected: no vendor names or confirmed result-control labels are supplied.",
+        "Associate the Blocked and TNA markers with the respective designated vendors rather than merely checking that the markers appear."
       ],
       "controls": [
         10,
         17
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-207",
@@ -827,7 +997,75 @@
       "controls": [
         4,
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish refuses zero line items",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the multi-stage project creation screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide a title so an empty title is not the tested omission."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Match the technical-template screen walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Open the technical stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the create-technical-template state."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Items 0"
+            },
+            "note": "Verify the project still has zero line items."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "add_line_items",
+              "reason": "Zero line items is the deliberate publish-validation premise."
+            },
+            "note": "Keep the tested prerequisite missing."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Line Items are not added, please add them in Manage Line Items section"
+            },
+            "note": "Click Publish and require refusal with the exact requested validation wording."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-208",
@@ -846,7 +1084,94 @@
       "controls": [
         4,
         5
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Draft enabled after adding a technical-stage line item",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the specified create-screen flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Match the walk's two-stage setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Open the technical stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the create-technical-template screen."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 0
+            },
+            "note": "Verify the initial no-line-items condition."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Assert the starting disabled state."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Open line-item management through Items and add one product with a valid default quantity."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Confirm the item was added."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the Vendor Assessment screen."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Assert that Save as draft is now enabled."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-209",
@@ -862,7 +1187,112 @@
       "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish blocked without payment terms",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the project creation screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Use the technical-plus-RFQ composition from the walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Open the technical stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Reach the create-technical-template screen as specified."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply the required project-level line item."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and per-item technical questionnaires to avoid unrelated validation failures."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Satisfy the technical evaluation prerequisite."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the other stage before testing publication."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required pricing-sheet fields."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule so missing scheduling does not cause the refusal."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply the required participant."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical stage before publishing."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Payment Terms and Conditions are mandatory"
+            },
+            "note": "Leave payment terms unsaved and assert Publish is refused with the exact required validation wording."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

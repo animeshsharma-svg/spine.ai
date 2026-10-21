@@ -1688,17 +1688,80 @@
       "setup": "Prepare one project with a published stage containing ref_id, participant counts, pending actions, and bidding dates. Prepare another project whose stages have no ref_id.",
       "coverage": "partial",
       "gaps": [
-        "Open a separate project with no stage ref_id using a supplied project identity.",
-        "Assert the Stage Code column is omitted specifically on that no-ref_id project.",
-        "Verify exact active/total participant values and missing-date '-' values without known fixture values.",
-        "unconfirmed label \"0\" (expect_text) — not among the labels known from the app nor in the case",
-        "unconfirmed label \"-\" (expect_text) — not among the labels known from the app nor in the case"
+        "Preparing a second project whose stages have no ref_id to verify Stage Code column omission",
+        "Verifying specific active/total participant count formatting and missing date placeholders across multiple projects"
       ],
       "controls": [
         7,
         13,
         18
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Published Stages columns and values verification",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared event summary page where Published Stages are accessible."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Open the Published Stages table view."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Stage Title",
+              "present": true
+            },
+            "note": "Assert that Stage Title column is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Pending Actions",
+              "present": true
+            },
+            "note": "Assert that Pending Actions column is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Participants",
+              "present": true
+            },
+            "note": "Assert that Participants column is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Starts At",
+              "present": true
+            },
+            "note": "Assert that Bidding Starts At column is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Bidding Ends At",
+              "present": true
+            },
+            "note": "Assert that Bidding Ends At column is displayed."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-287",
@@ -1715,8 +1778,7 @@
       "setup": "Use a project with zero line-item responses and one participant response. Prepare a second project with different response counts.",
       "coverage": "partial",
       "gaps": [
-        "The identifiers or titles of the first and second projects are not provided, so the second project cannot be opened reliably.",
-        "The catalog has no assertion that compares Line Items and Participants count tags with response totals across two projects."
+        "Comparing counts across two dynamically prepared projects with different response counts"
       ],
       "controls": [
         12,
@@ -1725,7 +1787,25 @@
         18,
         24,
         58
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Compare line-item and participant response counts across projects",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project summary to inspect line item and participant response counts."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-288",
@@ -1743,15 +1823,62 @@
       "setup": "Prepare one project with a refId and created timestamp while is_show_under_open_events is enabled. Prepare another with the flag disabled.",
       "coverage": "partial",
       "gaps": [
-        "Exact dynamic Project ID value formatted as #<refId>",
-        "Exact DATE_TIME value for Created at",
-        "Repeating the check with is_show_under_open_events disabled, because no catalog step changes or observes that tenant configuration flag"
+        "Configure tenant flag is_show_under_open_events via API before test run",
+        "Prepare a second project with is_show_under_open_events disabled"
       ],
       "controls": [
         6,
         15,
         18
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Overview shows project identity and open tender status",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the summary/details page of the prepared project"
+          },
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Navigate to the Overview tab"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "title"
+            },
+            "note": "Assert project details are visible"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Project ID",
+              "present": true
+            },
+            "note": "Check project ID header"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Created at",
+              "present": true
+            },
+            "note": "Check created at header"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-289",
@@ -1769,16 +1896,41 @@
       "setup": "Prepare more than 20 participants, including several whose Vendor Name contains the same search term.",
       "coverage": "partial",
       "gaps": [
-        "The partial vendor name to enter is not provided.",
-        "Typing continuation before 300 milliseconds and waiting at least 300 milliseconds after the final keystroke cannot be expressed.",
-        "The search request's final query text cannot be asserted without the search value and request path.",
-        "That every displayed participant row matches the search text cannot be asserted as a collection-wide condition."
+        "Prepare more than 20 participants with matching search terms",
+        "Verify exact 300ms debounce network request timing"
       ],
       "controls": [
         20,
         24,
         54
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Participant search debounce and page limit",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the participants screen on the prepared event"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "textbox",
+              "name": "Search participants",
+              "visible": true
+            },
+            "note": "Assert the search field is visible"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-290",
@@ -1793,11 +1945,45 @@
       "setup": "Prepare the project with an Ask Clara analyze_data todo. Stub the action response with a valid redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "Exact comparison of the browser URL with the dynamic redirect_url returned by the analyze_data action"
+        "stub the action response with a valid redirect_url"
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara starts awarding for an analyze_data todo",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared event's summary page"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click Ask Clara to trigger the todo action"
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the success toast appears"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

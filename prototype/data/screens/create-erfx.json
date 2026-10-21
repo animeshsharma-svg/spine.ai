@@ -665,7 +665,95 @@
         4,
         5,
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Draft saving unlocks after template and line item",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the initially empty eRFX create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the mandatory test title."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 0
+            },
+            "note": "Confirm the starting screen has no line items."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Select Templates"
+            },
+            "note": "Confirm no template has been applied."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Verify draft saving is initially blocked."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Choose an available template through the template picker."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Open line-item management and add one product with a valid default quantity."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Assert that the template and line item unlock draft saving."
+          },
+          {
+            "step": "hover",
+            "args": {
+              "role": "button",
+              "name": "Save as draft"
+            },
+            "note": "Exercise the tooltip trigger rather than checking absence without hovering."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Please select template for",
+              "present": false
+            },
+            "note": "Verify the missing-template tooltip is no longer shown."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Please add line items",
+              "present": false
+            },
+            "note": "Verify the missing-line-items tooltip is no longer shown."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-075",
@@ -682,7 +770,67 @@
       "controls": [
         6,
         9
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish blocked without participants",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the requested eRFX create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Avoid an unrelated missing-title refusal."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the required template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Meet the line-item prerequisite."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required buyer sheet values."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Avoid an unrelated missing-schedule refusal."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "invite_vendor",
+              "reason": "The test requires no participants to be added."
+            },
+            "note": "Keep the missing audience as the deliberate precondition."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add participants to proceed!"
+            },
+            "note": "Press Publish and assert that publication is refused with the expected message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-076",
@@ -698,7 +846,77 @@
       "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Empty project title blocks publishing",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the project creation screen."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "set_title",
+              "reason": "The test requires an empty project title."
+            },
+            "note": "Keep the title blank deliberately."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply a template to the default auction stage."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the required line item."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete sheet fields to avoid unrelated validation failures."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Satisfy the participant prerequisite."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please fill project title!"
+            },
+            "note": "Attempt Publish and verify it is refused specifically because the title is empty."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "error",
+              "text": "Please fill project title!"
+            },
+            "note": "Verify the title validation appeared as the expected error toast."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-077",
@@ -713,11 +931,89 @@
       "setup": "A template is already selected and line items are added.",
       "coverage": "partial",
       "gaps": [
-        "Reliably choose a different template when the case provides no alternative template name."
+        "Reliably choose a template different from the current selection: select_template has no different-from-current argument, and the case supplies no alternative template name."
       ],
       "controls": [
         8
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Template change confirmation",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Reach the create-erfx screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide the required event title."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the initial template."
+          },
+          {
+            "step": "expect_template_selected",
+            "args": {},
+            "note": "Verify the initial template is applied."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Establish existing line-item data."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Verify the setup contains a line item."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Exercise template selection again; choosing a distinct alternative is not guaranteed by this default."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "modal",
+              "text": "Changing template will reset data. Are you sure?"
+            },
+            "note": "Assert the exact requested confirmation rather than accepting a different warning."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Yes",
+              "within": "dialog"
+            },
+            "note": "Verify the modal offers confirmation."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Cancel",
+              "within": "dialog"
+            },
+            "note": "Verify the modal offers cancellation without discarding data."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-078",
@@ -729,14 +1025,21 @@
       ],
       "expected": "A toast appears with message \"Please select a valid auction strategy\" and the project is not published.",
       "setup": "Create a quick‑create auction project, select a template and add at least one line item, but leave the auction strategy unset.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The catalog cannot unset or create an invalid auction strategy; configure_single_stage only accepts valid strategies and defaults to Rank."
+        "Leave or set the eRFX auction strategy unset or invalid: the create flow supplies a default strategy and no catalog step clears it.",
+        "Exercise the missing-strategy publish refusal and verify its specific toast under the required invalid-strategy precondition."
       ],
       "controls": [
         6,
         13
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-079",
@@ -748,13 +1051,50 @@
       ],
       "expected": "Button remains disabled and a tooltip appears with text \"Please select template for <stage title>\" or \"Please add line items\".",
       "setup": "Screen loaded with no template selected and no line items.",
-      "coverage": "partial",
-      "gaps": [
-        "The catalog cannot assert an OR condition accepting either the exact stage-specific message \"Please select template for <stage title>\" or \"Please add line items\"; it checks the template guidance substring only."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         12
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Disabled schedule chip explains missing prerequisites",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Reach the initial eRFX create screen without a template or line items."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required test title without enabling the schedule control."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Now - 01:09 am, 21st Oct ( 30 Mins )"
+            },
+            "note": "Assert the schedule chip is disabled."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "Now - 01:09 am, 21st Oct ( 30 Mins )",
+              "text": "Please select template for"
+            },
+            "note": "Hover the chip and assert the missing-template explanation allowed by the case."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-198",
@@ -783,7 +1123,96 @@
         4,
         8,
         16
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Vendor selector prerequisites",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open quick-create with the default Auction stage and no template or line items."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required project title without satisfying either vendor-selection prerequisite."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "Search vendors you want to add",
+              "text": "Please select template for Auction"
+            },
+            "note": "Hover over the selector and check the missing-template tooltip for the default stage."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "label": "Search vendors you want to add"
+              },
+              "expect": "refused"
+            },
+            "note": "Require positive evidence that vendor selection is blocked before choosing a template."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Choose an available template while leaving line items empty."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "Search vendors you want to add",
+              "text": "Please add line items"
+            },
+            "note": "Check that the selector now explains the remaining prerequisite."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "label": "Search vendors you want to add"
+              },
+              "expect": "refused"
+            },
+            "note": "Verify that selecting a template alone does not unblock vendor selection."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Open Manage Line Items, add one product with a valid quantity, and save the drawer."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Confirm the line-item prerequisite has been satisfied."
+          },
+          {
+            "step": "click",
+            "args": {
+              "label": "Search vendors you want to add"
+            },
+            "note": "Prove the vendor selector is now enabled and clickable; this step fails if it remains disabled."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-199",
@@ -808,7 +1237,56 @@
         5,
         8,
         15
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Save as draft enables after template and product",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the fresh create screen with the default Auction stage."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Verify the initial disabled state before entering a title, selecting a template or adding products."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Enter a project title after checking the initial state."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Choose an available template for the Auction stage."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add one product with a valid default quantity and save and close the Manage Line Items drawer."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Save as draft"
+            },
+            "note": "Assert that the template and product prerequisites enable Save as draft."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-200",
@@ -821,13 +1299,20 @@
       ],
       "expected": "The Clara panel opens and generated RFP questions are displayed after the AI requests complete.",
       "setup": "Select a template and add at least one project line item.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Assert that the Clara response contains generated RFP questions after the AI requests complete."
+        "Wait specifically for Clara's AI requests and response rendering to complete.",
+        "Assert that the Clara panel opens and contains generated RFP questions: no dedicated assertion or confirmed panel and question-content labels are available."
       ],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-201",
@@ -845,7 +1330,110 @@
       "controls": [
         6,
         15
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish confirmation truncates title to 45 characters",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the standard eRFX create screen with its default Auction."
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": "Auction confirmation title truncation check 1234567890"
+            },
+            "note": "Enter a title longer than 45 characters."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply a pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add the required line item."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required pricing-sheet fields."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule so validation does not prevent confirmation."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Include at least one participant."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Open confirmation through Publish, not Send to Auction team."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that the confirmation modal opened."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Publish Event",
+              "within": "dialog"
+            },
+            "note": "Check the confirmation heading."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Auction confirmation title truncation check 1",
+              "within": "dialog"
+            },
+            "note": "Assert that the title's first 45 characters are displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Auction confirmation title truncation check 12",
+              "present": false,
+              "within": "dialog"
+            },
+            "note": "Assert that the displayed title does not continue into its 46th character."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Publish",
+              "within": "dialog"
+            },
+            "note": "Verify the confirmation action text without submitting the event."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-202",
@@ -862,7 +1450,63 @@
       "gaps": [],
       "controls": [
         12
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Disabled default schedule blocks editing",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Reach the default quick-create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required test title without enabling scheduling."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "select_template",
+              "reason": "Keep the default schedule disabled by leaving its template and line-item prerequisites unmet."
+            },
+            "note": "Preserve the negative-test setup."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Now - 02:33 am, 21st Oct ( 30 Mins )"
+            },
+            "note": "Verify the displayed schedule control is disabled."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "text": "Now - 02:33 am, 21st Oct ( 30 Mins )"
+              },
+              "expect": "nothing_opens"
+            },
+            "note": "Attempt to open scheduling and assert that no editor opens."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Now - 02:33 am, 21st Oct ( 30 Mins )"
+            },
+            "note": "Confirm the schedule control remains disabled after the attempt."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

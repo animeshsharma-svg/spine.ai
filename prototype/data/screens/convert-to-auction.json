@@ -995,7 +995,117 @@
         24,
         25,
         26
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "RFQ conversion locks title and existing item fields",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the RFQ creation flow used by the walk."
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": "RFQ conversion locked title"
+            },
+            "note": "Provide a known original title to verify after an edit attempt."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            },
+            "note": "Create an RFQ that can be converted to an auction."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing schema before adding an item."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply an existing line item for the conversion lock checks."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ sheet for publication."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit the required event schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply the participant required for publication."
+          },
+          {
+            "step": "publish",
+            "args": {},
+            "note": "Publish the RFQ to enable conversion."
+          },
+          {
+            "step": "expect_published",
+            "args": {},
+            "note": "Confirm publication reached a real project page."
+          },
+          {
+            "step": "convert_to_auction",
+            "args": {},
+            "note": "Open the RFQ-to-auction conversion screen."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "fill",
+              "args": {
+                "label": "Enter the title of the project",
+                "value": "Attempted conversion title change"
+              },
+              "expect": "refused"
+            },
+            "note": "Attempt to edit the title and require positive evidence that editing is blocked."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": "RFQ conversion locked title"
+            },
+            "note": "Verify the attempted edit did not replace the original title."
+          },
+          {
+            "step": "expect_sheet_cells",
+            "args": {
+              "row": 1,
+              "readonly": [
+                "Product",
+                "Product Variant",
+                "Quantity Requested"
+              ]
+            },
+            "note": "Assert all three existing item fields are locked using the grid's own read-only markings."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-162",
@@ -1013,14 +1123,17 @@
       "setup": "Use a fresh event where the search results include one blacklisted vendor and one TNA vendor.",
       "coverage": "none",
       "gaps": [
-        "Search for the blacklisted vendor and identify its result",
-        "Assert the blacklisted vendor result is disabled and shows \"Blocked\"",
-        "Try to select the blacklisted vendor and assert that selection is refused",
-        "Search for the TNA vendor and identify its result",
-        "Assert the TNA vendor result is disabled and shows \"TNA\"",
-        "Try to select the TNA vendor and assert that selection is refused"
+        "Ensure the fresh event's vendor search includes a blacklisted vendor and a TNA vendor; no catalog step creates or changes these vendor statuses.",
+        "Search for each restricted vendor because neither vendor's name or other search identifier is supplied.",
+        "Assert Blocked and TNA on the respective vendor results, verify their selection controls are disabled, and attempt selection of each; no restricted-vendor domain step or confirmed vendor-specific result selectors are available."
       ],
-      "controls": []
+      "controls": [],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-163",
@@ -1039,7 +1152,104 @@
         4,
         10,
         12
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Converted auction requires participants",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the RFQ creation flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the source event a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            },
+            "note": "RFQ is required for conversion to auction."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the source RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide a line item for the source event."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the source pricing sheet."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 45
+            },
+            "note": "Commit a valid source event schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide the participant inherited by the conversion."
+          },
+          {
+            "step": "publish"
+          },
+          {
+            "step": "expect_published"
+          },
+          {
+            "step": "convert_to_auction",
+            "args": {},
+            "note": "Open the converted auction create screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Clear"
+            },
+            "note": "Remove the inherited selected participant."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "invite_vendor",
+              "reason": "The converted auction must remain without participants after Clear."
+            },
+            "note": "Prevent the empty audience from being replenished."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add participants to proceed!"
+            },
+            "note": "Press Publish and assert refusal with the required participant-validation message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-164",
@@ -1052,15 +1262,20 @@
       ],
       "expected": "The AI request is submitted and the resulting Clara summary or response panel appears for the event.",
       "setup": "Open a conversion containing at least one completed line item with Product and Quantity Requested values.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Whether the AI request was submitted to the backend because the request endpoint is not specified.",
-        "Whether the response contains a correct Clara summary for the event's line items.",
-        "A response panel that is not exposed as a named or dialog accessibility element."
+        "Assert submission of the Clara AI request: no request endpoint is provided for expect_request.",
+        "Wait for AI completion and assert that the resulting Clara summary or response panel appears for this event: no confirmed response-panel locator, completion indicator, or dedicated assertion is provided."
       ],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-165",
@@ -1077,7 +1292,119 @@
       "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Buy Template disabled during RFQ conversion",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the specified RFQ creation flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the event a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            },
+            "note": "Create an RFQ eligible for conversion."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply a pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Supply a line item for the RFQ."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the required pricing sheet fields."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 45
+            },
+            "note": "Commit the schedule used by the screen walk."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide a participant before publishing."
+          },
+          {
+            "step": "publish",
+            "args": {},
+            "note": "Publish the RFQ to enable conversion."
+          },
+          {
+            "step": "expect_published",
+            "args": {},
+            "note": "Verify publication reached a real project page."
+          },
+          {
+            "step": "convert_to_auction",
+            "args": {},
+            "note": "Open the conversion create screen."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Buy Template"
+            },
+            "note": "Require the control to be visible rather than treating absence as disabled."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Buy Template"
+            },
+            "note": "Assert the purchase control is disabled during conversion."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "role": "button",
+                "name": "Buy Template"
+              },
+              "expect": "refused"
+            },
+            "note": "Try the purchase control and require positive evidence that the action is refused."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Confirm the active page remains the conversion create screen."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-166",
@@ -1094,7 +1421,119 @@
       "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Conversion publish confirmation",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the RFQ creation flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the source event a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            },
+            "note": "Create an RFQ eligible for conversion."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide the required line item."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the source pricing sheet."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 45
+            },
+            "note": "Commit a valid source-event schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide a participant to carry into conversion."
+          },
+          {
+            "step": "publish",
+            "args": {},
+            "note": "Publish the source RFQ."
+          },
+          {
+            "step": "expect_published",
+            "args": {},
+            "note": "Verify the RFQ reached its published project page."
+          },
+          {
+            "step": "convert_to_auction",
+            "args": {},
+            "note": "Open the prefilled conversion screen in its new tab."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Open the conversion confirmation without submitting it."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Send to Auction Team"
+            },
+            "note": "Assert the confirmation dialog opens with the expected title."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Send to Auction Team",
+              "within": "dialog"
+            },
+            "note": "Assert the dialog offers the permitted Send to Auction Team primary action."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Edit Schedule",
+              "within": "dialog"
+            },
+            "note": "Assert the cancellation action is Edit Schedule and leave the dialog unconfirmed."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

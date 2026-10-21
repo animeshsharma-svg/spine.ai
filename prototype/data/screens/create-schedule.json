@@ -1135,15 +1135,187 @@
       "setup": "Use the displayed start chip. Add two vendors, including the same vendor twice if the vendor selector permits it. Complete the required line-item values.",
       "coverage": "partial",
       "gaps": [
-        "The catalog cannot prove that the displayed vendor count is de-duplicated from duplicate vendor invitations.",
-        "The catalog cannot compare the displayed dynamic ending time directly against the schedule configuration; it can only check visible summary text and the configured duration.",
-        "unconfirmed label \"Ends on:\" (expect_text) — not among the labels known from the app nor in the case",
-        "unconfirmed label \"30\" (expect_text) — not among the labels known from the app nor in the case",
-        "unconfirmed label \"2\" (expect_text) — not among the labels known from the app nor in the case"
+        "Attempt to select the same vendor twice conditionally when the selector permits it; invite_vendor only establishes the audience and cannot exercise duplicate selection.",
+        "Compare the displayed schedule's dynamic ending timestamp and duration with the confirmation summary; no catalog step transfers remembered timing into an assertion against a different element.",
+        "unconfirmed label \"Vendors invited: 2\" (expect_text) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Publish confirmation schedule summary",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start on the multi-stage create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required event title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's technical and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply its questionnaire template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template before adding products."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the walk's two project-level line items."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required line-item values."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete technical requirements."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete the global and per-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Satisfy the technical-stage evaluator requirement."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the stage used for scheduling in the walk."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the start-now schedule with a known duration."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 2
+            },
+            "note": "Establish two participants without inventing vendor identities; this does not exercise duplicate selection."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "schedule-before-publish-confirmation"
+            },
+            "note": "Record the displayed schedule for manual timing comparison."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Open confirmation without committing publication."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert that the confirmation dialog opened."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Starts on: Now",
+              "within": "dialog"
+            },
+            "note": "Check the requested start-now summary."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Vendors invited: 2",
+              "within": "dialog"
+            },
+            "note": "Check the summary's participant count for the two-vendor audience."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "publish-confirmation-schedule-summary"
+            },
+            "note": "Record the ending time and duration; capture alone does not assert timing consistency."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Dismiss confirmation without publishing."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "visible": false
+            },
+            "note": "Verify that the confirmation closed."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders/quick-create"
+            },
+            "note": "Verify that the browser remains on the create screen."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-101",
@@ -1163,7 +1335,171 @@
         6,
         18,
         27
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Custom duration without an end time blocks publish",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the create-schedule walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply the required project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Match the walk's technical and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add project-level items as in the walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to finish technical requirements."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Avoid an unrelated missing-evaluator refusal."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the stage used by the schedule walk."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Reach the baseline create-schedule state from the walk."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Ensure missing participants cannot mask the end-time validation."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen schedule settings to introduce the custom-duration condition."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Duration"
+            },
+            "note": "Open the duration choices."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Custom duration"
+            },
+            "note": "Choose custom duration, leaving its end time unset."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Close the duration popover without entering an end time."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule"
+            },
+            "note": "Attempt to save the schedule with its missing end time."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule",
+              "visible": false
+            },
+            "note": "Check that saving accepted the schedule and closed the drawer."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Verify Save Schedule did not refuse the incomplete custom duration."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add end time for the event"
+            },
+            "note": "Press Publish and require refusal with the specified end-time message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-102",
@@ -1177,15 +1513,20 @@
       ],
       "expected": "The changed time is not retained. The schedule returns to its previously saved values.",
       "setup": "Open an existing unsaved schedule state and note the current value in \"Select time\".",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Directly select the schedule control labeled \"Select time\" and verify the exact changed time because no dedicated schedule-time selection step is available.",
-        "Directly assert the schedule's previously saved time value; the plan compares the captured Start time display instead."
+        "Read and retain the original Select time input value, change it using a confirmed control, and assert after Back and reopening that the original value—not the edited value—is restored; remember and expect_remembered compare element text, not input values."
       ],
       "controls": [
         17,
         24
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-103",
@@ -1202,14 +1543,204 @@
       ],
       "expected": "The RFQ stage has the same recurring configuration as the Technical Stage, including the recurrence type, interval, and ending settings.",
       "setup": "Use a project containing both the Technical Stage and RFQ stages.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Configure and verify copied recurrence ending settings: the catalog provides the Ends label but no known ending options, and remember compares element text rather than reliably capturing a field's selected value."
+      ],
       "controls": [
         18,
         19,
         21,
         28
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Recurring settings propagate from Technical Stage to RFQ",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the multi-stage project create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Create the required Technical Stage and RFQ."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first, as in the walk."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to RFQ for its pricing template."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add project-level items as in the supplied walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ pricing sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete technical configuration."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete the technical questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Assign the required technical evaluators."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Match the walk's stage before scheduling."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the initial schedule as in the walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Select the Technical Stage as the recurrence source."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the schedule drawer for the Technical Stage."
+          },
+          {
+            "step": "toggle",
+            "args": {
+              "label": "Mark as Recurring Event",
+              "on": true
+            },
+            "note": "Enable recurrence using the confirmed control label."
+          },
+          {
+            "step": "select",
+            "args": {
+              "label": "Repeats",
+              "option": "Daily"
+            },
+            "note": "Set a known recurrence type and verify the source selection."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Repeat Every",
+              "value": "2"
+            },
+            "note": "Set a distinctive interval and verify the source field holds it."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule"
+            },
+            "note": "Save the Technical Stage recurrence."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Check that saving was not refused."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Select RFQ without configuring its recurrence independently."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Open RFQ's schedule to inspect the propagated settings."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Repeats",
+              "value": "Daily"
+            },
+            "note": "Assert RFQ inherited the Technical Stage's recurrence type."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Repeat Every",
+              "value": "2"
+            },
+            "note": "Assert RFQ inherited the Technical Stage's recurrence interval."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "rfq-copied-recurrence-ending-settings"
+            },
+            "note": "Record the ending controls for manual follow-up; this does not assert ending-setting propagation."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-104",
@@ -1229,7 +1760,159 @@
         23,
         24,
         26
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Now start disables date selection",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Begin the requested create-screen flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Match the two-stage screen walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply its technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Match the walk and satisfy schedule prerequisites."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the pricing sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical configuration."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Complete technical evaluator requirements."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the stage used for scheduling in the walk."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit the schedule as the requested screen walk does."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Schedule"
+            },
+            "note": "Reopen the drawer because set_schedule commits and closes it."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Schedule Event"
+            },
+            "note": "Verify the schedule drawer is open."
+          },
+          {
+            "step": "select",
+            "args": {
+              "label": "Start time",
+              "option": "Start now"
+            },
+            "note": "Explicitly establish the Now-start premise."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Select date"
+            },
+            "note": "Check the requested date-selection restriction; this control label requires confirmation."
+          },
+          {
+            "step": "select",
+            "args": {
+              "label": "Start time",
+              "option": "Schedule for later"
+            },
+            "note": "Change to the known scheduled-start option."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Select date"
+            },
+            "note": "Check date entry becomes available; this control label requires confirmation."
+          },
+          {
+            "step": "expect_enabled",
+            "args": {
+              "control": "Select time"
+            },
+            "note": "Check time entry becomes available; this control label requires confirmation."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-221",
@@ -1250,7 +1933,161 @@
         6,
         18,
         27
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Custom duration without end time blocks publishing",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start on the walked eRFX create screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply a valid unique project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the technical-plus-RFQ setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply its technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add valid project-level line items as in the walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required buyer pricing-sheet fields."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete technical requirements."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and per-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Prevent missing evaluators from blocking publication."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the walked scheduling context."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit an initially valid schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Satisfy the participant prerequisite before testing end-time validation."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the schedule drawer."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Duration"
+            },
+            "note": "Open the duration choices."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Custom duration"
+            },
+            "note": "Choose custom duration, which clears the existing end time, and leave it unset."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Save Schedule"
+            },
+            "note": "Attempt to save without supplying a replacement end time."
+          },
+          {
+            "step": "expect_no_error",
+            "args": {},
+            "note": "Verify saving does not request an end time through an error."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Schedule Event",
+              "visible": false
+            },
+            "note": "Verify the schedule drawer closed after saving rather than remaining blocked."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add end time for the event"
+            },
+            "note": "Verify publication refuses specifically because the custom-duration end time is unset."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-222",
@@ -1265,17 +2102,216 @@
       ],
       "expected": "The schedule returns to the previous screen without saving the changes. Reopening it shows the original title and duration.",
       "setup": "Open an existing schedule and note its current title and duration.",
-      "coverage": "none",
-      "gaps": [
-        "Change the schedule duration without committing it",
-        "Change the project title as part of the unsaved schedule edit state",
-        "Verify that Back discards the unsaved title and duration changes"
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         17,
         22,
         27
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Back discards schedule edits",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the specified create-screen flow."
+          },
+          {
+            "step": "set_title",
+            "args": {
+              "title": "Schedule Back discard baseline"
+            },
+            "note": "Establish the original title for comparison."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walkthrough's two-stage setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply its technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the walkthrough's project-level line items."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete technical configuration."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete the technical questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Assign the required evaluators."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the stage whose schedule will be edited."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit an original duration of 30 minutes."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the committed schedule."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Schedule Event"
+            },
+            "note": "Verify the schedule editor opened."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": "Schedule Back discard baseline"
+            },
+            "note": "Check the original title before editing."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Duration",
+              "value": "30 mins"
+            },
+            "note": "Check the committed duration before editing."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": "Unsaved schedule title change"
+            },
+            "note": "Make and verify an unsaved title change."
+          },
+          {
+            "step": "select",
+            "args": {
+              "label": "Duration",
+              "option": "1 hour"
+            },
+            "note": "Make and verify an unsaved duration change."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Back"
+            },
+            "note": "Leave the schedule editor without saving."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Back",
+              "visible": false
+            },
+            "note": "Verify the schedule editor has returned to the previous screen."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Publish"
+            },
+            "note": "Verify the create screen is visible again."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the same schedule to test persisted values."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Schedule Event"
+            },
+            "note": "Verify the schedule editor reopened."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": "Schedule Back discard baseline"
+            },
+            "note": "Assert the unsaved title was discarded."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Duration",
+              "value": "30 mins"
+            },
+            "note": "Assert the unsaved duration was discarded."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-223",
@@ -1292,15 +2328,158 @@
       "setup": "Use a schedule configured to start now.",
       "coverage": "partial",
       "gaps": [
-        "Confirming that the Start now option is selected in the schedule drawer",
-        "Verifying the end time equals the actual current time plus the selected duration",
-        "Waiting at least 10 seconds and confirming that the schedule chip refreshes as time advances",
+        "Wait at least 10 seconds before observing the schedule chip again.",
+        "Verify that the chip's displayed end time equals the current time plus the selected duration.",
+        "Verify that the chip refreshes its end time as time advances.",
         "unconfirmed label \"30 Mins\" (expect_text) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         26,
         27
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": false,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Start-now schedule chip summary and refresh",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the create screen used by the walk."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's technical and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the project-level items used by the walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to complete technical configuration."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and line-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Assign required technical evaluators."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Return to the stage used to open scheduling in the walk."
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Commit a known thirty-minute duration."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Now -"
+            },
+            "note": "Check the visible schedule summary begins with the start-now notation."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "30 Mins"
+            },
+            "note": "Check the visible summary includes the configured duration."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Schedule"
+            },
+            "note": "Reopen the schedule drawer to inspect the committed start selection."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Start time",
+              "value": "Start now"
+            },
+            "note": "Assert that the schedule is configured to start now."
+          },
+          {
+            "step": "press",
+            "args": {
+              "key": "Escape"
+            },
+            "note": "Return to the create screen without changing the schedule."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "start-now-schedule-chip"
+            },
+            "note": "Record the chip for manual end-time and refresh investigation; this is not a refresh assertion."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

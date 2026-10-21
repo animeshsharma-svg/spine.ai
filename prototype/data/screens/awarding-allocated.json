@@ -528,13 +528,113 @@
       "setup": "Use one proposal with an awarded vendor and populate L1 and non-L1 amounts and item counts. Repeat with no awarded vendors.",
       "coverage": "partial",
       "gaps": [
-        "The specific awarded vendor name, vendor code, and tag because the case does not provide expected values.",
-        "The numeric values for L1 Amount, L1 Items Awarded, Non L1 Amount, Non L1 Items Awarded, Total Amount, and Awarded Items because no expected values are provided.",
-        "A distinct action to open the Awarded Vendors summary; the catalog only observes it after allocation on the awarding screen."
+        "The prepared event is a live RFQ with one bid, not the requested proposal fixture; its state cannot be changed to closed in this plan.",
+        "Populating both L1 and non-L1 awarded amounts and item counts requires additional bids or award allocations that the fixed single-vendor, single-item fixture cannot supply.",
+        "No catalog API-value assertion supports comparing the awarded vendor's code or tag with its actual stored values.",
+        "Repeating the check on a separate proposal with no awarded vendors, including asserting 'No vendors awarded', is not supported by the fixed prepared fixture."
       ],
       "controls": [
         11
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Awarded vendor summary metrics",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the required prepared event without creating another fixture."
+          },
+          {
+            "step": "start_awarding",
+            "args": {},
+            "note": "Use the awarding entry flow photographed on the prepared bid event; inability to enter must not be treated as a passing summary check."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Verify that the awarding screen actually opened."
+          },
+          {
+            "step": "allocate_award",
+            "args": {},
+            "note": "Allocate the one available line item to the bidding vendor."
+          },
+          {
+            "step": "expect_award_counters",
+            "args": {
+              "items": "1/1",
+              "vendors": "1/1"
+            },
+            "note": "Confirm the populated summary's prerequisite."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Awarded Vendors (1/1)"
+            },
+            "note": "Open the awarded vendor summary using its photographed text."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "vendorName"
+            },
+            "note": "Check that the actual fixture vendor's name is displayed."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "L1 Amount"
+            },
+            "note": "Verify the required L1 amount metric is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "L1 Items Awarded"
+            },
+            "note": "Verify the required L1 item-count metric is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Non L1 Amount"
+            },
+            "note": "Verify the non-L1 amount metric is present, without claiming a populated non-L1 allocation."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Non L1 Items Awarded"
+            },
+            "note": "Verify the non-L1 item-count metric is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Total Amount"
+            },
+            "note": "Verify the total amount metric is present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Awarded Items"
+            },
+            "note": "Verify the awarded-items metric is present."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-274",
@@ -548,13 +648,79 @@
       "setup": "Load the awarding page with the current hidden-field configuration.",
       "coverage": "partial",
       "gaps": [
-        "Enumerating the individual fields listed in the hidden-fields menu",
-        "Selecting exactly eight hidden fields from the menu"
+        "The current hidden-field configuration and expected field names are not provided, and no catalog step compares the menu's entries with that configuration."
       ],
       "controls": [
         4,
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Awarding hidden-fields menu",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the required prepared event."
+          },
+          {
+            "step": "start_awarding",
+            "args": {},
+            "note": "Reach the awarding page."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Verify this is awarding rather than a proposal page."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "8 hidden fields"
+            },
+            "note": "Open the hidden-fields menu using the photographed control."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "menu"
+            },
+            "note": "Assert that the menu opens."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Create Proposal"
+            },
+            "note": "Verify the awarding page remains visible behind the menu."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/awarding/"
+            },
+            "note": "Verify opening the menu does not navigate away from awarding."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "awarding-hidden-fields-menu"
+            },
+            "note": "Record the menu entries for manual comparison with the hidden-field configuration; this is not a field-list assertion."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-275",
@@ -567,17 +733,20 @@
       ],
       "expected": "The awarding view expands to fullscreen. The displayed vendor, line-item, and amount data remains unchanged.",
       "setup": "Load the awarding page with the displayed vendor and line-item data.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Direct assertion that the awarding view expanded to fullscreen.",
-        "Verification that an unspecified displayed vendor value remains unchanged.",
-        "unconfirmed label \"AAC BLOCKS\" (remember) — not among the labels known from the app nor in the case",
-        "unconfirmed label \"₹ 3,335\" (remember) — not among the labels known from the app nor in the case"
+        "Assert that the awarding view enters fullscreen or expands to fill the viewport; no catalog step observes fullscreen state or view dimensions."
       ],
       "controls": [
         5,
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

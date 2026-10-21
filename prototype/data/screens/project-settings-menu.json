@@ -819,11 +819,17 @@
       "setup": "Open the project with the message \"No bids placed yet.Click hereto view response template.\"",
       "coverage": "none",
       "gaps": [
-        "Assert that the response template opens or verify the template screen's route and contents."
+        "Assert that the response template opened: no confirmed template destination, identifying element, or dedicated assertion is provided."
       ],
       "controls": [
         9
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-234",
@@ -839,12 +845,69 @@
       "setup": "Use a project that can be withdrawn.",
       "coverage": "partial",
       "gaps": [
-        "The catalog cannot explicitly assert that no attachment was added beyond leaving the attachment field untouched."
+        "The required asterisk on Withdrawal Remarks cannot be reliably asserted without a confirmed label or representation for that marker.",
+        "The blank-form confirmation action cannot be reliably checked as disabled because its visible control name is not supplied or confirmed."
       ],
       "controls": [
         7,
         20
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Inspect withdrawal confirmation without withdrawing",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Open the prepared live RFQ's Responses screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Actions"
+            },
+            "note": "Open the event actions."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Withdraw",
+              "within": "menu"
+            },
+            "note": "Request withdrawal confirmation without completing withdrawal."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog"
+            },
+            "note": "Assert the withdrawal dialog opens."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Withdrawal Remarks",
+              "within": "dialog"
+            },
+            "note": "Assert the dialog displays the remark field named by the case."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "withdrawal-confirmation-blank"
+            },
+            "note": "Record the untouched dialog for inspection of the required marker and confirmation state; this capture does not assert either."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-235",
@@ -862,7 +925,40 @@
       "controls": [
         7,
         23
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Re-evaluation disabled without responses",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Open the prepared RFQ with no bids."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Actions"
+            },
+            "note": "Expose the response actions."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Request for Re-evaluation"
+            },
+            "note": "Assert the action is present but disabled and cannot be selected."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-236",
@@ -876,12 +972,53 @@
       "setup": "Use a project where the Clara todo action is analyze_data and the service returns a redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "Starting Clara data analysis as a distinct action is not represented by a dedicated catalog step.",
-        "The exact redirect_url returned by the backend cannot be asserted; only a URL substring can be checked."
+        "Ensure the prepared live project's Clara todo action is analyze_data and the service returns a redirect_url.",
+        "Read the service's returned redirect_url and assert that the browser navigates to that exact URL."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Clara analysis message and awarding redirect",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Open the required prepared project's Responses screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger the project's Clara action."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "any",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the expected analysis-to-awarding confirmation."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Assert arrival on the awarding route, not the proposal route; this does not verify equality with the service-returned URL."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

@@ -577,13 +577,22 @@
       ],
       "expected": "The draft proposal opens `/awarding/:id?lotNo=`. The non-draft proposal opens `/project/:id/proposal/:proposalUuid?lotNo=`. The non-draft contract opens `/contract-details?contracts_uuids=`.",
       "setup": "Prepare the Master QCS with a draft proposal, a submitted non-draft proposal, and a non-draft contract proposal.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Selecting the exact proposal column entry for the draft, non-draft, and contract proposal statuses cannot be expressed with a known catalog control name."
+        "The fixed prepared bid state does not contain the required draft, submitted non-draft, or non-draft contract proposals.",
+        "Cannot click a draft proposal column and verify /awarding/:id?lotNo= without a draft proposal.",
+        "Cannot click a non-draft proposal column and verify /project/:id/proposal/:proposalUuid?lotNo= without a submitted proposal.",
+        "Cannot click a non-draft contract proposal column and verify /contract-details?contracts_uuids= without a contract proposal."
       ],
       "controls": [
         11
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-173",
@@ -598,11 +607,53 @@
       "setup": "Use a project where Clara has an `analyze_data` todo and the response provides a valid `redirect_url`.",
       "coverage": "partial",
       "gaps": [
-        "The exact redirect_url returned by the backend cannot be inspected or compared."
+        "Ensure the prepared project has an analyze_data todo whose response supplies a valid redirect_url.",
+        "Read the returned redirect_url and compare it with the browser's exact destination."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara redirects to awarding",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the required prepared event's Master QCS."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger Clara's action."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Check the processing success message, including if it has already faded."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Verify arrival at the awarding screen, not a proposal page; this does not compare the exact returned redirect_url."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-174",
@@ -618,16 +669,21 @@
       "setup": "Use a project with a known `refId` and creation timestamp. Run once with `is_show_under_open_events` enabled and once disabled.",
       "coverage": "none",
       "gaps": [
-        "Assert Project ID is formatted as #<refId>",
-        "Assert Created at equals the supplied DATE_TIME",
-        "Assert Open Tender Event shows Yes only when is_show_under_open_events is enabled",
-        "Disable or otherwise change the is_show_under_open_events configuration and repeat the observation",
-        "Compare the overview results between enabled and disabled configuration states"
+        "Assert Project ID equals #<refId>: no reference ID is supplied, and expect_api_value does not support refId.",
+        "Assert Created at equals the supplied DATE_TIME: no timestamp is supplied, and expect_api_value does not support the creation timestamp.",
+        "Run with is_show_under_open_events enabled and disabled: the prepared event has fixed default settings, and no catalog step changes this configuration.",
+        "Assert Open Tender Event shows Yes only when the configuration is enabled: the prepared configuration value is unknown and neither conditional state can be established."
       ],
       "controls": [
         9,
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-175",
@@ -642,12 +698,45 @@
       "setup": "Use a project with known line-item response and participant response totals.",
       "coverage": "partial",
       "gaps": [
-        "Exact response count shown in the Line Items header",
-        "Exact response count shown in the Participants header"
+        "unconfirmed label \"1\" (expect_text) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         11
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Master QCS header response counts",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS for the prepared event with one submitted vendor bid."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "1",
+              "within": "Line Items"
+            },
+            "note": "Assert the Line Items panel header displays the known line-item response count of one."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "1",
+              "within": "Participants"
+            },
+            "note": "Assert the Participants panel header displays the known participant response count of one."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-176",
@@ -661,14 +750,22 @@
       ],
       "expected": "The long tab title is truncated to 20 characters and its tooltip contains the full title. The `in_active` stage displays a Withdrawn tag.",
       "setup": "Use a project with a stage title longer than 20 characters and an `in_active` stage.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The exact long stage tab title and its 20-character truncation cannot be asserted because the case provides no title.",
-        "The long tab's tooltip containing the full title cannot be targeted or verified without the tab's actual visible name."
+        "The prepared RFQ stage has no specified title longer than 20 characters, and no catalog step can establish that condition in this fixed state.",
+        "The prepared event has no in_active stage, and no catalog step can establish one in this fixed state.",
+        "Cannot assert truncation to 20 characters or the full-title hover tooltip without the required long stage title.",
+        "Cannot verify the Withdrawn tag on an in_active stage without that stage."
       ],
       "controls": [
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

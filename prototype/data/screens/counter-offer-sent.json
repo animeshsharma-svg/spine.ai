@@ -1177,14 +1177,21 @@
       ],
       "expected": "The project's messages view or panel opens without leaving the project context.",
       "setup": "Remain on the counter-offer-sent project screen.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The exact project's messages view or panel opening without leaving the project context cannot be reliably asserted."
+        "Assert that the project messaging view or panel opened: no confirmed messaging-view label or route is supplied.",
+        "Assert that the opened messaging view belongs to the same project and has not left its context."
       ],
       "controls": [
         5,
         31
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-277",
@@ -1196,14 +1203,58 @@
       ],
       "expected": "The project settings view or panel opens.",
       "setup": "Remain on the counter-offer-sent project screen.",
-      "coverage": "none",
-      "gaps": [
-        "Whether the project settings view or panel opens after clicking Settings."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6,
         31
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Settings opens after sending a counter offer",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Open the prepared RFQ with its vendor bid."
+          },
+          {
+            "step": "open_master_qcs",
+            "args": {},
+            "note": "Reach the comparison grid required to send a counter offer."
+          },
+          {
+            "step": "place_counter_offer",
+            "args": {},
+            "note": "Establish the counter-offer-sent setup."
+          },
+          {
+            "step": "expect_counter_offer_sent",
+            "args": {},
+            "note": "Verify the required starting state."
+          },
+          {
+            "step": "open_event_settings",
+            "args": {},
+            "note": "Click the project's Settings control and leave its menu open."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "menuitem",
+              "name": "Convert to Auction"
+            },
+            "note": "Verify the project settings menu opened by checking a known RFQ settings action."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-278",
@@ -1217,12 +1268,63 @@
       "setup": "Remain on the counter-offer-sent project screen.",
       "coverage": "partial",
       "gaps": [
-        "The exact list of actions that must be available or absent for the current project state."
+        "Verify that every listed action is available for the current project state and unavailable actions are excluded: the expected Actions menu options and eligibility rules are not specified."
       ],
       "controls": [
         8,
         31
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project Actions menu after counter offer",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Open the prepared RFQ with the vendor's submitted bid."
+          },
+          {
+            "step": "place_counter_offer",
+            "args": {},
+            "note": "Establish the required counter-offer-sent state."
+          },
+          {
+            "step": "expect_counter_offer_sent",
+            "args": {},
+            "note": "Verify the counter offer was sent before testing Actions."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Actions"
+            },
+            "note": "Open the project actions menu."
+          },
+          {
+            "step": "expect_count",
+            "args": {
+              "role": "menuitem",
+              "min": 1
+            },
+            "note": "Assert that the opened menu exposes action items."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "counter-offer-sent-actions-menu"
+            },
+            "note": "Record the offered actions for review of the uncovered eligibility requirement."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-279",
@@ -1237,11 +1339,53 @@
       "setup": "Use a project where the Clara todo action is analyze_data and the response contains a redirect_url.",
       "coverage": "partial",
       "gaps": [
-        "Exact equality between the browser URL and the dynamically returned redirect_url"
+        "Ensure the prepared project's Clara todo action is analyze_data and its response contains redirect_url.",
+        "Read redirect_url from the Clara response and assert that the browser navigates to that exact URL."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara awarding-analysis redirect",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Open the required prepared event's Responses screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Request Clara's action."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the expected awarding-initiation message, including if it has already faded."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Check arrival at the awarding screen, not the proposal screen; this does not verify equality with the returned redirect_url."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-280",
@@ -1257,7 +1401,71 @@
       "gaps": [],
       "controls": [
         31
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "responses",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Project link leaves counter-offer details",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Open the prepared RFQ with its existing vendor bid."
+          },
+          {
+            "step": "open_master_qcs",
+            "args": {},
+            "note": "Reach the supported entry point for sending a counter offer."
+          },
+          {
+            "step": "place_counter_offer",
+            "args": {},
+            "note": "Establish the counter-offer-sent setup using executor defaults."
+          },
+          {
+            "step": "expect_counter_offer_sent",
+            "args": {},
+            "note": "Verify the counter offer was sent before testing navigation."
+          },
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "responses"
+            },
+            "note": "Return to the project's counter-offer details context."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "link",
+              "name": "Project"
+            },
+            "note": "Exercise the Project link named by the case; its label is not confirmed by the catalog."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "events_list"
+            },
+            "note": "Assert that the project list opens rather than remaining on the comparison screen."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Revoke Counter Offer",
+              "visible": false
+            },
+            "note": "Assert that the sent-counter-offer detail control is no longer displayed."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

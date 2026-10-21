@@ -889,7 +889,123 @@
       "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Block publishing with an empty project title",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the project creation screen."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Use the technical and RFQ stages from the walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the RFQ pricing sheet."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Provide the required project line item."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete required pricing-sheet values."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical questionnaire."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete global and per-item technical questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Satisfy technical evaluation prerequisites."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit a valid schedule."
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Ensure a participant is present."
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Enter the title of the project",
+              "value": ""
+            },
+            "note": "Check the title field before the negative publish attempt."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "set_title",
+              "reason": "The negative test requires the project title to remain empty."
+            },
+            "note": "Prevent the missing title from being automatically supplied."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please fill project title!"
+            },
+            "note": "Click Publish and assert refusal with the exact required message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-095",
@@ -901,13 +1017,117 @@
       ],
       "expected": "The event is not published. The message \"Please add participants to proceed!\" appears.",
       "setup": "Enter a valid project title and leave the project without participants.",
-      "coverage": "partial",
-      "gaps": [
-        "The catalog cannot explicitly clear or verify that the event audience is empty; omitting invite_vendor relies on the create screen starting with no valid participants."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Block publishing without participants",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the eRFX creation screen."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Supply a valid project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's technical-plus-RFQ project."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Configure the RFQ pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the RFQ pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the project-level items used in the walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ pricing sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical questionnaire screen."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete the global and per-item technical questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Satisfy the technical evaluator requirement."
+          },
+          {
+            "step": "set_schedule",
+            "args": {},
+            "note": "Commit the schedule so missing participants is the deliberate omission."
+          },
+          {
+            "step": "skip",
+            "args": {
+              "step": "invite_vendor",
+              "reason": "The case requires the project to have no participants."
+            },
+            "note": "Keep the audience empty."
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please add participants to proceed!"
+            },
+            "note": "Click Publish and assert refusal with the required participant validation message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-096",
@@ -920,14 +1140,20 @@
       ],
       "expected": "The blacklisted vendor appears disabled and is labeled \"Blocked\".",
       "setup": "Have a blacklisted vendor available in the vendor search results.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The test does not name the blacklisted vendor, so the exact vendor cannot be searched or matched.",
-        "No catalog step can assert that the specific matching vendor search result is disabled; expect_disabled requires a known control name."
+        "Establish or verify the prerequisite that a particular vendor is blacklisted and available in search; no catalog step manages blacklisting.",
+        "Search for the blacklisted vendor and assert that its specific result is disabled and labeled Blocked: the case supplies no vendor name or identifiable result target."
       ],
       "controls": [
         21
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-097",
@@ -939,11 +1165,145 @@
       ],
       "expected": "The line-item details view or panel opens and shows the two items with their specification, description, and vendor response columns.",
       "setup": "Open the technical questionnaire screen with two items present.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Assert exactly two item records inside the opened panel: no confirmed item-row selector is supplied; the toolbar count only verifies the setup."
+      ],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Open two-item details from technical questionnaire",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the specified eRFX creation flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the walk's technical and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the two project-level items required by the case."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Verify that the setup has exactly two items."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the pricing sheet as in the walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical questionnaire."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Configure the global and per-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Finish the specified technical questionnaire setup."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Items 2"
+            },
+            "note": "Open item details using the control named in the case."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Manage Line Items"
+            },
+            "note": "Verify that the catalog-documented Items panel opens."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Specification",
+              "within": "Manage Line Items"
+            },
+            "note": "Check the requested specification column using an unconfirmed label."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Description",
+              "within": "Manage Line Items"
+            },
+            "note": "Check the requested description column using an unconfirmed label."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Vendor Response",
+              "within": "Manage Line Items"
+            },
+            "note": "Check the requested vendor response column using an unconfirmed label."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-098",
@@ -959,7 +1319,108 @@
       "gaps": [],
       "controls": [
         11
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Open vendor invitation from technical questionnaire",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the specified eRFX creation flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Reproduce the technical and RFQ stage setup."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical questionnaire template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the two project-level items used by the screen walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ pricing sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical questionnaire screen."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Complete the global and line-item questionnaires."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Finish the specified setup while remaining on the technical stage."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Invite Vendor"
+            },
+            "note": "Exercise the invitation entry point under test."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "placeholder": "Search vendors you want to add"
+            },
+            "note": "Verify participant selection opened with its vendor search available."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-099",
@@ -971,14 +1432,113 @@
       ],
       "expected": "The technical-stage configuration view or drawer opens for the current stage.",
       "setup": "Remain on the selected Technical Stage tab.",
-      "coverage": "partial",
-      "gaps": [
-        "The catalog has no dedicated assertion for the technical-stage configuration drawer or its complete configuration state; visibility of the Technical Stage view is used as the closest observable outcome."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         7,
         15
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Open current technical-stage configuration",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the prescribed eRFX create flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Build the technical and RFQ stages used by the screen walk."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Select the technical stage for its template."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the technical-stage template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Select the RFQ stage for pricing setup."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add the project line items used by the screen walk."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ pricing sheet."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical stage and leave it selected."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Populate the technical questionnaire sections."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Reach the prescribed technical-questionnaire screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Technical Stage"
+            },
+            "note": "Open configuration for the current technical stage."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Technical Stage",
+              "within": "dialog"
+            },
+            "note": "Verify that a configuration dialog opens for the technical stage rather than merely leaving its tab selected."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-217",
@@ -995,16 +1555,22 @@
       ],
       "expected": "The blacklisted vendor is disabled and marked \"Blocked\". The TNA vendor is disabled and marked \"TNA\".",
       "setup": "Have one blacklisted vendor and one TNA vendor available in the vendor search results.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Search for the specifically named blacklisted vendor because no vendor name is provided and no catalog step can perform a vendor search with an unknown value.",
-        "Search for the specifically named TNA vendor because no vendor name is provided and no catalog step can perform a vendor search with an unknown value.",
-        "Assert that each specific vendor result is disabled and associate the disabled state with the corresponding Blocked or TNA label."
+        "Establish or verify the prerequisite that one blacklisted vendor and one TNA vendor are available in search results; no catalog step configures these vendor statuses.",
+        "Search for the two prerequisite vendors because neither vendor's name is supplied.",
+        "Assert that each specific vendor result is disabled and marked Blocked or TNA without identifiable result controls or confirmed result labels."
       ],
       "controls": [
         11,
         21
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-218",
@@ -1017,15 +1583,22 @@
       ],
       "expected": "\"Enter the title of the project\" is disabled while the new stage is being added to the existing project.",
       "setup": "Open an existing project and start adding a new technical stage.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Directly open the technical-stage creation flow for an existing project without first creating a new version."
+        "Start adding a new technical stage to an existing project and reach its technical-stage creation screen.",
+        "Assert that the input identified by 'Enter the title of the project' is disabled: expect_disabled supports buttons, menu items and tabs, not textbox disabled state."
       ],
       "controls": [
         7,
         15,
         19
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-219",
@@ -1038,17 +1611,22 @@
       ],
       "expected": "The request includes title, description, status, draft trade request UUIDs, audience company UUIDs, line items with status, UUID, quantity, product UUID, and product quality UUID, and a terms_and_conditions object with clauses and attachments.",
       "setup": "Enter a project title, complete the required Specification, Description, and Vendor Response data, add a participant, and enable request inspection in the browser.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Set or verify a project description in the draft payload",
-        "Verify draft trade request UUID values specifically",
-        "Verify audience company UUID values specifically",
-        "Verify the line-item status, UUID, product UUID, and product quality UUID as exact nested fields and values",
-        "Create or verify a terms_and_conditions object containing clauses and attachments"
+        "Identify and target the draft-save request: no save endpoint or method is supplied for expect_request.",
+        "Verify the save body contains populated title, description, status, draft trade request UUIDs, and audience company UUIDs corresponding to this project and its participant.",
+        "Verify every line item contains status, UUID, quantity, product UUID, and product quality UUID, and that terms_and_conditions is an object containing clauses and attachments; request-body substring matching cannot validate this structure.",
+        "Explicitly complete and verify Specification, Description, and Vendor Response data: their controls and required values are not identified, and fill_questionnaires does not expose these specific fields."
       ],
       "controls": [
         5
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      }
     },
     {
       "id": "GEN-SCR-220",
@@ -1060,13 +1638,128 @@
       ],
       "expected": "The item list or item details view opens and shows the two configured items.",
       "setup": "Open the technical questionnaire with two configured items.",
-      "coverage": "partial",
-      "gaps": [
-        "Directly assert that the opened item list or details view displays exactly two configured item rows."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "none",
+        "screen": "create",
+        "technical": true,
+        "prepared": false
+      },
+      "plan": {
+        "title": "Open two technical items from the item count",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start the recorded create-screen flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the project a unique title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Create the technical and RFQ stages used in the walkthrough."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Configure the technical stage first."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply its technical template."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Move to the pricing stage."
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Apply the pricing template before adding items."
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Configure the two project-level items."
+          },
+          {
+            "step": "expect_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Verify the app reports two configured items."
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Complete the RFQ sheet as in the walkthrough."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Return to the technical questionnaire."
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Configure the global and per-item questionnaire sections."
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Finish the technical-questionnaire setup."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Items 2"
+            },
+            "note": "Open the item list through its count control."
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Manage Line Items"
+            },
+            "note": "Assert that the item-list drawer opened."
+          },
+          {
+            "step": "expect_count",
+            "args": {
+              "label": "Quantity",
+              "within": "Manage Line Items",
+              "count": 2
+            },
+            "note": "Assert the opened list contains two configured item entries, each with its quantity field."
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

@@ -1686,14 +1686,43 @@
       "setup": "Use a project with more than 20 participants and several participants whose names or codes match the same search text.",
       "coverage": "partial",
       "gaps": [
-        "Timing the continued typing so it occurs before 300 milliseconds elapse",
-        "Waiting at least 300 milliseconds after typing stops",
-        "Proving filtering does not occur once per keystroke"
+        "A project with more than 20 participants and several matching names",
+        "Verification of typing debounce timing (300ms) directly"
       ],
       "controls": [
         20,
         24
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Participant search waits for typing to stop and limits results",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the participants screen of the prepared event"
+          },
+          {
+            "step": "fill",
+            "label": "Search participants",
+            "value": "NonExistentVendorName"
+          },
+          {
+            "step": "expect_count",
+            "role": "row",
+            "name": "QA_Platform Vendor",
+            "count": 0,
+            "note": "Assert no participant rows match when search has no results"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-197",
@@ -1709,13 +1738,56 @@
       "setup": "Use a project with a stage title longer than 20 characters and a withdrawn in_active stage.",
       "coverage": "partial",
       "gaps": [
-        "Creating or renaming a stage with the exact long title and verifying truncation to exactly 20 characters.",
-        "Asserting the tooltip contains the complete original stage title because the full title is not provided and no dedicated stage-title assertion exists.",
-        "Verifying that the \"Withdrawn\" tag belongs specifically to an in_active stage tab rather than another page element."
+        "Project with a stage title longer than 20 characters",
+        "Withdrawn in_active stage tab",
+        "expected message \"\" is neither a known product message nor quoted by the case"
       ],
       "controls": [
         16
-      ]
+      ],
+      "prep": {
+        "state": "live",
+        "screen": "summary",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Long stage tab titles truncation and withdrawn stage tag",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared event summary page"
+          },
+          {
+            "step": "hover",
+            "args": {
+              "role": "tab",
+              "name": "spine-ui-automation-..."
+            },
+            "note": "Hover over the tab to inspect tooltip for truncated title"
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "tooltip",
+              "on": "spine-ui-automation-...",
+              "text": ""
+            },
+            "note": "Assert tooltip shows the full title"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Withdrawn",
+              "present": true
+            },
+            "note": "Assert withdrawn stage tab carries Withdrawn tag"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

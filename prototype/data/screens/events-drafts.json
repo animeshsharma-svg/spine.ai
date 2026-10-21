@@ -186,13 +186,19 @@
       ],
       "expected": "The Clara assistant opens.",
       "setup": "Load /orders.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The catalog has no dedicated assertion that the visible dialog is specifically the Clara assistant or that its assistant content rendered correctly."
+        "Assert that the Clara assistant opened: the catalog provides no assistant-specific assertion or confirmed label identifying its open panel."
       ],
       "controls": [
         1
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-066",
@@ -204,14 +210,20 @@
       ],
       "expected": "Live 8583 becomes selected and the list shows live events instead of drafts.",
       "setup": "Load /orders with Drafts 183 selected.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Direct assertion that the Live tab is selected.",
-        "Direct assertion that the displayed rows are live events rather than drafts."
+        "Assert that the Live tab becomes selected; the catalog has no selected-tab assertion.",
+        "Verify that the resulting rows are live events rather than drafts; the prepared event is a draft, and no known live event or row-status selector is supplied."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-067",
@@ -223,14 +235,48 @@
       ],
       "expected": "History 2035 becomes selected and the list shows historical events instead of drafts.",
       "setup": "Load /orders with Drafts 183 selected.",
-      "coverage": "partial",
-      "gaps": [
-        "Whether the History tab is selected rather than merely visible",
-        "Whether the displayed rows are historical events rather than drafts"
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         4
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "History tab shows historical events",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Start with Drafts selected, as required by the setup."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "History"
+            },
+            "note": "Select History without hard-coding the dynamic event count."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Verify the active destination is the historical-events list rather than Drafts."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the destination list rendered without an error."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-068",
@@ -242,14 +288,20 @@
       ],
       "expected": "Recurring becomes selected and the recurring-events list opens.",
       "setup": "Load /orders.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Directly assert that the Recurring tab is selected.",
-        "Directly assert that the opened list is specifically the recurring-events dataset when recurring events are present."
+        "Assert that Recurring is the selected tab; no catalog assertion reads a tab's selected state.",
+        "Assert that the recurring-events list specifically opened without assuming it is empty or inventing a list locator or route."
       ],
       "controls": [
         6
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-069",
@@ -261,14 +313,20 @@
       ],
       "expected": "Only matching draft events remain visible in the list. Non-matching drafts are hidden.",
       "setup": "Load /orders with Drafts 183 selected. Ensure one draft title contains \"Alpha\" and another visible draft does not.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The case does not provide a specific non-matching draft title to verify as hidden.",
-        "The catalog has no assertion that every remaining draft row matches the search query."
+        "Ensure an Alpha-containing draft and a non-matching draft are both visible before searching; the prepared draft's title is fixed and additional fixtures cannot be created.",
+        "Assert that only Alpha-matching draft rows remain and previously visible non-matching drafts disappear without known fixture titles or an assertion that checks every result row against the search query."
       ],
       "controls": [
         7
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

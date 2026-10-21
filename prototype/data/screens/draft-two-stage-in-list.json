@@ -502,11 +502,20 @@
       ],
       "expected": "The Drafts list shows No Drafts Found.",
       "setup": "Use an account with no draft events.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "none",
+      "gaps": [
+        "Establish an account with no draft events: the fixed prepared state contains a draft, and no catalog step can remove it or select a specified empty account.",
+        "Verify “No Drafts Found” under the required empty-account condition."
+      ],
       "controls": [
         7
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-170",
@@ -523,7 +532,55 @@
       "gaps": [],
       "controls": [
         10
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Unmatched draft search shows filtered empty state",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Open the Drafts tab containing the prepared draft."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "title"
+            },
+            "note": "Verify a draft is available before filtering."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search Title",
+              "value": "ZZZ-no-matching-draft-event-99999"
+            },
+            "note": "Filter using a title intended to match no event."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No Results found"
+            },
+            "note": "Wait for the filtered list's no-result copy to appear."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No Drafts Found",
+              "present": false
+            },
+            "note": "Verify the app does not substitute the unfiltered empty Drafts message."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-171",
@@ -541,15 +598,21 @@
       "setup": "Open /orders.",
       "coverage": "none",
       "gaps": [
-        "The destination opened by the View Tickets button cannot be observed because no tickets-view screen or known route assertion is available.",
-        "The destination opened by the View Tickets link cannot be observed because no tickets-view screen or known route assertion is available.",
-        "The feedback form destination cannot be observed because no feedback-form screen or known route assertion is available."
+        "Assert that the View Tickets button opens the tickets view: no confirmed destination route or identifying element is supplied.",
+        "Assert that the View Tickets link opens the tickets view: no confirmed destination route or identifying element is supplied.",
+        "Assert that Give Feedback opens the feedback form: no confirmed form label or destination route is supplied."
       ],
       "controls": [
         3,
         4,
         9
-      ]
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [

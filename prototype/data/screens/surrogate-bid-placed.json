@@ -777,9 +777,79 @@
       "setup": "Use a project containing both selected and unselected vendors.",
       "coverage": "partial",
       "gaps": [
-        "Cannot independently assert that every vendor shown with the switch on is selected or that every vendor shown with it off is unselected."
+        "The prepared state only has one invited vendor, so we cannot verify a mix of both selected and unselected vendors simultaneously.",
+        "unconfirmed label \"QA_Platform Vendor\" (remember) — not among the labels known from the app nor in the case"
       ],
-      "controls": []
+      "controls": [],
+      "prep": {
+        "state": "bid",
+        "screen": "participants",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Selected-vendor switch changes the participant list",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Start on the participants screen of the prepared event"
+          },
+          {
+            "step": "toggle",
+            "label": "Show only selected vendors",
+            "args": {
+              "label": "Show only selected vendors",
+              "on": true
+            },
+            "note": "Confirm the switch is on"
+          },
+          {
+            "step": "remember",
+            "args": {
+              "key": "selected_vendors",
+              "text": "QA_Platform Vendor"
+            },
+            "note": "Record the vendors shown with switch on"
+          },
+          {
+            "step": "toggle",
+            "label": "Show only selected vendors",
+            "args": {
+              "label": "Show only selected vendors",
+              "on": false
+            },
+            "note": "Turn the switch off"
+          },
+          {
+            "step": "expect_remembered",
+            "args": {
+              "key": "selected_vendors",
+              "same": false
+            },
+            "note": "Compare the vendor list with the recorded list to confirm it changed"
+          },
+          {
+            "step": "toggle",
+            "label": "Show only selected vendors",
+            "args": {
+              "label": "Show only selected vendors",
+              "on": true
+            },
+            "note": "Turn the switch on again"
+          },
+          {
+            "step": "expect_remembered",
+            "args": {
+              "key": "selected_vendors",
+              "same": true
+            },
+            "note": "Confirm turning it on again restores the selected-vendor view"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-241",

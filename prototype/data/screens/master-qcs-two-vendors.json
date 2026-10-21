@@ -597,7 +597,40 @@
       "gaps": [],
       "controls": [
         8
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Start awarding from a lot without a proposal",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS for the prepared lot with a bid and no proposal."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Start Awarding"
+            },
+            "note": "Enter awarding directly from the current lot."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Assert navigation to the awarding route and that the destination screen is ready."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-282",
@@ -613,16 +646,22 @@
       ],
       "expected": "The draft proposal opens `/awarding/:id?lotNo=`. The non-draft proposal opens `/project/:id/proposal/:proposalUuid?lotNo=`. The non-draft contract opens `/contract-details?contracts_uuids=`.",
       "setup": "Prepare three versions of the lot: one with a draft proposal, one with a non-draft proposal, and one with a non-draft contract proposal.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "Select or establish the draft, non-draft, and non-draft contract proposal states independently.",
-        "Verify that the clicked vendor column is specifically the proposal column rather than another occurrence of the vendor text.",
-        "Assert the exact dynamic project, proposal, lot, or contract identifier values in each URL.",
-        "unconfirmed label \"QA_Platform Vendor 1 1790820862139\" (click) — not among the labels known from the app nor in the case"
+        "Prepare the three required lot versions: a draft proposal, a non-draft proposal, and a non-draft contract proposal; the prepared bid state is fixed.",
+        "Click a draft proposal's vendor column and verify /awarding/:id?lotNo= because no draft proposal exists in this state.",
+        "Click a non-draft proposal's vendor column and verify /project/:id/proposal/:proposalUuid?lotNo= because no non-draft proposal exists in this state.",
+        "Click a non-draft contract proposal's vendor column and verify /contract-details?contracts_uuids= because no contract proposal exists in this state."
       ],
       "controls": [
         11
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     },
     {
       "id": "GEN-SCR-283",
@@ -636,11 +675,53 @@
       "setup": "Use a project where the Clara todo is `analyze_data` and the request returns a valid `redirect_url`.",
       "coverage": "partial",
       "gaps": [
-        "The exact redirect_url returned by the backend cannot be captured or compared; only that the resulting URL contains /awarding can be asserted."
+        "Ensure the prepared project's Clara todo is analyze_data and its request returns a valid redirect_url.",
+        "Read redirect_url from the response and assert that the browser navigates to that exact URL."
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara analysis redirects to awarding",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the required prepared event's Master QCS."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Trigger Clara's action."
+          },
+          {
+            "step": "expect_toast",
+            "args": {
+              "kind": "success",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the expected analysis-success notification."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/awarding/"
+            },
+            "note": "Check that the awarding screen opens; this does not prove equality with the returned redirect_url."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-284",
@@ -656,13 +737,88 @@
       "setup": "Open the Master QCS screen with visible vendor columns and field values.",
       "coverage": "partial",
       "gaps": [
-        "unconfirmed label \"AAC BLOCKS\" (expect_text) — not among the labels known from the app nor in the case",
-        "unconfirmed label \"AAC BLOCKS\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+        "Assert that the affected fields are hidden after the first click: their exact field selectors are unspecified, and expect_api_value cannot assert absence."
       ],
       "controls": [
         6,
         11
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Hide and restore Master QCS fields",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared event with one vendor bid."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "vendorName"
+            },
+            "note": "Verify the bidding vendor is visible."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "bidPrice"
+            },
+            "note": "Verify the bid rate is initially visible."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "bidTotal"
+            },
+            "note": "Verify the bid total is initially visible."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Hide fields"
+            },
+            "note": "Toggle field visibility for the first time."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "master-qcs-fields-hidden"
+            },
+            "note": "Record the intermediate state for manual inspection; this does not assert that fields are hidden."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Hide fields"
+            },
+            "note": "Toggle field visibility back."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "bidPrice"
+            },
+            "note": "Verify the bid rate is visible after the second click."
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "bidTotal"
+            },
+            "note": "Verify the bid total is visible after the second click."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-285",
@@ -674,14 +830,20 @@
       ],
       "expected": "The project's messages view or panel opens.",
       "setup": "Open the Master QCS screen for a project with accessible messages.",
-      "coverage": "partial",
+      "coverage": "none",
       "gaps": [
-        "The detailed contents and exact panel implementation of the project's messages view."
+        "Assert that the project's messages view or panel opens: no confirmed messages-panel identifier or messages-screen route is provided."
       ],
       "controls": [
         5,
         12
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "master_qcs",
+        "technical": false,
+        "prepared": true
+      }
     }
   ],
   "reachedBy": [
