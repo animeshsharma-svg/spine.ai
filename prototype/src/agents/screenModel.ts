@@ -541,11 +541,13 @@ export function screenPrep(r: ScreenRecord): ScreenPrep {
     if (/tab=history|history/.test(path + label)) return mk("closed", "history_list", "the History tab: the API builds a closed event first");
     return mk("none", "events_list", "the events list: the plan starts from the list", false);
   }
-  if (/\/proposal\//.test(path) || /proposal/.test(label)) return mk("proposal", "proposal", "the award proposal: the API builds an event with bids and a proposal");
+  if (/\/proposal\//.test(path) || /proposal/.test(label)) return mk("proposal", /summary|details/.test(label) ? "summary" : "proposal", "the award proposal: the API builds an event with bids and a proposal");
   const known = r.state && r.state !== "none" ? (r.state as ScreenPrep["state"]) : undefined;
-  const needsBids = /qcs|bid|award|respons|analytic|counter|compare|allocat/.test(label);
-  const state: ScreenPrep["state"] = known ?? (needsBids ? "bid" : "live");
-  const screen = /\/master_qcs/.test(path) ? "master_qcs" : /\/awarding\//.test(path) ? "master_qcs" : /tab=audience/.test(path) ? "participants" : /tab=compare/.test(path) ? "responses" : /tab=analytics/.test(path) ? "analytics" : /tab=order_info/.test(path) ? "overview" : /\/details/.test(path) ? "summary" : needsBids ? "responses" : "summary";
+  const onQcs = /\/master_qcs|\/awarding\//.test(path);
+  const needsBids = onQcs || /qcs|bid|award|respons|analytic|counter|compare|allocat/.test(label);
+  const state: ScreenPrep["state"] = known && !(known === "live" && onQcs) ? known : needsBids ? "bid" : "live";
+  // the label names the tab when the URL does not (a tab clicked on the stage page keeps the stage's URL)
+  const screen = onQcs ? "master_qcs" : /tab=audience/.test(path) || /particip/.test(label) ? "participants" : /tab=analytics/.test(path) || /analytic/.test(label) ? "analytics" : /tab=compare/.test(path) || /respons|counter|bid-placed/.test(label) ? "responses" : /tab=order_info/.test(path) || /overview/.test(label) ? "overview" : /\/details/.test(path) || /project-|summary|-live$/.test(label) ? "summary" : needsBids ? "responses" : "summary";
   return mk(state, screen, `${r.label}: the API builds a ${state} event${state === "bid" || state === "closed" ? " with a vendor's bid in" : ""} and the plan opens ${WHAT[screen] ?? screen} on it`);
 }
 
