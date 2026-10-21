@@ -456,9 +456,9 @@
   }
 
   function caseCard(c) {
-    const cov = c.coverage === "full" ? ["Runs on screen", "good"] : c.coverage === "partial" ? ["Runs partly", "warn"] : ["No browser plan yet", "idle"];
+    const cov = c.coverage === "full" ? ["Runs on screen", "good"] : c.coverage === "partial" ? ["Runs partly", "warn"] : ["Not expressible yet", "idle"];
     return `<article class="scr-case" data-case="${esc(c.id)}">
-      <div class="scr-case-head"><code>${esc(c.id)}</code><b>${esc(c.title)}</b><span class="pill ${cov[1]}">${cov[0]}</span>${c.grounded && c.grounded !== "screen" ? `<code class="scr-rule">${esc(c.grounded)}</code>` : ""}
+      <div class="scr-case-head"><code>${esc(c.id)}</code><b>${esc(c.title)}</b><span class="pill ${cov[1]}">${cov[0]}</span>${c.prep?.prepared ? `<span class="pill idle" title="The API builds this event before the run; the plan opens it by its route, never by searching the list">on a ${esc(c.prep.state)} event the API builds</span>` : ""}${c.grounded && c.grounded !== "screen" ? `<code class="scr-rule">${esc(c.grounded)}</code>` : ""}
         <button type="button" class="run-btn primary small" data-run="${esc(c.id)}" ${c.coverage === "none" ? "disabled" : ""}>Run with spotlight</button></div>
       ${c.setup ? `<p class="scr-case-setup"><b>Setup:</b> ${esc(c.setup)}</p>` : ""}
       <ol class="scr-steps">${(c.steps || []).map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
