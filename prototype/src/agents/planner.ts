@@ -159,7 +159,6 @@ export function labelIsKnown(word: string, labels: Record<string, string[]> | un
  * configured — so a plan that invites "some vendor" and then tries to sign in
  * as them cannot work.
  */
-const DEFAULT_VENDOR = process.env.UI_DEFAULT_VENDOR ?? "AMD";
 
 const DOMAIN_RULES = `
 First decide WHICH SCREEN the test is about:
@@ -981,16 +980,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       steps.splice(indexOf("publish") + 1, 0, bid);
       repairs.push(`moved ${bid.step} after publish — bidding on an unpublished event is not possible`);
     }
-    if (has("place_bid")) {
-      const invite = steps.find((s) => s.step === "invite_vendor");
-      const named = Array.isArray(invite?.args?.vendors) && (invite!.args!.vendors as unknown[]).length > 0;
-      if (invite && !named) {
-        invite.args = { ...(invite.args ?? {}), vendors: [DEFAULT_VENDOR] };
-        repairs.push(
-          `named ${DEFAULT_VENDOR} on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain`,
-        );
-      }
-    }
+    // A vendor-portal bid (place_bid) signs in as the QA test vendor the runner knows; the plan
+    // never invents a vendor name for the invite (an invented "AMD" blocked runs, 2026-10-21).
+    // With no vendor named, invite_vendor takes everyone the product suggests.
   }
 
   // On the create screen Participants and Publish are LOCKED until a template is chosen and a

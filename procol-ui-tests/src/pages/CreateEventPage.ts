@@ -1510,49 +1510,42 @@ export class CreateEventPage extends BasePage {
    * and the auto-populated audience is only a fallback for tests that just need
    * somebody to bid.
    */
+  /**
+   * THE INVITE RULE (the tester's, 2026-10-21): a case that NAMES a vendor gets that vendor by
+   * search; a case that does not just presses the product's own "Invite Vendor" and takes every
+   * vendor the products map to — that is fine for testing. A named vendor the search cannot
+   * find falls back to the same invite-all, so this step never leaves the run stuck.
+   */
   async inviteVendors(opts: { names?: string[]; count?: number } = {}): Promise<string[]> {
-    if (!allowRealVendors()) {
-      const qa = await qaVendorNames();
-      const asked = opts.names ?? [];
-      const notQa = asked.filter((n) => !isQaVendorName(n, qa));
-      if (notQa.length) {
-        throw new Error(`asked to invite ${notQa.join(", ")}, which ${notQa.length === 1 ? "is not a QA test vendor" : "are not QA test vendors"} — real suppliers are never invited`);
-      }
-      if (!asked.length) {
-        await this.inviteQaVendors();
-        return [];
-      }
-    }
+    const asked = (opts.names ?? []).map((n) => n.trim()).filter(Boolean);
     const invited: string[] = [];
-    for (const name of opts.names ?? []) {
+    for (const name of asked) {
       const ok = await this.addParticipantByName(name);
       if (ok) invited.push(name);
-      else console.log(`[create-event] no vendor matched "${name}"`);
+      else console.log(`[create-event] no vendor matched "${name}" in the participants search`);
     }
-    if (invited.length) {
-      console.log(`[create-event] invited by name: ${invited.join(", ")}`);
-      return invited;
+    if (invited.length) console.log(`[create-event] invited by name: ${invited.join(", ")}`);
+    let have = await this.participantCount();
+    if (!invited.length || (opts.count && have < opts.count)) {
+      // nobody named (or a name the search does not know): everyone the product suggests
+      await this.inviteVendor();
+      have = await this.participantCount();
     }
-    // No names given (or none matched) — fall back to whoever is there.
-    await this.inviteVendor();
-    const have = await this.participantCount();
     if (opts.count && have < opts.count) {
-      throw new Error(
-        `the event has ${have} participant(s) but the test needs at least ${opts.count}. The product's ` +
-          "audience did not supply enough, and no vendor names were given to add explicitly.",
-      );
+      // still short: top up with the client's QA test vendors by name
+      const qa = await qaVendorNames().catch(() => [] as string[]);
+      for (const name of qa) {
+        if (have >= opts.count) break;
+        if ((await this.participantNames()).some((n) => isQaVendorName(n, [name]))) continue;
+        if (await this.addParticipantByName(name)) have = await this.participantCount();
+      }
     }
-    return [];
+    if (opts.count && have < opts.count) {
+      throw new Error(`the event has ${have} participant(s) but the test needs at least ${opts.count}: the product suggested no more and this client has no more QA test vendors`);
+    }
+    return invited;
   }
 
-  /**
-   * QA-ONLY INVITE. Inviting mails a vendor's people, so a run may only ever
-   * leave the client's own QA test vendors (qa_…@example.com) on the event:
-   * add one by exact name, remove anything the product pre-filled, and refuse
-   * to continue if a non-QA participant is still there. The old behaviour —
-   * keep the pre-filled audience, or type "a" and take the first match, which
-   * invited real suppliers — runs only with SPINE_ALLOW_REAL_VENDORS=1.
-   */
   private async inviteQaVendors(): Promise<void> {
     const qa = await qaVendorNames();
     if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
@@ -1614,8 +1607,8 @@ export class CreateEventPage extends BasePage {
     return removed;
   }
 
+  /** The product's own invite: "Invite Vendor" (every vendor the products map to), else the first search result. */
   async inviteVendor(): Promise<void> {
-    if (!allowRealVendors()) return this.inviteQaVendors();
     const p = this.page;
     // Timed, because "it takes too long to select the vendor" is a claim worth
     // being able to check rather than argue about.

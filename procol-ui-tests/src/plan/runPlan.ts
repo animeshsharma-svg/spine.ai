@@ -1119,27 +1119,25 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return "the bid is submitted";
     case "invite_vendor": {
       if (await isSingleStageScreen(s)) {
-        const asked = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
-        // Only QA test vendors may be named (real suppliers are never invited).
-        const qa = await qaVendorNames();
-        const names = allowRealVendors() ? asked : asked.filter((n) => isQaVendorName(n, qa));
+        // The invite rule: a vendor the case names is searched for; otherwise the product's
+        // own Invite Vendor takes everyone it suggests (the tester's rule, 2026-10-21).
+        const asked = Array.isArray(a.vendors) ? a.vendors.map(String) : Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
         const added: string[] = [];
-        for (const n of names) if (await s.single.addParticipant(n)) added.push(n);
+        for (const n of asked) {
+          if (await s.single.addParticipant(n)) added.push(n);
+          else console.log(`[single-stage] no vendor matched "${n}" in the participants search`);
+        }
         if (!added.length) await s.single.inviteVendor();
-        return added.length ? `invited ${added.join(", ")} (single-stage)` : "vendors invited (single-stage)";
+        return added.length ? `invited ${added.join(", ")} (single-stage)` : "invited every vendor the product suggested (single-stage)";
       }
       const min = a.count !== undefined ? Number(a.count) : (vendorCount() ?? 0);
-      let names = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
-      // "count: 2" with no names: the default road invites ONE QA vendor and reports one
-      // participant (E4, 2026-10-21), so a second surrogate bid found nobody to bid for. Name
-      // as many QA test vendors as the case needs, in the order the tenant lists them.
-      if (!names.length && min > 1 && !allowRealVendors()) {
-        names = (await qaVendorNames()).slice(0, min);
-        if (names.length < min) throw new Error(`the case needs ${min} vendors but this tenant has only ${names.length} QA test vendor(s) — automation needs update: create more with the bidding matrix's vendor setup`);
-      }
+      // Names come from the CASE only (the compiler never invents one); with none, the product's
+      // own Invite Vendor puts everyone it suggests on the event, and `count` tops up with QA
+      // test vendors when the suggestion was short (E4, 2026-10-21: two bids need two vendors).
+      const names = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
       const invited = await s.create.inviteVendors({ names, count: min });
       const total = await s.create.participantCount();
-      return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s)`;
+      return invited.length ? `invited ${invited.join(", ")} (${total} total)` : `${total} participant(s) — every vendor the product suggested`;
     }
     case "publish":
       if (await isSingleStageScreen(s)) {
