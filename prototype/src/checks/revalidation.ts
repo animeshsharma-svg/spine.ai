@@ -456,14 +456,29 @@ export class H {
     return this.cfgCache;
   }
   async getConfig(): Promise<any> {
+    this.cfgCache = undefined;
     return this.settings();
   }
-  /** changing the settings has no API any more: the case needs Procol ops */
-  async putConfig(_config: any): Promise<Reply> {
-    throw new NotRunnable(`changing the client's revalidation settings has no API since ${REVAMP} — needs Procol ops to set them`);
+  /**
+   * Save the client's settings through the general configuration endpoint
+   * (custom_configuration/update_or_create). Only a Procol employee may save
+   * this key (it is staff-only in master_configurations), so VR_QA_TOKEN has
+   * to be a staff token. NOTHING validates the value any more (REV-17): the
+   * caller must send a complete, correct config. Read back from the database.
+   */
+  async putConfig(config: any): Promise<Reply> {
+    this.assertWritable();
+    this.configChanged = true;
+    const r = await this.call("employee", "POST", `/api/custom_configuration/update_or_create?workspace_id=${this.clientId}`, { item_type: "Company", config_key: "vendor_revalidation_config", modifications: { value: config } });
+    if (r.status !== 200) throw new Error(`saving the settings was refused (${r.status} ${r.message ?? short(r.data, 160)}) — a Procol employee token is needed`);
+    const now = await this.getConfig();
+    if (!sameJson(now.config, config)) throw new Error("the settings read back from the database differ from what was saved");
+    this.currentStatuses = [...(config.vendor_statuses ?? [])];
+    this.currentDocs = Object.keys(config.validations ?? {});
+    return r;
   }
   async putRaw(_body: any): Promise<Reply> {
-    throw new NotRunnable(`the settings API was removed in ${REVAMP}`);
+    throw new NotRunnable(`the settings API with its checks was removed in ${REVAMP}; the general configuration endpoint saves anything (REV-17)`);
   }
   private assertWritable() {
     if (!writeClients().has(this.clientId))
@@ -566,15 +581,49 @@ export class H {
     const busy = await q(`SELECT count(*)::int n FROM vendor_validation_histories WHERE client_company_id = $1 AND status = 0`, [this.clientId]);
     if (busy[0].n > 0) throw new NotRunnable(`a run is in progress for client ${this.clientId} (${busy[0].n} rows pending) — not starting another now`);
     writeFileSync(lock, String(process.pid));
+    const backup = join(BACKUP_DIR, `${this.clientId}.json`);
     try {
-      this.original = await this.settings();
+      if (existsSync(backup)) {
+        // a run that died mid-case: put its saved settings back before anything else
+        const saved = JSON.parse(readFileSync(backup, "utf8"));
+        this.original = { config: {}, enabled: true };
+        await this.putConfig(saved.config);
+        this.note(`restored the settings saved by an interrupted run (${saved.savedAt})`);
+        rmSync(backup);
+      }
+      this.original = await this.getConfig();
       this.currentStatuses = [...(this.original.config?.vendor_statuses ?? [])];
       this.currentDocs = Object.keys(this.original.config?.validations ?? {});
-      if (!this.original.enabled) throw new NotRunnable(`revalidation is off for client ${this.clientId}`);
-      return await fn();
+      if (!this.original.enabled && !/^(A-13|C-04|I-10)$/.test(this.key)) throw new NotRunnable(`revalidation is off for client ${this.clientId}`);
+      writeFileSync(backup, JSON.stringify({ savedAt: new Date().toISOString(), config: this.original.config }, null, 1));
+      try {
+        return await fn();
+      } finally {
+        await this.restore(backup);
+      }
     } finally {
       rmSync(lock, { force: true });
     }
+  }
+
+  private async restore(backup: string) {
+    const out: string[] = [];
+    if (this.configChanged) {
+      const orig = this.original.config;
+      if (!orig || !Object.keys(orig).length) out.push("the original settings were empty; left as the case set them — CHECK BY HAND");
+      else {
+        this.configChanged = false;
+        try {
+          await this.putConfig(orig);
+          out.push("settings restored and read back identical");
+        } catch (e) {
+          this.ev.restore = `SETTINGS NOT RESTORED (${(e as Error).message}) — the saved copy is in ${backup}`;
+          throw new Error(this.ev.restore);
+        }
+      }
+    }
+    rmSync(backup, { force: true });
+    this.ev.restore = out.join("; ") || "nothing to restore";
   }
 
 }
@@ -1154,6 +1203,11 @@ S["D-01"] = async (h) =>
     const { rows, final } = await runOne(h, "V-NODOCS");
     h.expect(rows.length > 0 && rows.every((r) => r.status === "skipped" && r.error === NOT_PROVIDED), `every row skipped 'not provided' (${rows.map((r) => `${r.doc}:${r.status}`).join(", ")})`);
     h.expect(final?.status === "skipped", `final status skipped (got ${final?.status})`);
+  });
+S["D-03"] = async (h) =>
+  h.guarded(async () => {
+    const { rows } = await runOne(h, "V-MSMELINK", { msme: { paths: ["company.misc.msme_registration_number"], frequency: "one_time", start_date: h.today } });
+    h.expect(rows.length === 1 && rows[0].status === "skipped" && rows[0].error === NOT_PROVIDED, `a link in the MSME field counts as no value → skipped 'not provided' (got ${rows.map((r) => `${r.status} '${r.error}' value ${r.value}`).join(", ")})`);
   });
 S["D-04"] = async (h) =>
   h.guarded(async () => {
@@ -1737,7 +1791,8 @@ const PRI: Record<string, string> = { Critical: "P0", High: "P1", Medium: "P2", 
 
 /** why a revalidation case will not run here, or null */
 export function revalSkipReason(spec: RevalSpec): string | null {
-  if (["dev", "manual", "ui", "code", "ops", "removed"].includes(spec.tier)) return spec.why ?? `${spec.tier} case — not run unattended`;
+  if (spec.tier === "ops") return null; // runs: a Procol employee token can save the settings (checked when the case runs)
+  if (["dev", "manual", "ui", "code", "removed"].includes(spec.tier)) return spec.why ?? `${spec.tier} case — not run unattended`;
   if (!S[spec.key]) return `no runner for ${spec.key} yet`;
   return null;
 }

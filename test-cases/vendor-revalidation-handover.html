@@ -40,7 +40,7 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
     <div class="fact"><b>46</b><span>tests passed</span></div>
     <div class="fact"><b>8</b><span>failed, each a logged bug</span></div>
     <div class="fact"><b>20</b><span>blocked by REV-19</span></div>
-    <div class="fact"><b>26</b><span>need a settings change</span></div>
+    <div class="fact"><b>27</b><span>need a settings change</span></div>
     <div class="fact"><b>18</b><span>no longer apply (feature removed 20 Oct)</span></div>
     <div class="fact"><b>42</b><span>need a developer, a person or a screen</span></div>
   </div>
@@ -151,6 +151,7 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
     <tr><td class="id">B-06</td><td><code>enabled: false</code> between scheduling and firing → trigger ends "disabled"</td></tr>
     <tr><td class="id">C-04</td><td>reads another client's settings (needs the staff login, not a change)</td></tr>
     <tr><td class="id">C-06, D-09</td><td><code>pan.paths = ["company.misc.pan_no"]</code> → value read from the bulk-upload extra data</td></tr>
+    <tr><td class="id">D-03</td><td><code>msme.paths = ["company.misc.msme_registration_number"]</code> on vendor 72280 (a link) → skipped</td></tr>
     <tr><td class="id">D-04</td><td><code>bank.paths = [{bank_account_no: company.misc.bank_account_number, ifsc: company.misc.bank_ifsc_code}]</code> → account without IFSC is skipped</td></tr>
     <tr><td class="id">D-05, D-06, D-07, D-12</td><td><code>gst.paths</code> variants: a column that does not exist first; two columns with values; a form field then a column; a column with spaces</td></tr>
     <tr><td class="id">E-02, E-06, E-08, E-09</td><td>a document pointed at the wrong column on purpose (a PAN read as GST, a GSTIN read as PAN, a PAN read as MSME) → the format pre-check must refuse it without a provider call</td></tr>
@@ -179,13 +180,29 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
   </table></div>
   <p class="muted" style="margin-top:8px;font-size:.9rem">Already proven from the recorded runs without a dev: B-18 nightly at 23:00 IST, F-01, F-08, F-11, F-14 (pass), F-07 (REV-21: rows given up after 16–17 h, not 24) and F-13 (REV-22: 38 Attestr calls in one minute).</p>
 
-  <h3>E. Needs a person, or a prepared vendor <span class="pill p-wait">15 tests</span></h3>
+  <h3>Test data already prepared (21 Oct, 01:30 IST)</h3>
+  <p>Ten Procol test vendors were created on GMMCO through vendor bulk upload with <b>Status = rejected</b> — no invite mail, no onboarding form, no vendor login — so they sit in the "rejected" group the overnight config targets, and revalidation reads them through its <code>company.*</code> and <code>company.misc.*</code> paths. Values are fake by design (PAN part <code>QATZQ…</code>, UK VAT <code>GB9…</code>, IFSC <code>QATZ0…</code>). Ids are recorded in <code>prototype/config/revalidationVendors.json</code>; the tests pick them up by role.</p>
+  <div class="tbl"><table><tr><th>Vendor</th><th>Holds</th><th>Expected when revalidated</th><th>Covers</th></tr>
+    <tr><td class="id">72274 GSTA</td><td>GSTIN <code>27QATZQ1149A1Z5</code> + PAN <code>QATZQ1149A</code> (well-formed, unknown)</td><td>gst and pan Failed by the provider</td><td>E-01, E-07, G-01</td></tr>
+    <tr><td class="id">72275 GSTB</td><td>same shape, letter B</td><td>as above; a second vendor for re-trigger cases</td><td>B-13, B-14, G-13</td></tr>
+    <tr><td class="id">72278 VATPAN</td><td>VAT <code>GB911491111</code> in the tax field + PAN <code>QATZQ1149C</code></td><td>gst "GST input is incorrect" (pre-check, no call); pan Failed by the provider</td><td>E-02, E-06, E-07</td></tr>
+    <tr><td class="id">72280 MSMELINK</td><td>MSME = <code>https://example.com/udyam-certificate.pdf</code></td><td>msme Skipped "not provided" (a link is not a value)</td><td>D-03</td></tr>
+    <tr><td class="id">72282 MSMEFAKE</td><td>MSME <code>UDYAM-MH-00-1149001</code> (well-formed, unknown)</td><td>msme Failed by the provider</td><td>E-09</td></tr>
+    <tr><td class="id">72284 MSMEBAD</td><td>MSME <code>MH12345</code></td><td>msme "MSME input is incorrect" (pre-check)</td><td>E-09</td></tr>
+    <tr><td class="id">72286 BANKHALF</td><td>account <code>0000121149</code>, no IFSC</td><td>bank Skipped "not provided"</td><td>D-04</td></tr>
+    <tr><td class="id">72288 BANKFAKE</td><td>account <code>0000131149</code> + IFSC <code>QATZ01149AB</code></td><td>bank Failed by the provider ("Invalid IFSC code")</td><td>E-10</td></tr>
+    <tr><td class="id">72290 BANKBADIFSC</td><td>account <code>0000141149</code> + IFSC <code>ABC123</code></td><td>bank "BANK input is incorrect" (pre-check)</td><td>E-10</td></tr>
+    <tr><td class="id">72292 NODOCS</td><td>nothing</td><td>every document Skipped; final Skipped; no error line</td><td>D-01, G-02, G-03</td></tr>
+  </table></div>
+  <p class="muted" style="margin-top:8px;font-size:.9rem">With the overnight config from Part 1 these ten are checked by tonight's 23:00 run together with the other 62 test vendors in the rejected group. What bulk upload cannot prepare: a form-field value (<code>form.*</code> paths), a file-only field, an extended field, a re-submitted onboarding, a real cancelled GSTIN — those stay in the table below.</p>
+
+  <h3>E. Needs a person, or a prepared vendor <span class="pill p-wait">14 tests</span></h3>
   <div class="tbl"><table><tr><th>Test</th><th>Why it is not automatic today</th><th>What would make it automatic</th></tr>
     <tr><td class="id">A-35</td><td>Needs a GMMCO buyer login whose role may <i>not</i> edit vendors.</td><td>A QA user on GMMCO with a read-only role (we then prove the trigger is refused and the run status still readable).</td></tr>
     <tr><td class="id">C-02</td><td>Needs a vendor unlinked from GMMCO — a change to a real vendor record.</td><td>A Procol test vendor we may unlink, or do it on PROCOL DEMO once revalidation is on there.</td></tr>
     <tr><td class="id">C-07, H-11</td><td>Needs revalidation switched on for a second customer and a vendor linked to both.</td><td>Settings access (Part 1) + PROCOL DEMO as the second customer.</td></tr>
     <tr><td class="id">C-08</td><td>Needs a vendor's link status changed in the middle of a run.</td><td>A run that starts (REV-19) and a test vendor whose status we may change.</td></tr>
-    <tr><td class="id">D-02, D-03, D-10, D-11, E-17</td><td>Need a vendor whose form field holds only a file; whose field holds a link; who has an extended-field value; who re-submits onboarding; who has a CIN/FSSAI value. Filling GMMCO's onboarding form as a vendor e-mails GMMCO's real vendor-management team, so we do not do it.</td><td>An onboarding v2 event on PROCOL DEMO (Procol's own tenant). We then create Procol test vendors there and fill every variant ourselves, with screenshots.</td></tr>
+    <tr><td class="id">D-02, D-10, D-11, E-17</td><td>Need a vendor whose form field holds only a file; who has an extended-field value; who re-submits onboarding; who has a CIN/FSSAI value. (D-03, the link-as-value case, is now prepared: vendor 72280.) Filling GMMCO's onboarding form as a vendor e-mails GMMCO's real vendor-management team, so we do not do it.</td><td>An onboarding v2 event on PROCOL DEMO (Procol's own tenant). We then create Procol test vendors there and fill every variant ourselves, with screenshots.</td></tr>
     <tr><td class="id">E-03</td><td>Needs a real cancelled GSTIN.</td><td>Any cancelled GSTIN from the dev or ops, recorded in <code>config/revalidationVendors.json</code>.</td></tr>
     <tr><td class="id">E-16, G-10, G-11</td><td>Need a vendor's document changed between two days, then two runs.</td><td>Same as D-02…: a test vendor on PROCOL DEMO plus REV-19 fixed (or two nights).</td></tr>
     <tr><td class="id">F-15, I-08</td><td>Need a person filling onboarding v2 during a large run / with bad documents, and comparing messages with the previous release.</td><td>The PROCOL DEMO onboarding event above; the message comparison stays a one-time human check.</td></tr>

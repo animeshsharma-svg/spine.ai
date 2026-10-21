@@ -20,9 +20,9 @@ Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidati
 | listing — the buyer's listing / vendor page / Excel vs the database | 13 | nothing (the client's session) |
 | refused request — a run request the API must refuse | 12 | `VR_QA_TOKEN` |
 | run — a real run on 1–5 named vendors, client's own settings | 23 | `VR_QA_TOKEN` |
-| needs ops — the case needs GMMCO's settings changed (no API since 20 Oct) | 26 | Procol ops |
+| needs ops — the case needs GMMCO's settings changed (no API since 20 Oct) | 27 | Procol ops |
 | feature removed on 20 Oct (settings API, cancel, top_errors, QA controls) | 18 | — |
-| dev / manual / ui / code — reported as not run, with why | 40 | a person or dev |
+| dev / manual / ui / code — reported as not run, with why | 39 | a person or dev |
 
 **Host and token.** Since the 20 Oct 2026 rewrite a buyer allowed to edit vendors starts a run for their own company:
 `POST /api/vendor_validation/trigger?workspace_id=<client>` and `GET /api/vendor_validation/runs/<run_id>?job_id=&workspace_id=`,
@@ -595,11 +595,11 @@ Paths are tried in order; the first that gives a value wins. Several cases point
 
 #### API-XREV-D-03 — Link text is not a value
 - **Why it matters.** Guide D-03 (API).
-- **Setup.** Not run unattended (manual): needs a vendor's GST field edited
-- **Steps.** 1. put https://… in the GST field 2. run
-- **Expected.** gst skipped (or the next path used). Note: an upper-case 'HTTPS://' is NOT treated as a link (start_with? is case-sensitive).
+- **Setup.** Not run: needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite. Test vendors: V-MSMELINK.
+- **Steps.** 1. msme paths [company.misc.msme_registration_number] 2. run [V-MSMELINK] — a test vendor whose MSME field holds https://example.com/udyam-certificate.pdf
+- **Expected.** msme skipped 'not provided' (a link is not a value). Note: an upper-case 'HTTPS://' would NOT be treated as a link (start_with? is case-sensitive).
 - **Oracle.** —
-- **Trace.** P2 · manual · `API-XREV-D` · manual · `app/services/vendor_revalidation/value_reader.rb:63`
+- **Trace.** P2 · manual · `API-XREV-D` · needs ops · `app/services/vendor_revalidation/value_reader.rb:63`
 
 #### API-XREV-D-04 — Bank with account but no IFSC
 - **Why it matters.** Guide D-04 (API).
