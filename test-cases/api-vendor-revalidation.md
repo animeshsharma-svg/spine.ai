@@ -5,7 +5,7 @@ The scheduling engine re-checks every vendor's GST, PAN, MSME and bank on the cy
 it on the vendor listing, the vendor page and the Excel download.
 
 These are the guide's 138 automation cases (`test-cases/Vendor_Revalidation_QA_Automation_Guide.md`, Part 2) read
-against the code — **procol-backend rfx-uat-main @ 76b986a012 (15 Oct 2026)** — plus 24 cases the code revealed. Each case keeps the guide's
+against the code — **procol-backend rfx-uat-main @ 76b986a012 (15 Oct 2026)** — plus 26 cases the code revealed. Each case keeps the guide's
 id; **Expected** is what the build does (what the runner asserts); where the guide says otherwise it is quoted, and a
 finding (REV-nn, `test-cases/vendor-revalidation-findings.md`) is named where the code contradicts the guide or the TRD.
 Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidation.json`; both are generated from
@@ -19,7 +19,7 @@ Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidati
 | audit — SELECTs on recorded runs | 21 | nothing |
 | listing — the buyer's listing / vendor page / Excel vs the database | 16 | nothing (the client's session) |
 | refused request — a run request the API must refuse | 12 | `VR_QA_TOKEN` |
-| run — a real run on 1–5 named vendors, client's own settings | 23 | `VR_QA_TOKEN` |
+| run — a real run on 1–5 named vendors, client's own settings | 25 | `VR_QA_TOKEN` |
 | needs ops — the case needs GMMCO's settings changed (no API since 20 Oct) | 27 | Procol ops |
 | feature removed on 20 Oct (settings API, cancel, top_errors, QA controls) | 18 | — |
 | dev / manual / ui / code — reported as not run, with why | 35 | a person or dev |
@@ -472,6 +472,22 @@ Force vs scheduler, the cycle arithmetic, catch-up, cancel, the shared run id an
 - **Expected.** Both complete with their vendor's rows.
 - **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
 - **Trace.** P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:113-124 (delete_jobs deletes every queued RunWorker job of the run, not only the chosen vendors')` · `REV-09`
+
+#### API-XREV-B-21 — A run scheduled 20 minutes ahead (force) fires on time and revalidates the vendor
+- **Why it matters.** Added from the code (not in the guide).
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
+- **Steps.** 1. POST /trigger mode force, one vendor, run_at = now + 20 min 2. GET /runs at once, after 10 minutes, and after the time
+- **Expected.** Scheduled until the time (GET /runs reports the whole day's rows while a trigger waits); 10 minutes in still scheduled and the vendor's shown status unchanged; at the time started and complete; the vendor's last-validated stamp (written when its check starts, the run status has no fired-at) is within 2 minutes of run_at.
+- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
+- **Trace.** P1 · automate · `API-XREV-B` · run (token) · `trigger_service.rb schedule (job['at'] = run_at)`
+
+#### API-XREV-B-22 — A run scheduled 20 minutes ahead in scheduler mode checks only what is due that day
+- **Why it matters.** Added from the code (not in the guide).
+- **Setup.** Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.
+- **Steps.** 1. POST /trigger mode scheduler, one vendor, run_at = now + 20 min 2. GET /runs after the time
+- **Expected.** Fires at the time; nothing_due with no rows when no document type is due that day under the client's settings (GMMCO: nothing until 15 Jan 2027), otherwise started with exactly the due types.
+- **Oracle.** GET /runs, the rows and the client–vendor link in the database, and the listing.
+- **Trace.** P2 · automate · `API-XREV-B` · run (token) · `trigger_service.rb due_doc_types`
 
 #### API-XREV-B-20 — A QA trigger takes the nightly run's claim for that date
 - **Why it matters.** Added from the code (not in the guide). Finding REV-10 (Low): A QA trigger in the hour before 11 pm makes the nightly run skip the client.

@@ -239,6 +239,8 @@ if (existsSync(SCREENS)) {
     screenReport = null;
   }
 }
+const FORCE_REPORT = join(EVIDENCE_ROOT, "reval-force", "report.json");
+const forceReport: { vendors: number[]; checks: string[] } | null = existsSync(FORCE_REPORT) ? JSON.parse(readFileSync(FORCE_REPORT, "utf8")) : null;
 const FILTERS = join(EVIDENCE_ROOT, "reval-filters");
 let filterReport: any = null;
 if (existsSync(FILTERS)) {
@@ -260,6 +262,7 @@ const CODE: Record<string, Array<[string, number, number, number[]]>> = {
   "REV-03": [["lib/external_api/validation.rb", 229, 236, [233, 235]]],
   "REV-05": [["lib/external_api/validation.rb", 65, 71, [68]]],
   "REV-04": [["app/models/vendor_validation_history.rb", 47, 52, [50]], ["app/models/vendor_validation_history.rb", 68, 72, [70]]],
+  "REV-25": [["app/services/vendor_revalidation/vendor_check_service.rb", 196, 219, [206, 217]], ["app/services/vendor_revalidation/provider_guard.rb", 7, 14, [8, 9, 10]]],
   "REV-06": [["app/models/vendor_validation_history.rb", 56, 65, [61]]],
   "REV-07": [["app/models/vendor_validation_history.rb", 56, 65, [63]]],
   "REV-08": [["app/services/vendor_revalidation/vendor_check_service.rb", 24, 30, [28]], ["app/services/vendor_revalidation/vendor_check_service.rb", 86, 89, [88]]],
@@ -366,9 +369,14 @@ const cards: Record<string, string> = {
     <div class="panel"><div class="bar"><span class="m">POST</span><span class="u">rfx-uat-api.ag-ri.in${esc(a23.path)}</span>${stPill(a23.status)}</div><div class="who">${esc(who)} · sent: ${esc(JSON.stringify(a23.body))}</div><pre>${esc(a23.reply).replace(/run_at is in the past/, "<mark>run_at is in the past</mark>")}</pre></div>
     <p class="note">30 February 2026 does not exist. Expected: "run_at must be a time like … (IST if no offset)". Got "in the past" — the server read it as 2 March 2026.</p>`
     : "",
-  "REV-19": `<p class="cap">Captured during tests A-26 and B-15 on 20 Oct — the run is accepted and then never starts</p>
+  "REV-19": `<p class="note"><b>Fixed on 21 Oct</b> (backend deploy ~12:00 IST). Verified three times that day: forced runs at 12:22, 13:02 and 13:18 IST moved to "started" within 10 seconds, created rows and wrote the vendors' status (see REV-25 for the one row the provider held). The captures below are from before the fix.</p>
+    <p class="cap">Captured during tests A-26 and B-15 on 20 Oct — the run is accepted and then never starts</p>
     <div class="grid two">${timelineTable(evA26, "test A-26: force run, run_at 20 s ago, one vendor")}${timelineTable(evB15, "test B-15: force run scheduled 2 min ahead, one vendor")}</div>
     <p class="note">Expected: state "started" within a minute of run_at and rows for the vendor. The polls above kept answering "scheduled" with 0 rows until the test gave up; the database had no row dated 20 Oct for GMMCO afterwards.</p>`,
+  "REV-25": `<p class="cap">On the live screen (${esc(PREVIEW.replace("https://", ""))}, 21 Oct 13:29 IST) — two vendors from the same forced run (13:18:35 IST): one fully re-checked, one left as it was</p>
+    <div class="grid two">${screenImg("vendor-page-revalidation-force-47168-failed", "Vendor 47168 → Revalidation Details: 'Last validated 21 October 2026 13:18', every document dated 13:18 — the run fired 5 s after the time asked for.")}${screenImg("vendor-page-revalidation-force-70959-stuck", "Vendor 70959 → the same run: still 'Last validated 15 October 2026 23:00', PAN 'System Error' from 16 October — its PAN row is sitting 'pending' behind the provider's breaker, so nothing was written.")}</div>
+    ${forceReport ? `<p class="note">The force check (prototype/scripts/reval-force.ts, vendors ${esc(String(forceReport.vendors.join(", ")))}):</p><pre>${esc(forceReport.checks.join("\n"))}</pre>` : ""}
+    <p class="note">In the database: vendor_validation_histories rows 4420–4423 (run 2a967c9c…), PAN status pending, last_run_at 13:07:47 then 13:23:54 IST (one probe every 5 minutes, waits doubling); buyer_seller_company_mappings 70959 still vendor_last_validated_at 15 Oct. GET /runs for the trigger: complete=false, by_status pending 1. A real PAN of another vendor passed at 12:22 the same day — the provider is up; it is this value's answer that opens the breaker.</p>`,
   "REV-23": `<p class="cap">On the live screen (${esc(PREVIEW.replace("https://", ""))}) — the Validation Status filter's choices</p>
     ${screenImg("filters-panel-validation-status", "Vendors → filter panel → Validation Status: Passed, Failed, Skipped, System Error. Nothing for vendors never checked, which the column shows as 'Pending'.")}
     <p class="note">The filter itself is right where it exists: on the Prospects tab it returned exactly the database's counts (${(filterReport?.checks ?? []).filter((c: any) => /^H-06 (Passed|Failed|System Error|Skipped)$/.test(c.id)).map((c: any) => c.id.replace("H-06 ", "") + " " + (c.what.match(/: (\d+) vendor/)?.[1] ?? "?")).join(", ")}).</p>`,
@@ -412,6 +420,10 @@ for (const f of readdirSync(RUNS).filter((x) => x.endsWith(".json")).sort()) {
       // a result that could not reach the server (VPN drop) never replaces a real one
       const network = c.inconclusive && /Connection terminated|ENETUNREACH|fetch failed/.test(String(c.verdict));
       if (network && res.has(c.id)) continue;
+      // nor does a "not run" (a guard refused it, a vendor was missing) replace a pass or fail
+      const notRun = !!c.inconclusive || !!c.skipped || /^not run/i.test(String(c.verdict));
+      const have = res.get(c.id);
+      if (notRun && have && !have.inconclusive && !have.skipped && !/^not run/i.test(String(have.verdict))) continue;
       res.set(c.id, { ...c, company: r.companyId === OTHER ? "PROCOL DEMO (198678)" : "GMMCO (47053)", runId: r.id });
       runIds.add(r.id);
     }
@@ -462,9 +474,9 @@ const results = cases.map((c: any) => {
     result = /Connection terminated|ENETUNREACH|fetch failed/.test(r.verdict) ? "Couldn't tell — network dropped" : "Couldn't tell";
     saw = /Connection terminated|ENETUNREACH|fetch failed/.test(r.verdict) ? "The VPN to UAT dropped during the run, so the test could not finish. Nothing wrong was seen in the product." : plainSaw(r.verdict);
   } else {
-    result = { dev: "Not run — needs a developer", manual: "Not run — manual", ui: "Not run — screen check", code: "Not run — found in code", ops: "Not run — needs ops to change settings", removed: "No longer applies — feature removed", run: "Blocked by REV-19 — runs never start", config: "Not run yet" }[c.reval.tier as string] ?? "Not run";
+    result = { dev: "Not run — needs a developer", manual: "Not run — manual", ui: "Not run — screen check", code: "Not run — found in code", ops: "Not run — needs ops to change settings", removed: "No longer applies — feature removed", run: "Not run yet", config: "Not run yet" }[c.reval.tier as string] ?? "Not run";
     saw = c.reval.tier === "run"
-      ? "Not run: this test starts a real revalidation check, and on the 20 Oct build a run never starts (bug REV-19). It runs again as soon as that is fixed."
+      ? "Not run yet: this test starts a real revalidation check (REV-19 is fixed since 21 Oct, so it can run)."
       : `${NOT_RUN[c.reval.tier] ?? ""}${c.reval.why ? ` Detail: ${c.reval.why}` : ""}`;
   }
   return { id: key, area: AREA[c.feature] ?? c.feature, title: c.title, priority: c.severity, result, checked: c.expectedResult, saw, bug: bug ?? "", where: r?.company ?? "", at: r ? ist(r.runId.replace(/-(\d\d)-(\d\d)-(\d{3})Z$/, ":$1:$2.$3Z")) : "" };

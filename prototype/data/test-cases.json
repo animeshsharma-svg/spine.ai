@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T05:36:19.273Z",
+  "generatedAt": "2026-10-21T06:54:04.367Z",
   "cases": [
     {
       "id": "UI-ENV-001",
@@ -96345,6 +96345,48 @@
         "REV-09"
       ],
       "source": "P2 · automate · `API-XREV-B` · run (token) · `app/workers/vendor_revalidation/qa_trigger_worker.rb:113-124 (delete_jobs deletes every queued RunWorker job of the run, not only the chosen vendors')` · `REV-09`"
+    },
+    {
+      "id": "API-XREV-B-21",
+      "layer": "api",
+      "group": "API-XREV-B",
+      "section": "Triggers and schedule",
+      "sectionNo": 2,
+      "title": "A run scheduled 20 minutes ahead (force) fires on time and revalidates the vendor",
+      "why": "Added from the code (not in the guide).",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.",
+      "steps": "1. POST /trigger mode force, one vendor, run_at = now + 20 min 2. GET /runs at once, after 10 minutes, and after the time",
+      "expected": "Scheduled with no rows until the time; 10 minutes in still scheduled and the vendor's shown status unchanged; at the time started and complete within 2 minutes; the vendor's last-validated time is this run's start.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "priority": "P1",
+      "verdict": "automate",
+      "refs": [
+        "API-XREV-B",
+        "trigger_service.rb schedule (job['at'] = run_at)"
+      ],
+      "source": "P1 · automate · `API-XREV-B` · run (token) · `trigger_service.rb schedule (job['at'] = run_at)`"
+    },
+    {
+      "id": "API-XREV-B-22",
+      "layer": "api",
+      "group": "API-XREV-B",
+      "section": "Triggers and schedule",
+      "sectionNo": 2,
+      "title": "A run scheduled 20 minutes ahead in scheduler mode checks only what is due that day",
+      "why": "Added from the code (not in the guide).",
+      "setup": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed). Test vendors: V-NODOCS.",
+      "steps": "1. POST /trigger mode scheduler, one vendor, run_at = now + 20 min 2. GET /runs after the time",
+      "expected": "Fires at the time; nothing_due with no rows when no document type is due that day under the client's settings (GMMCO: nothing until 15 Jan 2027), otherwise started with exactly the due types.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "GET /runs, the rows and the client–vendor link in the database, and the listing.",
+      "priority": "P2",
+      "verdict": "automate",
+      "refs": [
+        "API-XREV-B",
+        "trigger_service.rb due_doc_types"
+      ],
+      "source": "P2 · automate · `API-XREV-B` · run (token) · `trigger_service.rb due_doc_types`"
     },
     {
       "id": "API-XREV-B-20",

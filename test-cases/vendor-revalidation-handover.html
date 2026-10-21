@@ -35,11 +35,11 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
 <div class="wrap">
   <p class="muted">Procol QA · Vendor revalidation · UAT · 21 Oct 2026</p>
   <h1>Revalidation Dev Handover</h1>
-  <p class="lead">What is blocking the rest of the revalidation testing, in enough detail to act on. Three parts: the <b>settings</b> problem (nobody in QA can change a customer's revalidation settings any more), the <b>stuck-run bug</b> REV-19 (no on-demand run starts), and the exact list of tests that still need a person or a developer, with what each one needs. The test results and all 22 findings are in the <a href="https://claude.ai/artifact/AQh8LsJiXLx5RvJ6kGhs5m">bug sheet</a>.</p>
+  <p class="lead">What is blocking the rest of the revalidation testing, in enough detail to act on. Three parts: the <b>settings</b> problem (nobody in QA can change a customer's revalidation settings any more), the <b>stuck-run bug</b> REV-19 (fixed on 21 Oct — kept for the record, with the new REV-25 found while verifying it), and the exact list of tests that still need a person or a developer, with what each one needs. The test results and all 22 findings are in the <a href="https://claude.ai/artifact/AQh8LsJiXLx5RvJ6kGhs5m">bug sheet</a>.</p>
   <div class="facts">
     <div class="fact"><b>47</b><span>tests passed</span></div>
     <div class="fact"><b>11</b><span>failed, each a logged bug</span></div>
-    <div class="fact"><b>20</b><span>blocked by REV-19</span></div>
+    <div class="fact"><b>0</b><span>blocked by REV-19 (fixed 21 Oct)</span></div>
     <div class="fact"><b>27</b><span>need a settings change</span></div>
     <div class="fact"><b>18</b><span>no longer apply (feature removed 20 Oct)</span></div>
     <div class="fact"><b>36</b><span>need a developer, a person or a screen</span></div>
@@ -95,6 +95,7 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
   </div>
 
   <h2>Part 2 — REV-19: a run that has vendors to check never starts</h2>
+  <div class="callout" style="border:2px solid #15803d;background:#f0fdf4;border-radius:10px;padding:14px 16px;margin:12px 0 18px"><b>Update, 21 Oct 2026 — FIXED.</b> The backend deploy at about 12:00 IST fixed this. Verified three times the same day: forced runs at 12:22, 13:02 and 13:18 IST moved to "started" within 10 seconds, created rows and wrote the vendors' status. A run asked for at a clock time (force + run_at 13:18:35) fired 5 seconds after that time. Scheduler mode at a clock time still answers "nothing_due" under GMMCO's settings — that is by design: scheduler mode only checks what is due on that date; to re-check a vendor at a chosen time use <b>mode force + run_at</b>. The text below describes the bug as it was, kept for the record.<br><br><b>New, found during the same check — REV-25 (High):</b> when the provider will not answer one document (vendor 70959's PAN), that row stays "pending" for up to 25 hours, the vendor's overall status and last-validated time are never written (its page keeps showing the 15 Oct answers), and the breaker the engine opens is shared by every customer. Details, timestamps and the code lines are in the bug sheet.</div>
   <h3>What a buyer sees</h3>
   <p>Click "revalidate now" (the dashboard's call to <code>POST /api/vendor_validation/trigger?workspace_id=47053</code>). The API answers 200 with a job id and a run id. Then nothing: the run's status stays <code>"scheduled"</code>, zero rows are created, no vendor is checked, no error is shown anywhere, and the status keeps saying "scheduled" for 7 days (the job-state TTL).</p>
   <h3>What we observed (all on GMMCO, UAT)</h3>
@@ -141,7 +142,7 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
   <h2>Part 3 — What still needs a person, test by test</h2>
   <p class="lead">Everything that could run without a person has run. The lists below are complete. "What would make it automatic" is the one thing that turns the test into a button press.</p>
 
-  <h3>A. Runs on their own once REV-19 is fixed <span class="pill p-wait">20 tests</span></h3>
+  <h3>A. Runs on their own now that REV-19 is fixed <span class="pill p-wait">20 tests — re-run on 21 Oct</span></h3>
   <p>A-26, B-01, B-07, B-12, B-13, B-14, B-15, B-16, B-19, C-01, C-05, D-01, D-08, D-13, E-01, E-04, E-07, E-10, E-12, G-01, G-02, G-07, G-13. Nothing for a person to do.</p>
 
   <h3>B. Runs on their own once QA can change settings <span class="pill p-wait">26 tests</span></h3>

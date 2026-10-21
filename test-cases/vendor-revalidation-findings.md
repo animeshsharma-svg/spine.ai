@@ -7,12 +7,13 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 
 | Id | Severity | Status | Finding | Cases |
 | --- | --- | --- | --- | --- |
+| REV-25 | High | confirmed live 2026-10-21 (13:02 and 13:18 IST) | A document the provider will not answer keeps the vendor 'pending' for up to 25 hours and leaves its whole status stale - and pauses that document type for every customer | B-21 |
 | REV-23 | Medium | confirmed live 2026-10-21 | The Validation Status filter cannot select vendors that were never checked | H-06 |
 | REV-24 | Medium | confirmed live 2026-10-21 | There is no 'Last Validated At' date filter on the vendor list | H-03, H-07, H-08 |
 | REV-22 | Medium | seen in the recorded runs 2026-10-21 - confirm with dev | Attestr was asked 38 questions in one minute - above the 30-per-minute cap | F-13 |
 | REV-21 | Medium | seen in the recorded runs 2026-10-21 — confirm with dev | Checks are given up as System Error after about 16-17 hours, not after the documented 24 hours | F-07 |
 | REV-20 | Low | confirmed on the preview screen 2026-10-20 | The vendor page shows times as '23:00 PM' - a 24-hour clock with AM/PM added | H-09 |
-| REV-19 | Critical | confirmed live 2026-10-20 | A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever | B-12, B-15, A-26 |
+| REV-19 | Critical | FIXED — deploy of 2026-10-21 ~12:00 IST; verified 12:22, 13:02 and 13:18 IST (forced runs start within 10 s) | A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever | B-12, B-15, A-26 |
 | REV-18 | Low | confirmed live 2026-10-20 | An impossible start date (30 Feb) is not refused; it is rolled over to the next real date | A-23 |
 | REV-17 | Medium | from the code (20 Oct 2026 rewrite) | Revalidation settings are no longer checked when they are saved |  |
 | REV-01 | Critical | fixed in the 20 Oct 2026 rewrite — A-30 re-checks it | A customer's admin can read and change another customer's revalidation settings, and the controls are no longer blocked on production | A-30, I-05 |
@@ -31,6 +32,17 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 | REV-14 | Medium | to confirm by audit (C-09) | Vendors of other company categories are revalidated but never shown | C-09 |
 | REV-15 | Medium | confirmed live 2026-10-15 (found in passing) | GET /api/companies/vendor_detail answers 500 for every vendor |  |
 | REV-16 | Low | confirmed live 2026-10-15 (found in passing) | rfx-uat-api answers errors with the full Rails debug page |  |
+
+
+## REV-25 — A document the provider will not answer keeps the vendor 'pending' for up to 25 hours and leaves its whole status stale - and pauses that document type for every customer
+
+**Severity** High · **Status** confirmed live 2026-10-21 (13:02 and 13:18 IST) · **Cases** B-21
+
+Forced run for vendors 70959, 47168, 56616 at 13:02 IST and again (scheduled) at 13:18 IST on 21 Oct: GST, MSME and bank rows of all three finished within seconds, but vendor 70959's PAN row (QATZQ0568Q, a well-formed test PAN nobody holds) stayed 'pending' - one retry 5 minutes later (13:07:47, then 13:23:54) and nothing since. Because of that one row the run reports complete=false, and the vendor's overall status and last-validated time are never written: its page and the list still show the 15 Oct answers (vendor page screenshot vendor-page-revalidation-force-70959-stuck.png). The same PAN ended the 15 Oct night run as 'verification is temporarily unavailable' 16 hours later (REV-21). A real PAN of another vendor passed at 12:22 the same day, so the PAN provider itself is up. In the code (provider_guard.rb) the provider's answer for this PAN is classed as a breaker error (provider_down / auth_failed / rate_limited, not 'invalid'); five of those open a circuit breaker that is shared by all customers - 15 minutes, doubling after each failed probe up to 24 hours - and while it is open every PAN row of every customer waits; rows are only given up as System Error at the run's 24-hour deadline (+1 hour sweeper).
+
+**Evidence.** vendor_validation_histories rows 4420-4423 (run 2a967c9c…, vendor 70959): PAN status pending, last_run_at 13:07:47 then 13:23:54 IST; buyer_seller_company_mappings 70959 vendor_last_validated_at still 2026-10-15 17:30 UTC; GET /runs ... complete=false with by_status pending 1 (reval-force/report.json).
+
+**Suggested fix.** (1) Dev to read the log lines 'Vendor revalidation pan <error_type>' / 'breaker_opened provider=... reason=...' at 13:02:47 and 13:07:47 IST on 21 Oct: if the provider answers a nonexistent PAN with an error code, classify it as invalid (row Failed) instead of provider-down, so one bad PAN cannot open the breaker. (2) A forced run for named vendors should not wait behind the breaker for a day: give those rows a short deadline (for example 30 minutes) and then close them as System Error so the vendor's status and last-validated time are written. (3) On the vendor page show that a check is in progress ('Pending since 13:02') instead of the previous run's answers.
 
 
 ## REV-23 — The Validation Status filter cannot select vendors that were never checked
@@ -90,7 +102,7 @@ On the vendor page's Revalidation Details card, 'Last validated' and 'Last Run A
 
 ## REV-19 — A revalidation run that has vendors to check never starts — it stays 'scheduled' for ever
 
-**Severity** Critical · **Status** confirmed live 2026-10-20 · **Cases** B-12, B-15, A-26
+**Severity** Critical · **Status** FIXED — deploy of 2026-10-21 ~12:00 IST; verified 12:22, 13:02 and 13:18 IST (forced runs start within 10 s) · **Cases** B-12, B-15, A-26
 
 Since the 20 Oct rewrite, POST /api/vendor_validation/trigger answers 200 with a job id, but the run never begins: GET /runs/<run_id>?job_id= keeps saying state 'scheduled', no row is created and no vendor is checked. Seen six times on GMMCO - 20 Oct 20:01, 20:06, 20:16, 20:55, 21:0x and 21 Oct 00:05 IST - for a forced run with no start time, a forced run with run_at 20 s in the past, a run scheduled 2 minutes ahead and a run for a vendor of another company; each watched for 2 to 15 minutes. A scheduler-mode run with nothing due DID finish (state 'nothing_due'), so the TriggerWorker job is picked up from the batch_low queue and dies only in the part that runs when there is work: TriggerService#call after due_doc_types - the reset step (delete rows of the run date, clear the vendors' status, delete Redis locks, walk every Sidekiq queue plus the scheduled and retry sets in delete_jobs) and then RunWorker.perform_async. The worker has retry: false, so the failure is silent: no retry, nothing written to the job state, and the API keeps answering 'scheduled' for 7 days. The database shows the symptom too: no row dated 20 or 21 Oct exists for GMMCO although six runs were accepted. Nothing from outside can tell which line raises; the Sidekiq Dead set (jobs with retry off land there) and the log lines for VendorRevalidation::TriggerWorker at those times will.
 

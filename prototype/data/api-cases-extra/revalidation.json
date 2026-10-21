@@ -1333,6 +1333,58 @@
     }
   },
   {
+    "id": "API-XREV-B-21",
+    "feature": "revalidation.schedule",
+    "title": "A run scheduled 20 minutes ahead (force) fires on time and revalidates the vendor",
+    "type": "Positive",
+    "priority": "P1",
+    "severity": "High",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed).",
+    "steps": [
+      "POST /trigger mode force, one vendor, run_at = now + 20 min",
+      "GET /runs at once, after 10 minutes, and after the time"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_validation/trigger",
+    "expected": "accept",
+    "expectedResult": "Scheduled until the time (GET /runs reports the whole day's rows while a trigger waits); 10 minutes in still scheduled and the vendor's shown status unchanged; at the time started and complete; the vendor's last-validated stamp (written when its check starts, the run status has no fired-at) is within 2 minutes of run_at.",
+    "rule": "trigger_service.rb schedule (job['at'] = run_at)",
+    "tier": "run",
+    "reval": {
+      "key": "B-21",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
+    "id": "API-XREV-B-22",
+    "feature": "revalidation.schedule",
+    "title": "A run scheduled 20 minutes ahead in scheduler mode checks only what is due that day",
+    "type": "Edge",
+    "priority": "P2",
+    "severity": "Medium",
+    "preconditions": "Needs VR_QA_TOKEN. A real run on V-NODOCS under the client's own settings (they are not changed).",
+    "steps": [
+      "POST /trigger mode scheduler, one vendor, run_at = now + 20 min",
+      "GET /runs after the time"
+    ],
+    "method": "POST",
+    "path": "/api/vendor_validation/trigger",
+    "expected": "accept",
+    "expectedResult": "Fires at the time; nothing_due with no rows when no document type is due that day under the client's settings (GMMCO: nothing until 15 Jan 2027), otherwise started with exactly the due types.",
+    "rule": "trigger_service.rb due_doc_types",
+    "tier": "run",
+    "reval": {
+      "key": "B-22",
+      "tier": "run",
+      "needs": [
+        "V-NODOCS"
+      ]
+    }
+  },
+  {
     "id": "API-XREV-B-20",
     "feature": "revalidation.schedule",
     "title": "A QA trigger takes the nightly run's claim for that date",

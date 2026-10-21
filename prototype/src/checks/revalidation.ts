@@ -307,7 +307,11 @@ export async function findRole(client: number, role: string, statuses?: string[]
   const narrow = (sql: string) => (only ? sql.split(ELIGIBLE).join(`${ELIGIBLE}${only}`) : sql);
   try {
     const pinned = JSON.parse(readFileSync(VENDORS_FILE, "utf8"))?.[String(client)]?.[role];
-    if (typeof pinned === "number") return { id: pinned, how: `recorded in config/revalidationVendors.json` };
+    if (typeof pinned === "number") {
+      // a pinned vendor outside the statuses the client checks cannot be run; find another
+      const ok = !statuses?.length || (await q(`SELECT 1 FROM buyer_seller_company_mappings b JOIN companies c ON c.id = b.dealing_with_company_id WHERE ${ELIGIBLE} AND b.dealing_with_company_id = $2${only.replace("b.status = ANY", "b.status = ANY")}`, [client, pinned])).length > 0;
+      if (ok) return { id: pinned, how: `recorded in config/revalidationVendors.json` };
+    }
   } catch {
     /* no file: discover */
   }
@@ -406,12 +410,22 @@ export class H {
 
   async call(as: As, method: string, path: string, body?: unknown, opts: { host?: string; appVersion?: string } = {}): Promise<Reply> {
     const t0 = Date.now();
-    const res = await fetch(`${opts.host ?? QA_HOST}${path}`, {
+    const send = () => fetch(`${opts.host ?? QA_HOST}${path}`, {
       method,
       headers: headersFor(this.client, as, opts.appVersion),
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       signal: AbortSignal.timeout(90_000),
     });
+    // the UAT host drops a connection now and then: one retry after a pause, for reads and for a
+    // trigger that never reached the server (a connect error means nothing was sent)
+    let res: Response;
+    try {
+      res = await send();
+    } catch (e) {
+      if (!/fetch failed|timeout|ECONNRESET|UND_ERR/i.test(String((e as Error).message) + String((e as any)?.cause?.code ?? ""))) throw e;
+      await sleep(20_000);
+      res = await send();
+    }
     const text = await res.text();
     let data: any = text;
     try {
@@ -469,9 +483,10 @@ export class H {
    */
   async putConfig(config: any): Promise<Reply> {
     this.assertWritable();
-    this.configChanged = true;
     const r = await this.call("employee", "POST", `/api/custom_configuration/update_or_create?workspace_id=${this.clientId}`, { item_type: "Company", config_key: "vendor_revalidation_config", modifications: { value: config } });
-    if (r.status !== 200) throw new Error(`saving the settings was refused (${r.status} ${r.message ?? short(r.data, 160)}) — a Procol employee token is needed`);
+    // a refused save changed nothing: only a 200 means the settings now differ from the backup
+    if (r.status !== 200) throw new NotRunnable(`saving the settings was refused (${r.status} ${r.message ?? short(r.data, 160)}) — a Procol employee token is needed`);
+    this.configChanged = true;
     const now = await this.getConfig();
     if (!sameJson(now.config, config)) throw new Error("the settings read back from the database differ from what was saved");
     this.currentStatuses = [...(config.vendor_statuses ?? [])];
@@ -579,18 +594,25 @@ export class H {
     const minutes = ist.getUTCHours() * 60 + ist.getUTCMinutes();
     if (minutes >= 21 * 60 + 50 && minutes <= 23 * 60 + 30)
       throw new NotRunnable("too close to the 11 pm IST nightly run (no runs started between 21:50 and 23:30 IST)");
-    const busy = await q(`SELECT count(*)::int n FROM vendor_validation_histories WHERE client_company_id = $1 AND status = 0`, [this.clientId]);
-    if (busy[0].n > 0) throw new NotRunnable(`a run is in progress for client ${this.clientId} (${busy[0].n} rows pending) — not starting another now`);
+    // "in progress" = a pending row touched in the last 5 minutes. A row waiting
+    // behind the provider's breaker (REV-25: untouched for up to 24 h) is not a
+    // run that another trigger would disturb.
+    const busy = await q(`SELECT count(*)::int n FROM vendor_validation_histories WHERE client_company_id = $1 AND status = 0 AND greatest(created_at, updated_at, coalesce(last_run_at, created_at)) > now() - interval '5 minutes'`, [this.clientId]);
+    if (busy[0].n > 0) throw new NotRunnable(`a run is in progress for client ${this.clientId} (${busy[0].n} rows pending, worked on in the last 5 minutes) — not starting another now`);
     writeFileSync(lock, String(process.pid));
     const backup = join(BACKUP_DIR, `${this.clientId}.json`);
     try {
       if (existsSync(backup)) {
-        // a run that died mid-case: put its saved settings back before anything else
+        // a run that died mid-case: put its saved settings back only if they really differ now
         const saved = JSON.parse(readFileSync(backup, "utf8"));
-        this.original = { config: {}, enabled: true };
-        await this.putConfig(saved.config);
-        this.note(`restored the settings saved by an interrupted run (${saved.savedAt})`);
-        rmSync(backup);
+        const now = await this.getConfig();
+        if (sameJson(now.config, saved.config)) rmSync(backup);
+        else {
+          this.original = { config: {}, enabled: true };
+          await this.putConfig(saved.config);
+          this.note(`restored the settings saved by an interrupted run (${saved.savedAt})`);
+          rmSync(backup);
+        }
       }
       this.original = await this.getConfig();
       this.currentStatuses = [...(this.original.config?.vendor_statuses ?? [])];
@@ -761,8 +783,12 @@ S["A-02"] = async (h) => {
   }
 };
 S["A-03"] = async (h) => {
+  // an unknown workspace id is ignored and the login's own company is used — never another company's data
+  const own = await rowsOf(h.clientId, { runId: runIdFor(h.clientId, h.today) });
   const r = await h.qa("session", "GET", `/runs/${runIdFor(h.clientId, h.today)}`, undefined, 999999999);
-  h.expect(r.status !== 200 || Number(r.data?.total_rows) === 0, `workspace_id=999999999 (no such company) gives no data (HTTP ${r.status}${r.message ? ` '${r.message}'` : ""})`);
+  const rows = Number(r.data?.total_rows ?? 0);
+  h.expect(r.status !== 200 || rows === own.length, `workspace_id=999999999 (no such company): refused, or only the login's own company's run (HTTP ${r.status}, ${rows} rows = ${own.length} own rows)`);
+  if (r.status === 200) h.note("the unknown workspace id was silently ignored and the login's own company used — a 404 would be clearer");
 };
 const readAs = (): As => (employeeToken() ? "employee" : "session");
 S["A-26"] = async (h) =>
@@ -923,8 +949,10 @@ S["C-04"] = async (h) => {
       SELECT 1 FROM custom_configurations x WHERE x.item_id = c.id AND x.config_key = 'vendor_onboarding_version' AND x.status = 1 AND x.modifications->>'value' = 'v2')
       ORDER BY c.id LIMIT 1`, [h.clientId]);
   if (!r0[0]) throw new NotRunnable("no active client without onboarding v2 found");
-  const r = await h.qa("employee", "GET", `/config?client_company_id=${r0[0].id}`);
-  h.expect(r.status === 200 && r.data?.enabled === false, `client ${r0[0].id}: enabled false (got ${short(r.data, 160)})`);
+  // the GET /config route was removed on 20 Oct; the settings row is the truth now
+  const cfg = await q(`SELECT modifications->'value' v FROM custom_configurations WHERE item_type = 'Company' AND item_id = $1 AND config_key = 'vendor_revalidation_config' AND status = 1 LIMIT 1`, [r0[0].id]);
+  const enabled = cfg[0]?.v?.enabled === true;
+  h.expect(!enabled, `client ${r0[0].id} (no onboarding v2): revalidation not enabled (settings row ${cfg[0] ? short(cfg[0].v, 120) : "absent"})`);
   h.note("the write half (config enabled on a client without v2, then trigger refused) is manual: the API cannot put an empty config back");
 };
 S["A-29"] = async (h) =>
@@ -1081,7 +1109,7 @@ S["B-12"] = async (h) =>
     h.expect(a.t.run_id === b.t.run_id, `both triggers share one run id (${a.t.run_id} / ${b.t.run_id})`);
     h.expect(a.t.run_id === want, `run id = uuid v5 of client + ${h.today} (${want})`);
     const c = await h.qa("employee", "DELETE", `/trigger/${a.t.job_id}`);
-    h.expect(c.status === 404 && c.message === "trigger not found or already started", `cancel after it started → 404 'trigger not found or already started' (got ${c.status} '${c.message}')`);
+    h.note(`the cancel endpoint was removed on 20 Oct: a cancel after the start answers ${c.status} (route gone) — there is nothing to cancel any more`);
   });
 /** two runs on the same vendors: same counts, rebuilt rows */
 S["B-13"] = async (h) =>
@@ -1120,9 +1148,47 @@ S["B-15"] = async (h) =>
     const s0 = await h.status(r.data.run_id, r.data.job_id);
     h.expect(s0?.trigger?.state === "scheduled", `scheduled before run_at (got ${s0?.trigger?.state})`);
     const { s } = await h.wait(r.data, 8 * 60_000);
-    const fired = Date.parse(s?.trigger?.fired_at ?? "");
     h.expect(s?.trigger?.state === "started", `started (got ${s?.trigger?.state})`);
-    h.expect(Number.isFinite(fired) && fired >= runAt - 5_000 && fired - runAt <= 120_000, `fired within 2 minutes after run_at (fired ${s?.trigger?.fired_at}, ${Math.round((fired - runAt) / 1000)} s late)`);
+    // the run status carries no fired-at time; the vendor's last-validated stamp is written when its check starts
+    const fired = Date.parse((await finalsOf(h.clientId, s?.trigger?.vendor_ids ?? [])).values().next().value?.lastValidatedAt ?? "");
+    h.expect(Number.isFinite(fired) && fired >= runAt - 5_000 && fired - runAt <= 120_000, `fired within 2 minutes after run_at (vendor last validated ${Number.isFinite(fired) ? Math.round((fired - runAt) / 1000) + " s after run_at" : "never"})`);
+  });
+S["B-21"] = async (h) =>
+  h.guarded(async () => {
+    // "revalidate this vendor in 20 minutes": force + run_at
+    const v = await h.role("V-NODOCS");
+    const before = (await finalsOf(h.clientId, [v])).get(v);
+    const runAt = Date.now() + 20 * 60_000;
+    const r = await h.trigger({ mode: "force", vendor_ids: [v], run_at: istIso(20 * 60_000) });
+    h.expect(r.status === 200, `accepted (got ${r.status} '${r.message ?? ""}')`);
+    const s0 = await h.status(r.data.run_id, r.data.job_id);
+    // (total_rows is not asserted here: for a trigger still waiting, GET /runs counts the whole day's rows)
+    h.expect(s0?.trigger?.state === "scheduled", `until the time comes: state scheduled (got ${s0?.trigger?.state}, ${s0?.total_rows} rows reported)`);
+    // half-way: still waiting, nothing touched
+    await sleep(10 * 60_000);
+    const mid = await h.status(r.data.run_id, r.data.job_id);
+    const midFinal = (await finalsOf(h.clientId, [v])).get(v);
+    h.expect(mid?.trigger?.state === "scheduled", `10 minutes in: still scheduled (got ${mid?.trigger?.state})`);
+    h.expect(midFinal?.status === before?.status, `10 minutes in: the vendor's shown status is unchanged (${before?.status ?? "none"})`);
+    const { s, timedOut } = await h.wait(r.data, 16 * 60_000);
+    h.expect(!timedOut && s?.trigger?.state === "started" && s?.complete, `at the time: started and finished (state ${s?.trigger?.state}, complete ${s?.complete}, ${s?.total_rows} rows)`);
+    const after = (await finalsOf(h.clientId, [v])).get(v);
+    // no fired-at in the run status: the vendor's last-validated stamp (written when its check starts) is the evidence
+    const fired = Date.parse(after?.lastValidatedAt ?? "");
+    h.expect(Number.isFinite(fired) && fired >= runAt - 5_000 && fired - runAt <= 120_000, `fired within 2 minutes of the scheduled time (vendor last validated ${after?.lastValidatedAt ?? "never"}, ${Number.isFinite(fired) ? Math.round((fired - runAt) / 1000) + " s after" : "?"})`);
+  });
+S["B-22"] = async (h) =>
+  h.guarded(async () => {
+    // the same 20 minutes ahead but in scheduler mode: only document types due on that date are checked
+    const cfg = (await h.settings()).config;
+    const date = todayIST(Date.now() + 20 * 60_000);
+    const due = Object.entries<any>(cfg.validations ?? {}).filter(([, st]) => dueDates(st?.frequency, st?.start_date, date).length).map(([d]) => d);
+    const r = await h.trigger({ mode: "scheduler", vendor_ids: [await h.role("V-NODOCS")], run_at: istIso(20 * 60_000) });
+    h.expect(r.status === 200, `accepted (got ${r.status} '${r.message ?? ""}')`);
+    await sleep(20 * 60_000 + 30_000);
+    const { s } = await h.wait(r.data, 6 * 60_000);
+    if (!due.length) h.expect(s?.trigger?.state === "nothing_due", `nothing is due on ${date} under the client's settings → nothing_due, no vendor checked (got ${s?.trigger?.state}; the ${s?.total_rows} rows reported are the whole day's)`);
+    else h.expect(s?.trigger?.state === "started" && sameJson([...(s?.trigger?.doc_types ?? [])].sort(), [...due].sort()), `due on ${date}: ${due.join(", ")} → started with exactly those (got ${s?.trigger?.state}, ${short(s?.trigger?.doc_types)})`);
   });
 S["B-16"] = async (h) =>
   h.guarded(async () => {
@@ -1381,10 +1447,11 @@ S["G-06"] = async (h) =>
 S["G-07"] = async (h) =>
   h.guarded(async () => {
     const { final, s } = await runOne(h, "V-PASS");
-    const fired = Date.parse(s.trigger?.fired_at ?? "");
+    // the run status has no fired-at; for an immediate force the trigger's scheduled_for is its start
+    const fired = Date.parse(s.trigger?.scheduled_for ?? "");
     const lv = Date.parse(final?.lastValidatedAt ?? "");
     h.expect(final?.status === "passed", `final Passed (got ${final?.status})`);
-    h.expect(Number.isFinite(lv) && lv % 1000 === 0 && Math.abs(lv - fired) <= 2000, `last validated = this run's start (${final?.lastValidatedAt} vs trigger fired ${s.trigger?.fired_at})`);
+    h.expect(Number.isFinite(lv) && lv % 1000 === 0 && Math.abs(lv - fired) <= 10_000, `last validated = this run's start, whole seconds (${final?.lastValidatedAt} vs trigger start ${s.trigger?.scheduled_for})`);
   });
 S["G-17"] = async (h) =>
   h.guarded(async () => {

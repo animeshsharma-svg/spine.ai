@@ -256,13 +256,13 @@
     "REV-19": {
       "short": "A revalidation run that has vendors to check never starts — it stays \"scheduled\" for ever",
       "where": "Start a revalidation run (the new buyer API, POST /api/vendor_validation/trigger) and its progress (GET /runs)",
-      "proof": "Confirmed on UAT",
+      "proof": "FIXED - the backend deploy of 21 Oct (~12:00 IST) fixed it. Verified three times the same day: forced runs at 12:22, 13:02 and 13:18 IST moved to 'started' within 10 seconds, created rows and finished (except one row held by the provider, see REV-25).",
       "steps": [
         "As GMMCO's buyer, start a run for one vendor: mode force, vendor_ids [one vendor].",
         "Check its progress every 15 seconds with the run_id and job_id from the reply."
       ],
       "expected": "Within a minute the state moves to \"started\", rows appear for the vendor, and when they are done \"complete\" is true.",
-      "actual": "The start request is accepted (OK) but the state stays \"scheduled\" for good: no row is created and no vendor is checked. We saw it six times - on 20 Oct at 8:01, 8:06, 8:16, 8:55 and 9:0x pm and on 21 Oct at 12:05 am - for a forced run, a run with a start time 20 seconds in the past, a run scheduled 2 minutes ahead and a run for another company's vendor, each watched for 2 to 15 minutes. A scheduler run with nothing to do DID finish (\"nothing_due\"), so the job is picked up and dies only in the part that runs when there is real work.",
+      "actual": "(Before the fix) The start request is accepted (OK) but the state stays \"scheduled\" for good: no row is created and no vendor is checked. We saw it six times - on 20 Oct at 8:01, 8:06, 8:16, 8:55 and 9:0x pm and on 21 Oct at 12:05 am - for a forced run, a run with a start time 20 seconds in the past, a run scheduled 2 minutes ahead and a run for another company's vendor, each watched for 2 to 15 minutes. A scheduler run with nothing to do DID finish (\"nothing_due\"), so the job is picked up and dies only in the part that runs when there is real work.",
       "impact": "Nobody can revalidate a vendor on demand - which is now the only way to start a run besides the nightly one. The buyer is told it started, nothing happens, no error is shown anywhere, and the run shows \"scheduled\" for 7 days. Every test that needs a run (20 of them) is blocked.",
       "fix": "Open Sidekiq's Dead tab on UAT (jobs with retry off land there) and the logs for VendorRevalidation::TriggerWorker at the times above. The likely place is the reset step: it deletes the run's rows, clears the vendors' status, deletes Redis locks and then walks every Sidekiq queue plus the scheduled and retry sets. Also save a \"failed\" state with the error when the worker crashes, so a buyer is never told \"scheduled\" for ever.",
       "tech": "app/services/vendor_revalidation/trigger_service.rb#call → reset / delete_jobs → RunWorker.perform_async; trigger_worker.rb retry: false. Run 2d448f72-dbf3-5e99-b78e-facd11f966d5, jobs 1ceeac833123d7ae8b151d9e and e2bfc669fb5b7d6fd79aa360."
@@ -334,6 +334,20 @@
       "impact": "A buyer cannot find vendors validated before or after a date, e.g. 'everyone not re-checked this quarter'.",
       "fix": "Add a date-range filter on the last-validated time and show it in the panel.",
       "tech": "No filter definition for vendor_last_validated_at in filter_options; the panel lists Teams, Deals In, City, Tags, Type, Onboarding Status, Country, Initiated By, PAN No, Validation Status."
+    },
+    "REV-25": {
+      "short": "A document the provider will not answer keeps the vendor 'pending' for up to 25 hours and leaves its whole status stale - and pauses that document type for every customer",
+      "where": "Any run (forced or nightly) -> a vendor whose PAN (or GST/MSME/bank) the provider answers with an error instead of 'valid' / 'invalid'",
+      "proof": "Confirmed on UAT twice on 21 Oct (forced run at 13:02 IST, scheduled forced run at 13:18 IST); cause read in the code",
+      "steps": [
+        "Start a forced run for vendors 70959, 47168 and 56616 (POST /api/vendor_validation/trigger, mode force).",
+        "Watch GET /runs every 15 seconds and open vendor 70959's page (Info tab, Revalidation Details)."
+      ],
+      "expected": "All four documents of each vendor get an answer within a minute or two; 'complete' becomes true; every vendor's overall status and last-validated time show today's run.",
+      "actual": "Vendors 47168 and 56616 were done in 10 seconds. Vendor 70959's GST, MSME and bank rows were done in 10 seconds too, but its PAN row (QATZQ0568Q, a well-formed test PAN nobody holds) stayed 'pending': retried once 5 minutes later and then left alone. Because of that one row the run says complete=false, and the vendor's overall status and last-validated time are never written - its page and the vendor list still show the 15 Oct answers ('System Error - verification is temporarily unavailable, 16 October 15:08') as if nothing had been run. The same PAN was given up as 'verification is temporarily unavailable' 16 hours into the 15 Oct night run. A real PAN of another vendor passed at 12:22 the same day, so the PAN provider is up.",
+      "impact": "A buyer who asks for a vendor to be re-checked now sees nothing happen for up to 25 hours, with no sign that a check is waiting. Worse, the pause is shared: the code opens one breaker per provider for ALL customers (15 minutes, doubling after each failed probe up to 24 hours), so one unlucky PAN value can hold every customer's PAN checks for hours.",
+      "fix": "(1) Dev to read the log lines 'Vendor revalidation pan <error_type>' and 'breaker_opened provider=... reason=...' at 13:02:47 and 13:07:47 IST on 21 Oct - if the provider answers a nonexistent PAN with an error code, treat it as 'invalid' (row Failed), not as 'provider down', so one bad PAN cannot open the breaker. (2) A forced run for named vendors should not wait behind the breaker for a day: give those rows a short deadline (say 30 minutes), then close them as System Error so the vendor's status and date are written. (3) On the vendor page show 'check in progress since 13:02' instead of the previous run's answers.",
+      "tech": "vendor_check_service.rb call_provider: a BREAKER_ERROR_TYPES answer (rate_limited, provider_down, auth_failed) updates only last_run_at and schedules the row for ProviderGuard.retry_at; provider_guard.rb: FAILURE_THRESHOLD 5, BASE_WAIT 900 s doubling per failed probe (PROBE_TTL 300 s) up to 86 400 s, breaker key per provider (no client in the key); rows close only at RUN_DEADLINE = 24 h (sweeper +1 h). Evidence: vendor_validation_histories rows 4420-4423 (PAN pending, last_run_at 13:07:47 then 13:23:54 IST), buyer_seller_company_mappings 70959 vendor_last_validated_at 2026-10-15 17:30 UTC, GET /runs ... complete=false by_status pending 1."
     }
   }
 }
