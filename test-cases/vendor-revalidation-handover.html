@@ -37,12 +37,12 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
   <h1>Revalidation Dev Handover</h1>
   <p class="lead">What is blocking the rest of the revalidation testing, in enough detail to act on. Three parts: the <b>settings</b> problem (nobody in QA can change a customer's revalidation settings any more), the <b>stuck-run bug</b> REV-19 (no on-demand run starts), and the exact list of tests that still need a person or a developer, with what each one needs. The test results and all 22 findings are in the <a href="https://claude.ai/artifact/AQh8LsJiXLx5RvJ6kGhs5m">bug sheet</a>.</p>
   <div class="facts">
-    <div class="fact"><b>46</b><span>tests passed</span></div>
-    <div class="fact"><b>8</b><span>failed, each a logged bug</span></div>
+    <div class="fact"><b>47</b><span>tests passed</span></div>
+    <div class="fact"><b>11</b><span>failed, each a logged bug</span></div>
     <div class="fact"><b>20</b><span>blocked by REV-19</span></div>
     <div class="fact"><b>27</b><span>need a settings change</span></div>
     <div class="fact"><b>18</b><span>no longer apply (feature removed 20 Oct)</span></div>
-    <div class="fact"><b>42</b><span>need a developer, a person or a screen</span></div>
+    <div class="fact"><b>36</b><span>need a developer, a person or a screen</span></div>
   </div>
   <p class="muted" style="margin-top:12px;font-size:.88rem">Build under test: procol-backend <code>rfx-uat-main @ a717f107ce</code> (20 Oct), API <code>rfx-uat-api.ag-ri.in</code>, dashboard <code>client-feat-vendor-revalidation-details.preview.procol.tech</code>, customer GMMCO (47053).</p>
 
@@ -208,8 +208,8 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
     <tr><td class="id">F-15, I-08</td><td>Need a person filling onboarding v2 during a large run / with bad documents, and comparing messages with the previous release.</td><td>The PROCOL DEMO onboarding event above; the message comparison stays a one-time human check.</td></tr>
   </table></div>
 
-  <h3>F. Screen-only checks <span class="pill p-wait">6 tests</span></h3>
-  <p>H-03 (date filter From after To), H-06 (status filter), H-07 (date range), H-08 (filters with search), H-11 (shared vendor, two logins), I-04 (vendor portal shows nothing). The preview dashboard is reachable now, so H-03, H-06, H-07 and H-08 can be automated in procol-ui-tests next; H-11 needs the second customer (Part 1); I-04 needs a vendor login on the vendor portal.</p>
+  <h3>F. Screen checks <span class="pill p-ok">done on the preview</span> <span class="pill p-wait">2 left</span></h3>
+  <p>Done on the preview dashboard (procol-ui-tests/scripts/reval-filters.ts): H-06 — the Validation Status filter returns exactly the database's vendors for Passed (20), Failed (7), System Error (11) and Skipped (40) on the Prospects tab; H-08 — the status filter together with a name search (7 of 7). Two findings came out of it: <b>REV-23</b> the filter has no choice for vendors never checked, and <b>REV-24</b> there is no "Last Validated At" date filter at all (so H-03 and H-07 have nothing to run against). Still needing a person: H-11 (a second customer's login) and I-04 (the vendor portal).</p>
 
   <h3>G. Proven from the code, not sent <span class="pill p-off">6 tests</span></h3>
   <ul>
@@ -229,6 +229,7 @@ a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-o
     <li><b>REV-02</b> — an empty vendor list runs every vendor; now reachable by any buyer who may edit vendors.</li>
     <li><b>REV-04</b> — full PAN and bank account numbers on the listing, the vendor page and the Excel.</li>
     <li><b>REV-17</b> — settings are saved without any validation.</li>
+    <li><b>REV-23 / REV-24</b> — a buyer cannot list the vendors still unchecked, and cannot filter by last-validated date.</li>
     <li>Then REV-21 (rows given up after 16–17 h), REV-22 (rate cap), REV-06/07/20 (labels and formats).</li>
   </ol>
   <p class="muted" style="margin-top:28px;font-size:.88rem">Everything here comes from procol-backend <code>rfx-uat-main @ a717f107ce</code>, the UAT database (read-only) and live calls made as GMMCO's buyer on 20–21 Oct 2026. Full evidence per finding: the <a href="https://claude.ai/artifact/AQh8LsJiXLx5RvJ6kGhs5m">bug sheet</a>.</p>
