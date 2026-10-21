@@ -226,10 +226,16 @@ async function groqChat(messages: ChatMessage[], opts: ChatOptions): Promise<str
   return "";
 }
 
+/**
+ * Gemini is the last provider in the chain, so it must not give up on a passing "503 high
+ * demand" (seen 2026-10-21 while Slingring was over budget: three 503s in six seconds left the
+ * compiler with no model and a generic plan). On 503 / 429 it waits and tries again, then the
+ * next model in the list; a 4xx that is not a rate limit fails at once.
+ */
 async function geminiChat(messages: ChatMessage[], opts: ChatOptions): Promise<string> {
   const key = process.env.GOOGLE_API_KEY;
   if (!key) throw new Error("no GOOGLE_API_KEY for the fallback provider");
-  const model = process.env.AI_FALLBACK_MODEL ?? "gemini-flash-lite-latest";
+  const models = [...new Set([process.env.AI_FALLBACK_MODEL ?? "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"])];
   // Gemini has no system role: fold system messages into the first user turn.
   const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
   const rest = messages.filter((m) => m.role !== "system");
@@ -237,17 +243,24 @@ async function geminiChat(messages: ChatMessage[], opts: ChatOptions): Promise<s
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: i === 0 && system ? `${system}\n\n${m.content}` : m.content }],
   }));
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      contents,
-      generationConfig: { temperature: opts.temperature ?? 0.3, maxOutputTokens: opts.maxTokens ?? 900 },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const json = (await res.json()) as any;
-  return String(json?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ?? "");
+  const body = JSON.stringify({ contents, generationConfig: { temperature: opts.temperature ?? 0.3, maxOutputTokens: opts.maxTokens ?? 900 } });
+  let lastErr = "";
+  for (const model of models) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: "POST", headers: { "content-type": "application/json" }, body });
+      if (res.ok) {
+        const json = (await res.json()) as any;
+        const text = String(json?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ?? "");
+        if (model !== models[0]) console.log(`[llm] gemini answered with ${model} (the first choice was busy)`);
+        return text;
+      }
+      lastErr = `Gemini ${res.status} (${model}): ${(await res.text()).replace(/\s+/g, " ").slice(0, 160)}`;
+      const busy = res.status === 503 || res.status === 429;
+      if (!busy) break; // a real refusal (bad model name, bad key): try the next model, no waiting
+      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 3_000));
+    }
+  }
+  throw new Error(lastErr || "Gemini answered nothing");
 }
 
 // ── the chain ───────────────────────────────────────────────────────────────
