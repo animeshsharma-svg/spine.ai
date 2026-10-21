@@ -40,7 +40,7 @@
     },
     {
       "kind": "tab",
-      "name": "Live 8583",
+      "name": "Live 8641",
       "selected": true,
       "box": {
         "x": 64,
@@ -52,7 +52,7 @@
     },
     {
       "kind": "tab",
-      "name": "History 2035",
+      "name": "History 2036",
       "selected": false,
       "box": {
         "x": 225,
@@ -64,7 +64,7 @@
     },
     {
       "kind": "tab",
-      "name": "Drafts 183",
+      "name": "Drafts 185",
       "selected": false,
       "box": {
         "x": 420,
@@ -147,43 +147,43 @@
       "n": 2,
       "control": "Create Event M",
       "kind": "button",
-      "does": "Starts creating a new event using the configured creation route.",
-      "affects": "Begins a new event-creation flow without changing an existing event.",
-      "leadsTo": "Event creation screen.",
-      "check": "Click Create Event and verify that the event creation screen opens.",
+      "does": "It starts the configured event-creation flow.",
+      "affects": "no event record until the buyer completes creation.",
+      "leadsTo": "event creation screen",
+      "check": "Click Create Event and verify that the configured new-event screen opens.",
       "rule": "R-FLA-009-2",
       "confidence": "code"
     },
     {
       "n": 3,
-      "control": "Live 8583",
+      "control": "Live 8641",
       "kind": "tab",
-      "does": "Selects the Live events view.",
-      "affects": "Changes the list query to live events and updates the tab URL state.",
-      "leadsTo": "Live events list.",
-      "check": "Click Live and verify that the URL uses `tab=live` and live events are shown.",
+      "does": "It selects the Live events tab.",
+      "affects": "the list query and URL tab state change to live, and the table scrolls to the top.",
+      "leadsTo": "Live events list",
+      "check": "Click Live and verify the URL contains tab=live and the table scrolls to the top.",
       "rule": "R-FLA-002-4",
       "confidence": "code"
     },
     {
       "n": 4,
-      "control": "History 2035",
+      "control": "History 2036",
       "kind": "tab",
-      "does": "Selects the History events view.",
-      "affects": "Changes the list query to historical events and updates the tab URL state.",
-      "leadsTo": "History events list.",
-      "check": "Click History and verify that the URL uses `tab=history` and historical events load.",
+      "does": "It selects the History events tab.",
+      "affects": "the list query and URL tab state change to history, and the table scrolls to the top.",
+      "leadsTo": "History events list",
+      "check": "Click History and verify the URL contains tab=history and historical events load.",
       "rule": "R-FLA-002-4",
       "confidence": "code"
     },
     {
       "n": 5,
-      "control": "Drafts 183",
+      "control": "Drafts 185",
       "kind": "tab",
-      "does": "Selects the Drafts events view.",
-      "affects": "Changes the list query to draft events and updates the tab URL state.",
-      "leadsTo": "Drafts events list.",
-      "check": "Click Drafts and verify that the URL uses `tab=draft` and draft events load.",
+      "does": "It selects the Drafts events tab.",
+      "affects": "the list query and URL tab state change to draft, and the table scrolls to the top.",
+      "leadsTo": "Drafts events list",
+      "check": "Click Drafts and verify the URL contains tab=draft and draft events load.",
       "rule": "R-FLA-002-4",
       "confidence": "code"
     },
@@ -191,10 +191,10 @@
       "n": 6,
       "control": "Recurring",
       "kind": "tab",
-      "does": "Selects the Recurring events view.",
-      "affects": "Changes the list query to recurring events and updates the tab URL state.",
-      "leadsTo": "Recurring events list.",
-      "check": "Click Recurring and verify that the URL uses `tab=recurring` and recurring events load.",
+      "does": "It selects the Recurring events tab.",
+      "affects": "the list query and URL tab state change to recurring, and the table scrolls to the top.",
+      "leadsTo": "Recurring events list",
+      "check": "Click Recurring and verify the URL contains tab=recurring and recurring events load.",
       "rule": "R-FLA-002-4",
       "confidence": "code"
     },
@@ -202,31 +202,30 @@
       "n": 7,
       "control": "Search Title",
       "kind": "field",
-      "does": "Accepts title search text to filter the displayed events.",
-      "affects": "Changes the list filters used to retrieve or display matching event records.",
-      "leadsTo": "Stays here.",
-      "check": "Enter a distinctive title and verify that only matching events remain or a no-result state appears.",
-      "rule": "R-FLA-013-1",
-      "confidence": "code"
+      "does": "It accepts a title search string.",
+      "affects": "the URL search parameter and the list request's filters.title on every tab after the search is trimmed and debounced.",
+      "leadsTo": "stays here",
+      "check": "Enter a title, wait at least one second, and verify the URL and returned cards are filtered by that title.",
+      "confidence": "known"
     },
     {
       "n": 8,
       "control": "Starting from",
       "kind": "field",
-      "does": "Is disabled; the user cannot interact with it.",
-      "affects": "nothing",
+      "does": "It cannot be edited because the field is disabled.",
+      "affects": "nothing.",
       "leadsTo": "stays here",
-      "check": "Verify the field is visually disabled and cannot receive focus or input.",
+      "check": "Attempt to focus or type in Starting from and verify that its value and the list do not change.",
       "confidence": "known"
     },
     {
       "n": 9,
       "control": "Ending at",
       "kind": "field",
-      "does": "Is disabled; the user cannot interact with it.",
-      "affects": "nothing",
+      "does": "It cannot be edited because the field is disabled.",
+      "affects": "nothing.",
       "leadsTo": "stays here",
-      "check": "Verify the field is visually disabled and cannot receive focus or input.",
+      "check": "Attempt to focus or type in Ending at and verify that its value and the list do not change.",
       "confidence": "known"
     }
   ],
@@ -1052,6 +1051,311 @@
           }
         ]
       }
+    },
+    {
+      "id": "GEN-SCR-291",
+      "title": "Invalid tab parameter falls back to Live",
+      "kind": "state",
+      "grounded": "R-FLA-002-1",
+      "steps": [
+        "Load the page.",
+        "Inspect the URL and selected tab."
+      ],
+      "expected": "The URL is replaced with ?tab=live, and Live 8641 is selected.",
+      "setup": "Open /orders?tab=unknown.",
+      "coverage": "partial",
+      "gaps": [
+        "Direct assertion that the Live tab is selected rather than merely visible",
+        "Exact URL equality ensuring the invalid tab parameter was replaced and no other query parameters changed"
+      ],
+      "plan": {
+        "title": "Invalid tab falls back to Live",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list before navigating to the invalid tab URL."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the events list is rendered before testing the fallback."
+          },
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "path",
+              "path": "/orders?tab=invalid"
+            },
+            "note": "Load the events list with an invalid tab parameter."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the list rendered successfully after the invalid parameter was supplied."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "?tab=live"
+            },
+            "note": "Verify the URL was normalized to the Live tab."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Live 8641",
+              "present": true
+            },
+            "note": "Verify the Live tab label is visible after fallback."
+          }
+        ]
+      },
+      "controls": []
+    },
+    {
+      "id": "GEN-SCR-292",
+      "title": "History events are grouped under formatted date headers",
+      "kind": "positive",
+      "grounded": "R-FLA-004-3",
+      "steps": [
+        "Click History 2036.",
+        "Review the event list."
+      ],
+      "expected": "History cards are grouped under date headers, and each header uses the app's formatted date format.",
+      "setup": "Use an account with history events created on at least two different dates.",
+      "coverage": "partial",
+      "gaps": [
+        "That History event cards are grouped under date headers.",
+        "That each date header uses the app's formatted date format."
+      ],
+      "plan": {
+        "title": "History events grouped by formatted date",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list, which is the subject of this case."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the events list rendered without an error before inspecting History."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "History"
+            },
+            "note": "Switch to the History tab containing the events to review."
+          }
+        ]
+      },
+      "controls": [
+        4
+      ]
+    },
+    {
+      "id": "GEN-SCR-293",
+      "title": "Drafts empty state shows the required copy",
+      "kind": "state",
+      "grounded": "R-FLA-004-4",
+      "steps": [
+        "Click Drafts 185.",
+        "Review the page content."
+      ],
+      "expected": "The page shows \"No Drafts Found\".",
+      "setup": "Use an account with no draft events.",
+      "coverage": "full",
+      "gaps": [],
+      "plan": {
+        "title": "Drafts empty state",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list, which is the subject of the test."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the list rendered successfully before changing tabs."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Select the Drafts tab."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No Drafts Found",
+              "present": true
+            },
+            "note": "Assert that the required empty-state copy is visible."
+          }
+        ]
+      },
+      "controls": [
+        5
+      ]
+    },
+    {
+      "id": "GEN-SCR-294",
+      "title": "Recurring cards show frequency, invited count, and status",
+      "kind": "positive",
+      "grounded": "R-FLA-012-4",
+      "steps": [
+        "Click Recurring.",
+        "Review each recurring event card."
+      ],
+      "expected": "Each card shows \"Frequency\" with its schedule text or \"-\", the invited count, and an Active, Paused, or Cancelled status tag.",
+      "setup": "Use an account with recurring events having schedule text, invited vendors, and Active, Paused, or Cancelled statuses.",
+      "coverage": "partial",
+      "gaps": [
+        "Verify every recurring card has its own Frequency value containing its schedule text or '-'",
+        "Verify the invited count for each individual recurring card",
+        "Verify that each individual card has exactly one Active, Paused, or Cancelled status tag"
+      ],
+      "plan": {
+        "title": "Recurring cards show frequency, invited count, and status",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list, which is the subject screen."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the events list rendered without an error."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Recurring"
+            },
+            "note": "Switch to the Recurring events tab."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Frequency",
+              "present": true
+            },
+            "note": "Assert that recurring cards expose the Frequency label."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Total Participants Invited",
+              "present": true
+            },
+            "note": "Assert that the recurring list exposes the invited-participant count label."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Active",
+              "present": true
+            },
+            "note": "Assert that an allowed recurring status is visible."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Paused",
+              "present": true
+            },
+            "note": "Assert that the Paused status is supported when present."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Cancelled",
+              "present": true
+            },
+            "note": "Assert that the Cancelled status is supported when present."
+          }
+        ]
+      },
+      "controls": [
+        6
+      ]
+    },
+    {
+      "id": "GEN-SCR-295",
+      "title": "Date range fields are disabled on the current screen",
+      "kind": "state",
+      "grounded": "screen",
+      "steps": [
+        "Inspect Starting from.",
+        "Inspect Ending at.",
+        "Try to focus or enter text in each field."
+      ],
+      "expected": "Both fields appear disabled and do not accept focus or input.",
+      "setup": "Open /orders with the default Live 8641 tab selected.",
+      "coverage": "full",
+      "gaps": [],
+      "plan": {
+        "title": "Events list date range fields disabled",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list, which is the screen containing the date range filters."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the events list rendered without an error before inspecting its filters."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Starting from"
+            },
+            "note": "Assert the Starting from date field is disabled."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "fill",
+              "args": {
+                "label": "Starting from",
+                "value": "2026-01-01"
+              },
+              "expect": "refused"
+            },
+            "note": "Try entering text in Starting from and require evidence that the disabled field refuses interaction."
+          },
+          {
+            "step": "expect_disabled",
+            "args": {
+              "control": "Ending at"
+            },
+            "note": "Assert the Ending at date field is disabled."
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "fill",
+              "args": {
+                "label": "Ending at",
+                "value": "2026-01-31"
+              },
+              "expect": "refused"
+            },
+            "note": "Try entering text in Ending at and require evidence that the disabled field refuses interaction."
+          }
+        ]
+      },
+      "controls": [
+        8,
+        9
+      ]
     }
   ],
   "reachedBy": [
@@ -1063,17 +1367,17 @@
     }
   ],
   "companyId": 198678,
-  "runId": "walk-list-mvh1ywqj",
+  "runId": "walk-list-mvhyvlec",
   "evidence": {
-    "screenshot": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvh1ywqj/03-inventory-events-list.png",
-    "map": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvh1ywqj/map-03-events-list.png",
-    "inventory": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvh1ywqj/03-inventory-events-list.inventory.json"
+    "screenshot": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvhyvlec/03-inventory-events-list.png",
+    "map": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvhyvlec/map-03-events-list.png",
+    "inventory": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvhyvlec/03-inventory-events-list.inventory.json"
   },
   "images": {
     "plain": "/Users/animesh/Desktop/procol/prototype/data/screens/img/events-list.png",
     "map": "/Users/animesh/Desktop/procol/prototype/data/screens/img/events-list-map.png"
   },
-  "takenAt": "2026-10-20T19:05:14.348Z",
-  "updatedAt": "2026-10-20T19:06:14.348Z",
-  "captures": 2
+  "takenAt": "2026-10-21T10:26:26.939Z",
+  "updatedAt": "2026-10-21T10:27:30.703Z",
+  "captures": 3
 }
