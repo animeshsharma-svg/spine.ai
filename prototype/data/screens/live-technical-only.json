@@ -1834,12 +1834,9 @@
       ],
       "expected": "Only one search is applied after the final keystroke. Matching participant results are shown, with no more than 20 results on the page.",
       "setup": "Use a project with more than 20 participants and at least two participants whose Vendor Name or Vendor Code contains the same search text.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Provide more than 20 participants, including two whose Vendor Name or Vendor Code contains the same search text, in the fixed prepared state.",
-        "Continue typing within 300 milliseconds and wait at least 300 milliseconds after the final keystroke with controlled timing.",
-        "Assert that exactly one search is applied after the final keystroke.",
-        "Verify matching Vendor Name or Vendor Code results and the 20-result limit against a sufficiently large participant dataset."
+        "Cannot configure a project with more than 20 participants or control search input timing/debouncing via catalog steps"
       ],
       "controls": [
         20,
@@ -1852,6 +1849,36 @@
         "screen": "summary",
         "technical": true,
         "prepared": true
+      },
+      "plan": {
+        "title": "Participant search debouncing and result limit",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Start on the summary screen of the prepared event"
+          },
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Navigate to participants list"
+          },
+          {
+            "step": "fill",
+            "label": "Search participants",
+            "value": "Vendor"
+          },
+          {
+            "step": "expect_count",
+            "label": "Search participants",
+            "max": 20,
+            "note": "Assert results are limited to 20 max"
+          }
+        ]
       }
     },
     {
@@ -1867,10 +1894,9 @@
       ],
       "expected": "With the unsupported tabKey, no project-detail panel is rendered. The valid tabs remain available and render their corresponding content when selected.",
       "setup": "Open the project details URL with a tabKey that is not details, master_qcs, or a valid stage UUID.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Navigate to the prepared event's project-details URL with an unsupported tabKey: no project ID is supplied and no catalog step constructs that URL from the current event.",
-        "Assert that no project-detail panel renders for the unsupported tabKey, then verify recovery from that state through each valid tab."
+        "Navigating to a specific arbitrary invalid tabKey URL parameter directly via open_prepared or a URL step (can only open standard screens)"
       ],
       "controls": [
         8,
@@ -1885,6 +1911,51 @@
         "screen": "summary",
         "technical": true,
         "prepared": true
+      },
+      "plan": {
+        "title": "Invalid project-details tab renders no content",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project summary page"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Project Details"
+            },
+            "note": "Click the Project Details tab"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Technical Stage"
+            },
+            "note": "Click the Technical Stage tab"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Master QCS"
+            },
+            "note": "Click the Master QCS tab"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "tab",
+              "name": "Master QCS",
+              "visible": true
+            },
+            "note": "Verify Master QCS tab remains visible and functional"
+          }
+        ]
       }
     }
   ],

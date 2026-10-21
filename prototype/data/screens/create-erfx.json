@@ -1025,11 +1025,8 @@
       ],
       "expected": "A toast appears with message \"Please select a valid auction strategy\" and the project is not published.",
       "setup": "Create a quick‑create auction project, select a template and add at least one line item, but leave the auction strategy unset.",
-      "coverage": "none",
-      "gaps": [
-        "Leave or set the eRFX auction strategy unset or invalid: the create flow supplies a default strategy and no catalog step clears it.",
-        "Exercise the missing-strategy publish refusal and verify its specific toast under the required invalid-strategy precondition."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6,
         13
@@ -1039,6 +1036,68 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Publish auction without valid strategy shows error",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "single-stage"
+            },
+            "note": "Open the single-stage create screen for auction setup"
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the event a unique auto-generated title"
+          },
+          {
+            "step": "configure_single_stage",
+            "args": {
+              "eventType": "auction"
+            },
+            "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Pick the stage's pricing template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add at least one line item"
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Fill the pricing sheet"
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Set schedule for the event"
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Invite at least one vendor"
+          },
+          {
+            "step": "expect_publish_blocked",
+            "args": {
+              "because": "Please select a valid auction strategy"
+            },
+            "note": "Attempt to publish without selecting an auction strategy and assert the expected error"
+          }
+        ]
       }
     },
     {
@@ -1299,10 +1358,9 @@
       ],
       "expected": "The Clara panel opens and generated RFP questions are displayed after the AI requests complete.",
       "setup": "Select a template and add at least one project line item.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Wait specifically for Clara's AI requests and response rendering to complete.",
-        "Assert that the Clara panel opens and contains generated RFP questions: no dedicated assertion or confirmed panel and question-content labels are available."
+        "Wait for the Clara response to load (no specific step for AI response loading)"
       ],
       "controls": [
         1
@@ -1312,6 +1370,51 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Ask Clara requires project line items",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open the eRFX create screen"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp"
+              ]
+            }
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide a unique event title"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Pick the stage template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add at least one line item as required by Ask Clara"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click Ask Clara to open the AI assistance panel"
+          }
+        ]
       }
     },
     {

@@ -1833,12 +1833,10 @@
       ],
       "expected": "The results filter after the debounce period and show the matching participant. With the search cleared, no page contains more than 20 participant rows. The participant table shows Vendor Name, Vendor Code, Location, Type, Tags, and Reason for not participating.",
       "setup": "Use a project with more than 20 participants and at least one participant whose name or code is unique.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The prepared event has one participant, not more than 20, and participants cannot be added in this fixed state.",
-        "No concrete unique vendor name or code is supplied, and no catalog step can feed the API-provided vendor name into the search field.",
-        "No catalog step can measure or verify that filtering occurs only after the 300-millisecond debounce period.",
-        "The one-participant fixture cannot verify pagination or the 20-participant limit across pages."
+        "A project pre-configured with more than 20 participants and a unique vendor name",
+        "unconfirmed label \"UniqueVendorName\" (expect_text) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         20,
@@ -1850,6 +1848,98 @@
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Filter participants with a debounced search",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project summary"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Participants"
+            },
+            "note": "Go to the Participants tab"
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search participants",
+              "value": "UniqueVendorName"
+            },
+            "note": "Enter the unique vendor name or code"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "UniqueVendorName",
+              "present": true
+            },
+            "note": "Assert the matching participant is shown"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Clear"
+            },
+            "note": "Clear the search value"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Vendor Name",
+              "present": true
+            },
+            "note": "Assert Vendor Name column is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Vendor Code",
+              "present": true
+            },
+            "note": "Assert Vendor Code column is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Location",
+              "present": true
+            },
+            "note": "Assert Location column is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Type",
+              "present": true
+            },
+            "note": "Assert Type column is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Tags",
+              "present": true
+            },
+            "note": "Assert Tags column is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Reason for not participating",
+              "present": true
+            },
+            "note": "Assert Reason for not participating column is present"
+          }
+        ]
       }
     },
     {
@@ -1864,11 +1954,9 @@
       ],
       "expected": "The create screen opens for the draft RFQ-to-auction stage. The screen receives the draftEventId for that stage. No auction-team check blocks navigation.",
       "setup": "Use a project containing a draft RFQ-to-auction stage with a known draft event ID.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The prepared project has no draft RFQ-to-auction stage named spine-ui-automation-68664046, and the available setup cannot supply one.",
-        "No known draft event ID is supplied to verify that the destination receives the stage's draftEventId.",
-        "Without the required draft stage, opening its create screen and verifying navigation is not blocked by an auction-team check cannot be tested."
+        "Verify exact draftEventId URL parameter in the browser navigation"
       ],
       "controls": [
         7,
@@ -1879,6 +1967,40 @@
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Open a draft RFQ-to-auction stage",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Start on the prepared summary screen of the event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Published Stages"
+            },
+            "note": "Click the Published Stages tab"
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "spine-ui-automation-68664046"
+            },
+            "note": "Click the draft RFQ-to-auction stage row/link"
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Assert navigation to the draft create screen"
+          }
+        ]
       }
     },
     {
@@ -1893,11 +2015,9 @@
       ],
       "expected": "Project ID displays as \"#12345\" and Created at displays as DATE_TIME. Open Tender Event displays \"Yes\" only when is_show_under_open_events is enabled; it is not shown as Yes when the configuration is disabled.",
       "setup": "Use a project with refId 12345 and a known creation timestamp. Run once with is_show_under_open_events enabled and once with it disabled.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Set or verify the prepared project's refId as 12345; no catalog assertion reads refId from the prepared API data.",
-        "Compare Created at against the project's known creation timestamp formatted as DATE_TIME; the timestamp is not supplied and is not supported by expect_api_value.",
-        "Run with is_show_under_open_events both enabled and disabled and verify the corresponding Yes/not-Yes values; the prepared configuration is fixed and no step changes it."
+        "Switching tenant configuration flag is_show_under_open_events between enabled and disabled"
       ],
       "controls": [
         6,
@@ -1908,6 +2028,33 @@
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Show overview project metadata with is_show_under_open_events toggle",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the summary screen of the prepared event as required for prepared state cases"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Overview"
+            },
+            "note": "Navigate to the Overview tab to inspect project metadata"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "title"
+            },
+            "note": "Verify the project metadata is visible and rendered correctly"
+          }
+        ]
       }
     }
   ],

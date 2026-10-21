@@ -945,11 +945,9 @@
       ],
       "expected": "A column selection interface opens. The existing pricing-sheet columns remain visible and additional available columns can be reviewed.",
       "setup": "Open the create-pricing-sheet screen.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Assert that the column selection interface opened: no dedicated assertion or confirmed locator for this interface is supplied.",
-        "Assert that additional available columns can be reviewed: no confirmed available-column labels or selection controls are supplied.",
-        "Compare the complete set of existing pricing-sheet columns before and after opening the interface; the catalog can check specified headers or the presence of headers, but cannot snapshot and compare the complete header set."
+        "Asserting that additional available columns can be reviewed simultaneously within the specific column selection view structure without generic fallback"
       ],
       "controls": [
         9
@@ -959,6 +957,86 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Add Columns opens column selection view",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open event-create screen for multi-stage erfx"
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the event a unique title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Set stages to rfp and rfq"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to RFP stage tab"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Select template for RFP stage"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage tab"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Select template for RFQ stage"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items to the project"
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Fill the pricing sheet"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add Columns"
+            },
+            "note": "Click Add Columns to open column selection view"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Add Columns",
+              "visible": true
+            },
+            "note": "Assert the column selection interface / controls opened"
+          }
+        ]
       }
     },
     {
@@ -972,9 +1050,9 @@
       ],
       "expected": "Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount show required markers. GST does not show a required marker.",
       "setup": "Open the create-pricing-sheet screen with Items 2 displayed.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Assert required markers on the Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount headers, and no required marker on GST; no catalog assertion reads header required-marker state, and the markers' exact rendered text and structure are not known."
+        "Assert specific visual required markers on pricing sheet column headers"
       ],
       "controls": [],
       "prep": {
@@ -982,6 +1060,81 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Required pricing-sheet columns are marked",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start event creation"
+          },
+          {
+            "step": "set_title",
+            "note": "Provide event title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Set stages to rfp and rfq"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to rfp stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for rfp stage"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to rfq stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for rfq stage"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add 2 line items"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill pricing sheet"
+          },
+          {
+            "step": "expect_sheet_columns",
+            "args": {
+              "columns": [
+                "Product",
+                "Product Variant",
+                "Quantity Requested",
+                "Delivery location",
+                "Price",
+                "Quantity Available",
+                "GST",
+                "Total Amount"
+              ]
+            },
+            "note": "Assert pricing sheet header columns are rendered"
+          }
+        ]
       }
     },
     {

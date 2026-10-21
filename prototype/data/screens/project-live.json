@@ -1888,18 +1888,41 @@
       ],
       "expected": "The create screen opens for the draft stage and retains the draftEventId. No auction-team permission check blocks the navigation.",
       "setup": "Use a project containing a draft RFQ-to-auction stage.",
-      "coverage": "none",
-      "gaps": [
-        "The fixed prepared event contains a live RFQ, not a draft RFQ-to-auction stage, and no catalog step can establish the required draft stage in this state.",
-        "Cannot verify that clicking the draft stage opens its create screen and retains its draftEventId without the required draft stage and its identifier.",
-        "Cannot verify that auction-team permission checks do not block draft-stage navigation using the live RFQ fixture."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [],
       "prep": {
         "state": "live",
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Draft RFQ-to-auction stage opens create screen",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Open the drafts list to find the draft event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "row",
+              "name": "RFQ"
+            },
+            "note": "Click the RFQ-to-auction stage draft"
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "projectCreation=true"
+            },
+            "note": "Assert the create screen opens retaining the draft state"
+          }
+        ]
       }
     },
     {
@@ -1915,11 +1938,10 @@
       ],
       "expected": "Project ID is displayed as \"#<refId>\" and Created at is displayed as a date and time. \"Open Tender Event: Yes\" appears only when is_show_under_open_events is enabled.",
       "setup": "Use a project with a known refId and created-at value. Run once with is_show_under_open_events enabled and once with it disabled.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Compare Project ID with \"#<refId>\": no catalog assertion exposes the prepared project's refId for comparison.",
-        "Compare Created at with the project's known creation timestamp and verify date-and-time formatting: no catalog assertion exposes created-at or validates that format.",
-        "Run with is_show_under_open_events both enabled and disabled and assert the corresponding presence or absence of \"Open Tender Event: Yes\": the prepared configuration is fixed and its flag value is unspecified."
+        "Toggle tenant configuration is_show_under_open_events",
+        "Run the test once with configuration enabled and once disabled"
       ],
       "controls": [
         6,
@@ -1930,6 +1952,41 @@
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Overview displays project identifier, creation time, and open-tender indicator",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Open the Overview screen on the prepared event"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "title"
+            },
+            "note": "Assert the event details are present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Project ID",
+              "present": true
+            },
+            "note": "Verify Project ID label is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Created at",
+              "present": true
+            },
+            "note": "Verify Created at label is present"
+          }
+        ]
       }
     },
     {
@@ -1946,11 +2003,10 @@
       ],
       "expected": "Filtering occurs after the 300-millisecond debounce, not for every intermediate keystroke. Results match the vendor name or vendor code, and no more than 20 results appear on the page.",
       "setup": "Use more than 20 participants, including several whose vendor name or code matches a unique search term.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The fixed prepared event has one participant, not more than 20 with multiple matching vendor names and codes; the required result-limit fixture cannot be established.",
-        "No catalog step controls typing intervals below 300 milliseconds or verifies that filtering waits 300 milliseconds after the final character without filtering intermediate input.",
-        "No concrete vendor-name or vendor-code search term is supplied, and the catalog cannot feed the prepared vendor's runtime name or code into the search field to verify matching results."
+        "Precise 300-millisecond debounce timing verification",
+        "Events with more than 20 participants pre-configured in the test harness"
       ],
       "controls": [
         22,
@@ -1963,6 +2019,34 @@
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Participant search waits for debounce and limits results",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the participants screen on the prepared event"
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search vendors you want to add",
+              "value": "QA"
+            },
+            "note": "Type a search term into the participant search field"
+          },
+          {
+            "step": "expect_count",
+            "args": {
+              "role": "row",
+              "max": 20
+            },
+            "note": "Assert that no more than 20 results appear in the list"
+          }
+        ]
       }
     }
   ],

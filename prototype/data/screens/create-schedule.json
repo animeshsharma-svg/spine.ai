@@ -1513,10 +1513,8 @@
       ],
       "expected": "The changed time is not retained. The schedule returns to its previously saved values.",
       "setup": "Open an existing unsaved schedule state and note the current value in \"Select time\".",
-      "coverage": "none",
-      "gaps": [
-        "Read and retain the original Select time input value, change it using a confirmed control, and assert after Back and reopening that the original value—not the edited value—is restored; remember and expect_remembered compare element text, not input values."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         17,
         24
@@ -1526,6 +1524,113 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Back discards unsaved schedule changes",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start creating an eRFX project"
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Give the event a title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Compose RFP and RFQ stages"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to RFP stage"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Select template for RFP"
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Fill questionnaires"
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Assign evaluator"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Select template for RFQ"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add line items"
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Fill the pricing sheet"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Schedule"
+            },
+            "note": "Open schedule drawer"
+          },
+          {
+            "step": "fill",
+            "label": "Start time",
+            "value": "+3h",
+            "note": "Change the schedule time without saving"
+          },
+          {
+            "step": "click",
+            "role": "button",
+            "name": "Back",
+            "note": "Click Back to discard changes"
+          },
+          {
+            "step": "click",
+            "role": "button",
+            "name": "Schedule",
+            "note": "Reopen schedule drawer"
+          },
+          {
+            "step": "expect_value",
+            "args": {
+              "label": "Start time",
+              "value": "Now"
+            },
+            "note": "Assert the unsaved time change was not retained"
+          }
+        ]
       }
     },
     {

@@ -864,12 +864,46 @@
       "setup": "Use a project where the Ask Clara action has an analyze_data todo and the service returns a redirect URL.",
       "coverage": "partial",
       "gaps": [
-        "The exact redirect URL returned by the Ask Clara action cannot be captured and compared dynamically.",
-        "The underlying action response payload cannot be inspected."
+        "Mocking the backend service to return a specific analyze_data todo and redirect URL",
+        "Verifying navigation to a dynamically generated backend redirect URL from Clara"
       ],
       "controls": [
         3
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "participants",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara starts awarding flow via redirect",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the prepared event's participants screen."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click the Ask Clara button as instructed by the test case."
+          },
+          {
+            "step": "expect_message",
+            "args": {
+              "kind": "toast",
+              "text": "Awarding initiated successfully, redirecting to awarding flow..."
+            },
+            "note": "Assert the success message appears upon awarding initiation."
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-242",
@@ -881,11 +915,48 @@
       ],
       "expected": "The price-cap configuration interface opens without navigating away from the project details page.",
       "setup": "Open an RFQ project where Add Price Cap is visible.",
-      "coverage": "full",
-      "gaps": [],
+      "coverage": "partial",
+      "gaps": [
+        "Add Price Cap button is not currently exposed in the prepared state's basic UI menu set or requires specific stage/tenant permissions not present in default test event"
+      ],
       "controls": [
         7
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "participants",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Add Price Cap opens interface",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "participants"
+            },
+            "note": "Open the prepared event project page"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Add Price Cap"
+            },
+            "note": "Click the Add Price Cap control"
+          },
+          {
+            "expect": "visible",
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Add Price Cap"
+            },
+            "note": "Assert the price-cap configuration interface opens as a drawer or modal"
+          }
+        ]
+      }
     },
     {
       "id": "GEN-SCR-243",
@@ -900,16 +971,65 @@
       ],
       "expected": "Messages opens the project's messaging interface. Settings opens the project's settings interface.",
       "setup": "Open the project details screen.",
-      "coverage": "partial",
-      "gaps": [
-        "The specific Messages interface opening and its contents cannot be uniquely asserted because no messages-panel or messages-screen assertion exists."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         5,
         6,
         9,
         19
-      ]
+      ],
+      "prep": {
+        "state": "bid",
+        "screen": "participants",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Messages and Settings open their respective panels",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Open the project details (overview) screen"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Messages"
+            },
+            "note": "Click Messages to open the messages panel"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Messages",
+              "visible": true
+            },
+            "note": "Assert the messages interface opened"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Settings"
+            },
+            "note": "Click Settings to open the settings interface"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "menu",
+              "visible": true
+            },
+            "note": "Assert the settings menu opened"
+          }
+        ]
+      }
     }
   ],
   "reachedBy": [

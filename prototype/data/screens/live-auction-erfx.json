@@ -577,12 +577,10 @@
       ],
       "expected": "The draft proposal opens `/awarding/:id?lotNo=`. The non-draft proposal opens `/project/:id/proposal/:proposalUuid?lotNo=`. The non-draft contract opens `/contract-details?contracts_uuids=`.",
       "setup": "Prepare the Master QCS with a draft proposal, a submitted non-draft proposal, and a non-draft contract proposal.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The fixed prepared bid state does not contain the required draft, submitted non-draft, or non-draft contract proposals.",
-        "Cannot click a draft proposal column and verify /awarding/:id?lotNo= without a draft proposal.",
-        "Cannot click a non-draft proposal column and verify /project/:id/proposal/:proposalUuid?lotNo= without a submitted proposal.",
-        "Cannot click a non-draft contract proposal column and verify /contract-details?contracts_uuids= without a contract proposal."
+        "Cannot test draft proposal, non-draft proposal, and contract proposal destinations in a single prepared state run as each prepared state only provides one proposal status.",
+        "unconfirmed label \"QA_Platform Vendor 1\" (click) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         11
@@ -592,6 +590,32 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Proposal column opens correct destination for each proposal status",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "QA_Platform Vendor 1"
+            },
+            "note": "Click the vendor proposal column"
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Assert navigation to the proposal destination"
+          }
+        ]
       }
     },
     {
@@ -667,12 +691,10 @@
       ],
       "expected": "The overview shows Project ID as `#<refId>` and Created at as the supplied DATE_TIME. Open Tender Event shows Yes only when `is_show_under_open_events` is enabled.",
       "setup": "Use a project with a known `refId` and creation timestamp. Run once with `is_show_under_open_events` enabled and once disabled.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Assert Project ID equals #<refId>: no reference ID is supplied, and expect_api_value does not support refId.",
-        "Assert Created at equals the supplied DATE_TIME: no timestamp is supplied, and expect_api_value does not support the creation timestamp.",
-        "Run with is_show_under_open_events enabled and disabled: the prepared event has fixed default settings, and no catalog step changes this configuration.",
-        "Assert Open Tender Event shows Yes only when the configuration is enabled: the prepared configuration value is unknown and neither conditional state can be established."
+        "Toggle is_show_under_open_events configuration on and off",
+        "Run test across two different tenant/event configurations"
       ],
       "controls": [
         9,
@@ -683,6 +705,25 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Project Details overview values and conditional open-tender status",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Open the overview / Project Details screen on the prepared event"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "title"
+            },
+            "note": "Assert project title or overview fields render correctly"
+          }
+        ]
       }
     },
     {
@@ -750,12 +791,10 @@
       ],
       "expected": "The long tab title is truncated to 20 characters and its tooltip contains the full title. The `in_active` stage displays a Withdrawn tag.",
       "setup": "Use a project with a stage title longer than 20 characters and an `in_active` stage.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The prepared RFQ stage has no specified title longer than 20 characters, and no catalog step can establish that condition in this fixed state.",
-        "The prepared event has no in_active stage, and no catalog step can establish one in this fixed state.",
-        "Cannot assert truncation to 20 characters or the full-title hover tooltip without the required long stage title.",
-        "Cannot verify the Withdrawn tag on an in_active stage without that stage."
+        "Project with a stage title longer than 20 characters",
+        "in_active stage with a Withdrawn tag"
       ],
       "controls": [
         12
@@ -765,6 +804,27 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Long stage titles truncation and withdrawn stage tag display",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the prepared event project page"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "tab",
+              "name": "Master QCS",
+              "visible": true
+            },
+            "note": "Verify stage tabs are present"
+          }
+        ]
       }
     }
   ],

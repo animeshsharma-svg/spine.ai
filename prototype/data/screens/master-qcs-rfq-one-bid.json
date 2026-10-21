@@ -576,12 +576,10 @@
       ],
       "expected": "The draft proposal opens `/awarding/:id?lotNo=`. The non-draft proposal opens `/project/:id/proposal/:proposalUuid?lotNo=`. The non-draft contract opens `/contract-details?contracts_uuids=`.",
       "setup": "Prepare three equivalent projects: one with a draft proposal, one with a non-draft proposal, and one with a non-draft contract proposal.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Prepare or switch among three equivalent projects with draft, non-draft, and non-draft contract proposals; the supplied state is a single bid event without a proposal.",
-        "Click the draft vendor proposal and verify /awarding/:id?lotNo=; no draft proposal is available in the prepared state.",
-        "Click the non-draft vendor proposal and verify /project/:id/proposal/:proposalUuid?lotNo=; no non-draft proposal is available in the prepared state.",
-        "Click the non-draft contract proposal and verify /contract-details?contracts_uuids=; no contract proposal is available in the prepared state."
+        "Preparation of three separate projects with draft, non-draft, and contract proposals simultaneously",
+        "Checking the non-draft contract proposal route (/contract-details?contracts_uuids=)"
       ],
       "controls": [
         11,
@@ -593,6 +591,33 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Proposal selection opens the correct route for each proposal type",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared bid/proposal event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "QA_Platform Vendor 1 1790820862139"
+            },
+            "note": "Click the vendor proposal to open the proposal route"
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/awarding/"
+            },
+            "note": "Assert the draft proposal opens the awarding route"
+          }
+        ]
       }
     },
     {
@@ -606,10 +631,10 @@
       ],
       "expected": "Draft displays \"Draft\"; requested displays \"Approval in Progress\"; selected displays \"PO Generated\"; rejected displays \"Rejected\".",
       "setup": "Prepare four projects with the vendor proposal statuses draft, requested, selected, and rejected.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The prepared bid event has no award proposal, and the catalog cannot prepare or switch among four projects with draft, requested, selected, and rejected vendor proposals.",
-        "Cannot assert the required proposal status mappings on this state: draft → Draft, requested → Approval in Progress, selected → PO Generated, and rejected → Rejected."
+        "Multiple projects with draft, requested, selected, and rejected statuses simultaneously",
+        "Inspecting rejected proposal state copy"
       ],
       "controls": [
         1,
@@ -622,6 +647,25 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Proposal status copy matches each proposal state",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the prepared project's Master QCS view"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "vendorName"
+            },
+            "note": "Assert the QA vendor row/column is visible and matches the expected vendor name"
+          }
+        ]
       }
     }
   ],

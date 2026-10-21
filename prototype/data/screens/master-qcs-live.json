@@ -704,12 +704,10 @@
       ],
       "expected": "The overview shows \"Project ID\" as \"#<refId>\", \"Created at\" as the configured DATE_TIME, and \"Open Tender Event: Yes\".",
       "setup": "Configure a project with refId, a known creation date, and is_show_under_open_events enabled. Open the project.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Configure refId and a known creation date in the fixed prepared event.",
-        "Compare Project ID with #<refId>: no expected refId is supplied, and expect_api_value does not support project reference IDs.",
-        "Compare Created at with the configured DATE_TIME: no expected timestamp is supplied, and expect_api_value does not support creation timestamps.",
-        "Enable is_show_under_open_events on the fixed prepared event and verify Open Tender Event: Yes under that precondition."
+        "Configure a project with refId and is_show_under_open_events enabled",
+        "Configured specific DATE_TIME for creation"
       ],
       "controls": [
         9,
@@ -720,6 +718,42 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Project Details Overview Fields",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Open project overview screen of the prepared event"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Project ID",
+              "present": true
+            },
+            "note": "Assert Project ID label is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Created at",
+              "present": true
+            },
+            "note": "Assert Created at label is present"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Open Tender Event",
+              "present": true
+            },
+            "note": "Assert Open Tender Event label is present"
+          }
+        ]
       }
     },
     {
@@ -733,13 +767,9 @@
       ],
       "expected": "Draft proposals show \"Draft\", requested proposals show \"Approval in Progress\", selected proposals show \"PO Generated\", and rejected proposals show \"Rejected\".",
       "setup": "Prepare Master QCS data containing proposals in draft, requested, selected, and rejected states for the displayed vendor column.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Prepare proposals in draft, requested, selected, and rejected states in the fixed bid-only event.",
-        "Verify draft proposals show \"Draft\" in the vendor column.",
-        "Verify requested proposals show \"Approval in Progress\" in the vendor column.",
-        "Verify selected proposals show \"PO Generated\" in the vendor column.",
-        "Verify rejected proposals show \"Rejected\" in the vendor column."
+        "Prepared state cannot simultaneously provide proposals in draft, requested, selected, and rejected states for a single vendor column"
       ],
       "controls": [
         12
@@ -749,6 +779,25 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Master QCS proposal status labels",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared event"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "text": "Approval in Progress"
+            },
+            "note": "Assert the proposal status label is visible on the comparison grid"
+          }
+        ]
       }
     }
   ],

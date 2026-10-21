@@ -1123,9 +1123,9 @@
       "setup": "Use a fresh event where the search results include one blacklisted vendor and one TNA vendor.",
       "coverage": "none",
       "gaps": [
-        "Ensure the fresh event's vendor search includes a blacklisted vendor and a TNA vendor; no catalog step creates or changes these vendor statuses.",
-        "Search for each restricted vendor because neither vendor's name or other search identifier is supplied.",
-        "Assert Blocked and TNA on the respective vendor results, verify their selection controls are disabled, and attempt selection of each; no restricted-vendor domain step or confirmed vendor-specific result selectors are available."
+        "Search specifically for a blacklisted vendor and assert the 'Blocked' restriction status",
+        "Search specifically for a TNA vendor and assert the 'TNA' restriction status",
+        "Assert that restricted vendors are disabled for selection"
       ],
       "controls": [],
       "prep": {
@@ -1262,10 +1262,9 @@
       ],
       "expected": "The AI request is submitted and the resulting Clara summary or response panel appears for the event.",
       "setup": "Open a conversion containing at least one completed line item with Product and Quantity Requested values.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Assert submission of the Clara AI request: no request endpoint is provided for expect_request.",
-        "Wait for AI completion and assert that the resulting Clara summary or response panel appears for this event: no confirmed response-panel locator, completion indicator, or dedicated assertion is provided."
+        "Wait for the AI response to load (no explicit AI response wait step)"
       ],
       "controls": [
         1
@@ -1275,6 +1274,93 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Ask Clara summary generation on convert-to-auction screen",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start event creation via eRFX"
+          },
+          {
+            "step": "set_title",
+            "note": "Give the event a title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfq"
+              ]
+            },
+            "note": "Compose an RFQ stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select a pricing template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 1
+            },
+            "note": "Add at least one line item"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill the pricing sheet"
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Set event schedule"
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Invite a vendor"
+          },
+          {
+            "step": "publish",
+            "note": "Publish the event"
+          },
+          {
+            "step": "expect_published",
+            "note": "Assert event is published successfully"
+          },
+          {
+            "step": "convert_to_auction",
+            "note": "Convert the published RFQ to an auction"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click Ask Clara on the conversion screen"
+          },
+          {
+            "expect": [
+              "expect_visible",
+              "Ask Clara"
+            ],
+            "step": "expect_visible",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara",
+              "visible": true
+            },
+            "note": "Assert Clara panel or response opens"
+          }
+        ]
       }
     },
     {

@@ -1869,11 +1869,9 @@
       ],
       "expected": "A confirmation appears stating 'Are you sure you want to delete <title> line item with <qty> quantity'. The line item remains present because deletion is not confirmed.",
       "setup": "Use a project with a line item whose title is known and whose quantity is known.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Open the target line item's Actions row menu: no catalog step or confirmed accessible name identifies this row-menu control.",
-        "Assert the exact confirmation 'Are you sure you want to delete <title> line item with <qty> quantity' using the prepared item's actual title and quantity; the catalog cannot interpolate captured values into an expected message.",
-        "Verify the item remains after leaving its deletion confirmation unconfirmed, because the confirmation cannot be reached with the identified controls."
+        "Confirmation message specifically including the exact title and quantity of the line item (app shows generic confirmation 'Are you sure to delete this line item?')"
       ],
       "controls": [
         11,
@@ -1884,6 +1882,41 @@
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Line item delete confirmation message check",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Open the event creation screen where line items are managed."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Items 1"
+            },
+            "note": "Open the Manage Line Items drawer."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Delete"
+            },
+            "note": "Click the delete action on the line item row."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Are you sure to delete this line item?"
+            },
+            "note": "Assert that the delete confirmation dialog appears."
+          }
+        ]
       }
     },
     {
@@ -1899,11 +1932,9 @@
       ],
       "expected": "Project ID is shown as '#<refId>'. Created at uses DATE_TIME formatting. Open Tender Event shows 'Yes' only when is_show_under_open_events is enabled; it is not shown as Yes when the configuration is disabled.",
       "setup": "Use a project with a known refId and creation timestamp. Test once with is_show_under_open_events enabled and once with it disabled.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Compare Project ID with '#<refId>': the prepared refId is not supplied and expect_api_value has no refId key.",
-        "Compare Created at with the project's creation timestamp in DATE_TIME format: neither the timestamp nor a corresponding value or formatting assertion is available.",
-        "Exercise is_show_under_open_events both enabled and disabled and verify the corresponding presence or absence of 'Yes': the prepared event has fixed, unspecified default settings and no step can change this configuration."
+        "Toggle tenant configuration for is_show_under_open_events directly within the test run"
       ],
       "controls": [
         6,
@@ -1915,6 +1946,48 @@
         "screen": "summary",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Overview displays project identity and conditional open-tender status",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Open the prepared project summary/details"
+          },
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Navigate to the Overview tab"
+          },
+          {
+            "step": "expect_api_value",
+            "args": {
+              "key": "title"
+            },
+            "note": "Assert project details render correctly"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Overview",
+              "present": true
+            },
+            "note": "Verify Overview section is visible"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Open Tender Event",
+              "present": true
+            },
+            "note": "Verify Open Tender Event label is present in overview"
+          }
+        ]
       }
     }
   ],

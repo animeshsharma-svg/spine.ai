@@ -1242,11 +1242,9 @@
       ],
       "expected": "The submit request is refused and the message \"Insufficient parameters\" is shown. The proposal remains unsubmitted.",
       "setup": "Sign in as a viewer who is not the proposal creator. Use a draft proposal with all required fields completed.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Sign in as a viewer and establish that this user is not the proposal creator; switch_company changes tenants, not user roles.",
-        "Guarantee that all required proposal fields are completed in the prepared draft.",
-        "Exercise submission as the non-creator, verify the refusal message \"Insufficient parameters\", and confirm that the proposal remains unsubmitted."
+        "Switching sign-in identity from creator to non-creator viewer in a single automated session"
       ],
       "controls": [
         4
@@ -1256,6 +1254,39 @@
         "screen": "proposal",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "A non-creator cannot submit a proposal",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Open the draft proposal page"
+          },
+          {
+            "step": "attempt",
+            "args": {
+              "step": "click",
+              "args": {
+                "role": "button",
+                "name": "Submit Proposal"
+              },
+              "because": "Insufficient parameters",
+              "expect": "refused"
+            },
+            "note": "Try to submit proposal as a non-creator and verify refusal message"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Insufficient parameters",
+              "present": true
+            },
+            "note": "Assert the refusal message is shown"
+          }
+        ]
       }
     },
     {

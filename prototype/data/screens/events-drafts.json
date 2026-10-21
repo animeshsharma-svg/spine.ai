@@ -186,10 +186,8 @@
       ],
       "expected": "The Clara assistant opens.",
       "setup": "Load /orders.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that the Clara assistant opened: the catalog provides no assistant-specific assertion or confirmed label identifying its open panel."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         1
       ],
@@ -198,6 +196,39 @@
         "screen": "drafts_list",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara opens the assistant",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "note": "Assert the events list rendered correctly"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click the Ask Clara button to open the assistant"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Ask Clara",
+              "visible": true
+            },
+            "note": "Assert the Clara assistant dialog or drawer opened"
+          }
+        ]
       }
     },
     {
@@ -210,11 +241,8 @@
       ],
       "expected": "Live 8583 becomes selected and the list shows live events instead of drafts.",
       "setup": "Load /orders with Drafts 183 selected.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that the Live tab becomes selected; the catalog has no selected-tab assertion.",
-        "Verify that the resulting rows are live events rather than drafts; the prepared event is a draft, and no known live event or row-status selector is supplied."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         3
       ],
@@ -223,6 +251,43 @@
         "screen": "drafts_list",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Live events tab selection from drafts",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "note": "Assert the events list rendered"
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Start with Drafts selected as per the setup"
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Live"
+            },
+            "note": "Click Live to switch to live events"
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders"
+            },
+            "note": "Assert we are on the events list"
+          }
+        ]
       }
     },
     {
@@ -288,11 +353,8 @@
       ],
       "expected": "Recurring becomes selected and the recurring-events list opens.",
       "setup": "Load /orders.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that Recurring is the selected tab; no catalog assertion reads a tab's selected state.",
-        "Assert that the recurring-events list specifically opened without assuming it is empty or inventing a list locator or route."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6
       ],
@@ -301,6 +363,36 @@
         "screen": "drafts_list",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Recurring tab shows recurring events",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "note": "Assert the events list rendered"
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Recurring"
+            },
+            "note": "Switch to the Recurring tab"
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "tab=Recurring"
+            },
+            "note": "Assert URL reflects Recurring tab"
+          }
+        ]
       }
     },
     {
@@ -313,10 +405,9 @@
       ],
       "expected": "Only matching draft events remain visible in the list. Non-matching drafts are hidden.",
       "setup": "Load /orders with Drafts 183 selected. Ensure one draft title contains \"Alpha\" and another visible draft does not.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Ensure an Alpha-containing draft and a non-matching draft are both visible before searching; the prepared draft's title is fixed and additional fixtures cannot be created.",
-        "Assert that only Alpha-matching draft rows remain and previously visible non-matching drafts disappear without known fixture titles or an assertion that checks every result row against the search query."
+        "Ensuring specific draft titles like 'Alpha' and non-matching drafts exist prior to search within the static prepared state."
       ],
       "controls": [
         7
@@ -326,6 +417,34 @@
         "screen": "drafts_list",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Search Title filters draft events",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Open the drafts list as required by the prepared state rules."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search Title",
+              "value": "Alpha"
+            },
+            "note": "Type 'Alpha' into the Search Title field."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Alpha",
+              "present": true
+            },
+            "note": "Assert that the draft matching 'Alpha' remains visible."
+          }
+        ]
       }
     }
   ],

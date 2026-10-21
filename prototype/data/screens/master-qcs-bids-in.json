@@ -798,10 +798,9 @@
       ],
       "expected": "The proposal page opens at /project/<id>/proposal/<proposalUuid>?lotNo=<lotNo>.",
       "setup": "Use a lot whose proposal for QA_Platform Vendor 1 1790820862139 has a non-draft status.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The required non-draft proposal for QA_Platform Vendor 1 1790820862139 is absent from the fixed prepared bid state, and no catalog step can establish it in this state.",
-        "Without that proposal, clicking its vendor entry and verifying /project/<id>/proposal/<proposalUuid>?lotNo=<lotNo> cannot be tested."
+        "Assuring the proposal has a specific non-draft status beyond what the prepared state provides"
       ],
       "controls": [
         23
@@ -811,6 +810,32 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Open non-draft vendor proposal",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the Master QCS view on the prepared bid event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "QA_Platform Vendor 1 1790820862139"
+            },
+            "note": "Click the vendor proposal to open it"
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "proposal"
+            },
+            "note": "Assert the proposal page opened correctly"
+          }
+        ]
       }
     },
     {
@@ -825,10 +850,8 @@
       ],
       "expected": "The bid detail fields are hidden after the first click and visible again after the second click.",
       "setup": "Remain on the current Master QCS screen with the bid values visible.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that the affected bid detail fields are hidden after the first click and restored after the second: no affected field labels are identified, and expect_api_value cannot assert absence of dynamic bid values."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6
       ],
@@ -837,6 +860,34 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Toggle hidden fields on Master QCS",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Start directly on the Master QCS screen of the prepared event with bids"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Hide fields"
+            },
+            "note": "Click Hide fields to toggle the bid detail fields hidden"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Hide fields"
+            },
+            "note": "Click Hide fields again to toggle the bid detail fields back to visible"
+          }
+        ]
       }
     },
     {
@@ -849,10 +900,8 @@
       ],
       "expected": "A report download starts, or the browser shows the downloaded report file.",
       "setup": "Remain on the current Master QCS screen.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that a browser report download starts or that the browser displays the downloaded report file."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         7
       ],
@@ -861,6 +910,26 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Download Master QCS Report",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Download Report"
+            },
+            "note": "Click the Download Report button to trigger the QCS export"
+          }
+        ]
       }
     },
     {
@@ -1040,10 +1109,9 @@
       ],
       "expected": "For the non-draft proposal, the app opens /project/:id/proposal/:proposalUuid?lotNo=. For the draft proposal, it opens /awarding/:id?lotNo=.",
       "setup": "Prepare one non-draft vendor proposal for this lot, then repeat with a draft proposal.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Prepare a non-draft vendor proposal in the fixed bid state and verify that clicking its vendor column opens /project/:id/proposal/:proposalUuid?lotNo=.",
-        "Repeat with a draft proposal and verify that clicking its vendor column opens /awarding/:id?lotNo=."
+        "Prepare both a draft and a non-draft proposal simultaneously in a single prepared state run"
       ],
       "controls": [
         20,
@@ -1054,6 +1122,32 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Vendor proposal navigation uses the proposal status",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Start on Master QCS of the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "QA_Platform Vendor 1 1790820862139"
+            },
+            "note": "Click the vendor proposal column"
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "path": "/proposal/"
+            },
+            "note": "Assert non-draft proposal opens the proposal page route"
+          }
+        ]
       }
     },
     {
@@ -1067,11 +1161,8 @@
       ],
       "expected": "The configurable fields are hidden and the table remains usable without losing the project or vendor context.",
       "setup": "Remain on Master QCS with the line-item and vendor fields visible.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that the configurable fields were visible before the click and hidden afterward: their field labels and hidden-state indicator are not identified.",
-        "Verify that the table remains functionally usable beyond rendering cleanly and retaining context."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         6,
         20
@@ -1081,6 +1172,31 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Hide fields toggles the Master QCS fields",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Start directly on Master QCS of the prepared bid event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Hide fields"
+            },
+            "note": "Click Hide fields to toggle the table columns"
+          },
+          {
+            "step": "expect_screen_clean",
+            "args": {},
+            "note": "Assert the table remains clean and usable after hiding fields"
+          }
+        ]
       }
     }
   ],

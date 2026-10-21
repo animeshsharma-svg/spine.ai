@@ -646,12 +646,11 @@
       ],
       "expected": "The draft proposal opens `/awarding/:id?lotNo=`. The non-draft proposal opens `/project/:id/proposal/:proposalUuid?lotNo=`. The non-draft contract opens `/contract-details?contracts_uuids=`.",
       "setup": "Prepare three versions of the lot: one with a draft proposal, one with a non-draft proposal, and one with a non-draft contract proposal.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Prepare the three required lot versions: a draft proposal, a non-draft proposal, and a non-draft contract proposal; the prepared bid state is fixed.",
-        "Click a draft proposal's vendor column and verify /awarding/:id?lotNo= because no draft proposal exists in this state.",
-        "Click a non-draft proposal's vendor column and verify /project/:id/proposal/:proposalUuid?lotNo= because no non-draft proposal exists in this state.",
-        "Click a non-draft contract proposal's vendor column and verify /contract-details?contracts_uuids= because no contract proposal exists in this state."
+        "Prepare three versions with draft, non-draft, and non-draft contract proposals",
+        "Assert navigation to /contract-details?contracts_uuids=",
+        "unconfirmed label \"QA_Platform Vendor 1 1790820862139\" (click) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         11
@@ -661,6 +660,34 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Open vendor proposals from Master QCS for different proposal states",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Start on Master QCS of the prepared event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "columnheader",
+              "name": "QA_Platform Vendor 1 1790820862139"
+            },
+            "note": "Click the vendor column in Master QCS"
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "proposal",
+              "path": "/proposal/"
+            },
+            "note": "Assert the proposal view opens"
+          }
+        ]
       }
     },
     {
@@ -830,10 +857,8 @@
       ],
       "expected": "The project's messages view or panel opens.",
       "setup": "Open the Master QCS screen for a project with accessible messages.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that the project's messages view or panel opens: no confirmed messages-panel identifier or messages-screen route is provided."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         5,
         12
@@ -843,6 +868,35 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Open project messages",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Messages"
+            },
+            "note": "Open the Messages panel"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Messages",
+              "visible": true
+            },
+            "note": "Assert the messages panel or drawer has opened"
+          }
+        ]
       }
     }
   ],

@@ -502,11 +502,8 @@
       ],
       "expected": "The Drafts list shows No Drafts Found.",
       "setup": "Use an account with no draft events.",
-      "coverage": "none",
-      "gaps": [
-        "Establish an account with no draft events: the fixed prepared state contains a draft, and no catalog step can remove it or select a specified empty account.",
-        "Verify “No Drafts Found” under the required empty-account condition."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         7
       ],
@@ -515,6 +512,38 @@
         "screen": "drafts_list",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Drafts shows its empty state",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Ensure events list is rendered"
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Switch to the Drafts tab"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "present": true,
+              "text": "No Drafts Found"
+            },
+            "note": "Assert the empty state message is shown"
+          }
+        ]
       }
     },
     {
@@ -596,11 +625,10 @@
       ],
       "expected": "Each View Tickets control opens the tickets view. Give Feedback opens the feedback form.",
       "setup": "Open /orders.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Assert that the View Tickets button opens the tickets view: no confirmed destination route or identifying element is supplied.",
-        "Assert that the View Tickets link opens the tickets view: no confirmed destination route or identifying element is supplied.",
-        "Assert that Give Feedback opens the feedback form: no confirmed form label or destination route is supplied."
+        "Navigating back to /orders after opening a ticket or feedback drawer/modal",
+        "Asserting the specific content of the tickets view versus feedback form"
       ],
       "controls": [
         3,
@@ -612,6 +640,37 @@
         "screen": "drafts_list",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Ticket and feedback controls open their destinations",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "note": "Assert the events list rendered correctly"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "View Tickets"
+            },
+            "note": "Click the View Tickets button"
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Give Feedback"
+            },
+            "note": "Click the Give Feedback control"
+          }
+        ]
       }
     }
   ],

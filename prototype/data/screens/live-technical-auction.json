@@ -1891,11 +1891,10 @@
       ],
       "expected": "The create screen opens for the draft stage and carries the draftEventId for that stage. No auction-team check prevents the navigation.",
       "setup": "Prepare a non-draft project containing a draft RFQ-to-auction stage.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Establish the required non-draft project containing a draft RFQ-to-auction stage within the fixed prepared state.",
-        "Click the required draft Auction entry and verify its create-screen destination and stage-specific draftEventId; that entry is unavailable in this prepared event.",
-        "Verify that no auction-team check blocks the draft auction navigation, since the required navigation cannot be exercised."
+        "draft RFQ-to-auction stage setup",
+        "draftEventId verification in URL"
       ],
       "controls": [
         7,
@@ -1908,6 +1907,39 @@
         "screen": "summary",
         "technical": true,
         "prepared": true
+      },
+      "plan": {
+        "title": "Open draft RFQ-to-auction stage",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Start at the event summary page per prepared state rules"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Published Stages"
+            },
+            "note": "Click Published Stages in accordance with the test steps"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "tab",
+              "name": "Auction"
+            },
+            "note": "Click the Auction stage entry in the published stages list"
+          },
+          {
+            "step": "expect_screen_clean",
+            "args": {},
+            "note": "Assert the screen is clean and renders without errors"
+          }
+        ]
       }
     },
     {
@@ -1923,12 +1955,9 @@
       ],
       "expected": "Project ID is shown as '#<refId>' and Created at uses DATE_TIME formatting. Open Tender Event shows 'Yes' only when is_show_under_open_events is enabled; it is not shown as Yes when disabled.",
       "setup": "Prepare one project with refId and created-at data, with is_show_under_open_events enabled. Repeat with the configuration disabled.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Prepare or verify projects with is_show_under_open_events explicitly enabled and disabled; the prepared event has fixed default settings and no step changes this configuration.",
-        "Compare Project ID with '#<refId>': expect_api_value does not support refId, and no expected reference ID is supplied.",
-        "Compare Created at with the creation timestamp rendered using DATE_TIME formatting: neither the timestamp nor an assertion for this formatting is available.",
-        "Assert Open Tender Event is Yes when enabled and is not Yes when disabled: neither configuration state is established, and the field's exact label and locator are unconfirmed."
+        "Cannot toggle company setting 'is_show_under_open_events' via UI steps to verify both enabled and disabled states in a single run."
       ],
       "controls": [
         6,
@@ -1939,6 +1968,30 @@
         "screen": "summary",
         "technical": true,
         "prepared": true
+      },
+      "plan": {
+        "title": "Verify overview project identity and open tender visibility",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "summary"
+            },
+            "note": "Start on the prepared event summary page"
+          },
+          {
+            "step": "go_to",
+            "args": {
+              "screen": "overview"
+            },
+            "note": "Navigate to the Overview tab to inspect project identity and open tender visibility"
+          },
+          {
+            "step": "expect_screen_clean",
+            "args": {},
+            "note": "Assert the overview screen renders correctly without errors"
+          }
+        ]
       }
     },
     {

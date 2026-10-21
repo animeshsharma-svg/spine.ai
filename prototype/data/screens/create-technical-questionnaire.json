@@ -1140,10 +1140,9 @@
       ],
       "expected": "The blacklisted vendor appears disabled and is labeled \"Blocked\".",
       "setup": "Have a blacklisted vendor available in the vendor search results.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Establish or verify the prerequisite that a particular vendor is blacklisted and available in search; no catalog step manages blacklisting.",
-        "Search for the blacklisted vendor and assert that its specific result is disabled and labeled Blocked: the case supplies no vendor name or identifiable result target."
+        "Setting up a blacklisted/blocked vendor in the tenant's master data so they appear as blocked during search"
       ],
       "controls": [
         21
@@ -1153,6 +1152,103 @@
         "screen": "create",
         "technical": true,
         "prepared": false
+      },
+      "plan": {
+        "title": "Show blocked vendors as unavailable during vendor search",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start creating an eRFX project"
+          },
+          {
+            "step": "set_title",
+            "note": "Set the event title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Compose RFP and RFQ stages"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to RFP stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFP"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFQ"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill the pricing sheet"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch back to RFP stage"
+          },
+          {
+            "step": "fill_questionnaires",
+            "note": "Fill technical questionnaires"
+          },
+          {
+            "step": "assign_evaluator",
+            "note": "Assign technical evaluator"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage to reach participants"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Participants"
+            },
+            "note": "Open participants section"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Invite Vendor"
+            },
+            "note": "Open vendor invitation search"
+          }
+        ]
       }
     },
     {
@@ -1555,11 +1651,9 @@
       ],
       "expected": "The blacklisted vendor is disabled and marked \"Blocked\". The TNA vendor is disabled and marked \"TNA\".",
       "setup": "Have one blacklisted vendor and one TNA vendor available in the vendor search results.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Establish or verify the prerequisite that one blacklisted vendor and one TNA vendor are available in search results; no catalog step configures these vendor statuses.",
-        "Search for the two prerequisite vendors because neither vendor's name is supplied.",
-        "Assert that each specific vendor result is disabled and marked Blocked or TNA without identifiable result controls or confirmed result labels."
+        "Search individual vendor row status for Blocked or TNA badges"
       ],
       "controls": [
         11,
@@ -1570,6 +1664,107 @@
         "screen": "create",
         "technical": true,
         "prepared": false
+      },
+      "plan": {
+        "title": "Block blacklisted and TNA vendors during vendor selection",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open create screen for eRFX project"
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide mandatory event title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Compose RFP and RFQ stages"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to RFP stage tab"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Select template for RFP stage"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage tab"
+          },
+          {
+            "step": "select_template",
+            "args": {},
+            "note": "Select template for RFQ stage"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items to the project"
+          },
+          {
+            "step": "fill_sheet",
+            "args": {},
+            "note": "Fill out the pricing sheet"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch back to RFP stage tab"
+          },
+          {
+            "step": "fill_questionnaires",
+            "args": {},
+            "note": "Fill questionnaires for RFP stage"
+          },
+          {
+            "step": "assign_evaluator",
+            "args": {},
+            "note": "Assign evaluators for RFP stage"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage tab"
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Set schedule for the event"
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Open vendor invite/search area"
+          }
+        ]
       }
     },
     {
@@ -1585,8 +1780,7 @@
       "setup": "Open an existing project and start adding a new technical stage.",
       "coverage": "none",
       "gaps": [
-        "Start adding a new technical stage to an existing project and reach its technical-stage creation screen.",
-        "Assert that the input identified by 'Enter the title of the project' is disabled: expect_disabled supports buttons, menu items and tabs, not textbox disabled state."
+        "Disabling or inspecting the title field specifically while adding a stage to an existing project is not supported by any catalog step."
       ],
       "controls": [
         7,
@@ -1611,12 +1805,9 @@
       ],
       "expected": "The request includes title, description, status, draft trade request UUIDs, audience company UUIDs, line items with status, UUID, quantity, product UUID, and product quality UUID, and a terms_and_conditions object with clauses and attachments.",
       "setup": "Enter a project title, complete the required Specification, Description, and Vendor Response data, add a participant, and enable request inspection in the browser.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Identify and target the draft-save request: no save endpoint or method is supplied for expect_request.",
-        "Verify the save body contains populated title, description, status, draft trade request UUIDs, and audience company UUIDs corresponding to this project and its participant.",
-        "Verify every line item contains status, UUID, quantity, product UUID, and product quality UUID, and that terms_and_conditions is an object containing clauses and attachments; request-body substring matching cannot validate this structure.",
-        "Explicitly complete and verify Specification, Description, and Vendor Response data: their controls and required values are not identified, and fill_questionnaires does not expose these specific fields."
+        "Verify specific deep internal UUID keys and complex nested clause objects within the raw JSON request payload that are not directly exposed as simple text assertions."
       ],
       "controls": [
         5
@@ -1626,6 +1817,92 @@
         "screen": "create",
         "technical": true,
         "prepared": false
+      },
+      "plan": {
+        "title": "Save draft with complete project payload including request body inspection",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start an eRFX multi-stage project create flow."
+          },
+          {
+            "step": "set_title",
+            "args": {},
+            "note": "Provide a unique project title."
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Compose both technical RFP and RFQ stages."
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "configure the rfp stage on its own tab"
+          },
+          {
+            "step": "select_template",
+            "note": "rfp needs its own template"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items to the project."
+          },
+          {
+            "step": "fill_questionnaires"
+          },
+          {
+            "step": "assign_evaluator"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "configure the rfq stage on its own tab"
+          },
+          {
+            "step": "select_template",
+            "note": "rfq needs its own template"
+          },
+          {
+            "step": "fill_sheet"
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Add at least one participant vendor."
+          },
+          {
+            "step": "save_draft",
+            "args": {},
+            "note": "Click Save as draft to persist the complete project payload."
+          },
+          {
+            "step": "expect_request",
+            "args": {
+              "path": "/event_groups",
+              "method": "POST",
+              "bodyContains": "title"
+            },
+            "note": "Assert that the save draft request is sent with the expected payload structure."
+          }
+        ]
       }
     },
     {

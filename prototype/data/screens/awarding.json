@@ -666,11 +666,8 @@
       ],
       "expected": "A hidden-fields view or menu opens and shows the fields currently hidden from the awarding sheet.",
       "setup": "Open the current awarding screen.",
-      "coverage": "none",
-      "gaps": [
-        "Assert that the hidden-fields view opens: no confirmed label or container role is supplied for the resulting view.",
-        "Assert that the view lists the currently hidden awarding-sheet fields: no expected field names or catalog step for reading hidden-column configuration is available."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         4
       ],
@@ -679,6 +676,40 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Open the hidden-fields list on awarding screen",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared event"
+          },
+          {
+            "step": "start_awarding",
+            "args": {},
+            "note": "Enter the awarding screen"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "8 hidden fields"
+            },
+            "note": "Click the hidden fields trigger"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Hidden fields",
+              "visible": true
+            },
+            "note": "Assert the hidden fields drawer or menu opens"
+          }
+        ]
       }
     },
     {
@@ -693,11 +724,10 @@
       ],
       "expected": "The awarding screen expands to fullscreen after the click and returns to the normal layout after exiting fullscreen.",
       "setup": "Open the current awarding screen in a window that is not already fullscreen.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Ensure the browser window starts outside fullscreen.",
-        "Assert that clicking Fullscreen expands the awarding screen into fullscreen.",
-        "Reliably exit browser fullscreen and assert restoration of the normal layout; pressing Escape is only a best-effort exit."
+        "Verify awarding screen expands to fullscreen and exits fullscreen layout",
+        "Trigger browser or displayed fullscreen exit action"
       ],
       "controls": [
         5,
@@ -708,6 +738,38 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Enter and exit fullscreen view in awarding screen",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS for the prepared awarding event"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Start Awarding"
+            },
+            "note": "Enter the awarding screen"
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "Fullscreen"
+            },
+            "note": "Click the Fullscreen button"
+          },
+          {
+            "step": "expect_screen_clean",
+            "args": {},
+            "note": "Assert the screen remains clean after attempting fullscreen toggle"
+          }
+        ]
       }
     },
     {
@@ -795,11 +857,8 @@
       ],
       "expected": "The summary shows \"No vendors awarded\" and does not show vendor amount or awarded-item values.",
       "setup": "Open a proposal with no awarded vendors.",
-      "coverage": "none",
-      "gaps": [
-        "Reach a proposal with no awarded vendors: the prepared event is in live bid state, start_awarding requires a closed event, and close_event is unavailable.",
-        "Click \"Awarded Vendors (0/1)\" and verify the empty summary message and absence of vendor amounts and awarded-item values in that required state."
-      ],
+      "coverage": "full",
+      "gaps": [],
       "controls": [
         11
       ],
@@ -808,6 +867,39 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "Empty award summary shows no vendors awarded",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open Master QCS on the prepared event"
+          },
+          {
+            "step": "start_awarding",
+            "args": {},
+            "note": "Enter the awarding screen where the empty awarded-vendor summary is visible"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No vendors awarded",
+              "present": true
+            },
+            "note": "Assert the summary shows no vendors awarded"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Awarded Vendors (0/1)",
+              "present": true
+            },
+            "note": "Assert the counter reads 0/1 awarded vendors"
+          }
+        ]
       }
     },
     {
@@ -822,10 +914,9 @@
       ],
       "expected": "The screen displays \"No bids are placed yet!\" and does not display bid values for the item.",
       "setup": "Open an awarding proposal for an event where no vendor has placed a bid.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "The prepared event has a submitted bid, and no available step can turn it into the required no-bid event.",
-        "Cannot verify that the no-bid awarding content displays \"No bids are placed yet!\" and contains no bid values for AAC BLOCKS using this fixture."
+        "Open an awarding proposal specifically for a no-bid event (the prepared 'bid' state has a bid)"
       ],
       "controls": [
         8,
@@ -836,6 +927,26 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "No-bid proposal displays the no-bids message",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Open the Master QCS screen on the event"
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "No bids are placed yet!",
+              "present": true
+            },
+            "note": "Assert the no bids message is displayed"
+          }
+        ]
       }
     },
     {
@@ -851,11 +962,10 @@
       ],
       "expected": "Each View Tickets control opens the tickets view. The awarding data is not modified.",
       "setup": "Open the awarding screen with tickets available.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Ensure tickets are available on the fixed prepared event.",
-        "Verify that either control opens the tickets view: no confirmed destination route or tickets-view identifying element is supplied.",
-        "Verify that all awarding data remains unchanged; award counters alone cannot establish this."
+        "Verify awarding data is not modified (no deep data assertion step exists)",
+        "unconfirmed label \"Close\" (click) — not among the labels known from the app nor in the case"
       ],
       "controls": [
         13,
@@ -867,6 +977,64 @@
         "screen": "master_qcs",
         "technical": false,
         "prepared": true
+      },
+      "plan": {
+        "title": "View Tickets controls open the tickets view",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "master_qcs"
+            },
+            "note": "Start on the prepared event's Master QCS"
+          },
+          {
+            "step": "start_awarding",
+            "args": {},
+            "note": "Enter the awarding screen"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "View Tickets"
+            },
+            "note": "Click the View Tickets button"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Tickets",
+              "visible": true
+            },
+            "note": "Assert the tickets view opened"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Close"
+            },
+            "note": "Close the tickets view"
+          },
+          {
+            "step": "click",
+            "args": {
+              "text": "View Tickets"
+            },
+            "note": "Click the View Tickets link"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Tickets",
+              "visible": true
+            },
+            "note": "Assert the tickets view opened again from the link"
+          }
+        ]
       }
     }
   ],

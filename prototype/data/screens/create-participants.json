@@ -1563,10 +1563,9 @@
       ],
       "expected": "Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount show required markers. GST does not show a required marker.",
       "setup": "Open a new RFQ event with the items grid visible.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Assert required markers on the Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount headers.",
-        "Assert that the GST header has no required marker; no catalog step reads header required-marker state, and exact rendered marker text is not provided."
+        "Verify exact visual required asterisk/marker on individual pricing sheet column headers by name using a dedicated assertion"
       ],
       "controls": [],
       "prep": {
@@ -1574,6 +1573,103 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Required pricing-sheet columns are marked",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Open eRFX create screen"
+          },
+          {
+            "step": "set_title",
+            "note": "Give the event a title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Compose RFP and RFQ stages"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to RFP stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFP"
+          },
+          {
+            "step": "fill_questionnaires",
+            "note": "Fill questionnaires for RFP"
+          },
+          {
+            "step": "assign_evaluator",
+            "note": "Assign evaluator for RFP"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFQ"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill pricing sheet"
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Set schedule"
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Invite vendor"
+          },
+          {
+            "step": "expect_sheet_columns",
+            "args": {
+              "columns": [
+                "Product",
+                "Product Variant",
+                "Quantity Requested",
+                "Delivery location",
+                "Price",
+                "Quantity Available",
+                "GST",
+                "Total Amount"
+              ]
+            },
+            "note": "Assert all expected header columns are present on the pricing sheet"
+          }
+        ]
       }
     },
     {
@@ -1774,11 +1870,9 @@
       ],
       "expected": "Select date is enabled for input, and Select time is available for the fixed-time schedule.",
       "setup": "Open a new RFQ event. Confirm Select date is initially disabled.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Verify that the schedule drawer's Select date input is initially disabled and becomes enabled: no confirmed target or input-disabled-state assertion is provided for this field.",
-        "Select Fixed time from Start now: the documented Start time options are Start now and Schedule for later, while Fixed time belongs to End time.",
-        "Verify Select time is available for the fixed-time schedule: its control and label are not confirmed on the schedule drawer."
+        "Confirming 'Select date' is initially disabled before interacting with schedule options because the schedule drawer opens with defaults."
       ],
       "controls": [
         25,
@@ -1790,6 +1884,97 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Fixed-time scheduling enables date field",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start a multi-stage project create flow"
+          },
+          {
+            "step": "set_title",
+            "note": "Give the event a title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Configure RFP and RFQ stages"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to RFP stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFP"
+          },
+          {
+            "step": "fill_questionnaires",
+            "note": "Fill technical questionnaires"
+          },
+          {
+            "step": "assign_evaluator",
+            "note": "Assign evaluator for RFP"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFQ"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill pricing sheet"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Schedule"
+            },
+            "note": "Open the schedule drawer"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "menuitem",
+              "name": "Fixed time"
+            },
+            "note": "Select Fixed time option"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "label": "Select date",
+              "visible": true
+            },
+            "note": "Assert Select date is visible and enabled"
+          }
+        ]
       }
     },
     {
@@ -2039,10 +2224,9 @@
       ],
       "expected": "Each listed header displays a required marker. GST does not display a required marker.",
       "setup": "Open the line-item grid on the RFQ event.",
-      "coverage": "none",
+      "coverage": "partial",
       "gaps": [
-        "Assert that Product, Product Variant, Quantity Requested, Delivery location, Price, Quantity Available, and Total Amount each display a required marker in the grid header.",
-        "Assert that the GST grid header does not display a required marker."
+        "Explicit visual assertion for required marker asterisk/indicator per column header on the pricing grid"
       ],
       "controls": [
         31,
@@ -2057,6 +2241,117 @@
         "screen": "create",
         "technical": false,
         "prepared": false
+      },
+      "plan": {
+        "title": "Required line-item columns are visibly marked",
+        "steps": [
+          {
+            "step": "open_create",
+            "args": {
+              "path": "erfx"
+            },
+            "note": "Start eRFX event creation"
+          },
+          {
+            "step": "set_title",
+            "note": "Set a unique event title"
+          },
+          {
+            "step": "compose_stages",
+            "args": {
+              "stages": [
+                "rfp",
+                "rfq"
+              ]
+            },
+            "note": "Set stages to Technical Stage and RFQ"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch to RFP stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFP stage"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage"
+          },
+          {
+            "step": "select_template",
+            "note": "Select template for RFQ stage"
+          },
+          {
+            "step": "add_line_items",
+            "args": {
+              "count": 2
+            },
+            "note": "Add line items to the pricing sheet"
+          },
+          {
+            "step": "fill_sheet",
+            "note": "Fill the pricing sheet data"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfp"
+            },
+            "note": "Switch back to RFP stage"
+          },
+          {
+            "step": "fill_questionnaires",
+            "note": "Fill technical questionnaires"
+          },
+          {
+            "step": "assign_evaluator",
+            "note": "Assign evaluators for technical stage"
+          },
+          {
+            "step": "switch_stage",
+            "args": {
+              "stage": "rfq"
+            },
+            "note": "Switch to RFQ stage"
+          },
+          {
+            "step": "set_schedule",
+            "args": {
+              "minutes": 30
+            },
+            "note": "Set event schedule"
+          },
+          {
+            "step": "invite_vendor",
+            "args": {
+              "count": 1
+            },
+            "note": "Invite a vendor"
+          },
+          {
+            "step": "expect_sheet_columns",
+            "args": {
+              "columns": [
+                "Product",
+                "Product Variant",
+                "Quantity Requested",
+                "Delivery location",
+                "Price",
+                "Quantity Available",
+                "GST",
+                "Total Amount"
+              ]
+            },
+            "note": "Assert that all specified header columns are present in the pricing sheet grid"
+          }
+        ]
       }
     }
   ],
