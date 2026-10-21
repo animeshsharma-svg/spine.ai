@@ -1,0 +1,353 @@
+{
+  "_about": "Plain-language write-up of each vendor revalidation bug, for the bug sheet (npm run reval:bugsheet). Ids match config/revalBugs.json and test-cases/vendor-revalidation-findings.md.",
+  "bugs": {
+    "REV-01": {
+      "short": "A customer's admin can read and change ANOTHER customer's revalidation settings",
+      "where": "Revalidation QA controls (the API Procol uses to set up and start revalidation)",
+      "proof": "Fixed in the 20 Oct rewrite (was confirmed on UAT 15–16 Oct) — test A-30 re-checks it",
+      "steps": [
+        "Log in as GMMCO's admin (a customer super admin).",
+        "Ask the revalidation controls for GMMCO's own settings — this is allowed on purpose.",
+        "Ask the same controls for another customer's settings (PROCOL DEMO)."
+      ],
+      "expected": "GMMCO's admin sees and changes GMMCO's settings only. Asking for another customer is refused with \"Not authorized\" (error code 5). The controls stay blocked on production unless that is decided too.",
+      "actual": "The request for PROCOL DEMO is answered (OK, HTTP 200) with PROCOL DEMO's settings. The same login can also change any customer's settings and start a check of all its vendors (not tried — it would change another customer's data). The production block was removed in the same change.",
+      "impact": "One customer's admin can switch revalidation on or off for other customers, read their results, and start paid GST / PAN / bank checks for all of their vendors — on production too once released.",
+      "fix": "Check that the customer asked about is the admin's own customer (settings, start run, run status and cancel). Put the production block back, or keep it off only with that ownership check.",
+      "tech": "Commit eaf002de08 (\"access\", 15 Oct) changed the access rule to \"Procol employee OR any super admin\" and deleted the production check — app/controllers/api/vendor_revalidation_qa_controller.rb:103-106. routes.rb:695-701 has no block either."
+    },
+    "REV-02": {
+      "short": "An empty vendor list starts a check of every vendor the customer has",
+      "where": "Revalidation QA controls — \"start a run\"",
+      "proof": "Found in the code — not tried on purpose",
+      "steps": [
+        "Start a revalidation run and send an empty list of vendors (vendor_ids: []), or an empty number of vendors (vendor_limit: \"\")."
+      ],
+      "expected": "The request is refused, the same way any other wrong vendor list is refused.",
+      "actual": "The code reads an empty list as \"no limit\" and checks every vendor of the customer — about 800 for GMMCO — against the real, paid GST / PAN / MSME / bank services. Since the 20 Oct rewrite any buyer allowed to edit vendors can send this from the product's own API. We did not send it.",
+      "impact": "One script that builds an empty list by mistake runs a full, paid check of the whole customer.",
+      "fix": "Refuse an empty vendor list. Make \"all vendors\" something a person has to ask for by name.",
+      "tech": "parse_vendor_scope treats a blank list as no scope (vendor_revalidation_qa_controller.rb:164-185); QaTriggerWorker.select_vendors then returns every vendor (qa_trigger_worker.rb:50-56)."
+    },
+    "REV-03": {
+      "short": "The customer's own rules (like \"name must match\") are never applied in revalidation",
+      "where": "The GST / bank check inside revalidation",
+      "proof": "Found in the code",
+      "steps": [
+        "A customer has an onboarding rule, for example: the legal name on the GST must match the vendor's name.",
+        "A vendor's GST is valid but registered to a different name.",
+        "Revalidation checks that vendor."
+      ],
+      "expected": "The GST check fails with the same \"name mismatch\" message the vendor would get during onboarding.",
+      "actual": "Revalidation stops right after the provider says the number is valid and never looks at the customer's rules, so the vendor passes.",
+      "impact": "Vendors that onboarding would reject show as Passed in revalidation.",
+      "fix": "Apply the customer's rules to values read from the onboarding form before saving the result — or tell product this is provider-only by design.",
+      "tech": "lib/external_api/validation.rb:238 returns the revalidation result before apply_response_rules on line 240."
+    },
+    "REV-04": {
+      "short": "Full PAN and bank account numbers are shown on screen, in the vendor page and in the Excel",
+      "where": "Vendor listing (Validation Errors column), vendor page (Revalidation details), Excel download",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "Log in as a GMMCO buyer and open the vendor listing.",
+        "Look at the Validation Errors of a vendor whose PAN or bank check failed.",
+        "Open that vendor's page (Revalidation details)."
+      ],
+      "expected": "PAN and account numbers are masked, for example ******789J or ******8901. The TRD asks for masking on the listing, the vendor page and the download.",
+      "actual": "The listing shows \"PAN SHII789JSJ: PAN input is incorrect\" and \"BANK 12345678901 / QATZ0100070: Invalid IFSC code\" in full. The vendor page's data also returns the full PAN and the full account number with its IFSC. (The values in our screenshots belong to Procol test vendors.)",
+      "impact": "Anyone who can see the vendor listing, or receives the Excel, sees every vendor's full PAN and bank account number.",
+      "fix": "Mask PAN and account numbers (keep the last 4) when building the error line and the vendor-page details.",
+      "tech": "app/models/vendor_validation_history.rb:53 builds the error line with the raw value; :62 returns the raw value to the vendor page."
+    },
+    "REV-05": {
+      "short": "The PAN format check accepts any text that just contains a PAN",
+      "where": "The PAN format check that runs before calling the PAN provider",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
+      "steps": [
+        "A vendor's PAN field holds a 15-character GST number (a GST number contains the PAN inside it).",
+        "Revalidation checks the PAN."
+      ],
+      "expected": "The format check fails at once with \"PAN input is incorrect\". No provider call is made.",
+      "actual": "The format check is not anchored to the start and end of the value, so text that merely contains a PAN passes. The value is then sent to the paid PAN provider.",
+      "impact": "Wrong values reach the provider (cost) and get the provider's message instead of the clear format message.",
+      "fix": "Anchor the PAN pattern (start-to-end), or check the full value.",
+      "tech": "lib/external_api/validation.rb:74 uses value.match(regex); the PAN regex stored in validation_types is [A-Z]{5}[0-9]{4}[A-Z]{1} with no ^ and $.",
+      "story": ""
+    },
+    "REV-06": {
+      "short": "A vendor that was never checked shows \"Pending\"",
+      "where": "Vendor listing — Validation Status column",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "Open the vendor listing as a GMMCO buyer.",
+        "Find a vendor that no revalidation run has checked yet (for example a newly invited vendor)."
+      ],
+      "expected": "Status is blank (no date, no errors). The guide says blank.",
+      "actual": "Status shows \"Pending\". A buyer reads that as \"a check is running\", but nothing is running for this vendor.",
+      "impact": "Confusing status. Buyers may wait for a result that will not come until the next scheduled run.",
+      "fix": "Show blank (or \"Not checked yet\") when the vendor has never been checked. Keep \"Pending\" for checks really in progress.",
+      "tech": "app/controllers/concerns/companies_controller_helper.rb:702 labels an empty status as 'pending'."
+    },
+    "REV-07": {
+      "short": "In the Excel, all errors of a vendor are squeezed into one line with \";\"",
+      "where": "Vendor listing → Excel download → Validation Errors column",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "Open the vendor listing as a GMMCO buyer and download the Excel.",
+        "Look at the Validation Errors of a vendor with more than one failed document."
+      ],
+      "expected": "One error per line inside the cell.",
+      "actual": "All errors are joined on one line with \"; \" — for example \"PAN QATZQ0568Q: verification is temporarily unavailable; GST GB905680000: GST input is incorrect\". {{n_excel_joined}} cells were like this in GMMCO's Excel on {{today}}.",
+      "impact": "Hard to read; harder to filter or count errors in Excel.",
+      "fix": "Join with a line break for the Excel cell.",
+      "tech": "app/controllers/concerns/companies_controller_helper.rb:705 joins with \"; \" for both the listing and the Excel."
+    },
+    "REV-08": {
+      "short": "Switching revalidation off during a run leaves some vendors with no result at all",
+      "where": "A revalidation run that is switched off half-way",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
+      "steps": [
+        "Start a run for several vendors.",
+        "Switch revalidation off for the customer before the run finishes."
+      ],
+      "expected": "Vendors not yet checked get a clear final status (System Error), or keep their previous status.",
+      "actual": "Their checks are closed as System Error, but the vendor's final status is never written — and a QA-started run had already cleared it — so the listing shows \"Pending\" with no reason.",
+      "impact": "Vendors look unchecked after an interrupted run.",
+      "fix": "Write the final status when closing checks because revalidation was switched off.",
+      "tech": "vendor_check_service.rb:26-30 closes the rows; finalize returns early when the client is disabled (:73-74).",
+      "story": ""
+    },
+    "REV-09": {
+      "short": "Two test runs started together for different vendors can cancel one of them",
+      "where": "Revalidation QA controls — \"start a run\"",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
+      "steps": [
+        "Start a run for vendor A.",
+        "Straight away, start another run (same day) for vendor B."
+      ],
+      "expected": "Both runs finish, each with its own vendor's results.",
+      "actual": "Starting the second run deletes every waiting job of that day's run, including vendor A's. Run A then says \"started\" but never finishes.",
+      "impact": "Testers lose runs and see results that never arrive.",
+      "fix": "Only delete waiting jobs for the vendors the new run is about.",
+      "tech": "qa_trigger_worker.rb:113-124 (delete_jobs matches on the run id only).",
+      "story": ""
+    },
+    "REV-10": {
+      "short": "A test run started shortly before 11 pm makes that night's automatic run skip the customer",
+      "where": "The nightly 11 pm automatic run",
+      "proof": "Fixed in the 20 Oct rewrite",
+      "steps": [
+        "Start a test run for a customer at, say, 10:30 pm.",
+        "Wait for the automatic 11 pm run."
+      ],
+      "expected": "The automatic run still runs for that customer.",
+      "actual": "The test run takes the same \"tonight's run is taken\" marker the automatic run uses, for one hour, so the automatic run skips the customer that night.",
+      "impact": "A customer's scheduled checks silently do not happen that night.",
+      "fix": "Use a separate marker for test runs.",
+      "tech": "qa_trigger_worker.rb:39 sets the claim key used by scheduler_worker.rb:82."
+    },
+    "REV-11": {
+      "short": "Removing a document type from the settings leaves vendors \"Failed\" with no reason shown",
+      "where": "Vendor listing after the settings change",
+      "proof": "Found in the code — can be confirmed once REV-19 is fixed (a run has to finish)",
+      "steps": [
+        "A vendor failed only its PAN check.",
+        "Procol removes PAN from the customer's revalidation settings.",
+        "Open the vendor listing."
+      ],
+      "expected": "The vendor's status follows the documents still configured (for example Passed), or still shows the PAN reason.",
+      "actual": "The PAN error line disappears (only configured documents are listed) but the status stays Failed until the next run, so the vendor shows Failed with no reason.",
+      "impact": "Buyers see a failed vendor and cannot tell why.",
+      "fix": "Work out the shown status from the configured documents, or update it when the settings change.",
+      "tech": "vendor_validation_history.rb:47-56 vs vendor_check_service.rb:72-99.",
+      "story": ""
+    },
+    "REV-12": {
+      "short": "One provider time-out makes a vendor \"System Error\" even when everything else passed",
+      "where": "Final vendor status",
+      "proof": "Needs a product decision",
+      "steps": [
+        "A vendor's GST, PAN and MSME pass; the bank check cannot reach the provider for 24 hours."
+      ],
+      "expected": "The TRD says an unverified check never affects a Pass.",
+      "actual": "The build ranks System Error above Passed, so the vendor shows System Error. {{n_syserr_passed}} GMMCO vendors show System Error this way today.",
+      "impact": "Vendors look broken because of a provider problem, not their documents.",
+      "fix": "Product to confirm which is right; if the TRD stands, rank System Error below Passed.",
+      "tech": "vendor_validation_history.rb:39 (failed > system_error > passed > skipped)."
+    },
+    "REV-13": {
+      "short": "Revalidation still sends some errors to Sentry",
+      "where": "Error alerts",
+      "proof": "Found in the code",
+      "steps": [
+        "A customer's nightly start fails, or a provider answers something unexpected during revalidation."
+      ],
+      "expected": "No Slack or Sentry alerts from revalidation (the guide says only a log line).",
+      "actual": "Both of those cases are still reported to Sentry.",
+      "impact": "Alert noise for the on-call team during big runs.",
+      "fix": "Log only, or tag and mute revalidation events in Sentry.",
+      "tech": "scheduler_worker.rb:22-23; lib/external_api/validation.rb:251."
+    },
+    "REV-14": {
+      "short": "Risk: vendors of other company types could be checked but never shown",
+      "where": "Which vendors a run checks vs which the listing shows",
+      "proof": "Found in the code — not seen in UAT data",
+      "steps": [
+        "A customer has a linked company of a type the listing hides (for example a buying firm)."
+      ],
+      "expected": "Revalidation checks the same vendors the listing shows.",
+      "actual": "Since 15 Oct the run no longer filters by company type, while the listing still shows only selling firms, brokerages and subsidiaries. In GMMCO's runs every checked vendor was a selling firm, so no one is affected today.",
+      "impact": "Hidden checks (and provider cost) for vendors nobody can see.",
+      "fix": "Keep the company-type filter in the run, or show those vendors.",
+      "tech": "run_worker.rb:53-58 (filter dropped in d18f8ac4c9) vs companies_controller.rb:346."
+    },
+    "REV-15": {
+      "short": "The \"vendor detail\" request fails with a server error for every vendor",
+      "where": "GET /api/companies/vendor_detail (used by vendor detail views)",
+      "proof": "Confirmed on UAT (found while testing; older than revalidation)",
+      "steps": [
+        "As a GMMCO buyer, open the vendor detail of any vendor (the request /api/companies/vendor_detail?company_id=…)."
+      ],
+      "expected": "The vendor's details are returned.",
+      "actual": "Server error 500: \"undefined method `integration_status' for Company\". Same on both UAT servers (rfx-uat-api and sec-api-v1) for every vendor we tried.",
+      "impact": "Any screen that uses this request is broken. (The vendor page's Revalidation details use a different request and work.)",
+      "fix": "Stop reading integration_status from the company; it belongs to the buyer–vendor link.",
+      "tech": "app/serializers/base_serializer.rb:18 called from companies_controller.rb:561."
+    },
+    "REV-16": {
+      "short": "The revalidation UAT server shows its full internal error page to anyone",
+      "where": "https://rfx-uat-api.ag-ri.in — any request that hits a server error",
+      "proof": "Confirmed on UAT (found while testing)",
+      "steps": [
+        "Make any request that fails on rfx-uat-api, for example the vendor detail request above."
+      ],
+      "expected": "A short error answer, like the other UAT server gives: {\"status\":500,\"error\":\"Internal Server Error\"}.",
+      "actual": "The full Rails debug page comes back: the exception, the code path and a dump of the vendor record (name, address, email).",
+      "impact": "Anyone who can reach this UAT server can read internal code paths and vendor data from error pages.",
+      "fix": "Turn off the detailed error pages on the rfx UAT environment.",
+      "tech": "consider_all_requests_local / show_exceptions on the rfx UAT environment."
+    },
+    "REV-17": {
+      "short": "Revalidation settings are no longer checked when they are saved",
+      "where": "Revalidation settings of a customer (saved by Procol ops)",
+      "proof": "Found in the code (20 Oct rewrite)",
+      "steps": [
+        "Procol ops save a customer's revalidation settings with a mistake, for example frequency \"weekly\" or a start date \"15-10-2026\"."
+      ],
+      "expected": "The save is refused with a clear message, as the old settings API did (\"gst: unsupported frequency 'weekly'\").",
+      "actual": "The rewrite deleted the settings API together with all its checks. Settings are now saved through the general custom-configuration screen, which does not know these rules, so the mistake is saved. The nightly run then quietly skips that document type and only writes a log line.",
+      "impact": "A customer's vendors silently stop being re-checked, and nobody is told.",
+      "fix": "Validate the revalidation settings wherever they are saved (move the old checks into the custom configuration save).",
+      "tech": "config_error in app/controllers/api/vendor_revalidation_qa_controller.rb was deleted in 0f365a7e52; scheduler_worker.rb due? only logs settings_error."
+    },
+    "REV-18": {
+      "short": "An impossible start date (30 February) is not refused; it is rolled over to another date",
+      "where": "Start a revalidation run — the run_at (start time) field",
+      "proof": "Confirmed on UAT",
+      "steps": [
+        "As GMMCO's buyer, start a run for one vendor with run_at \"2026-02-30T10:00:00\" (30 February does not exist)."
+      ],
+      "expected": "Refused with \"run_at must be a time like … (IST if no offset)\" because the date does not exist.",
+      "actual": "The server quietly turns 30 Feb into 2 Mar 2026 and answers \"run_at is in the past\". A future impossible date such as 31 November would be accepted and the run scheduled for 1 December.",
+      "impact": "A typo in the date schedules the run on a different day without any warning.",
+      "fix": "Read run_at strictly and refuse dates that do not exist.",
+      "tech": "vendor_validation_controller.rb parse_time uses Time.zone.parse (lenient)."
+    },
+    "REV-19": {
+      "short": "A revalidation run that has vendors to check never starts — it stays \"scheduled\" for ever",
+      "where": "Start a revalidation run (the new buyer API, POST /api/vendor_validation/trigger) and its progress (GET /runs)",
+      "proof": "FIXED - the backend deploy of 21 Oct (~12:00 IST) fixed it. Verified three times the same day: forced runs at 12:22, 13:02 and 13:18 IST moved to 'started' within 10 seconds, created rows and finished (except one row held by the provider, see REV-25).",
+      "steps": [
+        "As GMMCO's buyer, start a run for one vendor: mode force, vendor_ids [one vendor].",
+        "Check its progress every 15 seconds with the run_id and job_id from the reply."
+      ],
+      "expected": "Within a minute the state moves to \"started\", rows appear for the vendor, and when they are done \"complete\" is true.",
+      "actual": "(Before the fix) The start request is accepted (OK) but the state stays \"scheduled\" for good: no row is created and no vendor is checked. We saw it six times - on 20 Oct at 8:01, 8:06, 8:16, 8:55 and 9:0x pm and on 21 Oct at 12:05 am - for a forced run, a run with a start time 20 seconds in the past, a run scheduled 2 minutes ahead and a run for another company's vendor, each watched for 2 to 15 minutes. A scheduler run with nothing to do DID finish (\"nothing_due\"), so the job is picked up and dies only in the part that runs when there is real work.",
+      "impact": "Nobody can revalidate a vendor on demand - which is now the only way to start a run besides the nightly one. The buyer is told it started, nothing happens, no error is shown anywhere, and the run shows \"scheduled\" for 7 days. Every test that needs a run (20 of them) is blocked.",
+      "fix": "Open Sidekiq's Dead tab on UAT (jobs with retry off land there) and the logs for VendorRevalidation::TriggerWorker at the times above. The likely place is the reset step: it deletes the run's rows, clears the vendors' status, deletes Redis locks and then walks every Sidekiq queue plus the scheduled and retry sets. Also save a \"failed\" state with the error when the worker crashes, so a buyer is never told \"scheduled\" for ever.",
+      "tech": "app/services/vendor_revalidation/trigger_service.rb#call → reset / delete_jobs → RunWorker.perform_async; trigger_worker.rb retry: false. Run 2d448f72-dbf3-5e99-b78e-facd11f966d5, jobs 1ceeac833123d7ae8b151d9e and e2bfc669fb5b7d6fd79aa360."
+    },
+    "REV-20": {
+      "short": "The vendor page shows times as \"23:00 PM\" - a 24-hour clock with AM/PM added",
+      "where": "Vendor page -> Revalidation Details card (Last validated, Last Run At)",
+      "proof": "Confirmed on the preview screen",
+      "steps": [
+        "Open any vendor that has been checked, e.g. /vendors/RGtwWkRr?tab=info on the preview dashboard.",
+        "Scroll down to Revalidation Details."
+      ],
+      "expected": "A normal time, the same as the vendor list shows: \"October 15, 2026 11:00 PM\".",
+      "actual": "\"15-Oct-2026 23:00 PM\" and \"16-Oct-2026 15:07 PM\": a 24-hour time with PM added. The list shows the same moment as \"October 15, 2026 11:00 PM\".",
+      "impact": "Looks like a mistake, and the two screens disagree about the same moment.",
+      "fix": "Use one date format on both screens.",
+      "tech": "procol-client-dashboard feat/vendor-revalidation-details: revalidationDetails.jsx and columns.jsx call appFormatDate(value, DATE_KIND.DATE_TIME)."
+    },
+    "REV-21": {
+      "short": "Checks are given up as \"System Error\" after about 16-17 hours, not after the documented 24 hours",
+      "where": "The nightly run - rows that wait on a provider",
+      "proof": "Seen in the recorded runs - confirm with dev",
+      "steps": [
+        "Look at the two GMMCO runs (14 Oct, started 6:36 pm; 15 Oct, started 11:00 pm).",
+        "For every row that ended as System Error, compare its close time with the run's start."
+      ],
+      "expected": "A row waits up to 24 hours for the provider, then is given up as System Error (the cleaner adds 1 hour of grace).",
+      "actual": "All the given-up rows of the 15 Oct run were closed 16.1 hours after the start (between 3:06 and 3:08 pm on 16 Oct), and all of the 14 Oct run 17.2 hours after its start (11:47-11:49 am on 15 Oct). Two different waits, each ending in a two-minute burst, look like something closed them all at once - a restart, a deploy, or the vendor job running out of retries - not the 24-hour deadline.",
+      "impact": "Vendors are marked System Error 7-8 hours earlier than designed; a provider that comes back after lunch is not given its chance.",
+      "fix": "Check the Sidekiq logs at those two times for the reason the rows were closed; make the deadline the only thing that gives up a row.",
+      "tech": "vendor_check_service.rb close / close_pending! reasons: 'deadline', 'retries_exhausted', 'swept', 'disabled'; vendor_worker.rb retry: 3."
+    },
+    "REV-22": {
+      "short": "The PAN/MSME/bank provider was asked 38 questions in one minute - above the 30-per-minute cap",
+      "where": "The nightly run - calls to the document providers",
+      "proof": "Seen in the recorded runs - confirm with dev",
+      "steps": [
+        "Take the 14 Oct run (the first run ever, so no answer could come from the 24-hour cache).",
+        "Count, per provider, how many checks were answered in each minute."
+      ],
+      "expected": "At most 30 checks per minute per provider (the engine's own limit).",
+      "actual": "38 PAN/MSME/bank checks were answered in the minute of 6:37 pm IST, and 105 checks of all kinds in the minute after.",
+      "impact": "The provider may start refusing calls (rate limit), which opens the engine's circuit breaker and delays every vendor.",
+      "fix": "Compare with the provider's own request log; count PAN, MSME and bank calls together (they go to the same provider) and keep the vendor-job spread in line with the cap.",
+      "tech": "provider_guard.rb RATE_LIMIT_PER_MINUTE = 30 per provider host; run_worker.rb spreads jobs at 60 * doc_types / 30 seconds per vendor."
+    },
+    "REV-23": {
+      "short": "The Validation Status filter has no way to show vendors that were never checked",
+      "where": "Vendor list -> filter panel -> Validation Status",
+      "proof": "Confirmed on UAT and on the preview screen",
+      "steps": [
+        "Open Vendors, click the filter icon, open Validation Status."
+      ],
+      "expected": "Choices: Passed, Failed, Skipped, System Error and 'Not checked yet' (the vendors still showing Pending).",
+      "actual": "Only Passed, Failed, Skipped and System Error. Vendors never checked show 'Pending' in the column but cannot be filtered.",
+      "impact": "A buyer cannot list the vendors still waiting for a check - the one list needed before going live.",
+      "fix": "Add a 'Not checked yet' choice (value pending); the backend already understands it.",
+      "tech": "companies_controller_filter_helper.rb maps 'pending' to NULL; the filter_options list lacks the option."
+    },
+    "REV-24": {
+      "short": "There is no 'Last Validated At' date filter on the vendor list",
+      "where": "Vendor list -> filter panel",
+      "proof": "Confirmed on UAT and on the preview screen",
+      "steps": [
+        "Open Vendors, click the filter icon, look for a 'Last Validated At' / date range filter."
+      ],
+      "expected": "A date-range filter on Last Validated At, next to the Validation Status filter (as the guide and TRD describe).",
+      "actual": "No such filter exists, in the backend's filter options or on the screen. The column is shown but cannot be filtered.",
+      "impact": "A buyer cannot find vendors validated before or after a date, e.g. 'everyone not re-checked this quarter'.",
+      "fix": "Add a date-range filter on the last-validated time and show it in the panel.",
+      "tech": "No filter definition for vendor_last_validated_at in filter_options; the panel lists Teams, Deals In, City, Tags, Type, Onboarding Status, Country, Initiated By, PAN No, Validation Status."
+    },
+    "REV-25": {
+      "short": "A document the provider will not answer keeps the vendor 'pending' for up to 25 hours and leaves its whole status stale - and pauses that document type for every customer",
+      "where": "Any run (forced or nightly) -> a vendor whose PAN (or GST/MSME/bank) the provider answers with an error instead of 'valid' / 'invalid'",
+      "proof": "Confirmed on UAT twice on 21 Oct (forced run at 13:02 IST, scheduled forced run at 13:18 IST); cause read in the code",
+      "steps": [
+        "Start a forced run for vendors 70959, 47168 and 56616 (POST /api/vendor_validation/trigger, mode force).",
+        "Watch GET /runs every 15 seconds and open vendor 70959's page (Info tab, Revalidation Details)."
+      ],
+      "expected": "All four documents of each vendor get an answer within a minute or two; 'complete' becomes true; every vendor's overall status and last-validated time show today's run.",
+      "actual": "Vendors 47168 and 56616 were done in 10 seconds. Vendor 70959's GST, MSME and bank rows were done in 10 seconds too, but its PAN row (QATZQ0568Q, a well-formed test PAN nobody holds) stayed 'pending': retried once 5 minutes later and then left alone. Because of that one row the run says complete=false, and the vendor's overall status and last-validated time are never written - its page and the vendor list still show the 15 Oct answers ('System Error - verification is temporarily unavailable, 16 October 15:08') as if nothing had been run. The same PAN was given up as 'verification is temporarily unavailable' 16 hours into the 15 Oct night run. A real PAN of another vendor passed at 12:22 the same day, so the PAN provider is up.",
+      "impact": "A buyer who asks for a vendor to be re-checked now sees nothing happen for up to 25 hours, with no sign that a check is waiting. Worse, the pause is shared: the code opens one breaker per provider for ALL customers (15 minutes, doubling after each failed probe up to 24 hours), so one unlucky PAN value can hold every customer's PAN checks for hours.",
+      "fix": "(1) Dev to read the log lines 'Vendor revalidation pan <error_type>' and 'breaker_opened provider=... reason=...' at 13:02:47 and 13:07:47 IST on 21 Oct - if the provider answers a nonexistent PAN with an error code, treat it as 'invalid' (row Failed), not as 'provider down', so one bad PAN cannot open the breaker. (2) A forced run for named vendors should not wait behind the breaker for a day: give those rows a short deadline (say 30 minutes), then close them as System Error so the vendor's status and date are written. (3) On the vendor page show 'check in progress since 13:02' instead of the previous run's answers.",
+      "tech": "vendor_check_service.rb call_provider: a BREAKER_ERROR_TYPES answer (rate_limited, provider_down, auth_failed) updates only last_run_at and schedules the row for ProviderGuard.retry_at; provider_guard.rb: FAILURE_THRESHOLD 5, BASE_WAIT 900 s doubling per failed probe (PROBE_TTL 300 s) up to 86 400 s, breaker key per provider (no client in the key); rows close only at RUN_DEADLINE = 24 h (sweeper +1 h). Evidence: vendor_validation_histories rows 4420-4423 (PAN pending, last_run_at 13:07:47 then 13:23:54 IST), buyer_seller_company_mappings 70959 vendor_last_validated_at 2026-10-15 17:30 UTC, GET /runs ... complete=false by_status pending 1."
+    }
+  }
+}

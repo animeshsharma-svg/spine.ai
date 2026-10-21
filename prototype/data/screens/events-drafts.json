@@ -1,0 +1,883 @@
+{
+  "id": "events-drafts",
+  "label": "events-drafts",
+  "path": "/orders",
+  "url": "https://cpanel.ag-ri.in/orders?tab=draft",
+  "state": "none",
+  "title": "Procol Console",
+  "headings": [],
+  "messages": [],
+  "viewport": {
+    "w": 1366,
+    "h": 900
+  },
+  "controls": [
+    {
+      "kind": "button",
+      "name": "Ask Clara",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 983,
+        "y": 20,
+        "w": 107,
+        "h": 34
+      },
+      "n": 1
+    },
+    {
+      "kind": "button",
+      "name": "Create Event M",
+      "disabled": false,
+      "danger": false,
+      "box": {
+        "x": 1155,
+        "y": 72,
+        "w": 194,
+        "h": 32
+      },
+      "n": 2
+    },
+    {
+      "kind": "tab",
+      "name": "Live 8641",
+      "selected": false,
+      "box": {
+        "x": 64,
+        "y": 64,
+        "w": 129,
+        "h": 46
+      },
+      "n": 3
+    },
+    {
+      "kind": "tab",
+      "name": "History 2036",
+      "selected": false,
+      "box": {
+        "x": 225,
+        "y": 64,
+        "w": 163,
+        "h": 46
+      },
+      "n": 4
+    },
+    {
+      "kind": "tab",
+      "name": "Drafts 185",
+      "selected": true,
+      "box": {
+        "x": 420,
+        "y": 64,
+        "w": 147,
+        "h": 46
+      },
+      "n": 5
+    },
+    {
+      "kind": "tab",
+      "name": "Recurring",
+      "selected": false,
+      "box": {
+        "x": 599,
+        "y": 64,
+        "w": 120,
+        "h": 44
+      },
+      "n": 6
+    },
+    {
+      "kind": "field",
+      "name": "Search Title",
+      "required": false,
+      "placeholder": "Search Title",
+      "inputType": "text",
+      "disabled": false,
+      "box": {
+        "x": 80,
+        "y": 136,
+        "w": 200,
+        "h": 32
+      },
+      "n": 7
+    }
+  ],
+  "effects": [
+    {
+      "n": 1,
+      "control": "Ask Clara",
+      "kind": "button",
+      "does": "Opens Clara's assistant.",
+      "affects": "nothing in the event data.",
+      "leadsTo": "Clara assistant drawer",
+      "check": "Click Ask Clara and verify that the assistant drawer opens without changing the event list.",
+      "confidence": "guess"
+    },
+    {
+      "n": 2,
+      "control": "Create Event M",
+      "kind": "button",
+      "does": "Starts creating a new event.",
+      "affects": "the new event creation flow and its eventual event record.",
+      "leadsTo": "event creation screen or the configured legacy creation route",
+      "check": "Click Create Event and verify that an event creation screen opens using the route selected by the dashboard configuration.",
+      "rule": "R-FLA-009-2",
+      "confidence": "code"
+    },
+    {
+      "n": 3,
+      "control": "Live 8641",
+      "kind": "tab",
+      "does": "Selects the Live events tab.",
+      "affects": "the active tab and the live-events list data loaded for the event list.",
+      "leadsTo": "Live tab with the table scrolled to the top",
+      "check": "Click Live and verify that the URL contains `?tab=live` and live events are loaded.",
+      "rule": "R-FLA-002-4",
+      "confidence": "code"
+    },
+    {
+      "n": 4,
+      "control": "History 2036",
+      "kind": "tab",
+      "does": "Selects the History events tab.",
+      "affects": "the active tab and the paged history-events data loaded for the event list.",
+      "leadsTo": "History tab with the table scrolled to the top",
+      "check": "Click History and verify that the URL contains `?tab=history` and history data is requested.",
+      "rule": "R-FLA-003-3",
+      "confidence": "code"
+    },
+    {
+      "n": 5,
+      "control": "Drafts 185",
+      "kind": "tab",
+      "does": "Selects the Drafts events tab.",
+      "affects": "the active tab and the draft-events data loaded for the event list.",
+      "leadsTo": "Drafts tab with the table scrolled to the top",
+      "check": "Verify that Drafts is selected, the URL contains `?tab=draft`, and draft data is requested.",
+      "rule": "R-FLA-003-3",
+      "confidence": "code"
+    },
+    {
+      "n": 6,
+      "control": "Recurring",
+      "kind": "tab",
+      "does": "Selects the Recurring events tab.",
+      "affects": "the active tab and the scheduled recurring-events data loaded for the event list.",
+      "leadsTo": "Recurring tab with the table scrolled to the top",
+      "check": "Click Recurring and verify that the URL contains `?tab=recurring` and scheduled-event data is requested.",
+      "rule": "R-FLA-003-3",
+      "confidence": "code"
+    },
+    {
+      "n": 7,
+      "control": "Search Title",
+      "kind": "field",
+      "does": "Filters the current event list by the entered title text.",
+      "affects": "the current tab's list filter and the matching event results.",
+      "leadsTo": "stays here",
+      "check": "Enter a title and verify that only matching results remain in the current list.",
+      "confidence": "guess"
+    }
+  ],
+  "rules": [
+    {
+      "id": "R-FLA-002-1",
+      "statement": "`?tab=` must be one of `live|history|draft|recurring` (lower-cased compare); anything else is replaced (history replace) by `?tab=live` — src/viewModels/orders/useOrdersListViewModel.js:82-110, src/views/orders/constants.js:231-236",
+      "cite": "src/viewModels/orders/useOrdersListViewModel.js:82-110",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-010-5",
+      "statement": "Stage row click on a draft stage that is rfq→auction, or auction with `route_auctions_to_auction_team`, for an auction-team user with Drafts tab on → create screen with `draftStageIds, projectCreation, projectId, title, isRfqToAuction, isEditingAllowed=false` — src/views/orders/components/projectCar",
+      "cite": "src/views/orders/components/projectCard/projectCard.jsx:168-197",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-004-5",
+      "statement": "`title` = stage title; `template_uuid` = currentTemplateId; `vendor_assessment_template_uuid` = global RFP template; `stage_no` = tab position 1..n; `event_group_uuid` = project id; `creation_flow_type` = \"quick_flow\" — src/redux/orders/helpers.js:1070-1127, src/views/projectCreation/helpers.js:992",
+      "cite": "src/redux/orders/helpers.js:1070-1127",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-002-5",
+      "statement": "History and Drafts badges are never shown: ProjectTable expects `pastProjectCount` / `draftProjectCount` but OrdersListPage never passes them — src/views/orders/components/projectTable.jsx:292-293, 757, 866; src/pages/orders/OrdersListPage.jsx:30-64",
+      "cite": "src/views/orders/components/projectTable.jsx:292-293",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-004-3",
+      "statement": "History/Drafts cards are grouped under a date header formatted `appFormatDate(date, DATE)` — src/views/orders/components/projectTable.jsx:846-858, 900-913",
+      "cite": "src/views/orders/components/projectTable.jsx:846-858",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-004-4",
+      "statement": "Empty states: filtered → \"no result\" copy; Drafts → \"No Drafts Found\"; Recurring → \"No Recurring Events Found\" — src/views/orders/components/projectTable.jsx:699-708, 914-920, 965-971",
+      "cite": "src/views/orders/components/projectTable.jsx:699-708",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-009-3",
+      "statement": "Empty Live tab without filters repeats the New Event button; with filters it shows the \"no result\" copy instead — src/views/orders/components/projectTable.jsx:699-720",
+      "cite": "src/views/orders/components/projectTable.jsx:699-720",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-013-1",
+      "statement": "Live: GET `/v1/trade/home?filters=<json>` polled every 30 s; History: GET `/v1/trade/history?last_updated_at=&filters=` (infinite, cursor = last item's `updated_at`) — src/viewModels/orders/useOrdersListViewModel.js:283-309, src/models/orders/ordersService.js:131-137, src/models/orders/ordersTransfo",
+      "cite": "src/viewModels/orders/useOrdersListViewModel.js:283-309",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-014-4",
+      "statement": "with `showMyOrdersByDefault` the My Events switch is hidden but the new ViewModel starts from `{live:{}, history:{}}` and never sets `myOrders`, so `only_my_requests` is not sent (the old selector forced it true) — src/views/orders/components/filters.jsx:251-263, src/viewModels/orders/useOrdersListV",
+      "cite": "src/views/orders/components/filters.jsx:251-263",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-010-2",
+      "statement": "`default_event_type` → the first stage's mode in project creation (falls back to auction) — src/redux/orders/selectors.js:717, src/views/projectCreation/projectCreation.jsx:2080-2086",
+      "cite": "src/redux/orders/selectors.js:717-717",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-004-1",
+      "statement": "Filter options GET `/event_groups/filter_options` fetched once per session (skipped when already in redux) — src/viewModels/orders/useOrdersListViewModel.js:153-161, src/models/project/projectService.js:34",
+      "cite": "src/viewModels/orders/useOrdersListViewModel.js:153-161",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-006-4",
+      "statement": "Saving filters/sort (Live tab only) calls updateUserPreference type `project` — src/views/orders/components/projectTable.jsx:481-488, 555-562, 640-653",
+      "cite": "src/views/orders/components/projectTable.jsx:481-488",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-008-2",
+      "statement": "Export `filters` = the custom filter value only (search text and stage filter are not sent) — src/views/orders/components/projectTable.jsx:329-331, 503-509",
+      "cite": "src/views/orders/components/projectTable.jsx:329-331",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-009-2",
+      "statement": "`rfx_project_enabled` off → `old_creation_flow_config = \"show_old_flow\"` goes to the old auction create route, anything else to the quick-create route — src/views/orders/components/projectTable.jsx:125-137, src/views/orders/constants.js:7-10",
+      "cite": "src/views/orders/components/projectTable.jsx:125-137",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-010-1",
+      "statement": "Header shows creator name, `projectRefId`, \"N item(s)\" when `lineItemCount` > 0, red \"Hold\" tag when `isProjectOnHold`, \"Auto created\" Clara tag when `isAutoCreated` — src/views/orders/components/projectCard/projectCard.jsx:262-297",
+      "cite": "src/views/orders/components/projectCard/projectCard.jsx:262-297",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-011-1",
+      "statement": "Stage title: rfi → \"RFP\", rfp → \"Technical Offer\", rfq → \"RFQ\", auction / rfq_then_auction → \"<Strategy> Based Auction\", lot stage → \"<lotTitle> - <label>\", vendor onboarding → \"Vendor Onboarding\" — src/views/orders/components/projectCard/projectCard.jsx:53-77",
+      "cite": "src/views/orders/components/projectCard/projectCard.jsx:53-77",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-011-3",
+      "statement": "`timeType = duration` → live countdown decremented every 1 s client-side from `timeValue` seconds; `timestamp`/`overdue`/`schedule` show the backend label/value — src/views/orders/components/projectCard/projectCard.jsx:116-132, 449-477",
+      "cite": "src/views/orders/components/projectCard/projectCard.jsx:116-132",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-012-4",
+      "statement": "Recurring card shows \"Frequency <scheduleDisplayText or ->\", invited count, and status tag Active/Paused/Cancelled — src/views/orders/components/projectCard/projectCard.jsx:318-337, 421-439",
+      "cite": "src/views/orders/components/projectCard/projectCard.jsx:318-337",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-013-2",
+      "statement": "Live response buckets render with \"upcoming_orders\" first, then my/team events headers — src/views/orders/components/ordersTable.jsx:157-170, 200-210",
+      "cite": "src/views/orders/components/ordersTable.jsx:157-170",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-014-2",
+      "statement": "History-only filters: duration, template, order type, status, bid type, mode, strategy, QC (QC state only when QC \"Done\" picked), dispatch, payment — src/views/orders/components/filters.jsx:65-82, 153-250",
+      "cite": "src/views/orders/components/filters.jsx:65-82",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-014-3",
+      "statement": "Title filter placeholder adds \"or reference id\" when user `showReferenceId` — src/views/orders/components/filters.jsx:84-110",
+      "cite": "src/views/orders/components/filters.jsx:84-110",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-004-1",
+      "statement": "`rfx_mode` = `rfq_then_auction` when converting an RFQ, else the stage mode (`auction`/`rfq`/`rfp`/`rfi`); `auction_config` = strategy, sent `undefined` for rfq/rfi/rfp — src/redux/orders/helpers.js:1046-1051, 1097-1099, src/views/projectCreation/helpers.js:920-922",
+      "cite": "src/redux/orders/helpers.js:1046-1051",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-004-2",
+      "statement": "`bid_start_time`/`bid_end_time` are unix seconds; `extra_closing_time` = end (+cost-breakdown window) + evaluation seconds, omitted when evaluation is \"Not applicable\" (0) — src/redux/orders/helpers.js:1106-1108, src/views/projectCreation/components/projectScheduler/helpers.js:12-42",
+      "cite": "src/redux/orders/helpers.js:1106-1108",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-004-4",
+      "statement": "`staggered` = serialAuction AND more than one data row; serial rows get `start_time = start + serialDuration*i`, `end_time = start + serialDuration*(i+1)`, `line_item_no` = i+1 — src/redux/orders/helpers.js:1029-1044, 1075",
+      "cite": "src/redux/orders/helpers.js:1029-1044",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-005-1",
+      "statement": "`bulk_price` = `+basePrice`, `price_difference` = `Number(knockoutTick)`, `time_difference` = `Number(knockoutTimeDiff * 60)` (minutes → seconds), `end_price` = `+endPrice`; for non-knockout strategies `bulk_price` serialises as null (NaN) and `end_price` as 0 — src/redux/orders/helpers.js:1131, 115",
+      "cite": "src/redux/orders/helpers.js:1131-1131",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-006-1",
+      "statement": "Knockout/Dutch: `savings_comparison_on` = line-item when single product with offer on base price, lot when `savingsPrice.gross` exists, else \"\" ; other strategies use the drawer's radio value — src/redux/orders/helpers.js:903-915",
+      "cite": "src/redux/orders/helpers.js:903-915",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-006-2",
+      "statement": "Lot (\"Gross total\") savings → `lot_reference_prices: [{reference_strategy_key, value}]` with any value ≤ 0 or empty sent as `null` — src/redux/orders/helpers.js:1002-1013",
+      "cite": "src/redux/orders/helpers.js:1002-1013",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-006-3",
+      "statement": "Line-item savings → `line_item_reference_prices` per sheet row `{reference_prices:[{reference_on_key_attribute, value, reference_strategy_key}], trade_product_uuid:null}`; values are NOT filtered for ≤ 0 — src/redux/orders/helpers.js:973-990",
+      "cite": "src/redux/orders/helpers.js:973-990",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-006-4",
+      "statement": "RFQ→Auction line savings are keyed by `trade_product_uuid` and only strategies holding an object are sent — src/redux/orders/helpers.js:956-972",
+      "cite": "src/redux/orders/helpers.js:956-972",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-006-5",
+      "statement": "`savings_configuration` = null when savingsPrice is empty — src/redux/orders/helpers.js:917-918, 1016-1017",
+      "cite": "src/redux/orders/helpers.js:917-918",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-006-6",
+      "statement": "lot savings ≤ 0 are silently nulled client-side but line-item savings are not; a pasted negative line value reaches the API (see savings drawer section) — src/redux/orders/helpers.js:1007-1013 vs 979-986",
+      "cite": "src/redux/orders/helpers.js:1007-1013",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-010-1",
+      "statement": "`default_closing_mode` → closingOn of ALL stages, re-applied whenever the value changes — src/redux/orders/selectors.js:716, src/views/projectCreation/projectCreation.jsx:1951-1959",
+      "cite": "src/redux/orders/selectors.js:716-716",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-010-3",
+      "statement": "`enable_tnc_mandatory_button` → isTncMandatory of all stages; `is_payment_tnc_enabled` → Payment Terms button + mandatory check — src/redux/orders/selectors.js:718-719, src/views/projectCreation/projectCreation.jsx:1940-1949",
+      "cite": "src/redux/orders/selectors.js:718-719",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-010-4",
+      "statement": "`is_allowed_to_modify_audience`, `is_rfp_template_edit_allowed_during_creation`, `is_publish_auction_in_draft`, `route_auctions_to_auction_team` (default false), `is_saving_configuration_mandatory` — src/redux/orders/selectors.js:720-727",
+      "cite": "src/redux/orders/selectors.js:720-727",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-010-5",
+      "statement": "DTE defaults: `is_default_dynamic_closing_time_allowed`, `time_extension_value` (→ custom extension), `last_n_minutes_for_time_extension`, `rank_limit_for_time_extension` (stored as string), `dynamic_closing_time_strategy` — applied to auction stages only — src/redux/orders/selectors.js:731-736, src",
+      "cite": "src/redux/orders/selectors.js:731-736",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FCR-010-6",
+      "statement": "Auto-award is ON by default for every stage whenever `auto_award_configs` is a non-empty array — src/redux/orders/selectors.js:708-714, src/views/projectCreation/projectCreation.jsx:2052-2071",
+      "cite": "src/redux/orders/selectors.js:708-714",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-001-4",
+      "statement": "No list request is sent until the user-preference GET (`getUserPreference({type: project})`) settles; saved `applied_filters` and `applied_order_by` seed the filters/sort — src/viewModels/orders/useOrdersListViewModel.js:129-149, 233, 281",
+      "cite": "src/viewModels/orders/useOrdersListViewModel.js:129-149",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-002-4",
+      "statement": "Switching tab writes `?tab=` with replace and scrolls the table to top — src/viewModels/orders/useOrdersListViewModel.js:381-395, src/views/orders/components/projectTable.jsx:374-381",
+      "cite": "src/viewModels/orders/useOrdersListViewModel.js:381-395",
+      "verdict": "not covered"
+    },
+    {
+      "id": "R-FLA-003-3",
+      "statement": "History: GET `/event_groups/history?last_updated_at=&filters=`; Drafts: GET `/event_groups/draft`; Recurring: GET `/event_groups/scheduled`; each pages by `last_updated_at` — src/viewModels/orders/useOrdersListViewModel.js:198-278, src/models/project/projectService.js:23-32",
+      "cite": "src/viewModels/orders/useOrdersListViewModel.js:198-278",
+      "verdict": "covered"
+    },
+    {
+      "id": "R-FLA-007-2",
+      "statement": "Range longer than 6.1 months when the drawer opens → red banner \"Please select the date range which is equal or less than 6 months\" and the Download button is replaced by \"Back\" — src/views/orders/components/projectTable.jsx:460-479, src/components/dowloadReportDrawer/downloadReportDrawer.jsx:510-51",
+      "cite": "src/views/orders/components/projectTable.jsx:460-479",
+      "verdict": "not covered"
+    }
+  ],
+  "cases": [
+    {
+      "id": "GEN-SCR-065",
+      "title": "Ask Clara opens the assistant",
+      "kind": "button",
+      "grounded": "screen",
+      "steps": [
+        "Click Ask Clara."
+      ],
+      "expected": "The Clara assistant opens.",
+      "setup": "Load /orders.",
+      "coverage": "full",
+      "gaps": [],
+      "controls": [
+        1
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Ask Clara opens the assistant",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "note": "Assert the events list rendered correctly"
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Ask Clara"
+            },
+            "note": "Click the Ask Clara button to open the assistant"
+          },
+          {
+            "step": "expect_visible",
+            "args": {
+              "role": "dialog",
+              "name": "Ask Clara",
+              "visible": true
+            },
+            "note": "Assert the Clara assistant dialog or drawer opened"
+          }
+        ]
+      }
+    },
+    {
+      "id": "GEN-SCR-066",
+      "title": "Live 8583 shows live events",
+      "kind": "state",
+      "grounded": "screen",
+      "steps": [
+        "Click Live 8583."
+      ],
+      "expected": "Live 8583 becomes selected and the list shows live events instead of drafts.",
+      "setup": "Load /orders with Drafts 183 selected.",
+      "coverage": "full",
+      "gaps": [],
+      "controls": [
+        3
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Live events tab selection from drafts",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "note": "Assert the events list rendered"
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Start with Drafts selected as per the setup"
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Live"
+            },
+            "note": "Click Live to switch to live events"
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "/orders"
+            },
+            "note": "Assert we are on the events list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "GEN-SCR-067",
+      "title": "History 2035 shows historical events",
+      "kind": "state",
+      "grounded": "screen",
+      "steps": [
+        "Click History 2035."
+      ],
+      "expected": "History 2035 becomes selected and the list shows historical events instead of drafts.",
+      "setup": "Load /orders with Drafts 183 selected.",
+      "coverage": "full",
+      "gaps": [],
+      "controls": [
+        4
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "History tab shows historical events",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Start with Drafts selected, as required by the setup."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "History"
+            },
+            "note": "Select History without hard-coding the dynamic event count."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "history_list"
+            },
+            "note": "Verify the active destination is the historical-events list rather than Drafts."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the destination list rendered without an error."
+          }
+        ]
+      }
+    },
+    {
+      "id": "GEN-SCR-068",
+      "title": "Recurring shows recurring events",
+      "kind": "state",
+      "grounded": "screen",
+      "steps": [
+        "Click Recurring."
+      ],
+      "expected": "Recurring becomes selected and the recurring-events list opens.",
+      "setup": "Load /orders.",
+      "coverage": "full",
+      "gaps": [],
+      "controls": [
+        6
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Recurring tab shows recurring events",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "the API built this case's state"
+          },
+          {
+            "step": "expect_events_list",
+            "note": "Assert the events list rendered"
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Recurring"
+            },
+            "note": "Switch to the Recurring tab"
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "tab=Recurring"
+            },
+            "note": "Assert URL reflects Recurring tab"
+          }
+        ]
+      }
+    },
+    {
+      "id": "GEN-SCR-069",
+      "title": "Search Title filters draft events",
+      "kind": "positive",
+      "grounded": "screen",
+      "steps": [
+        "Enter Alpha in Search Title."
+      ],
+      "expected": "Only matching draft events remain visible in the list. Non-matching drafts are hidden.",
+      "setup": "Load /orders with Drafts 183 selected. Ensure one draft title contains \"Alpha\" and another visible draft does not.",
+      "coverage": "partial",
+      "gaps": [
+        "Ensuring specific draft titles like 'Alpha' and non-matching drafts exist prior to search within the static prepared state."
+      ],
+      "controls": [
+        7
+      ],
+      "prep": {
+        "state": "draft",
+        "screen": "drafts_list",
+        "technical": false,
+        "prepared": true
+      },
+      "plan": {
+        "title": "Search Title filters draft events",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "drafts_list"
+            },
+            "note": "Open the drafts list as required by the prepared state rules."
+          },
+          {
+            "step": "fill",
+            "args": {
+              "label": "Search Title",
+              "value": "Alpha"
+            },
+            "note": "Type 'Alpha' into the Search Title field."
+          },
+          {
+            "step": "expect_text",
+            "args": {
+              "text": "Alpha",
+              "present": true
+            },
+            "note": "Assert that the draft matching 'Alpha' remains visible."
+          }
+        ]
+      }
+    },
+    {
+      "id": "GEN-SCR-300",
+      "title": "Draft entry opens the restricted draft creation screen",
+      "kind": "state",
+      "grounded": "R-FLA-010-5",
+      "steps": [
+        "Select the draft stage entry.",
+        "Inspect the opened creation screen and its URL or state."
+      ],
+      "expected": "The creation screen opens with the draft stage IDs, project creation context, project ID, title, and RFQ-to-auction state. Editing is not allowed (`isEditingAllowed=false`).",
+      "setup": "Sign in as an auction-team user. Prepare a draft containing an RFQ-to-auction stage, or an auction stage with `route_auctions_to_auction_team` enabled. Open the Drafts tab.",
+      "coverage": "partial",
+      "gaps": [
+        "draft stage IDs are present",
+        "project ID is present in state",
+        "the expected project title is loaded",
+        "RFQ-to-auction state is present",
+        "isEditingAllowed=false"
+      ],
+      "plan": {
+        "title": "Restricted draft creation entry",
+        "steps": [
+          {
+            "step": "open_prepared",
+            "args": {
+              "screen": "draft"
+            },
+            "note": "Open the API-prepared draft entry directly on its draft creation screen."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "draft"
+            },
+            "note": "Assert that the draft entry opened the restricted draft screen."
+          },
+          {
+            "step": "expect_url_contains",
+            "args": {
+              "text": "projectCreation=true"
+            },
+            "note": "Verify the project-creation context is carried in the URL."
+          },
+          {
+            "step": "expect_screen_clean",
+            "args": {},
+            "note": "Check that the opened draft screen has no crash, server error, raw IDs, or invalid values."
+          }
+        ]
+      },
+      "controls": []
+    },
+    {
+      "id": "GEN-SCR-301",
+      "title": "Draft cards are grouped by formatted date",
+      "kind": "state",
+      "grounded": "R-FLA-004-3",
+      "steps": [
+        "Select Drafts 185.",
+        "Wait for the list to load."
+      ],
+      "expected": "Draft cards are grouped beneath date headers. Each header uses the application's `appFormatDate(date, DATE)` format, and drafts from the same date share one header.",
+      "setup": "Prepare drafts with at least two different creation or update dates, including multiple drafts on one date.",
+      "coverage": "none",
+      "gaps": [
+        "Date headers are present for draft card groups",
+        "Headers use the application's appFormatDate(date, DATE) format",
+        "Drafts from the same date share one header"
+      ],
+      "plan": {
+        "title": "Draft cards grouped by date",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list, which is the subject of the test."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Verify the events list rendered without an error."
+          },
+          {
+            "step": "filter_events",
+            "args": {
+              "tab": "Drafts"
+            },
+            "note": "Switch to the Drafts list where date grouping should be displayed."
+          },
+          {
+            "step": "capture_screen",
+            "args": {
+              "label": "drafts-grouped-by-date"
+            },
+            "note": "Capture the loaded Drafts screen for manual inspection because no catalog assertion can observe the grouping or date format."
+          }
+        ]
+      },
+      "controls": [
+        5
+      ]
+    },
+    {
+      "id": "GEN-SCR-302",
+      "title": "Create Event M opens the configured creation flow",
+      "kind": "button",
+      "grounded": "R-FLA-009-2",
+      "steps": [
+        "Select Create Event M.",
+        "Wait for navigation to complete."
+      ],
+      "expected": "With `rfx_project_enabled` off and `old_creation_flow_config=show_old_flow`, the old auction create route opens. With any other configuration, the quick-create route opens.",
+      "setup": "Run the test once with `rfx_project_enabled` off and `old_creation_flow_config=show_old_flow`. Run it again with any other configuration.",
+      "coverage": "partial",
+      "gaps": [
+        "Cannot set or inspect rfx_project_enabled and old_creation_flow_config for the current tenant.",
+        "Cannot assert both conditional outcomes: the old auction create route when rfx_project_enabled is off with old_creation_flow_config=show_old_flow, and the quick-create route for all other configurations."
+      ],
+      "plan": {
+        "title": "Create Event M creation-flow routing",
+        "steps": [
+          {
+            "step": "open_events_list",
+            "args": {},
+            "note": "Open the events list where the Create Event M control is available."
+          },
+          {
+            "step": "expect_events_list",
+            "args": {},
+            "note": "Confirm the events list rendered without an error and exposes the create control."
+          },
+          {
+            "step": "click",
+            "args": {
+              "role": "button",
+              "name": "Create Event"
+            },
+            "note": "Select the Create Event M control to start the configured creation flow."
+          },
+          {
+            "step": "expect_navigated",
+            "args": {
+              "screen": "create"
+            },
+            "note": "Verify navigation completed and a creation screen is ready, without claiming which configuration-specific route was selected."
+          }
+        ]
+      },
+      "controls": [
+        2
+      ]
+    }
+  ],
+  "reachedBy": [
+    {
+      "step": "open_events_list"
+    },
+    {
+      "step": "expect_events_list"
+    },
+    {
+      "step": "filter_events",
+      "args": {
+        "tab": "History"
+      }
+    },
+    {
+      "step": "filter_events",
+      "args": {
+        "tab": "Drafts"
+      }
+    }
+  ],
+  "companyId": 198678,
+  "runId": "walk-list-mvhyvlec",
+  "evidence": {
+    "screenshot": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvhyvlec/07-inventory-events-drafts.png",
+    "map": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvhyvlec/map-07-events-drafts.png",
+    "inventory": "/Users/animesh/Desktop/procol/procol-ui-tests/evidence/walk-list-mvhyvlec/07-inventory-events-drafts.inventory.json"
+  },
+  "images": {
+    "plain": "/Users/animesh/Desktop/procol/prototype/data/screens/img/events-drafts.png",
+    "map": "/Users/animesh/Desktop/procol/prototype/data/screens/img/events-drafts-map.png"
+  },
+  "takenAt": "2026-10-21T10:26:32.689Z",
+  "updatedAt": "2026-10-21T10:29:01.632Z",
+  "captures": 2
+}

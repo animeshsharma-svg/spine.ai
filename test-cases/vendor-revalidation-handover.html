@@ -1,0 +1,237 @@
+<title>Revalidation Dev Handover</title>
+<style>
+/* Layout: one reading column; a numbers strip, then three parts a developer can act on: the settings problem, the stuck-run bug, and the exact list of what still needs a person. */
+:root{
+  --bg:#f6f5f1; --paper:#ffffff; --ink:#1e2420; --muted:#5f6a64; --line:#dcdfd8; --accent:#2b5f7e;
+  --ok:#1f7a4e; --ok-bg:#e2f1e9; --bad:#b13228; --bad-bg:#fbe6e3; --wait:#8a5b00; --wait-bg:#fbefd6; --off:#55606b; --off-bg:#eaedf0;
+  --f-body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15191a;--paper:#1d2324;--ink:#e7ebe8;--muted:#a4ada8;--line:#333b3b;--accent:#86bddc;--ok:#80d4a6;--ok-bg:#1d3a2b;--bad:#ff9b90;--bad-bg:#45211d;--wait:#f2c56a;--wait-bg:#3d3018;--off:#b8c0c6;--off-bg:#2a3135;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15191a;--paper:#1d2324;--ink:#e7ebe8;--muted:#a4ada8;--line:#333b3b;--accent:#86bddc;--ok:#80d4a6;--ok-bg:#1d3a2b;--bad:#ff9b90;--bad-bg:#45211d;--wait:#f2c56a;--wait-bg:#3d3018;--off:#b8c0c6;--off-bg:#2a3135;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--f-body);padding:0 16px}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3,h4{text-wrap:balance;line-height:1.25;margin:0}
+h1{font-size:2rem} h2{font-size:1.45rem;margin-top:52px;padding-bottom:8px;border-bottom:2px solid var(--line)} h3{font-size:1.15rem;margin-top:30px} h4{font-size:1rem;margin-top:18px}
+p{margin:0} p+p{margin-top:10px} .muted{color:var(--muted)} .lead{font-size:1.08rem;max-width:65ch;margin-top:12px}
+ul,ol{margin:8px 0 0;padding-left:22px} li{margin-top:4px} li>ul{margin-top:2px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:22px}
+.fact{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.fact b{display:block;font-size:1.5rem;font-variant-numeric:tabular-nums} .fact span{font-size:.84rem;color:var(--muted)}
+.tbl{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:8px;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-size:.9rem} th,td{padding:8px 11px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700} tr:last-child td{border-bottom:0}
+.id{font-family:var(--f-mono);font-size:.84rem;white-space:nowrap}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--off-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+pre{font-family:var(--f-mono);font-size:.82rem;line-height:1.5;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;margin-top:10px}
+pre code{background:none;padding:0}
+.box{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-top:16px}
+.ask{border-left:4px solid var(--accent)}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:.76rem;font-weight:700;white-space:nowrap}
+.p-ok{background:var(--ok-bg);color:var(--ok)} .p-bad{background:var(--bad-bg);color:var(--bad)} .p-wait{background:var(--wait-bg);color:var(--wait)} .p-off{background:var(--off-bg);color:var(--off)}
+a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:640px){h1{font-size:1.6rem}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400&display=swap">
+<div class="wrap">
+  <p class="muted">Procol QA · Vendor revalidation · UAT · 21 Oct 2026</p>
+  <h1>Revalidation Dev Handover</h1>
+  <p class="lead">What is blocking the rest of the revalidation testing, in enough detail to act on. Three parts: the <b>settings</b> problem (nobody in QA can change a customer's revalidation settings any more), the <b>stuck-run bug</b> REV-19 (fixed on 21 Oct — kept for the record, with the new REV-25 found while verifying it), and the exact list of tests that still need a person or a developer, with what each one needs. The test results and all 22 findings are in the <a href="https://claude.ai/artifact/AQh8LsJiXLx5RvJ6kGhs5m">bug sheet</a>.</p>
+  <div class="facts">
+    <div class="fact"><b>47</b><span>tests passed</span></div>
+    <div class="fact"><b>11</b><span>failed, each a logged bug</span></div>
+    <div class="fact"><b>0</b><span>blocked by REV-19 (fixed 21 Oct)</span></div>
+    <div class="fact"><b>27</b><span>need a settings change</span></div>
+    <div class="fact"><b>18</b><span>no longer apply (feature removed 20 Oct)</span></div>
+    <div class="fact"><b>36</b><span>need a developer, a person or a screen</span></div>
+  </div>
+  <p class="muted" style="margin-top:12px;font-size:.88rem">Build under test: procol-backend <code>rfx-uat-main @ a717f107ce</code> (20 Oct), API <code>rfx-uat-api.ag-ri.in</code>, dashboard <code>client-feat-vendor-revalidation-details.preview.procol.tech</code>, customer GMMCO (47053).</p>
+
+  <h2>Part 1 — The settings problem</h2>
+  <h3>What "settings" means</h3>
+  <p>Each customer has one revalidation configuration. It says which vendors get checked, which documents, how often, and from when. It is a normal custom configuration row:</p>
+  <ul>
+    <li>Table <code>custom_configurations</code>, key <code>vendor_revalidation_config</code>, <code>item_type = "Company"</code>, <code>item_id = 47053</code> (GMMCO's row is id 21842). The value sits in <code>modifications.value</code>.</li>
+    <li>The engine reads it through <code>Company#vendor_revalidation_config</code> (<code>app/models/company.rb:920</code>, via <code>CustomConfiguration.cached_all_configs</code>). Revalidation is "on" only when the customer is on vendor onboarding v2 <b>and</b> <code>enabled == true</code> (<code>company.rb:925-927</code>).</li>
+  </ul>
+  <p>GMMCO's current value (set by ops on 15 Oct):</p>
+<pre><code>{
+  "enabled": true,
+  "vendor_statuses": ["active", "invited"],
+  "validations": {
+    "gst":  { "paths": ["form.gstin", "company.gst_no"],  "frequency": "quarterly", "start_date": "2026-10-15" },
+    "pan":  { "paths": ["form.pan_no", "company.pan_no"], "frequency": "yearly",    "start_date": "2026-10-15" },
+    "msme": { "paths": ["form.msme_no"],                   "frequency": "one_time",  "start_date": "2026-10-15" },
+    "bank": { "paths": ["form.bank_account_no"],           "frequency": "quarterly", "start_date": "2026-10-15" }
+  }
+}</code></pre>
+  <p class="muted" style="font-size:.9rem;margin-top:8px">Field meanings: <code>vendor_statuses</code> = which buyer–vendor link statuses are checked (active, invited, onboarding_in_progress, in_review, in_approval, rejected, blacklisted, in_active). <code>paths</code> = where a document value is read from, tried in order (<code>form.&lt;field&gt;</code> = the onboarding v2 form, <code>company.&lt;column&gt;</code>, <code>company.misc.&lt;key&gt;</code>, <code>company.extended_fields.&lt;key&gt;</code>; a bank entry can be an object with <code>bank_account_no</code> and <code>ifsc</code> paths). <code>frequency</code> = one_time, monthly, quarterly, six_monthly, yearly. <code>start_date</code> = first due date; cycles count from it.</p>
+
+  <h3>What changed on 20 Oct, and why QA is stuck</h3>
+  <ol>
+    <li>Until 20 Oct there was a private QA API: <code>GET/PUT /api/vendor_revalidation_qa/config</code>. It let a tester save a customer's settings, and it <b>validated</b> them (unknown statuses, unknown document types, bad frequency, bad date, bad path syntax were refused with a clear message). Commit <code>0f365a7e52</code> ("revamp apis") deleted that controller and all of those checks. Nothing replaced them.</li>
+    <li>The only remaining way to save this key is the general endpoint <code>POST /api/custom_configuration/update_or_create</code> (<code>app/controllers/api/custom_configuration_controller.rb</code>). Its policy allows a super admin or a Procol employee (<code>custom_configuration_policy.rb</code>), <b>but</b> before saving it calls <code>MasterConfiguration.config_key_exists(item_type, key, user)</code> (<code>app/models/master_configuration.rb:65-75</code>), which only returns true when the master entry's <code>visibility</code> is <code>"visible"</code> <b>or the user is a Procol employee</b>. The master entry for this key (<code>master_configurations</code> id 835) is not visible. So a customer's super admin gets <code>422 {"code":1103,"message":"The Config type is not supported"}</code>. We confirmed this live with GMMCO's super admin (user 20030): the identical current value was refused.</li>
+    <li>"Procol employee" means <code>user.company_id == Rails.application.config.procol_employee_company_id</code> (<code>user.rb:749-755</code>). On UAT that is <code>ENV["PROCOL_EMPLOYEE_COMPANY_ID"]</code>, defaulting to <b>500 = "Procol Traders"</b> (<code>config/environments/staging.rb:41</code>). Every account in that company is a real Procol person; QA has none.</li>
+    <li>Because the checks were deleted, whatever a Procol employee saves is accepted as-is (<b>REV-17</b>). A typo such as <code>"frequency": "weekly"</code> or <code>"start_date": "15-10-2026"</code> is stored; the nightly scheduler then skips that document type and only writes a <code>config_error</code> log line (<code>scheduler_worker.rb:92</code>). The customer's vendors silently stop being re-checked.</li>
+  </ol>
+
+  <div class="box ask">
+    <h3 style="margin-top:0">What to ask the developer (settings)</h3>
+    <ol>
+      <li><b>Give QA a way to change settings on UAT.</b> Either an account in company 500 ("Procol Traders") for QA, or set <code>PROCOL_EMPLOYEE_COMPANY_ID</code> on UAT to a company that holds a QA account, or make the master entry for <code>vendor_revalidation_config</code> visible to super admins on UAT only. Any one of these unblocks 26 tests, which then run on their own with the settings saved and restored around each test.</li>
+      <li><b>For tonight only (if 1 takes longer):</b> set GMMCO's config to the value below before 22:00 IST and put the current value (above) back tomorrow morning. This makes the 23:00 nightly run check only the "rejected" group — 62 Procol test vendors with fake documents and 5 real ones, roughly 90 cheap provider calls — with every document type due that day. One night then covers the schedule, coverage, GST/PAN/MSME/bank outcome and listing cases.
+<pre><code>{
+  "enabled": true,
+  "vendor_statuses": ["rejected"],
+  "validations": {
+    "gst":  { "paths": ["form.gstin", "company.gst_no"], "frequency": "quarterly", "start_date": "2026-10-21" },
+    "pan":  { "paths": ["form.pan_no", "company.pan_no", "company.misc.pan_no"], "frequency": "yearly", "start_date": "2026-10-21" },
+    "msme": { "paths": ["form.msme_no", "company.misc.msme_registration_number"], "frequency": "one_time", "start_date": "2026-10-21" },
+    "bank": { "paths": ["form.bank_account_no", { "bank_account_no": "company.misc.bank_account_number", "ifsc": "company.misc.bank_ifsc_code" }], "frequency": "quarterly", "start_date": "2026-10-21" }
+  }
+}</code></pre>
+      </li>
+      <li><b>Product fix (REV-17):</b> bring back validation of this key wherever it is saved — the old <code>config_error</code> rules from the deleted controller fit as a <code>CustomConfiguration</code> validation — and consider a small admin screen or endpoint for it, since ops will set this for every customer.</li>
+    </ol>
+  </div>
+
+  <h2>Part 2 — REV-19: a run that has vendors to check never starts</h2>
+  <div class="callout" style="border:2px solid #15803d;background:#f0fdf4;border-radius:10px;padding:14px 16px;margin:12px 0 18px"><b>Update, 21 Oct 2026 — FIXED.</b> The backend deploy at about 12:00 IST fixed this. Verified three times the same day: forced runs at 12:22, 13:02 and 13:18 IST moved to "started" within 10 seconds, created rows and wrote the vendors' status. A run asked for at a clock time (force + run_at 13:18:35) fired 5 seconds after that time. Scheduler mode at a clock time still answers "nothing_due" under GMMCO's settings — that is by design: scheduler mode only checks what is due on that date; to re-check a vendor at a chosen time use <b>mode force + run_at</b>. The text below describes the bug as it was, kept for the record.<br><br><b>New, found during the same check — REV-25 (High):</b> when the provider will not answer one document (vendor 70959's PAN), that row stays "pending" for up to 25 hours, the vendor's overall status and last-validated time are never written (its page keeps showing the 15 Oct answers), and the breaker the engine opens is shared by every customer. Details, timestamps and the code lines are in the bug sheet.</div>
+  <h3>What a buyer sees</h3>
+  <p>Click "revalidate now" (the dashboard's call to <code>POST /api/vendor_validation/trigger?workspace_id=47053</code>). The API answers 200 with a job id and a run id. Then nothing: the run's status stays <code>"scheduled"</code>, zero rows are created, no vendor is checked, no error is shown anywhere, and the status keeps saying "scheduled" for 7 days (the job-state TTL).</p>
+  <h3>What we observed (all on GMMCO, UAT)</h3>
+  <div class="tbl"><table><tr><th>When (IST)</th><th>Request</th><th>Watched for</th><th>Result</th></tr>
+    <tr><td>20 Oct 20:01</td><td><code>{"mode":"force","vendor_ids":[56616],"run_at":"20 s ago"}</code></td><td>6 min</td><td>scheduled, 0 rows</td></tr>
+    <tr><td>20 Oct 20:06</td><td><code>{"mode":"force","vendor_ids":[56786]}</code> with <code>workspace_id=198678</code> (another company's id; the login's own company was used)</td><td>2 min</td><td>scheduled, 0 rows</td></tr>
+    <tr><td>20 Oct 20:16</td><td><code>{"mode":"force","vendor_ids":[56616],"run_at":"+2 min"}</code></td><td>8 min</td><td>scheduled, 0 rows</td></tr>
+    <tr><td>20 Oct 20:55</td><td><code>{"mode":"force","vendor_ids":[56616],"run_at":"20 s ago"}</code></td><td>6 min</td><td>scheduled, 0 rows</td></tr>
+    <tr><td>20 Oct 21:0x</td><td><code>{"mode":"force","vendor_ids":[56616]}</code> (twice, tests B-12 / B-15)</td><td>15 min</td><td>scheduled, 0 rows</td></tr>
+    <tr><td>21 Oct 00:05</td><td><code>{"mode":"force","vendor_ids":[56616]}</code></td><td>2 min</td><td>scheduled, 0 rows</td></tr>
+    <tr><td>21 Oct 00:41</td><td><code>{"mode":"force","vendor_limit":1}</code></td><td>1.5 min</td><td>scheduled, 0 rows</td></tr>
+    <tr><td>20 Oct 20:4x</td><td><code>{"mode":"scheduler","vendor_ids":[56616]}</code> with nothing due</td><td>—</td><td><span class="pill p-ok">finished: nothing_due</span></td></tr>
+  </table></div>
+  <p style="margin-top:10px">The last row matters: a scheduler-mode request with nothing due <b>does</b> finish. So the job is taken from the <code>batch_low</code> queue and <code>TriggerWorker#perform</code> runs; the crash is in the part that only runs when there is work.</p>
+  <p>Database evidence: <code>vendor_validation_histories</code> has no row dated 2026-10-20 or 2026-10-21 for client 47053, although seven runs were accepted. The vendors' link rows were not reset either.</p>
+  <h3>The code path</h3>
+  <ol>
+    <li><code>Api::VendorValidationController#trigger</code> validates the request, then <code>TriggerService.schedule</code> saves the job state <code>scheduled</code> in Redis (<code>vendor_revalidation:trigger:job:&lt;jid&gt;</code>) and pushes <code>VendorRevalidation::TriggerWorker</code> onto <code>batch_low</code> (<code>trigger_service.rb</code> schedule).</li>
+    <li><code>TriggerWorker#perform</code> (<code>trigger_worker.rb</code>, <b><code>sidekiq_options retry: false</code></b>) builds <code>TriggerService.new(...)</code> and calls <code>#call</code>.</li>
+    <li><code>TriggerService#call</code> (<code>trigger_service.rb:31-50</code>): finds the client, <code>select_vendors</code>, <code>due_doc_types</code> — this far works (the nothing_due case gets through it) — then
+      <ul>
+        <li><code>reset(chosen)</code>: <code>VendorValidationHistory…delete_all</code> for the run date and vendors; <code>BuyerSellerCompanyMapping…update_all(vendor_validation_status: nil, …)</code>; <code>$redis.del(*lock keys)</code>; <code>$redis.del(summary key)</code>; <code>delete_jobs(vendor_ids)</code>, which iterates <code>Sidekiq::Queue</code> for <code>vendor_revalidation</code>, <code>vendor_revalidation_retry</code>, <code>batch_low</code> plus <code>Sidekiq::ScheduledSet</code> and <code>Sidekiq::RetrySet</code>, reading <code>job.args[0]</code>, <code>job.args[1]</code>, <code>job.args[2]</code> of every job;</li>
+        <li><code>RunWorker.perform_async(...)</code>;</li>
+        <li><code>save_state(jid, 'state' => 'started', …)</code>.</li>
+      </ul>
+      The state never reaches <code>started</code>, so <code>#call</code> raises somewhere between the start of <code>reset</code> and <code>save_state</code>. With <code>retry: false</code> the exception is not retried, nothing is written to the job state, and the API keeps reporting the stale <code>scheduled</code>.</li>
+  </ol>
+  <h3>Where to look first</h3>
+  <ul>
+    <li><b>Sidekiq Web → Dead</b> on UAT: with retry off, a failed <code>VendorRevalidation::TriggerWorker</code> lands there with its backtrace. Job ids: <code>1ceeac833123d7ae8b151d9e</code>, <code>e2bfc669fb5b7d6fd79aa360</code>, <code>336d40bacccec22600527906</code>, <code>3b6c30e5da1a991a78f47e89</code>, <code>2fe3919526069d33c1750fcc</code>.</li>
+    <li><b>Logs</b> around the times above for <code>TriggerWorker</code> / <code>[VendorRevalidation] trigger_fired</code> (never printed) and any exception.</li>
+    <li><b>Likely culprits</b>, in the order we'd check: <code>delete_jobs</code> hitting a job in the scheduled or retry set whose <code>args</code> is not an array (e.g. a job of another class with keyword args), so <code>job.args[2]</code> or <code>job.args[1]</code> raises; <code>$redis.del(*keys)</code> on a client that does not accept several keys; a very large <code>ScheduledSet</code> making the worker exceed a timeout; the <code>partial_run</code> write in <code>RunWorker</code> (the column exists on UAT, so unlikely).</li>
+  </ul>
+  <div class="box ask">
+    <h3 style="margin-top:0">What to ask the developer (REV-19)</h3>
+    <ol>
+      <li>Find and fix the raise in <code>TriggerService#call</code> (Dead set first).</li>
+      <li>Wrap the work in a <code>rescue</code> that does <code>save_state(jid, 'state' => 'failed', 'error' => e.message)</code>, so <code>GET /runs/:id?job_id=</code> tells the truth; today a buyer is told "scheduled" for a week.</li>
+      <li>Make <code>delete_jobs</code> only delete <code>VendorWorker</code> jobs for the chosen vendors, not every <code>RunWorker</code> of the run (REV-09: two triggers started together can delete each other's run).</li>
+    </ol>
+    <p style="margin-top:10px">Once this is fixed, the 20 blocked tests run on demand in about 25 minutes (<code>npm run reval:run -- --company 47053</code>) with screenshots, no scheduler needed.</p>
+  </div>
+
+  <h2>Part 3 — What still needs a person, test by test</h2>
+  <p class="lead">Everything that could run without a person has run. The lists below are complete. "What would make it automatic" is the one thing that turns the test into a button press.</p>
+
+  <h3>A. Runs on their own now that REV-19 is fixed <span class="pill p-wait">20 tests — re-run on 21 Oct</span></h3>
+  <p>A-26, B-01, B-07, B-12, B-13, B-14, B-15, B-16, B-19, C-01, C-05, D-01, D-08, D-13, E-01, E-04, E-07, E-10, E-12, G-01, G-02, G-07, G-13. Nothing for a person to do.</p>
+
+  <h3>B. Runs on their own once QA can change settings <span class="pill p-wait">26 tests</span></h3>
+  <div class="tbl"><table><tr><th>Test</th><th>Setting it changes (saved and restored by the test)</th></tr>
+    <tr><td class="id">A-20</td><td><code>vendor_statuses</code> = a status with no vendor (blacklisted) → trigger refused "No vendors match"</td></tr>
+    <tr><td class="id">B-02, B-03, B-04, B-08, B-09, B-10, B-11</td><td>one document's <code>frequency</code> and <code>start_date</code> set relative to today (due today / 3 days late / one_time 5 days ago / month-end) → scheduler mode picks or skips it</td></tr>
+    <tr><td class="id">B-06</td><td><code>enabled: false</code> between scheduling and firing → trigger ends "disabled"</td></tr>
+    <tr><td class="id">C-04</td><td>reads another client's settings (needs the staff login, not a change)</td></tr>
+    <tr><td class="id">C-06, D-09</td><td><code>pan.paths = ["company.misc.pan_no"]</code> → value read from the bulk-upload extra data</td></tr>
+    <tr><td class="id">D-03</td><td><code>msme.paths = ["company.misc.msme_registration_number"]</code> on vendor 72280 (a link) → skipped</td></tr>
+    <tr><td class="id">D-04</td><td><code>bank.paths = [{bank_account_no: company.misc.bank_account_number, ifsc: company.misc.bank_ifsc_code}]</code> → account without IFSC is skipped</td></tr>
+    <tr><td class="id">D-05, D-06, D-07, D-12</td><td><code>gst.paths</code> variants: a column that does not exist first; two columns with values; a form field then a column; a column with spaces</td></tr>
+    <tr><td class="id">E-02, E-06, E-08, E-09</td><td>a document pointed at the wrong column on purpose (a PAN read as GST, a GSTIN read as PAN, a PAN read as MSME) → the format pre-check must refuse it without a provider call</td></tr>
+    <tr><td class="id">F-10, F-16</td><td><code>enabled: false</code> 1.5 s after a 5-vendor run starts → remaining rows closed as System Error; vendors keep a final status</td></tr>
+    <tr><td class="id">G-06</td><td>pan not due, gst due → scheduler run keeps PAN's older failed result</td></tr>
+    <tr><td class="id">G-17</td><td>pan removed from <code>validations</code> → listing status of a PAN-failed vendor</td></tr>
+    <tr><td class="id">I-10</td><td><code>enabled: false</code> → listing drops the columns, old rows kept, link statuses unchanged; then restored</td></tr>
+  </table></div>
+  <p class="muted" style="margin-top:8px;font-size:.9rem">All of these also need REV-19 fixed, except A-20, C-04, G-17 and I-10, which need only the settings.</p>
+
+  <h3>C. No longer apply — feature removed on 20 Oct <span class="pill p-off">18 tests</span></h3>
+  <ul>
+    <li><b>Settings validation (A-04 to A-12, A-27, A-28, A-32, A-33):</b> the endpoint and its checks were deleted; nothing refuses a wrong value now (REV-17). Product decision needed: bring the checks back, then these tests return.</li>
+    <li><b>Cancel a scheduled run (A-24, B-05):</b> <code>DELETE /trigger/:job_id</code> is gone. A scheduled run can no longer be cancelled by anyone.</li>
+    <li><b><code>top_errors</code> in the run status (G-15):</b> removed from the reply.</li>
+    <li><b>I-05 (QA controls blocked on production):</b> starting a run is now a buyer feature meant for production. <b>Note</b>: that means REV-02 (an empty vendor list runs every vendor) is now reachable by any buyer who may edit vendors, in production.</li>
+    <li><b>B-20:</b> fixed by the rewrite (a partial run no longer takes the nightly claim).</li>
+  </ul>
+
+  <h3>D. Needs a developer <span class="pill p-wait">13 tests</span></h3>
+  <div class="tbl"><table><tr><th>Test</th><th>What the developer does</th><th>What we then check</th></tr>
+    <tr><td class="id">F-02, F-03, F-04, F-05, F-06, F-12</td><td>For about an hour, point UAT's GST provider at a stub that answers 429 (with and without <code>Retry-After</code>), then 5xx, then normal — or lower <code>ProviderGuard</code> waits on UAT. Tell us the window.</td><td>Rows stay pending (never Failed); the breaker opens on the first 429 or after 5 failures, waits Retry-After / 15 → 30 → 60 min, sends one probe, reopens with jitter; a second GST provider is unaffected. We read rows and timings; the dev confirms <code>breaker_opened/closed</code> lines.</td></tr>
+    <tr><td class="id">F-09</td><td>Make <code>VendorWorker</code> raise for one vendor (console or a feature flag) so its 3 retries run out.</td><td>Its rows closed as System Error with reason retries_exhausted; other vendors finish.</td></tr>
+    <tr><td class="id">B-17</td><td>Leave rows pending at 23:00 (e.g. the stub above still on) — or share the log.</td><td>Log line <code>run_skipped … previous run in progress</code>; no second run.</td></tr>
+    <tr><td class="id">E-14, E-15, G-16, I-07, I-09</td><td>Read-only access to UAT app logs (and the provider request log) for the run times, or paste the lines.</td><td>Right provider per client; 24-hour cache reuse; <code>run_summary</code> counts equal the API; breaker lines; onboarding's own retry/alert path untouched.</td></tr>
+  </table></div>
+  <p class="muted" style="margin-top:8px;font-size:.9rem">Already proven from the recorded runs without a dev: B-18 nightly at 23:00 IST, F-01, F-08, F-11, F-14 (pass), F-07 (REV-21: rows given up after 16–17 h, not 24) and F-13 (REV-22: 38 Attestr calls in one minute).</p>
+
+  <h3>Test data already prepared (21 Oct, 01:30 IST)</h3>
+  <p>Ten Procol test vendors were created on GMMCO through vendor bulk upload with <b>Status = rejected</b> — no invite mail, no onboarding form, no vendor login — so they sit in the "rejected" group the overnight config targets, and revalidation reads them through its <code>company.*</code> and <code>company.misc.*</code> paths. Values are fake by design (PAN part <code>QATZQ…</code>, UK VAT <code>GB9…</code>, IFSC <code>QATZ0…</code>). Ids are recorded in <code>prototype/config/revalidationVendors.json</code>; the tests pick them up by role.</p>
+  <div class="tbl"><table><tr><th>Vendor</th><th>Holds</th><th>Expected when revalidated</th><th>Covers</th></tr>
+    <tr><td class="id">72274 GSTA</td><td>GSTIN <code>27QATZQ1149A1Z5</code> + PAN <code>QATZQ1149A</code> (well-formed, unknown)</td><td>gst and pan Failed by the provider</td><td>E-01, E-07, G-01</td></tr>
+    <tr><td class="id">72275 GSTB</td><td>same shape, letter B</td><td>as above; a second vendor for re-trigger cases</td><td>B-13, B-14, G-13</td></tr>
+    <tr><td class="id">72278 VATPAN</td><td>VAT <code>GB911491111</code> in the tax field + PAN <code>QATZQ1149C</code></td><td>gst "GST input is incorrect" (pre-check, no call); pan Failed by the provider</td><td>E-02, E-06, E-07</td></tr>
+    <tr><td class="id">72280 MSMELINK</td><td>MSME = <code>https://example.com/udyam-certificate.pdf</code></td><td>msme Skipped "not provided" (a link is not a value)</td><td>D-03</td></tr>
+    <tr><td class="id">72282 MSMEFAKE</td><td>MSME <code>UDYAM-MH-00-1149001</code> (well-formed, unknown)</td><td>msme Failed by the provider</td><td>E-09</td></tr>
+    <tr><td class="id">72284 MSMEBAD</td><td>MSME <code>MH12345</code></td><td>msme "MSME input is incorrect" (pre-check)</td><td>E-09</td></tr>
+    <tr><td class="id">72286 BANKHALF</td><td>account <code>0000121149</code>, no IFSC</td><td>bank Skipped "not provided"</td><td>D-04</td></tr>
+    <tr><td class="id">72288 BANKFAKE</td><td>account <code>0000131149</code> + IFSC <code>QATZ01149AB</code></td><td>bank Failed by the provider ("Invalid IFSC code")</td><td>E-10</td></tr>
+    <tr><td class="id">72290 BANKBADIFSC</td><td>account <code>0000141149</code> + IFSC <code>ABC123</code></td><td>bank "BANK input is incorrect" (pre-check)</td><td>E-10</td></tr>
+    <tr><td class="id">72292 NODOCS</td><td>nothing</td><td>every document Skipped; final Skipped; no error line</td><td>D-01, G-02, G-03</td></tr>
+  </table></div>
+  <p class="muted" style="margin-top:8px;font-size:.9rem">With the overnight config from Part 1 these ten are checked by tonight's 23:00 run together with the other 62 test vendors in the rejected group. What bulk upload cannot prepare: a form-field value (<code>form.*</code> paths), a file-only field, an extended field, a re-submitted onboarding, a real cancelled GSTIN — those stay in the table below.</p>
+
+  <h3>E. Needs a person, or a prepared vendor <span class="pill p-wait">14 tests</span></h3>
+  <div class="tbl"><table><tr><th>Test</th><th>Why it is not automatic today</th><th>What would make it automatic</th></tr>
+    <tr><td class="id">A-35</td><td>Needs a GMMCO buyer login whose role may <i>not</i> edit vendors.</td><td>A QA user on GMMCO with a read-only role (we then prove the trigger is refused and the run status still readable).</td></tr>
+    <tr><td class="id">C-02</td><td>Needs a vendor unlinked from GMMCO — a change to a real vendor record.</td><td>A Procol test vendor we may unlink, or do it on PROCOL DEMO once revalidation is on there.</td></tr>
+    <tr><td class="id">C-07, H-11</td><td>Needs revalidation switched on for a second customer and a vendor linked to both.</td><td>Settings access (Part 1) + PROCOL DEMO as the second customer.</td></tr>
+    <tr><td class="id">C-08</td><td>Needs a vendor's link status changed in the middle of a run.</td><td>A run that starts (REV-19) and a test vendor whose status we may change.</td></tr>
+    <tr><td class="id">D-02, D-10, D-11, E-17</td><td>Need a vendor whose form field holds only a file; who has an extended-field value; who re-submits onboarding; who has a CIN/FSSAI value. (D-03, the link-as-value case, is now prepared: vendor 72280.) Filling GMMCO's onboarding form as a vendor e-mails GMMCO's real vendor-management team, so we do not do it.</td><td>An onboarding v2 event on PROCOL DEMO (Procol's own tenant). We then create Procol test vendors there and fill every variant ourselves, with screenshots.</td></tr>
+    <tr><td class="id">E-03</td><td>Needs a real cancelled GSTIN.</td><td>Any cancelled GSTIN from the dev or ops, recorded in <code>config/revalidationVendors.json</code>.</td></tr>
+    <tr><td class="id">E-16, G-10, G-11</td><td>Need a vendor's document changed between two days, then two runs.</td><td>Same as D-02…: a test vendor on PROCOL DEMO plus REV-19 fixed (or two nights).</td></tr>
+    <tr><td class="id">F-15, I-08</td><td>Need a person filling onboarding v2 during a large run / with bad documents, and comparing messages with the previous release.</td><td>The PROCOL DEMO onboarding event above; the message comparison stays a one-time human check.</td></tr>
+  </table></div>
+
+  <h3>F. Screen checks <span class="pill p-ok">done on the preview</span> <span class="pill p-wait">2 left</span></h3>
+  <p>Done on the preview dashboard (procol-ui-tests/scripts/reval-filters.ts): H-06 — the Validation Status filter returns exactly the database's vendors for Passed (20), Failed (7), System Error (11) and Skipped (40) on the Prospects tab; H-08 — the status filter together with a name search (7 of 7). Two findings came out of it: <b>REV-23</b> the filter has no choice for vendors never checked, and <b>REV-24</b> there is no "Last Validated At" date filter at all (so H-03 and H-07 have nothing to run against). Still needing a person: H-11 (a second customer's login) and I-04 (the vendor portal).</p>
+
+  <h3>G. Proven from the code, not sent <span class="pill p-off">6 tests</span></h3>
+  <ul>
+    <li><b>A-34</b>: <code>vendor_ids: []</code> would revalidate every GMMCO vendor against the paid providers (REV-02) — never sent.</li>
+    <li><b>E-05, E-11, E-13</b>: <code>validation.rb:233</code> returns the provider's answer before <code>apply_response_rules</code> (<code>:235</code>), so no customer rule (name match) is ever applied in revalidation (REV-03). A live demonstration needs a vendor whose GST is registered to a different name.</li>
+    <li><b>D-14</b>: <code>value_reader.rb</code> treats a value as a link only when it starts with lower-case <code>http://</code> or <code>https://</code>.</li>
+    <li><b>I-06</b>: <code>scheduler_worker.rb:24</code> and <code>validation.rb:246</code> still call <code>Sentry.capture_exception</code> (REV-13); confirming needs Sentry access.</li>
+  </ul>
+
+  <h3>H. The 143 manual cases</h3>
+  <p>They were written against TRD v1 before the build existed. Most describe the same checks as the automation cases above (settings on/off, cycles, coverage, document outcomes, final status, listing, Excel, masking) and are covered by them; the sheet "Manual tests" in the Excel maps each one. What stays genuinely human after everything above is in place: VR_TC cases on the Excel's look and the vendor portal (sections 13–16), the billing/usage count (section 12, no API exists for it), and the "same messages as before this release" comparison (section 19).</p>
+
+  <h2>Priority for the developer</h2>
+  <ol>
+    <li><b>REV-19</b> — no on-demand run starts. Unblocks 20 tests and the whole on-demand feature.</li>
+    <li><b>Settings access for QA on UAT</b> (Part 1) — unblocks 26 tests and the overnight scheduler test.</li>
+    <li><b>REV-02</b> — an empty vendor list runs every vendor; now reachable by any buyer who may edit vendors.</li>
+    <li><b>REV-04</b> — full PAN and bank account numbers on the listing, the vendor page and the Excel.</li>
+    <li><b>REV-17</b> — settings are saved without any validation.</li>
+    <li><b>REV-23 / REV-24</b> — a buyer cannot list the vendors still unchecked, and cannot filter by last-validated date.</li>
+    <li>Then REV-21 (rows given up after 16–17 h), REV-22 (rate cap), REV-06/07/20 (labels and formats).</li>
+  </ol>
+  <p class="muted" style="margin-top:28px;font-size:.88rem">Everything here comes from procol-backend <code>rfx-uat-main @ a717f107ce</code>, the UAT database (read-only) and live calls made as GMMCO's buyer on 20–21 Oct 2026. Full evidence per finding: the <a href="https://claude.ai/artifact/AQh8LsJiXLx5RvJ6kGhs5m">bug sheet</a>.</p>
+</div>

@@ -25,6 +25,7 @@ import { runExpectationStep } from "./expectations.js";
 import { runQcsAudienceStep } from "./qcsAudienceSteps.js";
 import { installObserver, observe, shareObserver, type Observation } from "./observe.js";
 import { screenInventory } from "./inventory.js";
+import { installSpotlight, beginStep, stepShots, spotlightVerify, spotlightMap, type SpotShot } from "./spotlight.js";
 import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
 import { join as joinInv, dirname as dirnameInv } from "node:path";
 import { fileURLToPath as fileUrlInv } from "node:url";
@@ -214,6 +215,8 @@ export interface StepResult {
   };
   /** The run broke one of the app's rules by its own setup, satisfied it, and retried. */
   recovered?: { appSaid: string; rule: string; why: string; did: string[] };
+  /** The spotlight pictures taken during this step: each action framed, each assertion verified (spotlight.ts). */
+  spotlights?: SpotShot[];
 }
 
 export interface PlanResult {
@@ -1049,10 +1052,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       for (const until = Date.now() + 20_000; Date.now() < until && (await busy.isVisible().catch(() => false)); ) await s.page.waitForTimeout(250);
       const o = await observe(s.page, s.stepNo, `inventory-${label}`, { force: true }).catch(() => null);
       const inv = await screenInventory(s.page);
+      const map = await spotlightMap(s.page, label, inv.controls).catch(() => null);
       const fallbackDir = joinInv(dirnameInv(fileUrlInv(import.meta.url)), "..", "..", "evidence", "inventories");
       const file = o?.screenshot ? o.screenshot.replace(/\.png$/, ".inventory.json") : joinInv(fallbackDir, `${label}-${Date.now()}.inventory.json`);
       mkdirInv(dirnameInv(file), { recursive: true });
-      writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o?.screenshot ?? null, aria: o?.snapshot ?? null, ...inv }, null, 2));
+      writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o?.screenshot ?? null, map, aria: o?.snapshot ?? null, runId: process.env.QA_RUN_ID ?? null, stepNo: s.stepNo, ...inv }, null, 2));
       console.log(`[inventory] ${file}`);
       const by = inv.controls.reduce<Record<string, number>>((m, c) => ((m[c.kind] = (m[c.kind] ?? 0) + 1), m), {});
       return `inventory of "${label}" at ${inv.path}: ${inv.controls.length} controls (${Object.entries(by).map(([k, n]) => `${n} ${k}`).join(", ")})`;
@@ -1293,10 +1297,42 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       await s.create.fillSheet(s.widgets, s.lineItemsAdded || 1);
       return "sheet filled";
     }
-    case "fill_questionnaires":
+    case "fill_questionnaires": {
+      if (await isSingleStageScreen(s)) {
+        // The single-stage RFP screen is the questionnaire itself: numbered questions with an
+        // "Enter answer here…" box each (captured 2026-10-21, combo-s3), no RFI sections.
+        const boxes = s.page.locator("textarea, input[type='text']").filter({ visible: true });
+        let filled = 0;
+        for (let i = 0; i < (await boxes.count()); i++) {
+          const b = boxes.nth(i);
+          const ph = ((await b.getAttribute("placeholder").catch(() => "")) ?? "").toLowerCase();
+          if (!/answer/.test(ph)) continue;
+          if (((await b.inputValue().catch(() => "")) ?? "").trim()) continue;
+          await b.fill("Automated answer", { timeout: 5_000 }).then(() => filled++).catch(() => {});
+        }
+        return filled ? `${filled} answer(s) typed (single-stage questionnaire)` : "no empty answer boxes on this screen (single-stage)";
+      }
       await s.create.fillVendorAssessment();
       return "RFI sections filled";
+    }
     case "assign_evaluator": {
+      if (await isSingleStageScreen(s)) {
+        // One "Evaluator: Search people or teams" select above the questionnaire.
+        const picker = s.page.locator(".ant-select").filter({ hasText: /people or teams/i }).first();
+        const input = s.page.locator("input[placeholder*='people or teams' i]").first();
+        const target = (await picker.count()) ? picker : input;
+        if (!(await target.count())) throw new Error("no Evaluator picker on this single-stage screen (not evidence about the product)");
+        await target.click({ timeout: 10_000 });
+        await s.page.keyboard.type("a", { delay: 40 }).catch(() => {});
+        const options = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) [role='option'], .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-dropdown-menu-item, .ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item");
+        await options.first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+        const named = options.filter({ hasText: /\S/ }).first();
+        if (!(await named.count())) throw new Error("the Evaluator picker opened but lists nobody to assign");
+        const who = ((await named.innerText().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+        await named.click({ timeout: 5_000 });
+        await s.page.keyboard.press("Escape").catch(() => {});
+        return `evaluator assigned: ${who.slice(0, 60)} (single-stage)`;
+      }
       const n = await s.create.assignEvaluatorToAllLineItems();
       if (!n) throw new Error("no evaluator could be assigned, and a technical stage cannot publish without one");
       return `${n} evaluator control(s)`;
@@ -1317,6 +1353,17 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         await s.page.waitForTimeout(2_000);
         await s.create.saveSchedule();
         if (s.create.scheduleWindows.length < stages) throw new Error(`the Schedule drawer showed ${s.create.scheduleWindows.length} of ${stages} stages — the others keep their previous end time, which the app refuses beside a Duration (BUG-85)`);
+      }
+      // Two stages must end together, or the technical stage ends after the RFQ and publish is
+      // refused ("RFP duration exceeds RFQ end time"). A duration that is not a preset lands on
+      // a different preset per block (45 asked → 60 on the technical block, 30 on the RFQ,
+      // 2026-10-21), so when the blocks disagree, schedule every block on the 30-minute preset.
+      const ends = new Set(s.create.scheduleWindows.map((w) => w.endsAt));
+      if (stages > 1 && s.create.scheduleWindows.length > 1 && ends.size > 1) {
+        console.log(`[create-event] the stages end at different times (${[...ends].join(" / ")}) — scheduling every stage on the 30-minute preset`);
+        process.env.UI_SCHEDULE_MINUTES = "30";
+        await s.page.waitForTimeout(1_000);
+        await s.create.saveSchedule();
       }
       // Report what the app holds — each stage block's own "Event will end at" line — never
       // what was typed (a 3-minute end that did not take was reported as "saved (3 min)").
@@ -1466,17 +1513,22 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       return "the bid is submitted";
     case "invite_vendor": {
       if (await isSingleStageScreen(s)) {
-        const asked = Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
-        // Only QA test vendors may be named (real suppliers are never invited):
-        // a real one is swapped for the client's QA vendors, and the run says so.
+        // The invite rule (spine/animesh, 21 Oct): a vendor the case names is searched for;
+        // otherwise the product's own Invite Vendor takes everyone it suggests. On a QA-only run
+        // (aanya) only QA test vendors may be named: a real one is swapped for the client's QA
+        // vendors, and the run says so.
+        const asked = Array.isArray(a.vendors) ? a.vendors.map(String) : Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
         const qa = await qaVendorNames();
         const names = allowRealVendors() ? asked : asked.filter((n) => isQaVendorName(n, qa));
         const real = allowRealVendors() ? [] : asked.filter((n) => !isQaVendorName(n, qa));
         const added: string[] = [];
-        for (const n of names) if (await s.single.addParticipant(n)) added.push(n);
+        for (const n of names) {
+          if (await s.single.addParticipant(n)) added.push(n);
+          else console.log(`[single-stage] no vendor matched "${n}" in the participants search`);
+        }
         if (!added.length) await s.single.inviteVendor();
         invitedVendors = allowRealVendors() ? added : added.filter((n) => isQaVendorName(n, qa));
-        return swapNote(real) + (added.length ? `invited ${added.join(", ")} (single-stage)` : "vendors invited (single-stage)");
+        return swapNote(real) + (added.length ? `invited ${added.join(", ")} (single-stage)` : "invited every vendor the product suggested (single-stage)");
       }
       const asked = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
       const min = a.count !== undefined ? Number(a.count) : vendorCount();
@@ -1545,6 +1597,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       s.projectId = s.create.projectId() ?? s.projectId;
       return `published as ${s.create.projectId()}`;
     case "save_draft":
+      // The single-stage screen offers only "Publish Event" (captured 2026-10-21): say so
+      // rather than spend ten seconds looking for a button the product does not draw there.
+      if (await isSingleStageScreen(s)) throw new Error("the single-stage create screen has no Save as draft — only Publish Event; a draft needs the eRFX screen");
       await s.create.saveAsDraft();
       return "saved as draft";
 
@@ -1719,7 +1774,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
   console.log(`[plan] ${plan.title} — ${plan.steps.length} step(s)${plan.context?.state ? ` on a ${plan.context.state} event built by API` : ""}`);
   const results: StepResult[] = [];
   const observations: Observation[] = [];
-  installObserver(page, process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`);
+  const runId = process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`;
+  installObserver(page, runId);
+  installSpotlight(page, joinInv(process.cwd(), "evidence", runId.replace(/[^\w.-]+/g, "_")));
   /** The observation pass after a step — bounded, and never the reason a step fails. */
   const look = async (i: number, name: string, force: boolean) => {
     const o = await Promise.race([
@@ -1762,16 +1819,18 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       s.lastStrategy = undefined;
       s.stepNo = i + 1;
       s.later = plan.steps.slice(i + 1).map((x) => x.step);
+      beginStep(i + 1, step.step, plan.steps.length);
       const detail = await runStep(s, step);
       // Done by the tester in the browser, not by the run: recorded as such and
       // never counted as tested — a run they finished by hand is partly tested.
       if (s.didByHand) {
         s.didByHand = false;
-        results.push({ step: step.step, args: step.args, status: "skipped", byHand: true, detail: `done by you in the browser, not tested by the run — ${detail ?? ""}`.replace(/ — $/, ""), ms: Date.now() - started });
+        results.push({ step: step.step, args: step.args, status: "skipped", byHand: true, detail: `done by you in the browser, not tested by the run — ${detail ?? ""}`.replace(/ — $/, ""), ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
         console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ⊘ done by you in the browser, not tested by the run`);
         continue;
       }
-      results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started });
+      if (/^expect_/.test(step.step)) await spotlightVerify(page, `${step.step}${detail ? ` — ${detail}` : ""}`).catch(() => {});
+      results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
       await look(i, step.step, i === plan.steps.length - 1);
     } catch (err) {
@@ -1831,7 +1890,8 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
           s.curMark = await toastMark(s.page);
           const detail2 = await runStep(s, step);
           const told = chain.map((c) => `the app refused "${c.appSaid}" (${c.rule}); ${c.why}`).join(", then ");
-          results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: ${told}`, recovered: { ...chain[0], did: chain.flatMap((c) => c.did) }, ms: Date.now() - started });
+          if (/^expect_/.test(step.step)) await spotlightVerify(page, `${step.step}${detail2 ? ` — ${detail2}` : ""}`).catch(() => {});
+          results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: ${told}`, recovered: { ...chain[0], did: chain.flatMap((c) => c.did) }, ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
           console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail2 ?? ""} (after recovering from ${chain.map((c) => `"${c.appSaid}"`).join(" and ")})`);
           await look(i, step.step, false);
           recoveredStep = true;
@@ -1867,7 +1927,7 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       const ruleNote = lastRule ? ` — the app's own rule (${lastRule.rule!.source})${recoveryFor(lastRule.t) ? "" : "; no known way for the run to satisfy it"}` : said.length ? ` — the app said "${said[0]}", which is not one of its known rules` : "";
       const failedAt = results.length;
       const failText = (lastRefusal ?? detail) + (lastRefusal && !lastRule ? " — the app said this after the recoveries above; it is not one of the dashboard's own rules" : ruleNote);
-      results.push({ step: step.step, args: step.args, status: "failed", detail: failText, ms: Date.now() - started });
+      results.push({ step: step.step, args: step.args, status: "failed", detail: failText, ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${failText}`);
       const before = observations.length;
       // The screen the step failed on: the vendor's, for a bid; else the buyer's.

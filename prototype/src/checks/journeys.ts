@@ -350,6 +350,19 @@ const JOURNEYS: JourneyDef[] = [
     spine: ["download_vendor_template", "fill_vendor_sheet", "upload_vendor_sheet", "wait_for_vendor_job", "read_row_results", "download_error_sheet", "check_prospects_and_vendors"],
   },
   {
+    // test-cases/api-vendor-revalidation.md + product-vendor-revalidation.md —
+    // generated from procol test/scripts/revalidation/spec.ts and the guide's
+    // manual sheet; the runnable cases are run by src/checks/revalidation.ts.
+    id: "vendor-revalidation",
+    title: "Re-checking every vendor's documents on a schedule",
+    persona: "Procol ops (config) & buyer (results)",
+    goal: "Set a client's revalidation config, let the nightly run (or a QA trigger) re-check each vendor's GST, PAN, MSME and bank, and see one final status per vendor — with the reasons — on the listing, the vendor page and the Excel download.",
+    order: 30.5,
+    uiGroups: ["PRD-VREV"],
+    apiGroups: ["API-XREV-A", "API-XREV-B", "API-XREV-C", "API-XREV-D", "API-XREV-E", "API-XREV-F", "API-XREV-G", "API-XREV-H", "API-XREV-I", "API-XREV-R"],
+    spine: ["set_revalidation_config", "trigger_revalidation_run", "wait_for_run", "read_run_rows", "check_final_status", "check_vendor_listing", "restore_config"],
+  },
+  {
     // test-cases/ui-api-crosscheck.md — run by procol-ui-tests/tests/crosscheck.spec.ts,
     // which compares each event screen with the API responses it was built from.
     id: "ui-api-crosscheck",

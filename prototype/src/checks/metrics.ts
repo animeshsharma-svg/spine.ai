@@ -269,6 +269,8 @@ function areaOf(c: CatalogCase): { key: string; label: string } {
   if (/^API-F[A-Z]+$/.test(g)) return { key: "api-field", label: "Field checks on every journey reply" };
   if (/^API-N[A-Z]+$/.test(g) && g !== "API-NFR") return { key: "api-negatives", label: "Request negatives (one field wrong at a time)" };
   if (g === "API-XVBU") return { key: "api-vbu", label: "Vendor bulk upload" };
+  if (g.startsWith("API-XREV")) return { key: "api-reval", label: "Vendor revalidation" };
+  if (g === "PRD-VREV") return { key: "prd-reval", label: "Vendor revalidation (manual)" };
   if (g === "API-XTPL") return { key: "api-template", label: "Template field rules" };
   if (g === "API-XMAT") return { key: "api-matrix", label: "Bidding scenarios" };
   if (/^API-X/.test(g)) return { key: "api-edge", label: "Edge cases from the backend code" };

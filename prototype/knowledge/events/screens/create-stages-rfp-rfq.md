@@ -1,0 +1,44 @@
+# Screen: create-stages-rfp-rfq (/orders/quick-create)
+
+Captured 2026-10-20 on company 198678. 21 controls, 21 with a known effect, 8 test cases written from it.
+
+## How to reach the create-stages-rfp-rfq screen
+
+Plan steps: open_create {"path":"erfx"} → set_title → compose_stages {"stages":["rfp","rfq"]}. Path: `/orders/quick-create`.
+Headings on it: Vendor Assessment.
+It shows: Line Items are not added, please add them in Manage Line Items section.
+
+## What each control on create-stages-rfp-rfq does
+
+- **Ask Clara** (button): Clicking it opens Clara to help generate RFP questions. Affects: It can add AI-generated questions to the technical-stage content when line items exist.. Leads to: Ask Clara drawer. Rule R-FCR-042-4. Check: Click Ask Clara and verify the Clara drawer opens or reports that line items are required.
+- **Add Attachments** (button): Clicking it opens the attachment control. Affects: It adds or updates attachments associated with the event.. Leads to: Attachment drawer or dialog. Check: Click Add Attachments and verify an attachment can be selected for the event.
+- **Add T&Cs** (button): Clicking it opens the terms-and-conditions control. Affects: It adds or updates the event's terms and conditions.. Leads to: Terms and Conditions drawer or dialog. Check: Click Add T&Cs and verify the terms editor opens.
+- **Items 0** (button): Clicking it opens the line-item management section. Affects: It changes the event's line_items record, which is currently empty.. Leads to: Manage Line Items section. Rule R-FCR-016-2. Check: Click Items 0 and verify the line-item management view opens and shows no items.
+- **Save as draft** (button, disabled): It cannot be clicked because line items have not been added. Affects: It does not create or save a draft while the event has no line items.. Leads to: stays here. Rule R-FCR-016-2. Check: Verify the button is disabled and its tooltip or validation state says that line items must be added.
+- **Publish** (button): Clicking it attempts to publish the event after running publish validations. Affects: If validation succeeds, it creates or activates the event and its stages; otherwise no publish occurs.. Leads to: Publish confirmation or validation state, followed by the event screen on success. Rule R-FCR-013-1. Check: Click Publish with no title or participants and verify the relevant validation prevents publication.
+- **Technical Stage** (button): Clicking it opens the technical-stage configuration or stage-selection control. Affects: It changes which stage configuration is being edited.. Leads to: Technical Stage configuration view or menu. Check: Click Technical Stage and verify the technical-stage configuration is shown.
+- **Select Templates** (button, disabled): It cannot be clicked because the technical stage has no line items or selected template. Affects: It does not load a template until the required prerequisite is satisfied.. Leads to: stays here. Rule R-FCR-016-2. Check: Verify the button is disabled and its tooltip explains that a template or line items must be added.
+- **Add Evaluator** (button): Clicking it opens the evaluator picker. Affects: It adds an evaluator to the technical stage or its sections.. Leads to: Evaluator drawer or dialog. Rule R-FCR-041-4. Check: Click Add Evaluator and verify an evaluator can be selected.
+- **Participants** (button): Clicking it opens participant management. Affects: It changes the event's participant or audience-company records.. Leads to: Participants drawer or dialog. Rule R-FCR-017-1. Check: Click Participants and verify the participant-management control opens.
+- **Terms & Conditions** (button): Clicking it opens the event terms-and-conditions settings. Affects: It changes the event's terms_and_conditions data.. Leads to: Terms and Conditions drawer or dialog. Rule R-FCR-008-1. Check: Click Terms & Conditions and verify the terms editor opens.
+- **Now - 02:33 am, 21st Oct ( 30 Mins )** (button): Clicking it opens the event schedule control for the current start time and duration. Affects: It changes the stage schedule, including its start, end, or duration.. Leads to: Schedule drawer or popover. Rule R-FCR-022-7. Check: Click the schedule control and verify the current schedule and duration options are editable.
+- **Technical Stage** (tab): Selecting it displays the technical-stage editor. Affects: It changes the currently displayed stage but does not itself change event data.. Leads to: stays here. Rule R-FLA-016-2. Check: Verify Technical Stage is highlighted and its fields are visible.
+- **RFQ** (tab): Selecting it switches the editor to the RFQ stage. Affects: It changes the current stage being configured from the technical stage to the RFQ stage.. Leads to: RFQ stage view. Rule R-FLA-016-2. Check: Click RFQ and verify the RFQ configuration is displayed and the tab becomes selected.
+- **Events** (link): Clicking it navigates to the Events area. Affects: nothing. Leads to: Events screen. Check: Click Events and verify the Events listing opens.
+- **Enter the title of the project** (field): Entering text sets the project title. Affects: It updates the event or project title used during save and publish.. Leads to: stays here. Rule R-FCR-013-1. Check: Enter a title and verify the value remains in the title field and is used in the publish validation or confirmation.
+- **Search vendors you want to add** (select): Typing searches for vendors and selecting a result adds that vendor as a participant. Affects: It updates the event's participant or audience-company records.. Leads to: stays here. Rule R-FCR-035-3. Check: Search for an eligible vendor, select it, and verify the vendor appears in the participant list.
+- **#** (column): It displays the line-item number column heading. Affects: nothing. Leads to: stays here. Check: Verify the column heading # is visible above the line-item grid.
+- **Specification** (column): It displays the required Specification column heading. Affects: nothing. Leads to: stays here. Check: Verify Specification is shown as a required column in the technical-stage grid.
+- **Description** (column): It displays the required Description column heading. Affects: nothing. Leads to: stays here. Check: Verify Description is shown as a required column in the technical-stage grid.
+- **Vendor Response** (column): It displays the required Vendor Response column heading. Affects: nothing. Leads to: stays here. Check: Verify Vendor Response is shown as a required column in the technical-stage grid.
+
+## Test cases written from the create-stages-rfp-rfq screen
+
+- GEN-SCR-080: Select Templates is blocked until a line item is added. Steps: Hover over "Select Templates". Click "Items 0" and add one line item. Return to the Vendor Assessment screen. Hover over "Select Templates". Expected: Before a line item is added, "Select Templates" is disabled and shows the tooltip "Please add line items". After a line item is added, the control is enabled or its disabled tooltip is no longer shown. [plan: full]
+- GEN-SCR-081: Publish reports missing payment terms. Steps: Click "Publish". Expected: The event is not published. The message "Payment Terms and Conditions are mandatory" appears. [plan: partial]
+- GEN-SCR-082: Publish opens the event confirmation dialog. Steps: Click "Publish". Expected: A confirmation dialog opens with the title "Publish Event" and an action labeled "Publish". The event has not yet been created. [plan: partial]
+- GEN-SCR-083: Add Attachments opens the attachment interface. Steps: Click "Add Attachments". Expected: The attachment interface opens, allowing the tester to select or add an attachment. The Vendor Assessment screen remains available after closing the interface. [plan: partial]
+- GEN-SCR-203: Select Templates is blocked until line items are added. Steps: Hover over Select Templates. Verify the tooltip. Select Items 0. Add one line item in the Manage Line Items section. Return to the Vendor Assessment screen. Expected: The disabled Select Templates control shows the tooltip "Please add line items". After a line item is added, Select Templates is enabled. [plan: full]
+- GEN-SCR-204: Publish refuses an empty project title. Steps: Clear Enter the title of the project. Select Publish. Expected: The event is not published. The app shows "Please fill project title!". [plan: full]
+- GEN-SCR-205: Publish requires saved payment terms. Steps: Select Publish. Expected: The event is not published. The app shows "Payment Terms and Conditions are mandatory". [plan: partial]
+- GEN-SCR-206: Items 0 opens line-item management. Steps: Select Items 0. Expected: The Manage Line Items section opens, where line items can be added. The screen's message "Line Items are not added, please add them in Manage Line Items section" identifies the required next action. [plan: full]

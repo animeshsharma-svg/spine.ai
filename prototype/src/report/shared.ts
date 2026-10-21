@@ -134,7 +134,7 @@ export function humanText(text: string | undefined, known: Record<string, string
   // A request named by its method and path → the request in words.
   s = s.replace(/\b(GET|POST|PATCH|PUT|DELETE) (\/[^\s,;)"”]+)/g, (_m, m: string, path: string) => endpointInWords(m, path));
   // A flow or feature key ("events.rfp_only", "plan.Save_as_draft_…") → its name.
-  s = s.replace(/(?<![\w\/.-])(?:events|plan|bids|auction|award|finance|vendorbulk|journey|evaluation|pr|po)\.[A-Za-z0-9_+,-]*[A-Za-z0-9]/gi, (k) => flowKeyInWords(k.replace(/^Plan\./, "plan.").replace(/^Events\./, "events.")));
+  s = s.replace(/(?<![\w\/.-])(?:events|plan|bids|auction|award|finance|vendorbulk|revalidation|journey|evaluation|pr|po)\.[A-Za-z0-9_+,-]*[A-Za-z0-9]/gi, (k) => flowKeyInWords(k.replace(/^Plan\./, "plan.").replace(/^Events\./, "events.")));
   // A test record the platform named with a date ("UI_Auto_RFP_2026-09-30_11-59-52-401").
   s = s.replace(/\b(?:UI_Auto|UI_Plan|QA_Platform|API_Journey|API_Test)_[A-Za-z0-9_-]*\d{4}[A-Za-z0-9_-]*/g, (n) => n.replace(/_/g, " "));
   if (!s) return s;

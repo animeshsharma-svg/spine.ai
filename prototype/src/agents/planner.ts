@@ -114,6 +114,28 @@ function labelsForPrompt(labels: Record<string, string[]> | undefined): string {
 
 const lc = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
+/**
+ * The screen library (data/screens, built by the screen walk): each screen the browser has
+ * photographed, with the steps that reached it. Read from disk, never imported, so the library
+ * module can import the compiler without a cycle. Empty until a walk has run.
+ */
+function screensForPrompt(): string {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "data", "screens");
+  if (!existsSync(dir)) return "";
+  const lines: string[] = [];
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json") && x !== "index.json").slice(0, 60)) {
+    try {
+      const r = JSON.parse(readFileSync(join(dir, f), "utf8")) as { label: string; path: string; state?: string; reachedBy?: Array<{ step: string; args?: Record<string, unknown> }>; controls?: Array<{ kind: string; name: string }> };
+      const reach = (r.reachedBy ?? []).map((st) => `${st.step}${st.args && Object.keys(st.args).length ? JSON.stringify(st.args) : ""}`).join(" → ");
+      const ctrls = (r.controls ?? []).filter((c) => c.kind === "button" || c.kind === "tab").slice(0, 14).map((c) => c.name).join(" · ");
+      lines.push(`- ${r.label} (${r.path}${r.state && r.state !== "none" ? `, on a ${r.state} event` : ""}): reached by ${reach || "(not recorded)"}${ctrls ? `; shows ${ctrls}` : ""}`);
+    } catch {
+      /* a half-written record */
+    }
+  }
+  return lines.join("\n");
+}
+
 /** Is a label known to exist in the product (source or seen live)? */
 export function labelIsKnown(word: string, labels: Record<string, string[]> | undefined): boolean {
   // "button Add Bid" / 'tab "Responses"' — the role word is not part of the label.
@@ -138,14 +160,6 @@ export function labelIsKnown(word: string, labels: Record<string, string[]> | un
  * configured — so a plan that invites "some vendor" and then tries to sign in
  * as them cannot work.
  */
-/**
- * The vendor a bid case names on invite_vendor — only when real suppliers are
- * deliberately allowed (SPINE_ALLOW_REAL_VENDORS=1). Otherwise the step stays
- * unnamed: the browser run invites the client's QA test vendors itself and
- * signs in as the one it invited to bid (procol-ui-tests runPlan bidderEmail).
- * Naming "AMD" here, a real supplier, made every bid case fail its invite.
- */
-const DEFAULT_VENDOR = process.env.SPINE_ALLOW_REAL_VENDORS === "1" ? process.env.UI_DEFAULT_VENDOR ?? "AMD" : "";
 
 const DOMAIN_RULES = `
 First decide WHICH SCREEN the test is about:
@@ -159,6 +173,7 @@ Combinations (the permutation map — pick the path that can actually reach what
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion: create and publish an RFQ (eRFX, compose_stages ["rfq"]), expect_published, then convert_to_auction. Never compose_stages ["rfq","auction"] — the screen forbids it.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
+- Bidding RULES the product enforces (captured live, 21 Oct 2026): (1) a vendor bids ONCE — after a bid is in, that vendor's "Add Bid" control is gone, so a second bid must name a DIFFERENT vendor; (2) bids for N vendors need N vendors on the event: invite_vendor{count: N} (or names) before publish; (3) no bid after the bidding window has ended — the app answers "Order not active" — except a surrogate bid on a tenant whose config "is_allowed_to_add_surrogate_bid_post_expiry" is on (a case about that must say which tenant); (4) a counter offer needs the VENDOR's own bid — the Counter Offer button is disabled on a surrogate bid; (5) comparing, Master QCS and awarding need an event WITH BIDS: never search the list for "some" event — start from the prepared state ("bid") the API builds, or create → publish → bid in the same plan.
 - Counter offer (buyer negotiates a vendor's bid): only after a vendor has bid — publish, place_bid (or place_surrogate_bid), open_master_qcs, then place_counter_offer{vendor, price}, then expect_counter_offer_sent. The vendor's ACCEPTANCE: accept_counter_offer{vendor} (vendor side, supplier portal) then expect_counter_offer_accepted (buyer grid).
 - A technical (RFP) stage never carries an auction strategy or a pricing sheet; RFQ and Auction never coexist on one eRFX screen.
 - READING MASTER QCS cell by cell (after open_master_qcs, or open_prepared master_qcs): expect_qcs_vendors (how many vendor columns, which, real names not placeholders), expect_qcs_cell{row, vendor, product, number|equals|key} (one figure: Qty Offer, Rank, the rate, the amount, Sum Total; key compares with the API's bidPrice / bidTotal / quantity), expect_qcs_amounts (amount = rate × quantity on every line, Sum Total = the sum), expect_qcs_ranks (lowest amount is Rank 1 on a buy event). These ARE the steps for "Rank 1", "Amount = price × quantity", "figures equal the bid the API holds", "correct per-line and total amounts" — never list those as inexpressible.
@@ -754,6 +769,22 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // Bids for N vendors need N vendors on the event: the product removes a vendor's Add Bid once
+  // that vendor has bid, so a second surrogate bid with one participant found nobody (E4, 2026-10-21).
+  {
+    const bids = steps.filter((st) => st.step === "place_surrogate_bid" || st.step === "place_bid");
+    const distinct = new Set(bids.map((st, i) => String(st.args?.vendor ?? `#${i}`))).size;
+    const inv = steps.find((st) => st.step === "invite_vendor");
+    if (inv && distinct > 1) {
+      const names = Array.isArray(inv.args?.names) ? (inv.args!.names as unknown[]).length : Array.isArray(inv.args?.vendors) ? (inv.args!.vendors as unknown[]).length : 0;
+      const count = Number(inv.args?.count ?? 0);
+      if (names < distinct && count < distinct) {
+        inv.args = { ...(inv.args ?? {}), count: distinct };
+        repairs.push(`invite_vendor now asks for ${distinct} vendors — the plan places ${distinct} bids, and a vendor can bid only once`);
+      }
+    }
+  }
+
   // close_event on this tenant means waiting for the bidding window to lapse
   // (no force-end is offered). Give such a plan a 3-minute schedule before
   // publish: long enough to place the bid, short enough to wait out.
@@ -1023,16 +1054,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
       steps.splice(indexOf("publish") + 1, 0, bid);
       repairs.push(`moved ${bid.step} after publish — bidding on an unpublished event is not possible`);
     }
-    if (has("place_bid")) {
-      const invite = steps.find((s) => s.step === "invite_vendor");
-      const named = Array.isArray(invite?.args?.vendors) && (invite!.args!.vendors as unknown[]).length > 0;
-      if (invite && !named && DEFAULT_VENDOR) {
-        invite.args = { ...(invite.args ?? {}), vendors: [DEFAULT_VENDOR] };
-        repairs.push(
-          `named ${DEFAULT_VENDOR} on invite_vendor — place_bid signs into the vendor portal, so the invited vendor cannot be whoever the audience happened to contain`,
-        );
-      }
-    }
+    // A vendor-portal bid (place_bid) signs in as the QA test vendor the runner knows; the plan
+    // never invents a vendor name for the invite (an invented "AMD" blocked runs, 2026-10-21).
+    // With no vendor named, invite_vendor takes everyone the product suggests.
   }
 
   // On the create screen Participants and Publish are LOCKED until a template is chosen and a
@@ -1294,11 +1318,13 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   }
 
   const knownLabels = labelsForPrompt(catalog.labels);
+  const knownScreens = opts.withholdGeneric ? "" : screensForPrompt();
   const prompt = [
     `STEP CATALOG:\n${catalogForPrompt(catalog.steps)}`,
     DOMAIN_RULES,
     opts.withholdGeneric ? "" : GENERIC_RULES,
     knownLabels ? `KNOWN LABELS (exact strings the product renders, by screen — from its source and from live runs):\n${knownLabels}` : "",
+    knownScreens ? `KNOWN SCREENS (photographed by the screen walk — the steps that reach each one; reuse them to get to the screen a case is about):\n${knownScreens}` : "",
     expectations.length ? `WHAT THE RULES SAY ABOUT THIS AREA:\n${expectations.map((e) => `- ${e}`).join("\n")}` : "",
     experience.length ? `WHAT HAS BROKEN HERE BEFORE (worth asserting):\n${experience.map((e) => `- ${e}`).join("\n")}` : "",
     opts.prepared ? preparedRules(opts.prepared) : "",

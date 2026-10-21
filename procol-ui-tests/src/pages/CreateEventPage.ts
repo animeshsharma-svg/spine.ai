@@ -1657,10 +1657,23 @@ export class CreateEventPage extends BasePage {
    * and the auto-populated audience is only a fallback for tests that just need
    * somebody to bid.
    */
+  /**
+   * THE INVITE RULE (spine/animesh, 2026-10-21): a case that NAMES a vendor gets that vendor
+   * by search; a named vendor the search cannot find falls back to the product's own "Invite
+   * Vendor" (everyone the products map to), so this step never leaves the run stuck; a count
+   * the audience does not reach is topped up with the client's QA test vendors.
+   *
+   * Kept from aanya (merge of 23 Oct):
+   *  - QA-only runs (SPINE_QA_VENDORS_ONLY=1) only ever invite the client's QA test vendors —
+   *    real suppliers are never invited, named or suggested;
+   *  - a case that names only a COUNT gets exactly that many vendors, each one this run can
+   *    bid as (Aanya, 15 Oct: "u can invite only 3 its best for u, but i want u to place the
+   *    bid for them"), via inviteExactly / keepExactInvite.
+   */
   async inviteVendors(opts: { names?: string[]; count?: number; exact?: boolean } = {}): Promise<string[]> {
+    const asked = (opts.names ?? []).map((n) => n.trim()).filter(Boolean);
     if (!allowRealVendors()) {
       const qa = await qaVendorNames();
-      const asked = opts.names ?? [];
       const notQa = asked.filter((n) => !isQaVendorName(n, qa));
       if (notQa.length) {
         throw new Error(`asked to invite ${notQa.join(", ")}, which ${notQa.length === 1 ? "is not a QA test vendor" : "are not QA test vendors"} — real suppliers are never invited`);
@@ -1671,60 +1684,39 @@ export class CreateEventPage extends BasePage {
       }
     }
     const invited: string[] = [];
-    for (const name of opts.names ?? []) {
+    for (const name of asked) {
       const ok = await this.addParticipantByName(name);
       if (ok) invited.push(name);
-      else console.log(`[create-event] no vendor matched "${name}"`);
+      else console.log(`[create-event] no vendor matched "${name}" in the participants search`);
     }
-    if (invited.length) {
-      console.log(`[create-event] invited by name: ${invited.join(", ")}`);
-      return invited;
+    if (invited.length) console.log(`[create-event] invited by name: ${invited.join(", ")}`);
+    // The case names how many and nobody: exactly that many, each one this run can bid as.
+    if (!asked.length && opts.exact && opts.count && allowRealVendors()) return this.inviteExactly(opts.count);
+    let have = await this.participantCount();
+    if (!invited.length || (opts.count && have < opts.count)) {
+      // nobody named (or a name the search does not know): everyone the product suggests
+      await this.inviteVendor();
+      if (this.leftCreateScreen()) return invited;
+      have = await this.participantCount();
     }
-    // The case names how many: exactly that many, each one this run can bid as.
-    if (opts.exact && opts.count && allowRealVendors()) return this.inviteExactly(opts.count);
-    // No names given (or none matched) — fall back to whoever is there.
-    await this.inviteVendor();
-    // "Invite 3 vendors" is met by the vendors Procol already invited. Aanya,
-    // 15 Oct: "if 166 vendors are already invited and I asked to invite 3, you
-    // need not invite 3 more, 3 are included in that only". The step used to
-    // add vendors it could sign in as until three were VISIBLE — but the chips
-    // show four names and "+162", so it kept adding. Who bids is chosen later
-    // from everyone invited (runPlan place_bid, db/eventAudience.ts), so a
-    // vendor is added here only when the audience is really short.
-    const added: string[] = [];
-    if (opts.count && opts.count > 1) {
-      let have = await this.participantCount();
-      if (have >= opts.count) {
-        console.log(`[create-event] ${have} vendors are already invited — the ${opts.count} asked for are among them, so none are added`);
-      } else {
-        const logins = await vendorLogins();
-        let present = await this.participantNames();
-        for (const v of logins) {
-          if (have >= opts.count) break;
-          if (this.leftCreateScreen()) {
-            console.log("[create-event] the page has left the create screen (published from the browser?) — stopping the invite here");
-            return added;
-          }
-          if (present.some((n) => isQaVendorName(n, [v.name]))) continue;
-          const how = await this.addParticipantByName(v.name);
-          if (how && how !== "present") {
-            added.push(v.name);
-            console.log(`[create-event] added ${v.name} — the audience had ${have} of the ${opts.count} vendors asked for`);
-            present = await this.participantNames();
-            have = await this.participantCount();
-          }
+    if (opts.count && have < opts.count) {
+      // still short: top up with the client's QA test vendors by name
+      const qa = await qaVendorNames().catch(() => [] as string[]);
+      for (const name of qa) {
+        if (have >= opts.count) break;
+        if (this.leftCreateScreen()) {
+          console.log("[create-event] the page has left the create screen (published from the browser?) — stopping the invite here");
+          return invited;
         }
+        if ((await this.participantNames()).some((n) => isQaVendorName(n, [name]))) continue;
+        if (await this.addParticipantByName(name)) have = await this.participantCount();
       }
     }
-    if (this.leftCreateScreen()) return added;
-    const have = await this.participantCount();
+    if (this.leftCreateScreen()) return invited;
     if (opts.count && have < opts.count) {
-      throw new Error(
-        `the event has ${have} participant(s) but the test needs at least ${opts.count}. The product's ` +
-          "audience did not supply enough, and no vendor names were given to add explicitly.",
-      );
+      throw new Error(`the event has ${have} participant(s) but the test needs at least ${opts.count}: the product suggested no more and this client has no more QA test vendors`);
     }
-    return added;
+    return invited;
   }
 
   /**
@@ -1869,8 +1861,8 @@ export class CreateEventPage extends BasePage {
     return removed;
   }
 
+  /** The product's own invite: "Invite Vendor" (every vendor the products map to), else the first search result. */
   async inviteVendor(): Promise<void> {
-    if (!allowRealVendors()) return this.inviteQaVendors();
     const p = this.page;
     // Timed, because "it takes too long to select the vendor" is a claim worth
     // being able to check rather than argue about.

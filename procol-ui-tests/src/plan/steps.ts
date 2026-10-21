@@ -296,10 +296,10 @@ export const STEP_CATALOG: StepSpec[] = [
   {
     name: "invite_vendor",
     purpose:
-      "Put vendors on the event. Name them when the test cares WHICH vendor bids — a bid test must be able to sign in as that company — otherwise the product's own audience is used.",
+      "Put vendors on the event. With no vendors named, the runner presses the product's own Invite Vendor and takes every vendor the products map to — the normal case. Name vendors ONLY when the test case itself names them (then each is searched for and added).",
     args: {
-      vendors: 'array of vendor names, e.g. ["AMD"]',
-      count: "minimum number of participants required; fails if the audience cannot supply it",
+      vendors: 'array of vendor names copied from the test case — omit unless the case names a vendor; never invent one',
+      count: "minimum number of participants required (e.g. 2 when two vendors must bid); QA test vendors top it up when the suggestion is short",
     },
   },
   { name: "publish", purpose: "Publish the event and wait for the outcome." },

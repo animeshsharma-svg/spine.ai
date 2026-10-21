@@ -281,8 +281,13 @@ export async function embedMany(texts: string[]): Promise<number[][]> {
   if (embedProvider() === "slingring") {
     const out: number[][] = [];
     const BATCH = 64;
-    for (let i = 0; i < texts.length; i += BATCH) {
-      out.push(...(await slingringEmbed(texts.slice(i, i + BATCH))));
+    // The gateway refuses an input over 8,192 tokens (a 400 that stops the whole build, seen
+    // 2026-10-21 on one oversized chunk). A chunk that long is clipped: its first 20,000
+    // characters (~5,000 tokens) are what gets embedded, and the text itself is kept whole.
+    const MAX_CHARS = 20_000;
+    const clipped = texts.map((t) => (t.length > MAX_CHARS ? t.slice(0, MAX_CHARS) : t));
+    for (let i = 0; i < clipped.length; i += BATCH) {
+      out.push(...(await slingringEmbed(clipped.slice(i, i + BATCH))));
     }
     return out;
   }

@@ -368,27 +368,8 @@ export class SingleStagePage extends BasePage {
   }
 
   /** Add vendors: prefer the whole-audience Invite Vendor button, else pick one via the combobox. */
+  /** The product's own invite — "Invite Vendor" takes every vendor the products map to (the tester's rule, 2026-10-21). */
   async inviteVendor(): Promise<void> {
-    // QA-only: add the client's QA test vendor by name; never the whole
-    // suggested audience or the first search result (real suppliers).
-    if (!allowRealVendors()) {
-      const qa = await qaVendorNames();
-      if (!qa.length) throw new NoQaVendorError(Number(process.env.COMPANY_ID) || undefined);
-      // As many QA vendors as the run asked for (UI_VENDOR_COUNT), never more than exist.
-      // The event may already carry one (the API setup invites QA vendor 1), so a vendor the
-      // search no longer offers is skipped and the next QA vendor tried — never a real supplier.
-      const want = Math.max(1, Math.min(vendorCount() ?? 1, qa.length));
-      let added = 0;
-      for (const name of qa) {
-        if (added >= want) break;
-        const ok = await this.addParticipant(name);
-        if (ok) added++;
-        else await this.page.keyboard.press("Escape").catch(() => {});
-      }
-      if (!added) throw new Error(`could not add any QA test vendor (${qa.join(", ")}) — they may all be on the event already; stopping so no real supplier is invited`);
-      await this.dismissDistractions();
-      return;
-    }
     const invited = await this.clickIfPresent(
       [this.page.getByRole("button", { name: /invite vendor/i }), this.page.getByText(/invite vendor/i)],
       { label: "invite-vendor", timeout: TIMEOUTS.SHORT },

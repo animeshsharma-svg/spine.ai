@@ -110,6 +110,7 @@ function readExtraCases(): TestCaseRecord[] {
 
 import { planLineItems, type HeldCase } from "./lineItems.js";
 import { makeBulkExec, resolveVbuWorkspace, vbuSkipReason } from "./vendorBulk.js";
+import { makeRevalCheck, revalSkipReason } from "./revalidation.js";
 
 export interface TestCaseRecord {
   id: string;
@@ -150,6 +151,8 @@ export interface TestCaseRecord {
    * send and what each staged row must become. Run by vendorBulk.ts.
    */
   bulk?: import("./vendorBulk.js").BulkSpec;
+  /** Vendor revalidation cases (data/api-cases-extra/revalidation.json), run by revalidation.ts. */
+  reval?: import("./revalidation.js").RevalSpec;
   /** QA-document case ids this case covers (vendor bulk upload: the PR's QA doc, A1…D7) */
   qaDoc?: string[];
   /** file:line of the rule the case exercises */
@@ -915,6 +918,14 @@ export function buildChecksFromCases(
   };
 
   for (const c of cases) {
+    // Vendor revalidation: its own runner, its own QA host and its own safety
+    // (config saved and restored, never a whole-client run) — see revalidation.ts.
+    if (c.reval) {
+      const why = revalSkipReason(c.reval);
+      if (why) skipped.push({ id: c.id, title: c.title, reason: why });
+      else checks.push(makeRevalCheck(c, c.reval, String(fullCtx.stamp)));
+      continue;
+    }
     // Known-uninformative as written — a paraphrased body, a borrowed request,
     // or state we cannot build. Reported as not-run with the reason, never
     // fired: a request nobody perturbed cannot refuse anything, and reporting

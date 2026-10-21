@@ -181,7 +181,7 @@ export interface UiRunEvent {
   // indistinguishable from its own connection-failure event — the exact
   // collision that made "run error" appear after every normal, successful run
   // elsewhere in this codebase. Every consumer forwards e.type verbatim.
-  type: "start" | "log" | "done" | "run-error" | "queued" | "frame" | "ask" | "explore-step";
+  type: "start" | "log" | "done" | "run-error" | "queued" | "frame" | "ask" | "explore-step" | "spot";
   line?: string;
   command?: string;
   exitCode?: number;
@@ -191,6 +191,8 @@ export interface UiRunEvent {
   ask?: Record<string, unknown>;
   /** "explore-step": one step the explorer took or is taking */
   step?: Record<string, unknown>;
+  /** a spotlight picture: the control a step acted on, framed (procol-ui-tests/src/plan/spotlight.ts) */
+  spot?: { file: string; action: string; target: string; step: number; stepName: string; box?: { x: number; y: number; w: number; h: number }; url: string; at: string };
 }
 
 /**
@@ -263,6 +265,14 @@ function launch(
           } catch {
             /* not ours after all: an ordinary log line */
           }
+        }
+        if (line.startsWith("[spot] ")) {
+          try {
+            emit({ type: "spot", spot: JSON.parse(line.slice("[spot] ".length)) });
+          } catch {
+            /* a torn line — the file is still named in the run result */
+          }
+          continue;
         }
         // Mirror the run's own narration into the slot so the dashboard strip
         // can say what a HEADLESS run is doing right now.

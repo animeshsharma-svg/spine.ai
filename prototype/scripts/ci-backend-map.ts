@@ -300,6 +300,7 @@ export const KEYWORD_FEATURES: Array<[RegExp, string[]]> = [
   [/counter_?offer|negotiat/, ["bids.counter_offer"]],
   [/auction|knockout|dutch/, ["auction.convert", "auction.rank", "auction.price", "auction.increments", "auction.dynamic_extension", "auction.visibility", "events.rfp_auction"]],
   [/vendor_bulk|bulk_upload|bulk_vendor/, ["vendorbulk.file", "vendorbulk.rows", "vendorbulk.dedup", "vendorbulk.onboarding"]],
+  [/vendor_revalidation|vendor_validation_histor|external_api\/validation/, ["revalidation.access", "revalidation.schedule", "revalidation.coverage", "revalidation.values", "revalidation.documents", "revalidation.status", "revalidation.listing", "revalidation.audit"]],
   [/vendor_entity_mapping/, ["vendors.entity_mapping"]],
   [/template_response|evaluat|qcs|scor/, ["evaluation.score", "evaluation.qcs", "evaluation.tna"]],
   [/proposal|award|loa\b|_loa|letter_of_award/, ["award.proposal", "award.add_response", "award.partial", "award.submit", "award.approval"]],

@@ -69,7 +69,7 @@ const SCREEN_SOURCES: Array<[RegExp, string[]]> = [
   [/\/proposal\//, ["src/views/projectProposal"]],
   [/master_qcs/, ["src/components/masterQcs", "src/views/projectDetails"]],
   [/\/project\//, ["src/views/projectDetails", "src/views/orderDetails"]],
-  [/^\/orders\/?$/, ["src/views/orders", "src/redux/orders", "src/viewModels/orders"]],
+  [/^\/orders\/?(\?|$)/, ["src/views/orders", "src/redux/orders", "src/viewModels/orders"]],
 ];
 
 const words = (s: string) => new Set(String(s).toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 2));

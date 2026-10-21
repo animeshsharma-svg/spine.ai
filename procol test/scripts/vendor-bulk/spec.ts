@@ -897,17 +897,17 @@ export const CASES: VbuCase[] = [
   },
   {
     id: "VBU-073", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "safe",
-    title: "PAN No. that is not a PAN is accepted (no format check — known gap)", type: "Validation", priority: "P2", severity: "Low",
-    why: "The PR adds the column; its QA doc lists PAN format validation as out of scope. Pinned so a later change is noticed.",
-    steps: ["PAN No. = 'NOT-A-PAN'"], sheet: one(trip("VBU-073", { "PAN No.": "NOT-A-PAN" })), rows: tripped(),
-    expected: "Row failed 'Invalid Status' (PAN not validated).", oracle: "Job row error.", rule: `${R.prUtils}:905 (strip+upcase only, no format check); QA doc 'Out of scope'`,
+    title: "PAN No. that is not a PAN is refused 'Invalid PAN No.'", type: "Validation", priority: "P2", severity: "Low",
+    why: "PR 16267 @ab282ab7e3 added a PAN format check (AAAAA9999A) after the mandatory columns. This case pinned the old gap; it now checks the new rule.",
+    steps: ["PAN No. = 'NOT-A-PAN'"], sheet: one(trip("VBU-073", { "PAN No.": "NOT-A-PAN" })), rows: fails(MSG.PAN_INVALID),
+    expected: "Row failed 'Invalid PAN No.'.", oracle: "Job row error.", rule: `PR16267 @ab282ab7e3 ${R.val}:124-137 (verify_pan_no)`,
   },
   {
     id: "VBU-074", section: 3, feature: "vendorbulk.rows", kind: "bulk", tier: "safe",
-    title: "PAN No. that contradicts the GSTIN is accepted (no cross-check — known gap)", type: "Validation", priority: "P2", severity: "Medium",
-    why: "Characters 3-12 of a GSTIN are the PAN. A different PAN in the PAN column is stored side by side with it.",
-    steps: ["Valid GST {{gst}}; PAN No. = ABCDE1234F"], sheet: one(trip("VBU-074", { "Tax Type": "GST", "Tax No.": "{{gst}}", "Business Location": "India", "PAN No.": "ABCDE1234F" })), rows: tripped(),
-    expected: "Row failed 'Invalid Status' today. Recommended: refuse 'PAN does not match GST'.", oracle: "Job row error.", rule: `${R.prVal}:106-118 (PAN derived from GST under contactless); ${R.prUtils}:905 (the PAN No. column then overwrites it)`,
+    title: "PAN No. that contradicts the GSTIN is refused 'PAN No. does not match Tax No.'", type: "Validation", priority: "P2", severity: "Medium",
+    why: "Characters 3-12 of a GSTIN are the PAN. PR 16267 @ab282ab7e3 now refuses a PAN that differs from them (the recommendation this case pinned).",
+    steps: ["Valid GST {{gst}}; PAN No. = ABCDE1234F"], sheet: one(trip("VBU-074", { "Tax Type": "GST", "Tax No.": "{{gst}}", "Business Location": "India", "PAN No.": "ABCDE1234F" })), rows: fails(MSG.PAN_MISMATCH),
+    expected: "Row failed 'PAN No. does not match Tax No.'.", oracle: "Job row error.", rule: `PR16267 @ab282ab7e3 ${R.val}:133-135 (verify_pan_no)`,
   },
   // city
   {
