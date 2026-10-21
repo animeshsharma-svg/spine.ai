@@ -5,7 +5,7 @@ The scheduling engine re-checks every vendor's GST, PAN, MSME and bank on the cy
 it on the vendor listing, the vendor page and the Excel download.
 
 These are the guide's 138 automation cases (`test-cases/Vendor_Revalidation_QA_Automation_Guide.md`, Part 2) read
-against the code — **procol-backend rfx-uat-main @ 76b986a012 (15 Oct 2026)** — plus 22 cases the code revealed. Each case keeps the guide's
+against the code — **procol-backend rfx-uat-main @ 76b986a012 (15 Oct 2026)** — plus 24 cases the code revealed. Each case keeps the guide's
 id; **Expected** is what the build does (what the runner asserts); where the guide says otherwise it is quoted, and a
 finding (REV-nn, `test-cases/vendor-revalidation-findings.md`) is named where the code contradicts the guide or the TRD.
 Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidation.json`; both are generated from
@@ -15,14 +15,14 @@ Every case mirrors a runnable case in `prototype/data/api-cases-extra/revalidati
 
 | How a case runs | Cases | Needs |
 | --- | --- | --- |
-| read — a GET to the QA API | 7 | nothing |
+| read — a GET to the QA API | 10 | nothing |
 | audit — SELECTs on recorded runs | 21 | nothing |
-| listing — the buyer's listing / vendor page / Excel vs the database | 13 | nothing (the client's session) |
+| listing — the buyer's listing / vendor page / Excel vs the database | 16 | nothing (the client's session) |
 | refused request — a run request the API must refuse | 12 | `VR_QA_TOKEN` |
 | run — a real run on 1–5 named vendors, client's own settings | 23 | `VR_QA_TOKEN` |
 | needs ops — the case needs GMMCO's settings changed (no API since 20 Oct) | 27 | Procol ops |
 | feature removed on 20 Oct (settings API, cancel, top_errors, QA controls) | 18 | — |
-| dev / manual / ui / code — reported as not run, with why | 39 | a person or dev |
+| dev / manual / ui / code — reported as not run, with why | 35 | a person or dev |
 
 **Host and token.** Since the 20 Oct 2026 rewrite a buyer allowed to edit vendors starts a run for their own company:
 `POST /api/vendor_validation/trigger?workspace_id=<client>` and `GET /api/vendor_validation/runs/<run_id>?job_id=&workspace_id=`,
@@ -319,11 +319,11 @@ Who may call the QA API and every refusal it gives. Config cases PUT a bad confi
 
 #### API-XREV-A-35 — A buyer who may not edit vendors cannot start a run
 - **Why it matters.** Added from the code (not in the guide).
-- **Setup.** Not run unattended (manual): needs a GMMCO buyer login without vendor-edit rights
-- **Steps.** 1. log in as a buyer whose role lacks vendor (company) update rights 2. POST /trigger mode force, one vendor
-- **Expected.** Refused (not authorized); reading a run needs only read rights.
-- **Oracle.** —
-- **Trace.** P1 · manual · `API-XREV-A` · manual · `app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)`
+- **Setup.** Runs every time: a GET to the QA API, nothing changes.
+- **Steps.** 1. as one of our QA member users on GMMCO (no company rights): POST /trigger mode force, one vendor 2. GET /runs/<today> as the same user
+- **Expected.** The run request is refused (not authorized); reading a run still works (read right only).
+- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
+- **Trace.** P1 · automate · `API-XREV-A` · read · `app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)`
 
 ## 2. Triggers and schedule
 
@@ -1122,12 +1122,12 @@ Read with the client's own session on the revalidation host and compared with th
 - **Trace.** P2 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_helper.rb:702 (nil status → label 'Pending')` · `REV-06`
 
 #### API-XREV-H-03 — Date filter From after To
-- **Why it matters.** Guide H-03 (UI).
-- **Setup.** Not run unattended (ui): a screen behaviour — procol-ui-tests
-- **Steps.** 1. Last validated filter 30 Oct to 1 Oct
-- **Expected.** Blocked or empty with a message.
-- **Oracle.** —
-- **Trace.** P3 · manual · `API-XREV-H` · ui · `app/controllers/concerns/companies_controller_filter_helper.rb`
+- **Why it matters.** Guide H-03 (UI). Finding REV-24 (Medium): There is no 'Last Validated At' date filter on the vendor list.
+- **Setup.** Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.
+- **Steps.** 1. GET /companies/filter_options?tab=verified
+- **Expected.** A 'Last Validated At' date-range filter exists to test From > To on.
+- **Oracle.** The listing / vendor page reply against the rows and link worked out from the database.
+- **Trace.** P3 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_filter_helper.rb` · `REV-24`
 
 #### API-XREV-H-04 — Columns in every tab
 - **Why it matters.** Guide H-04 (API+UI).
@@ -1146,24 +1146,24 @@ Read with the client's own session on the revalidation host and compared with th
 - **Trace.** P0 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_helper.rb:698-708, app/models/vendor_validation_history.rb:47-80`
 
 #### API-XREV-H-06 — Status filter
-- **Why it matters.** Guide H-06 (API+UI).
-- **Setup.** Not run unattended (ui): the filter payload is built by the screen — procol-ui-tests
-- **Steps.** 1. filter Passed, then Failed, then not validated
-- **Expected.** Only matching vendors; 'pending' maps to vendors never checked.
-- **Oracle.** —
-- **Trace.** P1 · manual · `API-XREV-H` · ui · `app/controllers/concerns/companies_controller_filter_helper.rb:436`
+- **Why it matters.** Guide H-06 (API+UI). Finding REV-23 (Medium): The Validation Status filter cannot select vendors that were never checked.
+- **Setup.** Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.
+- **Steps.** 1. GET /companies/filter_options (the choices the screen shows) 2. GET /companies/all_vendors with filters {vendor_validation_status:[passed]} then [failed], as the screen sends them
+- **Expected.** A Validation Status filter exists with a choice for vendors never checked ('pending'); each filter returns only vendors of that status.
+- **Oracle.** The listing / vendor page reply against the rows and link worked out from the database.
+- **Trace.** P1 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_filter_helper.rb:436` · `REV-23`
 
 #### API-XREV-H-07 — Date range filter
-- **Why it matters.** Guide H-07 (UI).
-- **Setup.** Not run unattended (ui): screen case
-- **Steps.** 1. range covering the run date
-- **Expected.** Only vendors validated in range.
-- **Oracle.** —
-- **Trace.** P2 · manual · `API-XREV-H` · ui · `app/controllers/concerns/companies_controller_filter_helper.rb`
+- **Why it matters.** Guide H-07 (UI). Finding REV-24 (Medium): There is no 'Last Validated At' date filter on the vendor list.
+- **Setup.** Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.
+- **Steps.** 1. GET /companies/filter_options?tab=verified
+- **Expected.** A 'Last Validated At' date-range filter is offered.
+- **Oracle.** The listing / vendor page reply against the rows and link worked out from the database.
+- **Trace.** P2 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_filter_helper.rb` · `REV-24`
 
 #### API-XREV-H-08 — Filters together with search
 - **Why it matters.** Guide H-08 (UI).
-- **Setup.** Not run unattended (ui): screen case
+- **Setup.** Not run unattended (ui): run on the preview dashboard by procol-ui-tests/scripts/reval-filters.ts: Validation Status filter + name search, counts compared with the database; the date-range part cannot exist (REV-24)
 - **Steps.** 1. Failed + date range + vendor search
 - **Expected.** Results match all three.
 - **Oracle.** —
@@ -1288,6 +1288,22 @@ Masking, the vendor portal, the production guard and switching the feature off.
 ## 10. Audit of the runs already recorded
 
 SELECT-only checks on the client's latest real run — they need no token and change nothing, so they run every time.
+
+#### API-XREV-R-10 — Cancel and the old QA controls are really gone
+- **Why it matters.** Added from the code (not in the guide).
+- **Setup.** Runs every time: a GET to the QA API, nothing changes.
+- **Steps.** 1. DELETE /api/vendor_validation/trigger/abc123 2. GET /api/vendor_revalidation_qa/config?client_company_id=<client>
+- **Expected.** Both answer 404: a scheduled run can no longer be cancelled by anyone, and the private controls are gone.
+- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
+- **Trace.** P3 · automate · `API-XREV-R` · read · `config/routes.rb:695-697 (@ a717f107ce)`
+
+#### API-XREV-R-11 — The run status carries counts only
+- **Why it matters.** Added from the code (not in the guide).
+- **Setup.** Runs every time: a GET to the QA API, nothing changes.
+- **Steps.** 1. GET /runs/<the client's latest run>
+- **Expected.** 200 with run_id, trigger, total_rows, vendors, finished_vendors, by_status, complete — no top_errors, no by_doc_type (removed on 20 Oct).
+- **Oracle.** The QA API's reply (status, error code, message) and GET /config afterwards.
+- **Trace.** P3 · automate · `API-XREV-R` · read · `trigger_service.rb run_summary`
 
 #### API-XREV-R-01 — Run ids follow the documented formula
 - **Why it matters.** Added from the code (not in the guide).

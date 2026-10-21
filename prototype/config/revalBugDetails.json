@@ -308,6 +308,32 @@
       "impact": "The provider may start refusing calls (rate limit), which opens the engine's circuit breaker and delays every vendor.",
       "fix": "Compare with the provider's own request log; count PAN, MSME and bank calls together (they go to the same provider) and keep the vendor-job spread in line with the cap.",
       "tech": "provider_guard.rb RATE_LIMIT_PER_MINUTE = 30 per provider host; run_worker.rb spreads jobs at 60 * doc_types / 30 seconds per vendor."
+    },
+    "REV-23": {
+      "short": "The Validation Status filter has no way to show vendors that were never checked",
+      "where": "Vendor list -> filter panel -> Validation Status",
+      "proof": "Confirmed on UAT and on the preview screen",
+      "steps": [
+        "Open Vendors, click the filter icon, open Validation Status."
+      ],
+      "expected": "Choices: Passed, Failed, Skipped, System Error and 'Not checked yet' (the vendors still showing Pending).",
+      "actual": "Only Passed, Failed, Skipped and System Error. Vendors never checked show 'Pending' in the column but cannot be filtered.",
+      "impact": "A buyer cannot list the vendors still waiting for a check - the one list needed before going live.",
+      "fix": "Add a 'Not checked yet' choice (value pending); the backend already understands it.",
+      "tech": "companies_controller_filter_helper.rb maps 'pending' to NULL; the filter_options list lacks the option."
+    },
+    "REV-24": {
+      "short": "There is no 'Last Validated At' date filter on the vendor list",
+      "where": "Vendor list -> filter panel",
+      "proof": "Confirmed on UAT and on the preview screen",
+      "steps": [
+        "Open Vendors, click the filter icon, look for a 'Last Validated At' / date range filter."
+      ],
+      "expected": "A date-range filter on Last Validated At, next to the Validation Status filter (as the guide and TRD describe).",
+      "actual": "No such filter exists, in the backend's filter options or on the screen. The column is shown but cannot be filtered.",
+      "impact": "A buyer cannot find vendors validated before or after a date, e.g. 'everyone not re-checked this quarter'.",
+      "fix": "Add a date-range filter on the last-validated time and show it in the panel.",
+      "tech": "No filter definition for vendor_last_validated_at in filter_options; the panel lists Teams, Deals In, City, Tags, Type, Onboarding Status, Country, Initiated By, PAN No, Validation Status."
     }
   }
 }

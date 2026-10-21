@@ -833,21 +833,20 @@
     "type": "Negative",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Not run unattended (manual): needs a GMMCO buyer login without vendor-edit rights",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
     "steps": [
-      "log in as a buyer whose role lacks vendor (company) update rights",
-      "POST /trigger mode force, one vendor"
+      "as one of our QA member users on GMMCO (no company rights): POST /trigger mode force, one vendor",
+      "GET /runs/<today> as the same user"
     ],
     "method": "POST",
     "path": "/api/vendor_validation/trigger",
     "expected": "accept",
-    "expectedResult": "Refused (not authorized); reading a run needs only read rights.",
+    "expectedResult": "The run request is refused (not authorized); reading a run still works (read right only).",
     "rule": "app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)",
-    "tier": "manual",
+    "tier": "read",
     "reval": {
       "key": "A-35",
-      "tier": "manual",
-      "why": "needs a GMMCO buyer login without vendor-edit rights"
+      "tier": "read"
     }
   },
   {
@@ -3279,20 +3278,19 @@
     "type": "Negative",
     "priority": "P3",
     "severity": "Low",
-    "preconditions": "Not run unattended (ui): a screen behaviour — procol-ui-tests",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
     "steps": [
-      "Last validated filter 30 Oct to 1 Oct"
+      "GET /companies/filter_options?tab=verified"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
+    "path": "/api/companies/all_vendors",
     "expected": "accept",
-    "expectedResult": "Blocked or empty with a message.",
+    "expectedResult": "A 'Last Validated At' date-range filter exists to test From > To on.",
     "rule": "app/controllers/concerns/companies_controller_filter_helper.rb",
-    "tier": "ui",
+    "tier": "listing",
     "reval": {
       "key": "H-03",
-      "tier": "ui",
-      "why": "a screen behaviour — procol-ui-tests"
+      "tier": "listing"
     }
   },
   {
@@ -3347,20 +3345,20 @@
     "type": "Positive",
     "priority": "P1",
     "severity": "High",
-    "preconditions": "Not run unattended (ui): the filter payload is built by the screen — procol-ui-tests",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
     "steps": [
-      "filter Passed, then Failed, then not validated"
+      "GET /companies/filter_options (the choices the screen shows)",
+      "GET /companies/all_vendors with filters {vendor_validation_status:[passed]} then [failed], as the screen sends them"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
+    "path": "/api/companies/all_vendors",
     "expected": "accept",
-    "expectedResult": "Only matching vendors; 'pending' maps to vendors never checked.",
+    "expectedResult": "A Validation Status filter exists with a choice for vendors never checked ('pending'); each filter returns only vendors of that status.",
     "rule": "app/controllers/concerns/companies_controller_filter_helper.rb:436",
-    "tier": "ui",
+    "tier": "listing",
     "reval": {
       "key": "H-06",
-      "tier": "ui",
-      "why": "the filter payload is built by the screen — procol-ui-tests"
+      "tier": "listing"
     }
   },
   {
@@ -3370,20 +3368,19 @@
     "type": "Positive",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Not run unattended (ui): screen case",
+    "preconditions": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
     "steps": [
-      "range covering the run date"
+      "GET /companies/filter_options?tab=verified"
     ],
     "method": "GET",
-    "path": "/api/vendor_revalidation_qa",
+    "path": "/api/companies/all_vendors",
     "expected": "accept",
-    "expectedResult": "Only vendors validated in range.",
+    "expectedResult": "A 'Last Validated At' date-range filter is offered.",
     "rule": "app/controllers/concerns/companies_controller_filter_helper.rb",
-    "tier": "ui",
+    "tier": "listing",
     "reval": {
       "key": "H-07",
-      "tier": "ui",
-      "why": "screen case"
+      "tier": "listing"
     }
   },
   {
@@ -3393,7 +3390,7 @@
     "type": "Positive",
     "priority": "P2",
     "severity": "Medium",
-    "preconditions": "Not run unattended (ui): screen case",
+    "preconditions": "Not run unattended (ui): run on the preview dashboard by procol-ui-tests/scripts/reval-filters.ts: Validation Status filter + name search, counts compared with the database; the date-range part cannot exist (REV-24)",
     "steps": [
       "Failed + date range + vendor search"
     ],
@@ -3406,7 +3403,7 @@
     "reval": {
       "key": "H-08",
       "tier": "ui",
-      "why": "screen case"
+      "why": "run on the preview dashboard by procol-ui-tests/scripts/reval-filters.ts: Validation Status filter + name search, counts compared with the database; the date-range part cannot exist (REV-24)"
     }
   },
   {
@@ -3740,6 +3737,51 @@
       "key": "I-10",
       "tier": "ops",
       "why": "needs Procol ops to change GMMCO's revalidation settings — there is no settings API since the 20 Oct 2026 rewrite"
+    }
+  },
+  {
+    "id": "API-XREV-R-10",
+    "feature": "revalidation.audit",
+    "title": "Cancel and the old QA controls are really gone",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "DELETE /api/vendor_validation/trigger/abc123",
+      "GET /api/vendor_revalidation_qa/config?client_company_id=<client>"
+    ],
+    "method": "DELETE",
+    "path": "/api/vendor_validation/trigger/:job_id",
+    "expected": "accept",
+    "expectedResult": "Both answer 404: a scheduled run can no longer be cancelled by anyone, and the private controls are gone.",
+    "rule": "config/routes.rb:695-697 (@ a717f107ce)",
+    "tier": "read",
+    "reval": {
+      "key": "R-10",
+      "tier": "read"
+    }
+  },
+  {
+    "id": "API-XREV-R-11",
+    "feature": "revalidation.audit",
+    "title": "The run status carries counts only",
+    "type": "Edge",
+    "priority": "P3",
+    "severity": "Low",
+    "preconditions": "Runs every time: a GET to the QA API, nothing changes.",
+    "steps": [
+      "GET /runs/<the client's latest run>"
+    ],
+    "method": "GET",
+    "path": "/api/vendor_validation/runs/<latest run>",
+    "expected": "accept",
+    "expectedResult": "200 with run_id, trigger, total_rows, vendors, finished_vendors, by_status, complete — no top_errors, no by_doc_type (removed on 20 Oct).",
+    "rule": "trigger_service.rb run_summary",
+    "tier": "read",
+    "reval": {
+      "key": "R-11",
+      "tier": "read"
     }
   },
   {

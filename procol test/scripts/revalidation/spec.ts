@@ -173,9 +173,9 @@ export const CASES: RevCase[] = [
     rule: "CTL:164-185 (raw_ids.blank? → no scope), QTW:50-56 (no scope → all vendors)", finding: "REV-02",
     why: "NOT SENT ON PURPOSE: on this build it would revalidate every GMMCO vendor against the real providers. Proved from the code: [] and \"\" are blank, parse_vendor_scope returns no scope, select_vendors returns all_vendor_ids." },
 
-  { id: "A-35", title: "A buyer who may not edit vendors cannot start a run", p: "H", type: "Neg", auto: "API", tier: "manual", added: true, call: `POST ${QA}/trigger`,
-    steps: ["log in as a buyer whose role lacks vendor (company) update rights", "POST /trigger mode force, one vendor"], expected: "Refused (not authorized); reading a run needs only read rights.",
-    rule: "app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)", why: "needs a GMMCO buyer login without vendor-edit rights" },
+  { id: "A-35", title: "A buyer who may not edit vendors cannot start a run", p: "H", type: "Neg", auto: "API", tier: "read", added: true, call: `POST ${QA}/trigger`,
+    steps: ["as one of our QA member users on GMMCO (no company rights): POST /trigger mode force, one vendor", "GET /runs/<today> as the same user"], expected: "The run request is refused (not authorized); reading a run still works (read right only).",
+    rule: "app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)", why: "" },
 
   // ── B. Triggers and schedule ─────────────────────────────────────────
   { id: "B-01", title: "Scheduler mode picks exactly the types due today", p: "H", type: "Neg", auto: "API", tier: "run", needs: ["V-NODOCS"], call: `POST ${QA}/trigger`,
@@ -398,16 +398,16 @@ export const CASES: RevCase[] = [
     steps: ["on a client with revalidation off (e.g. 198678): GET the listing"], expected: "No vendor_validation_* fields on any vendor.", rule: "CC:341,375-381" },
   { id: "H-02", title: "Vendor never checked", p: "M", type: "Neg", auto: "UI", tier: "listing", needs: ["V-NEVER"], call: "GET /api/companies/all_vendors",
     steps: ["open a linked vendor no run has finished"], expected: "Status blank, no date, no errors.", rule: "CCH:702 (nil status → label 'Pending')", finding: "REV-06" },
-  { id: "H-03", title: "Date filter From after To", p: "L", type: "Neg", auto: "UI", tier: "ui",
-    steps: ["Last validated filter 30 Oct to 1 Oct"], expected: "Blocked or empty with a message.", rule: "FH", why: "a screen behaviour — procol-ui-tests" },
+  { id: "H-03", finding: "REV-24", title: "Date filter From after To", p: "L", type: "Neg", auto: "UI", tier: "listing",
+    steps: ["GET /companies/filter_options?tab=verified"], expected: "A 'Last Validated At' date-range filter exists to test From > To on.", rule: "FH", why: "" },
   { id: "H-04", title: "Columns in every tab", p: "H", type: "Pos", auto: "API+UI", tier: "listing", call: "GET /api/companies/all_vendors",
     steps: ["GET each listing tab (verified, unverified, onboarding_in_progress, rejected), page 1"], expected: "vendor_validation_status, vendor_last_validated_at and vendor_validation_errors on every vendor.", rule: "CCH:698-708" },
   { id: "H-05", title: "Listing matches the rows", p: "C", type: "Pos", auto: "API+UI", tier: "listing", call: "GET /api/companies/all_vendors",
     steps: ["GET the verified tab, page 1", "for each vendor: final status label and error lines worked out from the database"], expected: "Status and errors equal for every vendor.", rule: "CCH:698-708, VVH:47-80" },
-  { id: "H-06", title: "Status filter", p: "H", type: "Pos", auto: "API+UI", tier: "ui",
-    steps: ["filter Passed, then Failed, then not validated"], expected: "Only matching vendors; 'pending' maps to vendors never checked.", rule: "FH:436", why: "the filter payload is built by the screen — procol-ui-tests" },
-  { id: "H-07", title: "Date range filter", p: "M", type: "Pos", auto: "UI", tier: "ui", steps: ["range covering the run date"], expected: "Only vendors validated in range.", rule: "FH", why: "screen case" },
-  { id: "H-08", title: "Filters together with search", p: "M", type: "Pos", auto: "UI", tier: "ui", steps: ["Failed + date range + vendor search"], expected: "Results match all three.", rule: "FH", why: "screen case" },
+  { id: "H-06", finding: "REV-23", title: "Status filter", p: "H", type: "Pos", auto: "API+UI", tier: "listing",
+    steps: ["GET /companies/filter_options (the choices the screen shows)", "GET /companies/all_vendors with filters {vendor_validation_status:[passed]} then [failed], as the screen sends them"], expected: "A Validation Status filter exists with a choice for vendors never checked ('pending'); each filter returns only vendors of that status.", rule: "FH:436", why: "" },
+  { id: "H-07", finding: "REV-24", title: "Date range filter", p: "M", type: "Pos", auto: "UI", tier: "listing", steps: ["GET /companies/filter_options?tab=verified"], expected: "A 'Last Validated At' date-range filter is offered.", rule: "FH", why: "" },
+  { id: "H-08", title: "Filters together with search", p: "M", type: "Pos", auto: "UI", tier: "ui", steps: ["Failed + date range + vendor search"], expected: "Results match all three.", rule: "FH", why: "run on the preview dashboard by procol-ui-tests/scripts/reval-filters.ts: Validation Status filter + name search, counts compared with the database; the date-range part cannot exist (REV-24)" },
   { id: "H-09", title: "Vendor page details", p: "C", type: "Pos", auto: "API+UI", tier: "listing", needs: ["V-MULTIFAIL"], call: "GET /api/companies/:id",
     steps: ["GET /api/companies/<vendor> (the vendor page) for a vendor with several results", "compare revalidation_data.documents with its latest rows"], expected: "One entry per check: value, status, error (none for skipped), last run.", rule: "CC:44-85 (show → revalidation_data), CCH:711-725, VVH:59-66" },
   { id: "H-10", title: "Excel download", p: "H", type: "Pos", auto: "UI", tier: "listing", call: "GET /api/companies/all_vendors?download_excel=true",
@@ -434,6 +434,10 @@ export const CASES: RevCase[] = [
   { id: "I-10", why: OPS, title: "Rollback", p: "H", type: "Pos", auto: "API+UI", tier: "ops", call: `PUT ${QA}/config + listing`,
     steps: ["PUT enabled false", "GET config, the listing, row counts, link statuses", "restore"], expected: "enabled false; listing drops the columns; old rows kept; every vendor's link status unchanged.", rule: "CO:925-927, CC:341" },
 
+  { id: "R-10", title: "Cancel and the old QA controls are really gone", p: "L", type: "Edge", auto: "API", tier: "read", added: true, call: `DELETE ${QA}/trigger/:job_id`,
+    steps: ["DELETE /api/vendor_validation/trigger/abc123", "GET /api/vendor_revalidation_qa/config?client_company_id=<client>"], expected: "Both answer 404: a scheduled run can no longer be cancelled by anyone, and the private controls are gone.", rule: "config/routes.rb:695-697 (@ a717f107ce)" },
+  { id: "R-11", title: "The run status carries counts only", p: "L", type: "Edge", auto: "API", tier: "read", added: true, call: `GET ${QA}/runs/<latest run>`,
+    steps: ["GET /runs/<the client's latest run>"], expected: "200 with run_id, trigger, total_rows, vendors, finished_vendors, by_status, complete — no top_errors, no by_doc_type (removed on 20 Oct).", rule: "trigger_service.rb run_summary" },
   // ── R. Audit of recorded runs (added) ────────────────────────────────
   { id: "R-01", title: "Run ids follow the documented formula", p: "M", type: "Pos", auto: "API", tier: "audit", added: true, call: "SQL",
     steps: ["every run of the client"], expected: "run_id = uuid v5(URL namespace, 'procol://vendor_revalidation/<client>/<date>').", rule: "SCH:29-31" },
@@ -458,6 +462,16 @@ export const CASES: RevCase[] = [
 // ── findings: what the code / live runs say against the guide or the TRD ──
 export interface Bug { id: string; title: string; severity: "Critical" | "High" | "Medium" | "Low"; status: string; found: string; cases: string[]; detail: string; fix: string; evidence: string }
 export const BUGS: Bug[] = [
+  { id: "REV-23", severity: "Medium", status: "confirmed live 2026-10-21", found: "2026-10-21", cases: ["H-06"],
+    title: "The Validation Status filter cannot select vendors that were never checked",
+    detail: "The vendor list's filter options (GET /companies/filter_options) offer Validation Status with Passed, Failed, Skipped and System Error only. A vendor no run has checked shows 'Pending' in the column (REV-06) but there is no 'Pending' / 'Not checked' choice, so a buyer cannot list the vendors still waiting for a check - the one list they need before a go-live. The backend already maps a 'pending' value to NULL (companies_controller_filter_helper.rb filter_by_bsm_column), so only the option is missing.",
+    fix: "Add a 'Not checked yet' option (value pending) to the vendor_validation_status filter options.",
+    evidence: "GET /api/companies/filter_options?tab=verified -> vendor_validation_status.options = passed, failed, skipped, system_error (21 Oct 2026)." },
+  { id: "REV-24", severity: "Medium", status: "confirmed live 2026-10-21", found: "2026-10-21", cases: ["H-03", "H-07", "H-08"],
+    title: "There is no 'Last Validated At' date filter on the vendor list",
+    detail: "The guide (and the TRD) describe a last-validated date-range filter next to the status filter. Neither the backend's filter options nor the preview dashboard's filter panel has one; the column is shown but cannot be filtered. Three guide cases (H-03, H-07, part of H-08) have nothing to run against.",
+    fix: "Add a date-range filter on buyer_seller_company_mappings.vendor_last_validated_at (bsm_column source) and show it in the panel.",
+    evidence: "GET /api/companies/filter_options?tab=verified lists no date filter; the preview's filter panel shows Teams, Deals In, City, Tags, Type, Onboarding Status, Country, Initiated By, PAN No, Validation Status (screenshot filter-panel.png)." },
   { id: "REV-22", severity: "Medium", status: "seen in the recorded runs 2026-10-21 - confirm with dev", found: "2026-10-21", cases: ["F-13"],
     title: "Attestr was asked 38 questions in one minute - above the 30-per-minute cap",
     detail: "In the 14 Oct run (the first run ever, so the 24-hour answer cache was empty) 38 PAN/MSME/bank rows got their provider answer within the minute of 13:07 UTC (18:37 IST), and 105 rows of all kinds in the next minute. The engine is meant to keep each provider at 30 calls per minute (ProviderGuard RATE_LIMIT_PER_MINUTE) and the run worker spreads vendor jobs at that rate; a burst above it risks the provider's own rate limit, which then opens the breaker for everyone.",

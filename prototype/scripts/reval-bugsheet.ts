@@ -239,6 +239,19 @@ if (existsSync(SCREENS)) {
     screenReport = null;
   }
 }
+const FILTERS = join(EVIDENCE_ROOT, "reval-filters");
+let filterReport: any = null;
+if (existsSync(FILTERS)) {
+  for (const f of readdirSync(FILTERS).filter((n) => n.endsWith(".png") && !/^(error-state|debug-)/.test(n))) {
+    copyFileSync(join(FILTERS, f), join(SHOTS, `screen-filters-${f}`));
+    screens[`filters-${f.replace(/\.png$/, "")}`] = `screenshots/screen-filters-${f}`;
+  }
+  try {
+    filterReport = JSON.parse(readFileSync(join(FILTERS, "report.json"), "utf8"));
+  } catch {
+    filterReport = null;
+  }
+}
 const screenAt = screenReport?.at ? new Date(Date.parse(screenReport.at) + 5.5 * 3600_000).toISOString().slice(0, 16).replace("T", " ") + " IST" : "";
 
 // ═══ 4. code lines behind each bug (read-only git show) ══════════════════
@@ -356,6 +369,12 @@ const cards: Record<string, string> = {
   "REV-19": `<p class="cap">Captured during tests A-26 and B-15 on 20 Oct — the run is accepted and then never starts</p>
     <div class="grid two">${timelineTable(evA26, "test A-26: force run, run_at 20 s ago, one vendor")}${timelineTable(evB15, "test B-15: force run scheduled 2 min ahead, one vendor")}</div>
     <p class="note">Expected: state "started" within a minute of run_at and rows for the vendor. The polls above kept answering "scheduled" with 0 rows until the test gave up; the database had no row dated 20 Oct for GMMCO afterwards.</p>`,
+  "REV-23": `<p class="cap">On the live screen (${esc(PREVIEW.replace("https://", ""))}) — the Validation Status filter's choices</p>
+    ${screenImg("filters-panel-validation-status", "Vendors → filter panel → Validation Status: Passed, Failed, Skipped, System Error. Nothing for vendors never checked, which the column shows as 'Pending'.")}
+    <p class="note">The filter itself is right where it exists: on the Prospects tab it returned exactly the database's counts (${(filterReport?.checks ?? []).filter((c: any) => /^H-06 (Passed|Failed|System Error|Skipped)$/.test(c.id)).map((c: any) => c.id.replace("H-06 ", "") + " " + (c.what.match(/: (\d+) vendor/)?.[1] ?? "?")).join(", ")}).</p>`,
+  "REV-24": `<p class="cap">On the live screen — every filter the vendor list offers</p>
+    ${screenImg("filters-filter-panel", "Vendors → filter panel: Teams, Deals In, City, Tags, Type, Onboarding Status, Country, Initiated By, PAN No, Validation Status — no 'Last Validated At'.")}
+    <p class="note">The backend's filter definitions (GET /companies/filter_options) have no date filter either, so this is missing end to end.</p>`,
   "REV-20": `<p class="cap">On the live screen (${esc(PREVIEW.replace("https://", ""))}, ${esc(screenAt)}) — "23:00 PM" on the vendor page, "11:00 PM" on the list</p>
     ${screenImg("vendor-page-revalidation-passed", "Vendor page → Revalidation Details: 'Last validated: 15-Oct-2026 23:00 PM' and 'Last Run At' in the same format.")}
     <div style="margin-top:14px">${screenImg("vendor-list-validation-columns", "Vendor list → Last Validated At column: the same moment as 'October 15, 2026 11:00 PM'.")}</div>`,
@@ -414,9 +433,19 @@ const NOT_RUN: Record<string, string> = {
   removed: "Not run — the feature this test was about was removed in the 20 Oct rewrite.",
 };
 const plainSaw = (v: string) => v.replace(/\s*\[after: [^\]]*\]/, "").replace(/\[vendors: ([^\]]*)\]/, (_m, x) => `(test vendor ${x.replace(/V-[A-Z0-9-]+=/g, "#")})`).replace(/^not run — /, "");
+const screenCheck = (prefix: string) => (filterReport?.checks ?? []).filter((c: any) => String(c.id).startsWith(prefix));
 const results = cases.map((c: any) => {
   const key = c.reval.key;
-  const r = res.get(c.id);
+  let r = res.get(c.id);
+  // the on-screen filter checks (procol-ui-tests/scripts/reval-filters.ts) stand in for a run result
+  if (key === "H-08" && screenCheck("H-08").length) {
+    const sc = screenCheck("H-08");
+    r = { pass: sc.every((x: any) => x.ok), inconclusive: false, verdict: `on the preview screen: ${sc.map((x: any) => x.what).join(" · ")} (date-range part impossible: REV-24)`, company: "GMMCO (47053) — preview dashboard", runId: filterReport.at.replace(/-(\d\d):(\d\d):(\d\d)\.\d+Z$/, "-$1-$2-$3Z") };
+  }
+  if (key === "H-06" && screenCheck("H-06 ").length && r) {
+    const sc = screenCheck("H-06 ");
+    r = { ...r, verdict: `${r.verdict} · on the preview screen: ${sc.map((x: any) => `${x.ok ? "ok" : "NO"} ${x.what}`).join(" · ")}` };
+  }
   const bug = spec.CASES.find((x: any) => x.id === key)?.finding;
   let result: string;
   let saw: string;
@@ -592,6 +621,8 @@ figcaption{font-size:.85rem;color:var(--muted);margin-top:6px}
     ${screenFig("vendor-page-revalidation-system-error", "Vendor page → Revalidation Details, a vendor whose checks could not reach the provider (System Error).")}
     ${screenFig("vendor-page-revalidation-skipped", "Vendor page → Revalidation Details, a vendor with no documents to check (Skipped).")}
     ${screenFig("vendor-page-revalidation-pending", "Vendor page → Revalidation Details, a vendor no run has checked: 'Pending' with no data (REV-06).")}
+    ${screenFig("filters-filter-passed", "Vendors → filter Validation Status = Passed on the Prospects tab: 20 vendors, all Passed, the same number the database gives.")}
+    ${screenFig("filters-filter-failed-plus-search", "Vendors → filter Validation Status = Failed together with a name search: 7 vendors, all Failed and all matching the search.")}
   </div>
 
   <h2>Every test and its result</h2>

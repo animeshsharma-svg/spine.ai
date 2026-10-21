@@ -50,6 +50,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { Check, CheckOutcome, Client } from "./engine.js";
+import { actorApi } from "./vendorBulkExtras.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROCOL_TEST = join(here, "..", "..", "..", "procol test");
@@ -1720,6 +1721,67 @@ S["G-12"] = async (h) => {
   h.expect(runs.every((r: any) => r.r === runIdFor(h.clientId, r.d)), `each date has its own run id (${runs.map((r: any) => `${r.d}:${r.n}`).join(", ")})`);
   const off = runs.slice(0, -1).filter((r: any, i: number) => Date.parse(r.u1) > Date.parse(runs[i + 1].c0));
   h.expect(!off.length, `an earlier day's rows were not changed once a later day's run began${off.length ? ` (${off.map((r: any) => r.d).join(", ")} changed later)` : ""}`);
+};
+
+// ── the new buyer API's shape and the features the 20 Oct rewrite removed ──
+S["A-35"] = async (h) => {
+  // one of OUR QA users in this workspace whose dashboard shows no company create right — never a real employee
+  const a = await actorApi(h.client, "member-no-company-create");
+  if ("unavailable" in a) throw new NotRunnable(`no QA member without company rights in this workspace: ${a.unavailable}`);
+  const perms: any = await a.api.raw("GET", "/v1/dashboard_configuration").catch(() => null);
+  const allowed: string[] = perms?.data?.authorized_permissions ?? [];
+  const canEdit = allowed.some((x) => /company.*update|update.*company/i.test(String(x)));
+  h.note(`acting as ${a.label}; company update right in their permissions: ${canEdit ? "yes" : "no"}`);
+  const r = await a.api.raw("POST", `/vendor_validation/trigger?workspace_id=${h.clientId}`, { body: { mode: "force", vendor_ids: [await h.role("V-NODOCS")] } });
+  const s = await a.api.raw("GET", `/vendor_validation/runs/${runIdFor(h.clientId, h.today)}?workspace_id=${h.clientId}`);
+  h.expect(!r.ok, `a buyer without vendor-edit rights cannot start a run (got HTTP ${r.status}${r.message ? ` '${r.message}'` : ""})`);
+  h.expect(s.ok, `the same buyer can still read a run's status (got HTTP ${s.status})`);
+  if (r.ok) h.note(`the run was accepted (job ${(r.data as any)?.job_id}); on this build it never starts (REV-19)`);
+};
+S["R-10"] = async (h) => {
+  const r = await h.qa("session", "DELETE", "/trigger/abc123");
+  h.expect(r.status === 404, `cancelling a scheduled run is gone: DELETE /api/vendor_validation/trigger/:job_id answers 404 (got ${r.status})`);
+  const old = await h.call("session", "GET", `/api/vendor_revalidation_qa/config?client_company_id=${h.clientId}`);
+  h.expect(old.status === 404, `the old private QA controls are gone: GET /api/vendor_revalidation_qa/config answers 404 (got ${old.status})`);
+  h.note("there is no way left to cancel a scheduled run — a run with run_at tomorrow 15:00 will fire");
+};
+S["R-11"] = async (h) => {
+  const run = await latestRun(h.clientId);
+  if (!run) throw new NotRunnable("no run for this client yet");
+  const r = await h.qa("session", "GET", `/runs/${run.runId}`);
+  const keys = Object.keys(r.data ?? {}).sort();
+  h.expect(r.status === 200, `run status answers (${r.status})`);
+  h.expect(!keys.includes("top_errors") && !keys.includes("by_doc_type"), `the run status no longer carries top_errors / by_doc_type (keys: ${keys.join(", ")})`);
+  h.note("a buyer gets counts by status only; which document failed and why is now on the vendor page / listing");
+};
+/** the vendor list's filter definitions, as the screen asks for them */
+async function filterOptions(h: H): Promise<{ list: any[]; status: number; raw: string }> {
+  const r = await h.call("session", "GET", "/api/companies/filter_options?tab=verified", undefined, { appVersion: "9.4.448" });
+  const d: any = r.data;
+  const list: any[] = Array.isArray(d) ? d : Array.isArray(d?.filters) ? d.filters : Array.isArray(d?.filter_options) ? d.filter_options : Array.isArray(d?.data) ? d.data : Object.values(d ?? {}).find((v: any) => Array.isArray(v) && v.some((x: any) => x?.key)) as any[] ?? [];
+  return { list, status: r.status, raw: short(d, 300) ?? "" };
+}
+S["H-07"] = async (h) => {
+  const { list, status, raw } = await filterOptions(h);
+  if (!list.length) throw new Error(`filter_options gave no filter list (HTTP ${status}: ${raw})`);
+  const names = list.map((f) => f.key ?? f.name);
+  const date = list.find((f) => /validated|last_validated|date/i.test(`${f.key} ${f.name}`));
+  h.expect(!!date, `the vendor list offers a "Last Validated At" date filter (filters offered: ${names.join(", ")})`);
+};
+S["H-03"] = S["H-07"];
+S["H-06"] = async (h) => {
+  const { list, status, raw } = await filterOptions(h);
+  if (!list.length) throw new Error(`filter_options gave no filter list (HTTP ${status}: ${raw})`);
+  const f = list.find((x) => x.key === "vendor_validation_status");
+  const opts: string[] = (f?.options ?? []).map((o: any) => String(o.value));
+  h.expect(!!f, `the vendor list offers a Validation Status filter (${f ? "yes" : "no"})`);
+  h.expect(opts.includes("pending"), `the filter can select vendors never checked (a 'pending' choice) — options: ${opts.join(", ")}`);
+  for (const st of ["passed", "failed"]) {
+    const page1 = await h.call("session", "GET", `/api/companies/all_vendors?tab=verified&page=1&filters=${encodeURIComponent(JSON.stringify({ vendor_validation_status: [st] }))}`, undefined, { appVersion: "9.4.448" });
+    const got: any[] = page1.data?.companies ?? [];
+    const label = LABEL[st];
+    h.expect(page1.status === 200 && got.length > 0 && got.every((c) => c.vendor_validation_status === label), `filter ${st}: page 1 shows only ${label} vendors (${got.length} rows${got.length ? `, statuses ${[...new Set(got.map((c) => c.vendor_validation_status))].join("/")}` : ""})`);
+  }
 };
 
 // ── recorded nightly runs as evidence for the provider / schedule cases ──

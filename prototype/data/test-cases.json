@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T05:09:01.373Z",
+  "generatedAt": "2026-10-21T05:36:19.273Z",
   "cases": [
     {
       "id": "UI-ENV-001",
@@ -95952,18 +95952,18 @@
       "sectionNo": 1,
       "title": "A buyer who may not edit vendors cannot start a run",
       "why": "Added from the code (not in the guide).",
-      "setup": "Not run unattended (manual): needs a GMMCO buyer login without vendor-edit rights",
-      "steps": "1. log in as a buyer whose role lacks vendor (company) update rights 2. POST /trigger mode force, one vendor",
-      "expected": "Refused (not authorized); reading a run needs only read rights.",
+      "setup": "Runs every time: a GET to the QA API, nothing changes.",
+      "steps": "1. as one of our QA member users on GMMCO (no company rights): POST /trigger mode force, one vendor 2. GET /runs/<today> as the same user",
+      "expected": "The run request is refused (not authorized); reading a run still works (read right only).",
       "recordsCurrentBehaviour": false,
-      "oracle": "—",
+      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
       "priority": "P1",
-      "verdict": "manual",
+      "verdict": "automate",
       "refs": [
         "API-XREV-A",
         "app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)"
       ],
-      "source": "P1 · manual · `API-XREV-A` · manual · `app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)`"
+      "source": "P1 · automate · `API-XREV-A` · read · `app/policies/vendor_validation_history_policy.rb (trigger? = company update_record)`"
     },
     {
       "id": "API-XREV-B-01",
@@ -98001,19 +98001,20 @@
       "section": "Vendor listing, vendor page and Excel",
       "sectionNo": 8,
       "title": "Date filter From after To",
-      "why": "Guide H-03 (UI).",
-      "setup": "Not run unattended (ui): a screen behaviour — procol-ui-tests",
-      "steps": "1. Last validated filter 30 Oct to 1 Oct",
-      "expected": "Blocked or empty with a message.",
+      "why": "Guide H-03 (UI). Finding REV-24 (Medium): There is no 'Last Validated At' date filter on the vendor list.",
+      "setup": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+      "steps": "1. GET /companies/filter_options?tab=verified",
+      "expected": "A 'Last Validated At' date-range filter exists to test From > To on.",
       "recordsCurrentBehaviour": false,
-      "oracle": "—",
+      "oracle": "The listing / vendor page reply against the rows and link worked out from the database.",
       "priority": "P3",
-      "verdict": "manual",
+      "verdict": "automate",
       "refs": [
         "API-XREV-H",
-        "app/controllers/concerns/companies_controller_filter_helper.rb"
+        "app/controllers/concerns/companies_controller_filter_helper.rb",
+        "REV-24"
       ],
-      "source": "P3 · manual · `API-XREV-H` · ui · `app/controllers/concerns/companies_controller_filter_helper.rb`"
+      "source": "P3 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_filter_helper.rb` · `REV-24`"
     },
     {
       "id": "API-XREV-H-04",
@@ -98064,19 +98065,20 @@
       "section": "Vendor listing, vendor page and Excel",
       "sectionNo": 8,
       "title": "Status filter",
-      "why": "Guide H-06 (API+UI).",
-      "setup": "Not run unattended (ui): the filter payload is built by the screen — procol-ui-tests",
-      "steps": "1. filter Passed, then Failed, then not validated",
-      "expected": "Only matching vendors; 'pending' maps to vendors never checked.",
+      "why": "Guide H-06 (API+UI). Finding REV-23 (Medium): The Validation Status filter cannot select vendors that were never checked.",
+      "setup": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+      "steps": "1. GET /companies/filter_options (the choices the screen shows) 2. GET /companies/all_vendors with filters {vendor_validation_status:[passed]} then [failed], as the screen sends them",
+      "expected": "A Validation Status filter exists with a choice for vendors never checked ('pending'); each filter returns only vendors of that status.",
       "recordsCurrentBehaviour": false,
-      "oracle": "—",
+      "oracle": "The listing / vendor page reply against the rows and link worked out from the database.",
       "priority": "P1",
-      "verdict": "manual",
+      "verdict": "automate",
       "refs": [
         "API-XREV-H",
-        "app/controllers/concerns/companies_controller_filter_helper.rb:436"
+        "app/controllers/concerns/companies_controller_filter_helper.rb:436",
+        "REV-23"
       ],
-      "source": "P1 · manual · `API-XREV-H` · ui · `app/controllers/concerns/companies_controller_filter_helper.rb:436`"
+      "source": "P1 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_filter_helper.rb:436` · `REV-23`"
     },
     {
       "id": "API-XREV-H-07",
@@ -98085,19 +98087,20 @@
       "section": "Vendor listing, vendor page and Excel",
       "sectionNo": 8,
       "title": "Date range filter",
-      "why": "Guide H-07 (UI).",
-      "setup": "Not run unattended (ui): screen case",
-      "steps": "1. range covering the run date",
-      "expected": "Only vendors validated in range.",
+      "why": "Guide H-07 (UI). Finding REV-24 (Medium): There is no 'Last Validated At' date filter on the vendor list.",
+      "setup": "Runs every time: the buyer's own listing / vendor page read with the client's session and compared with the database.",
+      "steps": "1. GET /companies/filter_options?tab=verified",
+      "expected": "A 'Last Validated At' date-range filter is offered.",
       "recordsCurrentBehaviour": false,
-      "oracle": "—",
+      "oracle": "The listing / vendor page reply against the rows and link worked out from the database.",
       "priority": "P2",
-      "verdict": "manual",
+      "verdict": "automate",
       "refs": [
         "API-XREV-H",
-        "app/controllers/concerns/companies_controller_filter_helper.rb"
+        "app/controllers/concerns/companies_controller_filter_helper.rb",
+        "REV-24"
       ],
-      "source": "P2 · manual · `API-XREV-H` · ui · `app/controllers/concerns/companies_controller_filter_helper.rb`"
+      "source": "P2 · automate · `API-XREV-H` · listing · `app/controllers/concerns/companies_controller_filter_helper.rb` · `REV-24`"
     },
     {
       "id": "API-XREV-H-08",
@@ -98107,7 +98110,7 @@
       "sectionNo": 8,
       "title": "Filters together with search",
       "why": "Guide H-08 (UI).",
-      "setup": "Not run unattended (ui): screen case",
+      "setup": "Not run unattended (ui): run on the preview dashboard by procol-ui-tests/scripts/reval-filters.ts: Validation Status filter + name search, counts compared with the database; the date-range part cannot exist (REV-24)",
       "steps": "1. Failed + date range + vendor search",
       "expected": "Results match all three.",
       "recordsCurrentBehaviour": false,
@@ -98419,6 +98422,48 @@
         "app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341"
       ],
       "source": "P1 · manual · `API-XREV-I` · needs ops · `app/models/company.rb:925-927, app/controllers/api/companies_controller.rb:341`"
+    },
+    {
+      "id": "API-XREV-R-10",
+      "layer": "api",
+      "group": "API-XREV-R",
+      "section": "Audit of the runs already recorded",
+      "sectionNo": 10,
+      "title": "Cancel and the old QA controls are really gone",
+      "why": "Added from the code (not in the guide).",
+      "setup": "Runs every time: a GET to the QA API, nothing changes.",
+      "steps": "1. DELETE /api/vendor_validation/trigger/abc123 2. GET /api/vendor_revalidation_qa/config?client_company_id=<client>",
+      "expected": "Both answer 404: a scheduled run can no longer be cancelled by anyone, and the private controls are gone.",
+      "recordsCurrentBehaviour": false,
+      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "priority": "P3",
+      "verdict": "automate",
+      "refs": [
+        "API-XREV-R",
+        "config/routes.rb:695-697 (@ a717f107ce)"
+      ],
+      "source": "P3 · automate · `API-XREV-R` · read · `config/routes.rb:695-697 (@ a717f107ce)`"
+    },
+    {
+      "id": "API-XREV-R-11",
+      "layer": "api",
+      "group": "API-XREV-R",
+      "section": "Audit of the runs already recorded",
+      "sectionNo": 10,
+      "title": "The run status carries counts only",
+      "why": "Added from the code (not in the guide).",
+      "setup": "Runs every time: a GET to the QA API, nothing changes.",
+      "steps": "1. GET /runs/<the client's latest run>",
+      "expected": "200 with run_id, trigger, total_rows, vendors, finished_vendors, by_status, complete — no top_errors, no by_doc_type (removed on 20 Oct).",
+      "recordsCurrentBehaviour": false,
+      "oracle": "The QA API's reply (status, error code, message) and GET /config afterwards.",
+      "priority": "P3",
+      "verdict": "automate",
+      "refs": [
+        "API-XREV-R",
+        "trigger_service.rb run_summary"
+      ],
+      "source": "P3 · automate · `API-XREV-R` · read · `trigger_service.rb run_summary`"
     },
     {
       "id": "API-XREV-R-01",

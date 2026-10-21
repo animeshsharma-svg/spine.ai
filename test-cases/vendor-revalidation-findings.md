@@ -7,6 +7,8 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 
 | Id | Severity | Status | Finding | Cases |
 | --- | --- | --- | --- | --- |
+| REV-23 | Medium | confirmed live 2026-10-21 | The Validation Status filter cannot select vendors that were never checked | H-06 |
+| REV-24 | Medium | confirmed live 2026-10-21 | There is no 'Last Validated At' date filter on the vendor list | H-03, H-07, H-08 |
 | REV-22 | Medium | seen in the recorded runs 2026-10-21 - confirm with dev | Attestr was asked 38 questions in one minute - above the 30-per-minute cap | F-13 |
 | REV-21 | Medium | seen in the recorded runs 2026-10-21 — confirm with dev | Checks are given up as System Error after about 16-17 hours, not after the documented 24 hours | F-07 |
 | REV-20 | Low | confirmed on the preview screen 2026-10-20 | The vendor page shows times as '23:00 PM' - a 24-hour clock with AM/PM added | H-09 |
@@ -29,6 +31,28 @@ assumption, but it was not (or must not be) triggered. Each finding names the ca
 | REV-14 | Medium | to confirm by audit (C-09) | Vendors of other company categories are revalidated but never shown | C-09 |
 | REV-15 | Medium | confirmed live 2026-10-15 (found in passing) | GET /api/companies/vendor_detail answers 500 for every vendor |  |
 | REV-16 | Low | confirmed live 2026-10-15 (found in passing) | rfx-uat-api answers errors with the full Rails debug page |  |
+
+
+## REV-23 — The Validation Status filter cannot select vendors that were never checked
+
+**Severity** Medium · **Status** confirmed live 2026-10-21 · **Cases** H-06
+
+The vendor list's filter options (GET /companies/filter_options) offer Validation Status with Passed, Failed, Skipped and System Error only. A vendor no run has checked shows 'Pending' in the column (REV-06) but there is no 'Pending' / 'Not checked' choice, so a buyer cannot list the vendors still waiting for a check - the one list they need before a go-live. The backend already maps a 'pending' value to NULL (companies_controller_filter_helper.rb filter_by_bsm_column), so only the option is missing.
+
+**Evidence.** GET /api/companies/filter_options?tab=verified -> vendor_validation_status.options = passed, failed, skipped, system_error (21 Oct 2026).
+
+**Suggested fix.** Add a 'Not checked yet' option (value pending) to the vendor_validation_status filter options.
+
+
+## REV-24 — There is no 'Last Validated At' date filter on the vendor list
+
+**Severity** Medium · **Status** confirmed live 2026-10-21 · **Cases** H-03, H-07, H-08
+
+The guide (and the TRD) describe a last-validated date-range filter next to the status filter. Neither the backend's filter options nor the preview dashboard's filter panel has one; the column is shown but cannot be filtered. Three guide cases (H-03, H-07, part of H-08) have nothing to run against.
+
+**Evidence.** GET /api/companies/filter_options?tab=verified lists no date filter; the preview's filter panel shows Teams, Deals In, City, Tags, Type, Onboarding Status, Country, Initiated By, PAN No, Validation Status (screenshot filter-panel.png).
+
+**Suggested fix.** Add a date-range filter on buyer_seller_company_mappings.vendor_last_validated_at (bsm_column source) and show it in the panel.
 
 
 ## REV-22 — Attestr was asked 38 questions in one minute - above the 30-per-minute cap
