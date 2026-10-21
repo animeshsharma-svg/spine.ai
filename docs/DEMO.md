@@ -27,6 +27,13 @@ enlarge. When the run ends, the verdict and the step count are on the panel.
 The same happens for every run from **Run tests** (type a case there, watch the session): the
 **Screenshots** strip sits under the live browser, and each step in the list carries its pictures.
 
+**How a case picks its event.** A case written from a screen never runs on the walk's old event or
+on one found by searching the list. Its plan is compiled for the state its screen needs — a bid
+event (a vendor's bid in) for Responses, Master QCS and awarding; a proposal event for the proposal
+page — the API builds that event before the run, and the plan opens it by route (`open_prepared`).
+The card says "on a bid event the API builds". Verified 21 Oct: awarding 3/3, settings 3/3,
+participants 7/7, each on a fresh event.
+
 ## 3. A new case, on the spot (2 min)
 
 On a screen's page, type into **Test something new on this screen**, e.g.
@@ -50,7 +57,7 @@ cases. (About 3 minutes; the full walk set is 30+ minutes.)
 
 ## Numbers to have ready (as of 21 Oct, 03:00)
 
-- Screens in the library: **46** · controls on them: **1,310** (1,150 described) · test cases written from screens: **243**
+- Screens in the library: **46** · controls on them: **1,310** (1,150 described) · test cases written from screens: **243** (176 with a browser plan, the rest say why they cannot be expressed yet)
 - Event combinations: **22 of 22 passed** (eRFX 12, single-stage 9, BOQ 1) · **919 spotlight pictures** in that run alone
 - Walks: all 7 pass end to end (events list, eRFX create → publish → bid → Master QCS, single-stage auction, BOQ template, compare & award, proposal, RFQ → auction)
 - What the night found about the product (each with a picture): a counter offer cannot be sent on a surrogate bid; the single-stage screen has no Save as draft; BOQ line items arrive only by upload; a non-preset duration lands on different presets per stage and publish is refused
@@ -60,4 +67,4 @@ cases. (About 3 minutes; the full walk set is 30+ minutes.)
 
 - A run says "waiting for the browser": another run holds the slot; wait or stop it (Sessions).
 - A case has "No browser plan yet": its coverage is none — pick another, or type a clearer one.
-- The model is slow: Slingring's fast tier sometimes takes 10–30 s; the page says what it is doing.
+- The model is slow: Slingring's fast tier sometimes takes 10–30 s; the page says what it is doing. On 21 Oct ~10:50 Slingring answered 429 ExceededBudget — compiles fall back to Gemini (slower, works).
