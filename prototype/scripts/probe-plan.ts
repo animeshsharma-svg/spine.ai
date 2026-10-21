@@ -26,11 +26,11 @@ if (state && state !== "none") {
     process.exit(1);
   }
   const x = b.context;
-  context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values };
+  context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId };
 }
 await new Promise<void>((resolve) => {
   runUiPlan({ plan: { title: "probe", steps, ...(context ? { context } : {}) }, companyId: COMPANY, runId: `probe-${Date.now().toString(36)}`, headed: false }, (e: any) => {
-    if (e.type === "log" && /\[plan\]|\[probe\]|\[reschedule\]|Error:|intercepts|waiting for/.test(e.line ?? "")) console.log(String(e.line).trim().slice(0, 900));
+    if (e.type === "log" && /\[plan\]|\[probe\]|\[reschedule\]|\[create-event\]|Error:|intercepts|waiting for/.test(e.line ?? "")) console.log(String(e.line).trim().slice(0, 900));
     if (e.type === "done" || e.type === "run-error") {
       console.log(`exit ${e.exitCode ?? "?"}`);
       resolve();

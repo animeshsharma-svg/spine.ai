@@ -49,6 +49,8 @@ export interface UiSetupContext {
   vendorName?: string;
   /** the bidding vendor's login email — for a vendor-portal step */
   vendorEmail?: string;
+  /** the buyer user the API signed in as (the browser signs in as the same user) */
+  buyerUserId?: number;
   /** every id the journey produced, by name */
   made: Record<string, string>;
   /** values the API sent, for expect_api_value (key → text as a person would read it) */
@@ -202,6 +204,7 @@ export async function buildUiState(
       title: j.title,
       vendorName,
       vendorEmail: bidder ? bidder.email : email,
+      buyerUserId: Number(client?.ctx?.buyerUserId) || undefined,
       made,
       values: valuesFrom(j, client, vendorName),
       builtInMs: Date.now() - t0,

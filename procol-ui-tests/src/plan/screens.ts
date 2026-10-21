@@ -19,6 +19,8 @@ export interface PlanContext {
   vendorEmail?: string;
   /** values the API sent, by key — for expect_api_value */
   values?: Record<string, string>;
+  /** the buyer user the API setup signed in as — the browser must be the same user, or the event is not theirs to open */
+  buyerUserId?: number;
 }
 
 export interface ScreenSpec {

@@ -82,12 +82,23 @@ export class SurrogateBidPage extends BasePage {
       (await p.getByTestId("add-bid-button").count()) > 0 ||
       (await p.getByRole("tab", { name: /participants/i }).count()) > 0;
 
+    // A surrogate PRICE bid belongs to the pricing stage. On a two-stage event the Technical
+    // Stage tab comes first and has a Participants list too — the vendor picker, no Add Bid —
+    // so stopping at the first stage with participants opened the wrong one (2026-10-09).
+    const pricingTab = p.getByRole("tab", { name: /^\s*(rfq|auction|reverse auction|forward auction)\b/i }).first();
+    const onTechnical = await p.getByRole("tab", { name: /technical stage/i, selected: true }).count().catch(() => 0);
+    if ((onTechnical || !(await found())) && (await pricingTab.count().catch(() => 0))) {
+      await pricingTab.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await p.getByTestId("event-settings-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG }).catch(() => {});
+      await this.dismissDistractions();
+    }
     if (!(await found())) {
       const tabs = p.getByRole("tab");
       const count = await tabs.count().catch(() => 0);
       for (let i = 0; i < count; i++) {
         const label = ((await tabs.nth(i).textContent().catch(() => "")) ?? "").trim();
         if (/^(project\s+)?(details|overview|master\s+qcs|analytics|price\s+trends)$/i.test(label)) continue;
+        if (/technical/i.test(label) && (await pricingTab.count().catch(() => 0))) continue;
         await tabs.nth(i).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
         // Selecting a stage NAVIGATES; its sub-tabs and audience list arrive
         // with the new page. The event header is the signal that it has.
@@ -234,6 +245,24 @@ export class SurrogateBidPage extends BasePage {
           .waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM })
           .catch(() => {});
         console.log(`[surrogate] searched for "${vendor}" — ${await p.getByTestId("add-bid-button").count()} row(s) now offer Add Bid`);
+      }
+    }
+
+    // A live event's list starts with EVERY vendor of the company (paginated); the event's own
+    // participants — the only rows with Add Bid — can be pages away. "Show only selected vendors"
+    // narrows it to them (seen on a published new version, 2026-10-09).
+    if (!(await p.getByTestId("add-bid-button").count())) {
+      const onlySelected = p
+        .locator("div, span, label")
+        .filter({ hasText: /^\s*Show only selected vendors\s*$/i })
+        .last()
+        .locator("xpath=following::button[@role='switch'][1]")
+        .or(p.getByRole("switch").first())
+        .first();
+      if ((await onlySelected.count().catch(() => 0)) && (await onlySelected.getAttribute("aria-checked").catch(() => null)) !== "true") {
+        await onlySelected.click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+        await p.getByTestId("add-bid-button").first().waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).catch(() => {});
+        console.log(`[surrogate] showing only the event's participants — ${await p.getByTestId("add-bid-button").count()} row(s) offer Add Bid`);
       }
     }
 

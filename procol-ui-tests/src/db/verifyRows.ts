@@ -65,3 +65,37 @@ export async function tradesOfEventGroup(eventGroupId: number): Promise<DbTrade[
   );
   return rows;
 }
+
+export interface DbOrder {
+  id: number;
+  seller_company_id: number;
+  trade_request_id: number;
+  status: string | null;
+  quantity: string | null;
+  po_number: string | null;
+  items: Array<{ product: string; quantity: string | null; unit_type: string | null }>;
+}
+
+/**
+ * The orders (purchase orders) an event's rounds created — one per awarded vendor once the
+ * award is final (bid.rb:2190-2209) — with their lines. Read-only, scoped to the run's own
+ * event group; a product name comes from the line's `product` JSON.
+ */
+export async function ordersOfEventGroup(eventGroupId: number): Promise<DbOrder[]> {
+  const { rows } = await db().query(
+    `select o.id, o.seller_company_id, o.trade_request_id, o.status::text as status, o.quantity::text as quantity, o.po_number
+     from orders o join trade_requests tr on tr.id = o.trade_request_id
+     where tr.event_group_id = $1 order by o.id`,
+    [eventGroupId],
+  );
+  const out: DbOrder[] = [];
+  for (const r of rows) {
+    const items = await db().query(
+      `select coalesce(product->>'name', product->>'title', '') as product, quantity::text as quantity, unit_type::text as unit_type
+       from order_items where order_id = $1 order by id`,
+      [r.id],
+    );
+    out.push({ ...r, items: items.rows });
+  }
+  return out;
+}

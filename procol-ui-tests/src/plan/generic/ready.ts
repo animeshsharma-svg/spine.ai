@@ -79,6 +79,11 @@ export async function screenAnchor(page: Page): Promise<{ name: string; present:
   if (/quick-create|projectCreation=true|singleStage=true/i.test(path + url.search)) {
     return { name: "the event title field", present: await vis(page.getByPlaceholder(/title/i)) };
   }
+  // the award proposal page has no event tabs: a draft shows the proposal document with
+  // "Submit Proposal" / "Go back to project", a submitted one the Approvals panel
+  if (/^\/project\/[^/]+\/proposal\//.test(path)) {
+    return { name: "the proposal's own controls", present: await vis(page.getByRole("button", { name: /submit proposal|go back to project|approve/i }).or(page.getByRole("tab", { name: /approvals|comments/i }))) };
+  }
   if (/^\/project\//.test(path)) {
     return { name: "the event's tabs", present: await vis(page.getByRole("tab")) };
   }

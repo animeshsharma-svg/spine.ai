@@ -10,12 +10,16 @@
  * generates detailed test cases grounded ONLY in that diff.
  */
 import { execFileSync } from "node:child_process";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chat, llmMode } from "../ai/llm.js";
 import type { TestCase, TestType } from "../ai/types.js";
 
+// Procol's repos sit (git-ignored) in the repository root, next to prototype/.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const REPOS: Record<string, string> = {
-  backend: "/Users/animesh/Desktop/procol/procol-backend",
-  frontend: "/Users/animesh/Desktop/procol/procol-client-dashboard",
+  backend: join(ROOT, "procol-backend"),
+  frontend: join(ROOT, "procol-client-dashboard"),
 };
 
 function git(repo: string, args: string[]): string {

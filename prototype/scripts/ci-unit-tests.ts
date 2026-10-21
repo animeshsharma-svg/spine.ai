@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 
 import { apiAttempt, classify, documentedCodes, redactSecrets, runCheck, type Check, type CheckOutcome } from "../src/checks/engine.js";
 import { appOf, appRefusal } from "../src/checks/appAccess.js";
+import { bridgeLifecycle, lintPlan } from "../src/agents/planner.js";
 import { endpointOf, evaluateStepAssertions, type AssertionCatalog } from "../src/checks/apiAssertions.js";
 import { humanActual } from "../src/checks/humanize.js";
 import { journeyOutcome, journeyPlan, type JourneyStepRecord } from "../src/checks/journeyModel.js";
@@ -675,5 +676,35 @@ describe("uiCasePrep: the state the API builds and the screen the browser opens 
   test("a surrogate-bid case opens the live event's Participants", () => {
     const p = prepFor(c("UI-SUR", "The Add Bid drawer opens with that vendor's sheet"));
     assert.deepEqual([p.state, p.screen], ["live", "participants"]);
+  });
+});
+
+describe("planner: the event lifecycle bridges a case to the state each step needs", () => {
+  const S = (step: string, args: Record<string, unknown> = {}) => ({ step, args });
+  const made = [S("open_create"), S("compose_stages"), S("select_template"), S("add_line_items", { count: 3 })];
+  const tail = (steps: { step: string }[]) => steps.slice(made.length).map((x) => x.step);
+
+  test("a PO check right after creating walks publish → bid → close → award → PO", () => {
+    const r = bridgeLifecycle([...made, S("expect_po_items")]);
+    assert.deepEqual(tail(r.steps), ["publish", "expect_published", "place_surrogate_bid", "close_event", "award_event", "create_po", "expect_po_items"]);
+  });
+  test("an award after a bid only needs the close", () => {
+    const r = bridgeLifecycle([...made, S("publish"), S("expect_published"), S("place_surrogate_bid"), S("award_event")]);
+    assert.deepEqual(tail(r.steps), ["publish", "expect_published", "place_surrogate_bid", "close_event", "award_event"]);
+  });
+  test("an existing or prepared event is not walked (its state is not known here)", () => {
+    assert.equal(bridgeLifecycle([S("open_event"), S("create_po")]).repairs.length, 0);
+    assert.equal(bridgeLifecycle([...made, S("create_po")], "awarded").repairs.length, 0);
+  });
+  test("a new version written after the award moves before it and is published again", () => {
+    const r = lintPlan({ title: "t", steps: [...made, S("publish"), S("expect_published"), S("place_surrogate_bid"), S("close_event"), S("award_event"), S("create_new_version"), S("remove_line_items", { count: 1 })] });
+    const order = tail(r.plan.steps);
+    assert.ok(order.indexOf("create_new_version") < order.indexOf("award_event"));
+    assert.equal(order[order.indexOf("remove_line_items") + 2], "publish");
+  });
+  test("a negative case (it asserts a refusal) is left as written", () => {
+    const steps = [...made, S("publish"), S("expect_published"), S("attempt", { step: "award_event" })];
+    const order = lintPlan({ title: "t", steps }).plan.steps.map((x) => x.step);
+    for (const added of ["place_surrogate_bid", "close_event", "award_event"]) assert.ok(!order.includes(added), `${added} was added`);
   });
 });

@@ -6,6 +6,8 @@ import { recordStuck } from "../oracle/stuck.js";
 import { CounterOfferPage } from "../pages/CounterOfferPage.js";
 import { SurrogateBidPage } from "../pages/SurrogateBidPage.js";
 import { AwardPage } from "../pages/AwardPage.js";
+import { eventGroupByTitle, ordersOfEventGroup, type DbOrder } from "../db/verifyRows.js";
+import { decodeProcolId } from "../crosscheck/ids.js";
 import { vendorNames, vendorCount } from "../master/params.js";
 import { CreateEventPage, ProductInput, StageKey } from "../pages/CreateEventPage.js";
 import { EventDetailPage } from "../pages/EventDetailPage.js";
@@ -15,12 +17,17 @@ import { buildProducts } from "../master/params.js";
 import { WidgetConfig } from "../helpers/inlineSheet.js";
 import { PlanStep, TestPlan } from "./steps.js";
 import { runGenericStep } from "./generic/run.js";
-import { toastMark } from "./generic/messages.js";
+import { toastMark, appMessagesSince } from "./generic/messages.js";
+import { appRuleFor, recoveryFor } from "../oracle/appRules.js";
 import type { Target } from "./generic/find.js";
 import { qaVendorNames, qaVendorLogins, vendorLogins, isQaVendorName, allowRealVendors } from "../db/qaVendors.js";
 import { runExpectationStep } from "./expectations.js";
 import { runQcsAudienceStep } from "./qcsAudienceSteps.js";
 import { installObserver, observe, shareObserver, type Observation } from "./observe.js";
+import { screenInventory } from "./inventory.js";
+import { mkdirSync as mkdirInv, writeFileSync as writeInv } from "node:fs";
+import { join as joinInv, dirname as dirnameInv } from "node:path";
+import { fileURLToPath as fileUrlInv } from "node:url";
 import { resolveScreen, type PlanContext } from "./screens.js";
 import { CONFIG, NAV } from "../config.js";
 import { focusFrames } from "../support/liveCursor.js";
@@ -196,6 +203,17 @@ export interface StepResult {
   /** For generic steps: which locator strategy found the element (role+name, label, text, healer…). */
   strategy?: string;
   ms: number;
+  /** What the person would have seen when this step failed or was recovered. */
+  evidence?: {
+    screenshot?: string;
+    url?: string;
+    /** the app's own words while the step ran (toasts, inline errors) */
+    appSaid?: string[];
+    /** the app rule those words come from, from its code (oracle/appRules.json) */
+    rule?: { message: string; source: string; condition?: string };
+  };
+  /** The run broke one of the app's rules by its own setup, satisfied it, and retried. */
+  recovered?: { appSaid: string; rule: string; why: string; did: string[] };
 }
 
 export interface PlanResult {
@@ -221,6 +239,8 @@ interface RunState {
   widgets: Record<string, WidgetConfig>;
   products: ProductInput[];
   lineItemsAdded: number;
+  /** purchase orders read back after create_po */
+  orders?: DbOrder[];
   /**
    * Whether a bid has been placed in this plan, so `expect_bid_submitted` can
    * tell "the bid failed" from "no bid was ever attempted" — a plan that
@@ -1020,8 +1040,31 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       if (!res.ok) throw new Error(`the buyer's grid does not yet mark the counter offer as accepted — the vendor header reads: ${res.text}`);
       return "the buyer's grid marks the counter offer as accepted";
     }
+    case "inventory_screen": {
+      // Every control the screen shows, with the screenshot and accessibility tree beside it —
+      // the input for writing test cases from a screen (prototype/src/agents/screenCases.ts).
+      const label = String(a.label ?? "screen").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "screen";
+      await s.page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      const busy = s.page.locator(".ant-skeleton, .ant-spin-spinning").first();
+      for (const until = Date.now() + 20_000; Date.now() < until && (await busy.isVisible().catch(() => false)); ) await s.page.waitForTimeout(250);
+      const o = await observe(s.page, s.stepNo, `inventory-${label}`, { force: true }).catch(() => null);
+      const inv = await screenInventory(s.page);
+      const fallbackDir = joinInv(dirnameInv(fileUrlInv(import.meta.url)), "..", "..", "evidence", "inventories");
+      const file = o?.screenshot ? o.screenshot.replace(/\.png$/, ".inventory.json") : joinInv(fallbackDir, `${label}-${Date.now()}.inventory.json`);
+      mkdirInv(dirnameInv(file), { recursive: true });
+      writeInv(file, JSON.stringify({ label, context: s.context?.state ?? "none", screenshot: o?.screenshot ?? null, aria: o?.snapshot ?? null, ...inv }, null, 2));
+      console.log(`[inventory] ${file}`);
+      const by = inv.controls.reduce<Record<string, number>>((m, c) => ((m[c.kind] = (m[c.kind] ?? 0) + 1), m), {});
+      return `inventory of "${label}" at ${inv.path}: ${inv.controls.length} controls (${Object.entries(by).map(([k, n]) => `${n} ${k}`).join(", ")})`;
+    }
     case "capture_screen": {
       const label = String(a.label ?? "capture").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 60) || "capture";
+      // A capture of a page still drawing its skeleton documents nothing — wait (≤20 s) for the
+      // loaders to go, as a person would before looking.
+      await s.page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+      const loading = s.page.locator(".ant-skeleton, .ant-spin-spinning").first();
+      const until = Date.now() + 20_000;
+      while (Date.now() < until && (await loading.isVisible().catch(() => false))) await s.page.waitForTimeout(250);
       // Reuse the stuck-report writer: same screenshot + tree, same panel on
       // the dashboard, but marked as requested rather than as a failure.
       await recordStuck(s.page, {
@@ -1077,6 +1120,61 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         rangeUpper: a.rangeUpper !== undefined ? Number(a.rangeUpper) : undefined,
       });
       return `single-stage configured: ${eventType}${sub ? ` · ${sub.replace("_", " ")}` : ""}${awarding ? ` · award ${awarding.replace("_", " ")}` : ""}`;
+    }
+    case "create_new_version": {
+      if (!/\/project\//.test(s.page.url())) throw new Error("create_new_version needs a published event's project page — publish and expect_published (or open_event) first");
+      const v = await new EventDetailPage(s.page).createNewVersion();
+      // The copy is a new draft on the same create screen: what the plan does next edits IT.
+      s.create = new CreateEventPage(s.page);
+      // the copy's stages draw first and its line items a beat later — an edit before they
+      // arrive finds an empty Manage Line Items panel
+      let copied: number | null = null;
+      for (const until = Date.now() + 45_000; Date.now() < until; await s.page.waitForTimeout(500)) {
+        copied = await s.create.lineItemCountBadge().catch(() => null);
+        if (copied && copied > 0) break;
+      }
+      s.lineItemsAdded = copied ?? s.lineItemsAdded;
+      return `new version open for editing (${v.stageIds.length} stage(s) copied${s.lineItemsAdded ? `, ${s.lineItemsAdded} line item(s)` : ""}) — the previous version is archived and its bids are read-only`;
+    }
+    case "remove_line_items": {
+      const r = await s.create.removeLineItems(asInt(a.count, 1));
+      s.lineItemsAdded = r.after;
+      return `removed ${r.removed.length} line item(s): ${r.before} → ${r.after}${r.removed.length ? ` (${r.removed.slice(0, 5).join("; ")})` : ""}`;
+    }
+    case "approve_award": {
+      const r = await new AwardPage(s.page).approveAward(a.remark ? String(a.remark) : undefined);
+      return `award approved — ${r.approved} approval step(s) were the run's buyer's`;
+    }
+    case "create_po": {
+      // Two ways a PO is made (awardingQCS.jsx): with skip_custom_po the award becomes a proposal
+      // and the orders are created when its approval completes; without it the awarding screen
+      // offers "Create PO", which opens a PO form — not built yet, so that path is not checked.
+      const customPo = s.page.getByRole("button", { name: /^\s*create po\s*$/i }).first();
+      if (/\/awarding\//.test(s.page.url()) && (await customPo.isVisible().catch(() => false))) {
+        throw new Error("not checked: this event makes POs through the custom PO form (skip_custom_po is off) — the PO-form step is not built yet");
+      }
+      const r = await new AwardPage(s.page).approveAward();
+      const orders = await waitForOrders(s.page.url(), s.title, 90_000);
+      if (!orders.length) throw new Error(`the award was approved (${r.approved} step(s)) but no purchase order was created within 90 s — the app creates one per awarded vendor when the award is final (bid.rb:2190-2209)`);
+      s.orders = orders;
+      return `award approved (${r.approved} step(s)); ${orders.length} purchase order(s): ${orders.map((o) => `#${o.id}${o.po_number ? ` ${o.po_number}` : ""} — ${o.items.length} line(s)`).join("; ")}`;
+    }
+    case "expect_po_items": {
+      const orders = s.orders?.length ? s.orders : await waitForOrders(s.page.url(), s.title, 30_000);
+      if (!orders.length) throw new Error("no purchase order exists for this event — create_po (approve the award) first");
+      const lines = orders.flatMap((o) => o.items.map((it) => ({ ...it, order: o.id })));
+      const want = asInt(a.count, s.lineItemsAdded || lines.length);
+      const problems: string[] = [];
+      if (lines.length !== want) problems.push(`the PO(s) carry ${lines.length} line(s), the award had ${want}`);
+      const empty = lines.filter((l) => !(Number(l.quantity) > 0));
+      if (empty.length) problems.push(`${empty.length} PO line(s) have no quantity`);
+      if (a.quantity !== undefined) {
+        const off = lines.filter((l) => Number(l.quantity) !== Number(a.quantity));
+        if (off.length) problems.push(`${off.length} PO line(s) do not carry quantity ${a.quantity} (${off.slice(0, 3).map((l) => l.quantity).join(", ")})`);
+      }
+      const seen = `${orders.length} PO(s), ${lines.length} line(s): ${lines.slice(0, 6).map((l) => `${l.product || "item"} × ${l.quantity}`).join("; ")}`;
+      expect(problems, `PO lines — ${seen}`).toEqual([]);
+      return `PO lines as awarded — ${seen}`;
     }
     case "convert_to_auction": {
       // Needs a published RFQ's project page under the browser.
@@ -1209,9 +1307,24 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       }
       if (a.minutes) process.env.UI_SCHEDULE_MINUTES = String(asInt(a.minutes, 30));
       await s.create.saveSchedule();
+      // Every stage must be scheduled the same way: a stage left on its old fixed end beside a
+      // re-scheduled Duration is refused at publish (BUG-85) — on a new version the copied
+      // stages load with the end time the server stored. A drawer opened before the page
+      // settled showed one block of two (2026-10-09), so schedule again when one is missing.
+      const stages = (await s.create.currentStages().catch(() => [])).length;
+      if (stages > 1 && s.create.scheduleWindows.length < stages) {
+        console.log(`[create-event] the schedule covered ${s.create.scheduleWindows.length} of ${stages} stages — scheduling again`);
+        await s.page.waitForTimeout(2_000);
+        await s.create.saveSchedule();
+        if (s.create.scheduleWindows.length < stages) throw new Error(`the Schedule drawer showed ${s.create.scheduleWindows.length} of ${stages} stages — the others keep their previous end time, which the app refuses beside a Duration (BUG-85)`);
+      }
+      // Report what the app holds — each stage block's own "Event will end at" line — never
+      // what was typed (a 3-minute end that did not take was reported as "saved (3 min)").
+      const windows = s.create.scheduleWindows.map((w) => `${w.stage.replace(/^\d+\.\s*/, "")} ends ${w.endsAt}`).join(" · ");
       const chosen = s.create.scheduleMinutesChosen;
-      if (a.minutes && chosen && chosen !== asInt(a.minutes, 30)) return `schedule saved — asked ${a.minutes} min, the app's smallest covering preset is ${chosen} min`;
-      return a.minutes ? `schedule saved (${chosen ?? a.minutes} min)` : "schedule saved";
+      const asked = a.minutes ? asInt(a.minutes, 30) : null;
+      const note = asked && chosen && chosen !== asked ? ` — asked ${asked} min, the app kept ${chosen} min` : asked && !chosen ? ` — asked ${asked} min, the app kept its default` : "";
+      return `schedule saved${windows ? `: ${windows}` : ""}${note}`;
     }
     case "place_bid": {
       // The vendor bids for themselves, which means a SECOND browser context:
@@ -1617,6 +1730,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     if (o?.findings.length) console.log(`[observe] after ${name}: ${o.findings.map((f) => `${f.rule}: ${f.detail}`).join(" | ").slice(0, 300)}`);
   };
   let failed = false;
+  let recoveries = 0;
+  const recoveredRules = new Set<string>();
+  const BLOCK_ASSERTION_STEPS = new Set(["expect_publish_blocked", "expect_error", "expect_message", "attempt", "expect_field_error"]);
   /** index of the block assertion to jump to after an early refusal */
   let jumpTo = -1;
   const BLOCK_ASSERTIONS = ["expect_publish_blocked", "expect_error", "expect_message"];
@@ -1670,6 +1786,72 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         .map((l) => l.trim())
         .find((l) => l.startsWith("- waiting for") || l.startsWith("- locator"));
       const detail = selector ? `${first} — ${selector.replace(/^-\s*/, "")}` : first;
+      // What did the app SAY while this step ran — and is it one of its own rules?
+      const said = [
+        ...((/rejected by the app:\s*(.+)$/i.exec(first)?.[1] ?? "").trim() ? [/rejected by the app:\s*(.+)$/i.exec(first)![1].trim()] : []),
+        // a refusal is an error or a warning — "Proposal submitted successfully" explains no failure
+        ...(await appMessagesSince(page, s.curMark).catch(() => [])).filter((m) => m.kind === "error" || m.kind === "warning").map((m) => m.text),
+      ].filter((t, k, all) => t && all.indexOf(t) === k);
+      const ruled = said.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
+      let ruledLast: typeof ruled = null;
+      let lastRefusal: string | null = null;
+
+      // RECOVER: the case is positive (it asserts no refusal), the app refused by a rule the
+      // run's own setup broke, and the code says how to satisfy it — do that, retry the step
+      // once, and say so. Never for a case that is testing the refusal, never twice for the
+      // same rule, at most two recoveries a run.
+      const negative = plan.steps.some((st) => BLOCK_ASSERTION_STEPS.has(st.step) || st.step === "skip");
+      // A refusal can hide the next one: a new version's publish first wants its evaluator,
+      // then its questionnaire sections. Each retry is judged afresh, and a DIFFERENT known
+      // rule is recovered too — bounded by the run's cap and never the same rule twice.
+      let cur = ruled;
+      let recovery = cur ? recoveryFor(cur.t) : null;
+      const chain: Array<{ appSaid: string; rule: string; why: string; did: string[] }> = [];
+      let recoveredStep = false;
+      while (cur && recovery && !negative && recoveries < 3 && !recoveredRules.has(cur.rule!.message)) {
+        recoveries++;
+        recoveredRules.add(cur.rule!.message);
+        console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ↻ the app refused: "${cur.t}" — its rule (${cur.rule!.source}); ${recovery.why}. Doing ${recovery.steps.map((x) => x.step).join(" + ")}, then retrying`);
+        const did: string[] = [];
+        let recoveredOk = true;
+        for (const rs of recovery.steps) {
+          try {
+            const d = await runStep(s, rs);
+            did.push(`${rs.step}${d ? `: ${d}` : ""}`);
+          } catch (re) {
+            did.push(`${rs.step} could not run: ${(re instanceof Error ? re.message : String(re)).split("\n")[0]}`);
+            recoveredOk = false;
+            break;
+          }
+        }
+        chain.push({ appSaid: cur.t, rule: cur.rule!.source, why: recovery.why, did });
+        if (!recoveredOk) break;
+        try {
+          s.prevMark = s.curMark;
+          s.curMark = await toastMark(s.page);
+          const detail2 = await runStep(s, step);
+          const told = chain.map((c) => `the app refused "${c.appSaid}" (${c.rule}); ${c.why}`).join(", then ");
+          results.push({ step: step.step, args: step.args, status: "ok", detail: `${detail2 ?? ""} — after recovering: ${told}`, recovered: { ...chain[0], did: chain.flatMap((c) => c.did) }, ms: Date.now() - started });
+          console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail2 ?? ""} (after recovering from ${chain.map((c) => `"${c.appSaid}"`).join(" and ")})`);
+          await look(i, step.step, false);
+          recoveredStep = true;
+          break;
+        } catch (retryErr) {
+          const m2 = (retryErr instanceof Error ? retryErr.message : String(retryErr)).split("\n")[0];
+          console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ still refused after recovering (${did.join("; ")}): ${m2}`);
+          const said2 = [
+            ...((/rejected by the app:\s*(.+)$/i.exec(m2)?.[1] ?? "").trim() ? [/rejected by the app:\s*(.+)$/i.exec(m2)![1].trim()] : []),
+            ...(await appMessagesSince(page, s.curMark).catch(() => [])).filter((m) => m.kind === "error" || m.kind === "warning").map((m) => m.text),
+          ].filter((t, k, all) => t && all.indexOf(t) === k);
+          cur = said2.map((t) => ({ t, rule: appRuleFor(t) })).find((x) => x.rule) ?? null;
+          recovery = cur ? recoveryFor(cur.t) : null;
+          if (cur) ruledLast = cur;
+          lastRefusal = m2;
+          if (!cur && said2[0]) ruledLast = null;
+        }
+      }
+      if (recoveredStep) continue;
+
       // The APP refused this step (not the automation failing to perform it) and the case goes on
       // to assert a block: that refusal IS the block — judge it there rather than stopping here.
       const later = /^the app refused/i.test(first) ? plan.steps.findIndex((st, k) => k > i && BLOCK_ASSERTIONS.includes(st.step)) : -1;
@@ -1680,17 +1862,47 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
         console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ refused by the app (the case asserts a block at step ${later + 1}) — ${first}`);
         continue;
       }
-      results.push({ step: step.step, args: step.args, status: "failed", detail, ms: Date.now() - started });
-      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${detail}`);
+      // report the LAST refusal — after recoveries it is the one still standing
+      const lastRule = lastRefusal ? ruledLast : ruled;
+      const ruleNote = lastRule ? ` — the app's own rule (${lastRule.rule!.source})${recoveryFor(lastRule.t) ? "" : "; no known way for the run to satisfy it"}` : said.length ? ` — the app said "${said[0]}", which is not one of its known rules` : "";
+      const failedAt = results.length;
+      const failText = (lastRefusal ?? detail) + (lastRefusal && !lastRule ? " — the app said this after the recoveries above; it is not one of the dashboard's own rules" : ruleNote);
+      results.push({ step: step.step, args: step.args, status: "failed", detail: failText, ms: Date.now() - started });
+      console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✗ ${failText}`);
+      const before = observations.length;
       // The screen the step failed on: the vendor's, for a bid; else the buyer's.
       if (s.failObservation) {
         observations.push(s.failObservation);
         s.failObservation = undefined;
       } else await look(i, step.step, true);
+      const shot = observations.slice(before).find((o) => o.screenshot)?.screenshot;
+      results[failedAt].evidence = {
+        ...(shot ? { screenshot: shot } : {}),
+        url: page.url(),
+        ...(lastRefusal ? { appSaid: [lastRefusal.replace(/^.*rejected by the app:\s*/i, "")] } : said.length ? { appSaid: said.slice(0, 5) } : {}),
+        ...(lastRule ? { rule: { message: lastRule.rule!.message, source: lastRule.rule!.source, ...(lastRule.rule!.condition ? { condition: lastRule.rule!.condition } : {}) } } : {}),
+      };
+      if (shot) console.log(`[plan] evidence: ${shot}`);
       failed = true;
     }
   }
 
   const byHand = results.filter((r) => r.byHand).length;
   return { title: plan.title, steps: results, passed: !failed, ...(byHand ? { byHand } : {}), observations };
+}
+
+/**
+ * The run's own event's purchase orders, polled until some exist. The event is the one in the
+ * page's /project/<id> (its title on screen can differ from the run's title); the newest event
+ * group with the run's title is the fallback.
+ */
+async function waitForOrders(url: string, title: string, ms: number): Promise<DbOrder[]> {
+  const fromUrl = decodeProcolId(url.match(/\/project\/([^/?#]+)/)?.[1] ?? "") ?? undefined;
+  const until = Date.now() + ms;
+  for (;;) {
+    const egId = fromUrl ?? (await eventGroupByTitle(title).catch(() => undefined))?.id;
+    const orders = egId ? await ordersOfEventGroup(egId).catch(() => [] as DbOrder[]) : [];
+    if (orders.length || Date.now() > until) return orders;
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
 }

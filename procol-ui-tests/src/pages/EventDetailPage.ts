@@ -247,6 +247,65 @@ export class EventDetailPage extends BasePage {
     return `window lapsed — the list row now reads: ${state.text}`;
   }
 
+  /**
+   * Create a new version of a published event (project page tab bar → "Create New Version" →
+   * confirm "Create a New Version"). The app archives the current version, makes its bids
+   * read-only, and opens the create screen in edit mode on the copy
+   * (`?projectCreation=true&projectId=…&draftStageIds=…&isEditingAllowed=true`,
+   * projectDetails.jsx handleCreateNewVersion) — where items can be removed or added and the
+   * copy is published again.
+   *
+   * The control only exists when `can_create_new_version` is true (event_group.rb:1091):
+   * the client has is_event_versioning_enabled, the event is not a draft, not withdrawn, the
+   * latest version, has no award proposal that is selected/requested/active, no lot split,
+   * an auction stage only with allow_versioning_post_auction, and the user shares a team
+   * with the event's creator. When it is absent, those are the reasons we report.
+   */
+  async createNewVersion(): Promise<{ url: string; stageIds: string[] }> {
+    const p = this.page;
+    await this.dismissDistractions();
+    // Right after publish the project page is still a spinner; "no button" means nothing until
+    // its tabs have drawn (the button sits in the tab bar's extra content).
+    await p.getByRole("tab", { name: /project details/i }).first().waitFor({ state: "visible", timeout: TIMEOUTS.LONG * 2 }).catch(() => {});
+    await this.waitForSpinnerHidden();
+    // the "+" icon puts its label ("icon: plus") in front of the name — match the end only
+    const direct = p.getByRole("button", { name: /create new version\s*$/i }).first();
+    let opened = await direct.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM }).then(() => true).catch(() => false);
+    if (!opened) {
+      // Once versions exist the control moves into the version picker (a Select whose first
+      // option holds the same button).
+      const picker = p.locator(".ant-select").filter({ hasText: /version/i }).first();
+      if (await picker.isVisible().catch(() => false)) {
+        await picker.click().catch(() => {});
+        opened = await direct.waitFor({ state: "visible", timeout: TIMEOUTS.SHORT }).then(() => true).catch(() => false);
+      }
+    }
+    if (!opened) {
+      throw new Error(
+        'this event offers no "Create New Version" — the app shows it only when versioning is on for the client, ' +
+          "the event is published (not draft/withdrawn), it is the latest version, no award proposal has been submitted or approved, " +
+          "no lot split is done, and (for an auction) versioning after auction is allowed (event_group.rb:1091)",
+      );
+    }
+    await direct.click({ timeout: TIMEOUTS.MEDIUM });
+    const dialog = p.getByRole("dialog").filter({ hasText: /create a new version/i }).last();
+    await dialog.waitFor({ state: "visible", timeout: TIMEOUTS.MEDIUM });
+    await dialog.getByRole("button", { name: /^\s*create a new version\s*$/i }).click({ timeout: TIMEOUTS.MEDIUM });
+    // POST /item_versions, then the app navigates to the create screen on the copy.
+    const landed = await p
+      .waitForURL(/projectCreation=true/i, { timeout: TIMEOUTS.LONG * 2 })
+      .then(() => true)
+      .catch(() => false);
+    if (!landed) {
+      const err = await this.errorToastText(1_500);
+      throw new Error(`the new version did not open for editing${err ? ` — the app said: ${err}` : " (still on the project page after the confirm)"}`);
+    }
+    await p.waitForLoadState("domcontentloaded").catch(() => {});
+    await this.waitForSpinnerHidden();
+    const u = new URL(p.url());
+    return { url: `${u.pathname}${u.search}`, stageIds: (u.searchParams.get("draftStageIds") ?? "").split(",").filter(Boolean) };
+  }
+
   async convertToAuction(): Promise<Page> {
     const p = this.page;
     const menu = p.locator(".ant-dropdown:not(.ant-dropdown-hidden)").last();

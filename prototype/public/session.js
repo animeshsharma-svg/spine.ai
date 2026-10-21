@@ -815,7 +815,7 @@
    * The box a run ends on. `key` names the part of the turn it closes ("API",
    * "UI", a journey) so a part that reports twice replaces its own box.
    */
-  function end({ tone = "ok", key = "", title = "", lines = [], links = [], tag = "" } = {}) {
+  function end({ tone = "ok", key = "", title = "", lines = [], links = [], tag = "", html = "" } = {}) {
     if (!S.on || !el.end) return;
     stopWorking();
     const k = key || "run";
@@ -829,6 +829,7 @@
       (key ? `<span class="ss-call-k">${h(key)}</span>` : "") + `</div>` +
       (title ? `<div class="ss-call-t">${h(title)}</div>` : "") +
       lines.filter(Boolean).map((l) => `<p>${h(l)}</p>`).join("") +
+      (html || "") +
       (links.length
         ? `<div class="ss-call-links">${links
             .map((a) =>
@@ -946,12 +947,15 @@
   }
 
   // ── the typed UI case: the answer renderUiInstructResult already words ───
-  function uiResult({ cls, title, lines = [], runId = "" }) {
+  // `html`: the evidence block app.js builds for a screen run (the failing step's screenshot,
+  // the app's own words, the rule in its code, any step the run recovered) — every value in
+  // it is escaped there.
+  function uiResult({ cls, title, lines = [], runId = "", html = "" }) {
     if (!S.on) return;
     // "part": steps the tester did by hand in the browser — grey, "Partly tested", never a green pass.
     const tone = cls === "ok" ? "ok" : cls === "skip" || cls === "part" ? "skip" : "bad";
     // A run the explorer worked out has its run id: its bugs can be opened from here.
-    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), links: runId && tone === "bad" ? bugLinks(runId) : [], tag: cls === "part" ? "Partly tested" : "" });
+    end({ tone, key: "UI", title: lines[0] || title || "", lines: lines.slice(1), links: runId && tone === "bad" ? bugLinks(runId) : [], tag: cls === "part" ? "Partly tested" : "", html });
   }
 
   /**

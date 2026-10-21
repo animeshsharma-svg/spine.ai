@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20T02:38:02.748Z",
+  "generatedAt": "2026-10-21T07:53:27.915Z",
   "steps": [
     {
       "name": "open_events_list",
@@ -89,7 +89,7 @@
     },
     {
       "name": "reschedule_event",
-      "purpose": "On an UPCOMING event's page, open Settings → \"Reschedule Event\" (if the dialog is not already open), set \"Make Order Live At\" (date + time) and optionally the Delivery / Pickup Date, press Ok, and judge the dialog's own answer. Times are RELATIVE to now: start \"+2h\", \"+1d\", \"-30m\" — or to the event's CURRENT start with an S: \"S+2h\" (minutes round up to the picker's 5-minute step). The dialog's buttons are Cancel / Ok — never click \"Save Schedule\" here (that is the create screen). Refusals it shows: \"Scheduled time is invalid!\" (a past time) and \"Schedule time should be on or before Delivery Date\" (start after delivery); days before today are disabled in the calendar, which also counts as refused. expect \"refused\" for a negative case (add message for the words), \"saved\" (default) when it should go through. When it saves, the step also reads what the save SENT and checks the round keeps its length and its closing grace (against the window the API built) — keepsLength:false turns that off.",
+      "purpose": "On an UPCOMING event's page, open Settings → \"Reschedule Event\" (if the dialog is not already open), set \"Make Order Live At\" (date + time) and optionally the Delivery / Pickup Date, press Ok, and judge the dialog's own answer. Times are RELATIVE to now: start \"+2h\", \"+1d\", \"-30m\" — or to the event's CURRENT start with an S: \"S+2h\" (minutes round up to the picker's 5-minute step). The dialog's buttons are Cancel / Ok — never click \"Save Schedule\" here (that is the create screen). Refusals it shows: \"Scheduled time is invalid!\" (a past time) and \"Schedule time should be on or before Delivery Date\" (start after delivery); days before today are disabled in the calendar, which also counts as refused. expect \"refused\" for a negative case (add message for the words), \"saved\" (default) when it should go through. When it saves, the step also reads what the save SENT and checks the round keeps its length and its closing grace (against the window the API built) — keepsLength:false turns that off. It closes the dialog when it is done, so never follow it with expect_field_error / expect_message on a dialog field: put the expected words in `message`. A past DAY (\"-1d\") is greyed out in the calendar and counts as refused.",
       "args": {
         "start": "\"+2h\" | \"-30m\" | \"+3d\" from now, or \"S+2h\" from the current start (optional)",
         "delivery": "\"+1d\" relative day for Delivery / Pickup Date (optional)",
@@ -165,6 +165,24 @@
       "args": {
         "id": "project id from a URL (optional)",
         "title": "event title the case names (optional; leave out to return to this plan's event, or to let the run pick a fitting existing one)"
+      }
+    },
+    {
+      "name": "inventory_screen",
+      "purpose": "Record what the current screen offers — every button, tab, field, select, switch, column and banner, with disabled/required state — plus a screenshot and the accessibility tree. Asserts nothing. Used to write test cases from a screen; not for ordinary test cases.",
+      "args": {
+        "label": "short name for the screen, e.g. \"create-erfx\""
+      }
+    },
+    {
+      "name": "create_new_version",
+      "purpose": "On a PUBLISHED event's project page (after publish + expect_published, or open_event), create a new version: \"Create New Version\" → confirm. The old version is archived and its bids become read-only; the create screen opens in edit mode on the copy, with the same stages, templates and line items. Follow it with the edits the case asks for (remove_line_items, add_line_items), then set_schedule and publish to publish the version. Only possible BEFORE any award proposal is submitted — never after award_event."
+    },
+    {
+      "name": "remove_line_items",
+      "purpose": "On the create screen (a new version, or a fresh event before publish), delete line items in the Manage Line Items panel — each row's trash icon, confirm Delete — then Save. Removes from the end; at least one item must remain.",
+      "args": {
+        "count": "how many line items to remove"
       }
     },
     {
@@ -344,6 +362,26 @@
       "args": {
         "vendor": "vendor to award to; defaults to whichever bid can be allocated"
       }
+    },
+    {
+      "name": "approve_award",
+      "purpose": "After award_event, approve the submitted award on its proposal page (remark + Approve), step by step, while the run's buyer is the pending approver. When another person is the approver, the case is reported as not checked.",
+      "args": {
+        "remark": "approval remark (optional; the app requires one)"
+      }
+    },
+    {
+      "name": "create_po",
+      "purpose": "After award_event, make the purchase order(s): approve the award to completion — the app then creates one PO per awarded vendor — and read the POs back. Use for \"create the PO\" / \"raise a purchase order\". Not available when the client makes POs through the custom PO form."
+    },
+    {
+      "name": "expect_po_items",
+      "purpose": "After create_po, assert the purchase orders carry exactly the awarded line items (default: the event's current line items), each with a quantity; optionally a quantity every line must carry.",
+      "args": {
+        "count": "expected number of PO lines across all POs (optional)",
+        "quantity": "quantity every PO line must carry (optional)"
+      },
+      "assertion": true
     },
     {
       "name": "start_awarding",
@@ -769,6 +807,9 @@
     "expect_counter_offer_sent",
     "close_event",
     "open_event",
+    "inventory_screen",
+    "create_new_version",
+    "remove_line_items",
     "accept_counter_offer",
     "expect_counter_offer_accepted",
     "capture_screen",
@@ -796,6 +837,9 @@
     "place_bid",
     "place_surrogate_bid",
     "award_event",
+    "approve_award",
+    "create_po",
+    "expect_po_items",
     "start_awarding",
     "allocate_award",
     "expect_award_counters",

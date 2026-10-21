@@ -265,6 +265,80 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(why);
   };
 
+  // reschedule_event judges the Reschedule dialog's own answer (its field message, the save
+  // call) and then CLOSES the dialog. A check of a dialog field after it can only fail ("no
+  // field 'Make Order Live At' on screen" — UI-EVDTME-002), so it is folded into the step's
+  // `message` and dropped. A "no save request" check must name the dialog's real save
+  // (PATCH …/template_input); the compiler guessed `edit_trade_schedules`, which can never fail.
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i].step !== "reschedule_event") continue;
+    const rs = steps[i];
+    for (let k = i + 1; k < steps.length && steps[k].step !== "reschedule_event"; ) {
+      const st = steps[k];
+      const a: any = st.args ?? {};
+      const label = String(a.field ?? a.label ?? a.target?.name ?? a.target?.label ?? "");
+      const said = String(a.message ?? a.text ?? "");
+      const dialogField = /make order live at|delivery date|pickup date/i.test(label);
+      const sameWords = !!said && !!rs.args?.message && said.toLowerCase().includes(String(rs.args.message).toLowerCase().replace(/!$/, ""));
+      if (["expect_field_error", "expect_message", "expect_error"].includes(st.step) && (dialogField || sameWords)) {
+        if (said && !rs.args?.message) rs.args = { ...(rs.args ?? {}), message: said };
+        steps.splice(k, 1);
+        repairs.push(`dropped ${st.step}${label ? ` on "${label}"` : ""} after reschedule_event — the step judges the dialog's message itself and closes the dialog`);
+        continue;
+      }
+      if (st.step === "expect_request" && a.absent && !/template_input/.test(String(a.path ?? ""))) {
+        st.args = { ...a, path: "/template_input", method: "PATCH" };
+        repairs.push("expect_request now names the Reschedule dialog's real save (PATCH …/template_input)");
+      }
+      k++;
+    }
+  }
+
+  // A new version is an edit of a PUBLISHED event that has no award yet (event_group.rb:1091:
+  // no proposal selected/requested/active), and the copy must be published again before anyone
+  // can bid on it. So: the version block (create_new_version … its edits) goes after the first
+  // publish and before any bid/close/award; and it ends with set_schedule + publish +
+  // expect_published when the plan did not say so (the old window may have run out).
+  const AFTER_PUBLISH = new Set(["place_bid", "place_surrogate_bid", "close_event", "open_master_qcs", "award_event", "start_awarding", "allocate_award", "create_po", "expect_po_items"]);
+  const nv = indexOf("create_new_version");
+  if (nv >= 0) {
+    let end = nv + 1;
+    while (end < steps.length && !["publish", "expect_published"].includes(steps[end].step) && !AFTER_PUBLISH.has(steps[end].step)) end++;
+    const firstLater = steps.findIndex((s, i) => i < nv && ["award_event", "start_awarding", "allocate_award", "create_po"].includes(s.step));
+    if (firstLater >= 0) {
+      const block = steps.splice(nv, end - nv);
+      const pub = steps.findIndex((s) => s.step === "expect_published");
+      const at = pub >= 0 && pub < firstLater ? pub + 1 : firstLater;
+      steps.splice(at, 0, ...block);
+      repairs.push("moved create_new_version before the award — the app offers a new version only while no award proposal exists");
+    }
+    const v = indexOf("create_new_version");
+    let e = v + 1;
+    while (e < steps.length && !["publish", "expect_published"].includes(steps[e].step) && !AFTER_PUBLISH.has(steps[e].step)) e++;
+    if (steps[e]?.step !== "publish") {
+      const block = steps.slice(v + 1, e);
+      const add: PlanStep[] = [];
+      if (!block.some((s) => s.step === "set_schedule")) add.push({ step: "set_schedule", args: { minutes: 3 } } as PlanStep);
+      add.push({ step: "publish" } as PlanStep, { step: "expect_published" } as PlanStep);
+      steps.splice(e, 0, ...add);
+      repairs.push("the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only");
+    }
+    if (steps.slice(0, v).some((s) => s.step === "place_bid" || s.step === "place_surrogate_bid")) {
+      repairs.push("note: bids placed before create_new_version stay on the archived version (read-only) — they cannot be awarded");
+    }
+  }
+
+  // THE EVENT'S LIFECYCLE, for every combination a case can ask for. Each lifecycle step says
+  // which state it needs and which it leaves; walking the plan, a step whose state is not
+  // reached gets the shortest bridge inserted in front of it (publish before bidding, a bid
+  // before awarding, close before award, award before PO …). A negative case (it asserts a
+  // refusal) is left as written — its point may be exactly the missing state.
+  if (!steps.some((s) => ["expect_publish_blocked", "expect_error", "expect_message", "attempt", "skip", "expect_disabled"].includes(s.step))) {
+    const bridged = bridgeLifecycle(steps, (plan as { context?: { state?: string } }).context?.state);
+    steps.splice(0, steps.length, ...bridged.steps);
+    repairs.push(...bridged.repairs);
+  }
+
   // A PREPARED-STATE plan (docs/ui-automation-design.md §2): the event was built
   // through the API and open_prepared opens the screen the case is about. No
   // create screen, no title, no search — only the steps the case is about.
@@ -1331,9 +1405,32 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
   // The model's own "unconfirmed label" notes are label guesses, not missing
   // steps: they are judged with the deterministic label check below.
   const modelGuesses = declaredGaps.filter((g) => /^unconfirmed label/i.test(g));
-  const gaps = declaredGaps.filter((g) => !/^unconfirmed label/i.test(g));
+  let gaps = declaredGaps.filter((g) => !/^unconfirmed label/i.test(g));
+  const declaredGapCount = gaps.length;
+  // Gaps the reschedule step already covers, which the model keeps listing (UI-EVDTME-002):
+  // a past DAY is asked for with start "-1d" (the calendar disables it — counted as refused),
+  // and the refusal is read from the dialog field's own help text, i.e. under that field.
+  const rsIdx = linted.plan.steps.findIndex((st) => st.step === "reschedule_event");
+  if (rsIdx >= 0) {
+    const pastDay = (g: string) => /past (calendar )?days?|days? (in the past|before today)|disabled (in the )?(date )?(picker|calendar)|calendar.*disabled/i.test(g);
+    const underField = (g: string) => /(under|below|beneath|next to|at) the (relevant |date |start )?(field|input)|field'?s? (own )?(error|help|message)|rendered specifically under/i.test(g);
+    if (gaps.some(pastDay)) {
+      if (!linted.plan.steps.some((st) => st.step === "reschedule_event" && /^\s*-\s*\d+\s*d/i.test(String(st.args?.start ?? "")))) {
+        linted.plan.steps.splice(rsIdx, 0, { step: "reschedule_event", args: { start: "-1d", expect: "refused" }, note: "a past day is disabled in the calendar" });
+        warnings.push('added reschedule_event{start:"-1d", expect:"refused"} — a past day is greyed out in the calendar, which the step reports as refused');
+      }
+      gaps = gaps.filter((g) => !pastDay(g));
+    }
+    if (gaps.some(underField)) {
+      gaps = gaps.filter((g) => !underField(g));
+      warnings.push("reschedule_event reads the refusal from the dialog field's own help text — that is the message under the field");
+    }
+  }
+  // The model's "partial" rests on the gaps it listed: when every one of them was resolved
+  // above (a step that covers it was added or already present), its "partial" goes with them.
+  const gapsAllResolved = declaredGapCount > 0 && gaps.length === 0;
   let coverage: CompileResult["coverage"] =
-    parsed.coverage === "none" ? "none" : parsed.coverage === "partial" || gaps.length ? "partial" : "full";
+    parsed.coverage === "none" ? "none" : (parsed.coverage === "partial" && !gapsAllResolved) || gaps.length ? "partial" : "full";
   // A model that lists gaps but claims full coverage is contradicting itself;
   // the gaps are the more specific claim, so they win.
   if (coverage === "full" && gaps.length) coverage = "partial";
@@ -1373,4 +1470,78 @@ export async function compileTestCase(testCase: string, moduleHint = "events", o
     coverage,
     gaps: allGaps,
   };
+}
+
+// ── the event lifecycle, as the steps move it ──────────────────────────────
+type LifeState = "none" | "editing" | "published" | "bid" | "closed" | "awarded" | "ordered";
+/** Which states a lifecycle step can run in, and the state it leaves. Steps not listed do not move it. */
+const LIFE: Record<string, { needs: LifeState[]; makes?: LifeState }> = {
+  open_create: { needs: ["none", "editing", "published", "bid", "closed", "awarded", "ordered"], makes: "editing" },
+  publish: { needs: ["editing"], makes: "published" },
+  create_new_version: { needs: ["published", "bid"], makes: "editing" },
+  place_bid: { needs: ["published", "bid"], makes: "bid" },
+  place_surrogate_bid: { needs: ["published", "bid"], makes: "bid" },
+  close_event: { needs: ["published", "bid"], makes: "closed" },
+  award_event: { needs: ["closed"], makes: "awarded" },
+  start_awarding: { needs: ["closed"] },
+  approve_award: { needs: ["awarded"] },
+  create_po: { needs: ["awarded"], makes: "ordered" },
+  expect_po_items: { needs: ["ordered"] },
+};
+const AWARDING = new Set(["award_event", "start_awarding"]);
+const RANK: Record<LifeState, number> = { none: 0, editing: 1, published: 2, bid: 3, closed: 4, awarded: 5, ordered: 6 };
+
+/**
+ * Walk a plan through the lifecycle and insert, in front of any step whose state is not
+ * reached yet, the shortest bridge to it. Only plans that start from the create screen are
+ * walked — an existing event's state is not known here. A step that cannot be reached from
+ * where the plan is (a new version after the award) is left in place and named.
+ */
+export function bridgeLifecycle(input: PlanStep[], start?: string): { steps: PlanStep[]; repairs: string[] } {
+  const repairs: string[] = [];
+  if (start && start !== "none") return { steps: input, repairs };
+  if (input[0]?.step !== "open_create") return { steps: input, repairs };
+  const out: PlanStep[] = [];
+  let state = "none" as LifeState;
+  let hasBid = false;
+  const add = (st: PlanStep, why: string) => {
+    out.push(st);
+    repairs.push(why);
+    apply(st);
+  };
+  const apply = (st: PlanStep) => {
+    const m = LIFE[st.step]?.makes;
+    if (st.step === "place_bid" || st.step === "place_surrogate_bid") hasBid = true;
+    if (st.step === "create_new_version") hasBid = false; // the old version's bids are read-only
+    if (m) state = m;
+  };
+  for (const st of input) {
+    const rule = LIFE[st.step];
+    for (let guard = 0; rule && !rule.needs.includes(state) && guard < 8; guard++) {
+      // the nearest state ahead that this step accepts; behind us means it cannot be reached
+      const ahead = rule.needs.filter((n) => RANK[n] > RANK[state]).sort((x, y) => RANK[x] - RANK[y])[0];
+      const wantsAward = !!ahead && (RANK[ahead] >= RANK.awarded || AWARDING.has(st.step));
+      if (!ahead) {
+        repairs.push(`note: ${st.step} cannot run on a ${state} event (it needs ${rule.needs.join(" or ")}) — left as written`);
+        break;
+      } else if (state === "editing") {
+        add({ step: "publish" }, `added publish before ${st.step} — it needs a published event`);
+        out.push({ step: "expect_published" });
+      } else if (state === "published" && (ahead === "bid" || (wantsAward && !hasBid))) {
+        add({ step: "place_surrogate_bid", args: { price: 100 } }, `added a surrogate bid before ${st.step} — an award needs a bid to allocate`);
+      } else if (state === "published" || state === "bid") {
+        add({ step: "close_event" }, `added close_event before ${st.step} — awarding opens once bidding has ended`);
+      } else if (state === "closed") {
+        add({ step: "award_event" }, `added award_event before ${st.step} — it needs an award`);
+      } else if (state === "awarded") {
+        add({ step: "create_po" }, `added create_po before ${st.step} — it checks the purchase orders the approved award creates`);
+      } else {
+        repairs.push(`note: ${st.step} cannot be reached from a ${state} event — left as written`);
+        break;
+      }
+    }
+    out.push(st);
+    apply(st);
+  }
+  return { steps: out, repairs };
 }
