@@ -73,6 +73,8 @@ export interface ScreenCase {
   fromEffect?: number;
   /** the compiled browser plan, kept here too so the case runs even when the drafts table is away */
   plan?: unknown;
+  /** the event state and screen the plan was compiled for (the API builds that state before the run) */
+  prep?: { state: string; screen: string; technical?: boolean; prepared: boolean };
 }
 
 export interface ScreenRecord {
@@ -490,28 +492,97 @@ export async function newCaseOnScreen(id: string, text: string, opts: { companyI
   return { case: sc, plan: compiled.plan, coverage: compiled.coverage, gaps: compiled.gaps ?? [], reasoning: compiled.reasoning };
 }
 
+export interface ScreenPrep {
+  /** the event state the API builds before the run ("none" = the plan starts from nothing) */
+  state: "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded";
+  /** a SCREENS key (procol-ui-tests/src/plan/screens.ts) the plan opens first, or "create" */
+  screen: string;
+  screenWhat: string;
+  technical: boolean;
+  /** true when the plan must start with open_prepared on the built event */
+  prepared: boolean;
+  why: string;
+}
+
+const WHAT: Record<string, string> = {
+  events_list: "the events list",
+  drafts_list: "the Drafts tab of the events list",
+  history_list: "the History tab of the events list",
+  create: "a new event's create screen",
+  summary: "the event's summary page",
+  responses: "the pricing round's Responses (comparison) tab",
+  overview: "the pricing round's Overview tab",
+  participants: "the pricing round's Participants tab",
+  master_qcs: "Master QCS",
+  analytics: "the pricing round's Analytics tab",
+  proposal: "the award proposal page",
+};
+
+/** The API values a prepared state exposes to expect_api_value (uiSetup.ts). */
+export const VALUE_KEYS: Record<string, string[]> = { none: [], draft: ["title", "quantity", "unit"], upcoming: ["title", "quantity", "unit", "vendorName"], live: ["title", "quantity", "unit", "vendorName"], bid: ["title", "vendorName", "quantity", "unit", "bidPrice", "bidTotal"] };
+VALUE_KEYS.closed = VALUE_KEYS.bid;
+VALUE_KEYS.awarded = VALUE_KEYS.bid;
+VALUE_KEYS.proposal = VALUE_KEYS.bid;
+
 /**
- * The browser plan behind a screen case: the one stored with it, else compiled now from the
- * case's own words with the route to its screen in front (and kept for next time).
+ * Which event the cases of a screen must run on. A screen photographed on a published event
+ * (a project page, Master QCS, the proposal) is never tested on that stale event or on one
+ * found by searching the list: the API builds an event in the state the screen needs — with
+ * bids in for anything about comparing or awarding — and the plan opens it by its route.
  */
-export async function planForScreenCase(caseId: string, screenId?: string, onLine?: (l: string) => void): Promise<{ plan?: { title?: string; steps?: unknown[] }; coverage?: string; gaps?: string[]; why?: string; compiledNow?: boolean }> {
+export function screenPrep(r: ScreenRecord): ScreenPrep {
+  const path = `${r.path}${r.url.includes("?") ? r.url.slice(r.url.indexOf("?")) : ""}`;
+  const label = r.label.toLowerCase();
+  const technical = /technical|rfp|questionnaire|evaluat/.test(label) && !/single-stage/.test(label);
+  const mk = (state: ScreenPrep["state"], screen: string, why: string, prepared = true): ScreenPrep => ({ state, screen, screenWhat: WHAT[screen] ?? screen, technical, prepared, why });
+  if (/quick-create|\/orders\/create/.test(path)) return mk("none", "create", "a create screen: the plan starts from nothing", false);
+  if (/^\/orders\/?(\?|$)/.test(path)) {
+    if (/tab=draft|draft/.test(path + label)) return mk("draft", "drafts_list", "the Drafts tab: the API saves a draft first");
+    if (/tab=history|history/.test(path + label)) return mk("closed", "history_list", "the History tab: the API builds a closed event first");
+    return mk("none", "events_list", "the events list: the plan starts from the list", false);
+  }
+  if (/\/proposal\//.test(path) || /proposal/.test(label)) return mk("proposal", "proposal", "the award proposal: the API builds an event with bids and a proposal");
+  const known = r.state && r.state !== "none" ? (r.state as ScreenPrep["state"]) : undefined;
+  const needsBids = /qcs|bid|award|respons|analytic|counter|compare|allocat/.test(label);
+  const state: ScreenPrep["state"] = known ?? (needsBids ? "bid" : "live");
+  const screen = /\/master_qcs/.test(path) ? "master_qcs" : /\/awarding\//.test(path) ? "master_qcs" : /tab=audience/.test(path) ? "participants" : /tab=compare/.test(path) ? "responses" : /tab=analytics/.test(path) ? "analytics" : /tab=order_info/.test(path) ? "overview" : /\/details/.test(path) ? "summary" : needsBids ? "responses" : "summary";
+  return mk(state, screen, `${r.label}: the API builds a ${state} event${state === "bid" || state === "closed" ? " with a vendor's bid in" : ""} and the plan opens ${WHAT[screen] ?? screen} on it`);
+}
+
+/**
+ * The browser plan behind a screen case: the one stored with it (compiled for the same state and
+ * screen), else compiled now from the case's own words against the state its screen needs, and
+ * kept for next time.
+ */
+export async function planForScreenCase(caseId: string, screenId?: string, onLine?: (l: string) => void, opts: { recompile?: boolean } = {}): Promise<{ plan?: { title?: string; steps?: unknown[] }; coverage?: string; gaps?: string[]; why?: string; compiledNow?: boolean; prep?: ScreenPrep; reasoning?: string }> {
   const screens = screenId ? [getScreen(screenId)].filter((x): x is ScreenRecord => !!x) : listScreens().map((x) => getScreen(x.id)).filter((x): x is ScreenRecord => !!x);
   for (const r of screens) {
     const c = r.cases.find((x) => x.id === caseId);
     if (!c) continue;
-    const stored = c.plan as { steps?: unknown[] } | undefined;
-    if (stored?.steps?.length) return { plan: stored as { title?: string; steps?: unknown[] }, coverage: c.coverage, gaps: c.gaps };
-    const reach = r.reachedBy.length ? `Reach the ${r.label} screen the way the walk did: ${r.reachedBy.map((s) => s.step.replace(/_/g, " ")).join(", then ")}.` : `Open the ${r.label} screen (${r.path}).`;
-    const text = `${c.title}. ${c.setup ? `Setup: ${c.setup} ` : ""}${reach} Steps: ${c.steps.join(" ")} Expected: ${c.expected}${r.state && r.state !== "none" ? ` The event is in state "${r.state}".` : ""}`;
-    onLine?.(`[screen] compiling ${caseId} from its words (no stored plan)…`);
-    const compiled = await compileTestCase(text, "events", { tier: "reason" }).catch((e) => ({ why: (e as Error).message }));
-    if ("why" in compiled) return { why: `could not compile ${caseId}: ${compiled.why}` };
-    if (!compiled.plan?.steps?.length || compiled.coverage === "none") return { why: `${caseId} cannot be expressed in browser steps yet${compiled.gaps?.[0] ? `: ${compiled.gaps[0]}` : ""}` };
-    c.plan = compiled.plan;
+    const prep = screenPrep(r);
+    const stored = c.plan as { steps?: Array<{ step?: string }> } | undefined;
+    const sameState = c.prep && c.prep.state === prep.state && c.prep.screen === prep.screen;
+    const startsRight = !prep.prepared || stored?.steps?.[0]?.step === "open_prepared";
+    if (!opts.recompile && stored?.steps?.length && sameState && startsRight) return { plan: stored as { title?: string; steps?: unknown[] }, coverage: c.coverage, gaps: c.gaps, prep };
+    const reach = prep.prepared
+      ? ""
+      : r.reachedBy.length
+        ? ` Reach the ${r.label} screen the way the walk did: ${r.reachedBy.map((s) => s.step.replace(/_/g, " ")).join(", then ")}.`
+        : ` Open the ${r.label} screen (${r.path}).`;
+    const text = `${c.title}. ${c.setup ? `Setup: ${c.setup}` : ""}${reach} Steps: ${c.steps.join(" ")} Expected: ${c.expected}`;
+    onLine?.(`[screen] compiling ${caseId} for ${prep.prepared ? `a ${prep.state} event, opening ${prep.screenWhat}` : prep.screenWhat}…`);
+    const compiled = await compileTestCase(text, "events", {
+      tier: "reason",
+      ...(prep.prepared ? { prepared: { state: prep.state, screen: prep.screen, screenWhat: prep.screenWhat, valueKeys: VALUE_KEYS[prep.state] ?? [], technical: prep.technical } } : {}),
+    }).catch((e) => ({ why: (e as Error).message }));
+    if ("why" in compiled) return { why: `could not compile ${caseId}: ${compiled.why}`, prep };
+    c.prep = { state: prep.state, screen: prep.screen, technical: prep.technical, prepared: prep.prepared };
     c.coverage = compiled.coverage;
     c.gaps = compiled.gaps ?? [];
+    c.plan = compiled.plan?.steps?.length && compiled.coverage !== "none" ? compiled.plan : undefined;
     saveRecord(r);
-    return { plan: compiled.plan, coverage: compiled.coverage, gaps: compiled.gaps, compiledNow: true };
+    if (!c.plan) return { why: `${caseId} cannot be expressed in browser steps yet${compiled.gaps?.[0] ? `: ${compiled.gaps[0]}` : ""}`, prep, coverage: compiled.coverage, gaps: compiled.gaps };
+    return { plan: compiled.plan, coverage: compiled.coverage, gaps: compiled.gaps, compiledNow: true, prep, reasoning: compiled.reasoning };
   }
   return { why: `no screen holds the case ${caseId}` };
 }

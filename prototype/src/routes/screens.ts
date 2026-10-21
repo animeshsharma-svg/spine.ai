@@ -22,6 +22,7 @@ import { caseFromEffect, getScreen, listScreens, newCaseOnScreen, planForScreenC
 import { getWalk, listWalks, runningWalk, startWalk, stopWalk, subscribeWalk, WALKS } from "../agents/screenWalk.js";
 import { getDraftAutomation } from "../agents/drafts.js";
 import { runUiPlan, readPlanResult } from "../ui/uiFlowRunner.js";
+import { buildUiState } from "../ui/uiSetup.js";
 
 const COMBOS_LATEST = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "data", "combos", "latest.json");
 
@@ -129,24 +130,41 @@ export const handle: RouteHandler = async (ctx) => {
     const out = ctx.sse();
     // The plan: the drafts table first, then the screen record (kept there too), else compiled
     // now from the case's own words with the route to its screen in front.
-    const auto = draft ? await getDraftAutomation(draft).catch(() => null) : null;
-    let plan = auto?.uiPlan as { title?: string; steps?: unknown[] } | undefined;
+    // The plan comes from the screen record (compiled for the state its screen needs), falling
+    // back to the drafts table for cases that live only there.
+    out.send("stage", { name: "compile", line: `Finding ${draft}'s browser plan…` });
+    const r = await planForScreenCase(draft, screen, (l) => out.send("log", { line: l }));
+    let plan = r.plan as { title?: string; steps?: unknown[] } | undefined;
+    let context: Record<string, unknown> | undefined;
     if (!plan?.steps?.length) {
-      out.send("stage", { name: "compile", line: `Finding ${draft}'s browser plan…` });
-      const r = await planForScreenCase(draft, screen, (l) => out.send("log", { line: l }));
-      if (r.why || !r.plan?.steps?.length) {
-        out.send("run-error", { line: r.why ?? `${draft} has no browser plan yet` });
+      const auto = draft ? await getDraftAutomation(draft).catch(() => null) : null;
+      plan = auto?.uiPlan as { title?: string; steps?: unknown[] } | undefined;
+    }
+    if (!plan?.steps?.length) {
+      out.send("run-error", { line: r.why ?? `${draft} has no browser plan yet` });
+      out.send("done", { exitCode: 1 });
+      out.end();
+      return true;
+    }
+    if (r.compiledNow) out.send("stage", { name: "compile", line: `Compiled ${draft}: ${plan.steps.length} step(s), coverage ${r.coverage}` });
+    if (r.prep?.prepared) {
+      // Never a stale event or one found by search: build the state this screen needs.
+      out.send("stage", { name: "setup", line: `Building a "${r.prep.state}" event through the API${r.prep.state === "bid" || r.prep.state === "closed" ? " (a vendor's bid in)" : ""}…` });
+      const b: any = await buildUiState(c, r.prep.state, { technical: r.prep.technical, onLine: (l) => out.send("log", { line: l }) }).catch((e) => ({ ok: false, why: (e as Error).message }));
+      const x = b.ok ? b.context : null;
+      if (!x) {
+        out.send("run-error", { line: `the API could not build the ${r.prep.state} state this case needs: ${b.why}` });
         out.send("done", { exitCode: 1 });
         out.end();
         return true;
       }
-      plan = r.plan;
-      if (r.compiledNow) out.send("stage", { name: "compile", line: `Compiled ${draft}: ${plan.steps!.length} step(s), coverage ${r.coverage}` });
+      context = { state: x.state, eventGroupUuid: x.eventGroupUuid, stageUuid: x.stageUuid, technicalStageUuid: x.technicalStageUuid, proposalUuid: x.made?.proposalUuid, title: x.title, vendorName: x.vendorName, vendorEmail: x.vendorEmail, values: x.values, buyerUserId: x.buyerUserId };
+      out.send("stage", { name: "setup", line: `Event ready: "${x.title ?? x.eventGroupUuid}" (${r.prep.state})${x.vendorName ? ` · vendor ${x.vendorName}` : ""}` });
     }
     const runId = `scr-${Date.now().toString(36)}`;
     const steps = plan.steps ?? [];
     out.send("stage", { name: "execute", line: `Running ${draft}: ${steps.length} step(s), spotlight on` });
-    const { stop } = runUiPlan({ plan, companyId: c, runId, headed: false }, (e) => {
+    const { stop } = runUiPlan({ plan: { ...plan, ...(context ? { context } : {}) }, companyId: c, runId, headed: false }, (e) => {
       const ending = e.type === "done" || e.type === "run-error";
       if (ending) {
         const result = readPlanResult(runId);

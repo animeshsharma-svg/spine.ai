@@ -172,6 +172,7 @@ Combinations (the permutation map — pick the path that can actually reach what
 - Knockout and Dutch auctions exist ONLY through RFQ → Auction conversion: create and publish an RFQ (eRFX, compose_stages ["rfq"]), expect_published, then convert_to_auction. Never compose_stages ["rfq","auction"] — the screen forbids it.
 - Awarding RULE (entire lot to one vendor vs line-item-wise across vendors) is set with configure_single_stage{awarding} on single-stage; on eRFX it is per stage and has no step yet.
 - Bidding side: place_bid = the vendor from the supplier portal; place_surrogate_bid = the buyer on the vendor's behalf. Two competing vendors = two bid steps naming different vendors. Surrogate bids are not possible on knockout/dutch auctions or technical stages.
+- Bidding RULES the product enforces (captured live, 21 Oct 2026): (1) a vendor bids ONCE — after a bid is in, that vendor's "Add Bid" control is gone, so a second bid must name a DIFFERENT vendor; (2) bids for N vendors need N vendors on the event: invite_vendor{count: N} (or names) before publish; (3) no bid after the bidding window has ended — the app answers "Order not active" — except a surrogate bid on a tenant whose config "is_allowed_to_add_surrogate_bid_post_expiry" is on (a case about that must say which tenant); (4) a counter offer needs the VENDOR's own bid — the Counter Offer button is disabled on a surrogate bid; (5) comparing, Master QCS and awarding need an event WITH BIDS: never search the list for "some" event — start from the prepared state ("bid") the API builds, or create → publish → bid in the same plan.
 - Counter offer (buyer negotiates a vendor's bid): only after a vendor has bid — publish, place_bid (or place_surrogate_bid), open_master_qcs, then place_counter_offer{vendor, price}, then expect_counter_offer_sent. The vendor's ACCEPTANCE: accept_counter_offer{vendor} (vendor side, supplier portal) then expect_counter_offer_accepted (buyer grid).
 - A technical (RFP) stage never carries an auction strategy or a pricing sheet; RFQ and Auction never coexist on one eRFX screen.
 - BOQ events: open_create path "boq"; line items are BOQ rows; still template-first.
@@ -697,6 +698,22 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
           st.args = { ...(st.args ?? {}), vendor: first };
           repairs.push(`${st.step} now bids as ${first} — the vendor the plan's assertions are about`);
         }
+      }
+    }
+  }
+
+  // Bids for N vendors need N vendors on the event: the product removes a vendor's Add Bid once
+  // that vendor has bid, so a second surrogate bid with one participant found nobody (E4, 2026-10-21).
+  {
+    const bids = steps.filter((st) => st.step === "place_surrogate_bid" || st.step === "place_bid");
+    const distinct = new Set(bids.map((st, i) => String(st.args?.vendor ?? `#${i}`))).size;
+    const inv = steps.find((st) => st.step === "invite_vendor");
+    if (inv && distinct > 1) {
+      const names = Array.isArray(inv.args?.names) ? (inv.args!.names as unknown[]).length : Array.isArray(inv.args?.vendors) ? (inv.args!.vendors as unknown[]).length : 0;
+      const count = Number(inv.args?.count ?? 0);
+      if (names < distinct && count < distinct) {
+        inv.args = { ...(inv.args ?? {}), count: distinct };
+        repairs.push(`invite_vendor now asks for ${distinct} vendors — the plan places ${distinct} bids, and a vendor can bid only once`);
       }
     }
   }
